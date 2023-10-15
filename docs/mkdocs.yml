@@ -1,0 +1,157 @@
+site_name: OpenEx Documentation
+site_description: Documentation about OpenEx, the next-generation cyber crisis exercises and attack simulation Tool.
+site_author: Filigran
+site_url: https://docs.openex.io
+copyright: © 2023 Filigran. All rights reserved
+repo_name: GitHub
+repo_url: https://github.com/OpenEx-Platform/openex
+edit_uri: https://github.com/OpenEx-Platform/docs/blob/main/docs/
+
+# Theming
+theme:
+  name: material
+  custom_dir: overrides
+  logo: assets/logo.png
+  features:
+    - navigation.tabs
+    - navigation.path
+    - navigation.footer
+    - navigation.expand
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - search.highlight
+  palette:
+    scheme: filigran
+  font:
+    text: IBM Plex Sans
+    code: Roboto Mono
+# CSS
+extra_css:
+  - assets/css/custom.css
+
+# Extra
+extra:
+  version:
+    provider: mike
+  analytics:
+    provider: google
+    property: G-D12HQ64D7C
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/OpenEx-Platform
+    - icon: fontawesome/brands/medium
+      link: https://blog.filigran.io
+    - icon: fontawesome/brands/slack
+      link: https://community.filigran.io
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/company/filigran
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/FiligranHQ
+    - icon: fontawesome/brands/facebook
+      link: https://facebook.com/FiligranHQ
+
+# Plugins
+plugins:
+  - mike:
+      alias_type: symlink
+      canonical_version: latest  
+  - search
+  - git-committers:
+      repository: OpenEx-Platform/docs
+      branch: main  
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+  - glightbox
+
+# Extensions
+markdown_extensions: 
+  - attr_list
+  - md_in_html
+  - tables
+  - admonition   
+  - def_list
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.smartsymbols
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.betterem
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true   
+  - pymdownx.highlight:
+      use_pygments: true
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: false
+      auto_title: false
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg   
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.snippets:
+      url_download: true
+
+# Page tree
+nav:
+  - Home: 'index.md'
+  - Deployment & Setup:
+    - Platform:
+      - Overview: deployment/overview.md
+      - Installation: deployment/installation.md
+      - Configuration: deployment/configuration.md
+      - Authentication: deployment/authentication.md
+      - Upgrade: deployment/upgrade.md
+    - Ecosystem:
+      - Injectors: deployment/connectors.md
+      - Integrations: deployment/integrations.md
+      - Other resources: deployment/resources.md
+    - Advanced:
+      - Clustering: deployment/clustering.md
+      - Troubleshooting: deployment/troubleshooting.md
+  - User Guide:
+    - Getting started: usage/getting-started.md
+    - Foundations:
+      - Exercises and campaigns: usage/exercises.md
+    - Managing exercises:
+      - Overview: usage/overview.md
+      - Creating exercises:
+        - First exercise: usage/creating.md
+        - Audiences: usage/audiences.md
+        - Systems: usage/systems.md
+        - Variables and templates: usage/templates.md
+      - Testing training: usage/testing.md
+      - Playing and executions: usage/playing.md 
+  - Administration:
+    - Introduction: administration/introduction.md
+    - Enterprise edition: administration/enterprise.md
+    - Platform settings:
+      - Parameters: administration/parameters.md
+      - Security:
+        - Policies: administration/policies.md
+        - Users and RBAC: administration/users.md
+  - Development:
+    - Prerequisites:
+      - Ubuntu: development/environment_ubuntu.md
+      - Windows: development/environment_windows.md
+    - Platform: development/platform.md
+    - Injectors: development/connectors.md
+    - REST API: development/api-usage.md
+
+
+
