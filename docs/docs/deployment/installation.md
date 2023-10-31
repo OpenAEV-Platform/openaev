@@ -81,6 +81,10 @@ SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=*
 SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE=false
 SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=false
 SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=false
+# Should be remove if you have already an admin user and won't update it
+OPENEX_ADMIN_EMAIL=ChangeMe
+OPENEX_ADMIN_PASSWORD=ChangeMe
+OPENEX_ADMIN_TOKEN=ChangeMe
 ```
 
 If your `docker-compose` deployment does not support `.env` files, just export all environment variables before launching the platform:
