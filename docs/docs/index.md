@@ -77,29 +77,16 @@ All tutorials are published directly on the [Medium blog](https://blog.filigran.
 
     **[:octicons-link-external-24:{ .middle } Read](https://blog.filigran.io/plan-execute-and-conduct-your-crisis-management-exercises-30a5a5970746)**
 
--   __Progressive rollout of the OpenCTI Enterprise Edition: why, what and how?__<br />
-    <sub><sup>June 10, 2023</sup></sub>
-
-    We are thrilled to announce that, from OpenCTI 5.8, Filigran is now providing some customers with an Enterprise Edition of the platform, whether on-premise...
-
-    **[:octicons-link-external-24:{ .middle } Read](https://blog.filigran.io/progressive-rollout-of-the-opencti-enterprise-edition-why-what-and-how-1189e9d5603c)**
-    
 </div>
 
 ## Additional resources
 
-Below, you will find external resources which may be useful along your OpenCTI journey.
+Below, you will find external resources which may be useful along your OpenEx journey.
 
 <div class="grid" markdown>
 
-[**:material-package-variant-closed:{ .middle } OpenCTI Ecosystem**]()<br />
-List of available connectors and integrations to expand platform usage.
-
 [**:material-school-outline:{ .middle } Training Courses**](https://training.filigran.io)<br />
 Training courses for analysts and administrators in the Filigran training center.
-
-[**:material-clipboard-pulse-outline:{ .middle } Performances tests & metrics**](https://kibana.opencti.io/s/public/goto/011b80ae0da7aca60de6db2d6cf76c75)<br />
-Regular performance tests based on default configuration and datasets.
 
 </div>
 <br /><br /><br />

@@ -1,6 +1,6 @@
 # Installation
 
-All components of OpenEx are shipped both as [Docker images](https://hub.docker.com/u/openexhq) and manual [installation packages](https://github.com/OpenEx-Platform/opencti/releases).
+All components of OpenEx are shipped both as [Docker images](https://hub.docker.com/u/openexhq) and manual [installation packages](https://github.com/OpenEx-Platform/openex/releases).
 
 !!! note "Production deployment"
 
@@ -13,7 +13,7 @@ All components of OpenEx are shipped both as [Docker images](https://hub.docker.
     ---
 
     Deploy OpenEx using Docker and the default `docker-compose.yml` provided
-    in the [docker](https://github.com/OpenCTI-Platform/docker).
+    in the [docker](https://github.com/OpenEx-Platform/docker).
 
     [:octicons-arrow-right-24:{ .middle } Setup](#using-docker)
 
@@ -22,7 +22,7 @@ All components of OpenEx are shipped both as [Docker images](https://hub.docker.
     ---
 
     Deploy dependencies and launch the platform manually using the packages
-    released in the [GitHub releases](https://github.com/OpenEx-Platform/opencti/releases).
+    released in the [GitHub releases](https://github.com/OpenEx-Platform/openex/releases).
 
     [:octicons-arrow-right-24:{ .middle } Explore](#manual-installation)
 </div>
@@ -105,7 +105,7 @@ MinIO is a small process and does not require a high amount of memory. More info
 
 ### Persist data
 
-The default for OpenCTI data is to be persistent.
+The default for OpenEx data is to be persistent.
 
 In the `docker-compose.yml`, you will find at the end the list of necessary persitent volumes for the dependencies:
 
