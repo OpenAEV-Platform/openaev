@@ -83,6 +83,16 @@ OPENEX_PROVIDER_{registrationId}_LASTNAME_ATTRIBUTE_KEY=
       *{registrationId} is an arbitrary identifier you choose.*
       metadata-uri is the uri of the xml file given by your identity provider
 
+### Single Sign On URL
+
+#### SAML2
+
+Url for the config of your sso provider
+```
+${openex.base-url}/login/saml2/sso/{registrationId}
+```
+
+
 ### Administrative Access
 
 To grant administrative roles, you can utilize OAuth and SAML2 integration. If you opt for this approach, you'll need to include the following variables:
