@@ -52,7 +52,7 @@ OpenEx is a JAVA process and therefore can be configured manually using the conf
 
 | Parameter           | Environment variable | Default value | Description                              |
 |:--------------------|:---------------------|:--------------|:-----------------------------------------|
-| minio.endpoint      | MINIO_ENDPOINT       | <localhost>   | Hostname of the S3 instance              |
+| minio.endpoint      | MINIO_ENDPOINT       | localhost     | Hostname of the S3 instance              |
 | minio.bucket        | MINIO_BUCKET         | openex        | Name of the S3 bucket                    |
 | minio.port          | MINIO_PORT           | 9000          | Port of the S3 endpoint                  |
 | minio.access-key    | MINIO_ACCESS-KEY     | key           | S3 bucket access key (MinIO user)        |
