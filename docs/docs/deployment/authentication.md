@@ -1,18 +1,5 @@
 # Authentication
 
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Supported Authentication Methods](#supported-authentication-methods)
-   - [1. Username/Password](#username-password)
-   - [2. OAuth (OpenID) & SAML2](#oauth-openid-and-saml2)
-3. [Getting Started](#getting-started)
-   - [1. Environment Variables](#environment-variables)
-   - [2. Administrative Access](#administrative-access)
-4. [Error Handling](#error-handling)
-
----
-
 ## Introduction
 
 Welcome to the authentication documentation for OpenEx. This documentation provides details on setting up and utilizing the authentication system, which supports multiple authentication methods to cater to different user needs and security requirements.
@@ -21,7 +8,7 @@ Welcome to the authentication documentation for OpenEx. This documentation provi
 
 ### Username-Password
 
-Simple local authentication
+Simple local authentication.
 
 ### OAuth (OpenID) and SAML2
 

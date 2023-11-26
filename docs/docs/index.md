@@ -71,7 +71,7 @@ All tutorials are published directly on the [Medium blog](https://blog.filigran.
     **[:octicons-link-external-24:{ .middle } Read](https://blog.filigran.io/how-we-are-disrupting-tactical-and-strategical-crisis-management-exercises-with-openex-3-49ea2f7a7435)**
 
 -   __Plan, execute and conduct your crisis management exercises__<br />
-    <sub><sup>Jul 3, 2023</sup></sub>
+    <sub><sup>Jan 25, 2021</sup></sub>
 
     More than 3 years ago, we decided to build the OpenEx application which allows organizations to facilitate the planning of crisis management...
 
