@@ -150,7 +150,7 @@ $ sudo docker stack deploy --compose-file docker-compose.yml openex
     You can now go to [http://localhost:8080](http://localhost:8080/) and log in with the credentials:
 
     - Login: [admin@openex.io](mailto:admin@openex.io)
-    - Password: admin
+    - Password: ChangeMe
 
 ## Manual installation
 
@@ -184,7 +184,7 @@ The main application has just one environment configuration file to change.
 $ cd openex
 ```
 
-Change the *application.properties* file according to your configuration of PostgreSQL and Minio and to your platform.
+Change the *application.properties* file according to your configuration of PostgreSQL, Minio, admin account and to your platform.
 
 #### Start the application
 
@@ -199,4 +199,4 @@ You should now be able to access to the platform using the IP and the port defin
 The default username and password are:
 
 - Login: admin@openex.io
-- Password: admin
+- Password: ChangeMe
