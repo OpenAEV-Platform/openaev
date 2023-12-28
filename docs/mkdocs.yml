@@ -133,8 +133,9 @@ nav:
       - Creating exercises:
         - First exercise: usage/creating.md
         - Audiences: usage/audiences.md
+        - Injects: usage/injects.md
         - Systems: usage/systems.md
-        - Variables and templates: usage/templates.md
+        - Variables: usage/variables.md
       - Testing training: usage/testing.md
       - Playing and executions: usage/playing.md
   - Administration:

@@ -1,4 +1,4 @@
-# Templates
+# Variables
 
 ## Built-In Variables
 
