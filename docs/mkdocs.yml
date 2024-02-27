@@ -133,11 +133,17 @@ nav:
       - Creating exercises:
         - First exercise: usage/creating.md
         - Audiences: usage/audiences.md
-        - Injects: usage/injects.md
+        - Injects:
+          - Built-In Injects: usage/injects.md
+          - Caldera Injects: usage/inject-caldera.md
         - Systems: usage/systems.md
         - Variables: usage/variables.md
       - Testing training: usage/testing.md
       - Playing and executions: usage/playing.md
+    - Platform data:
+        - Assets: usage/assets.md
+    - Enrich platform data:
+        - Caldera: usage/collector-caldera.md
   - Administration:
     - Introduction: administration/introduction.md
     - Enterprise edition: administration/enterprise.md

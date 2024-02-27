@@ -14,6 +14,17 @@ Several injects are available in the OpenEx platform:
 - Media pressure: allows to publish an article on a predefined fake platform media
 - SMS(OVH): allows to send text messages to players
 
+### Manual inject
+
+The manual inject is like a silent reminder.
+Allows you to place in the timeline a stimulus to be produced manually,
+outside the platform (for example simulated a call from a journalist on the switchboard telephone).
+
+## Http inject
+
+The Http inject is used to forge an Http request to a third party services in order to perform actions outside the
+platform (for example API call to an EDR).
+
 ## Expectations
 
 Some injects can define expectations from players in order to define actions
@@ -29,14 +40,16 @@ This allows to create expectations which will be validated once the inject has e
 
 ### Media pressure expectation
 
-This allows to create an expectation which will be validated once the audience concerned by the inject has read the article(s).
+This allows to create an expectation which will be validated once the audience concerned by the inject has read the
+article(s).
 
 ![Add expectation media](assets/add-expectation-media.png)
 ![Expectation media](assets/expectation-media.png)
 
 ### Challenge expectation
 
-An expectation is automatically created and it will be validated once the audience concerned by the inject has completed the challenge.
+An expectation is automatically created and it will be validated once the audience concerned by the inject has completed
+the challenge.
 
 ### Validation of expectations
 

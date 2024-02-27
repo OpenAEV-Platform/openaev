@@ -4,7 +4,7 @@ Before starting the installation, let's discover how OpenEx is working, which de
 
 ## Architecture
 
-The OpenEx platform relies on several external databases and serfvices in order to work.
+The OpenEx platform relies on several external databases and services in order to work.
 
 ![Architecture](assets/openex_stack.png)
 
