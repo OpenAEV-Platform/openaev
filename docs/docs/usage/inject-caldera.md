@@ -1,11 +1,11 @@
 # Caldera injects
 
-The integration between an OpenEx instance and a Caldera instance allows you to obtain a new library of injects. These
+The integration between an OpenBAS instance and a Caldera instance allows you to obtain a new library of injects. These
 injects are based directly on the content of your Caldera and are played on the assets managed by its agents.
 
 ## Configuration variables
 
-Below are the properties you'll need to set for OpenEx:
+Below are the properties you'll need to set for OpenBAS:
 
 | Property                 | application.properties         | Docker environment variable      | Mandatory | Description                                              |
 |--------------------------|--------------------------------|----------------------------------|-----------|----------------------------------------------------------|
@@ -18,7 +18,7 @@ Below are the properties you'll need to set for OpenEx:
 ## Behavior
 
 The list of available injects will be updated with all Caldera abilities found.
-These new injects can be used by targeting an asset or a group of assets from the OpenEx platform.
+These new injects can be used by targeting an asset or a group of assets from the OpenBAS platform.
 
 The following async workflow will be carried out on the caldera injects :
 

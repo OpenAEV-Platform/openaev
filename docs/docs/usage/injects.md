@@ -4,7 +4,7 @@
 
 An inject is a one-time event that is played as part of your exercise.
 
-Several injects are available in the OpenEx platform:
+Several injects are available in the OpenBAS platform:
 
 - Challenge: allows to publish challenges to be realized by players
 - Email: allows to send emails to players

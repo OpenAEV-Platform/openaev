@@ -1,10 +1,10 @@
 # Caldera collector
 
-The integration between an OpenEx instance and a Caldera instance allows you to enrich assets data.
+The integration between an OpenBAS instance and a Caldera instance allows you to enrich assets data.
 
 ## Configuration variables
 
-Below are the properties you'll need to set for OpenEx:
+Below are the properties you'll need to set for OpenBAS:
 
 | Property                 | application.properties     | Docker environment variable  | Mandatory | Description                                                                         |
 |--------------------------|----------------------------|------------------------------|-----------|-------------------------------------------------------------------------------------|
@@ -16,14 +16,14 @@ Below are the properties you'll need to set for OpenEx:
 
 ## Behavior
 
-Each interval, a job retrieves the deployed agents on Caldera and populates the OpenEx database by creating Assets.
+Each interval, a job retrieves the deployed agents on Caldera and populates the OpenBAS database by creating Assets.
 
 Deduplication is done thanks to the caldera `paw` property :
 
-- if there is no asset on OpenEx based on this `paw`, a new asset is created
-- if there is an asset on OpenEx based on this `paw` and the source of creation is only Caldera, this asset is updated
+- if there is no asset on OpenBAS based on this `paw`, a new asset is created
+- if there is an asset on OpenBAS based on this `paw` and the source of creation is only Caldera, this asset is updated
 
-There is no automatic deletion of OpenEx assets if Caldera agents no longer exist.
+There is no automatic deletion of OpenBAS assets if Caldera agents no longer exist.
 
 #### Mapping
 
