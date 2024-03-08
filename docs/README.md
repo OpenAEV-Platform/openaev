@@ -1,17 +1,17 @@
-# OpenEx Documentation Space
+# OpenBAS Documentation Space
 
-[![Website](https://img.shields.io/badge/website-openex.io-blue.svg)](https://openex.io)
+[![Website](https://img.shields.io/badge/website-openbas.io-blue.svg)](https://openbas.io)
 [![Slack Status](https://img.shields.io/badge/slack-3K%2B%20members-4A154B)](https://community.filigran.io)
 
 ## Introduction
 
-This is the main repository of the OpenEx Documentation space. The online version is available directly on [docs.openex.io](https://docs.openex.io).
+This is the main repository of the OpenBAS Documentation space. The online version is available directly on [docs.openbas.io](https://docs.openbas.io).
 
 ## Install the documentation locally
 
 Clone the repository:
 ```
-$ git clone git@github.com:OpenEx-Platform/docs.git
+$ git clone git@github.com:OpenBAS-Platform/docs.git
 ```
 
 Install dependencies

@@ -1,11 +1,11 @@
-site_name: OpenEx Documentation
-site_description: Documentation about OpenEx, the next-generation cyber crisis exercises and attack simulation Tool.
+site_name: OpenBAS Documentation
+site_description: Documentation about OpenBAS, the next-generation Breach & Attack Simulation platform.
 site_author: Filigran
-site_url: https://docs.openex.io
-copyright: © 2023 Filigran. All rights reserved
+site_url: https://docs.openbas.io
+copyright: © 2024 Filigran. All rights reserved
 repo_name: GitHub
-repo_url: https://github.com/OpenEx-Platform/openex
-edit_uri: https://github.com/OpenEx-Platform/docs/blob/main/docs/
+repo_url: https://github.com/OpenBAS-Platform/openbas
+edit_uri: https://github.com/OpenBAS-Platform/docs/blob/main/docs/
 
 # Theming
 theme:
@@ -41,7 +41,7 @@ extra:
   generator: false
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/OpenEx-Platform
+      link: https://github.com/OpenBAS-Platform
     - icon: fontawesome/brands/medium
       link: https://blog.filigran.io
     - icon: fontawesome/brands/slack
@@ -60,7 +60,7 @@ plugins:
       canonical_version: latest
   - search
   - git-committers:
-      repository: OpenEx-Platform/docs
+      repository: OpenBAS-Platform/docs
       branch: main
   - git-revision-date-localized:
       enable_creation_date: true

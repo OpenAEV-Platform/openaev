@@ -4,7 +4,7 @@ Depending on your [installation mode](installation.md), upgrade path may change.
 
 !!! note "Migrations"
 
-    The platform is taking care of all necessary underlying migrations in the databases if any, you can upgrade OpenEx from any version to the latest one, including skipping multiple major releases.
+    The platform is taking care of all necessary underlying migrations in the databases if any, you can upgrade OpenBAS from any version to the latest one, including skipping multiple major releases.
 
 ## Using Docker
 
@@ -31,5 +31,5 @@ $ sudo docker service update --force service_name
 When upgrading the platform, you have to replace all files and restart the platform, the database migrations will be done automatically:
 
 ```bash
-$ java -jar openex-api.jar
+$ java -jar openbas-api.jar
 ```

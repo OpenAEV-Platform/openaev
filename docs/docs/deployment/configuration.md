@@ -1,8 +1,8 @@
 # Configuration
 
-The purpose of this section is to learn how to configure OpenEx to have it tailored for your production and development needs.
+The purpose of this section is to learn how to configure OpenBAS to have it tailored for your production and development needs.
 
-OpenEx is a JAVA process and therefore can be configured manually using the configuration file `application.properties` or environment variables when using Docker.
+OpenBAS is a JAVA process and therefore can be configured manually using the configuration file `application.properties` or environment variables when using Docker.
 
 ## Platform
 
@@ -12,12 +12,12 @@ OpenEx is a JAVA process and therefore can be configured manually using the conf
 |:-------------------------------|:-------------------------------|:----------------------|:--------------------------------------------------------------|
 | server.address                 | SERVER_ADDRESS                 | 0.0.0.0               | Listen address of the application                             |
 | server.port                    | SERVER_PORT                    | 8080                  | Listen port of the application                                |
-| openex.base-url                | OPENEX_BASE-URL                | http://localhost:8080 | Base URL of the application, will be used in some email links |
+| openbas.base-url                | OPENBAS_BASE-URL                | http://localhost:8080 | Base URL of the application, will be used in some email links |
 | server.servlet.session.timeout | SERVER_SERVLET_SESSION_TIMEOUT | 20m                   | Default duration of session (20 minutes)                      |
-| openex.cookie-secure           | OPENEX_COOKIE-SECURE           | false                 | Turn on if the access is done in HTTPS                        |
-| openex.admin.email             | OPENEX_ADMIN_EMAIL             | admin@openex.io       | Default login email of the admin user                         |
-| openex.admin.password          | OPENEX_ADMIN_PASSWORD          | ChangeMe              | Default password of the admin user                            |
-| openex.admin.token             | OPENEX_ADMIN_TOKEN             | ChangeMe              | Default token (must be a valid UUIDv4)                        |
+| openbas.cookie-secure           | OPENBAS_COOKIE-SECURE           | false                 | Turn on if the access is done in HTTPS                        |
+| openbas.admin.email             | OPENBAS_ADMIN_EMAIL             | admin@openbas.io       | Default login email of the admin user                         |
+| openbas.admin.password          | OPENBAS_ADMIN_PASSWORD          | ChangeMe              | Default password of the admin user                            |
+| openbas.admin.token             | OPENBAS_ADMIN_TOKEN             | ChangeMe              | Default token (must be a valid UUIDv4)                        |
 
 ### Network and security
 
@@ -34,8 +34,8 @@ OpenEx is a JAVA process and therefore can be configured manually using the conf
 | Parameter               | Environment variable    | Default value     | Description                                   |
 |:------------------------|:------------------------|:------------------|:----------------------------------------------|
 | logging.level.root      | LOGGING_LEVEL_ROOT      | fatal             | Root log level                                |
-| logging.level.io.openex | LOGGING_LEVEL_IO_OPENEX | warn              | OpenEx log level                              |
-| logging.file.name       | LOGGING_FILE_NAME       | ./logs/openex.log | Log file path (in addition to console output) |
+| logging.level.io.openbas | LOGGING_LEVEL_IO_OPENBAS | warn              | OpenBAS log level                              |
+| logging.file.name       | LOGGING_FILE_NAME       | ./logs/openbas.log | Log file path (in addition to console output) |
 
 
 ## Dependencies
@@ -44,8 +44,8 @@ OpenEx is a JAVA process and therefore can be configured manually using the conf
 
 | Parameter                  | Environment variable       | Default value         | Description                                                                    |
 |:---------------------------|:---------------------------|:----------------------|:-------------------------------------------------------------------------------|
-| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openex) |
-| spring.datasource.username | SPRING_DATASOURCE_USERNAME | openex                | Login for the database                                                         |
+| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openbas) |
+| spring.datasource.username | SPRING_DATASOURCE_USERNAME | openbas                | Login for the database                                                         |
 | spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                      |
 
 ### S3 bucket / MinIO
@@ -53,7 +53,7 @@ OpenEx is a JAVA process and therefore can be configured manually using the conf
 | Parameter           | Environment variable | Default value | Description                              |
 |:--------------------|:---------------------|:--------------|:-----------------------------------------|
 | minio.endpoint      | MINIO_ENDPOINT       | localhost     | Hostname of the S3 instance              |
-| minio.bucket        | MINIO_BUCKET         | openex        | Name of the S3 bucket                    |
+| minio.bucket        | MINIO_BUCKET         | openbas        | Name of the S3 bucket                    |
 | minio.port          | MINIO_PORT           | 9000          | Port of the S3 endpoint                  |
 | minio.access-key    | MINIO_ACCESS-KEY     | key           | S3 bucket access key (MinIO user)        |
 | minio.access-secret | MINIO_ACCESS-SECRET  | secret        | S3 bucket access secret (MinIO password) |
@@ -66,20 +66,20 @@ For the associated mailbox, for the moment the platform only relies on IMAP / SM
 
 | Parameter                 | Environment variable      | Default value     | Description                                                                         |
 |:--------------------------|:--------------------------|:------------------|:------------------------------------------------------------------------------------|
-| openex.mail.imap.enabled  | OPENEX_MAIL_IMAP_ENABLED  | false             | Turn on to enable IMAP mail synchronization. Injector email must be well configured |
-| openex.mail.imap.host     | OPENEX_MAIL_IMAP_HOST     | imap.mail.com     | IMAP Server hostname                                                                |
-| openex.mail.imap.port     | OPENEX_MAIL_IMAP_PORT     | 993               | IMAP Server port                                                                    |
-| openex.mail.imap.username | OPENEX_MAIL_IMAP_USERNAME | username@mail.com | IMAP Server username                                                                |
-| openex.mail.imap.password | OPENEX_MAIL_IMAP_PASSWORD | password          | IMAP Server password                                                                |
-| openex.mail.imap.inbox    | OPENEX_MAIL_IMAP_INBOX    | INBOX             | IMAP inbox directory to synchronize from                                            |
-| openex.mail.imap.sent     | OPENEX_MAIL_IMAP_SENT     | Sent              | IMAP sent directory to synchronize from                                             |
+| openbas.mail.imap.enabled  | OPENBAS_MAIL_IMAP_ENABLED  | false             | Turn on to enable IMAP mail synchronization. Injector email must be well configured |
+| openbas.mail.imap.host     | OPENBAS_MAIL_IMAP_HOST     | imap.mail.com     | IMAP Server hostname                                                                |
+| openbas.mail.imap.port     | OPENBAS_MAIL_IMAP_PORT     | 993               | IMAP Server port                                                                    |
+| openbas.mail.imap.username | OPENBAS_MAIL_IMAP_USERNAME | username@mail.com | IMAP Server username                                                                |
+| openbas.mail.imap.password | OPENBAS_MAIL_IMAP_PASSWORD | password          | IMAP Server password                                                                |
+| openbas.mail.imap.inbox    | OPENBAS_MAIL_IMAP_INBOX    | INBOX             | IMAP inbox directory to synchronize from                                            |
+| openbas.mail.imap.sent     | OPENBAS_MAIL_IMAP_SENT     | Sent              | IMAP sent directory to synchronize from                                             |
 
 | Parameter                        | Environment variable             | Default value | Description                   |
 |:---------------------------------|:---------------------------------|:--------------|:------------------------------|
-| openex.mail.imap.ssl.enable      | OPENEX_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
-| openex.mail.imap.ssl.trust       | OPENEX_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
-| openex.mail.imap.auth            | OPENEX_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
-| openex.mail.imap.starttls.enable | OPENEX_MAIL_IMAP_STARTTLS_ENABLE | true          | Turn on IMAP STARTTLS         |
+| openbas.mail.imap.ssl.enable      | OPENBAS_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
+| openbas.mail.imap.ssl.trust       | OPENBAS_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
+| openbas.mail.imap.auth            | OPENBAS_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
+| openbas.mail.imap.starttls.enable | OPENBAS_MAIL_IMAP_STARTTLS_ENABLE | true          | Turn on IMAP STARTTLS         |
 
 #### SMTP
 
@@ -99,7 +99,7 @@ For the associated mailbox, for the moment the platform only relies on IMAP / SM
 
 !!! note "Default file"
 
-    It is possible to check all default parameters implemented in the platform in the [`application.properties` file](https://github.com/OpenEx-Platform/openex/blob/master/openex-api/src/main/resources/application.properties).
+    It is possible to check all default parameters implemented in the platform in the [`application.properties` file](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/resources/application.properties).
 
 ## Injectors (integrations)
 
@@ -107,4 +107,4 @@ For specific injector configuration, you need to check each injector behavior.
 
 !!! question "Injectors list"
 
-    If you are looking to the list of OpenEx injectors or native integration, please check the [OpenEx Ecosystem](https://filigran.notion.site/OpenEx-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+    If you are looking to the list of OpenBAS injectors or native integration, please check the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).

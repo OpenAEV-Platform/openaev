@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Welcome to the authentication documentation for OpenEx. This documentation provides details on setting up and utilizing the authentication system, which supports multiple authentication methods to cater to different user needs and security requirements.
+Welcome to the authentication documentation for OpenBAS. This documentation provides details on setting up and utilizing the authentication system, which supports multiple authentication methods to cater to different user needs and security requirements.
 
 ## Supported Authentication Methods
 
@@ -24,11 +24,11 @@ The authentication system relies on environment variables to function correctly.
 
 #### Username/Password Environment Variables
 
-- `OPENEX.AUTH-LOCAL-ENABLE`: Set this to `true` to enable username/password authentication.
+- `OPENBAS.AUTH-LOCAL-ENABLE`: Set this to `true` to enable username/password authentication.
 
 #### OAuth (OpenID) Environment Variables
 
-- `OPENEX.AUTH-OPENID-ENABLE`: Set this to `true` to enable OAuth (OpenID) authentication.
+- `OPENBAS.AUTH-OPENID-ENABLE`: Set this to `true` to enable OAuth (OpenID) authentication.
 - Example for Auth0 :
 
 ```properties
@@ -36,7 +36,7 @@ SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_{registrationId}_ISSUER-URI=https://auth.
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT-NAME=Login with auth0
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT-ID=
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT-SECRET=
-SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_REDIRECT-URI=${openex.base-url}/login/oauth2/code/{registrationId}
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_REDIRECT-URI=${openbas.base-url}/login/oauth2/code/{registrationId}
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_SCOPE=openid,profile,email
 ```
 
@@ -54,15 +54,15 @@ SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT_SECRET=
 
 #### SAML2 Environment Variables
 
-- `OPENEX.AUTH-SAML2-ENABLE`: Set this to `true` to enable SAML2 authentication.
+- `OPENBAS.AUTH-SAML2-ENABLE`: Set this to `true` to enable SAML2 authentication.
 - Example for Microsoft :
 
 ```properties
 SPRING_SECURITY_SAML2_RELYINGPARTY_REGISTRATION_{registrationId}_ENTITY-ID=
 SPRING_SECURITY_SAML2_RELYINGPARTY_REGISTRATION_{registrationId}_ASSERTINGPARTY_METADATA-URI=
 
-OPENEX_PROVIDER_{registrationId}_FIRSTNAME_ATTRIBUTE_KEY=
-OPENEX_PROVIDER_{registrationId}_LASTNAME_ATTRIBUTE_KEY=
+OPENBAS_PROVIDER_{registrationId}_FIRSTNAME_ATTRIBUTE_KEY=
+OPENBAS_PROVIDER_{registrationId}_LASTNAME_ATTRIBUTE_KEY=
 ```
 
 !!! tip "Tips"
@@ -76,7 +76,7 @@ OPENEX_PROVIDER_{registrationId}_LASTNAME_ATTRIBUTE_KEY=
 
 Url for the config of your sso provider
 ```
-${openex.base-url}/login/saml2/sso/{registrationId}
+${openbas.base-url}/login/saml2/sso/{registrationId}
 ```
 
 
@@ -85,11 +85,11 @@ ${openex.base-url}/login/saml2/sso/{registrationId}
 To grant administrative roles, you can utilize OAuth and SAML2 integration. If you opt for this approach, you'll need to include the following variables:
 
 ```properties
-OPENEX_PROVIDER_{registrationId}_ROLES_PATH=
-OPENEX_PROVIDER_{registrationId}_ROLES_ADMIN=
+OPENBAS_PROVIDER_{registrationId}_ROLES_PATH=
+OPENBAS_PROVIDER_{registrationId}_ROLES_ADMIN=
 ```
 
-However, if you intend to manage administrative roles within the OpenEx platform itself, there's no need to provide these variables.
+However, if you intend to manage administrative roles within the OpenBAS platform itself, there's no need to provide these variables.
 
 
 ## Error Handling
@@ -98,4 +98,4 @@ However, if you intend to manage administrative roles within the OpenEx platform
 
     We are doing our best to complete this page. 
     If you want to participae, dont hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
-    or submit your pull request on the [Github doc repository](https://github.com/OpenEx-Platform/docs).
+    or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).

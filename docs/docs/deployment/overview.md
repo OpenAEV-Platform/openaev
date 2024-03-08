@@ -1,16 +1,16 @@
 # Overview
 
-Before starting the installation, let's discover how OpenEx is working, which dependencies are needed and what are the minimal requirements to deploy it in production.
+Before starting the installation, let's discover how OpenBAS is working, which dependencies are needed and what are the minimal requirements to deploy it in production.
 
 ## Architecture
 
-The OpenEx platform relies on several external databases and services in order to work.
+The OpenBAS platform relies on several external databases and services in order to work.
 
-![Architecture](assets/openex_stack.png)
+![Architecture](assets/openbas_stack.png)
 
 ### Platform
 
-The platform is the central part of the OpenEx platform, allowing users to configure exercises and campaigns as well as systems and players.
+The platform is the central part of the OpenBAS platform, allowing users to configure exercises and campaigns as well as systems and players.
 
 ### Injectors
 
@@ -18,7 +18,7 @@ All injectors are shipped within the platform but are not enabled by default. In
 
 !!! note "List of connectors"
 
-    You can find all currently available connector in the [OpenEx Ecosystem](https://filigran.notion.site/OpenEx-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+    You can find all currently available connector in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
 
 ## Infrastructure requirements
 
@@ -31,6 +31,6 @@ All injectors are shipped within the platform but are not enabled by default. In
 
 ### Platform
 
-| Component   | CPU         | RAM          | Disk type                         | Disk space      |
-|:------------| :---------- | :----------- | :-------------------------------- | :-------------- |
-| OpenEx Core | 2 cores     | ≥ 8GB        | None (stateless)                  | -               |
+| Component    | CPU         | RAM          | Disk type                         | Disk space      |
+|:-------------| :---------- | :----------- | :-------------------------------- | :-------------- |
+| OpenBAS Core | 2 cores     | ≥ 8GB        | None (stateless)                  | -               |
