@@ -134,8 +134,6 @@ nav:
       - Simulation: usage/simulation.md
       - Atomic testing: usage/atomic.md
       - Injects: usage/injects.md
-      - Built-In Injects: usage/injects_builtin.md
-      - Caldera Injects: usage/inject-caldera.md
       - Targets: usage/targets.md
       - Expectations: usage/expectations.md
     - Build your own Threat Scenario:
@@ -145,6 +143,7 @@ nav:
       - Teams, Players and Organizations: usage/teams_and_players_and_organizations.md
       - Components:
         - Documents: usage/documents.md
+        - Media pressure: usage/media_pressure.md
         - Custom variables: usage/variables.md
         - Payloads: usage/payloads.md
         - Personas: usage/personas.md
@@ -159,6 +158,7 @@ nav:
     - Interact with your environement: 
       - Injectors: usage/injectors.md
       - Caldera Injector: usage/inject-caldera.md
+      - Built-In Injector: usage/injects_builtin.md
       - Collectors: usage/collectors.md
       - Caldera Collector: usage/collector-caldera.md
   - Administration:
