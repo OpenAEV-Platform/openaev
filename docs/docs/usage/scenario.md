@@ -9,7 +9,7 @@
 
 When clicking on Scenarios in the left menu, you access to the list of all Scenarios that have been defined in the platform. Scenario are like templates that translate threat context into meaningfull events to simulate.
 
-Scenarios can categorize by defining category, main focus, severity and tags. It is then possible to filter the Scenarios list based on this attributes. Quick filters are present by default on top of the screen to filter Scenario on most used Categories.
+Scenarios can be categorized by defining categories, main focus, severity and tags. It is then possible to filter the Scenarios list based on this attributes. Quick filters are present by default on top of the screen to filter Scenario on most used Categories.
 
 It is also possible to search Scenarios by their names using the contextual search bar.
 
@@ -35,14 +35,14 @@ If the Scenario has never been simulated, note that the Results' widgets contain
 Of course, simulating an empty Scenario is useless. To define the Scenario, use the "Definition" and "Injects" screens.
 
 In Definition, you can add all elements that will help you to construct events:
-- Teams and Players involved in the Scenario
-- Custom Variables you may need to simplify Injects' customization
-- Article you may used in the Scenario to simulate media pressure
-- Challenges you may have designed if you including Capture The Flag elements in your Scenario
+- [Teams and Players](teams_and_players_and_organizations.md) involved in the Scenario
+- Custom [Variables](variables.md) you may need to simplify Injects' customization
+- Articles you may used in the Scenario to simulate [media pressure](media_pressure.md)
+- [Challenges](challenges.md) you may have designed if you including Capture The Flag elements in your Scenario
 
 <!-- screenshot of the Definition screen with elements inside -->
 
-Once you have added all the elements you may need, you can go to the Injects screen to begin to create the chain of events that will shape your Scenario.
+Once you have added all the elements you may need, you can go to the [Injects](injects.md) screen to begin to create the chain of events that will shape your Scenario.
 
 <!-- this part will depend on what has been finally designed for the inject creation funnel. THis part must also link the Injects documentation page -->
 
