@@ -2,9 +2,7 @@
 
 !!! tip "Under construction"
 
-    We are doing our best to complete this page. 
-    If you want to participae, dont hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
-    or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
 
 This guide aims to give you a full overview of the OpenBAS features and workflows. The platform can be used in various contexts to handle Breach and Attack simulations at technical or strategical levels. OpenBAS has been designed as a part of the Filigran XTM suite and can be integrated with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate meaningful attack scenario based on real threat. OpenBAS is result-oriented with many dashboard helping you to evaluate you securoty posture given a defined context.
 

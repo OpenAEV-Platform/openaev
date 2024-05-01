@@ -2,14 +2,12 @@
 
 !!! tip "Under construction"
 
-    We are doing our best to complete this page. 
-    If you want to participae, dont hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
-    or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
 
 
 When clicking on Atomic testing in the left menu, you access to the list of all atomic testings ever launched in the platform.
 
-Atomic testing is a great way to simulate a singular attack technique you are particulary interested in, and test immediately your capability to prevent and detect it.
+Atomic testing is a great way to simulate a singular attack technique you are particularly interested in, and test immediately your capability to prevent and detect it.
 
 You can search for a specific one by name.
 
@@ -19,15 +17,16 @@ The presented list allows you to easily see global scores of all your recent ato
 
 An atomic testing is essentially the simulation of a single inject, against a selection of targets (Players, Teams, Assets) with assorted expectations.
 
-By clicking on the + button on the nbottom right of the screen, you enter the atomic testing creation workflow.
+By clicking on the + button on the bottom right of the screen, you enter the atomic testing creation workflow.
 
 <!-- to be completed after Samuel work on the new creation workflow -->
 
 ## Atomic testing screens
 
-Details of an Atomic testing is composed of threee parts:
+Details of an Atomic testing is composed of three parts:
+
 - a header allowing to launch the test, see its state and update/delete it.
-- a targets response screen to eaily see the results of the test.
+- a targets response screen to easily see the results of the test.
 - an inject details screen to see expectations of the test and investigate on execution logs
 
 ### Targets response
@@ -35,9 +34,10 @@ Details of an Atomic testing is composed of threee parts:
 The first screen displayed when you click on a specific Atomic testing from the list is a breakdown of your security posture against this test. 
 
 As for Simulation and Scenario, Results are broken down into:
-- Prevention: the ability of your security posture to prevent the inject
-- Detection: the ability of your security posture to detect the inject
-- Human response: the ability of your security teams to react as intented facing the inject
+
+- Prevention: the ability of your security posture to prevent the inject,
+- Detection: the ability of your security posture to detect the inject,
+- Human response: the ability of your security teams to react as intended facing the inject.
 
 Big metrics on top of the screen sum up the expectations' result of all targets. 
 

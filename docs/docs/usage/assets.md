@@ -1,32 +1,37 @@
 # Assets
 
-When you click on "Assets" in the left-side bar, you see all the "Assets" tabs, visible on the top bar on the left.
-By default, the user directly access the "Endpoints" tab, but can navigate to the other tabs as well.
+The Assets section provides users with a centralized hub for managing and organizing the entities targeted for testing and simulation. 
 
-From the `Assets` section, users can access the following tabs:
+When you click on “Assets” in the left-hand banner, you see all the “Assets” pages. When accessing the Assets section, users are directed by default to the Endpoints page, where they can start managing their assets.
 
-- `Endpoints`: Terminal that can be connected to a network including desktops, laptops, mobile phones, tablets and
-  servers.
-- `Asset groups`: Group of asset allowing you to group your asset in different way: by platform or by hostname pattern
-  for example. Some injects can take asset groups as parameters allowing mass actions to be performed.
+From the `Assets` section, users can access the following pages:
+
+- `Endpoints`: Individual entities, representing any object or terminal that can be connected to a network.
+- `Asset groups`: Group of asset allowing you to organize endpoints into logical groups based on various filters applied by the user.
+
 
 ## Endpoints
 
-An endpoint is a terminal that can be connected to a network including desktops, laptops, mobile phones, tablets and
-servers. The list of endpoints continues to grow and now includes less traditional items, such as printers, cameras,
-electronic devices, smart watches, health tracking devices, navigation systems and other terminals that can be connected
-to the Internet.
+Endpoints encompass devices and systems that connect to a network, serving as the foundation for interaction with OpenBAS. 
 
-Examples of endpoints:
+The list of endpoints continues to grow with the changing landscape of networked technologies and the increasing interconnectivity of digital ecosystems. Below is a non-exhaustive list of terminal categories:
 
-- **Computers**: This includes desktops, laptops, and servers within an organization's network.
-- **Mobile Devices**: Smartphones and tablets that connect to the network are also considered endpoints.
-- **Workstations**: Terminals or dedicated machines used by individuals to perform specific tasks or access network
-  resources.
-- **IoT Devices**: Internet of Things (IoT) devices, such as smart thermostats, cameras, or sensors, can also be
-  considered endpoints.
+- **Computers**: This category encompasses a wide range of computing devices, including desktops, laptops, and servers deployed within organizational networks.
+- **Mobile devices**: Smartphones and tablets represent another prominent category of endpoints, providing users with mobile access to network resources and services.
+- **Workstations**: Workstations refer to terminals or dedicated machines utilized by individuals or groups to perform specific tasks or access networked resources. These systems are typically tailored to meet specific operational requirements and may include specialized software or configurations.
+- **IoT devices**: The Internet of Things (IoT) encompasses a diverse array of interconnected devices and sensors. IoT endpoints include smart thermostats, cameras, environmental sensors, smart watches, and health tracking devices, among others.
+
+As technology continues to advance and networked environments expand, the definition of endpoints continues to evolve, encompassing an increasingly diverse range of devices and systems. Understanding the various categories and characteristics of endpoints is essential for effective network management and security.
+
+When accessing the Endpoints pages, you see the list of all endpoints imported in your platform. Here, users can create and manage details specific to each endpoint.
+
+<!-- screenshot of the window "Assets > Endpoints" with a nice list of Endpoints -->
+
 
 ## Asset groups
 
-An asset group refers to a collection or grouping of related assets within an organization. Asset groups typically share
-common characteristics like platform or hostname pattern.
+Asset groups serve as a mechanism for organizing and grouping related Endpoints. These groups are constructed based on filters that define the criteria for inclusion, allowing administrators to segment and categorize Endpoints based on common characteristics or attributes.
+
+When creating a new asset group, administrators have the flexibility to specify the filters that will delineate the group's membership. Currently, the platform offers a range of filters such as platform type, hostname, and IP addresses. We plan to extend the possibilities by including additional filters in future updates.
+
+<!-- screenshot of the window "Assets > Asset groups" with a nice list of groups -->
