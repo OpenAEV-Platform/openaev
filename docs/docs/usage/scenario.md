@@ -44,7 +44,17 @@ In Definition, you can add all elements that will help you to construct events:
 
 Once you have added all the elements you may need, you can go to the [Injects](injects.md) screen to begin to create the chain of events that will shape your Scenario.
 
-<!-- this part will depend on what has been finally designed for the inject creation funnel. THis part must also link the Injects documentation page -->
+By clicking on the + button at the bottom right of the screen, you enter the inject creation workflow.
+
+On the left of the creation screen is the list of all available Inject you can add to your Scenario. Logos on the left of each line indicates which Injector is associated with each [inject](injects.md).
+
+Depending on your integrations, this list can be long. You can filter the list by compatible platforms or by Mitre Att&ck tactics. By clicking on the "Att&CK" logo near the search bar, you can also filter by selecting a precise Mitre Att&ck techniques.
+
+When selecting an inject on the left, the form on the right populates itself with a by-default title and propose you to define when the inject should be played in the Scenario's chronology.
+
+By clicking on Inject content, you can define now or later the targeted assets and players, needed configurations, and the assorted expectations.
+
+The "available variables" button helps you to use already defined variables into compatible fields.
 
 ## Launching a Simulation of the Scenario
 
