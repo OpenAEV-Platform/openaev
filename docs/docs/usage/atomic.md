@@ -43,6 +43,8 @@ Big metrics on top of the screen sum up the expectations' result of all targets.
 
 The list of targets on the left allows you to easily see the result per Target, and for example investigate further why a specific Asset have failed the test.
 
+For a selected target, you can on the right the timeline of the test against the target and the assorted results. The result logs are also displayed.
+
 <!-- screenshot of a targets response screen of an inject played against multiple targets -->
 
 ### Inject details
@@ -52,6 +54,6 @@ On this screen, you can retrieve details about the atomic testing and its expect
 You can also see the raw execution logs of the [Injector](injectors.md) responsible for the test execution and why it may have failed.
 
 
-
+<!-- screenshot of a inject details screen of an inject played against multiple targets, ideally with success and failed -->
 
 
