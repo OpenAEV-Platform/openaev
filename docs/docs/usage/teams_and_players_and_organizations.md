@@ -13,9 +13,10 @@ Players, Teams and Organizations are where you organize  into OpenBAS all the hu
 
 Players are the users that may take part into your Scenarios, to be tested against attack or contextual events ([Injects](injects.md)).
 
-Players can be created manually with the + button at the bottom right, but we encourage you to active an integration allowing to improt them from your IT environnement, like with Microsoft Entra integration.
+Players can be created manually with the + button at the bottom right, but we encourage you to active an integration allowing to import them from your IT environment, like with Microsoft Entra integration.
 
 Players are defined by:
+
 - Email address
 - First name
 - Last name
@@ -34,6 +35,7 @@ This list of Players can be exported by clicking on the export button, at the to
 Teams regroup Players into groups that can be targeted by injects during Simulations or Atomic testing. It is the best way to represent your different security team (like CSIRT, SOC, VOC, etc.) and other teams that might be involved into your Scenario (legal department, communication department, etc.)
 
 Teams are defined by:
+
 - Name
 - Description
 - Organization: you can link a Team to an Organization (see below)
@@ -47,5 +49,5 @@ From the Teams list, you can manage Players of a Team by clicking on the three-d
 
 Organization is a simple way to segregate Players and Teams in the platform. A Player associated with an Organization, even with the necessary rights to animate and planned Scenarios and Simulations, will never see Players and Teams from other Organizations.
 
-It can be very handfull if you are using the OpenBAS platform for planning and playing Simulations for different companies or subsidiaries.
+It can be very handful if you are using the OpenBAS platform for planning and playing Simulations for different companies or subsidiaries.
 

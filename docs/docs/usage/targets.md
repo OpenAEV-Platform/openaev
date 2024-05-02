@@ -6,7 +6,7 @@
     We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
 
 
-When you are using an Inject, either for Atomic testing, Scenario or Simulation, you need to define which Players, Teams, Assets (endpoints) or/and Asset groups it will be sent to. They are called "targets" of the Inject.
+When you are using an Inject, either for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), you need to define which [Players, Teams](teams_and_players_and_organizations.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the Inject.
 
 Note that some Injects cannot target Assets and other cannot target Players. For example, it is not possible to target an Asset with the Inject "Send individual mails", only Players and Teams.
 
@@ -22,11 +22,11 @@ Note that visibility of Teams and Players is limited by the Organization's [segr
 
 When selecting a Team to be targeted, all Players of the Team will be targeted by the inject. Each one will have to complete assorted expectations.
 
-<!-- screenshot of an innject with selected teams -->
+<!-- screenshot of an inject with selected teams -->
 
 ## Selecting Assets (endpoints) and Asset Groups
 
-You can target Assets (endpoints) directly or Asset groups. In the dedicated dialog, only Assets compatible with the Inject are listed by default. 
+You can target [Assets (endpoints) directly or Asset groups](assets.md). In the dedicated dialog, only Assets compatible with the Inject are listed by default. 
 
 When selecting an Asset group to be targeted, all Assets (endpoints) of the group will be targeted by the Inject. Each one will have to complete assorted expectations.
 
