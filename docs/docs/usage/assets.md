@@ -21,9 +21,9 @@ The list of endpoints continues to grow with the changing landscape of networked
 - **Workstations**: Workstations refer to terminals or dedicated machines utilized by individuals or groups to perform specific tasks or access networked resources. These systems are typically tailored to meet specific operational requirements and may include specialized software or configurations.
 - **IoT devices**: The Internet of Things (IoT) encompasses a diverse array of interconnected devices and sensors. IoT endpoints include smart thermostats, cameras, environmental sensors, smart watches, and health tracking devices, among others.
 
-As technology continues to advance and networked environments expand, the definition of endpoints continues to evolve, encompassing an increasingly diverse range of devices and systems. Understanding the various categories and characteristics of endpoints is essential for effective network management and security.
-
 When accessing the Endpoints pages, you see the list of all endpoints imported in your platform. Here, users can create and manage details specific to each endpoint.
+
+Assets can be imported with the help of specific [Collectors](collectors.md), like Microsoft Entra.
 
 <!-- screenshot of the window "Assets > Endpoints" with a nice list of Endpoints -->
 
