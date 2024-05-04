@@ -1,35 +1,39 @@
 # Injects
 
-Injects are fundamental elements of simulations within OpenBAS, each representing a discrete action to be executed during a scenario. Managed and facilitated by various [injectors](injectors.md), each inject type serves a distinct purpose, contributing to the comprehensive evaluation of defenses.
+Injects are fundamental elements of simulations within OpenBAS, each representing a discrete action to be executed during a Scenario. Managed and facilitated by various [injectors](injectors.md), each inject type serves a distinct purpose, contributing to the comprehensive evaluation of defenses.
 
 <!-- screenshot of a nice list of various type of inject in the screen "Simulation > [open one simulation] > Injects" -->
 
 
 ## Create an inject
 
-Whether intended for [Atomic testing](atomic.md) or integration into a [Simulation](simulation.md), the process for creating injects remains consistent within OpenBAS.
+Whether intended for [Atomic testing](atomic.md) or for a [Simulation](simulation.md), the process for creating injects remains consistent within OpenBAS.
+
+<!-- Capture of a filtered list of inject during selection process -->
 
 ### For Atomic testing
 
 To create an inject for atomic testing, navigate to the "Atomic testing" section located in the left-hand banner. Click on the "+" icon at the bottom right corner to initiate the inject creation process.
 
-### For Simulations
+### For Scenarios and Simulations
 
-For injects intended for use within simulations, access the desired simulation and navigate to the "Injects" tab. Click on the "+" icon at the bottom right corner of the screen to open the inject creation panel.
+For injects intended for use within simulations, access the desired Scenario or Simulation and navigate to the "Injects" tab. Click on the "+" icon at the bottom right corner of the screen to open the inject creation panel.
+
+Note that an inject defined in a Scenario will be used in all the Scenario's subsequent Simulations. An Inject defined at the Simulation level will not be replicated into the Scenario itself, thus it will not be replicated in future Scenario's Simulations.
 
 ### Inject creation process
 
 Once the inject creation panel is open, you can proceed to configure the inject according to your requirements. Key steps in the creation process include:
 
-1. Choose the type of inject.
+1. Choose the type of inject : you first need to select an Inject in the list of available ones (from configured Injectors). To facilitate the selection into this possibly very long list, you can search injects by name or filter the list by Mitre Att&ck patterns. 
 2. Set inject parameters:
 
     - Descriptive information: Fill in details such as the title, description, and relevant tags to categorize the inject effectively. 
-    - [Inject targets](targets.md): Specify the targets for the inject, which may include [players and teams](teams_and_players_and_organizations.md) or [assets](assets.md) depending on the inject chosen. 
+    - [Inject targets](targets.md): Specify the targets for the inject, which may include [players and teams](teams_and_players_and_organizations.md) or [assets and assets groups](assets.md) depending on the inject chosen. 
     - [Expectations](expectations.md): Define the expected outcomes or responses to the inject, outlining the desired actions or behaviors by players. 
     - Attachments: Attach any relevant documents or resources to provide additional context or information related to the inject. 
-    - Execution timing: Set the timing for when the inject should be executed within the simulation timeline, ensuring it aligns with the overall scenario progression. 
-    - Additional fields: Depending on the type of inject selected, you may have access to additional fields specific to that inject type. These fields may include the subject and body of an email, channel pressure settings for public communications, obfuscation options, and more.
+    - Execution timing: If you are creating your Inject in the context of a Scenario or Simulation, you have to set the timing for when the inject should be executed within the simulation timeline, ensuring it aligns with the overall scenario progression. 
+    - Additional fields: Depending on the type of Inject selected, you may have access to additional fields specific to that inject type. These fields may include the subject and body of an email, channel pressure settings for public communications, obfuscation options, and more.
 
 <!-- screenshot of the inject creation panel (i.e. "Simulation > [open one simulation] > Injects > [Click on "+"]") with some information fill -->
 
@@ -74,6 +78,7 @@ Challenge injects are set to test participants' skills and response capabilities
 
 The inject associated with this type is referred to as `Publish challenges`.
 
+### Remote actions
 
 <a id="http-section"></a>
 ### HTTP requests
@@ -82,11 +87,11 @@ HTTP request injects are used to forge HTTP requests to a third party services i
 
 HTTP requests GET, POST, and PUT, can be sent. The corresponding injects are named `HTTP Request - \<request type>`.
 
+<a id="integration-section"></a>
+### Integrations through Injectors
 
-### Remote actions
+Injects executed on remote systems are facilitated by Injectors like [Caldera](inject-caldera.md) or Airbus CyberRange. These actions simulate real-world attack techniques, allowing administrators to gauge the effectiveness of their security posture in response to various technical actions attackers may take.
 
-Injects executed on remote systems are facilitated by injectors like [Caldera](inject-caldera.md) or Airbus CyberRange. These actions simulate real-world scenarios, allowing administrators to gauge the effectiveness of security measures in response to various threat scenarios.
-
-There are over 1,700 such injects covering all the TTPs in the MITRE matrix.
+There are over 1,700 such injects covering all the TTPs in the MITRE Att&ck matrix.
 
 <!-- screenshot of a nice list of Caldera/Airbus CyberRange inject in the screen "Simulation > [open one simulation] > Injects > [Click on "+"]" -->
