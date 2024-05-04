@@ -3,3 +3,28 @@
 !!! tip "Under construction"
 
     We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+
+
+In OpenBAS, Channels represent communication medias with a particular look. There are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
+
+It helps give shape to your Scenario context and events.
+
+## Create a Channel
+
+First step is to click on the + button at the bottom right and give your new Channel a type (Newspaper, Microblogging, TV Channel), a name and a subtitle.
+
+Once done, click on the Channel in the list to access its overview. Here you can define how media content associated to this Chennel will be displayed to Players.
+
+You can define primary and secondary colors, choose logos and define how the header is presented.
+
+On the right, a mock up of the overview is displayed to give you the look and fill of it.
+
+<!--  screenshot overview -->
+
+## Use a Channel
+
+A Channel will then be used in Scenario and in Simulation definition. When you create an Article, you have to choose the Channel that will give it an adequate shape.
+
+See [Media pressure](media_pressure.md) page to know how to create and add Articles to your Scenarios.
+
+<!-- screenshot of a Channel selection  at Article creation -->
