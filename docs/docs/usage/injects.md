@@ -44,7 +44,7 @@ By following these steps and providing the necessary information, you can create
 
 There are different types of injector in OpenBAS.
 
-<a id="manual-section"></a>
+
 ### Manual action reminders
 
 Manual action reminders are injects designed to prompt animation team to perform specific actions manually. It allows to place in the timeline a stimulus to be produced manually, outside the platform (e.g. simulated a call from a journalist on the switchboard telephone). These reminders ensure that critical tasks are completed as part of the simulation, enhancing the accuracy and realism of the exercise.
@@ -63,7 +63,6 @@ Here's the list of injects linked to this category:
 - `Send multi-recipients mail`: enables sending emails to a group of people (each recipient can see the other recipients).
 
 
-<a id="media-pressure-section"></a>
 ### Media pressure
 
 Injects simulating public communications involve the publication of articles, social media posts, or other fake announcements. These injects replicate scenarios where public disclosure of information or events affects an organization's reputation or operational continuity.
@@ -71,23 +70,19 @@ Injects simulating public communications involve the publication of articles, so
 The inject associated with this type is referred to as `Publish channel pressure`.
 
 
-<a id="challenge-section"></a>
 ### Challenges
 
 Challenge injects are set to test participants' skills and response capabilities by publishing challenges. These injects present scenarios or tasks that require active participation and problem-solving, allowing administrators to evaluate players.
 
 The inject associated with this type is referred to as `Publish challenges`.
 
-### Remote actions
 
-<a id="http-section"></a>
 ### HTTP requests
 
 HTTP request injects are used to forge HTTP requests to a third party services in order to perform actions outside the platform (e.g. API call to an EDR). These injects enable the platform to communicate with external services, gather information, or trigger specific actions via HTTP protocols.
 
 HTTP requests GET, POST, and PUT, can be sent. The corresponding injects are named `HTTP Request - \<request type>`.
 
-<a id="integration-section"></a>
 ### Integrations through Injectors
 
 Injects executed on remote systems are facilitated by Injectors like [Caldera](inject-caldera.md) or Airbus CyberRange. These actions simulate real-world attack techniques, allowing administrators to gauge the effectiveness of their security posture in response to various technical actions attackers may take.
