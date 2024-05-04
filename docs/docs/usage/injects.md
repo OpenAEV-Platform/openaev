@@ -83,7 +83,7 @@ HTTP request injects are used to forge HTTP requests to a third party services i
 
 HTTP requests GET, POST, and PUT, can be sent. The corresponding injects are named `HTTP Request - \<request type>`.
 
-### Integrations through Injectors
+### Integrations with Agents and cyberranges
 
 Injects executed on remote systems are facilitated by Injectors like [Caldera](inject-caldera.md) or Airbus CyberRange. These actions simulate real-world attack techniques, allowing administrators to gauge the effectiveness of their security posture in response to various technical actions attackers may take.
 
