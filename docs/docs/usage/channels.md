@@ -19,7 +19,7 @@ You can define primary and secondary colors, choose logos and define how the hea
 
 On the right, a mock up of the overview is displayed to give you the look and fill of it.
 
-<!--  screenshot overview -->
+![Channel creation](assets/Channel_update.png)
 
 ## Use a Channel
 
@@ -27,4 +27,4 @@ A Channel will then be used in Scenario and in Simulation definition. When you c
 
 See [Media pressure](media_pressure.md) page to know how to create and add Articles to your Scenarios.
 
-<!-- screenshot of a Channel selection  at Article creation -->
+![Channel selection during Article creation](assets/channel_selection_during_creation.png)

@@ -1,4 +1,4 @@
-# Injects and Simulations
+# Injects and Expectations
 
 !!! tip "Under construction"
 
@@ -13,9 +13,9 @@ Threats are the results of actions by threat actors, and a combination of Intent
 
 Injects can be technical, to simulate action an attacker can perform on an endpoint for example, but also non-technical to represent action against Player or impactful contextual events during a crisis (a call from a media after a data leak)
 
-<!-- screenshot of a caldera inject definition -->
+![Caldera inject definition form](assets/caldera_inject_definition.png)
 
-<!-- screenshot of a email inject -->
+![Email inject definition form](assets/email_inject_definition.png)
 
 ## Expectations
 
@@ -25,8 +25,6 @@ Expectations can be about:
 - Prevention: facing this event, I expect my security posture to be able to prevent the attacker action
 - Detection: facing this event, I expect my security posture to be able to detect the attacker action
 - Human response: facing this event, I expect my teams to be able to react accordingly to my defined security process.
-
-<!-- screenshot of expectations on an inject -->
 
 The collectation and concatenation of expectations' results, broken down per type, allows to assess the security posture against a threat context, and offer the ability to pin point areas of improvement.
 

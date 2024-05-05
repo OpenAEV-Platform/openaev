@@ -25,7 +25,7 @@ When accessing the Endpoints pages, you see the list of all endpoints imported i
 
 Assets can be imported with the help of specific [Collectors](collectors.md), like Microsoft Entra.
 
-<!-- screenshot of the window "Assets > Endpoints" with a nice list of Endpoints -->
+![Example of list of Assets](assets/assets_list.png)
 
 
 ## Asset groups
@@ -34,4 +34,4 @@ Asset groups serve as a mechanism for organizing and grouping related Endpoints.
 
 When creating a new asset group, administrators have the flexibility to specify the filters that will delineate the group's membership. Currently, the platform offers a range of filters such as platform type, hostname, and IP addresses. We plan to extend the possibilities by including additional filters in future updates.
 
-<!-- screenshot of the window "Assets > Asset groups" with a nice list of groups -->
+![Example of a Group configuration](assets/assetsgroup_creation.png)

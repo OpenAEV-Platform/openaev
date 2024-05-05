@@ -18,7 +18,7 @@ A multitude of injectors are available, each offering distinct capabilities and 
 - OVHCloud SMS Platform: Facilitates SMS messaging for injects, providing an additional communication channel for simulation participants.
 - OpenCTI: Integration with an OpenCTI platform, enhancing simulation capabilities with access to threat intelligence and [automatic scenario generation](opencti_scenario.md) based on observed threat activities.
 
-<!-- screenshot of the window with all injectors (Integration > Injectors) -->
+![List of Injectors](assets/list_of_injectors.png)
 
 <a id="agent-section"></a>
 ## Agents
@@ -27,10 +27,8 @@ For certain injectors, deploying an agent on the target machine is necessary to 
 
 To access the agents and installation instructions, navigate to the dedicated page located in the top right-hand corner (button with the screen logo). 
 
-<!-- screenshot of the button to access the Agent panel -->
-
 Detailed guidance on installing the agents, along with downloadable packages, is provided on this page. Agents are available for various operating systems, including Windows, Linux, and MacOS, ensuring compatibility across different environments. 
 
 As of now, only the Caldera injector requires the installation of an agent. This agent enables full integration with the MITRE Caldera framework, unlocking advanced simulation capabilities and enhancing the overall effectiveness of simulation exercises. Full details of the [Caldera agent](https://caldera.readthedocs.io/en/latest/Learning-the-terminology.html#agents) are available in the MITRE documentation.
 
-<!-- screenshot of the Agents window -->
+![Install Agent panel with instructions](assets/install_agent_instruction.png)

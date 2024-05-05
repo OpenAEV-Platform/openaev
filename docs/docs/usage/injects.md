@@ -2,14 +2,14 @@
 
 Injects are fundamental elements of simulations within OpenBAS, each representing a discrete action to be executed during a Scenario. Managed and facilitated by various [injectors](injectors.md), each inject type serves a distinct purpose, contributing to the comprehensive evaluation of defenses.
 
-<!-- screenshot of a nice list of various type of inject in the screen "Simulation > [open one simulation] > Injects" -->
+![Injects list in a Scenario](assets/injects_list_in_scenario.png)
 
 
 ## Create an inject
 
 Whether intended for [Atomic testing](atomic.md) or for a [Simulation](simulation.md), the process for creating injects remains consistent within OpenBAS.
 
-<!-- Capture of a filtered list of inject during selection process -->
+![Capture of a filtered list of inject during selection process](assets/example_inject_filtering.png)
 
 ### For Atomic testing
 
@@ -35,7 +35,7 @@ Once the inject creation panel is open, you can proceed to configure the inject 
     - Execution timing: If you are creating your Inject in the context of a Scenario or Simulation, you have to set the timing for when the inject should be executed within the simulation timeline, ensuring it aligns with the overall scenario progression. 
     - Additional fields: Depending on the type of Inject selected, you may have access to additional fields specific to that inject type. These fields may include the subject and body of an email, channel pressure settings for public communications, obfuscation options, and more.
 
-<!-- screenshot of the inject creation panel (i.e. "Simulation > [open one simulation] > Injects > [Click on "+"]") with some information fill -->
+![screenshot of the inject creation panel](assets/email_inject_definition.png)
 
 By following these steps and providing the necessary information, you can create injects tailored to your specific testing or simulation objectives.
 
@@ -89,4 +89,3 @@ Injects executed on remote systems are facilitated by Injectors like [Caldera](i
 
 There are over 1,700 such injects covering all the TTPs in the MITRE Att&ck matrix.
 
-<!-- screenshot of a nice list of Caldera/Airbus CyberRange inject in the screen "Simulation > [open one simulation] > Injects > [Click on "+"]" -->
