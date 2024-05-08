@@ -1,53 +1,52 @@
 # Players, Teams and Organizations
 
-!!! tip "Under construction"
+Breach and Attack Simulation involves testing your security posture, and people are an essential part of it!
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+Players, teams, and organizations are where you organize the human aspect of your security posture within OpenBAS (in the "People" section). These entities are the targets for injects during your [simulations](simulation.md) and [atomic testings](atomic.md).
 
-
-Breach and Attack simulation is about testing your security posture, and People are an essential part of it!
-
-Players, Teams and Organizations are where you organize  into OpenBAS all the human part of your security posture. Ones you will target with injects during your [Simulations](simulation.md) and [Atomic testings](atomic.md).
 
 ## Players
 
-Players are the users that may take part into your Scenarios, to be tested against attack or contextual events ([Injects](injects.md)).
+Players are the users that may take part into your scenarios, to be tested against attack or contextual events (i.e. [injects](injects.md)).
 
-Players can be created manually with the + button at the bottom right, but we encourage you to active an integration allowing to import them from your IT environment, like with Microsoft Entra integration.
+Players can be created manually with the + button at the bottom right, but we encourage you to activate an integration allowing to import them from your IT environment, like with Microsoft Entra integration.
 
 Players are defined by:
 
-- Email address
-- First name
-- Last name
-- Organization: you can link a Player to an Organization (see below)
-- Country
-- Phone number
-- PGP Public key: necessary if you want to play encrypted email injects
-- Tags: if you want to sort them by custom categories
+- Email address,
+- First name,
+- Last name,
+- Organization: to link a player to an organization (see [below](teams_and_players_and_organizations.md#organization-section)),
+- Country,
+- Phone number: necessary if you want to play SMS injects,
+- PGP public key: necessary if you want to play encrypted email injects,
+- Tags: if you want to sort them by custom categories.
 
-This list of Players can be exported by clicking on the export button, at the top right of the players screen.
+This list of players can be exported by clicking on the export button, at the top right of the players screen.
 
 <!-- no screenshot here expect if all Players are fake people -->
 
+
 ## Teams
 
-Teams regroup Players into groups that can be targeted by injects during Simulations or Atomic testing. It is the best way to represent your different security team (like CSIRT, SOC, VOC, etc.) and other teams that might be involved into your Scenario (legal department, communication department, etc.)
+Teams group players into units that can be targeted by injects during simulations or atomic testing. They serve as a way to represent different security teams (e.g., CSIRT, SOC, VOC) and other relevant teams that might be involved into your scenario (e.g., legal department, communication department).
 
 Teams are defined by:
 
-- Name
-- Description
-- Organization: you can link a Team to an Organization (see below)
-- Tags: if you want to sort them by custom categories
+- Name,
+- Description,
+- Organization: to link a team to an organization (see [below](teams_and_players_and_organizations.md#organization-section)),
+- Tags: if you want to sort them by custom categories.
 
-From the Teams list, you can manage Players of a Team by clicking on the three-dots inline button on the right and select "Manage Players". From there, you can see all Players of the Teams and their communication channels' state. You can update, remove or delete them.
+From the teams list, you can manage players by clicking on the three-dots inline button on the right and selecting "Manage players." From there, you can view, update, or delete all the team's players and see their communication channels' state.
 
 <!-- screenshot of the Teams list  with a Manage Players drawer opened -->
 
+
+<a id="organization-section"></a>
 ## Organizations
 
-Organization is a simple way to segregate Players and Teams in the platform. A Player associated with an Organization, even with the necessary rights to animate and planned Scenarios and Simulations, will never see Players and Teams from other Organizations.
+Organization provides a straightforward method to segregate players and teams within the platform. A player associated with an organization, even with the required rights to animate and planned scenarios and simulations, will never see players and teams from other organizations.
 
-It can be very handful if you are using the OpenBAS platform for planning and playing Simulations for different companies or subsidiaries.
+This feature can be particularly useful if you are using OpenBAS to plan and execute simulations for various companies or subsidiaries.
 

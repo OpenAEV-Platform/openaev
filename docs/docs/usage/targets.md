@@ -1,33 +1,30 @@
 # Targets
 
 
-!!! tip "Under construction"
+When you are using an [Inject](injects.md), whether for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), it's necessary to define the recipients, known as "targets", which could include [Players, Teams](teams_and_players_and_organizations.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the inject.
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+Note that certain injects can't target assets, while others can't target players. For instance, the "Send individual mails" inject can only target players and teams, not assets. 
 
-
-When you are using an Inject, either for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), you need to define which [Players, Teams](teams_and_players_and_organizations.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the Inject.
-
-Note that some Injects cannot target Assets and other cannot target Players. For example, it is not possible to target an Asset with the Inject "Send individual mails", only Players and Teams.
-
-Selecting Targets for an Inject is done when creating or updating an Inject. 
+Target selection is performed during inject creation or update.
 
 <!-- screenshot of an inject contract -->
 
+
 ## Selecting Players and Teams
 
-It is not yet possible to target directly a Player. You must target a Team. If you are into a Scenario or a Simulation, the Team must be part of the [Scenario](scenario.md) or Simulation to be selectable. If you are creating an Atomic testing, all Teams in the platform are selectable.
+Directly targeting a player isn't yet possible. Instead, you must target a team. In scenarios or simulations, the team must be included in the scenario or simulation to be selectable. However, when creating atomic testing, all teams in the platform are selectable.
 
-Note that visibility of Teams and Players is limited by the Organization's [segregation](teams_and_players_and_organizations.md).
+Note that visibility of teams and players is limited by the organization's [segregation](teams_and_players_and_organizations.md).
 
-When selecting a Team to be targeted, all Players of the Team will be targeted by the inject. Each one will have to complete assorted expectations.
+When selecting a team as the target, all players within that team will be targeted by the inject. Each player will have to complete expectations.
 
 <!-- screenshot of an inject with selected teams -->
 
-## Selecting Assets (endpoints) and Asset Groups
 
-You can target [Assets (endpoints) directly or Asset groups](assets.md). In the dedicated dialog, only Assets compatible with the Inject are listed by default. 
+## Selecting Assets (endpoints) and Asset groups
 
-When selecting an Asset group to be targeted, all Assets (endpoints) of the group will be targeted by the Inject. Each one will have to complete assorted expectations.
+You can target [assets (endpoints) directly or asset groups](assets.md). In the dedicated dialog, only assets compatible with the inject are listed by default.
+
+When selecting an asset group to target, all assets (endpoints) within the group will be targeted by the inject. Each one will have to complete expectations.
 
 <!-- screenshot with selected assets -->
