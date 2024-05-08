@@ -1,66 +1,57 @@
 # Scenario
 
-!!! tip "Under construction"
+When clicking on Scenarios in the left menu, you access to the list of all Scenarios defined in the platform. Scenarios act as templates that translate threat contexts into meaningful events to simulate.
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+Scenarios can be grouped by defining categories, main focus, severity and tags. It is then possible to filter the Scenarios list based on these attributes. Quick filters are available by default at the top of the screen to filter Scenario on most used categories.
 
-When clicking on Scenarios in the left menu, you access to the list of all Scenarios that have been defined in the platform. Scenario are like templates that translate threat context into meaningfull events to simulate.
-
-Scenarios can be categorized by defining categories, main focus, severity and tags. It is then possible to filter the Scenarios list based on this attributes. Quick filters are present by default on top of the screen to filter Scenario on most used Categories.
-
-It is also possible to search Scenarios by their names using the contextual search bar.
+It is also possible to search Scenarios by their names using the search bar.
 
 <!-- screenshot du screen de la liste de scenarios -->
 
 
-## Create a Scenario
+## Create a scenario
 
-To create a Scenario, hit the + button on the bottom right of the screen and define general metadata that make sense for you. 
+To create a scenario, hit the + button on the bottom right of the screen and define general metadata that make sense for you. 
 
-Once done, the Scenario is accessible in the list. Click on it to see its details and define them.
+Once done, the scenario is accessible in the list. Click on it to see its details and define them.
 
-## Scenario Overview
 
-The Overview regroups everything you need to know to evaluate you security posture facing this threat context over time. The context of the Scenario is displayed, with all the Results of the simulations that have been played from this Scenarios. The list of these Simulations is also displayed to easily switch to their specific details and results.
+## Scenario overview
 
-If the Scenario has never been simulated, note that the Results' widgets contain an example of how results will be displayed and the list of Simulations is replaced with a invite to generate one.
+The overview provides comprehensive information for evaluating your security posture against the threat context over time. It displays the scenario's context along with the results of the simulations played from it. Additionally, the list of these simulations is shown, allowing easy access to their specific details and results.
+
+If the scenario has never been simulated, the results' widget contains an example of how results will be displayed, and the list of simulations is replaced with an invitation to generate one.
 
 <!-- screenshot de l'overview d'un scenario simulé plusieurs fois -->
 
+
 ## Defining a Scenario
 
-Of course, simulating an empty Scenario is useless. To define the Scenario, use the "Definition" and "Injects" screens.
+To define the scenario, navigate to the "Definition" and "Injects" tabs.
 
-In Definition, you can add all elements that will help you to construct events:
-- [Teams and Players](teams_and_players_and_organizations.md) involved in the Scenario
-- Custom [Variables](variables.md) you may need to simplify Injects' customization
-- Articles you may used in the Scenario to simulate [media pressure](media_pressure.md)
-- [Challenges](challenges.md) you may have designed if you including Capture The Flag elements in your Scenario
+In the "Definition" tab, you can add various elements to construct events:
+
+- [Teams and Players](teams_and_players_and_organizations.md) involved in the scenario,
+- [Custom variables](variables.md) for simplifying injects' customization,
+- Articles that you might use to simulate [media pressure](media_pressure.md),
+- [Challenges](challenges.md) designed for including Capture The Flag elements in your scenario.
 
 <!-- screenshot of the Definition screen with elements inside -->
 
-Once you have added all the elements you may need, you can go to the [Injects](injects.md) screen to begin to create the chain of events that will shape your Scenario.
+Once you have added all the elements you need, you can go to the "Injects" tab to begin to create the chain of events that will shape your scenario.
 
-By clicking on the + button at the bottom right of the screen, you enter the inject creation workflow.
+By clicking on the + button at the bottom right of the screen, you enter the [inject creation workflow](injects.md#inject-creation-section).
 
-On the left of the creation screen is the list of all available Inject you can add to your Scenario. Logos on the left of each line indicates which Injector is associated with each [inject](injects.md).
 
-Depending on your integrations, this list can be long. You can filter the list by compatible platforms or by Mitre Att&ck tactics. By clicking on the "Att&CK" logo near the search bar, you can also filter by selecting a precise Mitre Att&ck techniques.
+## Launching a simulation of the scenario
 
-When selecting an inject on the left, the form on the right populates itself with a by-default title and propose you to define when the inject should be played in the Scenario's chronology.
+Once you've finished defining your scenario, it's time to simulate it and evaluate your security posture!
 
-By clicking on Inject content, you can define now or later the targeted assets and players, needed configurations, and the assorted expectations.
+To do so, click the "Simulate now" button. You can choose to simulate this scenario as a one-time evaluation, scheduling it for a specific date and time. Additionally, you can set it to simulate recurrently to assess your posture over time. The results of each simulation will populate your scenario overview.
 
-The "available variables" button helps you to use already defined variables into compatible fields.
+A visual indication, located to the right of the scenario's title, provides a quick way to know if the scenario is currently being simulated.
 
-## Launching a Simulation of the Scenario
 
-When you have finished to define your Scenario, it is time to simulate it and evaluate your security posture!
+## Export your scenario
 
-To do so, hit the Simulate now button. You can decide to simulate this Scenario as a one-time evaluation, as the date and time you see fit. And you can also simulate it recurringly to evaluate your posture over time. You will see Results of each Simulation populate your Scenario overview.
-
-A visual indication, at the right of the Scenario's title, helps you quicly know if the Scenario is being simulated or not.
-
-## Export your Scenario
-
-You have the capability to export your carefully crafted Scenario as a JSON file by hitting the three-dots button on the top right of the Scenario screen. it can help to share it with others, or to store it outside the platform.
+You can export your carefully crafted scenario as a JSON file by clicking the three-dots button at the top right of the scenario screen. This allows you to share it with others, or store it outside the platform.
