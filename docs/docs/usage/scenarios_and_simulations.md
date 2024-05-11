@@ -1,25 +1,22 @@
 # Scenarios and Simulations
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
-
-In OpenBAS, the core concept to simulate attacks is based on the duo Scenario & Simulation.
+In OpenBAS, the core concept to simulate attacks is based on the duo [Scenario](scenario.md) & [Simulation](simulation.md).
 
 ## Scenarios
 
-Scenario allows to translate a threat context, like an attack or even a threat actor, into a meaningful chronology of events (called injects), technical or not. This chronology of events can be detailed with associated documents or media articles to also simulate the environment around these events.
+Scenario enable to translate a threat context, such as an attack or even a threat actor, into a meaningful sequence of events (referred to as [injects](injects.md)), which can be technical or non-technical. This chronology of events can be enriched with associated documents or media articles to simulate the environment surrounding them.
 
-In Scenarios, you also define who is playing, either actual people (called Players) or endpoints (called Assets). They will be targets of the events representing the threat.
+Within Scenarios, you also specify who participates, whether actual people (referred to as [Players](teams_and_players_and_organizations.md)) or endpoints (referred to as [Assets](assets.md)). They will be the targets of the events representing the threat.
 
-In order to translate real threat into Scenario, it is possible to create them from OpenCTI data, like Reports.
+In order to translate real threats into Scenarios, it is possible to create them from OpenCTI data, such as Reports.
+
 
 ## Simulations
 
-If a Scenario represents threat context translated into meaningful events, a Simulation is the mean to evaluate your security posture against this threat context. 
+If a Scenario translates threat context into meaningful events, a Simulation serves as a means to evaluate your security posture against this threat context. 
 
-Simulating a Scenario with reccurence allows you to evaluate your security posture over time against a threat context, and because Simulations are always related to their parent Scenario, even if it evolved, you will be able to:
-- evaluate your risk facing evolving threats.
-- evaluate the impact of your security governance against your most relevant threats.
+By simulating a scenario with recurrence, you can evaluate your security posture over time in response to a threat context. Since simulations are always linked to their parent scenario, even if it evolves, you can:
+- assess your risk against evolving threats,
+- evaluate the effectiveness of your security governance in addressing your most relevant threats.
 
 <!-- Here a screenshot of a Scenario with multiple Simulations with different results percentage -->
