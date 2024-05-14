@@ -6,7 +6,7 @@ Before starting the installation, let's discover how OpenBAS is working, which d
 
 The OpenBAS platform relies on several external databases and services in order to work.
 
-![Architecture](assets/openbas_stack.png)
+![Architecture](assets/architecture.png)
 
 ### Platform
 
