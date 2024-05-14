@@ -12,9 +12,9 @@ The OpenBAS platform relies on several external databases and services in order 
 
 The platform is the central part of the OpenBAS platform, allowing users to configure scenarios, simulations, atomic testings and all other components used in the context of breach and attack simulations and security validations.
 
-### Executors
+### Neutral agents / executors
 
-Executors are embedded into the platform but you should configure at least one. It is the system that will be used to execute local injectors on endpoints. 
+Executors are embedded into the platform but you should configure at least one. It is the system that will be used to execute local injectors on endpoints. Currently we support Caldera (default) and Tanium but multiple will be added in the near future including a home-made XTM agent (by Filigran). 
 
 ### Injectors
 

@@ -119,6 +119,7 @@ nav:
       - Upgrade: deployment/upgrade.md
     - Ecosystem:
       - Injectors: deployment/injectors.md
+      - Collectors: deployment/collectors.md
       - Integrations: deployment/integrations.md
       - Other resources: deployment/resources.md
     - Advanced:
