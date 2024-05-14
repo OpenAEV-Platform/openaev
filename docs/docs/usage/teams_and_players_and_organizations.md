@@ -4,7 +4,7 @@ Breach and Attack Simulation involves testing your security posture, and people 
 
 Players, teams, and organizations are where you organize the human aspect of your security posture within OpenBAS (in the "People" section). These entities are the targets for injects during your [simulations](simulation.md) and [atomic testings](atomic.md).
 
-
+<a id="players-section"></a>
 ## Players
 
 Players are the users that may take part into your scenarios, to be tested against attack or contextual events (i.e. [injects](injects.md)).

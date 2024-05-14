@@ -1,19 +1,13 @@
 # Scenario generation from OpenCTI
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
-
-
-Creating a Scenario is not an easy task. To help you build meaningfull ones, directly related to threats meaningfull to you, you can leverage an OpenCTI platform integration.
+Creating a [scenario](scenario.md) can be a complex task, especially when aiming to build one that is meaningful and relevant to the specific threats facing your organization. To streamline this process and ensure that scenarios are closely aligned with your threat landscape, you can leverage the integration between OpenCTI and OpenBAS.
 
 <!-- screenshot of the OpenBAS integration widget in OpenCTI without results -->
 
-When a Scenario is generated from OpenCTI, a Scenario is automatically created and can be consulted in the Scenarios screen. The name of the Scenario includes an OpencTI mention. The Scenario will automatically contains relevant injects sequences in accordance with the threat context from OpenCTI.
+When generating a scenario from OpenCTI, a scenario is created and can be accessed from the scenarios screen. The scenario name will include a reference to OpenCTI, indicating its origin. This scenario will automatically contain relevant sequences of injects based on the threat context identified in OpenCTI.
 
-You will need to review it and may be customize it to ensure the Scenario fits your requirement, and also to select Targets for the Scenario's injects.
+However, it's important to review and potentially customize the scenario to ensure it meets your organization's specific requirements. Additionally, you'll need to select appropriate [targets](targets.md) for the injects within the scenario.
 
-Once you are ready, schedule you Simulation(s), as for other Scenarios. Global results will also be available directly into OpenCTI, in the Overview of the threat context the Scenario is based on!
+Once you've finalized the scenario, you can schedule your simulation as you would for any other scenario. The overall results of the simulation will also be available directly within OpenCTI, providing insights into the threat context upon which the scenario is based.
 
 <!-- screenshot of the OpenBAS integration widget in OpenCTI with results -->
-

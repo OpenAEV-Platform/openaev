@@ -1,44 +1,51 @@
 # Expectations
 
-!!! tip "Under construction"
+Expectations define what is expected from an [Asset (endpoint)](assets.md) or a [Players](teams_and_players_and_organizations.md#players-section) when facing an [Inject](injects.md) in terms of security posture. Each expectation has a score representing how well it has been met by the target.
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
 
-Expectations are the mean to express what is expected from an Asset (endpoint) or a Players facing an Inject in terms of security posture. 
+## Expectation types
 
-Expectations can be:
+Expectations can be categorized as either Manual or Automatic, depending on how they are validated.
 
-- Manual: the expectation is at the end of the animation team. its validation and score will be manually handled
-- Automatic: the expectation's validation will be handled automatically under specific conditions
+### Manual expectations
 
-Current available expectations are:
+Manual expectations require manual validation by the animation team, with the validation process and scoring managed manually. They are simple, customizable expectations to be manually validated.
 
-- `Manual`: a simple customizable expectation to be validated manually.
-- `Automatic - Prevention: Triggred when inject is processed`: Automatically validated by security integration with compatible Collectors if the Inject's action generates a prevention alert, like a quarantine.
-- `Automatic - Detection: Triggred when inject is processed`: Automatically validated by security integration with compatible Collectors if the Inject's action generates a detection alert, like an incident.
+
+### Automatic expectations
+
+Automatic expectations are validated automatically under specific conditions. Currently available automatic expectations include:
+
+- `Automatic - Prevention: Triggered when inject is processed`: automatically validated by security integration with compatible Collectors if the inject's action generates a prevention alert, such as quarantine.
+- `Automatic - Detection: Triggered when inject is processed`: automatically validated by security integration with compatible Collectors if the inject's action generates a detection alert, such as an incident.
 - `Automatic - Triggered when team reads articles`: Automatically validated when the article of a Media pressure inject has been read by targets.
 
+For injects targeting asset groups, some expectations can be validated in two modes:
 
-Note that the "Publish Challenges" Inject does not need Expectation. Results are computed directly from Challenges' scores.
-
-Each expectation has a score that represent how well the expectation has been met by the target.
-
-Some expectations can be validated in two mode when an Inject is targeting Asset groups:
-
-- All assets (per group) must validate the expectation
-- At least one asset (per group) must validate the expectation
+- All assets (per group) must validate the expectation.
+- At least one asset (per group) must validate the expectation.
 
 <!-- screenshot of an expectation form -->
 
-## Add an expectation to an inject
+!!! note "Special case: Publish Challenges inject "
 
-For adding expectations to an Inject, open the Inject content and click on "Add expectations". Then select the type of expectation and set a score for it.
+    The "Publish Challenges" inject doesn't require an expectation, as results are computed directly from Challenges' scores.
 
-You can add multiple expectations to an inject.
 
-## Validate a manual expectation
+## Expectation manipulation
 
-If you have configured manual expectations in your Scenario, you will have the opportunity to handle manual validations during each of its Simulation. During a Simulation, go to the Animation tab, under the Validation screen. You will see there the list of expectations that still need a manual validation.
+### Add an expectation to an inject
+
+To add expectations to an inject, navigate to the inject's content and click on "Add expectations". From there, select the type of expectation you want to add and set a score for it.
+
+You can add multiple expectations to a single inject.
+
+<!-- screenshot -->
+
+
+### Validate a manual expectation
+
+If you have configured manual expectations in your scenario, you will have the opportunity to handle manual validations during each simulation. During a Simulation, navigate to the Animation tab, under the Validation screen. Here, you'll find a list of expectations that require manual validation.
 
 <!-- screenshot of the screen populated with manual validation to perform -->
 
