@@ -16,6 +16,11 @@ The platform is the central part of the OpenBAS platform, allowing users to conf
 
 Executors are embedded into the platform but you should configure at least one. It is the system that will be used to execute local injectors on endpoints. Currently we support Caldera (default) and Tanium but multiple will be added in the near future including a home-made XTM agent (by Filigran). 
 
+!!! warning "Required executor"
+
+    Executors are responsible of executing endpoint payload injectors. To use them, you have to have at least one executor / neutral agent enabled. Injectors that require executors are marked in red in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+    ![Require executors](assets/require-executor.png)
+
 ### Injectors
 
 Injects are used to interact with third-party applications or services (including execution on the endpoints through executors) in the context of a simulation or an atomic testing. A few injectors are built-in but most of them are standalone Python processes. 
