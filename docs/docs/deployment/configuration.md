@@ -119,11 +119,18 @@ To be able to use the power of the OpenBAS platform on endpoints, you need at le
 
 ##### Tanium
 
-| Parameter                | Environment variable    | Default value | Description                |
-|:-------------------------|:------------------------|:--------------|:---------------------------|
-| executor.tanium.enable   | EXECUTOR_TANIUM_ENABLE  | `false`       | Enable the Tanium executor |
-| executor.tanium.url      | EXECUTOR_TANIUM_URL     |               | Tanium URL                 |
-| executor.tanium.api-key  | EXECUTOR_TANIUM_API-KEY |               | Tanium API key             |
+!!! note "Tanium Packages"
+
+    To use the Tanium executor, please install the [OpenBAS packages](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-framework/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json) on the Tanium platform and fill their IDs in the configuration below.
+
+| Parameter                          | Environment variable               | Default value | Description                                     |
+|:-----------------------------------|:-----------------------------------|:--------------|:------------------------------------------------|
+| executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`       | Enable the Tanium executor                      |
+| executor.tanium.url                | EXECUTOR_TANIUM_URL                |               | Tanium URL                                      |
+| executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |               | Tanium API key                                  |
+| executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  |               | Tanium Computer Group to be used in simulations |
+| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |               | ID of the OpenBAS Tanium Windows package        |
+| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |               | ID of the OpenBAS Tanium Unix package           |
 
 #### Mail services
 
