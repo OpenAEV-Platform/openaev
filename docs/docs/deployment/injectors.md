@@ -99,10 +99,10 @@ For instance, to enable the HTTP query injector, you can add a new service to yo
 
 ### Launch a standalone injector
 
-To launch standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenBAS-Platform/injectors-python/releases) and start the injector:
+To launch standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenBAS-Platform/injectors/releases) and start the injector:
 
 ```
-$ wget https://github.com/OpenBAS-Platform/injectors-python/archive/{RELEASE_VERSION}.zip
+$ wget https://github.com/OpenBAS-Platform/injectors/archive/{RELEASE_VERSION}.zip
 $ unzip {RELEASE_VERSION}.zip
 $ cd injectors-{RELEASE_VERSION}/http-query/
 ```
@@ -124,7 +124,7 @@ $ apt install python3 python3-pip
 Download the release of the injectors:
 
 ```
-$ wget <https://github.com/OpenBAS-Platform/injectors-python/archive/{RELEASE_VERSION}.zip>
+$ wget <https://github.com/OpenBAS-Platform/injectors/archive/{RELEASE_VERSION}.zip>
 $ unzip {RELEASE_VERSION}.zip
 $ cd injectors-{RELEASE_VERSION}/http-query/src/
 ```

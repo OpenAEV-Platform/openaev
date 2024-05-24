@@ -92,10 +92,10 @@ For instance, to enable the MITRE ATT&CK collector, you can add a new service to
 
 ### Launch a standalone collector
 
-To launch standalone collector, you can use the `docker-compose.yml` file of the collector itself. Just download the latest [release](https://github.com/OpenBAS-Platform/collectors-python/releases) and start the collector:
+To launch standalone collector, you can use the `docker-compose.yml` file of the collector itself. Just download the latest [release](https://github.com/OpenBAS-Platform/collectors/releases) and start the collector:
 
 ```
-$ wget https://github.com/OpenBAS-Platform/collectors-python/archive/{RELEASE_VERSION}.zip
+$ wget https://github.com/OpenBAS-Platform/collectors/archive/{RELEASE_VERSION}.zip
 $ unzip {RELEASE_VERSION}.zip
 $ cd collectors-{RELEASE_VERSION}/mitre-attack/
 ```
@@ -117,7 +117,7 @@ $ apt install python3 python3-pip
 Download the release of the collectors:
 
 ```
-$ wget <https://github.com/OpenBAS-Platform/collectors-python/archive/{RELEASE_VERSION}.zip>
+$ wget <https://github.com/OpenBAS-Platform/collectors/archive/{RELEASE_VERSION}.zip>
 $ unzip {RELEASE_VERSION}.zip
 $ cd collectors-{RELEASE_VERSION}/mitre-attack/src/
 ```
