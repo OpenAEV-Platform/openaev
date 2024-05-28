@@ -142,7 +142,7 @@ For the associated mailbox, for the moment the platform only relies on IMAP / SM
 | Parameter             | Environment variable | Default value     | Description          |
 |:----------------------|:---------------------|:------------------|:---------------------|
 | spring.mail.host      | SPRING_MAIL_HOST     | smtp.mail.com     | SMTP Server hostname |
-| spring.mail.port      | SPRING_MAIL_PORT     | 587               | SMTP Server port     |
+| spring.mail.port      | SPRING_MAIL_PORT     | 465               | SMTP Server port     |
 | spring.mail.username  | SPRING_MAIL_USERNAME | username@mail.com | SMTP Server username |
 | spring.mail.password  | SPRING_MAIL_PASSWORD | password          | SMTP Server password |
 
@@ -151,7 +151,7 @@ For the associated mailbox, for the moment the platform only relies on IMAP / SM
 | spring.mail.properties.mail.smtp.ssl.enable      | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE      | `true`        | Turn on SMTP SSL mode         |
 | spring.mail.properties.mail.smtp.ssl.trust       | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST       | *             | Trust unverified certificates |
 | spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | `true`        | Turn on SMTP authentication   |
-| spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | `true`        | Turn on SMTP STARTTLS         |
+| spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | `false`       | Turn on SMTP STARTTLS         |
 
 ##### IMAP
 
