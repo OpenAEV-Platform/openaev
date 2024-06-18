@@ -79,15 +79,16 @@ Here are the configuration keys, for both containers (environment variables) and
 #### RabbitMQ
 
 | Parameter                   | Environment variable        | Default value | Description                                 |
-|:----------------------------|:----------------------------|:--------------|:--------------------------------------------|
-| openbas.rabbitmq.prefix     | OPENBAS_RABBITMQ_PREFIX     | openbas       | Prefix for the queue names                  |
-| openbas.rabbitmq.hostname   | OPENBAS_RABBITMQ_HOSTNAME   | localhost     | Hostname of the RabbitMQ server             |
-| openbas.rabbitmq.vhost      | OPENBAS_RABBITMQ_VHOST      | /             | Vhost of the RabbitMQ server                |
-| openbas.rabbitmq.port       | OPENBAS_RABBITMQ_PORT       | 5672          | Port of the RabbitMQ Server                 |
-| openbas.rabbitmq.ssl        | OPENBAS_RABBITMQ_SSL        | `false`       | Use SSL                                     |
-| openbas.rabbitmq.user       | OPENBAS_RABBITMQ_USER       | guest         | RabbitMQ user                               |
-| openbas.rabbitmq.pass       | OPENBAS_RABBITMQ_PASS       | guest         | RabbitMQ password                           |
-| openbas.rabbitmq.queue-type | OPENBAS_RABBITMQ_QUEUE-TYPE | classic       | RabbitMQ Queue Type ("classic" or "quorum") |
+|:---------------------------------|:---------------------------------|:--------------|:--------------------------------------------|
+| openbas.rabbitmq.prefix          | OPENBAS_RABBITMQ_PREFIX          | openbas       | Prefix for the queue names                  |
+| openbas.rabbitmq.hostname        | OPENBAS_RABBITMQ_HOSTNAME        | localhost     | Hostname of the RabbitMQ server             |
+| openbas.rabbitmq.vhost           | OPENBAS_RABBITMQ_VHOST           | /             | Vhost of the RabbitMQ server                |
+| openbas.rabbitmq.port            | OPENBAS_RABBITMQ_PORT            | 5672          | Port of the RabbitMQ Server                 |
+| openbas.rabbitmq.management-port | OPENBAS_RABBITMQ_MANAGEMENT-PORT | 15672         | Management port of the RabbitMQ Server      |
+| openbas.rabbitmq.ssl             | OPENBAS_RABBITMQ_SSL             | `false`       | Use SSL                                     |
+| openbas.rabbitmq.user            | OPENBAS_RABBITMQ_USER            | guest         | RabbitMQ user                               |
+| openbas.rabbitmq.pass            | OPENBAS_RABBITMQ_PASS            | guest         | RabbitMQ password                           |
+| openbas.rabbitmq.queue-type      | OPENBAS_RABBITMQ_QUEUE-TYPE      | classic       | RabbitMQ Queue Type ("classic" or "quorum") |
 
 #### S3 bucket
 
