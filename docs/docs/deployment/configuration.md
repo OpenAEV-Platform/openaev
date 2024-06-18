@@ -101,22 +101,17 @@ Here are the configuration keys, for both containers (environment variables) and
 | minio.bucket        | MINIO_BUCKET         | openbas       | S3 bucket name. Useful to change if you use AWS.                                                                                                                                                                            |
 | minio.bucket-region | MINIO_BUCKET-REGION  | us-east-1     | Region of the S3 bucket if you are using AWS. This parameter value can be omitted if you use Minio as an S3 Bucket Service.                                                                                                 |
 
-#### Executors (neutral agents)
+#### Agents (executors)
 
 To be able to use the power of the OpenBAS platform on endpoints, you need at least one executor that will be in charge of spawing temporary processes (endpoint injectors) which will execute payloads.
 
-!!! note "Supported executors"
+##### OpenBAS Agent
 
-    We currently support only Caldera and Tanium but are actively working on our own agent as well as supporting more third-party.
+The OpenBAS agent is enabled by default and cannot be disabled. It is available for:
 
-##### Caldera
-
-| Parameter                   | Environment variable        | Default value | Description                           |
-|:----------------------------|:----------------------------|:--------------|:--------------------------------------|
-| executor.caldera.enable     | EXECUTOR_CALDERA_ENABLE     | `true`        | Enable the Caldera executor           |
-| executor.caldera.url        | EXECUTOR_CALDERA_URL        |               | Caldera URL                           |
-| executor.caldera.public-url | EXECUTOR_CALDERA_PUBLIC-URL |               | Caldera URL accessible from endpoints |
-| executor.caldera.api-key    | EXECUTOR_CALDERA_API-KEY    |               | Caldera API key                       |
+- Windows (`x86_64` / `arm64`)
+- Linux (`x86_64` / `arm64`)
+- MacOS (`x86_64` / `arm64`)
 
 ##### Tanium
 
@@ -132,6 +127,15 @@ To be able to use the power of the OpenBAS platform on endpoints, you need at le
 | executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  |               | Tanium Computer Group to be used in simulations |
 | executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |               | ID of the OpenBAS Tanium Windows package        |
 | executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |               | ID of the OpenBAS Tanium Unix package           |
+
+##### Caldera
+
+| Parameter                   | Environment variable        | Default value | Description                           |
+|:----------------------------|:----------------------------|:--------------|:--------------------------------------|
+| executor.caldera.enable     | EXECUTOR_CALDERA_ENABLE     | `false`       | Enable the Caldera executor           |
+| executor.caldera.url        | EXECUTOR_CALDERA_URL        |               | Caldera URL                           |
+| executor.caldera.public-url | EXECUTOR_CALDERA_PUBLIC-URL |               | Caldera URL accessible from endpoints |
+| executor.caldera.api-key    | EXECUTOR_CALDERA_API-KEY    |               | Caldera API key                       |
 
 #### Mail services
 
