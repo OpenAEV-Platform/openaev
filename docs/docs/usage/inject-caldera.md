@@ -15,7 +15,7 @@ Caldera offers 1600+ [abilities](https://caldera.readthedocs.io/en/latest/Learni
 
 Injects within the Caldera framework can be played on both individual [Endpoints and Asset groups](assets.md). Prior to playing injects, [Caldera agents](injectors.md#agent-section) need to be installed on the target machines to enable interaction with the platform.
 
-Once the agents are deployed, simulations with Caldera injects can be executed. The platform will contact the agent to start the ability. Subsequently, the agents will report the results to OpenBAS. Below is the workflow illustrating the behavior of injects.
+Once the agents are deployed, simulations with Caldera injects can be executed. The platform will contact the Agent to start the ability. Subsequently, the agents will report the results to OpenBAS. Below is the workflow illustrating the behavior of injects.
 
 ![Async workflow](assets/inject-caldera.png)
 
