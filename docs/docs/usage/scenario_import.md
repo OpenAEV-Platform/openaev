@@ -12,7 +12,7 @@ First of all, to import [injects](injects.md) into a [scenario](scenario.md), yo
 
 When creating a new mapper, you will quickly be asked to choose an inject type column. This column is the one that will allow the mapper to figure out which injects to create (Sending a mail, sending an sms, ...). Once this column has been chosen, you can add a representation for an inject type. 
 
-The first thing to define in this representation is the matching type in the xls. This is the value that will define which inject to create when scanning the column defined in "inject type column". For instance, if you want to create an inject that sends individual emails when in the column there is the word "mail", then you will need to set the value as "mail". You can choose a word that has nothing to do with the inject type and you can also make use of [regular expressions](https://en.wikipedia.org/wiki/Regular_expression) in this field. Please keep in mind though that this value is case sensitive. 
+The first thing to define in this representation is the matching type in the xls. This is the value that will define which inject to create when scanning the column defined in "inject type column". For instance, if you want to create an inject that sends individual emails when in the column there is the word "mail", then you will need to set the value as "mail". You can also make use of [regular expressions](https://en.wikipedia.org/wiki/Regular_expression) in this field. Please keep in mind though that this value is case sensitive. 
 
 ![Creating an xls mapper](assets/xls_mapper_example.png)
 
