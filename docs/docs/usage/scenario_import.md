@@ -1,6 +1,6 @@
 # Importing Injects into a Scenario
 
-Recreating [injects](injects.md) that were already defined in a spreadsheet can be a frustrating task. To help users save time, we added the possibility to import injects as defined in an xls file into a [scenario](scenario.md). This is done via a two-steps process : [creating a mapper](#how-to-create-a-mapper) and [importing the injects using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
+Recreating a timeline of [injects](injects.md) that were already defined in a spreadsheet can be a frustrating task. To help users save time, we added the possibility to import injects as defined in an xls file into a [scenario](scenario.md). This is done via a two-steps process : [creating a mapper](#how-to-create-a-mapper) and [importing the xls file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
 
 ## How to create a mapper ?
 
@@ -36,7 +36,7 @@ It should also be noted that the "Trigger Time" field has a second parameter tha
 | [         | optional section start|               |           |
 | ]         | optional section end  |               |           |
 
-Please, do note that if you wish to use only hour of the day (e.g. 9:30) in your trigger time, you need to set a launch date on your scenario.
+Please, do note that if you wish to use exact time of the day (e.g. 9:30) in your trigger time, you will need to set a launch date on your scenario before importing the timeline of injects from the xls file.
 
 You can also decide to use relative dates for each injects. For instance, you can say that your first inject happens at T and that subsequent injects happens at T+x. If so, you can set relative dates using the following values :
 
@@ -48,9 +48,9 @@ You can also decide to use relative dates for each injects. For instance, you ca
 | T         | Hour                  |
 | M         | Minutes               |
 
-This means that if you want your inject to start 2 days, 3 hours and 45 minutes after the start of your scenario, you can set the trigger time to D+2 H+3 M+45. When using relative dates, keep in mind that no time pattern need to be defined in the trigger time field.
+This means that if you want your inject to start 2 days, 3 hours and 45 minutes after the start of your scenario, you can set the trigger time to D+2 H+3 M+45. When using relative dates, you do not need to define a pattern for the trigger time field.
 
-Once you have set all the fields you wish to set, you can click on the create button if you wish to create your mapper but you can also click on the test button to check that it works as intended.
+Once you have set all fields you wish to set, you can click on the create button if you wish to create your mapper but you can also click on the test button to check that it works as intended.
 
 ### Testing the mapper
 If you click on the test button, you'll then be asked to choose a file. Once that is done, you will have to select the sheet to test out of the spreadsheet and the timezone. You will then be able to click on Test to have the result field filled as well as a list of the messages generated during the import (those are not saved, and are just there to help figure out what happened during the import itself).
