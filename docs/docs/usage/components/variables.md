@@ -21,7 +21,7 @@ To define custom variables :
 3. Navigate to the Variables section
 
 In this section, users can create, update or delete custom variables.
-![Variables section](assets/variables-management.png)
+![Variables section](../assets/variables-management.png)
 
 ### Limitation
 
@@ -37,4 +37,4 @@ Here is a non-exhaustive list of concerned stimuli :
 - Email sending
 - Sms sending
 
-![Variables usage](assets/variables-usage.png)
+![Variables usage](../assets/variables-usage.png)

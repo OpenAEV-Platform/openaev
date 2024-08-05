@@ -42,7 +42,7 @@ Once integrations is done, you are ready to create your first Scenario!
 - Then, define [who or what will be targeted](targets.md) by those injects, customize them, and define what is expected to happen. For example, you expect the targeted team to perform a specific action and the animation team will validated this expectation manually. Or, you expect the technical event to be prevented and it will be automatically checked through your integrations with your security systems.
 - Do not forget to define when the inject is played in the scenario chronology.
 
-Optionnaly, you can buff up your scenario by adding [Documents](documents.md), [Media pressures](media_pressure.md), or even CTF [Challenges](challenges.md) to your injects.
+Optionnaly, you can buff up your scenario by adding [Documents](components/documents.md), [Media pressures](components/media_pressure.md), or even CTF [Challenges](components/challenges.md) to your injects.
 
 ### Play the simulation
 

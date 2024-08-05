@@ -144,20 +144,21 @@ nav:
       - Assets: usage/assets.md
       - Teams, Players and Organizations: usage/teams_and_players_and_organizations.md
       - Components:
-        - Documents: usage/documents.md
-        - Media pressure: usage/media_pressure.md
-        - Custom variables: usage/variables.md
-        - Payloads: usage/payloads.md
-        - Personas: usage/personas.md
-        - Channels: usage/channels.md
-        - Challenges: usage/challenges.md
+        - Documents: usage/components/documents.md
+        - Custom variables: usage/components/variables.md
+        - Personas: usage/components/personas.md
+        - Channels: usage/components/channels.md
+        - Media pressure: usage/components/media_pressure.md
+        - Challenges: usage/components/challenges.md
+        - Lessons: usage/components/lessons.md
+        - Payloads: usage/components/payloads.md
     - Share and export:
       - Exports: usage/exports.md
       - Reports: usage/reports.md
     - Improve your security posture:
       - Mitigations: usage/mitigations.md
       - Skills: usage/skills.md
-    - Interact with your environement: 
+    - Interact with your environment:
       - Injectors: usage/injectors.md
       - Caldera Injector: usage/inject-caldera.md
       - Built-In Injector: usage/injects_builtin.md

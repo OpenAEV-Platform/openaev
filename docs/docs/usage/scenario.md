@@ -32,9 +32,9 @@ To define the scenario, navigate to the "Definition" and "Injects" tabs.
 In the "Definition" tab, you can add various elements to construct events:
 
 - [Teams and Players](teams_and_players_and_organizations.md) involved in the scenario,
-- [Custom variables](variables.md) for simplifying injects' customization,
-- Articles that you might use to simulate [media pressure](media_pressure.md),
-- [Challenges](challenges.md) designed for including Capture The Flag elements in your scenario.
+- [Custom variables](components/variables.md) for simplifying injects' customization,
+- Articles that you might use to simulate [media pressure](components/media_pressure.md),
+- [Challenges](components/challenges.md) designed for including Capture The Flag elements in your scenario.
 
 <!-- screenshot of the Definition screen with elements inside -->
 
