@@ -110,7 +110,7 @@ $ cd injectors-{RELEASE_VERSION}/http-query/
 Change the configuration in the `docker-compose.yml` according to the parameters of the platform and of the targeted service. Then launch the injector:
 
 ```
-$ docker-compose up
+$ docker compose up
 ```
 
 ## Manual activation

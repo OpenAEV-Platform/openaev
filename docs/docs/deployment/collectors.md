@@ -103,7 +103,7 @@ $ cd collectors-{RELEASE_VERSION}/mitre-attack/
 Change the configuration in the `docker-compose.yml` according to the parameters of the platform and of the targeted service. Then launch the collector:
 
 ```
-$ docker-compose up
+$ docker compose up
 ```
 
 ## Manual activation

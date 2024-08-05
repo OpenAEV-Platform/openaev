@@ -13,9 +13,9 @@ Before applying this procedure, please update your `docker-compose.yml` file wit
 ### For single node Docker
 
 ```bash
-$ sudo docker-compose stop
-$ sudo docker-compose pull
-$ sudo docker-compose up -d
+$ sudo docker compose stop
+$ sudo docker compose pull
+$ sudo docker compose up -d
 ```
 
 ### For Docker swarm

@@ -31,7 +31,7 @@ All components of OpenBAS are shipped both as [Docker images](https://hub.docker
 
 ### Introduction
 
-OpenBAS can be deployed using the *docker-compose* command.
+OpenBAS can be deployed using the *docker compose* command.
 
 ### Pre-requisites
 
@@ -57,7 +57,7 @@ cd docker
 
 ### Configure the environment
 
-Before running the `docker-compose` command, the `caldera.yml` and `docker-compose.yml` file should be configured. By default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
+Before running the `docker compose` command, the `caldera.yml` and `docker-compose.yml` file should be configured. By default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
 
 You can either rename the file `.env.sample` in `.env` and put the expected values or just fill directly the `docker-compose.yml` with the values corresponding to your environment.
 
@@ -141,12 +141,12 @@ volumes:
 
 #### Using single node Docker
 
-After changing your `.env` file run `docker-compose` in detached (-d) mode:
+After changing your `.env` file run `docker compose` in detached (-d) mode:
 
 ```bash
 sudo systemctl start docker.service
-# Run docker-compose in detached 
-docker-compose up -d
+# Run docker compose in detached 
+docker compose up -d
 ```
 
 #### Using Docker swarm
