@@ -145,7 +145,7 @@ After changing your `.env` file run `docker compose` in detached (-d) mode:
 
 ```bash
 sudo systemctl start docker.service
-# Run docker compose in detached 
+# Run docker compose in detached
 docker compose up -d
 ```
 
@@ -180,7 +180,7 @@ sudo docker stack deploy --compose-file docker-compose.yml openbas
 You have to install all the needed dependencies for the main application including Caldera if you would like to play breach and attack simulation scenarios. The example below if for Ubuntu:
 
 ```bash
-sudo apt install openjdk-22-jre 
+sudo apt install openjdk-22-jre
 ```
 
 #### Download the application files
@@ -216,6 +216,21 @@ java -jar openbas-api.jar
 !!! success "Installation done"
 
     You can now go to [http://localhost:8080](http://localhost:8080) and log in with the credentials configured in your `application.properties` file.
+
+## Community contributions
+
+### Helm Charts
+
+<div class="grid cards" markdown>
+
+-   :material-kubernetes:{ .lg .middle } __Kubernetes Helm Charts__
+
+    ---
+
+    OpenBAS Helm Charts for Kubernetes with a global configuration file. More information how to deploy here on [basic installation](https://github.com/devops-ia/helm-openbas/blob/main/charts/openbas/docs/configuration.md) and [examples](https://github.com/devops-ia/helm-openbas/blob/main/charts/openbas/docs/examples.md).
+
+    [:material-github:{ .middle } GitHub Repository](https://github.com/devops-ia/helm-openbas/tree/main/charts/openbas)
+</div>
 
 ### Deploy behind a reverse proxy
 
