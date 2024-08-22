@@ -172,6 +172,9 @@ nav:
       - Security:
         - Policies: administration/policies.md
         - Users and RBAC: administration/users.md
+  - Reference:
+      - APIs:
+          - Filters: reference/apis/filters.md
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment_ubuntu.md
