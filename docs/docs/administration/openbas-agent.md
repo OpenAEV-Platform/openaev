@@ -17,20 +17,23 @@ Depending on the OS, several installations are at your disposal :
 Linux
 
   - Requirement → systemd, access to the openbas instance used
+  - Compatibility → All systemd based linux distros
   - Installation → Create a service with name openbas-agent
   - Verification command line → `systemctl enable openbas-agent`
   - Start/Stop service →`systemctl start openbas-agent` & `systemctl stop openbas-agent`
 
 MacOS
 
-  - Requirement → access to the openbas instance used
+  - Requirement → launchd, access to the openbas instance used
+  - Compatibility → All launchd based MacOS distros (10.4 Tiger or higher)
   - Installation → Create a service with name openbas-agent
   - Verification command line → `launchctl list | grep openbas.agent`
   - Start/Stop service → `launchctl bootstrap system ~/Library/LaunchDaemons/openbas-agent.plist` & `launchctl bootout system ~/Library/LaunchDaemons/openbas-agent.plist`
 
 Windows
 
-  - Requirement → admin user, access to the openbas instance used
+  - Requirement → powershell 7 or higher, admin user, access to the openbas instance used
+  - Compatibility → All major Windows versions
   - Installation → Create a service with name openbas-agent and
   - Verification command line → `Get-Service -Name "OBASAgentService"`
   - Start/Stop service → `Start-Service -Name "OBASAgentService"` & `Stop-Service -Name "OBASAgentService"`
@@ -38,6 +41,16 @@ Windows
 The following flow diagram represents the Agent installation flow :
 
 ![img.png](assets/agent_installation_flow_diagram.png)
+
+## Network Traffic
+
+The installation creates two firewall rules.
+
+Inbound rule
+![Inbound rule](assets/inbound-rule.png)
+
+Outbound rule
+![Outbound rule](assets/outbound-rule.png)
 
 ## Features
 
