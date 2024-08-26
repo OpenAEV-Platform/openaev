@@ -109,3 +109,46 @@ Injects executed on remote systems are facilitated by Injectors like [Caldera](i
 
 There are over 1,700 such injects covering all the TTPs in the MITRE ATT&CK matrix.
 
+
+## Inject tests
+You can test direct contact injects in simulations and scenarios.
+
+### Unit test
+You can test injects one at a time.
+
+![Inject test in a Simulation](assets/inject_test_single.png)
+
+In the injects list of your simulation/scenario, open the contextual menu of an email or sms inject. Click on "Test". A confirmation dialog appears, you can confirm the test or cancel it.
+
+![Inject test result in a Simulation](assets/inject_test_result.png)
+
+After launching the test, an alert appears at the top of the page. You can click on the "dedicated page" link. You are redirected to the tests list, a drawer with the execution details of the test opens.
+
+![Inject test details in a Simulation](assets/inject_test_details.png)
+
+!!! warning
+
+    The option is disabled if your inject doesn't have any teams.
+
+### Bulk test
+You can test injects in bulk.
+
+![Inject test in bulk in a Simulation](assets/inject_test_bulk.png)
+
+Select the injects you want to test then click on the bug icon. A confirmation dialog appears, you can cancel or confirm the launch of the test.
+
+![Inject test in bulk in a Simulation](assets/inject_test_bulk_confirmation_dialog.png)
+
+As mentioned in the dialog, only sms and emails inject will be tested. They also need to have teams defined. 
+
+After the launch of the test, you are redirected to the tests list page.
+
+### Tests list
+![Inject tests list](assets/inject_test_list.png)
+
+A "Tests" tab is available in simulations and scenarios. The list of all the tests done on the injects of the simulation/scenario are displayed. Clicking on one of the lines opens the drawer with the execution details of the tests.
+
+!!! note 
+
+    Only the latest test is displayed for each inject.
+
