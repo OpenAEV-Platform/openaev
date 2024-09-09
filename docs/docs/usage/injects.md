@@ -139,7 +139,7 @@ Select the injects you want to test then click on the bug icon. A confirmation d
 
 ![Inject test in bulk in a Simulation](assets/inject_test_bulk_confirmation_dialog.png)
 
-As mentioned in the dialog, only sms and emails inject will be tested. They also need to have teams defined. 
+As mentioned in the dialog, only sms and emails injects will be tested. The emails/sms are sent to the current user. 
 
 After the launch of the test, you are redirected to the tests list page.
 
@@ -152,3 +152,11 @@ A "Tests" tab is available in simulations and scenarios. The list of all the tes
 
     Only the latest test is displayed for each inject.
 
+### Replay tests
+Each test in the list has a menu allowing users to delete or replay the test.
+
+![Inject test replay](assets/inject_replay_test.png)
+
+After confirming the replay of the test, the details are updated.
+
+The user can also replay all the tests in the list. An icon similar to the one in the injects toolbar is available at the top of the list. After clicking on it, the user confirms the tests launch and the details are updated.
