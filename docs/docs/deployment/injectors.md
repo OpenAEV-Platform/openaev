@@ -8,8 +8,6 @@
 
 Injectors are one of the cornerstones of the OpenBAS platform, they are responsible for pushing simulation actions to third party systems. According to their functionality and use case, they are categorized in the following classes.
 
-![injectors](assets/injectors.png)
-
 ### 📡 Endpoint payloads execution
 
 Those injectors are special as they required an executor (neutral agent) to be launched on endpoints. When they register to the platform, they inform available executors on how to spawn them on the 3 currently supported platforms: Windows, Linux and MacOS.

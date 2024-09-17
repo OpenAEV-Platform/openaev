@@ -118,6 +118,7 @@ nav:
       - Authentication: deployment/authentication.md
       - Upgrade: deployment/upgrade.md
     - Ecosystem:
+      - Executors: deployment/executors.md
       - Injectors: deployment/injectors.md
       - Collectors: deployment/collectors.md
       - Integrations: deployment/integrations.md

@@ -112,11 +112,8 @@ OPENBAS_ADMIN_TOKEN=ChangeMe
 CALDERA_PUBLIC_URL=http://localhost:8888 # Change me for production deployment to something accessible from your endpoint(s)
 CALDERA_API_KEY=ChangeMe
 COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for change
+COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
 ```
-
-!!! note "Caldera public URL"
-
-    For production deployment, the Caldera public URL needs to be accessible from the machines where you would like to play breach and attack simulations scenarios.
 
 If your `docker-compose` deployment does not support `.env` files, just export all environment variables before launching the platform:
 

@@ -104,7 +104,7 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Agents (executors)
 
-To be able to use the power of the OpenBAS platform on endpoints, you need at least one executor that will be in charge of spawing temporary processes (endpoint injectors) which will execute payloads.
+To be able to use the power of the OpenBAS platform on endpoints, you need at least one **neutral executor** that will be in charge of executing implants as detached processes. Implants will then execute payloads.
 
 ##### OpenBAS Agent
 
@@ -114,29 +114,9 @@ The OpenBAS agent is enabled by default and cannot be disabled. It is available 
 - Linux (`x86_64` / `arm64`)
 - MacOS (`x86_64` / `arm64`)
 
-##### Tanium
+##### Other executors
 
-!!! note "Tanium Packages"
-
-    To use the Tanium executor, please install the [OpenBAS packages](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-framework/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json) on the Tanium platform and fill their IDs in the configuration below.
-
-| Parameter                          | Environment variable               | Default value | Description                                     |
-|:-----------------------------------|:-----------------------------------|:--------------|:------------------------------------------------|
-| executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`       | Enable the Tanium executor                      |
-| executor.tanium.url                | EXECUTOR_TANIUM_URL                |               | Tanium URL                                      |
-| executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |               | Tanium API key                                  |
-| executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  |               | Tanium Computer Group to be used in simulations |
-| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |               | ID of the OpenBAS Tanium Windows package        |
-| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |               | ID of the OpenBAS Tanium Unix package           |
-
-##### Caldera
-
-| Parameter                   | Environment variable        | Default value | Description                           |
-|:----------------------------|:----------------------------|:--------------|:--------------------------------------|
-| executor.caldera.enable     | EXECUTOR_CALDERA_ENABLE     | `false`       | Enable the Caldera executor           |
-| executor.caldera.url        | EXECUTOR_CALDERA_URL        |               | Caldera URL                           |
-| executor.caldera.public-url | EXECUTOR_CALDERA_PUBLIC-URL |               | Caldera URL accessible from endpoints |
-| executor.caldera.api-key    | EXECUTOR_CALDERA_API-KEY    |               | Caldera API key                       |
+To know more about other available executors, please refer to the [executors documentation](./executors.md)
 
 #### Mail services
 
