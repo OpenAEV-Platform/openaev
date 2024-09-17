@@ -57,36 +57,33 @@ OpenBAS is an open source platform allowing organizations to plan, schedule and 
     If you still have questions or you find something which is not sufficiently explained, join the [Filigran Community on Slack](https://community.filigran.io).
 
 
-## Latest blog posts
-
-All tutorials are published directly on the [Medium blog](https://blog.filigran.io), this section provides a comprehensive list of the most important ones.
+## Blog posts
 
 <div class="grid cards" markdown>
 
--   __How we are disrupting tactical and strategical crisis management exercises with OpenBAS 3__<br />
-    <sub><sup>Oct 10, 2022</sup></sub>
+-   :material-newspaper-variant-outline:{ .lg .middle } __Resources and content__
 
-    It’s been a while since we’ve talked about OpenBAS and yet… In the trying times we live in, both in cyberspace and in real life, crisis preparedness has become...
+    ---
 
-    **[:octicons-link-external-24:{ .middle } Read](https://blog.filigran.io/how-we-are-disrupting-tactical-and-strategical-crisis-management-exercises-with-openbas-3-49ea2f7a7435)**
+    Discover tutorials, best practices and deep dives on OpenBAS features on our Filigran blog.
 
--   __Plan, execute and conduct your crisis management exercises__<br />
-    <sub><sup>Jan 25, 2021</sup></sub>
-
-    More than 3 years ago, we decided to build the OpenBAS application which allows organizations to facilitate the planning of crisis management...
-
-    **[:octicons-link-external-24:{ .middle } Read](https://blog.filigran.io/plan-execute-and-conduct-your-crisis-management-exercises-30a5a5970746)**
-
+    [:octicons-arrow-right-24:{ .middle } Read now](https://blog.filigran.io)
 </div>
 
 ## Additional resources
 
-Below, you will find external resources which may be useful along your OpenBAS journey.
+Below, you will find external resources which may be useful along your OpenCTI journey.
 
 <div class="grid" markdown>
 
+[**:material-package-variant-closed:{ .middle } OpenBAS Ecosystem**](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b)<br />
+List of available injectors and collectors to expand platform usage.
+
 [**:material-school-outline:{ .middle } Training Courses**](https://training.filigran.io)<br />
 Training courses for analysts and administrators in the Filigran training center.
+
+[**:material-youtube:{ .middle } Video materials**](https://www.youtube.com/@Filigran/videos)<br />
+Set of video illustrating the implementation of use cases and platform capabilities.
 
 </div>
 <br /><br /><br />
