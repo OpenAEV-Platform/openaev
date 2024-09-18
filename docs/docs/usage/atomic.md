@@ -59,7 +59,7 @@ For a selected target, you can on the right the timeline of the test against the
 
 ### Execution details
 
-On this screen, you can retrieve details about the atomic testing and its expectations.
+On this screen, you can retrieve details about the configuration, the command lines (if relevant) and the execution logs of the atomic testing and its expectations.
 
 You can also see the raw execution logs of the [Injector](injectors.md) responsible for the test execution.
 
