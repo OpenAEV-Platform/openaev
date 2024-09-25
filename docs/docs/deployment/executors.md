@@ -16,7 +16,7 @@ The OpenBAS agent is enabled by default and cannot be disabled. It is available 
 
 ## Tanium Agent
 
-The Tanium agent can be leveraged to execute implants as detached processes that will the execute payloads according to the [OpenBAS architecture](https://docs.opencti.io/latest/deployment/overview).
+The Tanium agent can be leveraged to execute implants as detached processes that will the execute payloads according to the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
 
 ### Configure the Tanium Platform
 
@@ -65,7 +65,7 @@ Also, the assets in the selected computer groups should now be available in the 
 
 ## Caldera Agent
 
-The Caldera agent can be leveraged to execute implants as detached processes that will the execute payloads according to the [OpenBAS architecture](https://docs.opencti.io/latest/deployment/overview).
+The Caldera agent can be leveraged to execute implants as detached processes that will the execute payloads according to the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview/#architecture).
 
 !!! note "Caldera already installed"
 
