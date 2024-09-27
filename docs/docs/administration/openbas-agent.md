@@ -12,13 +12,14 @@ The OpenBAS Agent is compatible with different OS (Windows, Linux, macOS) and is
 
 ## Installation
 
-Depending on the OS, several installations are at your disposal :
+Depending on the OS, several installations are at your disposal, you can find them on OpenBAS by clicking the blue icon on the right top corner :
+![Agents](assets/agents.png)
 
 Linux
 
   - Requirement → systemd, access to the openbas instance used
   - Compatibility → All systemd based linux distros
-  - Installation → Create a service with name openbas-agent
+  - Installation → Create a service with name openbas-agent ("Install Linux Agent")
   - Verification command line → `systemctl enable openbas-agent`
   - Start/Stop service →`systemctl start openbas-agent` & `systemctl stop openbas-agent`
 
@@ -26,7 +27,7 @@ MacOS
 
   - Requirement → launchd, access to the openbas instance used
   - Compatibility → All launchd based MacOS distros (10.4 Tiger or higher)
-  - Installation → Create a service with name openbas-agent
+  - Installation → Create a service with name openbas-agent ("Install MacOS Agent")
   - Verification command line → `launchctl list | grep openbas.agent`
   - Start/Stop service → `launchctl bootstrap system ~/Library/LaunchDaemons/openbas-agent.plist` & `launchctl bootout system ~/Library/LaunchDaemons/openbas-agent.plist`
 
@@ -34,7 +35,7 @@ Windows
 
   - Requirement → powershell 7 or higher, admin user, access to the openbas instance used
   - Compatibility → All major Windows versions
-  - Installation → Create a service with name openbas-agent and
+  - Installation → Create a service with name openbas-agent ("Install Windows Agent")
   - Verification command line → `Get-Service -Name "OBASAgentService"`
   - Start/Stop service → `Start-Service -Name "OBASAgentService"` & `Stop-Service -Name "OBASAgentService"`
 
@@ -58,7 +59,11 @@ The main features of the OpenBAS Agent are:
 - Agent registration on the OpenBAS platform
 
   The Agent is installed on the Asset using an agent-installer.exe file and runs as a service.
-  It communicates with the deployed OpenBAS instance in order to enroll the Asset.
+  It communicates with the deployed OpenBAS instance in order to enroll the Asset. In some cases 
+  like unsecured certificates or environment with proxy, the agent can't communicate with OpenBAS.
+  In order to fix those issues, look at "Network and security" chapter from [configuration](https://docs.openbas.io/latest/deployment/configuration)
+  to add the required attributes.
+  
 
 ![Agent assets status](assets/agent_assets_status.png)
 

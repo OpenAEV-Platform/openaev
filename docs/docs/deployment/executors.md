@@ -8,11 +8,7 @@ To be able to use the power of the OpenBAS platform on endpoints, you need at le
 
 ## OpenBAS Agent
 
-The OpenBAS agent is enabled by default and cannot be disabled. It is available for:
-
-- Windows (`x86_64` / `arm64`)
-- Linux (`x86_64` / `arm64`)
-- MacOS (`x86_64` / `arm64`)
+[More informations here](https://docs.openbas.io/latest/administration/openbas-agent)
 
 ## Tanium Agent
 

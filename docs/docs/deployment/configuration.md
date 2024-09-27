@@ -38,13 +38,15 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Network and security
 
-| Parameter                     | Environment variable          | Default value           | Description                               |
-|:------------------------------|:------------------------------|:------------------------|:------------------------------------------|
-| server.ssl.enabled            | SERVER_SSL_ENABLED            | `false`                 | Turn on to enable SSL on the local server |
-| server.ssl.key-store-type     | SERVER_SSL_KEY-STORE-TYPE     | PKCS12                  | Type of SSL keystore                      |
-| server.ssl.key-store          | SERVER_SSL_KEY-STORE          | classpath:localhost.p12 | SSL keystore path                         |
-| server.ssl.key-store-password | SERVER_SSL_KEY-STORE-PASSWORD | admin                   | SSL keystore password                     |
-| server.ssl.key-alias          | SERVER_SSL_KEY-ALIAS          | localhost               | SSL key alias                             |
+| Parameter                     | Environment variable          | Default value            | Description                                                  |
+|:------------------------------|:------------------------------|:-------------------------|:-------------------------------------------------------------|
+| server.ssl.enabled            | SERVER_SSL_ENABLED            | `false`                  | Turn on to enable SSL on the local server                    |
+| server.ssl.key-store-type     | SERVER_SSL_KEY-STORE-TYPE     | PKCS12                   | Type of SSL keystore                                         |
+| server.ssl.key-store          | SERVER_SSL_KEY-STORE          | classpath:localhost.p12  | SSL keystore path                                            |
+| server.ssl.key-store-password | SERVER_SSL_KEY-STORE-PASSWORD | admin                    | SSL keystore password                                        |
+| server.ssl.key-alias          | SERVER_SSL_KEY-ALIAS          | localhost                | SSL key alias                                                |
+| openbas.unsecured-certificate | OPENBAS_UNSECURED-CERTIFICATE | `false`                  | Turn on to authorize self-signed or unsecure ssl certificate |
+| openbas.with-proxy            | OPENBAS_WITH-PROXY            | `false`                  | Turn on to authorize environment with proxy                  |
 
 #### Logging
 
