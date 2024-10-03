@@ -21,7 +21,7 @@ These messages can be customized to fit the organization's specific needs and re
 </figure>
 
 <figure markdown="span">
-  ![Policies admin](assets/policies-conf.png
+  ![Policies admin](assets/policies-conf.png)
 </figure>
 
 ### Accessing the Policies Configuration Page
