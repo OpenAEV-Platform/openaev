@@ -55,6 +55,10 @@ Also, the assets in the selected computer groups should now be available in the 
 
 ![Endpoints](assets/tanium-endpoints.png)
 
+NB : An Asset can only have one Tanium agent installed thanks to an unicity with hostname and IP parameters. 
+If you try to install again a Tanium agent on a platform, it will overwrite the actual one and you will always 
+see one endpoint on the OpenBAS endpoint page.
+
 !!! success "Installation done"
 
     You are now ready to leverage your Tanium platform to run OpenBAS payloads!
@@ -145,3 +149,7 @@ OpenBAS has built-in instruction if you want command line examples to deploy the
 All assets with a proper Caldera agent installed using the OpenBAS provided command line (then persistent) should now be available in the OpenBAS endpoints list.
 
 ![Endpoints](assets/caldera-endpoints.png)
+
+NB : An Asset can only have one Caldera agent installed thanks to an unicity with hostname and IP parameters.
+If you try to install again a Caldera agent on a platform, it will overwrite the actual one and you will always
+see one endpoint on the OpenBAS endpoint page.

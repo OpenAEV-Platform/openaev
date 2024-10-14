@@ -56,14 +56,18 @@ Outbound rule
 ## Features
 
 The main features of the OpenBAS Agent are:
+
 - Agent registration on the OpenBAS platform
 
   The Agent is installed on the Asset using an agent-installer.exe file and runs as a service.
-  It communicates with the deployed OpenBAS instance in order to enroll the Asset. In some cases 
+  It communicates with the deployed OpenBAS instance in order to enroll the Asset. In some cases
   like unsecured certificates or environment with proxy, the agent can't communicate with OpenBAS.
   In order to fix those issues, look at "Network and security" chapter from [configuration](https://docs.openbas.io/latest/deployment/configuration)
   to add the required attributes.
-  
+
+  NB : An Asset can only have one OpenBAS agent installed thanks to a machine id calculated according
+  to the operating system and its parameters. If you try to install again an OpenBAS agent on a platform, it will
+  overwrite the actual one and you will always see one endpoint on the OpenBAS endpoint page.
 
 ![Agent assets status](assets/agent_assets_status.png)
 
