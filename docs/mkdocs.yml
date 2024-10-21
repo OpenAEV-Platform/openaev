@@ -154,8 +154,7 @@ nav:
         - Lessons: usage/components/lessons.md
         - Payloads: usage/components/payloads.md
     - Share and export:
-      - Exports: usage/exports.md
-      - Reports: usage/reports.md
+      - Simulations: usage/simulation_reports.md
     - Improve your security posture:
       - Mitigations: usage/mitigations.md
       - Skills: usage/skills.md
