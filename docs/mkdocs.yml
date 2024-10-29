@@ -140,7 +140,7 @@ nav:
       - Expectations: usage/expectations.md
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
-      - Generating Scenario from OpenCTI: usage/opencti_scenario.md
+      - Generating Scenario from OpenCTI: usage/scenario/opencti_scenario.md
       - Importing injects into a Scenario: usage/scenario_import.md
       - Assets: usage/assets.md
       - Teams, Players and Organizations: usage/teams_and_players_and_organizations.md

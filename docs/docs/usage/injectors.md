@@ -16,7 +16,7 @@ A multitude of injectors are available, each offering distinct capabilities and 
 - Manual: Platform functionality for creating manual action reminders, allowing administrators to prompt specific actions to be performed manually. To find more information about the related inject, please refer to the [dedicated documentation section](injects.md#manual-section).
 - Media pressure: Manages inject "publish channel pressure". To find more information about this type of inject, please refer to the [dedicated documentation section](injects.md#media-pressure-section).
 - OVHCloud SMS Platform: Facilitates SMS messaging for injects, providing an additional communication channel for simulation participants.
-- OpenCTI: Integration with an OpenCTI platform, enhancing simulation capabilities with access to threat intelligence and [automatic scenario generation](opencti_scenario.md) based on observed threat activities.
+- OpenCTI: Integration with an OpenCTI platform, enhancing simulation capabilities with access to threat intelligence and [automatic scenario generation](scenario/opencti_scenario.md) based on observed threat activities.
 
 ![List of Injectors](assets/list_of_injectors.png)
 
