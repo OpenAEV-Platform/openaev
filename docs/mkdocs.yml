@@ -132,7 +132,7 @@ nav:
       - Scenario and Simulations: usage/scenarios_and_simulations.md
       - Injects and Expectations: usage/injects_and_expectations.md
     - Evaluate your Security posture:
-      - Overview: usage/overview.md
+      - Overview: usage/evaluate/overview.md
       - Simulation: usage/simulation.md
       - Atomic testing: usage/atomic.md
       - Injects: usage/injects.md
