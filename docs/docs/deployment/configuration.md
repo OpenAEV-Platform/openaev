@@ -1,6 +1,8 @@
 # Configuration
 
-The purpose of this section is to learn how to configure OpenBAS to have it tailored for your production and development needs. It is possible to check all default parameters implemented in the platform in the [`application.properties` file](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/resources/application.properties).
+The purpose of this section is to learn how to configure OpenBAS to have it tailored for your production and development
+needs. It is possible to check all default parameters implemented in the platform in the [
+`application.properties` file](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/resources/application.properties).
 
 Here are the configuration keys, for both containers (environment variables) and manual deployment.
 
@@ -38,26 +40,25 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Network and security
 
-| Parameter                     | Environment variable          | Default value            | Description                                                  |
-|:------------------------------|:------------------------------|:-------------------------|:-------------------------------------------------------------|
-| server.ssl.enabled            | SERVER_SSL_ENABLED            | `false`                  | Turn on to enable SSL on the local server                    |
-| server.ssl.key-store-type     | SERVER_SSL_KEY-STORE-TYPE     | PKCS12                   | Type of SSL keystore                                         |
-| server.ssl.key-store          | SERVER_SSL_KEY-STORE          | classpath:localhost.p12  | SSL keystore path                                            |
-| server.ssl.key-store-password | SERVER_SSL_KEY-STORE-PASSWORD | admin                    | SSL keystore password                                        |
-| server.ssl.key-alias          | SERVER_SSL_KEY-ALIAS          | localhost                | SSL key alias                                                |
-| openbas.unsecured-certificate | OPENBAS_UNSECURED-CERTIFICATE | `false`                  | Turn on to authorize self-signed or unsecure ssl certificate |
-| openbas.with-proxy            | OPENBAS_WITH-PROXY            | `false`                  | Turn on to authorize environment with proxy                  |
+| Parameter                     | Environment variable          | Default value           | Description                                                  |
+|:------------------------------|:------------------------------|:------------------------|:-------------------------------------------------------------|
+| server.ssl.enabled            | SERVER_SSL_ENABLED            | `false`                 | Turn on to enable SSL on the local server                    |
+| server.ssl.key-store-type     | SERVER_SSL_KEY-STORE-TYPE     | PKCS12                  | Type of SSL keystore                                         |
+| server.ssl.key-store          | SERVER_SSL_KEY-STORE          | classpath:localhost.p12 | SSL keystore path                                            |
+| server.ssl.key-store-password | SERVER_SSL_KEY-STORE-PASSWORD | admin                   | SSL keystore password                                        |
+| server.ssl.key-alias          | SERVER_SSL_KEY-ALIAS          | localhost               | SSL key alias                                                |
+| openbas.unsecured-certificate | OPENBAS_UNSECURED-CERTIFICATE | `false`                 | Turn on to authorize self-signed or unsecure ssl certificate |
+| openbas.with-proxy            | OPENBAS_WITH-PROXY            | `false`                 | Turn on to authorize environment with proxy                  |
 
 #### Logging
 
-| Parameter                                       | Environment variable                            | Default value      | Description                                   |
-|:------------------------------------------------|:------------------------------------------------|:-------------------|:----------------------------------------------|
-| logging.level.root                              | LOGGING_LEVEL_ROOT                              | fatal              | Root log level                                |
-| logging.level.io.openbas                        | LOGGING_LEVEL_IO_OPENBAS                        | warn               | OpenBAS log level                             |
-| logging.file.name                               | LOGGING_FILE_NAME                               | ./logs/openbas.log | Log file path (in addition to console output) |
-| logging.logback.rollingpolicy.max-file-size     | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE     | 10MB               | Rolling max file size                         |
-| logging.logback.rollingpolicy.max-history       | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY       | 7                  | Rolling max days                              |
-
+| Parameter                                   | Environment variable                        | Default value      | Description                                   |
+|:--------------------------------------------|:--------------------------------------------|:-------------------|:----------------------------------------------|
+| logging.level.root                          | LOGGING_LEVEL_ROOT                          | fatal              | Root log level                                |
+| logging.level.io.openbas                    | LOGGING_LEVEL_IO_OPENBAS                    | warn               | OpenBAS log level                             |
+| logging.file.name                           | LOGGING_FILE_NAME                           | ./logs/openbas.log | Log file path (in addition to console output) |
+| logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
+| logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
 ### Dependencies
 
@@ -80,7 +81,7 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### RabbitMQ
 
-| Parameter                             | Environment variable                  | Default value                     | Description                                 |
+| Parameter                        | Environment variable             | Default value | Description                                 |
 |:--------------------------------------|:--------------------------------------|:----------------------------------|:--------------------------------------------|
 | openbas.rabbitmq.prefix               | OPENBAS_RABBITMQ_PREFIX               | openbas                           | Prefix for the queue names                  |
 | openbas.rabbitmq.hostname             | OPENBAS_RABBITMQ_HOSTNAME             | localhost                         | Hostname of the RabbitMQ server             |
@@ -109,7 +110,8 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Agents (executors)
 
-To be able to use the power of the OpenBAS platform on endpoints, you need at least one **neutral executor** that will be in charge of executing implants as detached processes. Implants will then execute payloads.
+To be able to use the power of the OpenBAS platform on endpoints, you need at least one **neutral executor** that will
+be in charge of executing implants as detached processes. Implants will then execute payloads.
 
 ##### OpenBAS Agent
 
@@ -125,16 +127,17 @@ To know more about other available executors, please refer to the [executors doc
 
 #### Mail services
 
-For the associated mailbox, for the moment the platform only relies on IMAP / SMTP protocols, we are actively developing integrations with APIs such as O365 and Google Apps.
+For the associated mailbox, for the moment the platform only relies on IMAP / SMTP protocols, we are actively developing
+integrations with APIs such as O365 and Google Apps.
 
 ##### SMTP
 
-| Parameter             | Environment variable | Default value     | Description          |
-|:----------------------|:---------------------|:------------------|:---------------------|
-| spring.mail.host      | SPRING_MAIL_HOST     | smtp.mail.com     | SMTP Server hostname |
-| spring.mail.port      | SPRING_MAIL_PORT     | 465               | SMTP Server port     |
-| spring.mail.username  | SPRING_MAIL_USERNAME | username@mail.com | SMTP Server username |
-| spring.mail.password  | SPRING_MAIL_PASSWORD | password          | SMTP Server password |
+| Parameter            | Environment variable | Default value     | Description          |
+|:---------------------|:---------------------|:------------------|:---------------------|
+| spring.mail.host     | SPRING_MAIL_HOST     | smtp.mail.com     | SMTP Server hostname |
+| spring.mail.port     | SPRING_MAIL_PORT     | 465               | SMTP Server port     |
+| spring.mail.username | SPRING_MAIL_USERNAME | username@mail.com | SMTP Server username |
+| spring.mail.password | SPRING_MAIL_PASSWORD | password          | SMTP Server password |
 
 | Parameter                                        | Environment variable                             | Default value | Description                   |
 |:-------------------------------------------------|:-------------------------------------------------|:--------------|:------------------------------|
@@ -143,10 +146,24 @@ For the associated mailbox, for the moment the platform only relies on IMAP / SM
 | spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | `true`        | Turn on SMTP authentication   |
 | spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | `false`       | Turn on SMTP STARTTLS         |
 
+> **Note :** Example with Gmail
+
+| Parameter                                        | Environment variable                             | Value             | Description                  |
+|:-------------------------------------------------|:-------------------------------------------------|:------------------|:-----------------------------|
+| spring.mail.host                                 | SPRING_MAIL_HOST                                 | smtp.gmail.com    | Gmail SMTP server hostname   |
+| spring.mail.port                                 | SPRING_MAIL_PORT                                 | 587               | Gmail SMTP server port (TLS) |
+| spring.mail.username                             | SPRING_MAIL_USERNAME                             | username@mail.com | Gmail address                |
+| spring.mail.password                             | SPRING_MAIL_PASSWORD                             | app password      | Gmail App-specific password  |
+| spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | true              | Enable SMTP authentication   |
+| spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | true              | Enable SMTP STARTTLS         |
+
+⚠️ **Important**: If you are using two-factor authentication on your Gmail account, an app-specific password is
+required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
+
 ##### IMAP
 
-| Parameter                 | Environment variable      | Default value     | Description                                                                         |
-|:--------------------------|:--------------------------|:------------------|:------------------------------------------------------------------------------------|
+| Parameter                  | Environment variable       | Default value     | Description                                                                         |
+|:---------------------------|:---------------------------|:------------------|:------------------------------------------------------------------------------------|
 | openbas.mail.imap.enabled  | OPENBAS_MAIL_IMAP_ENABLED  | false             | Turn on to enable IMAP mail synchronization. Injector email must be well configured |
 | openbas.mail.imap.host     | OPENBAS_MAIL_IMAP_HOST     | imap.mail.com     | IMAP Server hostname                                                                |
 | openbas.mail.imap.port     | OPENBAS_MAIL_IMAP_PORT     | 993               | IMAP Server port                                                                    |
@@ -155,12 +172,29 @@ For the associated mailbox, for the moment the platform only relies on IMAP / SM
 | openbas.mail.imap.inbox    | OPENBAS_MAIL_IMAP_INBOX    | INBOX             | IMAP inbox directory to synchronize from                                            |
 | openbas.mail.imap.sent     | OPENBAS_MAIL_IMAP_SENT     | Sent              | IMAP sent directory to synchronize from                                             |
 
-| Parameter                        | Environment variable             | Default value | Description                   |
-|:---------------------------------|:---------------------------------|:--------------|:------------------------------|
+| Parameter                         | Environment variable              | Default value | Description                   |
+|:----------------------------------|:----------------------------------|:--------------|:------------------------------|
 | openbas.mail.imap.ssl.enable      | OPENBAS_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
 | openbas.mail.imap.ssl.trust       | OPENBAS_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
 | openbas.mail.imap.auth            | OPENBAS_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
 | openbas.mail.imap.starttls.enable | OPENBAS_MAIL_IMAP_STARTTLS_ENABLE | true          | Turn on IMAP STARTTLS         |
+
+> **Note :** Example with Gmail
+
+| Parameter                    | Environment variable         | Value              | Description                             |
+|:-----------------------------|:-----------------------------|:-------------------|:----------------------------------------|
+| openbas.mail.imap.enabled    | OPENBAS_MAIL_IMAP_ENABLED    | true               | Enable IMAP for Gmail                   |
+| openbas.mail.imap.host       | OPENBAS_MAIL_IMAP_HOST       | imap.gmail.com     | Gmail IMAP server hostname              |
+| openbas.mail.imap.port       | OPENBAS_MAIL_IMAP_PORT       | 993                | Gmail IMAP port (SSL)                   |
+| openbas.mail.imap.username   | OPENBAS_MAIL_IMAP_USERNAME   | username@mail.com  | Gmail address                           |
+| openbas.mail.imap.password   | OPENBAS_MAIL_IMAP_PASSWORD   | app password       | Gmail App-specific password             |
+| openbas.mail.imap.ssl.enable | OPENBAS_MAIL_IMAP_SSL_ENABLE | true               | Enable IMAP SSL                         |
+| openbas.mail.imap.ssl.trust  | OPENBAS_MAIL_IMAP_SSL_TRUST  | *                  | Trust unverified certificates           |
+| openbas.mail.imap.auth       | OPENBAS_MAIL_IMAP_AUTH       | true               | Enable IMAP authentication              |
+| openbas.mail.imap.sent       | OPENBAS_MAIL_IMAP_SENT       | [Gmail]/Sent Mail  | IMAP sent directory to synchronize from |
+
+⚠️ **Important**: If you are using two-factor authentication on your Gmail account, an app-specific password is
+required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
 
 #### AI Service
 
