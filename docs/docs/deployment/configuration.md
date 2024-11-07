@@ -107,6 +107,8 @@ Here are the configuration keys, for both containers (environment variables) and
 | minio.access-secret | MINIO_ACCESS-SECRET  | secret        | Secret key for the S3 Service.                                                                                                                                                                                              |
 | minio.bucket        | MINIO_BUCKET         | openbas       | S3 bucket name. Useful to change if you use AWS.                                                                                                                                                                            |
 | minio.bucket-region | MINIO_BUCKET-REGION  | us-east-1     | Region of the S3 bucket if you are using AWS. This parameter value can be omitted if you use Minio as an S3 Bucket Service.                                                                                                 |
+| openbas.s3.use-aws-role | OPENBAS_S3_USE-AWS-ROLE  | `false` | Whether or not we want to get the AWS role using AWS Security Token Service  |
+| openbas.s3.sts-endpoint | OPENBAS_S3_STS-ENDPOINT  |         | `experimental` This parameter is optional. If it stays empty, it will use either the AWS legacy STS endpoint (https://sts.amazonaws.com) or the regional one using AWS_REGION if the environment variable is set (you can learn more about it [here](https://docs.aws.amazon.com/general/latest/gr/sts.html#sts_region)). Otherwise, if you want to use your own custom implementation of STS endpoints, you can set it here. |
 
 #### Agents (executors)
 
