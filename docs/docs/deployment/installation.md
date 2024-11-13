@@ -57,32 +57,9 @@ cd docker
 
 ### Configure the environment
 
-Before running the `docker compose` command, the `caldera.yml` and `docker-compose.yml` file should be configured. By default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
+Before running the `docker compose` command, the `docker-compose.yml` file should be configured. By default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
 
 You can either rename the file `.env.sample` in `.env` and put the expected values or just fill directly the `docker-compose.yml` with the values corresponding to your environment.
-
-#### Caldera
-
-Unfortunately, Caldera does not support well environment variables, we have packaged it but the `caldera.yml` needs to be modified to change default API keys and passwords. Only change what is marked as **Change this**, listed below:
-
-!!! note "Caldera application"
-
-    You will never be asked to go into Caldera directly because OpenBAS manages everything for you, so don't hesitate to put the same UUIDv4 in all parameters here.
-
-```yaml
-users:
-  red:
-    red: ChangeMe                                                                     # Change this
-  blue:
-    blue: ChangeMe                                                                    # Change this
-api_key_red: ChangeMe                                                                 # Change this
-api_key_blue: ChangeMe                                                                # Change this
-api_key: ChangeMe                                                                     # Change this
-crypt_salt: ChangeMe                                                                  # Change this
-encryption_key: ChangeMe                                                              # Change this
-app.contact.http: http://caldera.myopenbas.myorganization.com:8888                    # Change this
-app.contact.tunnel.ssh.user_password: ChangeMe                                        # Change this
-```
 
 #### Docker compose env
 
@@ -104,13 +81,12 @@ SPRING_MAIL_HOST=smtp.changeme.com
 SPRING_MAIL_PORT=465
 SPRING_MAIL_USERNAME=ChangeMe@domain.com
 SPRING_MAIL_PASSWORD=ChangeMe
+OPENBAS_MAIL_IMAP_ENABLED=true
 OPENBAS_MAIL_IMAP_HOST=imap.changeme.com
 OPENBAS_MAIL_IMAP_PORT=993
-OPENBAS_ADMIN_EMAIL=ChangeMe
+OPENBAS_ADMIN_EMAIL=ChangeMe@domain.com # Should be a valid email address
 OPENBAS_ADMIN_PASSWORD=ChangeMe
-OPENBAS_ADMIN_TOKEN=ChangeMe
-CALDERA_PUBLIC_URL=http://localhost:8888 # Change me for production deployment to something accessible from your endpoint(s)
-CALDERA_API_KEY=ChangeMe
+OPENBAS_ADMIN_TOKEN=ChangeMe # Should be a valid UUI
 COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for change
 COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
 ```
@@ -168,13 +144,106 @@ sudo docker stack deploy --compose-file docker-compose.yml openbas
 
     You can now go to [http://localhost:8080](http://localhost:8080/) and log in with the credentials filled in your configuration.
 
+### OpenBAS X Caldera (Optional part)
+
+You can deploy Caldera alongside OpenBAS to manage agent deployment and execute Caldera scripts.
+
+<div class="grid cards" markdown>
+
+-   :simple-docker:{ .lg .middle } __Use Docker__
+
+    ---
+
+    Deploy OpenBAS using Docker and the default `docker-compose.yml` provided
+    in the [docker](https://github.com/OpenBAS-Platform/caldera/tree/filigran/docker).
+
+    [:octicons-arrow-right-24:{ .middle } Setup](#using-docker)
+</div>
+
+Before running the `docker compose` command, the `caldera.yml` and `docker-compose.yml` file should be configured. By 
+default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
+
+You can either rename the `.env.sample` file for `.env` and enter the required values, or directly update the `docker-compose.yml` file with the values specific to your environment.
+
+#### Caldera
+
+Unfortunately, Caldera does not support well environment variables, we have packaged it but the `caldera.yml` needs to 
+be modified to change default API keys and passwords. Only change what is marked as **Change this**, listed below:
+
+!!! note "Caldera application"
+
+    You will never be asked to go into Caldera directly because OpenBAS manages everything for you, so don't hesitate to put the same UUIDv4 in all parameters here.
+
+```yaml
+users:
+  red:
+    red: ChangeMe                                                                     # Change this
+  blue:
+    blue: ChangeMe                                                                    # Change this
+api_key_red: ChangeMe                                                                 # Change this
+api_key_blue: ChangeMe                                                                # Change this
+api_key: ChangeMe                                                                     # Change this
+crypt_salt: ChangeMe                                                                  # Change this
+encryption_key: ChangeMe                                                              # Change this
+app.contact.http: http://caldera.myopenbas.myorganization.com:8888                    # Change this
+app.contact.tunnel.ssh.user_password: ChangeMe                                        # Change this
+```
+
+#### Docker compose env
+
+!!! note "Configuration static parameters"
+
+    The complete list of available static parameters is available in the [configuration](configuration.md) section.
+
+Whether you are using one method or the other, here are the mandatory parameters to fill:
+
+```bash
+POSTGRES_USER=ChangeMe
+POSTGRES_PASSWORD=ChangeMe
+KEYSTORE_PASSWORD=ChangeMe
+MINIO_ROOT_USER=ChangeMeAccess
+MINIO_ROOT_PASSWORD=ChangeMeKey
+RABBITMQ_DEFAULT_USER=ChangeMe
+RABBITMQ_DEFAULT_PASS=ChangeMe
+SPRING_MAIL_HOST=smtp.changeme.com
+SPRING_MAIL_PORT=465
+SPRING_MAIL_USERNAME=ChangeMe@domain.com
+SPRING_MAIL_PASSWORD=ChangeMe
+OPENBAS_MAIL_IMAP_HOST=imap.changeme.com
+OPENBAS_MAIL_IMAP_PORT=993
+OPENBAS_ADMIN_EMAIL=ChangeMe@domain.com
+OPENBAS_ADMIN_PASSWORD=ChangeMe
+OPENBAS_ADMIN_TOKEN=ChangeMe # Should be a valid UUID
+CALDERA_URL=http://caldera:8888 # Change me for production deployment to something accessible from your OpenBAS
+CALDERA_PUBLIC_URL=http://localhost:8888 # Change me for production deployment to something accessible from your endpoint(s)
+CALDERA_API-KEY=ChangeMe # Should be the same as api_key in your caldera.yml file
+COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for change
+COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
+INJECTOR_CALDERA_ENABLE=false
+EXECUTOR_CALDERA_ENABLE=false
+COLLECTOR_CALDERA_ENABLE=false
+COLLECTOR_CALDERA_ID=ChangeMe # Should be a valid UUID
+```
+
+If your `docker-compose` deployment does not support `.env` files, just export all environment variables before launching the platform:
+
+```bash
+export $(cat .env | grep -v "#" | xargs)
+```
+
+##### Login to Caldera
+
+To connect to Caldera, you need to use one of the users defined in your `caldera.yml` file (either 'red' or 'blue'). 
+OpenBAS will use the red user.
+
 ## Manual installation
 
 ### Prepare the installation
 
 #### Installation of dependencies
 
-You have to install all the needed dependencies for the main application including Caldera if you would like to play breach and attack simulation scenarios. The example below if for Ubuntu:
+You have to install all the needed dependencies for the main application if you would like to play breach and attack 
+simulation scenarios. The example below is for Ubuntu:
 
 ```bash
 sudo apt install openjdk-22-jre
@@ -200,7 +269,7 @@ The main application has just one environment configuration file to change.
 cd openbas
 ```
 
-Change the *application.properties* file according to your configuration of PostgreSQL, RabbitMQ, Minio and Caldera admin account and to your platform.
+Change the *application.properties* file according to your configuration of PostgreSQL, RabbitMQ, Minio and to your platform.
 
 #### Start the application
 
