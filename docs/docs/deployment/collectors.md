@@ -1,42 +1,10 @@
 # Collectors
 
-## Introduction
+!!! tip "Tips"
 
-!!! question "Collectors list"
+      If you want to learn more about the concept and features of collectors, you can have more info [here](../usage/collectors.md).
 
-    You are looking for the available collectors? The list is in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
-
-Collectors are one of the cornerstones of the OpenBAS platform, they are responsible for pulling data from various external services for two purposes:
-
-- Collect all alerts, logs and traces related to attacks, incidents or crisis and match them to simulated injects to evaluate the security posture. 
-- Collect any data that may help to schedule breach and attack simulations such as list of assets, groups, identities, payloads, etc.
-
-### 🛡️ Detection (SIEM, XDR, EDR, NDR)
-
-Those collectors are the most import ones as they are used to evaluate the security posture (response to injects) from various detection and response systems and fulfill expectations for detection and prevention.
-
-### 🧬 Threat Intelligence
-
-Those collectors are used to collect threat intelligence data such as kill chains, scenarios, TTPs, payloads, etc.
-
-### 📺 Endpoint management
-
-Those collectors are pulling alternative information about your endpoints and assets to complete the overview about your current posture in terms of vulnerabilities and compliance.
-
-### 🎭 Identities
-
-Those collectors are pulling all information related to identities, including human assets, to be used in scenario or to complete the view overview about your current posture.
-
-### 🔭 Others
-
-All other system OpenBAS can pull from, to add more meaningful and relevant information to the view of your security posture.
-
-
-## Collectors installation
-
-### Built-in collectors
-
-Some collectors such as Microsoft Sentinel are directly embedded into the application. To configure them, just add the proper configuration parameters in your platform configuration.
+## Installation
 
 ### External (Python) collectors
 

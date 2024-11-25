@@ -159,11 +159,14 @@ nav:
       - Mitigations: usage/mitigations.md
       - Skills: usage/skills.md
     - Interact with your environment:
-      - Injectors: usage/injectors.md
-      - Caldera Injector: usage/inject-caldera.md
-      - Built-In Injector: usage/injects_builtin.md
-      - Collectors: usage/collectors.md
-      - Caldera Collector: usage/collector-caldera.md
+      - Injectors:
+        - Overview: usage/injectors.md
+        - Built-In Injector: usage/injects_builtin.md
+        - Caldera Injector: usage/inject-caldera.md
+      - Collectors:
+        - Overview: usage/collectors.md
+        - Caldera Collector: usage/collector-caldera.md
+      - Agents: usage/openbas-agent.md
   - Administration:
     - Introduction: administration/introduction.md
     - Enterprise edition: administration/enterprise.md

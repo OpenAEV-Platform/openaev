@@ -1,32 +1,10 @@
 # Injectors
 
-## Introduction
+!!! tip "Tips"
 
-!!! question "Injectors list"
+      If you want to learn more about the concept and features of injectors, you can have more info [here](../usage/injectors.md).
 
-    You are looking for the available injectors? The list is in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
-
-Injectors are one of the cornerstones of the OpenBAS platform, they are responsible for pushing simulation actions to third party systems. According to their functionality and use case, they are categorized in the following classes.
-
-### 📡 Endpoint payloads execution
-
-Those injectors are special as they required an executor (neutral agent) to be launched on endpoints. When they register to the platform, they inform available executors on how to spawn them on the 3 currently supported platforms: Windows, Linux and MacOS.
-
-### 🌐 Communication & social medias
-
-Those injectors are used to push information to human assets (aka players) such as emails, SMS, phone calls, instant messaging etc.
-
-
-### 🧯 Incident Response & Case Management
-
-Those injectors are used to inject real or fake information into case management, ticketing and incident response systems.
-
-### 💉 Others
-
-All other system OpenBAS can inject, as part of breach and attack simulation campaigns. 
-
-
-## Injectors installation
+## Installation
 
 ### Built-in injectors
 
