@@ -160,3 +160,29 @@ Each test in the list has a menu allowing users to delete or replay the test.
 After confirming the replay of the test, the details are updated.
 
 The user can also replay all the tests in the list. An icon similar to the one in the injects toolbar is available at the top of the list. After clicking on it, the user confirms the tests launch and the details are updated.
+
+## Conditional execution of injects
+
+You can add conditions to an inject, ensuring it is triggered at a specific time only if the specified conditions are met. These conditions typically relate to whether an expectation is fulfilled or not, but they can also pertain to the success or failure of an execution. There are several methods to achieve this.
+
+### Using the update form
+
+You can set conditions when updating an inject. In the inject update form, there is a tab "Logical Chains" for that.
+
+![Logical chains form](assets/inject-chaining.png)
+
+As you can see, you can assign a Parent and multiple Children. A Parent indicates that the current inject will only execute if the conditions set on the Parent are met at the time of execution. Similarly, a Child will execute at the specified time only if the conditions set on the current inject are satisfied. 
+
+The conditions you can set include the expectations for the inject and whether its execution was successful or not. You can select the desired expectation and Success/Fail status by clicking on them.
+
+![Modifying chains value form](assets/inject-chaining-value.png)
+
+You can also toggle whether all conditions must be met or just one by clicking on the small OR/AND cards. Note that these settings are interconnected, so you cannot assign different values to them
+
+### Using the timeline
+
+You also have the possibility to quickly create conditions between injects. To do that, you can go to the timeline view of injects and place your cursor on the small point on the left and right of each injects. You can then drag and drop a link from a point to another.
+
+![Creating chains in the timeline](assets/inject-chaining-timeline.gif)
+
+The links created in this way will default to an expectation of "Execution is Success" and must be updated using the injects' update form. Additionally, you can reposition links between injects or remove them entirely by dragging them to an empty space.
