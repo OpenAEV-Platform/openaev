@@ -31,12 +31,16 @@ interconnectivity of digital ecosystems. Below is a non-exhaustive list of termi
   endpoints include smart thermostats, cameras, environmental sensors, smart watches, and health tracking devices, among
   others.
 
-When accessing the Endpoints pages, you see the list of all endpoints imported in your platform. Here, users can create
-and manage details specific to each endpoint.
-
-Assets can be imported with the help of specific [Collectors](collectors.md), like Microsoft Entra.
+When accessing the Endpoints pages, you see the list of all endpoints imported in your platform. Here, users can manage 
+details specific to each endpoint.
 
 ![Example of list of Assets](assets/assets_list.png)
+
+By clicking on an endpoint, you will be able to access its details :
+
+![Overview endpoint](assets/overview_endpoint.png)
+
+To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../usage/openbas-agent.md).
 
 ## Asset groups
 
