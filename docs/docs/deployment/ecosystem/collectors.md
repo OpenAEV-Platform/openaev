@@ -2,7 +2,7 @@
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of collectors, you can have more info [here](../usage/collectors.md).
+      If you want to learn more about the concept and features of collectors, you can have more info [here](../../usage/collectors.md).
 
 ## Installation
 
@@ -107,8 +107,8 @@ $ python3 openbas_mitre.py
 
 The collector status can be displayed in the dedicated section of the platform available in Integration > collectors. You will be able to see the statistics of the RabbitMQ queue of the collector:
 
-![collectors](assets/collectors-status.png)
+![collectors](../assets/collectors-status.png)
 
 !!! bug "Problem"
 
-    If you encounter problems deploying OpenBAS or collectors, you can consult the [troubleshooting page](troubleshooting.md) page.
+    If you encounter problems deploying OpenBAS or collectors, you can consult the [troubleshooting page](../troubleshooting.md) page.

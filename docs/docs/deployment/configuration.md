@@ -125,7 +125,7 @@ The OpenBAS agent is enabled by default and cannot be disabled. It is available 
 
 ##### Other executors
 
-To know more about other available executors, please refer to the [executors documentation](./executors.md)
+To know more about other available executors, please refer to the [executors documentation](ecosystem/executors.md)
 
 #### Mail services
 

@@ -14,28 +14,30 @@ The platform is the central part of the OpenBAS platform, allowing users to conf
 
 ### Neutral agents / executors
 
-Executors are embedded into the platform but you should configure at least one. It is the system that will be used to execute local injectors on endpoints. Currently we support Caldera (default) and Tanium but multiple will be added in the near future including a home-made XTM agent (by Filigran). 
+Executors are embedded into the platform but you should configure at least one.
+This system is responsible for executing local injectors on endpoints.
 
-!!! warning "Required executor"
+We developed a home-made XTM agent, and we support Caldera, Tanium and Crowdstrike. Others will be added in the near future.
 
-    Executors are responsible of executing endpoint payload injectors. To use them, you have to have at least one executor / neutral agent enabled. Injectors that require executors are marked in red in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
-    ![Require executors](assets/require-executor.png)
+!!! tip "Tips"
+
+      If you want to learn more about how to deploy executors, you can have more info [here](./ecosystem/executors.md).
 
 ### Injectors
 
-Injects are used to interact with third-party applications or services (including execution on the endpoints through executors) in the context of a simulation or an atomic testing. A few injectors are built-in but most of them are standalone Python processes. 
+Injectors are used to interact with third-party applications or services (including execution on the endpoints through executors) in the context of a simulation or an atomic testing. A few injectors are built-in but most of them are standalone Python processes. 
 
-!!! note "List of injectors"
+!!! tip "Tips"
 
-    You can find all currently available injectors in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+      If you want to learn more about how to deploy injectors, you can have more info [here](./ecosystem/injectors.md).
 
 ### Collectors
 
 Collectors are used to connect to all security systems such as SIEMs, XDRs, EDRs, firewalls, mail gateways etc. to check if an inject (execution, emails, etc.) has been detected or prevented and fill the security posture. 
 
-!!! note "List of collectors"
+!!! tip "Tips"
 
-    You can find all currently available collectors in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+      If you want to learn more about how to deploy collectors, you can have more info [here](./ecosystem/collectors.md).
 
 ## Infrastructure requirements
 

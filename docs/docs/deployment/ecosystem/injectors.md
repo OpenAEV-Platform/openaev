@@ -2,13 +2,18 @@
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of injectors, you can have more info [here](../usage/injectors.md).
+      If you want to learn more about the concept and features of injectors, you can have more info [here](../../usage/injectors.md).
+
+!!! question "Injectors list"
+
+    You are looking for the available injectors? The list is in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
 
 ## Installation
 
 ### Built-in injectors
 
-Some injectors such as email, SMS, media pressure, etc. are directly embedded into the application. To configure them, just add the proper configuration parameters in your platform configuration. 
+Some injectors such as email, SMS, media pressure, etc. are directly embedded into the application. To configure them, 
+just add the proper configuration parameters in your platform configuration.
 
 ### External (Python) injectors
 
@@ -122,8 +127,8 @@ $ python3 openbas_http.py
 
 The injector status can be displayed in the dedicated section of the platform available in Integration > injectors. You will be able to see the statistics of the RabbitMQ queue of the injector:
 
-![injectors](assets/injectors-status.png)
+![injectors](../assets/injectors-status.png)
 
 !!! bug "Problem"
 
-    If you encounter problems deploying OpenBAS or injectors, you can consult the [troubleshooting page](troubleshooting.md) page.
+    If you encounter problems deploying OpenBAS or injectors, you can consult the [troubleshooting page](../troubleshooting.md) page.
