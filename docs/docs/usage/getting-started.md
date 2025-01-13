@@ -34,12 +34,9 @@ strategical events. To do so, you need to ...
 
 If you want to simulate attack at a technical level, you will need to install a Simulation Agent that will play
 technical events on your imported assets. To do so, you can go to the dedicated panel from the top right button and
-follow installation instructions. By default, Caldera is part of the OpenBAS stack.
+follow installation instructions.
 
 ![Simulation Agents screen](assets/simulation_agents_screen.png)
-
-The [Caldera agent](inject-caldera.md) will allow you to play various technical events, based on the [Mitre ATT&CK
-matrix](https://attack.mitre.org/).
 
 ### Building your Scenario
 
