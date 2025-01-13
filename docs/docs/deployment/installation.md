@@ -221,8 +221,6 @@ COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for cha
 COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
 INJECTOR_CALDERA_ENABLE=false
 EXECUTOR_CALDERA_ENABLE=false
-COLLECTOR_CALDERA_ENABLE=false
-COLLECTOR_CALDERA_ID=ChangeMe # Should be a valid UUID
 ```
 
 If your `docker-compose` deployment does not support `.env` files, just export all environment variables before launching the platform:

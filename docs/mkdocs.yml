@@ -165,7 +165,6 @@ nav:
         - Caldera Injector: usage/inject-caldera.md
       - Collectors:
         - Overview: usage/collectors.md
-        - Caldera Collector: usage/collector-caldera.md
       - Agents: usage/openbas-agent.md
   - Administration:
     - Introduction: administration/introduction.md
