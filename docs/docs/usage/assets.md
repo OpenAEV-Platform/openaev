@@ -34,6 +34,10 @@ interconnectivity of digital ecosystems. Below is a non-exhaustive list of termi
 When accessing the Endpoints pages, you see the list of all endpoints imported in your platform. Here, users can manage 
 details specific to each endpoint.
 
+!!! note
+
+    Openbas marks an endpoint as inactive if none of its agents have communicated within one hour.
+
 ![Example of list of Assets](assets/assets_list.png)
 
 By clicking on an endpoint, you will be able to access its details :

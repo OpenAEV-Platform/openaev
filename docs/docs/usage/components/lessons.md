@@ -1,9 +1,5 @@
 # Lessons
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
-
 Lessons in OpenBAS enable you to create customizable surveys for your simulations. These surveys can be composed of
 various categories and questions within those categories. This feature helps in conducting the often overlooked part of
 a Breach and Attack Simulation involving real people, by automating the process and complementing your simulation

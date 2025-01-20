@@ -1,9 +1,5 @@
 # Challenges
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
-
 Challenges are integral to handling CTF (Capture The Flag) activities on the OpenBAS platform. You can define your
 challenge and the flags that need to be found to complete it.
 

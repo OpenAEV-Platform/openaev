@@ -1,10 +1,5 @@
 # Channels
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
-
-
 In OpenBAS, Channels represent communication medias with a particular look. There are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
 
 It helps give shape to your Scenario context and events.

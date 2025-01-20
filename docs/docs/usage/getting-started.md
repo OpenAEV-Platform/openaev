@@ -7,7 +7,8 @@
 This guide aims to give you a full overview of the OpenBAS features and workflows. The platform can be used in various
 contexts to handle Breach and Attack simulations at technical or strategical levels. OpenBAS has been designed as a part
 of the Filigran XTM suite and can be integrated with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate
-meaningful attack scenarios based on real threat. OpenBAS is result-oriented with many dashboards helping you to evaluate
+meaningful attack scenarios based on real threat. OpenBAS is result-oriented with many dashboards helping you to
+evaluate
 you security posture given a defined context.
 
 Here are some examples of use cases:
@@ -18,25 +19,18 @@ Here are some examples of use cases:
 - Organize Capture The Flag with multiple challenges
 - Conduct atomic testing
 
-## Home screen
+## Welcome dashboard
 
-The Home screen provides every OpenBAS platform visitor with a snapshot of the platform activity as well as an overview 
+The welcome page provides every OpenBAS platform visitor with a snapshot of the platform activity as well as an overview
 of your global security posture. You can find more information in [this section](evaluate/overview.md).
 
 ## Your first Breach and Attack Simulation
 
-### Importing players and assets to play with
+### Creating or Importing players and assets to play with
 
-First, you need to import Players and Assets that will participate to the simulation and be targeted by technical or
-strategical events. To do so, you need to ...
-
-### Integrate with Simulation Agent to simulate technical events
-
-If you want to simulate attack at a technical level, you will need to install a Simulation Agent that will play
-technical events on your imported assets. To do so, you can go to the dedicated panel from the top right button and
-follow installation instructions.
-
-![Simulation Agents screen](assets/simulation_agents_screen.png)
+First, you need to create or import Players and Assets that will participate in the simulation and be targeted by
+technical or strategical events. To do so, you can either create [players](teams_and_players_and_organizations.md)
+and [teams](teams_and_players_and_organizations.md) or deploy agent on [assets](assets.md).
 
 ### Building your Scenario
 

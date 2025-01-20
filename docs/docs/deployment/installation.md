@@ -1,6 +1,7 @@
 # Installation
 
-All components of OpenBAS are shipped both as [Docker images](https://hub.docker.com/u/openbas) and manual [installation packages](https://github.com/OpenBAS-Platform/openbas/releases).
+All components of OpenBAS are shipped both as [Docker images](https://hub.docker.com/u/openbas) and
+manual [installation packages](https://github.com/OpenBAS-Platform/openbas/releases).
 
 !!! note "Production deployment"
 
@@ -43,7 +44,8 @@ sudo apt install docker-compose
 
 **:material-microsoft-windows:{ .middle } Windows and MacOS**
 
-Just download the appropriate [Docker for Desktop](https://www.docker.com/products/docker-desktop) version for your operating system.
+Just download the appropriate [Docker for Desktop](https://www.docker.com/products/docker-desktop) version for your
+operating system.
 
 ### Clone the repository
 
@@ -57,9 +59,11 @@ cd docker
 
 ### Configure the environment
 
-Before running the `docker compose` command, the `docker-compose.yml` file should be configured. By default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
+Before running the `docker compose` command, the `docker-compose.yml` file should be configured. By default, the
+`docker-compose.yml` file is using environment variables available in the `.env.sample` file.
 
-You can either rename the file `.env.sample` in `.env` and put the expected values or just fill directly the `docker-compose.yml` with the values corresponding to your environment.
+You can either rename the file `.env.sample` in `.env` and put the expected values or just fill directly the
+`docker-compose.yml` with the values corresponding to your environment.
 
 #### Docker compose env
 
@@ -91,7 +95,8 @@ COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for cha
 COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
 ```
 
-If your `docker-compose` deployment does not support `.env` files, just export all environment variables before launching the platform:
+If your `docker-compose` deployment does not support `.env` files, just export all environment variables before
+launching the platform:
 
 ```bash
 export $(cat .env | grep -v "#" | xargs)
@@ -124,7 +129,8 @@ docker compose up -d
 
 #### Using Docker swarm
 
-In order to have the best experience with Docker, we recommend using the Docker stack feature. In this mode you will have the capacity to easily scale your deployment.
+In order to have the best experience with Docker, we recommend using the Docker stack feature. In this mode you will
+have the capacity to easily scale your deployment.
 
 ```bash
 # If your virtual machine is not a part of a Swarm cluster, please use:
@@ -154,21 +160,14 @@ You can deploy Caldera alongside OpenBAS to manage agent deployment and execute 
 
     ---
 
-    Deploy OpenBAS using Docker and the default `docker-compose.yml` provided
+    Deploy Caldera using Docker and the default `docker-compose.yml` provided
     in the [docker](https://github.com/OpenBAS-Platform/caldera/tree/filigran/docker).
 
     [:octicons-arrow-right-24:{ .middle } Setup](#using-docker)
 </div>
 
-Before running the `docker compose` command, the `caldera.yml` and `docker-compose.yml` file should be configured. By 
-default, the `docker-compose.yml` file is using environment variables available in the file `.env.sample`.
-
-You can either rename the `.env.sample` file for `.env` and enter the required values, or directly update the `docker-compose.yml` file with the values specific to your environment.
-
-#### Caldera
-
-Unfortunately, Caldera does not support well environment variables, we have packaged it but the `caldera.yml` needs to 
-be modified to change default API keys and passwords. Only change what is marked as **Change this**, listed below:
+Unfortunately, Caldera does not support well environment variables, the `caldera.yml` needs to be modified to change
+default API keys and passwords. Only change what is marked as **Change this**, listed below:
 
 !!! note "Caldera application"
 
@@ -191,47 +190,22 @@ app.contact.tunnel.ssh.user_password: ChangeMe                                  
 
 #### Docker compose env
 
-!!! note "Configuration static parameters"
-
-    The complete list of available static parameters is available in the [configuration](configuration.md) section.
-
-Whether you are using one method or the other, here are the mandatory parameters to fill:
+Add this environment variable to connect OpenBAS and Caldera:
 
 ```bash
-POSTGRES_USER=ChangeMe
-POSTGRES_PASSWORD=ChangeMe
-KEYSTORE_PASSWORD=ChangeMe
-MINIO_ROOT_USER=ChangeMeAccess
-MINIO_ROOT_PASSWORD=ChangeMeKey
-RABBITMQ_DEFAULT_USER=ChangeMe
-RABBITMQ_DEFAULT_PASS=ChangeMe
-SPRING_MAIL_HOST=smtp.changeme.com
-SPRING_MAIL_PORT=465
-SPRING_MAIL_USERNAME=ChangeMe@domain.com
-SPRING_MAIL_PASSWORD=ChangeMe
-OPENBAS_MAIL_IMAP_HOST=imap.changeme.com
-OPENBAS_MAIL_IMAP_PORT=993
-OPENBAS_ADMIN_EMAIL=ChangeMe@domain.com
-OPENBAS_ADMIN_PASSWORD=ChangeMe
-OPENBAS_ADMIN_TOKEN=ChangeMe # Should be a valid UUID
-CALDERA_URL=http://caldera:8888 # Change me for production deployment to something accessible from your OpenBAS
-CALDERA_PUBLIC_URL=http://localhost:8888 # Change me for production deployment to something accessible from your endpoint(s)
-CALDERA_API-KEY=ChangeMe # Should be the same as api_key in your caldera.yml file
-COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for change
-COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
-INJECTOR_CALDERA_ENABLE=false
-EXECUTOR_CALDERA_ENABLE=false
-```
-
-If your `docker-compose` deployment does not support `.env` files, just export all environment variables before launching the platform:
-
-```bash
-export $(cat .env | grep -v "#" | xargs)
+INJECTOR_CALDERA_ENABLE=true
+INJECTOR_CALDERA_URL=${CALDERA_URL:-http://caldera:8888}
+INJECTOR_CALDERA_PUBLIC_URL=${CALDERA_PUBLIC_URL:-http://localhost:8888}
+INJECTOR_CALDERA_API_KEY=${CALDERA_API_KEY:-ChangeMe}
+EXECUTOR_CALDERA_ENABLE=true
+EXECUTOR_CALDERA_URL=${CALDERA_URL:-http://caldera:8888}
+EXECUTOR_CALDERA_PUBLIC_URL=${CALDERA_PUBLIC_URL:-http://localhost:8888}
+EXECUTOR_CALDERA_API_KEY=${CALDERA_API_KEY:-ChangeMe}
 ```
 
 ##### Login to Caldera
 
-To connect to Caldera, you need to use one of the users defined in your `caldera.yml` file (either 'red' or 'blue'). 
+To connect to Caldera, you need to use one of the users defined in your `caldera.yml` file (either 'red' or 'blue').
 OpenBAS will use the red user.
 
 ## Manual installation
@@ -240,7 +214,7 @@ OpenBAS will use the red user.
 
 #### Installation of dependencies
 
-You have to install all the needed dependencies for the main application if you would like to play breach and attack 
+You have to install all the needed dependencies for the main application if you would like to play breach and attack
 simulation scenarios. The example below is for Ubuntu:
 
 ```bash
@@ -267,7 +241,8 @@ The main application has just one environment configuration file to change.
 cd openbas
 ```
 
-Change the *application.properties* file according to your configuration of PostgreSQL, RabbitMQ, Minio and to your platform.
+Change the *application.properties* file according to your configuration of PostgreSQL, RabbitMQ, Minio and to your
+platform.
 
 #### Start the application
 
@@ -298,7 +273,8 @@ java -jar openbas-api.jar
 
 ### Deploy behind a reverse proxy
 
-If you want to use OpenBAS behind a reverse proxy with a context path, like `https://domain.com/openbas`, please change the `base_path` static parameter.
+If you want to use OpenBAS behind a reverse proxy with a context path, like `https://domain.com/openbas`, please change
+the `base_path` static parameter.
 
 - `APP__BASE_PATH=/openbas`
 
@@ -323,8 +299,10 @@ OpenBAS platform is based on a JAVA runtime. The application needs at least 4GB 
 
 #### PostgreSQL
 
-PostgreSQL is the main database of OpenBAS. You can find more information in the [official PostgresQL documentation](https://hub.docker.com/_/postgres).
+PostgreSQL is the main database of OpenBAS. You can find more information in
+the [official PostgresQL documentation](https://hub.docker.com/_/postgres).
 
 #### MinIO
 
-MinIO is a small process and does not require a high amount of memory. More information are available for Linux here on the [Kernel tuning guide](https://github.com/minio/minio/tree/master/docs/deployment/kernel-tuning).
+MinIO is a small process and does not require a high amount of memory. More information are available for Linux here on
+the [Kernel tuning guide](https://github.com/minio/minio/tree/master/docs/deployment/kernel-tuning).
