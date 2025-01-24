@@ -113,6 +113,10 @@ There are over 1,700 such injects covering all the TTPs in the MITRE ATT&CK matr
 ## Inject tests
 You can test direct contact injects in simulations and scenarios.
 
+!!! warning
+
+    For now, only email and sms inject are concerned by this feature.
+
 ### Unit test
 You can test injects one at a time.
 
