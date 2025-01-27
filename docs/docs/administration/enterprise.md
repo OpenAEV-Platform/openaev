@@ -36,5 +36,5 @@ Be able to use AI for content generation including emails, media pressure articl
 
 More features will be available in OpenBAS in the future. Features like:
 
-- Security posture automatic evalution.
+- Security posture automatic evaluation.
 - Premium mitigations and recommendation for configuration changes.

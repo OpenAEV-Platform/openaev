@@ -155,7 +155,6 @@ nav:
     - Share and export:
       - Simulations: usage/simulation_reports.md
     - Improve your security posture:
-      - Mitigations: usage/mitigations.md
       - Skills: usage/skills.md
     - Interact with your environment:
       - Injectors:
