@@ -141,6 +141,7 @@ nav:
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
       - Generating Scenario from OpenCTI: usage/scenario/opencti_scenario.md
+      - Default Asset Rules: usage/default_asset_rules.md
       - Importing injects into a Scenario: usage/scenario_import.md
       - Assets: usage/assets.md
       - People: usage/people.md
