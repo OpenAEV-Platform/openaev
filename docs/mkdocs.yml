@@ -155,8 +155,6 @@ nav:
       - Payloads: usage/payloads/payloads.md
     - Share and export:
       - Simulations: usage/simulation_reports.md
-    - Improve your security posture:
-      - Skills: usage/skills.md
     - Interact with your environment:
       - Injectors:
         - Overview: usage/injectors.md
