@@ -179,6 +179,7 @@ nav:
     - Prerequisites:
       - Ubuntu: development/environment_ubuntu.md
       - Windows: development/environment_windows.md
+    - Build from source: development/build_from_source.md
     - Platform: development/platform.md
     - Injectors: development/injectors.md
     - REST API: development/api-usage.md
