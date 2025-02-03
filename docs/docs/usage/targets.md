@@ -20,6 +20,25 @@ When selecting a team as the target, all players within that team will be target
 
 <!-- screenshot of an inject with selected teams -->
 
+Here is the step by step guide to add a team as a target of a simulation/scenario.
+
+Consider a simulation/scenario that was just created. Go to the **Definition** tab.
+
+![Definition of a simulation](assets/simulation_definition.png)
+
+Click on **+** next to the **Teams** section, a dialog appears allowing the user to add a team.
+
+![Add a team to a simulation](assets/simulation_add_team.png)
+
+The user now has two ways to enable players:
+- Click on the team, a drawer opens. Click on the **DISABLED** tag of a player, it is now enabled.
+- Click on the three dots of the team, then **Manage players**. A drawer opens, click on the **DISABLED** tag of a player.
+
+![Enable a player in a simulation](assets/simulation_enable_players.png)
+
+Now the user can target the team when adding an inject in the simulation/scenario.
+
+![Target a team in an inject](assets/simulation_add_team_to_inject.png)
 
 ## Selecting Assets (endpoints) and Asset groups
 
