@@ -29,7 +29,7 @@ Here is an example of a injector `docker-compose.yml` file:
 ```yaml
 - OPENBAS_URL=http://localhost
 - OPENBAS_TOKEN=ChangeMe
-- INJECTOR_ID=ChangeMe # Valid UUIDv4
+- INJECTOR_ID=ChangeMe # Specify a valid UUIDv4 of your choice
 - "INJECTOR_NAME=HTTP query"
 - INJECTOR_LOG_LEVEL=error
 ```

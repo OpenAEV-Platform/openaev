@@ -20,7 +20,7 @@ Here is an example of a collector `docker-compose.yml` file:
 ```yaml
 - OPENBAS_URL=http://localhost
 - OPENBAS_TOKEN=ChangeMe
-- COLLECTOR_ID=ChangeMe # Valid UUIDv4
+- COLLECTOR_ID=ChangeMe # Specify a valid UUIDv4 of your choice 
 - "COLLECTOR_NAME=MITRE ATT&CK"
 - COLLECTOR_LOG_LEVEL=error
 ```
