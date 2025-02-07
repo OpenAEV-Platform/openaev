@@ -284,6 +284,15 @@ java -jar openbas-api.jar
 
     You can now go to [http://localhost:8080](http://localhost:8080) and log in with the credentials configured in your `application.properties` file.
 
+#### Build the application locally
+
+1. cd openbas-front yarn build
+2. cp -r builder/prod/* ../openbas-api/src/main/resources/static/ 
+3. cd ../openbas-api
+4. mvn clean install -DskipTests
+5. create an application.properties based on the existing one in openbas-api and fill all the mandatory fields
+6. run java -jar target/openbas-api.jar --spring.config.location=%PATH%\application.properties
+
 ## Community contributions
 
 ### Helm Charts
