@@ -177,6 +177,58 @@ After confirming the replay of the test, the details are updated.
 
 The user can also replay all the tests in the list. An icon similar to the one in the injects toolbar is available at the top of the list. After clicking on it, the user confirms the tests launch and the details are updated.
 
+## Inject status
+
+
+### Inject status using OBAS agent 
+
+#### Viewing Execution Traces
+When you create a technical Inject, you assign it to endpoints, each of which may have one or multiple agents. As the inject executes, agents communicate their progress to the OBAS Server, which logs detailed execution traces.
+
+In the "Execution Details" tab, traces are organized by agent, and agents are grouped by endpoint. This allows you to easily track execution progress at both the agent and endpoint levels.   
+Each agent generates multiple traces corresponding to different execution steps, including:  
+
+- Prerequisite checks (validation before execution)
+- Prerequisite retrieval (only if the check fails)
+- Attack command
+- Cleanup commands
+
+![Inject execution details](assets/inject-execution-details.png)
+
+!!! warning
+
+    If a prerequisite check succeeds, the prerequisite retrieval step is skipped. However, the UI always marks prerequisite checks as "SUCCESS"—to verify execution results, you must inspect the stderr logs.
+
+
+**Trace Statuses**
+
+Each execution step reports a status: 
+
+- ✅ SUCCESS – Command executed successfully  
+- ⚠️ WARNING – Executed with minor issues  
+- ❓MAYBE_PREVENTED – A generic error occurred, possibly due to firewall restrictions  
+- 🚫 COMMAND_CANNOT_BE_EXECUTED – Found but couldn't execute (e.g., permission issues)  
+- ❌COMMAND_NOT_FOUND – Executor couldn’t find the command  
+- 🛑 ERROR – General failure  
+
+All execution logs are stored on the OBAS Server, which later processes them to determine agent and inject statuses.
+
+
+**Agent Status Computation**
+
+When an agent completes execution, the server retrieves all traces and computes an agent status based on the following rules:  
+
+- All traces SUCCESS → Agent status = <span style="color: #4caf50">INJECT EXECUTED</span>
+- All traces ERROR → Agent status = <span style="color: #f44336">ERROR</span>  
+- All traces MAYBE_PREVENTED → Agent status = <span style="color: #673ab7">MAYBE_PREVENTED</span>
+- At least one SUCCESS trace → Agent status = <span style="color: #ff9800">PARTIAL</span>
+- Otherwise → Agent status = MAYBE_PARTIAL_PREVENTED  
+
+**Inject Status Computation** 
+
+After all agents have completed their execution, the system calculates the Inject status using the same logic applied to compute the agent status.
+
+
 ## Conditional execution of injects
 
 You can add conditions to an inject, ensuring it is triggered at a specific time only if the specified conditions are met. These conditions typically relate to whether an expectation is fulfilled or not, but they can also pertain to the success or failure of an execution. There are several methods to achieve this.
