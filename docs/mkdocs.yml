@@ -172,6 +172,7 @@ nav:
       - Security:
         - Policies: administration/policies.md
         - Users and RBAC: administration/users.md
+      - Taxonomies: administration/taxonomies.md
   - Reference:
       - APIs:
           - Filters: reference/apis/filters.md
