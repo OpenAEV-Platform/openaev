@@ -211,7 +211,7 @@ add a [Caldera service](https://github.com/OpenBAS-Platform/caldera/blob/filigra
 ```
 services:
   caldera:
-    image: openbas/caldera-server:5.0.0
+    image: openbas/caldera-server:5.1.0
     restart: always
     ports:
       - "8888:8888"
