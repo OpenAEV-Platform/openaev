@@ -23,3 +23,13 @@ Challenges can be utilized in Scenarios and Simulations. When creating an inject
 to select a challenge to be sent to your players.
 
 ![challenge-inject.png](../assets/components/challenge-inject.png)
+
+Once the scenario/simulation is triggered, an email is sent to the targeted players with a link.
+
+![challenge-player-response.png](../assets/components/challenge-player-response.png)
+
+When clicking on the link the player is redirected to a page with a clickable card. Clicking on the card opens a modal with a textfield, where the player can enter the flag of the challenge.
+
+![challenge-admin-answers.png](../assets/components/challenge-admin-answers.png)
+
+The initiator of the simulation can check the results. On this picture, a player of the team answered correctly while the others have not answered yet. Note that by default, players have a day to respond.
