@@ -42,7 +42,7 @@ collector:
 
 You can either directly run the Docker image of collectors or add them to your current `docker-compose.yml` file.
 
-### Add an collector to your deployment
+### Add a collector to your deployment
 
 For instance, to enable the MITRE ATT&CK collector, you can add a new service to your `docker-compose.yml` file:
 
