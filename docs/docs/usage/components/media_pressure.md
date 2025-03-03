@@ -15,7 +15,7 @@ For example, you can create an Article about the data leakage your organization 
 
 To create an Article, go to the definition page of your Scenario or your Simulation and click on the + button near "media pressure". If you did not create Article yet, you can also click on the more visible "Create an Article" button.
 
-An media pressure Article is defined by:
+A media pressure Article is defined by:
 - Channel: the [Channel](channels.md) template that will shape the article during the display to the Players. A Channel must have been defined in the platform.
 - Title
 - Author
