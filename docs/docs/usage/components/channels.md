@@ -1,6 +1,6 @@
 # Channels
 
-In OpenBAS, Channels represent communication medias with a particular look. There are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
+In OpenBAS, Channels represent communication medias with a particular look. They are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
 
 It helps give shape to your Scenario context and events.
 
