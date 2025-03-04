@@ -64,12 +64,13 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### XTM Suite
 
-| Parameter                           | Environment variable                | Default value | Description                     |
-|:------------------------------------|:------------------------------------|:--------------|:--------------------------------|
-| openbas.xtm.opencti.enable          | OPENBAS_XTM_OPENCTI_ENABLE          | false         | Enable integration with OpenCTI |
-| openbas.xtm.opencti.url             | OPENBAS_XTM_OPENCTI_URL             |               | OpenCTI URL                     |
-| openbas.xtm.opencti.token           | OPENBAS_XTM_OPENCTI_TOKEN           |               | OpenCTI token                   |
-| openbas.xtm.opencti.disable-display | OPENBAS_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI       |
+| Parameter                           | Environment variable                | Default value | Description                                                                                         |
+|:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------|
+| openbas.xtm.opencti.enable          | OPENBAS_XTM_OPENCTI_ENABLE          | false         | Enable integration with OpenCTI                                                                     |
+| openbas.xtm.opencti.url             | OPENBAS_XTM_OPENCTI_URL             |               | OpenCTI URL                                                                                         |
+| openbas.xtm.opencti.api_url         | OPENBAS_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completly override the OpenCTI URL, otherwise the default url will be `openbas.xtm.opencti.url` + '/graphql'|
+| openbas.xtm.opencti.token           | OPENBAS_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                       |
+| openbas.xtm.opencti.disable-display | OPENBAS_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                           |
 
 #### PostgreSQL
 
