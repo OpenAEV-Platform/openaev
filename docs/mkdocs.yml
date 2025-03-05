@@ -123,6 +123,7 @@ nav:
       - Collectors: deployment/ecosystem/collectors.md
       - Other resources: deployment/resources.md
     - Advanced:
+      - Platform managers: deployment/managers.md
       - Clustering: deployment/clustering.md
       - Troubleshooting: deployment/troubleshooting.md
   - User Guide:
@@ -175,6 +176,8 @@ nav:
   - Reference:
       - APIs:
           - Filters: reference/apis/filters.md
+      - Deployment and stack:
+          - Telemetry: reference/deployment/telemetry.md
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment_ubuntu.md
