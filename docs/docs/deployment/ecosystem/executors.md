@@ -7,6 +7,17 @@ be in charge of executing implants as detached processes. Implants will then exe
 
 ![Architecture](../assets/architecture.png)
 
+The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS. This table below summarizes the information about each agent.
+
+| Executor                           | Type                | Installation mode                                 | Installation type | Run As                                 | Payload execution                              | Multi agents for an endpoint                     |
+|:-----------------------------------|:--------------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
+| **OpenBAS Agent (native/default)** | Open source         | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
+| **Tanium Agent**                   | Under license       | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
+| **Crowdstrike Falcon Agent**       | Under license       | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
+| **Caldera Agent**                  | Open source         | As a user session                                 | Script            | An admin background process            | As a user admin                                | Yes, depending on the user                       |                      
+
+For more details about the installation and working of each agent, see the sections dedicated below.
+
 ## OpenBAS Agent
 
 The OpenBAS agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and payloads on endpoints.
@@ -61,9 +72,9 @@ Also, the assets in the selected computer groups should now be available in the 
 
 ![Endpoints](../assets/tanium-endpoints.png)
 
-NB : An Asset can only have one Tanium agent installed thanks to an unicity with hostname and IP parameters.
+NB : An Asset can only have one Tanium agent installed due to the uniqueness of the MAC address parameters
 If you try to install again a Tanium agent on a platform, it will overwrite the actual one and you will always
-see one endpoint on the OpenBAS endpoint page.
+see one Endpoint on the OpenBAS endpoint page.
 
 !!! success "Installation done"
 
@@ -187,7 +198,7 @@ Also, the assets in the selected computer groups should now be available in the 
 
 ![Crowdstrike Endpoints](../assets/crowdstrike-endpoints.png)
 
-NB : An Asset can only have one CrowdStrike agent installed thanks to an unicity with hostname and IP parameters. If you try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one endpoint on the OpenBAS endpoint page.
+NB : An Asset can only have one CrowdStrike agent installed due to the uniqueness of the MAC address parameters. If you try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one Endpoint on the OpenBAS endpoint page.
 
 !!! success "Installation done"
 
@@ -288,6 +299,9 @@ available in the OpenBAS endpoints list.
 
 ![Endpoints](../assets/caldera-endpoints.png)
 
-NB : An Asset can only have one Caldera agent installed thanks to an unicity with hostname and IP parameters.
-If you try to install again a Caldera agent on a platform, it will overwrite the actual one and you will always
-see one endpoint on the OpenBAS endpoint page.
+#### Uninstallation
+
+Run the following commands with an administrator Powershell in order to uninstall your Caldera agent:<br/>
+`schtasks /delete /tn OpenBASCaldera`<br/>
+`Stop-Process -Name obas-agent-caldera`<br/>
+`rm -force -Recurse "C:\Program Files (x86)\Filigran\OBAS Caldera"`

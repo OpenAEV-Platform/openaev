@@ -46,6 +46,13 @@ By clicking on an endpoint, you will be able to access its details :
 
 To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../usage/openbas-agent.md).
 
+!!! note
+
+    The register rule to know for the endpoint/agent create/update is the following:
+
+    - The identifier for an endpoint is its mac addresses (except for Caldera agent, which is the hostname and ip addresses).
+    - The identifier for an agent is its own "key" (endpoint, agent name, executor, privilege and deployment).
+
 ## Asset groups
 
 Asset groups serve as a mechanism for organizing and grouping related Endpoints. These groups are constructed based on
