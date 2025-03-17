@@ -138,6 +138,7 @@ nav:
       - Injects: usage/injects.md
       - Targets: usage/targets.md
       - Expectations: usage/expectations.md
+      - Findings: usage/findings.md
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
       - Generating Scenario from OpenCTI: usage/scenario/opencti_scenario.md
