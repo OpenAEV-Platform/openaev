@@ -254,3 +254,43 @@ You also have the possibility to quickly create conditions between injects. To d
 ![Creating chains in the timeline](assets/inject-chaining-timeline.gif)
 
 The links created in this way will default to an expectation of "Execution is Success" and must be updated using the injects' update form. Additionally, you can reposition links between injects or remove them entirely by dragging them to an empty space.
+
+## Export & Import Injects
+
+The Export & Import functionality allows users to transfer injects between **simulations, scenarios, and atomic testings**. Injects are exported along with their configuration details and can be imported across different instances.
+ 
+### Export Injects
+Users can export injects from **simulations, scenarios, or atomic tests**. The exported injects will retain their configuration details, which include:
+- **Arguments**
+- **Content**
+- **Tags**
+- **Expectations**
+
+### **Export Rules**
+- **Multiple injects** can be exported at once for **scenarios and simulations**.
+- **Atomic testing restriction**: Only **one atomic test** can be exported at a time.
+- **Teams/Players** can be optionally included in the export.
+- **Assets** are **never** exported.
+- **Permissions Required**: Read privileges are required on the **Scenario** or **Simulation** to perform an export. Atomic testings require Admin privileges.
+
+![Export in atomic](assets/export-popover.png)
+![Export in atomic](assets/export-inject-atomic.png)
+![Export in simulation](assets/export-inject-simulation.png)
+![Export in simulation menu](assets/export-inject-simulation-menu.png)
+![Export in scenario](assets/export-inject-scenario.png)
+![Export in scenario menu](assets/export-inject-scenario-menu.png)
+
+### **Import Injects**
+Users can import injects into **simulations, scenarios, or atomic tests**, regardless of the instance from which they were originally exported.
+
+### **Import Rules**
+- Injects from any source (atomic testing, scenarios, or simulations) can be imported into any other instance (scenarios, simulations, or atomic testing).
+- **Permissions Required**: Write privileges are required on the **destination object** (Scenario or Simulation) to perform an import. Atomic testings require Admin privileges.
+
+![Import in atomic](assets/import-popover.png)
+![Import in atomic](assets/import-inject-atomic.png)
+![Import in simulation](assets/import-inject-simulation.png)
+![Import in scenario](assets/import-inject-scenario.png)
+
+This feature enables seamless sharing of injects across different environments, ensuring flexibility and efficiency in exercises.
+
