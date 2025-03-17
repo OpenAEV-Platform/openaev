@@ -22,7 +22,7 @@ pip install -r requirements.txt
 Upgrade dependencies
 ```
 pip install --upgrade -r requirements.txt
-pip install --upgrade git+https://<REDACTED-GH-PAT>@github.com/squidfunk/mkdocs-material-insiders.git
+pip install --upgrade git+https://TOKEN@github.com/squidfunk/mkdocs-material-insiders.git
 ```
 
 Launch the local environment:
