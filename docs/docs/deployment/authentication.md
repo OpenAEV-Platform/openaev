@@ -10,7 +10,9 @@ Welcome to the authentication documentation for OpenBAS. This documentation prov
 
 OpenBAS use this strategy as the default, but it's not the one we recommend for security reasons.
 
-- `OPENBAS.AUTH-LOCAL-ENABLE`: Set this to `true` to enable username/password authentication.
+| Parameter                      | Environment variable           | Default value         | Description                                                   |
+|:-------------------------------|:-------------------------------|:----------------------|:--------------------------------------------------------------|
+| openbas.auth-local-enable                 | OPENBAS_AUTH-LOCAL-ENABLE                 | true               | Set this to `true` to enable username/password authentication. |
 
 !!! tip "Production deployment"
 
@@ -20,7 +22,9 @@ OpenBAS use this strategy as the default, but it's not the one we recommend for 
 
 This method allows to use the [OpenID Connect Protocol](https://openid.net/connect) to handle the authentication.
 
-- `OPENBAS.AUTH-OPENID-ENABLE`: Set this to `true` to enable OAuth (OpenID) authentication.
+| Parameter                      | Environment variable           | Default value         | Description                                                   |
+|:-------------------------------|:-------------------------------|:----------------------|:--------------------------------------------------------------|
+| openbas.auth-openid-enable                 | OPENBAS_AUTH-OPENID-ENABLE                 | false               | Set this to `true` to enable OAuth (OpenID) authentication. |
 
 Example for Auth0:
 
@@ -49,7 +53,9 @@ SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT_SECRET=
 
 This strategy can be used to authenticate your user with your company SAML.
 
-- `OPENBAS.AUTH-SAML2-ENABLE`: Set this to `true` to enable SAML2 authentication. 
+| Parameter                      | Environment variable           | Default value         | Description                                                   |
+|:-------------------------------|:-------------------------------|:----------------------|:--------------------------------------------------------------|
+| openbas.auth-saml2-enable                 | OPENBAS_AUTH-SAML2-ENABLE                 | false               | Set this to `true` to enable SAML2 authentication. |
  
 Example for Microsoft :
 ```properties
