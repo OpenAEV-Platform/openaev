@@ -5,8 +5,6 @@ Breach and Attack Simulation involves testing your security posture, and people 
 Players, teams, and organizations are where you organize the human aspect of your security posture within OpenBAS. These
 entities are the targets for injects during your [simulations](simulation.md) and [atomic testings](atomic.md).
 
-<a id="players-section"></a>
-
 ## Players
 
 Players are the users that may take part into your scenarios, to be tested against attack or contextual events (
@@ -21,7 +19,7 @@ Players are defined by:
 - First name,
 - Last name,
 - Organization: to link a player to an organization (
-  see [below](teams_and_players_and_organizations.md#organization-section)),
+  see [below](#organizations)),
 - Country,
 - Phone number: necessary if you want to play SMS injects,
 - PGP public key: necessary if you want to play encrypted email injects,
@@ -42,7 +40,7 @@ Teams are defined by:
 - Name,
 - Description,
 - Organization: to link a team to an organization (
-  see [below](teams_and_players_and_organizations.md#organization-section)),
+  see [below](#organizations)),
 - Tags: if you want to sort them by custom categories.
 
 From the teams list, you can manage players by clicking on the three-dots inline button on the right and selecting "
@@ -50,9 +48,6 @@ Manage players." From there, you can view, update, or delete all the team's play
 channels' state.
 
 <!-- screenshot of the Teams list  with a Manage Players drawer opened -->
-
-
-<a id="organization-section"></a>
 
 ## Organizations
 

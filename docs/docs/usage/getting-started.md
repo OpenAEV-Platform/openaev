@@ -29,8 +29,8 @@ of your global security posture. You can find more information in [this section]
 ### Creating or Importing players and assets to play with
 
 First, you need to create or import Players and Assets that will participate in the simulation and be targeted by
-technical or strategical events. To do so, you can either create [players](teams_and_players_and_organizations.md)
-and [teams](teams_and_players_and_organizations.md) or deploy agent on [assets](assets.md).
+technical or strategical events. To do so, you can either create [players](people.md)
+and [teams](people.md) or deploy agent on [assets](assets.md).
 
 ### Building your Scenario
 
@@ -40,7 +40,7 @@ Once integrations is done, you are ready to create your first Scenario!
 will be able to schedule it as a one shot simulation, or as a recurring one.
 
 - First, go to the Scenarios menu and create a new one with the + button.
-- Once done, define [Teams](teams_and_players_and_organizations.md) that will be playing in this Scenario by going to
+- Once done, define [Teams](people.md) that will be playing in this Scenario by going to
   the Definition/Teams tab
 - Now go to the [Injects](injects.md) tab and add some to build the serie of events that will define the core of your
   Scenario. If you want to stay strategical, you can select inject like "Send individual mails". If you want to go

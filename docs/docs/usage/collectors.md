@@ -19,6 +19,9 @@ external services for two purposes:
 Those collectors are the most important ones as they are used to evaluate the security posture (response to injects) from
 various detection and response systems and fulfill expectations for detection and prevention.
 
+These collectors will try to fetch data for 45 minutes after the execution of an inject. At the end of
+these 45 minutes, if no data has been found for a given inject, this inject's result will be updated to "Not detected".
+
 #### Detection & Prevention with EDR
 
 For EDRs, we analyze the tool's logs to identify matches for the hostname and the parent process name associated with

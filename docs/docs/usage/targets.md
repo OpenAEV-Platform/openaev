@@ -1,7 +1,7 @@
 # Targets
 
 
-When you are using an [Inject](injects.md), whether for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), it's necessary to define the recipients, known as "targets", which could include [Players, Teams](teams_and_players_and_organizations.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the inject.
+When you are using an [Inject](injects.md), whether for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), it's necessary to define the recipients, known as "targets", which could include [Players, Teams](people.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the inject.
 
 Note that certain injects can't target assets, while others can't target players. For instance, the "Send individual mails" inject can only target players and teams, not assets. 
 
@@ -14,7 +14,7 @@ Target selection is performed during inject creation or update.
 
 Directly targeting a player isn't yet possible. Instead, you must target a team. In scenarios or simulations, the team must be included in the scenario or simulation to be selectable. However, when creating atomic testing, all teams in the platform are selectable.
 
-Note that visibility of teams and players is limited by the organization's [segregation](teams_and_players_and_organizations.md).
+Note that visibility of teams and players is limited by the organization's [segregation](people.md).
 
 When selecting a team as the target, all players within that team will be targeted by the inject. Each player will have to complete expectations.
 

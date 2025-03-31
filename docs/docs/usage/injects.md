@@ -43,7 +43,7 @@ When selecting an inject on the left, the form on the right populates itself wit
 
 By clicking on "Inject content", you can define now or later:
 
-- [Inject targets](targets.md): Specify the targets for the inject, which may include [players and teams](teams_and_players_and_organizations.md) or [assets and assets groups](assets.md) depending on the inject chosen. 
+- [Inject targets](targets.md): Specify the targets for the inject, which may include [players and teams](people.md) or [assets and assets groups](assets.md) depending on the inject chosen. 
 - [Expectations](expectations.md): Define the expected outcomes or responses to the inject, outlining the desired actions or behaviors by players. 
 - Attachments: Attach any relevant documents or resources to provide additional context or information related to the inject. 
 - Additional fields: Depending on the type of Inject selected, you may have access to additional fields specific to that inject type. These fields may include the subject and body of an email, channel pressure settings for public communications, obfuscation options, and more.
@@ -213,6 +213,33 @@ Each execution step reports a status:
 
 All execution logs are stored on the OBAS Server, which later processes them to determine agent and inject statuses.
 
+**Alert Details**
+
+Once an inject have been executed, it is possible to access the alerts' details on the different security platforms 
+(SIEM or EDR) linked to the EDRs present on the tested assets.
+
+![Inject execution traces details](assets/inject-expectation-traces-1.png)
+
+By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenBAS.
+
+On the above example, we can see that there are 3 agents on the `mac.home` asset. We can see there are detections on the
+OpenBAS and CrowdStrike agents, while the Tanium agent hasn't had any yet (it can take several minutes for the traces to
+show up in OpenBAS).
+
+By clicking on the CrowdStrike agent, we can see that the inject's payload was detected by CrowdStrike and Defender, and
+traces are available on Sentinel as well. 
+We can also see that there were 2 alerts on CrowdStrike, and 1 on Defender and Sentinel. 
+
+To get the details of these alerts, you can click on the CrowStrike line to see this:
+
+![Inject execution traces alert details](assets/inject-expectation-traces-2.png)
+
+On this new panel, you can click on the alert name, and you will be redirected to the alert details on the corresponding
+security platform.
+
+!!! warning
+
+    It can take some time for the details to appear after the execution of an inject, sometime up to several minutes.
 
 **Agent Status Computation**
 
@@ -228,6 +255,18 @@ When an agent completes execution, the server retrieves all traces and computes 
 
 After all agents have completed their execution, the system calculates the Inject status using the same logic applied to compute the agent status.
 
+#### Adding manual results
+
+In some cases, or for some kinds of injects, it may not be possible to automate results retrieval. In this case, you
+can manually add results to an inject by clicking on the `shield` icon named `Add a result`.
+
+![Adding a manual result](assets/inject-expectation-manual-result-1.png)
+
+This will open the following popup:
+
+![Adding a manual result popup](assets/inject-expectation-manual-result-2.png)
+
+You can then fill the form with the result you want to add.
 
 ## Conditional execution of injects
 

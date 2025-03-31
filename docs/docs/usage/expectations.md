@@ -1,7 +1,7 @@
 # Expectations
 
 Expectations define what is expected from an [Asset (endpoint)](assets.md) or
-a [Players](teams_and_players_and_organizations.md#players-section) when facing an [Inject](injects.md) in terms of
+a [Players](people.md#players) when facing an [Inject](injects.md) in terms of
 security posture. Each expectation has a score representing how well it has been met by the target.
 
 ## Expectation types
@@ -93,3 +93,6 @@ expectations.
 
 When creating an expectation, users can set an expiration time. The system's default times are set on the form and users
 decide to override it.
+
+Once the expiration time will be reached, the Expectation Expiration Manager will fail the expectation and will show the
+result as `Not Detected` or `Not Prevented` depending on the expectation's type.
