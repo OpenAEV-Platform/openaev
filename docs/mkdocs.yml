@@ -188,6 +188,7 @@ nav:
     - Collectors: development/collectors.md
     - Injectors: development/injectors.md
     - REST API: development/api-usage.md
+    - Best Practices: development/translations.md
 
 
 
