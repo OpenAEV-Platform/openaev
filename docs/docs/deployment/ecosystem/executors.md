@@ -144,18 +144,18 @@ Put the following Input schema:
 | script access         | Users with the role of RTR Administrator or RTR Active Responder |
 | shared with workflows | yes                                                              |
 
-Put the following script **(release version < 1.15.0)**:
+Put the following script **(release version < 1.16.0)**:
 
 ```PowerShell
 $command = $args[0] | ConvertFrom-Json | Select -ExpandProperty 'command';
 cmd.exe /d /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInteractive -NoProfile -Command "Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([convert]::FromBase64String('$command')))"
 ```
 
-Put the following script **(release version >= 1.15.0)**:
+Put the following script **(release version >= 1.16.0)**:
 
 ```PowerShell
 $command = $args[0] | ConvertFrom-Json | Select -ExpandProperty 'command';
-cmd.exe /d /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInteractive -NoProfile -encodedCommand $command"
+cmd.exe /d /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInteractive -NoProfile -encodedCommand $command
 ```
 
 Put the following Input schema:
@@ -216,15 +216,17 @@ applied.
 
 To use the CrowdStrike executor, just fill the following configuration.
 
-| Parameter                                | Environment variable                     | Default value                          | Description                                    |
-|:-----------------------------------------|:-----------------------------------------|:---------------------------------------|:-----------------------------------------------|
-| executor.crowdstrike.enable              | EXECUTOR_CROWDSTRIKE_ENABLE              | `false`                                | Enable the Crowdstrike executor                |
-| executor.crowdstrike.api-url             | EXECUTOR_CROWDSTRIKE_API_URL             | `https://api.us-2.crowdstrike.com`     | Crowdstrike API url                            |
-| executor.crowdstrike.client-id           | EXECUTOR_CROWDSTRIKE_CLIENT_ID           |                                        | Crowdstrike client id                          |
-| executor.crowdstrike.client-secret       | EXECUTOR_CROWDSTRIKE_CLIENT_SECRET       |                                        | Crowdstrike client secret                      |
-| executor.crowdstrike.host-group          | EXECUTOR_CROWDSTRIKE_HOST_GROUP          |                                        | Crowdstrike host group                         |
-| executor.crowdstrike.windows-script-name | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME | `OpenBAS Subprocessor (Windows)`       | Name of the OpenBAS Crowdstrike windows script |
-| executor.crowdstrike.unix-script-name    | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME    | `OpenBAS Subprocessor (Unix)`          | Name of the OpenBAS Crowdstrike unix script    |
+| Parameter                                                  | Environment variable                                       | Default value                      | Description                                                                                                                                   |
+|:-----------------------------------------------------------|:-----------------------------------------------------------|:-----------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------|
+| executor.crowdstrike.enable                                | EXECUTOR_CROWDSTRIKE_ENABLE                                | `false`                            | Enable the Crowdstrike executor                                                                                                               |
+| executor.crowdstrike.api-url                               | EXECUTOR_CROWDSTRIKE_API_URL                               | `https://api.us-2.crowdstrike.com` | Crowdstrike API url                                                                                                                           |
+| executor.crowdstrike.api-register-interval                 | EXECUTOR_CROWDSTRIKE_API_REGISTER_INTERVAL                 | 3600                               | Crowdstrike API interval to register/update the host groups/hosts/agents in OpenBAS (in seconds)                                              | 
+| executor.crowdstrike.api-batch-execution-action-pagination | EXECUTOR_CROWDSTRIKE_API_BATCH_EXECUTION_ACTION_PAGINATION | 2500                               | Crowdstrike API pagination per second to set for hosts batch executions (number of hosts sent per second to Crowdstrike to execute a payload) | 
+| executor.crowdstrike.client-id                             | EXECUTOR_CROWDSTRIKE_CLIENT_ID                             |                                    | Crowdstrike client id                                                                                                                         |
+| executor.crowdstrike.client-secret                         | EXECUTOR_CROWDSTRIKE_CLIENT_SECRET                         |                                    | Crowdstrike client secret                                                                                                                     |
+| executor.crowdstrike.host-group                            | EXECUTOR_CROWDSTRIKE_HOST_GROUP                            |                                    | Crowdstrike host group id or hosts groups ids separated with commas                                                                           |
+| executor.crowdstrike.windows-script-name                   | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME                   | `OpenBAS Subprocessor (Windows)`   | Name of the OpenBAS Crowdstrike windows script                                                                                                |
+| executor.crowdstrike.unix-script-name                      | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME                      | `OpenBAS Subprocessor (Unix)`      | Name of the OpenBAS Crowdstrike unix script                                                                                                   |
 
 ### Checks
 
@@ -232,7 +234,7 @@ Once enabled, you should see CrowdStrike available in your `Install agents` sect
 
 ![Crowdstrike available agent](../assets/crowdstrike-available-agent.png)
 
-Also, the assets in the selected computer groups should now be available in the endpoints section in OpenBAS:
+Also, the assets and the asset groups in the selected computer groups should now be available in the endpoints and asset groups sections in OpenBAS:
 
 ![Crowdstrike Endpoints](../assets/crowdstrike-endpoints.png)
 
