@@ -1,21 +1,30 @@
 # Atomic testing
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. 
-    If you want to participae, dont hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
-    or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
-
-
 When clicking on Atomic testing in the left menu, you access to the list of all atomic testings ever launched in the platform.
 
 Atomic testing is a great way to simulate a singular attack technique you are particulary interested in, and test immediately your capability to prevent and detect it.
 
-You can search for a specific one by name.
-
 The presented list allows you to easily see global scores of all your recent atomic testings.
 
 ![Example of Atomic testing](assets/atomic_list.png)
+
+## Search the list
+
+You can search the list using the name or one the filters. Here are the available filters for this list.
+
+![Atomic testing filters list](assets/atomic_list_filter_attributes.png)
+
+Once you choose the attribute you want to apply a filter on, you can choose the operator.
+
+![Atomic testing filters operators](assets/atomic_list_filter_operator.png)
+
+Then you have the list of values for the attributes you choose.
+
+![Atomic testing filters attributes values](assets/atomic_list_filter_elements.png)
+
+Here is the list once you apply the filter.
+
+![Atomic testing filters values](assets/atomic_list_filter_result.png)
 
 ## Create an Atomic testing
 
@@ -25,7 +34,7 @@ By clicking on the + button at the bottom right of the screen, you enter the ato
 
 On the left of the creation screen is the list of all available Inject you can play for atomic testing. Logos on the left of each line indicates which Injector is associated with each inject.
 
-Depending on your integrations, this list can be long. You can filter the list by compatible platforms or by Mitre Att&ck tactics.By clicking on the "Att&CK" logo near the search bar, you can also filter by selecting a precise Mitre Att&ck techniques.
+Depending on your integrations, this list can be long. You can filter the list by kill chain phase, injector, compatible platforms or Mitre Att&ck tactics.By clicking on the "Att&CK" logo near the search bar, you can also filter by selecting a precise Mitre Att&ck techniques.
 
 When selecting an inject on the left, the form on the right populates itself with a by-default title and propose you to define when the inject should be played after the launch of the atomic testing. You can keep it to 0.
 
@@ -65,4 +74,11 @@ You can also see the raw execution logs of the [Injector](injectors.md) responsi
 
 ![Execution trace of a successfull atomic testing](assets/atomic_testing_execution_details.png)
 
+For technical injects, you can see the raw execution logs of the agents that executed the test.
 
+![Execution trace of a successfull atomic testing with openBAS agent](assets/atomic_testing_execution_details_technical.png)
+
+### Payload info
+This screen is available for technical injects only. You can see the details of the payload related to the test.
+
+![Payload info of atomic testing](assets/atomic_testing_payload_info.png)
