@@ -10,5 +10,5 @@ Each finding is associated with an [Inject](injects.md) and an [Asset (endpoint)
 
 You can find findings in the inject result page (only for an [Atomic testing](atomic.md) at the moment)
 
-![Findings](assets/findings.jpg)
+![Findings](assets/findings.png)
 
