@@ -26,17 +26,18 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Basic parameters
 
-| Parameter                      | Environment variable           | Default value         | Description                                                   |
-|:-------------------------------|:-------------------------------|:----------------------|:--------------------------------------------------------------|
-| server.address                 | SERVER_ADDRESS                 | 0.0.0.0               | Listen address of the application                             |
-| server.port                    | SERVER_PORT                    | 8080                  | Listen port of the application                                |
-| openbas.base-url               | OPENBAS_BASE-URL               | http://localhost:8080 | Base URL of the application, will be used in some email links |
-| server.servlet.session.timeout | SERVER_SERVLET_SESSION_TIMEOUT | 60m                   | Default duration of session (60 minutes)                      |
-| openbas.cookie-secure          | OPENBAS_COOKIE-SECURE          | `false`               | Turn on if the access is done in HTTPS                        |
-| openbas.cookie-duration        | OPENBAS_COOKIE-DURATION        | P1D                   | Cookie duration (default 1 day)                               |
-| openbas.admin.email            | OPENBAS_ADMIN_EMAIL            | admin@openbas.io      | Default login email of the admin user                         |
-| openbas.admin.password         | OPENBAS_ADMIN_PASSWORD         | ChangeMe              | Default password of the admin user                            |
-| openbas.admin.token            | OPENBAS_ADMIN_TOKEN            | ChangeMe              | Default token (must be a valid UUIDv4)                        |
+| Parameter                      | Environment variable               | Default value         | Description                                                                                                              |
+|:-------------------------------|:-----------------------------------|:----------------------|:-------------------------------------------------------------------------------------------------------------------------|
+| server.address                 | SERVER_ADDRESS                     | 0.0.0.0               | Listen address of the application                                                                                        |
+| server.port                    | SERVER_PORT                        | 8080                  | Listen port of the application                                                                                           |
+| openbas.base-url               | OPENBAS_BASE-URL                   | http://localhost:8080 | Base URL of the application, will be used in some email links                                                            |
+| server.servlet.session.timeout | SERVER_SERVLET_SESSION_TIMEOUT     | 60m                   | Default duration of session (60 minutes)                                                                                 |
+| openbas.cookie-secure          | OPENBAS_COOKIE-SECURE              | `false`               | Turn on if the access is done in HTTPS                                                                                   |
+| openbas.cookie-duration        | OPENBAS_COOKIE-DURATION            | P1D                   | Cookie duration (default 1 day)                                                                                          |
+| openbas.admin.email            | OPENBAS_ADMIN_EMAIL                | admin@openbas.io      | Default login email of the admin user                                                                                    |
+| openbas.admin.password         | OPENBAS_ADMIN_PASSWORD             | ChangeMe              | Default password of the admin user                                                                                       |
+| openbas.admin.token            | OPENBAS_ADMIN_TOKEN                | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                   |
+| inject.execution.threshold.minutes    | INJECT_EXECUTION_THRESHOLD_MINUTES | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status. |
 
 #### Network and security
 
