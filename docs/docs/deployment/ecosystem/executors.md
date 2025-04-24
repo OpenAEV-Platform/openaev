@@ -7,7 +7,7 @@ be in charge of executing implants as detached processes. Implants will then exe
 
 ![Architecture](../assets/architecture.png)
 
-The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS. This table below summarizes the information about each agent.
+The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures. This table below summarizes the information about each agent.
 
 | Executor                           | Type                | Installation mode                                 | Installation type | Run As                                 | Payload execution                              | Multi agents for an endpoint                     |
 |:-----------------------------------|:--------------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
