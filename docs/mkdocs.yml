@@ -139,6 +139,9 @@ nav:
       - Targets: usage/targets.md
       - Expectations: usage/expectations.md
       - Findings: usage/findings.md
+      - Dashboards:
+        - Custom Dashboards: usage/dashboards/custom-dashboards/custom-dashboards.md
+        - Widgets: usage/dashboards/widgets/widgets.md
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
       - Generating Scenario from OpenCTI: usage/scenario/opencti_scenario.md
