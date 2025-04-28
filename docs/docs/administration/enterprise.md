@@ -11,13 +11,13 @@ OpenBAS Enterprise Edition is based on the open core concept. This means that th
 The source files in this repository have a header indicating which license they are under. If no such header is provided, this means that the file belongs to the Community Edition under the Apache License, Version 2.0.
 
 ## EE Activation
-Enterprise edition is easy to activate. You need to go the platform settings and click on the Activate button.
+Enterprise edition is easy to activate. You need to go the platform settings and click on the "Manage your Enterprise Edition License" button.
 
 ![OpenBAS activation](assets/enterprise-activate.png)
 
-Then you will need to agree to the Filigran EULA.
+Then you will need to put a valid OpenBAS EE license. If you don't have it, you can [generate a trial license](https://filigran.io/enterprise-editions-trial/).
 
-![OpenBAS EE EULA](assets/enterprise-eula.png)
+![OpenBAS EE EULA](assets/enterprise-license-agreement.png)
 
 As a reminder:
 
@@ -31,6 +31,14 @@ As a reminder:
 ### Generative AI
 
 Be able to use AI for content generation including emails, media pressure articles etc.
+
+### CrowdStrike Falcon Agent
+The CrowdStrike Falcon Agent can be leveraged to execute implants as detached processes that will then execute payloads 
+according to the [OpenBas architecture](../../deployment/overview/#architecture)
+
+### Tanium Agent
+The Tanium Agent can be leveraged to execute implants as detached processes that will then execute payloads
+according to the [OpenBas architecture](../../deployment/overview/#architecture)
 
 ## More to come
 
