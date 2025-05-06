@@ -75,11 +75,17 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### PostgreSQL
 
-| Parameter                  | Environment variable       | Default value         | Description                                                                     |
-|:---------------------------|:---------------------------|:----------------------|:--------------------------------------------------------------------------------|
-| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openbas) |
-| spring.datasource.username | SPRING_DATASOURCE_USERNAME |                       | Login for the database                                                          |
-| spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                       |
+| Parameter                  | Environment variable       | Default value         | Description                                                                                |
+|:---------------------------|:---------------------------|:----------------------|:-------------------------------------------------------------------------------------------|
+| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the PostgreSQL database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openbas) |
+| spring.datasource.username | SPRING_DATASOURCE_USERNAME |                       | Login for the database                                                                     |
+| spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                                  |
+
+#### ElasticSearch
+
+| Parameter     | Environment variable | Default value         | Description                       |
+|:--------------|:---------------------|:----------------------|:----------------------------------|
+| engine.url    | ENGINE_URL           | http://localhost:9200 | URL of the ElasticSearch database |
 
 #### RabbitMQ
 
