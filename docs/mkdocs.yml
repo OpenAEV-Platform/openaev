@@ -112,7 +112,7 @@ nav:
   - Home: 'index.md'
   - Deployment & Setup:
     - Platform:
-      - Overview: deployment/overview.md
+      - Overview: deployment/platform/overview.md
       - Installation: deployment/installation.md
       - Configuration: deployment/configuration.md
       - Authentication: deployment/authentication.md

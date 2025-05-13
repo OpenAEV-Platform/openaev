@@ -5,7 +5,7 @@
 To be able to use the power of the OpenBAS platform on endpoints, you need at least one **neutral executor** that will
 be in charge of executing implants as detached processes. Implants will then execute payloads.
 
-![Architecture](../assets/architecture.png)
+![Architecture](../platform/assets/architecture.png)
 
 The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures. This table below summarizes the information about each agent.
 

@@ -28,7 +28,7 @@ OpenBAS is an open source platform allowing organizations to plan, schedule and 
     Learn how to deploy and configure the platform as well as
     launch connectors to get the first data in OpenBAS.
 
-    [:octicons-arrow-right-24:{ .middle } Deploy now](deployment/overview.md)
+    [:octicons-arrow-right-24:{ .middle } Deploy now](deployment/platform/overview.md)
 
 -   :fontawesome-regular-compass:{ .lg .middle } __User Guide__
 

@@ -8,12 +8,6 @@ Threats are the results of actions by threat actors, and a combination of intent
 
 Injects can be technical, emulating action attackers might take on an endpoint, and non-technical, representing interactions with players or impactful contextual events during a crisis (such as media inquiries by phone following a data breach). They are always triggered at a specific point in time but it is possible to execute them only if one or multiple conditions are met.
 
-![Caldera inject definition form](assets/caldera_inject_definition.png)
-
-![Email inject definition form](assets/email_inject_definition.png)
-
-![Inject chaining definition form](assets/inject-chaining.png)
-
 ## Expectations
 
 Each Inject is associated with Expectations. Expectations outline the anticipated outcomes from security systems and teams in response to attacker actions or contextual events.

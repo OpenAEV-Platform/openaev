@@ -43,11 +43,12 @@ Collectors are used to connect to all security systems such as SIEMs, XDRs, EDRs
 
 ### Dependencies
 
-| Component                 | Recommended version | CPU       | RAM          | Disk type                    | Disk space         |
-|:--------------------------|:--------------------|:----------| :----------- | :--------------------------- |:-------------------|
-| PostgreSQL                | ≥ 17.0              | 2 cores   | ≥ 8GB        | SSD                          | ≥ 16GB             |
-| RabbitMQ                  | >= 4.0              | 1 core    | ≥ 512MB      | Standard                     | ≥ 2GB              |
-| S3 / MinIO                | ≥ RELEASE.2023-02   | 1 core    | ≥ 128MB      | SSD                          | ≥ 16GB             |
+| Component     | Recommended version | CPU       | RAM          | Disk type                    | Disk space         |
+|:--------------|:--------------------|:----------| :----------- | :--------------------------- |:-------------------|
+| PostgreSQL    | ≥ 17.0              | 2 cores   | ≥ 8GB        | SSD                          | ≥ 16GB             |
+| ElasticSearch | ≥ 8.18              | 2 cores   | ≥ 8GB        | SSD                          | ≥ 16GB             |
+| RabbitMQ      | >= 4.0              | 1 core    | ≥ 512MB      | Standard                     | ≥ 2GB              |
+| S3 / MinIO    | ≥ RELEASE.2023-02   | 1 core    | ≥ 128MB      | SSD                          | ≥ 16GB             |
 
 Please note that while the versions of these dependencies are the recommended ones, OpenBAS may still function with earlier versions. However, we will not provide support for versions prior to the recommended ones.
 
