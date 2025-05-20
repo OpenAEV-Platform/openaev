@@ -225,7 +225,16 @@ the top of the list. After clicking on it, the user confirms the tests launch an
 
 ## Inject status
 
-### Inject status using OBAS agent
+### Inject status using the OpenBAS agent
+
+#### Navigating between active inject targets
+
+All targets that are selected for the inject are available on the Targets panel on the left side of the screen. There is a
+tab for each target type (Asset group, Endpoint, Agent, Team and Player), and only the tabs that have at least one active
+target are visible on the screen.
+
+Since there may be a large number of targets of the same type (depending on your selection), a pagination utility
+with various filters is provided to help skim through the list.
 
 #### Viewing Execution Traces
 
@@ -286,15 +295,15 @@ Once an inject have been executed, it is possible to access the alerts' details 
 
 By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenBAS.
 
-On the above example, we can see that there are 3 agents on the `mac.home` asset. We can see there are detections on the
-OpenBAS and CrowdStrike agents, while the Tanium agent hasn't had any yet (it can take several minutes for the traces to
+On the above example, we can see that there are 2 agents on the `vm3.obas.lan` asset. We can see there are detections on the
+OpenBAS agent, while the Crowdstrike agent hasn't had any yet (it can take several minutes for the traces to
 show up in OpenBAS).
 
-By clicking on the CrowdStrike agent, we can see that the inject's payload was detected by CrowdStrike and Defender, and
-traces are available on Sentinel as well.
-We can also see that there were 2 alerts on CrowdStrike, and 1 on Defender and Sentinel.
+By clicking on the OpenBAS agent, we can see that the inject's payload was already detected by the CrowdStrike Falcon EDR
+while more detections might arrive at a later point.
+We can also see that there was one alert identified on CrowdStrike Falcon EDR.
 
-To get the details of these alerts, you can click on the CrowStrike line to see this:
+To get the details of this alert, you can click on the CrowdStrike line to see this:
 
 ![Inject execution traces alert details](assets/inject-expectation-traces-2.png)
 
