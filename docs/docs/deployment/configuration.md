@@ -37,6 +37,7 @@ Here are the configuration keys, for both containers (environment variables) and
 | openbas.admin.email            | OPENBAS_ADMIN_EMAIL                | admin@openbas.io      | Default login email of the admin user                                                                                    |
 | openbas.admin.password         | OPENBAS_ADMIN_PASSWORD             | ChangeMe              | Default password of the admin user                                                                                       |
 | openbas.admin.token            | OPENBAS_ADMIN_TOKEN                | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                   |
+| openbas.healthcheck.key        | OPENBAS_HEALTHCHECK_KEY            | ChangeMe              |  The key to use in the health check endpoint (/api/health)                                                                              |
 | inject.execution.threshold.minutes    | INJECT_EXECUTION_THRESHOLD_MINUTES | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status. |
 
 #### Network and security
