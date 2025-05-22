@@ -1,8 +1,51 @@
 # Payloads
 
-In OpenBAS, you can create custom payloads based on different types to create new injects.
+In **OpenBAS**, payloads are key components used to build and customize injects.
+They allow you to enrich your scenarios with dynamic, reusable content tailored to various attack simulations.
 
-Payloads enhance the platform, allowing you to further customize your scenarios.
+## Payloads List View
+
+The **Payloads** view displays a list of all available payloads in the platform. Each entry includes the following
+columns:
+
+| Column          | Description                                                                                                |
+|-----------------|------------------------------------------------------------------------------------------------------------|
+| **Type**        | The kind of payload (e.g., Command Line, Executable, File Drop, DNS Resolution).                           |
+| **Name**        | The name assigned to the payload.                                                                          |
+| **Platforms**   | The platforms the payload supports (e.g., Windows, Linux, macOS).                                          |
+| **Description** | A brief explanation of what the payload does.                                                              |
+| **Tags**        | Tags to help categorize and search for payloads.                                                           |
+| **Source**      | The origin of the payload (see [**Payload Sources**](#payload-sources)).                                   |
+| **Status**      | The reliability or lifecycle state of the payload (see [**Payload Status Logic**](#payload-status-logic)). |
+| **Updated**     | The last modification date.                                                                                |
+
+### Payload Status Logic
+
+Payloads can have one of the following statuses:
+
+- **Verified** ✅  
+  OpenBAS has tested the payload and confirmed it works as expected.
+
+- **Unverified** ⚠️  
+  The payload has not been tested by OpenBAS. It may or may not work.
+
+- **Deprecated** ❌  
+  The original source has marked the payload as deprecated. It’s kept for reference, but functionality is not
+  guaranteed.
+
+### Payload Sources
+
+Each payload has a source indicating its origin:
+
+- **Community** 🌍  
+  Submitted by external users. May vary in quality or coverage.
+
+- **Manual** ✍️  
+  Custom payload created within your OpenBAS instance.
+
+- **OpenBAS** 📦  
+  From the [official Filigran payload library](https://github.com/OpenBAS-Platform/payloads), curated and maintained by
+  OpenBAS.
 
 ## Create a Payload
 
@@ -151,6 +194,7 @@ Depending on the Type, a specific number of fields can be extracted using the gr
 |-------------|------------------------|---------------------|
 | Port Scan   | host, port, service    | host:port (service) |
 | Credentials | username, password     | username:password   |
+| Cve         | id, host, severity     | host:id (severity)  |
 | Other       | single extracted value | single value        |
 
 The group index must start with **$** to differentiate between multiple capture groups.
