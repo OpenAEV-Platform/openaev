@@ -43,9 +43,9 @@ Each payload has a source indicating its origin:
 - **Manual** ✍️  
   Custom payload created within your OpenBAS instance.
 
-- **OpenBAS** 📦  
+- **Filigran** 📦  
   From the [official Filigran payload library](https://github.com/OpenBAS-Platform/payloads), curated and maintained by
-  OpenBAS.
+  Filigran.
 
 ## Create a Payload
 
@@ -194,7 +194,7 @@ Depending on the Type, a specific number of fields can be extracted using the gr
 |-------------|------------------------|---------------------|
 | Port Scan   | host, port, service    | host:port (service) |
 | Credentials | username, password     | username:password   |
-| Cve         | id, host, severity     | host:id (severity)  |
+| Cve         | host, id, severity     | host:id (severity)  |
 | Other       | single extracted value | single value        |
 
 The group index must start with **$** to differentiate between multiple capture groups.
