@@ -42,6 +42,42 @@ Once you have added all the elements you need, you can go to the "Injects" tab t
 
 By clicking on the + button at the bottom right of the screen, you enter the [inject creation workflow](injects.md#Inject-creation-process).
 
+## Scenario Assistant
+
+The Scenario Assistant is a powerful tool designed to streamline the process of creating injects.
+Instead of manually creating each inject, the Scenario Assistant automates the process, ensuring injects are relevant, realistic, and tailored to your chosen targets and objectives.
+
+!!! warning
+
+    To use the Scenario Assistant, you must have attack patterns with associated payloads.
+
+### How to Use the Scenario Assistant
+- Open the Scenario Assistant  
+Click the Scenario Assistant button to open the scenario assistant drawer.
+- Select Targets  
+Endpoints: Choose specific endpoints to target.
+Asset Groups: Select an entire asset group.
+- Choose TTPs  
+Select from a list of TTPs to define which adversary behaviors you'd like to cover.
+- Specify Inject Quantities
+For each selected TTP, define how many injects you’d like the assistant to create.
+- Generate Injects  
+Click the Create injects button to let the system automatically generate injects according to your selections.
+
+![scenario-assistant-drawer](./scenario/assets/scenario-assistant-drawer.png)
+
+### What happens next?  
+The Scenario Assistant generates injects based on your selected TTPs, ensuring compatibility with the platform architectures of your chosen endpoints or asset groups.
+
+When you select multiple assets with different architectures (for example, Linux x86_64 and Windows x86_64) along with a specific TTP (such as TTP 1072), the Scenario Assistant will: 
+
+- Attempt to find a universal payload that supports the chosen TTP and is compatible with all selected architectures.  
+- If no universal payload is available, it will look for individual payloads that match each asset’s specific platform architecture.  
+- For asset groups, the Scenario Assistant will try to find a payload that covers all asset platforms architectures within the group.  
+- If a perfect match cannot be found, it will prioritize payloads that are compatible with the largest subset of assets in the group.  
+- If no suitable payloads are found, the assistant will create an inject with a placeholder for the TTP and targets.  
+  
+![scenario-assistant-injects](./scenario/assets/scenario-assistant-injects.png)
 
 ## Launching a simulation of the scenario
 
