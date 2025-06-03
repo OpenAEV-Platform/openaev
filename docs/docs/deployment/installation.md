@@ -161,7 +161,7 @@ You can deploy Caldera alongside OpenBAS to manage agent deployment and execute 
     ---
 
     Deploy Caldera using Docker and the default `docker-compose.yml` provided
-    in the [docker](https://github.com/OpenBAS-Platform/caldera/tree/filigran/docker).
+    in the [docker](https://github.com/OpenBAS-Platform/docker).
 
     [:octicons-arrow-right-24:{ .middle } Setup](#using-docker)
 </div>
