@@ -129,8 +129,8 @@ docker compose up -d
 
 #### Using Docker swarm
 
-In order to have the best experience with Docker, we recommend using the Docker stack feature. In this mode you will
-have the capacity to easily scale your deployment.
+Alternatively, you may deploy OpenBAS using Docker Swarm. In this mode you will
+have additional capacity to scale your deployment.
 
 ```bash
 # If your virtual machine is not a part of a Swarm cluster, please use:
@@ -148,7 +148,7 @@ sudo docker stack deploy --compose-file docker-compose.yml openbas
 
 !!! success "Installation done"
 
-    You can now go to [http://localhost:8080](http://localhost:8080/) and log in with the credentials filled in your configuration.
+    You can now navigate to [http://localhost:8080](http://localhost:8080/) and log in with the credentials filled in your configuration.
 
 ### OpenBAS X Caldera (Optional part)
 
