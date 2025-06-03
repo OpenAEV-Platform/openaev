@@ -11,6 +11,7 @@ From the `Assets` section, users can access the following pages:
 - `Endpoints`: Individual entities, representing any object or terminal that can be connected to a network.
 - `Asset groups`: Group of asset allowing you to organize endpoints into logical groups based on various filters applied
   by the user.
+- `Security platforms`
 
 ## Endpoints
 
@@ -52,6 +53,26 @@ To register new endpoints, you will need to install an agent. You can find detai
 
     - The identifier for an endpoint is its mac addresses (except for Caldera agent, which is the hostname and ip addresses).
     - The identifier for an agent is its own "key" (endpoint, agent name, executor, privilege and deployment).
+
+## Agentless endpoints
+
+In order to provide flexibility in environments where agents cannot be deployed or when working with theoretical scenarios or sensitive systems, 
+our platform allows users to manually create endpoints. Since they are manually created, they have the **Agentless** status. 
+
+![Endpoints list with agentless](assets/agentless_list.png)
+
+Users have two ways to create agentless endpoints:
+
+- Use the form : the user clicks on the **+** sign, then a drawer opens with the appropriate form
+  ![Endpoints creation with form](assets/agentless_creation.png)
+- Import via a csv file : the user clicks on the appropriate icon, then selects a csv file and the endpoints are created
+
+!!! note
+
+    Buttons for import and export of endpoints are available at the top of the list. The csv for the import must have 
+    the following columns: name, description, hostname, ips, platform, arch, macAddresses and tags. The exported csv 
+    has the same columns. Export is a good way to visualize the correct format of the columns for the import.
+    
 
 ## Asset groups
 
