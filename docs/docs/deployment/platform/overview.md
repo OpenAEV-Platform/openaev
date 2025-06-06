@@ -17,7 +17,7 @@ The platform is the central part of the OpenBAS platform, allowing users to conf
 Executors are embedded into the platform but you should configure at least one.
 This system is responsible for executing local injectors on endpoints.
 
-We developed a home-made XTM agent, and we support Caldera, Tanium and Crowdstrike. Others will be added in the near future.
+We developed a home-made XTM agent, and we support Tanium and Crowdstrike. Others will be added in the near future.
 
 !!! tip "Tips"
 
