@@ -66,6 +66,11 @@ Click the Create injects button to let the system automatically generate injects
 
 ![scenario-assistant-drawer](./scenario/assets/scenario-assistant-drawer.png)
 
+In the Enterprise Edition, you have the ability to select TTPs using Ariane AI.
+This system can analyze text and files such as threat reports to accurately identify and extract relevant TTPs to cover for your simulations.
+
+![ariane-scenario-assistant-modal](./scenario/assets/ariane-scenario-assistant-modal.png)
+
 ### What happens next?  
 The Scenario Assistant generates injects based on your selected TTPs, ensuring compatibility with the platform architectures of your chosen endpoints or asset groups.
 
