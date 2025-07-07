@@ -1,7 +1,7 @@
 # Taxonomies
 
 Taxonomies in OpenBAS refer to the structured classification systems that help in organizing and categorizing platform
-data. They are essential to the platform, enabling users to systematically tag and retrieve information based on predefined categories and terms.
+data. They are essential to the platform, enabling users to systematically tag and retrieve information based on
 predefined categories and terms.
 
 ## Tags
@@ -36,3 +36,14 @@ OpenBAS supports the following attack pattern models:
 - **MITRE ATT&CK Framework (Enterprise, PRE, Mobile, and ICS)**
 
 You can add, edit, or delete attack patterns in the settings page and assign them to payloads or injectors.
+
+## CVEs
+
+CVEs (Common Vulnerabilities and Exposures) are standardized identifiers for publicly disclosed cybersecurity
+vulnerabilities. Each CVE provides a unique reference, enabling consistent communication and tracking across tools and
+teams.
+
+In OpenBAS, CVEs are used to associate known vulnerabilities with assets, payloads, and injects. This allows users to
+simulate attacks based on real-world flaws, enhancing the relevance and precision of security testing.
+
+You can add, edit, or delete CVEs.
