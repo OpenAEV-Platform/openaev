@@ -98,3 +98,11 @@ This screen shows the full trace of the inject’s execution, including logs and
 This screen is available for technical injects only. You can see the details of the payload related to the test.
 
 ![Payload info of atomic testing](assets/atomic_testing_payload_info.png)
+
+### Remediations
+
+This screen is available for technical injects only. It displays remediation content related to the executed payload,
+specifically focused on detection logic. You will see one Remediation tab per collector available in the platform.
+
+![Detection Remediations-no-present](assets/atomic_testing_detection_remediation_no_present.png)
+![Detection Remediations](assets/atomic_testing_detection_remediation.png)

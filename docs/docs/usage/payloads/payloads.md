@@ -72,6 +72,12 @@ To create a new payload, follow these steps:
    4.2. Specify whether to generate **[Findings](../findings.md)** from the output.  
    ![Payload output parser view](assets/payload-output-parser-view.png)
 
+5. In the **Remediation** tab (optional):
+   This section allows payload creators to manually define detection rules to identify payloads that were not
+   blocked or detected by existing security systems (such as EDRs, SIEMs, etc.).
+   A dedicated Remediation tab is available for each collector integrated into the platform.
+   ![Payload remediation view](assets/payload-detection-remediation-view.png)
+
 Once completed, your new payload will appear in the payload list.
 
 ### General Payload properties
@@ -96,26 +102,35 @@ Once completed, your new payload will appear in the payload list.
 | Arguments        | Arguments for the cleanup, prerequisites and potential command line                  |
 
 #### Arguments in depth
-Arguments allow you to dynamically set variables within command lines, which can be for cleanup commands, prerequisites, or execution commands.    
 
+Arguments allow you to dynamically set variables within command lines, which can be for cleanup commands, prerequisites,
+or execution commands.
 
 We support two types of arguments: text and targeted asset.
 
 For text arguments, you can specify
+
 - Key: This is how you reference the argument in your command using a placeholder.
-- Default Value: During execution, this placeholder is replaced with the argument's value. This default value can be overridden when creating an inject.
+- Default Value: During execution, this placeholder is replaced with the argument's value. This default value can be
+  overridden when creating an inject.
 
 ![Text argument payload](assets/text-argument-payload.png)
 
 For targeted asset arguments, you can specify several attributes within the payload:
-- Key: This is how you reference the argument in your command using a placeholder.
-- Targeted Property: This determines which attribute of each targeted asset to use in the command, such as local IP, seen IP, or hostname.
-- Separator: This is used to separate multiple values when the command is executed, allowing you to format the arguments correctly in your script (e.g., using a comma to separate values).
 
-Let's consider a practical example: If I want to create a payload using 'nuclei' for scanning, I would create a payload with a command like nuclei -t #{asset-key}. I'd set up a targeted asset argument with the key "asset-key".
+- Key: This is how you reference the argument in your command using a placeholder.
+- Targeted Property: This determines which attribute of each targeted asset to use in the command, such as local IP,
+  seen IP, or hostname.
+- Separator: This is used to separate multiple values when the command is executed, allowing you to format the arguments
+  correctly in your script (e.g., using a comma to separate values).
+
+Let's consider a practical example: If I want to create a payload using 'nuclei' for scanning, I would create a payload
+with a command like nuclei -t #{asset-key}. I'd set up a targeted asset argument with the key "asset-key".
 ![Targeted asset argument](assets/targeted-asset-argument.png)
 
-Next, I would create an inject based on this payload. In this inject, I'd designate a source asset, which is where the command will execute (such as the asset where 'nuclei' is installed), and define the targeted assets that will serve as the scan targets.
+Next, I would create an inject based on this payload. In this inject, I'd designate a source asset, which is where the
+command will execute (such as the asset where 'nuclei' is installed), and define the targeted assets that will serve as
+the scan targets.
 ![Targeted asset argument](assets/text-argument-payload.png)
 
 #### Prerequisites in depth
