@@ -99,7 +99,7 @@ This screen is available for technical injects only. You can see the details of 
 
 ![Payload info of atomic testing](assets/atomic_testing_payload_info.png)
 
-### Remediations
+### Remediations (EE)
 
 This screen is available for technical injects only. It displays remediation content related to the executed payload,
 specifically focused on detection logic. You will see one Remediation tab per collector available in the platform.

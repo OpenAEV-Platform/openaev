@@ -37,7 +37,7 @@ OpenBAS supports the following attack pattern models:
 
 You can add, edit, or delete attack patterns in the settings page and assign them to payloads or injectors.
 
-## CVEs
+## CVEs (EE)
 
 CVEs (Common Vulnerabilities and Exposures) are standardized identifiers for publicly disclosed cybersecurity
 vulnerabilities. Each CVE provides a unique reference, enabling consistent communication and tracking across tools and

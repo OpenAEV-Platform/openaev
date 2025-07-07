@@ -72,9 +72,9 @@ To create a new payload, follow these steps:
    4.2. Specify whether to generate **[Findings](../findings.md)** from the output.  
    ![Payload output parser view](assets/payload-output-parser-view.png)
 
-5. In the **Remediation** tab (optional):
+5. In the **Remediation** tab (optional and EE):  
    This section allows payload creators to manually define detection rules to identify payloads that were not
-   blocked or detected by existing security systems (such as EDRs, SIEMs, etc.).
+   blocked or detected by existing security systems (such as EDRs, SIEMs, etc.).  
    A dedicated Remediation tab is available for each collector integrated into the platform.
    ![Payload remediation view](assets/payload-detection-remediation-view.png)
 
