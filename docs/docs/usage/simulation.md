@@ -15,6 +15,8 @@ The best practice to create a Simulation is to do it from a [Scenario](scenario.
 
 But you can create directly a Simulation if you want, by hitting the + button on the bottom right of the screen. You will have similar definition options as in [Scenario](scenario.md) creation.
 
+![Create a simulation](./assets/create-simulation.png)
+
 <!-- screenshot liste des simulations -->
 
 ## Simulation overview
@@ -56,3 +58,14 @@ The Simulation logs is an interface for the animation team to collaborate during
 In the Lesson Learned tab of a Simulation, you can manage the collection and concatenation of customizable surveys. It helps you in conducting the most underestimated part of a Breach and Attack simulation involving real people, by automating it and complete your Simulation's Results with qualitative feedback.
 
 <!-- to be completed -->
+
+## Analysis
+
+NB: The Analysis tab is shown if you have selected a dashboard for your simulation (during creating or updating).
+If you have selected a dynamic parameter "Simulation" for your dashboard and widgets, they will be calculated for this specific simulation.
+
+The Analysis tab of a simulation is intended to enhance the data visualization and analytical capabilities of OpenBAS. 
+By incorporating specific widgets, users can gain deeper insights into the effectiveness of their simulations and security posture. 
+This enhancement will provide users with contextualized, actionable intelligence, enabling them to make informed decisions to improve their security strategies.
+
+![Analyse a simulation](./assets/simulation-analysis-tab.png)

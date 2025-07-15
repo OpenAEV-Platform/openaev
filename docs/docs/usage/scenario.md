@@ -13,7 +13,11 @@ It is also possible to search Scenarios by their names using the search bar.
 
 To create a scenario, hit the + button on the bottom right of the screen and define general metadata that make sense for you. 
 
+![Create a scenario](./scenario/assets/create-scenario.png)
+
 Once done, the scenario is accessible in the list. Click on it to see its details and define them.
+
+NB: The selected dashboard will appear in the Analysis tab, but only for the simulations related to this scenario.
 
 
 ## Scenario overview

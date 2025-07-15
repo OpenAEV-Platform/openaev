@@ -21,6 +21,9 @@ filters to refine the data and focus the analysis on specific subsets.
 
 ![Widget perspective](assets/widget-dimensions.png)
 
+You can now, in some cases, choose specific values or dynamic parameters to filter. If you choose a dynamic parameter, the widget will be calculated according to the context of the screen.
+![Widget perspective](assets/widget-dimensions-2.png)
+
 #### 3. Parameters
 
 Parameters allow further customization of your widget. Based on the selected visualization, you can:
