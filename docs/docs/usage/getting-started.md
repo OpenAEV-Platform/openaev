@@ -39,9 +39,16 @@ Once integrations is done, you are ready to create your first Scenario!
 [Scenarios](scenario.md) act as template for your Breach and Attack simulations. After establishing such a template, you
 will be able to schedule it as a one shot simulation, or as a recurring one.
 
-- First, go to the Scenarios menu and create a new one with the + button.
-- Once done, define [Teams](people.md) that will be playing in this Scenario by going to
-  the Definition/Teams tab
+You have two main options to create scenarios:
+
+#### Option 1: Import from XTM Hub
+- Navigate to the Scenarios menu and click on **"Import from Hub"** to access the library of pre-built scenarios
+- Browse scenarios by industry, attack type, or threat actor
+- Download and import ready-to-use scenarios that match your testing requirements
+- Customize the imported scenario for your specific environment
+
+#### Option 2: Create from scratch
+- Go to the Scenarios menu and create a new one with the + button.
 - Now go to the [Injects](injects.md) tab and add some to build the serie of events that will define the core of your
   Scenario. If you want to stay strategical, you can select inject like "Send individual mails". If you want to go
   technical, you can select injects linked to attack pattern (Caldera integration allows you to play hundreds of them).
@@ -76,3 +83,7 @@ Results are broken down by "Prevention", "Detection" and "Human response" metric
 - Prevention displays your ability to prevent the scenario's technical events to be completed
 - Detection displays your ability to detect the scenario's technical events
 - HUman response displays how well players and teams react as expected facing the scenario's events.
+
+!!! tip "Additional Resources"
+
+    You can access additional Filigran resources and services through XTM Hub by clicking the 9-dot grid icon in the top navigation bar. This provides access to training materials, community resources, and other Filigran ecosystem services.
