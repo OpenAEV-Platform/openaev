@@ -52,7 +52,7 @@ To use the Tanium executor, just fill the following configuration.
 | Parameter                          | Environment variable               | Default value                          | Description                                     |
 |:-----------------------------------|:-----------------------------------|:---------------------------------------|:------------------------------------------------|
 | executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`                                | Enable the Tanium executor                      |
-| executor.tanium.url                | EXECUTOR_TANIUM_URL                |                                        | Tanium URL                                      |
+| executor.tanium.url                | EXECUTOR_TANIUM_API_URL            |                                        | Tanium API URL                                  |
 | executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |                                        | Tanium API key                                  |
 | executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  |                                        | Tanium Computer Group to be used in simulations |
 | executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |                                        | ID of the OpenBAS Tanium Windows package        |
