@@ -45,18 +45,25 @@ to be imported in the Tanium platform.
 
 Once configured and imported, retrieve the package IDs from the URL `ui/console/packages/XXXXX/preview`.
 
+> ℹ️ Common group IDs in Tanium:
+>
+> - **Computer Group ID**: This identifies which endpoints will be queried.
+> - **Action Group ID**: This identifies where actions (like package execution) are allowed.
+>
+
 ### Configure the OpenBAS platform
 
 To use the Tanium executor, just fill the following configuration.
 
-| Parameter                          | Environment variable               | Default value                          | Description                                     |
-|:-----------------------------------|:-----------------------------------|:---------------------------------------|:------------------------------------------------|
-| executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`                                | Enable the Tanium executor                      |
-| executor.tanium.url                | EXECUTOR_TANIUM_URL                |                                        | Tanium API URL                                  |
-| executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |                                        | Tanium API key                                  |
-| executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  |                                        | Tanium Computer Group to be used in simulations |
-| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |                                        | ID of the OpenBAS Tanium Windows package        |
-| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |                                        | ID of the OpenBAS Tanium Unix package           |
+| Parameter                          | Environment variable               | Default value     | Description                                     |
+|:-----------------------------------|:-----------------------------------|:------------------|:------------------------------------------------|
+| executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`           | Enable the Tanium executor                      |
+| executor.tanium.url                | EXECUTOR_TANIUM_URL                |                   | Tanium API URL                                  |
+| executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |                   | Tanium API key                                  |
+| executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  | `1`               | Tanium Computer Group to be used in simulations |
+| executor.tanium.action-group-id    | EXECUTOR_TANIUM_ACTION_GROUP_ID    | `4`               | Tanium Action Group to apply actions to         |
+| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |                   | ID of the OpenBAS Tanium Windows package        |
+| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |                   | ID of the OpenBAS Tanium Unix package           |
 
 !!! note "Tanium API Key"
 
