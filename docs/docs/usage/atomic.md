@@ -72,6 +72,7 @@ As for Simulation and Scenario, Results are broken down into:
 - Prevention: the ability of your security posture to prevent the inject
 - Detection: the ability of your security posture to detect the inject
 - Human response: the ability of your security teams to react as intented facing the inject
+- Vulnerability: the ability of your security posture to detect common vulnerabilities and exposures (CVEs)
 
 At the top, big metrics summarize how all targets performed. On the left, a list of targets lets you quickly check
 results for each one. When you select a target, the right side shows a timeline of the test and its results, including

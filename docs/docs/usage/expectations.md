@@ -17,11 +17,12 @@ manually. They are simple, customizable expectations to be manually validated.
 Automatic expectations are validated automatically under specific conditions. Currently available automatic expectations
 include:
 
-- `Automatic - Prevention: Triggered when inject is processed`: automatically validated by security integration with
+- `Prevention`: automatically validated by security integration with
   compatible Collectors if the inject's action generates a prevention alert, such as quarantine.
-- `Automatic - Detection: Triggered when inject is processed`: automatically validated by security integration with
+- `Detection`: automatically validated by security integration with
   compatible Collectors if the inject's action generates a detection alert, such as an incident.
-- `Automatic - Triggered when target reads articles`: Automatically validated when the article of a Media pressure inject
+- `Vulnerability`: automatically validated depending on the presence of CVEs
+- `Expect targets to read the article(s)`: Automatically validated when the article of a Media pressure inject
   has been read by targets.
 
 ## Validation Mode
@@ -43,7 +44,7 @@ the type of expectation you want to add and set a score for it.
 
 You can add multiple expectations to a single inject.
 
-<!-- screenshot -->
+![Add expectations to an inject](assets/inject_expectations_list.png)
 
 ### Validate a manual expectation
 
@@ -51,7 +52,21 @@ If you have configured manual expectations in your scenario, you will have the o
 during each simulation. During a Simulation, navigate to the Animation tab, under the Validation screen. Here, you'll
 find a list of expectations that require manual validation.
 
-<!-- screenshot of the screen populated with manual validation to perform -->
+![Validate a manual expectation from the animation tab](assets/manual_expectation_validation_animation_tab.png)
+
+If you have created an atomic testing with a manual inject, you will validate it in the overview tab.
+
+![Add the validation of a manual expectation in atomic testing](assets/add_manual_validation_atomic_testing.png)
+
+![Add the validation of a manual expectation in atomic testing](assets/manual_expectation_validation_atomic_testing.png)
+
+### Validate technical injects
+
+Users can manually add detection/prevention results for their custom security platforms.
+
+![Add the validation of a technical expectation in atomic testing](assets/add_technical_expectation_validation.png)
+
+![Add the validation of a technical expectation in atomic testing](assets/technical_expectation_validation.png)
 
 ### Customize expectations
 

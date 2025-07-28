@@ -82,7 +82,8 @@ Results are broken down by "Prevention", "Detection" and "Human response" metric
 
 - Prevention displays your ability to prevent the scenario's technical events to be completed
 - Detection displays your ability to detect the scenario's technical events
-- HUman response displays how well players and teams react as expected facing the scenario's events.
+- Human response displays how well players and teams react as expected facing the scenario's events
+- Vulnerability displays your ability to detect common vulnerabilities and exposures (CVEs) when the scenario's events happen.
 
 !!! tip "Additional Resources"
 

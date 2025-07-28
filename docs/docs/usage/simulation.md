@@ -26,6 +26,7 @@ The Overview regroups everything you need to know to follow your Simulation by i
 - Prevention: the ability of your security posture to prevent the simulated scenario's events to happen
 - Detection: the ability of your security posture to detect the simulated scenario's events
 - Human response: the ability of your security teams to react as intended facing the simulated scenario
+- Vulnerability: the ability of your security posture to detect common vulnerabilities and exposures (CVEs) when the simulated scenario's events happen
 
 The top of the Simulation screen give you the ability to Start, stop and Reset the Simulation, delay the launch time.
 
