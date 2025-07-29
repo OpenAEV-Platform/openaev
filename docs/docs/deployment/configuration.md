@@ -87,11 +87,15 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### ElasticSearch
 
-| Parameter       | Environment variable | Default value         | Description                                        |
-|:----------------|:---------------------|:----------------------|:---------------------------------------------------|
-| engine.url      | ENGINE_URL           | http://localhost:9200 | URL of the ElasticSearch database                  |
-| engine.username | ENGINE_USERNAME      |                       | This parameter is optional. Login for the database |
-| engine.password | ENGINE_PASSWORD      |                       | This parameter is optional. Password for the dat   |
+| Parameter               | Environment variable   | Default value         | Description                                                                                    |
+|:------------------------|:-----------------------|:----------------------|:-----------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode  | ENGINE_ENGINE_AWS_MODE | no                    | Whether to use AWS SigV4 authentication (yes or no)                                            |
+| engine.engine-selector  | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
+| engine.url              | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
+| engine.username         | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
+| engine.password         | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the dat                                               |
+
+If you switch your engine selector, you’ll need to delete the `indexing_status` table in PostgreSQL to trigger a full reindex.
 
 #### RabbitMQ
 
