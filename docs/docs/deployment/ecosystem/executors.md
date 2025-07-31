@@ -32,7 +32,7 @@ the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
 ### Configure the Tanium Platform
 
 First of all, we are
-providing [2 Tanium packages](https://github.com/OpenBAS-Platform/openbas/blob/0978bf1e3c9ff92dfa8ac5e866ae7725cfb428ed/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json)
+providing [2 Tanium packages](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json)
 to be imported in the Tanium platform.
 
 ![Tanium Packages](../assets/tanium-packages.png)
