@@ -88,6 +88,7 @@ export default ({ mode }: { mode: string }) => {
         'usehooks-ts',
         'uuid',
         'zod',
+        'zod/v4',
         'zustand/shallow',
       ],
     },

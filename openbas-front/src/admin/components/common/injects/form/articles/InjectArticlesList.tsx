@@ -43,7 +43,8 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
   const injectArticlesIds: string[] = (useWatch({
     control,
     name: 'inject_content.articles',
-  })) ?? [];
+    defaultValue: [],
+  }));
 
   const [sortedArticles, setSortedArticles] = useState<(Article & {
     article_channel_type: string;

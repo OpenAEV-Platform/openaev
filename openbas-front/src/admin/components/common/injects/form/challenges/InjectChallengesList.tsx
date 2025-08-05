@@ -39,10 +39,11 @@ const InjectChallengesList = ({ readOnly = false }: Props) => {
   const { control, setValue } = useFormContext();
   const [sortedChallenges, setSortedChallenges] = useState<Challenge[]>([]);
 
-  const injectChallengeIds: string[] = (useWatch({
+  const injectChallengeIds: string[] = useWatch({
     control,
     name: 'inject_content.challenges',
-  })) ?? [];
+    defaultValue: [],
+  });
   const { challengesMap } = useHelper((helper: ChallengeHelper) => ({ challengesMap: helper.getChallengesMap() }));
 
   useDataLoader(() => {

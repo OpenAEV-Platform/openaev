@@ -94,7 +94,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
         <DeleteOutlined />
       </IconButton>
       <TagFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_tags` as const} label={t('Tags')} />
-      <CheckboxFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_is_finding` as const} label={t('Show in findings')} />
+      <CheckboxFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_is_finding` as const} label={t('create_findings')} />
       <Typography
         sx={{
           margin: 0,

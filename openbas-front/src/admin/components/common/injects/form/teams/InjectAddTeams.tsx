@@ -23,18 +23,25 @@ const useStyles = makeStyles()(theme => ({
     color: theme.palette.primary.main,
     fontWeight: 500,
   },
+  textError: {
+    fontSize: 15,
+    color: theme.palette.error.main,
+    fontWeight: 500,
+  },
 }));
 
 interface Props {
   handleModifyTeams: (teamIds: string[]) => void;
   injectTeamsIds: string[];
   disabled?: boolean;
+  error?: string | null;
 }
 
 const InjectAddTeams: FunctionComponent<Props> = ({
   handleModifyTeams,
   injectTeamsIds,
   disabled = false,
+  error,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -104,12 +111,12 @@ const InjectAddTeams: FunctionComponent<Props> = ({
         color="primary"
         disabled={disabled}
       >
-        <ListItemIcon color="primary">
-          <ControlPointOutlined color="primary" />
+        <ListItemIcon>
+          <ControlPointOutlined color={error ? 'error' : 'primary'} />
         </ListItemIcon>
         <ListItemText
           primary={t('Modify target teams')}
-          classes={{ primary: classes.text }}
+          classes={{ primary: error ? classes.textError : classes.text }}
         />
       </ListItemButton>
       <Dialog

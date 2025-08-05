@@ -1,6 +1,6 @@
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -36,7 +36,11 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
 
-  const [expectations, setExpectations] = useState(expectationDatas ?? []);
+  const [expectations, setExpectations] = useState<ExpectationInput[]>([]);
+
+  useEffect(() => {
+    setExpectations(expectationDatas);
+  }, [expectationDatas]);
 
   // Filter predefinedExpectations already included into expectations
   const predefinedExpectations = predefinedExpectationDatas

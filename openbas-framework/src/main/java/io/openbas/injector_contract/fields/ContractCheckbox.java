@@ -21,10 +21,11 @@ public class ContractCheckbox extends ContractElement {
   }
 
   public static ContractCheckbox checkboxField(
-      String key, String label, boolean checked, List<ContractElement> linkedFields) {
+      String key, String label, boolean checked, List<ContractElement> visibleConditionFields) {
     ContractCheckbox contractCheckbox = new ContractCheckbox(key, label);
     contractCheckbox.setDefaultValue(checked);
-    contractCheckbox.setLinkedFields(linkedFields);
+    contractCheckbox.setVisibleConditionFields(
+        visibleConditionFields.stream().map(ContractElement::getKey).toList());
     return contractCheckbox;
   }
 

@@ -93,13 +93,24 @@ public class ChannelContract extends Contractor {
             .optional(expectationsField)
             // Emailing zone
             .optional(emailingField)
-            .mandatory(
+            .mandatoryOnConditionValue(
                 textField(
                     "subject",
                     "Subject",
                     "New media pressure entries published for ${user.email}",
-                    List.of(emailingField)))
-            .mandatory(richTextareaField("body", "Body", messageBody, List.of(emailingField)))
+                    List.of(emailingField),
+                    Map.of(emailingField.getKey(), String.valueOf(true))),
+                emailingField,
+                String.valueOf(true))
+            .mandatoryOnConditionValue(
+                richTextareaField(
+                    "body",
+                    "Body",
+                    messageBody,
+                    List.of(emailingField),
+                    Map.of(emailingField.getKey(), String.valueOf(true))),
+                emailingField,
+                String.valueOf(true))
             .optional(checkboxField("encrypted", "Encrypted", false, List.of(emailingField)))
             .build();
     Contract publishArticle =
