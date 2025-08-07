@@ -71,7 +71,7 @@ the following dependencies:
 - PostgreSQL
 - MinIO
 - RabbitMQ
-- Elasticsearch
+- Engine (Elasticsearch or OpenSearch)
 
 All required settings are listed in the [Configuration documentation](/deployment/configuration#dependencies)
 

@@ -85,7 +85,7 @@ Here are the configuration keys, for both containers (environment variables) and
 | spring.datasource.username | SPRING_DATASOURCE_USERNAME |                       | Login for the database                                                                     |
 | spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                                  |
 
-#### ElasticSearch
+#### Engine
 
 | Parameter               | Environment variable   | Default value         | Description                                                                                    |
 |:------------------------|:-----------------------|:----------------------|:-----------------------------------------------------------------------------------------------|
