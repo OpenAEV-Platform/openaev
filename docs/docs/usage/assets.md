@@ -41,11 +41,39 @@ details specific to each endpoint.
 
 ![Example of list of Assets](assets/assets_list.png)
 
-By clicking on an endpoint, you will be able to access its details :
+By clicking on an endpoint, you will be able to access and manage its details:
 
 ![Overview endpoint](assets/overview_endpoint.png)
 
+**Endpoint information panel**
+
+| Attribute           | Meaning                                                                                                                                                                                                                                                                                                                                                               | Automatically updated by agent          |
+|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------|
+| **Name**            | Hostname by default, otherwise a name provided by the user                                                                                                                                                                                                                                                                                                            | No (default at the beginning: hostname) |
+| **Description**     | Used to point details out                                                                                                                                                                                                                                                                                                                                             | No                                      | 
+| **Hostname**        | Hostname                                                                                                                                                                                                                                                                                                                                                              | Yes                                     |
+| **Seen IP address** | Remote IP address of the client coming to the server                                                                                                                                                                                                                                                                                                                  | Yes                                     |
+| **Platform**        | OS (Windows, MacOS,...)                                                                                                                                                                                                                                                                                                                                               | Yes                                     |
+| **End of life**     | Manually flag assets that are in end of life, that way you will know which of your assets<br/>need to be replaced when some vulnerabilities are found, the machine will be deleted or will be replaced by a new one.<br/>Example: My Cisco router is End of life and I want to see if it's vulnerable to CVE to replace it and see which assets need to be replaced   | No                                      |
+| **Architecture**    | Architecture (arm64 or x86_64)                                                                                                                                                                                                                                                                                                                                        | Yes                                     |
+| **IP addresses**    | All IP addresses detected                                                                                                                                                                                                                                                                                                                                             | Yes*                                    |
+| **MAC addresses**   | All MAC addresses detected                                                                                                                                                                                                                                                                                                                                            | Yes*                                    |
+| **Tags**            | OpenBAS tags to identify your machine                                                                                                                                                                                                                                                                                                                                 | No                                      |
+
+*IP and MAC addresses can be manually added or removed by the user (but the ones the agents find will always be upserted)
+
 To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../usage/openbas-agent.md).
+
+**Agents panel**
+
+| Attribute       | Meaning                                                              |
+|-----------------|----------------------------------------------------------------------|
+| **Name**        | Local user account on the endpoint that executes the agent process   | 
+| **Executor**    | Agent type (OpenBAS, Crowdstrike, Tanium or Caldera)                 | 
+| **Privilege**   | Local account's privileges on the endpoint (admin, or standard user) | 
+| **Deployment**  | Installation type (Service or Session)                               |
+| **Status**      | Active or Inactive (threshold: 1 hour)                               | 
+| **Last seen**   | Last seen it has been pinged                                         | 
 
 !!! note
 
