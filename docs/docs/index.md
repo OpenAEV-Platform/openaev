@@ -79,8 +79,8 @@ Below, you will find external resources which may be useful along your OpenCTI j
 [**:material-package-variant-closed:{ .middle } OpenBAS Ecosystem**](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b)<br />
 List of available injectors and collectors to expand platform usage.
 
-[**:material-school-outline:{ .middle } Training Courses**](https://training.filigran.io)<br />
-Training courses for analysts and administrators in the Filigran training center.
+[**:material-school-outline:{ .middle } Training Courses**](https://academy.filigran.io)<br />
+Training courses for analysts and administrators in the Filigran Academy.
 
 [**:material-youtube:{ .middle } Video materials**](https://www.youtube.com/@Filigran/videos)<br />
 Set of video illustrating the implementation of use cases and platform capabilities.
