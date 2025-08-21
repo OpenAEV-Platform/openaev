@@ -24,14 +24,14 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 !!! warning
 
-    The following documented antivirus exclusions (AV exclusions) are mandatory for OpenBAS to work properly.
+    The following documented antivirus exclusions are mandatory for OpenBAS to work properly. Please note that the AV exclusions are always only on the `runtimes` subfolder, which is important to ensure `payloads` (which land in another directory) will be detected / blocked if this is relevant.
 
 ### Windows
 
-- Requirement :
-  - Ensure access to the OpenBAS instance being used,
-  - Ensure that the system environment variable "Path" contains the values "%SYSTEMROOT%\System32\" and "%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\",
-  - For "Advanced installation as User (service)", you need to enable the "Service Logon" policy for the user you want to run the service as, follow [this tutorial](https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm?view=sc-sm-2025) to do it
+- Requirements:
+  - Ensure access to the OpenBAS instance being used;
+  - Ensure that the system environment variable "Path" contains the values "%SYSTEMROOT%\System32\" and "%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\";
+  - For "Advanced installation as User (service)", you need to enable the "Service Logon" policy for the user you want to run the service as, follow [this tutorial](https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm?view=sc-sm-2025) to do it;
 - Compatibility → All major Windows versions
 
 *[UserSanitized] in the table below means username without special character like "\", "/",...*
@@ -48,7 +48,7 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 ### Linux
 
-- Requirement → systemd, access to the openbas instance used
+- Requirement → systemd, access to the OpenBAS instance used
 - Compatibility → All systemd based linux distros
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                        | Folder path                             | AV exclusions                                  | Uninstallation                                                                                                                                                                                              |
@@ -63,7 +63,7 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 ### MacOS
 
-  - Requirement → launchd, access to the openbas instance used
+  - Requirement → launchd, access to the OpenBAS instance used
   - Compatibility → All launchd based MacOS distros (10.4 Tiger or higher)
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                                  | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                                                                                                                                         | Folder path                              | AV exclusions                                 | Uninstallation                                                                               |
