@@ -33,3 +33,14 @@ right corner based on the importance of the information, enabling adaptation to 
 technical flexibility ensures a fluid, visually optimized user experience.
 
 ![Dashboard overview](assets/dashboard-overview.png)
+
+## Time filters
+
+In order to have dashboards as accurate as possible, we offer the possibility to filter on time ranges. The values for 
+the time range are: all time, custom range, last 24 hours, last 7 days, last month, last 3 months, last 6 months and 
+last year. The default value for this parameter is **last three months**.
+
+!!! note
+
+    When the **All time** time range is set, datas are displayed without any time limit. When the **Custom range** is set,
+    two more pickers are displayed, allowing the user to choose a start date and an end date.
