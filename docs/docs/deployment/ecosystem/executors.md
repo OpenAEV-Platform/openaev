@@ -7,85 +7,120 @@ be in charge of executing implants as detached processes. Implants will then exe
 
 ![Architecture](../platform/assets/architecture.png)
 
-The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures. This table below summarizes the information about each agent.
+The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64
+architectures. This table below summarizes the information about each agent.
 
-| Executor                           | Type                | Installation mode                                 | Installation type | Run As                                 | Payload execution                              | Multi agents for an endpoint                     |
-|:-----------------------------------|:--------------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
-| **OpenBAS Agent (native/default)** | Open source         | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
-| **Tanium Agent**                   | Under license       | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
-| **Crowdstrike Falcon Agent**       | Under license       | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
-| **Caldera Agent**                  | Open source         | As a user session                                 | Script            | An admin background process            | As a user admin                                | Yes, depending on the user                       |                      
+| Executor                           | Type          | Installation mode                                 | Installation type | Run As                                 | Payload execution                              | Multi agents for an endpoint                     |
+|:-----------------------------------|:--------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
+| **OpenBAS Agent (native/default)** | Open source   | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
+| **Tanium Agent**                   | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
+| **Crowdstrike Falcon Agent**       | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
+| **Caldera Agent**                  | Open source   | As a user session                                 | Script            | An admin background process            | As a user admin                                | Yes, depending on the user                       |                      
 
 For more details about the installation and working of each agent, see the sections dedicated below.
 
 ## OpenBAS Agent
 
-The OpenBAS agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and payloads on endpoints.
+The OpenBAS agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and
+payloads on endpoints.
 
 [Learn More](../../usage/openbas-agent.md)
 
 ## Tanium Agent
 
-The Tanium agent can be leveraged to execute implants as detached processes that will the execute payloads according to
-the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
+The Tanium agent can be leveraged to execute implants as detached processes that will then execute payloads, according
+to the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
 
 ### Configure the Tanium Platform
 
-First of all, we are
-providing [2 Tanium packages](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json)
-to be imported in the Tanium platform.
+We
+provide [two Tanium packages](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json)
+to be imported into the Tanium platform.
 
 ![Tanium Packages](../assets/tanium-packages.png)
 
 !!! warning "Tanium package configuration"
 
-    Because OpenBAS should run implants as detached processed, you must uncheck the box "Launch this package command in a process group" in the package configuration:
+    Because OpenBAS should run implants as detached processes, you must uncheck  
+    **"Launch this package command in a process group"** in the package configuration:
 
     ![Tanium Package](../assets/tanium-package.png)
 
-Once configured and imported, retrieve the package IDs from the URL `ui/console/packages/XXXXX/preview`.
+!!! warning "Tanium Threat Response usage"
+
+    If your environment uses **Tanium Threat Response (TTR)** together with the Tanium agent, you should rely on the **dedicated TTR package**.  
+    This package technically works in all cases, but it is **only recommended** when OpenBAS runs on endpoints with TTR enabled.  
+    Reason: this package performs more extensive operations on the machine and can generate **more noise and alerts**.  
+    → If you do **not** use Tanium Threat Response, prefer the **standard Tanium package**.  
+
+    📦 Packages to import:  
+    - [OpenBAS Tanium Windows & Unix package (TTR)](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages-TTR.json)  
+
+    📜 Scripts to attach in the package configuration into files section:   
+    - [Windows TTR script](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-ttr.ps1)  
+    - [Unix TTR script](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-ttr.sh)
+
+| Package type                | Recommended use case                  | Characteristics                                            |
+|-----------------------------|---------------------------------------|------------------------------------------------------------|
+| **Standard Tanium package** | Default use with Tanium agent only    | Lightweight, minimal impact, recommended in most scenarios |
+| **TTR package**             | Tanium agent + Tanium Threat Response | Enables additional operations, may generate more noise     |
+
+Once configured and imported, retrieve the package IDs from the URL:  
+`ui/console/packages/XXXXX/preview`.
 
 > ℹ️ Common group IDs in Tanium:
 >
-> - **Computer Group ID**: This identifies which endpoints will be queried.
-> - **Action Group ID**: This identifies where actions (like package execution) are allowed.
->
+> - **Computer Group ID**: identifies which endpoints will be queried.
+> - **Action Group ID**: identifies where actions (like package execution) are allowed.
 
-### Configure the OpenBAS platform
+If you use the TTR mechanism, you will also need to attach two scripts (Windows & Unix) to the corresponding packages in
+the Tanium UI.  
+*(screenshot placeholder here where scripts should be added)*
 
-To use the Tanium executor, just fill the following configuration.
+---
 
-| Parameter                          | Environment variable               | Default value     | Description                                     |
-|:-----------------------------------|:-----------------------------------|:------------------|:------------------------------------------------|
-| executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`           | Enable the Tanium executor                      |
-| executor.tanium.url                | EXECUTOR_TANIUM_URL                |                   | Tanium API URL                                  |
-| executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |                   | Tanium API key                                  |
-| executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  | `1`               | Tanium Computer Group to be used in simulations |
-| executor.tanium.action-group-id    | EXECUTOR_TANIUM_ACTION_GROUP_ID    | `4`               | Tanium Action Group to apply actions to         |
-| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |                   | ID of the OpenBAS Tanium Windows package        |
-| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |                   | ID of the OpenBAS Tanium Unix package           |
+### Configure the OpenBAS Platform
+
+To use the Tanium executor, fill the following configuration:
+
+| Parameter                          | Environment variable               | Default value | Description                                     |
+|:-----------------------------------|:-----------------------------------|:--------------|:------------------------------------------------|
+| executor.tanium.enable             | EXECUTOR_TANIUM_ENABLE             | `false`       | Enable the Tanium executor                      |
+| executor.tanium.url                | EXECUTOR_TANIUM_URL                |               | Tanium API URL                                  |
+| executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |               | Tanium API key                                  |
+| executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  | `1`           | Tanium Computer Group to be used in simulations |
+| executor.tanium.action-group-id    | EXECUTOR_TANIUM_ACTION_GROUP_ID    | `4`           | Tanium Action Group to apply actions to         |
+| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |               | ID of the OpenBAS Tanium Windows package        |
+| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |               | ID of the OpenBAS Tanium Unix package           |
 
 !!! note "Tanium API Key"
 
-    Please note that the Tanium API key should have the permissions to retrieve endpoint list from the Tanium GraphQL API as well as to launch packages on endpoints.
+    The Tanium API key must have permissions to:  
+    - Retrieve the endpoint list from the Tanium GraphQL API  
+    - Launch packages on endpoints  
+
+---
 
 ### Checks
 
-Once enabled, you should see Tanium available in your `Install agents` section
+Once enabled, you should see **Tanium** available in the `Install agents` section:
 
 ![Agents](../assets/agents.png)
 
-Also, the assets in the selected computer groups should now be available in the endpoints section in OpenBAS:
+Endpoints from the selected computer groups should now appear in the **OpenBAS Endpoints** section:
 
 ![Endpoints](../assets/tanium-endpoints.png)
 
-NB : An Asset can only have one Tanium agent installed due to the uniqueness of the MAC address parameters
-If you try to install again a Tanium agent on a platform, it will overwrite the actual one and you will always
-see one Endpoint on the OpenBAS endpoint page.
+!!! note "Agent uniqueness"
+
+    An endpoint can only have **one Tanium agent** registered due to MAC address uniqueness.  
+    Installing a new agent will overwrite the existing one, and you will always see a single endpoint in the OpenBAS console.
 
 !!! success "Installation done"
 
     You are now ready to leverage your Tanium platform to run OpenBAS payloads!
+
+---
 
 ## CrowdStrike Falcon Agent
 
@@ -93,6 +128,7 @@ The CrowdStrike Falcon agent can be leveraged to execute implants as detached pr
 according to the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
 
 The implants will be downloaded to these folders on the different assets:
+
 * On Windows assets: `C:\Windows\Temp\.openbas\implant-XXXXX`
 * On Linux or MacOS assets: `/tmp/.openbas/implant-XXXXX`
 
@@ -103,9 +139,11 @@ This ensures that the implants are unique and will be deleted on assets' restart
 
 #### Upload OpenBAS scripts
 
-First of all, you need to create two custom scripts, one for Windows and one for Unix, covering both Linux and MacOS systems.
+First of all, you need to create two custom scripts, one for Windows and one for Unix, covering both Linux and MacOS
+systems.
 
-To create it, go to `Host setup and management` > `Response and containment` > `Response scripts and files`. The names of the scripts can be changed if necessary, they will be put in the OpenBAS configuration.
+To create it, go to `Host setup and management` > `Response and containment` > `Response scripts and files`. The names
+of the scripts can be changed if necessary, they will be put in the OpenBAS configuration.
 
 *Unix Script*
 
@@ -124,6 +162,7 @@ echo $command | base64 -d | sh
 ```
 
 Put the following Input schema:
+
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -166,6 +205,7 @@ cmd.exe /d /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInt
 ```
 
 Put the following Input schema:
+
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -181,6 +221,7 @@ Put the following Input schema:
   "description": "This generated schema may need tweaking. In particular format fields are attempts at matching workflow field types but may not be correct."
 }
 ```
+
 ![CrowdStrike windows script](../assets/crowdstrike-windows-script.png)
 
 Once created, your RTR scripts should have something like this:
@@ -193,19 +234,20 @@ To create a host group, go to `Host setup and management` > `Host groups`.
 
 #### Create/Update response policies for your targeted platforms
 
-As OpenBAS will ask CrowdStrike to create implants in order to execute payloads as scripts, you need to allow the 
+As OpenBAS will ask CrowdStrike to create implants in order to execute payloads as scripts, you need to allow the
 execution of custom scripts on your assets. To do so, you need to create a new response policy or update an existing one
 for your assets' platforms.
 
 To create or update a response policy, go to `Host setup and management` > `Response policies`.
 
-There, choose a platform in the top left selector, then click on `Create policy` or click on the name of an existing one.
+There, choose a platform in the top left selector, then click on `Create policy` or click on the name of an existing
+one.
 ![CrowdStrike Response Policies](../assets/crowdstrike-windows-policies.png)
 
 The CrowdStrike UI should present you with a screen like this:
 ![CrowdStrike Response Policies Details](../assets/crowdstrike-windows-policy.png)
 
-On this screen, click to allow `Custom Scripts` execution. 
+On this screen, click to allow `Custom Scripts` execution.
 If an option named `Falcon Scripts` exists, allow it as well.
 For the other options, you can choose to allow or deny them according to your security policy and what you want to test.
 Click on `Save` to save your changes.
@@ -241,16 +283,18 @@ Once enabled, you should see CrowdStrike available in your `Install agents` sect
 
 ![Crowdstrike available agent](../assets/crowdstrike-available-agent.png)
 
-Also, the assets and the asset groups in the selected computer groups should now be available in the endpoints and asset groups sections in OpenBAS:
+Also, the assets and the asset groups in the selected computer groups should now be available in the endpoints and asset
+groups sections in OpenBAS:
 
 ![Crowdstrike Endpoints](../assets/crowdstrike-endpoints.png)
 
-NB : An Asset can only have one CrowdStrike agent installed due to the uniqueness of the MAC address parameters. If you try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one Endpoint on the OpenBAS endpoint page.
+NB : An Asset can only have one CrowdStrike agent installed due to the uniqueness of the MAC address parameters. If you
+try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one
+Endpoint on the OpenBAS endpoint page.
 
 !!! success "Installation done"
 
     You are now ready to leverage your CrowdStrike platform to run OpenBAS payloads!
-
 
 ## Caldera Agent
 
