@@ -92,7 +92,8 @@ OPENBAS_ADMIN_EMAIL=ChangeMe@example.com # must be a valid email address
 OPENBAS_ADMIN_PASSWORD=ChangeMe
 OPENBAS_ADMIN_TOKEN=ChangeMe # must be a valid UUID
 COLLECTOR_MITRE_ATTACK_ID=3050d2a3-291d-44eb-8038-b4e7dd107436 # No need for change
-COLLECTOR_ATOMIC_RED_TEAM_ID=0f2a85c1-0a3b-4405-a79c-c65398ee4a76 # No need for change
+COLLECTOR_ATOMIC_OPENBAS_ID=63544750-19a1-435f-ada4-b44e39cf3cdb # No need for change
+COLLECTOR_ATOMIC_RED_TEAM_ID=c34e3f19-e0b9-45cb-83e0-3b329e4c53d3 # No need for change
 ```
 
 If your `docker-compose` deployment does not support `.env` files, just export all environment variables before
@@ -152,7 +153,7 @@ sudo docker stack deploy --compose-file docker-compose.yml openbas
 
 ### OpenBAS X Caldera (Optional part)
 
-You can deploy Caldera alongside OpenBAS to manage agent deployment and execute Caldera scripts.
+You can deploy Caldera alongside OpenBAS to execute Caldera scripts.
 
 <div class="grid cards" markdown>
 
@@ -197,10 +198,6 @@ INJECTOR_CALDERA_ENABLE=true
 INJECTOR_CALDERA_URL=${CALDERA_URL:-http://caldera:8888}
 INJECTOR_CALDERA_PUBLIC_URL=${CALDERA_PUBLIC_URL:-http://localhost:8888}
 INJECTOR_CALDERA_API_KEY=${CALDERA_API_KEY:-ChangeMe}
-EXECUTOR_CALDERA_ENABLE=true
-EXECUTOR_CALDERA_URL=${CALDERA_URL:-http://caldera:8888}
-EXECUTOR_CALDERA_PUBLIC_URL=${CALDERA_PUBLIC_URL:-http://localhost:8888}
-EXECUTOR_CALDERA_API_KEY=${CALDERA_API_KEY:-ChangeMe}
 ```
 
 ##### Login to Caldera
