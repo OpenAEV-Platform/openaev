@@ -58,7 +58,6 @@ to be imported into the Tanium platform.
 
     📜 Scripts to attach in the package configuration into files section:   
     - [Windows TTR script](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-ttr.ps1)  
-    - [Unix TTR script](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-ttr.sh)
 
 | Package type                | Recommended use case                  | Characteristics                                            |
 |-----------------------------|---------------------------------------|------------------------------------------------------------|
@@ -72,12 +71,6 @@ Once configured and imported, retrieve the package IDs from the URL:
 >
 > - **Computer Group ID**: identifies which endpoints will be queried.
 > - **Action Group ID**: identifies where actions (like package execution) are allowed.
-
-If you use the TTR mechanism, you will also need to attach two scripts (Windows & Unix) to the corresponding packages in
-the Tanium UI.  
-*(screenshot placeholder here where scripts should be added)*
-
----
 
 ### Configure the OpenBAS Platform
 
