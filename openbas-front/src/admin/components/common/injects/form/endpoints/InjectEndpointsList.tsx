@@ -55,14 +55,15 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
       />
       <Can I={ACTIONS.ACCESS} a={SUBJECTS.ASSETS}>
         <InjectAddEndpoints
-        endpointIds={endpointIds}
-        onSubmit={onEndpointChange}
-        platforms={platforms}
-        payloadArch={architectures}
-        disabled={disabled}
-        errorLabel={errorLabel}
-        label={label}
-      /></Can>
+          endpointIds={endpointIds}
+          onSubmit={onEndpointChange}
+          platforms={platforms}
+          payloadArch={architectures}
+          disabled={disabled}
+          errorLabel={errorLabel}
+          label={label}
+        />
+      </Can>
     </>
   );
 };

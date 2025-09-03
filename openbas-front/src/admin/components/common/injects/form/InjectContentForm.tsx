@@ -112,11 +112,12 @@ const InjectContentForm = ({
       <Can I={ACTIONS.ACCESS} a={SUBJECTS.ASSETS}>
         <InjectAddAssetGroups
           disabled={enhancedFieldsMapByType.get('asset-group')?.readOnly || readOnly}
-        assetGroupIds={injectAssetGroupIds}
-        onSubmit={onAssetGroupChange}
-        errorLabel={err && isInMandatoryGroup ? t('At least one is required ({labels})', { labels: mandatoryGroupContractElementLabels || '' }) : err}
-        label={isInMandatoryGroup && t('At least one is required ({labels})', { labels: mandatoryGroupContractElementLabels || '' })}
-      /></Can>
+          assetGroupIds={injectAssetGroupIds}
+          onSubmit={onAssetGroupChange}
+          errorLabel={err && isInMandatoryGroup ? t('At least one is required ({labels})', { labels: mandatoryGroupContractElementLabels || '' }) : err}
+          label={isInMandatoryGroup && t('At least one is required ({labels})', { labels: mandatoryGroupContractElementLabels || '' })}
+        />
+      </Can>
     </div>
   );
 
