@@ -1,7 +1,9 @@
 package io.openbas.database.specification;
 
+import static io.openbas.database.model.ExerciseStatus.RUNNING;
+
+import io.openbas.database.model.CollectExecutionStatus;
 import io.openbas.database.model.ExecutionStatus;
-import io.openbas.database.model.ExerciseStatus;
 import io.openbas.database.model.Inject;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
@@ -19,20 +21,14 @@ public class InjectSpecification {
 
   private InjectSpecification() {}
 
-  /**
-   * Create a specification to get an exercise
-   *
-   * @deprecated Use fromSimulation instead
-   * @param exerciseId the exercice ID to search
-   * @return the built specification
-   */
-  @Deprecated(since = "1.11.0", forRemoval = true)
-  public static Specification<Inject> fromExercise(String exerciseId) {
-    return fromSimulation(exerciseId);
-  }
+  // -- FROM PARENT --
 
   public static Specification<Inject> fromSimulation(String simulationId) {
     return (root, query, cb) -> cb.equal(root.get("exercise").get("id"), simulationId);
+  }
+
+  public static Specification<Inject> fromRunningSimulation() {
+    return (root, query, cb) -> cb.equal(root.get("exercise").get("status"), RUNNING);
   }
 
   public static Specification<Inject> fromScenario(String scenarioId) {
@@ -53,6 +49,8 @@ public class InjectSpecification {
     return fromSimulation(scenarioOrSimulationId).or(fromScenario(scenarioOrSimulationId));
   }
 
+  // -- STATUS --
+
   public static Specification<Inject> next() {
     return (root, query, cb) -> {
       Path<Object> exercisePath = root.get("exercise");
@@ -71,7 +69,7 @@ public class InjectSpecification {
           // cb.notEqual(root.get("type"), ManualContract.TYPE),  // notManual
           cb.equal(root.get("enabled"), true), // isEnable
           cb.isNotNull(exercisePath.get("start")), // fromScheduled
-          cb.equal(exercisePath.get("status"), ExerciseStatus.RUNNING), // fromRunningExercise
+          cb.equal(exercisePath.get("status"), RUNNING), // fromRunningExercise
           cb.isNull(root.join("status", JoinType.LEFT).get("name")) // notExecuted
           );
     };
@@ -94,16 +92,24 @@ public class InjectSpecification {
     };
   }
 
+  public static Specification<Inject> hasStatus(List<ExecutionStatus> statuses) {
+    return (root, query, cb) -> root.get("status").get("name").in(statuses);
+  }
+
+  public static Specification<Inject> hasCollectingStatus(List<CollectExecutionStatus> statuses) {
+    return (root, query, cb) -> root.get("collectExecutionStatus").in(statuses);
+  }
+
+  // -- CONTRACT --
+
   public static Specification<Inject> fromContract(@NotBlank final String contract) {
     return (root, query, cb) -> cb.equal(root.get("injectorContract").get("id"), contract);
   }
 
+  // -- TEST --
+
   public static final Set<String> VALID_TESTABLE_TYPES =
       new HashSet<>(Arrays.asList("openbas_email", "openbas_ovh_sms"));
-
-  public static Specification<Inject> byIds(List<String> injectIds) {
-    return (root, query, cb) -> root.get("id").in(injectIds);
-  }
 
   public static Specification<Inject> testable() {
     return (root, query, cb) ->

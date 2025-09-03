@@ -2622,6 +2622,7 @@ export interface Inject {
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
   inject_city?: string;
+  inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
   /** @format int64 */
   inject_communications_not_ack_number?: number;

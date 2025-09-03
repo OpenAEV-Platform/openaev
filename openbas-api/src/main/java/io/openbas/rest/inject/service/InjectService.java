@@ -1,7 +1,10 @@
 package io.openbas.rest.inject.service;
 
+import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openbas.database.model.ExecutionStatus.*;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
+import static io.openbas.database.specification.InjectSpecification.*;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.AgentUtils.isPrimaryAgent;
@@ -104,6 +107,8 @@ public class InjectService {
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
   }
+
+  // -- CRUD --
 
   public Inject createInject(
       @Nullable final Exercise exercise,
@@ -214,6 +219,29 @@ public class InjectService {
       injectRepository.deleteAll(injects);
     }
   }
+
+  /**
+   * Save all injects given as params
+   *
+   * @param injects the injects to delete
+   */
+  @Transactional(rollbackOn = Exception.class)
+  public void saveAll(List<Inject> injects) {
+    if (!CollectionUtils.isEmpty(injects)) {
+      injectRepository.saveAll(injects);
+    }
+  }
+
+  // -- SPECIFIC GETTER --
+
+  public List<Inject> isExecutedAndNotFinished() {
+    return this.injectRepository.findAll(
+        hasStatus(List.of(SUCCESS, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
+            .and(hasCollectingStatus(List.of(COLLECTING)))
+            .and(fromRunningSimulation()));
+  }
+
+  // -- ASSETS --
 
   public boolean hasPendingResults(Inject inject) {
     return inject.getExpectations().stream().anyMatch(ex -> ex.getResults().isEmpty());

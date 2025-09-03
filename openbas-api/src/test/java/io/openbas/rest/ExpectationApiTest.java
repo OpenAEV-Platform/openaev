@@ -1,14 +1,20 @@
 package io.openbas.rest;
 
+import static io.openbas.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
+import static io.openbas.expectation.ExpectationType.DETECTION;
+import static io.openbas.expectation.ExpectationType.PREVENTION;
 import static io.openbas.injectors.openbas.OpenBASInjector.OPENBAS_INJECTOR_ID;
 import static io.openbas.injectors.openbas.OpenBASInjector.OPENBAS_INJECTOR_NAME;
+import static io.openbas.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
+import static io.openbas.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
+import static io.openbas.utils.fixtures.ExpectationFixture.*;
 import static io.openbas.utils.fixtures.InjectExpectationFixture.getInjectExpectationUpdateInput;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,16 +23,17 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.execution.ExecutableInject;
-import io.openbas.model.expectation.DetectionExpectation;
-import io.openbas.model.expectation.PreventionExpectation;
+import io.openbas.model.Expectation;
 import io.openbas.rest.exercise.form.ExpectationUpdateInput;
 import io.openbas.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.mockUser.WithMockAdminUser;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,15 +41,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
-public class ExpectationApiTest extends IntegrationTest {
+class ExpectationApiTest extends IntegrationTest {
 
   // API Endpoints
-  private static final String EXPECTATIONS_URI = "/api/expectations/";
-  private static final String INJECTS_EXPECTATIONS_URI = "/api/injects/expectations";
-
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
   private static final String INJECTOR_TYPE = "openbas_implant";
-  static Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
   @Autowired private MockMvc mvc;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -60,8 +63,8 @@ public class ExpectationApiTest extends IntegrationTest {
   private static InjectorContract savedInjectorContract;
   private static AssetGroup savedAssetGroup;
   private static Endpoint savedEndpoint;
-  private static Agent savedAgent;
   private static Agent savedAgent1;
+  private static Agent savedAgent2;
   private static Inject savedInject;
   private static Collector savedCollector;
   private static Collector savedCollector2;
@@ -79,8 +82,8 @@ public class ExpectationApiTest extends IntegrationTest {
 
     // -- Targets --
     savedEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-    savedAgent = agentRepository.save(AgentFixture.createAgent(savedEndpoint, "external01"));
-    savedAgent1 = agentRepository.save(AgentFixture.createAgent(savedEndpoint, "external02"));
+    savedAgent1 = agentRepository.save(AgentFixture.createAgent(savedEndpoint, "external01"));
+    savedAgent2 = agentRepository.save(AgentFixture.createAgent(savedEndpoint, "external02"));
     savedAssetGroup =
         assetGroupRepository.save(
             AssetGroupFixture.createAssetGroupWithAssets(
@@ -127,358 +130,220 @@ public class ExpectationApiTest extends IntegrationTest {
   @DisplayName("Update and delete inject expectation results from UI")
   class ResultInjectExpectation {
 
+    /**
+     * Validates adding and deleting results from the UI for a single agent and checks score
+     * propagation at agent, asset, and asset group levels.
+     */
     @Test
-    @DisplayName("Update and delete Asset group inject expectation result from UI")
+    @DisplayName("Add results on inject expectation from UI on one agent")
     @WithMockAdminUser
-    void updateAssetGroupInjectExpectationResults() throws Exception {
+    void addResultsOnOneAgentFromUI() throws Exception {
       // -- PREPARE --
-      // Build and save expectations
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              true,
-              savedInject,
-              emptyList(),
-              List.of(savedEndpoint),
-              List.of(savedAssetGroup),
-              emptyList());
-      DetectionExpectation detectionExpectation =
-          ExpectationFixture.createDetectionExpectationForAssetGroup(
-              savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectation,
-              detectionExpectationForAsset,
-              detectionExpectationAgent,
-              detectionExpectationAgent1));
+          executableInject, detectionExpectations);
 
-      // Fetch injectExpectation created for asset group
+      // -- EXECUTE --
+
+      // Retrieve Agent expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroup(
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+
+      // Add Success result to Agent expectation
+      ExpectationUpdateInput expectationUpdateInput = getExpectationUpdateInput("fake-1", 100.0);
+      callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
+
+      // -- ASSERT --
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
-      ExpectationUpdateInput expectationUpdateInput =
-          getExpectationUpdateInput("security-platform-1", 40.0);
+      assertEquals(100.0, getScore(injectExpectations));
 
       // -- EXECUTE --
-      String response =
-          mvc.perform(
-                  put(EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                      .content(asJsonString(expectationUpdateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+
+      // Retrieve Agent expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+
+      // Add Failure result to Agent expectation
+      expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
+      callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
       // -- ASSERT --
-      assertEquals(40.0, JsonPath.read(response, "$.inject_expectation_results[0].score"));
-      assertEquals(
-          40.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          expectationUpdateInput.getSourceId(),
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .getFirst()
-              .getSourceId());
-      assertEquals(
-          40.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          40.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
-
-      // Delete results from Asset group: Add new result and delete last result
-
-      // -- PREPARE --
-      expectationUpdateInput = getExpectationUpdateInput("security-platform-2", 250.0);
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(100.0, getScore(injectExpectations));
 
       // -- EXECUTE --
-      response =
-          mvc.perform(
-                  put(EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                      .content(asJsonString(expectationUpdateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+
+      // Retrieve Agent expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+
+      // Remove Error result to Agent expectation
+      expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
+      callDeleteInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
       // -- ASSERT --
-      assertEquals(250.0, JsonPath.read(response, "$.inject_expectation_results[1].score"));
-      assertEquals(
-          250.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          2,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          2,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          2,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getResults()
-              .size());
-
-      // -- EXECUTE --
-      mvc.perform(
-              put(
-                  EXPECTATIONS_URI
-                      + "/"
-                      + injectExpectations.get(0).getId()
-                      + "/"
-                      + expectationUpdateInput.getSourceId()
-                      + "/delete"))
-          .andExpect(status().is2xxSuccessful());
-
-      assertEquals(
-          40.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          40.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(100.0, getScore(injectExpectations));
     }
 
+    /**
+     * Validates adding results from the UI on two agents, ensuring propagation and behavior when a
+     * mix of success/failure occurs.
+     */
     @Test
-    @DisplayName("Update and delete asset inject expectation result from UI")
+    @DisplayName("Add results on inject expectation from UI on two agents")
     @WithMockAdminUser
-    void updateAssetInjectExpectationResults() throws Exception {
+    void addResultsOnTwoAgentFromUI() throws Exception {
       // -- PREPARE --
-      // Build and save expectations
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              true,
-              savedInject,
-              emptyList(),
-              List.of(savedEndpoint),
-              emptyList(),
-              emptyList());
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectationForAsset, detectionExpectationAgent, detectionExpectationAgent1));
+          executableInject, detectionExpectations);
 
-      // Fetch injectExpectation created for asset group
+      // -- EXECUTE --
+
+      // Retrieve Agent expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAsset(
-              savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId());
-      ExpectationUpdateInput expectationUpdateInput =
-          getExpectationUpdateInput("security-platform-1", 50.0);
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
 
-      // -- EXECUTE --
-      String response =
-          mvc.perform(
-                  put(EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                      .content(asJsonString(expectationUpdateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+      // Add Success result to Agent 1 expectation
+      ExpectationUpdateInput expectationUpdateInput = getExpectationUpdateInput("fake-1", 100.0);
+      callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
       // -- ASSERT --
-      assertEquals(50.0, JsonPath.read(response, "$.inject_expectation_results[0].score"));
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          50.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          50.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
-
-      // Delete results from Asset: Add new result and delete the last one
-
-      // -- PREPARE --
-      expectationUpdateInput = getExpectationUpdateInput("security-platform-2", 180.0);
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(null, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(null, getScore(injectExpectations));
 
       // -- EXECUTE --
-      response =
-          mvc.perform(
-                  put(EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                      .content(asJsonString(expectationUpdateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+
+      // Retrieve Agent 2 expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+
+      // Add Failure result to Agent 2 expectation
+      expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
+      callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
       // -- ASSERT --
-      assertEquals(180.0, JsonPath.read(response, "$.inject_expectation_results[1].score"));
-      assertEquals(
-          180.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          2,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          2,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getResults()
-              .size());
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+      assertEquals(0.0, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(0.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(0.0, getScore(injectExpectations));
 
       // -- EXECUTE --
-      mvc.perform(
-              put(
-                  EXPECTATIONS_URI
-                      + "/"
-                      + injectExpectations.get(0).getId()
-                      + "/"
-                      + expectationUpdateInput.getSourceId()
-                      + "/delete"))
-          .andExpect(status().is2xxSuccessful());
 
-      assertEquals(
-          50.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          1,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getResults()
-              .size());
-      assertEquals(
-          50.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
+      // Retrieve Agent 2 expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+
+      // Remove Failure result to Agent 2 expectation
+      expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
+      callDeleteInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
+
+      // -- ASSERT --
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+      assertEquals(null, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(null, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(null, getScore(injectExpectations));
+
+      // -- EXECUTE --
+
+      // Retrieve Agent expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+
+      // Add Success result to Agent 2 expectation
+      expectationUpdateInput = getExpectationUpdateInput("fake-2", 100.0);
+      callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
+
+      // -- ASSERT --
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(100.00, getScore(injectExpectations));
     }
   }
 
@@ -487,43 +352,32 @@ public class ExpectationApiTest extends IntegrationTest {
   @DisplayName("Fetch and update InjectExpectations from collectors")
   class ProcessInjectExpectationsForCollectors {
 
+    /**
+     * Ensures expectations are retrieved for a given source (collector), after pre-filling one
+     * expectation with a result from that collector.
+     */
     @Test
     @DisplayName("Get Inject Expectations for a Specific Source")
     void getInjectExpectationsForSource() throws Exception {
       // -- PREPARE --
       // Build and save expectations
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              true,
-              savedInject,
-              emptyList(),
-              List.of(savedEndpoint),
-              emptyList(),
-              emptyList());
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+      ExecutableInject executableInject = newExecutableInjectWithTargets(false);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectationForAsset, detectionExpectationAgent, detectionExpectationAgent1));
+          executableInject, detectionExpectations);
 
       // Update one expectation from one agent with source collector-id
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId());
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
 
       injectExpectations
-          .get(0)
+          .getFirst()
           .setResults(
               List.of(
                   InjectExpectationResult.builder()
@@ -533,7 +387,7 @@ public class ExpectationApiTest extends IntegrationTest {
                       .score(50.0)
                       .build()));
 
-      injectExpectationRepository.save(injectExpectations.get(0));
+      injectExpectationRepository.save(injectExpectations.getFirst());
 
       // -- EXECUTE --
       String response =
@@ -547,11 +401,13 @@ public class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
-      assertEquals(
-          savedEndpoint.getId(), JsonPath.read(response, "$.[0].inject_expectation_asset"));
       assertEquals(savedAgent1.getId(), JsonPath.read(response, "$.[0].inject_expectation_agent"));
     }
 
+    /**
+     * Lists PREVENTION expectations for a source, then fills one expectation (agent2) so that the
+     * second query returns only remaining unfilled (agent1).
+     */
     @Test
     @DisplayName("Get Prevention Inject Expectations for a Specific Source")
     void getInjectPreventionExpectationsForSource() throws Exception {
@@ -566,23 +422,15 @@ public class ExpectationApiTest extends IntegrationTest {
               List.of(savedEndpoint),
               emptyList(),
               emptyList());
-      PreventionExpectation preventionExpectationForAsset =
-          ExpectationFixture.createTechnicalPreventionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-
-      PreventionExpectation preventionExpectationAgent =
-          ExpectationFixture.createTechnicalPreventionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      PreventionExpectation preventionExpectationAgent1 =
-          ExpectationFixture.createTechnicalPreventionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+      List<Expectation> preventionExpectations =
+          createPreventionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              preventionExpectationForAsset,
-              preventionExpectationAgent,
-              preventionExpectationAgent1));
+          executableInject, preventionExpectations);
 
       // -- EXECUTE --
       String response =
@@ -598,14 +446,13 @@ public class ExpectationApiTest extends IntegrationTest {
       assertEquals(2, ((List<?>) JsonPath.read(response, "$")).size());
       assertEquals(
           savedEndpoint.getId(), JsonPath.read(response, "$.[0].inject_expectation_asset"));
-      assertEquals("PREVENTION", JsonPath.read(response, "$.[0].inject_expectation_type"));
+      assertEquals(PREVENTION.name(), JsonPath.read(response, "$.[0].inject_expectation_type"));
 
       // -- PREPARE --
       // Update one expectation from one agent with source collector-id then this expectation is
       // filled and it should return just one
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
 
       injectExpectations
           .get(0)
@@ -615,6 +462,7 @@ public class ExpectationApiTest extends IntegrationTest {
                       .sourceId(savedCollector.getId())
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
+                      .result("result")
                       .score(80.0)
                       .build()));
 
@@ -634,9 +482,13 @@ public class ExpectationApiTest extends IntegrationTest {
       assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
       assertEquals(
           savedEndpoint.getId(), JsonPath.read(response, "$.[0].inject_expectation_asset"));
-      assertEquals(savedAgent.getId(), JsonPath.read(response, "$.[0].inject_expectation_agent"));
+      assertEquals(savedAgent1.getId(), JsonPath.read(response, "$.[0].inject_expectation_agent"));
     }
 
+    /**
+     * Lists DETECTION expectations for a source, then fills one expectation (agent2) so that the
+     * second query returns only remaining unfilled (agent1).
+     */
     @Test
     @DisplayName("Get Detection Inject Expectations for a Specific Source")
     void getInjectDetectionExpectationsForSource() throws Exception {
@@ -651,21 +503,15 @@ public class ExpectationApiTest extends IntegrationTest {
               List.of(savedEndpoint),
               emptyList(),
               emptyList());
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectationForAsset, detectionExpectationAgent, detectionExpectationAgent1));
+          executableInject, detectionExpectations);
 
       // -- EXECUTE --
       String response =
@@ -681,14 +527,13 @@ public class ExpectationApiTest extends IntegrationTest {
       assertEquals(2, ((List<?>) JsonPath.read(response, "$")).size());
       assertEquals(
           savedEndpoint.getId(), JsonPath.read(response, "$.[0].inject_expectation_asset"));
-      assertEquals("DETECTION", JsonPath.read(response, "$.[0].inject_expectation_type"));
+      assertEquals(DETECTION.name(), JsonPath.read(response, "$.[0].inject_expectation_type"));
 
       // -- PREPARE --
       // Update one expectation from one agent with source collector-id then it should return one
       // expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
 
       injectExpectations
           .get(0)
@@ -698,6 +543,7 @@ public class ExpectationApiTest extends IntegrationTest {
                       .sourceId(savedCollector.getId())
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
+                      .result("result")
                       .score(90.0)
                       .build()));
 
@@ -717,315 +563,174 @@ public class ExpectationApiTest extends IntegrationTest {
       assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
       assertEquals(
           savedEndpoint.getId(), JsonPath.read(response, "$.[0].inject_expectation_asset"));
-      assertEquals(savedAgent.getId(), JsonPath.read(response, "$.[0].inject_expectation_agent"));
+      assertEquals(savedAgent1.getId(), JsonPath.read(response, "$.[0].inject_expectation_agent"));
     }
 
+    /**
+     * Verifies propagation rules with two agents: - Do not update endpoint/asset-group levels until
+     * all agent-level expectations are filled. - Once a failure exists for another agent,
+     * propagation results in 0 at higher levels.
+     */
     @Test
-    @DisplayName(
-        "Update Inject expectation from collector and two agents : one success and one failed")
-    void updateInjectExpectationWithOneSuccessAndOneFailed() throws Exception {
-      // -- PREPARE --
-      // Build and save expectations for an asset with 2 agents
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              true,
-              savedInject,
-              emptyList(),
-              List.of(savedEndpoint),
-              List.of(savedAssetGroup),
-              emptyList());
-      DetectionExpectation detectionExpectationForAssetGroup =
-          ExpectationFixture.createDetectionExpectationForAssetGroup(
-              savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectationForAssetGroup,
-              detectionExpectationForAsset,
-              detectionExpectationAgent,
-              detectionExpectationAgent1));
-
-      // Fetch injectExpectation created for agent 1
-      List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId());
-      InjectExpectationUpdateInput expectationUpdateInput =
-          getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
-
-      // -- EXECUTE --
-      mvc.perform(
-              put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                  .content(asJsonString(expectationUpdateInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-      // -- ASSERT --
-      assertEquals(
-          null,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          null,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          injectExpectations.get(0).getExpectedScore(),
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          null,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
-
-      // Fetch injectExpectation created for second agent
-      injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId());
-      expectationUpdateInput =
-          getInjectExpectationUpdateInput(savedCollector.getId(), "Not Detected", false);
-
-      // -- EXECUTE --
-      mvc.perform(
-              put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                  .content(asJsonString(expectationUpdateInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-      // -- ASSERT --
-      assertEquals(
-          0.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          0.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          injectExpectations.get(0).getExpectedScore(),
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          0.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
-    }
-
-    @Test
-    @DisplayName("Update Inject expectation from collector with success")
+    @DisplayName("Add results on inject expectation from one collectors on two agents")
     void updateInjectExpectationWithTwoSuccess() throws Exception {
       // -- PREPARE --
       // Build and save expectations for an asset with 2 agents
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              true,
-              savedInject,
-              emptyList(),
-              List.of(savedEndpoint),
-              List.of(savedAssetGroup),
-              emptyList());
-      DetectionExpectation detectionExpectationForAssetGroup =
-          ExpectationFixture.createDetectionExpectationForAssetGroup(
-              savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectationForAssetGroup,
-              detectionExpectationForAsset,
-              detectionExpectationAgent,
-              detectionExpectationAgent1));
+          executableInject, detectionExpectations);
 
-      // Fetch injectExpectation created for agent 1
-      List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId());
+      // -- EXECUTE --
+
+      // Retrieve Agent expectation
+      List<InjectExpectation> injectExpectationsAgent =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+
+      // Add Success result to Agent expectation
       InjectExpectationUpdateInput expectationUpdateInput =
-          getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
-
-      // -- EXECUTE --
-      mvc.perform(
-              put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                  .content(asJsonString(expectationUpdateInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().is2xxSuccessful());
+          getInjectExpectationUpdateInput(savedCollector.getId(), DETECTION.successLabel, true);
+      callUpdateInjectExpectation(injectExpectationsAgent.getFirst(), expectationUpdateInput);
 
       // -- ASSERT --
-      assertEquals(
-          null,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          null,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          injectExpectations.get(0).getExpectedScore(),
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          null,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
-
-      // Fetch injectExpectation created for second agent
+      // Agent Expectation
+      List<InjectExpectation> injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
+      // Asset Expectation
       injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId());
-      expectationUpdateInput =
-          getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertTrue(getResultScoreForCollector(injectExpectations, savedCollector).isEmpty());
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertTrue(getResultScoreForCollector(injectExpectations, savedCollector).isEmpty());
 
       // -- EXECUTE --
-      mvc.perform(
-              put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                  .content(asJsonString(expectationUpdateInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().is2xxSuccessful());
+
+      // Retrieve Agent1 expectation
+      List<InjectExpectation> injectExpectationsAgent1 =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+
+      // Add Failure result to Agent1 expectation
+      expectationUpdateInput =
+          getInjectExpectationUpdateInput(savedCollector.getId(), DETECTION.failureLabel, false);
+      callUpdateInjectExpectation(injectExpectationsAgent1.getFirst(), expectationUpdateInput);
 
       // -- ASSERT --
-      assertEquals(
-          100.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          100.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          injectExpectations.get(0).getExpectedScore(),
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
-      assertEquals(
-          100.0,
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
-              .getFirst()
-              .getScore());
+      // Agent1 Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+      assertEquals(0.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
+      // Asset Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(0.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(0.0, getScore(injectExpectations));
     }
 
+    /**
+     * Verifies combining results from two different collectors on a single agent, and checks
+     * propagation to asset and asset-group levels for each collector.
+     */
+    @Test
+    @WithMockAdminUser
+    @DisplayName("Add results on inject expectation from two collectors on one agent")
+    void updateInjectExpectationFromTwoCollectors() throws Exception {
+      // -- PREPARE --
+      // Inject with 1 Agent, 1 Asset & 1 Asset Group
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+
+      // -- EXECUTE --
+
+      // Retrieve Agent expectation
+      List<InjectExpectation> injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+
+      // Add Success result to Agent expectation
+      InjectExpectationUpdateInput expectationUpdateInput =
+          getInjectExpectationUpdateInput(savedCollector.getId(), DETECTION.successLabel, true);
+      callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput);
+
+      // Add Failure result to Agent expectation
+      InjectExpectationUpdateInput expectationUpdateInput2 =
+          getInjectExpectationUpdateInput(savedCollector2.getId(), DETECTION.failureLabel, false);
+      callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput2);
+
+      // -- ASSERT --
+      // Agent Expectation
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
+      assertEquals(0.0, getResultScoreForCollector(injectExpectations, savedCollector2).get());
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(100.0, getScore(injectExpectations));
+    }
+
+    /**
+     * Verifies bulk update behavior for expectations: - Sends two updates (one success, one
+     * failure) for the same collector. - Ensures no premature propagation to asset/asset-group when
+     * all agent expectations are not fully satisfied.
+     */
     @Test
     @DisplayName("Bulk update Inject expectation from collector with success")
     void bulkUpdateInjectExpectationWithTwoSuccess() throws Exception {
       // -- PREPARE --
       // Build and save expectations for an asset with 2 agents
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              true,
-              savedInject,
-              emptyList(),
-              List.of(savedEndpoint),
-              List.of(savedAssetGroup),
-              emptyList());
-      DetectionExpectation detectionExpectationForAssetGroup =
-          ExpectationFixture.createDetectionExpectationForAssetGroup(
-              savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationForAsset =
-          ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-              savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-      DetectionExpectation detectionExpectationAgent =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectationAgent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-      DetectionExpectation detectionExpectation2Agent1 =
-          ExpectationFixture.createTechnicalDetectionExpectation(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
       injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject,
-          List.of(
-              detectionExpectationForAssetGroup,
-              detectionExpectationForAsset,
-              detectionExpectationAgent,
-              detectionExpectationAgent1,
-              detectionExpectation2Agent1));
+          executableInject, detectionExpectations);
 
       // Fetch injectExpectation created for agent 1
-      final List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId());
-      InjectExpectationUpdateInput expectationUpdateInput =
+      List<InjectExpectation> injectExpectationsAgent1 =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      InjectExpectationUpdateInput expectationUpdateInputAgent1 =
           getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
-      InjectExpectationUpdateInput expectationUpdateInput1 =
+      // Fetch injectExpectation created for agent 2
+      List<InjectExpectation> injectExpectationsAgent2 =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+      InjectExpectationUpdateInput expectationUpdateInputAgent2 =
           getInjectExpectationUpdateInput(savedCollector.getId(), "Not detected", false);
 
       InjectExpectationBulkUpdateInput inputs =
           new InjectExpectationBulkUpdateInput(
               Map.of(
-                  injectExpectations.get(0).getId(), expectationUpdateInput,
-                  injectExpectations.get(1).getId(), expectationUpdateInput1));
+                  injectExpectationsAgent1.getFirst().getId(), expectationUpdateInputAgent1,
+                  injectExpectationsAgent2.getFirst().getId(), expectationUpdateInputAgent2));
 
       // -- EXECUTE --
       mvc.perform(
@@ -1036,158 +741,89 @@ public class ExpectationApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertNull(
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-              .getFirst()
-              .getScore());
-      assertNull(
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAsset(
-                  savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-              .getFirst()
-              .getScore());
-
-      List<InjectExpectation> injectExpectationsForAgent1 =
-          injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-              savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId());
-
-      assertTrue(
-          injectExpectationsForAgent1.stream()
-              .anyMatch(
-                  expectation ->
-                      expectation.getScore().equals(100D)
-                          && expectation.getResults().getFirst().getResult().equals("Detected")));
-      assertTrue(
-          injectExpectationsForAgent1.stream()
-              .anyMatch(
-                  expectation ->
-                      expectation.getScore().equals(0D)
-                          && expectation
-                              .getResults()
-                              .getFirst()
-                              .getResult()
-                              .equals("Not detected")));
-
-      assertNull(
-          injectExpectationRepository
-              .findAllByInjectAndAssetGroupAndAgent(
-                  savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-              .getFirst()
-              .getScore());
+      // Agent Expectation
+      List<InjectExpectation> injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
+      injectExpectations =
+          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+      assertEquals(0.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
+      // Asset
+      injectExpectations =
+          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+      assertEquals(0.0, getScore(injectExpectations));
+      // Asset Group
+      injectExpectations =
+          injectExpectationRepository.findAllForAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(0.0, getScore(injectExpectations));
     }
   }
 
-  @Test
-  @WithMockAdminUser
-  @DisplayName("Update Inject expectation from two collectors with one agent")
-  void updateInjectExpectationFromTwoCollectors() throws Exception {
-    // -- PREPARE --
-    // Build and save expectations for an asset with 1 agent
-    ExecutableInject executableInject =
-        new ExecutableInject(
-            false,
-            true,
-            savedInject,
-            emptyList(),
-            List.of(savedEndpoint),
-            List.of(savedAssetGroup),
-            emptyList());
-    DetectionExpectation detectionExpectationForAssetGroup =
-        ExpectationFixture.createDetectionExpectationForAssetGroup(
-            savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationForAsset =
-        ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-            savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAgent =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+  // -- PRIVATE HELPERS --
 
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject,
-        List.of(
-            detectionExpectationForAssetGroup,
-            detectionExpectationForAsset,
-            detectionExpectationAgent));
+  private ExecutableInject newExecutableInjectWithTargets(boolean includeAssetGroup) {
+    return new ExecutableInject(
+        false,
+        true,
+        savedInject,
+        emptyList(),
+        List.of(savedEndpoint),
+        includeAssetGroup ? List.of(savedAssetGroup) : emptyList(),
+        emptyList());
+  }
 
-    // Add results for created injectExpectation
-    List<InjectExpectation> injectExpectations =
-        injectExpectationRepository.findAllByInjectAndAssetGroupAndAgent(
-            savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId());
-    InjectExpectationUpdateInput expectationUpdateInput =
-        getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
-    InjectExpectationUpdateInput expectationUpdateInput2 =
-        getInjectExpectationUpdateInput(savedCollector2.getId(), "Not Detected", false);
+  private Double getScore(@NotNull final List<InjectExpectation> injectExpectations) {
+    return injectExpectations.getFirst().getScore();
+  }
 
+  private Optional<Double> getResultScoreForCollector(
+      @NotNull final List<InjectExpectation> injectExpectations,
+      @NotNull final Collector collector) {
+    return injectExpectations.getFirst().getResults().stream()
+        .filter(result -> result.getSourceId().equals(collector.getId()))
+        .map(InjectExpectationResult::getScore)
+        .findFirst();
+  }
+
+  // MVC CALL
+
+  private void callUpdateInjectExpectation(
+      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final InjectExpectationUpdateInput expectationUpdateInput)
+      throws Exception {
     mvc.perform(
-            put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
+            put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().is2xxSuccessful());
+  }
 
+  private void callUpdateInjectExpectationFromUI(
+      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      throws Exception {
     mvc.perform(
-            put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectations.get(0).getId())
-                .content(asJsonString(expectationUpdateInput2))
+            put(EXPECTATIONS_URI + "/" + injectExpectation.getId())
+                .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().is2xxSuccessful());
+  }
 
-    // -- ASSERT --
-    assertEquals(
-        2,
-        injectExpectationRepository
-            .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
-            .getFirst()
-            .getResults()
-            .size());
-    assertEquals(
-        100.0,
-        injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAsset(
-                savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-            .getFirst()
-            .getResults()
-            .stream()
-            .filter(result -> result.getSourceId().equals(savedCollector.getId()))
-            .map(result -> result.getScore())
-            .findFirst()
-            .get());
-    assertEquals(
-        0.0,
-        injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAsset(
-                savedInject.getId(), savedAssetGroup.getId(), savedEndpoint.getId())
-            .getFirst()
-            .getResults()
-            .stream()
-            .filter(result -> result.getSourceId().equals(savedCollector2.getId()))
-            .map(result -> result.getScore())
-            .findFirst()
-            .get());
-    assertEquals(
-        100.0,
-        injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(
-                savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-            .getFirst()
-            .getResults()
-            .stream()
-            .filter(result -> result.getSourceId().equals(savedCollector.getId()))
-            .map(result -> result.getScore())
-            .findFirst()
-            .get());
-    assertEquals(
-        0.0,
-        injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(
-                savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
-            .getFirst()
-            .getResults()
-            .stream()
-            .filter(result -> result.getSourceId().equals(savedCollector2.getId()))
-            .map(result -> result.getScore())
-            .findFirst()
-            .get());
+  private void callDeleteInjectExpectationFromUI(
+      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      throws Exception {
+    mvc.perform(
+            put(
+                EXPECTATIONS_URI
+                    + "/"
+                    + injectExpectation.getId()
+                    + "/"
+                    + expectationUpdateInput.getSourceId()
+                    + "/delete"))
+        .andExpect(status().is2xxSuccessful());
   }
 }

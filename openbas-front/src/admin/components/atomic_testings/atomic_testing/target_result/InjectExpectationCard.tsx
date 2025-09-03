@@ -16,11 +16,8 @@ import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permi
 import { emptyFilled } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
-import {
-  HUMAN_EXPECTATION,
-  isManualExpectation,
-  isTechnicalExpectation,
-} from '../../../common/injects/expectations/ExpectationUtils';
+import { HUMAN_EXPECTATION, isManualExpectation, isTechnicalExpectation } from '../../../common/injects/expectations/ExpectationUtils';
+import { isAgentExpectation, isAssetExpectation, isAssetGroupExpectation, isPlayerExpectation, useIsManuallyUpdatable } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
 import ExpirationChip from '../ExpirationChip';
 import TargetResultsSecurityPlatform from '../TargetResultsSecurityPlatform';
 import EditInjectExpectationResultDialog from './EditInjectExpectationResultDialog';
@@ -42,6 +39,7 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     alignItems: 'center',
     gap: theme.spacing(1),
+    minHeight: '50px',
   },
 }));
 
@@ -64,14 +62,20 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
     statusResult = 'Prevented';
   } else if (injectExpectation.inject_expectation_status === 'SUCCESS' && injectExpectation.inject_expectation_type === 'DETECTION') {
     statusResult = 'Detected';
+  } else if (injectExpectation.inject_expectation_status === 'SUCCESS' && injectExpectation.inject_expectation_type === 'VULNERABILITY') {
+    statusResult = 'Not vulnerable';
   } else if (injectExpectation.inject_expectation_status === 'FAILED' && injectExpectation.inject_expectation_type === 'PREVENTION') {
     statusResult = 'Not Prevented';
   } else if (injectExpectation.inject_expectation_status === 'FAILED' && injectExpectation.inject_expectation_type === 'DETECTION') {
     statusResult = 'Not Detected';
+  } else if (injectExpectation.inject_expectation_status === 'FAILED' && injectExpectation.inject_expectation_type === 'VULNERABILITY') {
+    statusResult = 'Vulnerable';
   } else if (injectExpectation.inject_expectation_status === 'PARTIAL' && injectExpectation.inject_expectation_type === 'DETECTION') {
     statusResult = 'Partially Detected';
   } else if (injectExpectation.inject_expectation_status === 'PARTIAL' && injectExpectation.inject_expectation_type === 'PREVENTION') {
     statusResult = 'Partially Prevented';
+  } else if (injectExpectation.inject_expectation_status === 'PARTIAL' && injectExpectation.inject_expectation_type === 'VULNERABILITY') {
+    statusResult = 'Partially vulnerable';
   } else if (injectExpectation.inject_expectation_status && HUMAN_EXPECTATION.includes(injectExpectation.inject_expectation_type)) {
     statusResult = injectExpectation.inject_expectation_status;
   }
@@ -138,9 +142,17 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
 
   const getLabelOfValidationType = (): string => {
     if (isTechnicalExpectation(injectExpectation.inject_expectation_type)) {
+      let entityName;
+      if (isAgentExpectation(injectExpectation)) {
+        entityName = 'agent';
+      } else if (isAssetExpectation(injectExpectation)) {
+        entityName = 'agent';
+      } else if (isAssetGroupExpectation(injectExpectation)) {
+        entityName = 'asset';
+      }
       return injectExpectation.inject_expectation_group
-        ? t('At least one asset (per group) must validate the expectation')
-        : t('All assets (per group) must validate the expectation');
+        ? t(`At least one ${entityName} (per group) must validate the expectation`)
+        : t(`All ${entityName}s (per group) must validate the expectation`);
     } else {
       return injectExpectation.inject_expectation_group
         ? t('At least one player (per team) must validate the expectation')
@@ -157,9 +169,9 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
       <Paper>
         <div className={classes.lineContainer}>
           <Typography style={{ marginRight: 'auto' }} variant="h5">{injectExpectation.inject_expectation_name}</Typography>
-          {injectExpectation.inject_expectation_results && injectExpectation.inject_expectation_results.length > 0 && (
+          {injectExpectation.inject_expectation_score !== null && (
             <>
-              <ItemResult label={t(`${statusResult}`)} status={statusResult} />
+              <ItemResult label={t(`${statusResult}`)} status={injectExpectation.inject_expectation_status} />
               <Tooltip title={t('Score')}>
                 <Chip
                   classes={{ root: classes.score }}
@@ -168,7 +180,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
               </Tooltip>
             </>
           )}
-          {(!injectExpectation.inject_expectation_results || injectExpectation.inject_expectation_results.length == 0) && injectExpectation.inject_expectation_created_at && (
+          {injectExpectation.inject_expectation_score === null && injectExpectation.inject_expectation_created_at && (
             <ExpirationChip
               expirationTime={injectExpectation.inject_expiration_time}
               startDate={injectExpectation.inject_expectation_created_at}
@@ -176,10 +188,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
           )}
 
           {/* Create expectation result */}
-          {((isManualExpectation(injectExpectation.inject_expectation_type)
-            && injectExpectation.inject_expectation_results
-            && injectExpectation.inject_expectation_results.length === 0)
-          || ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)) && canManage && (
+          {useIsManuallyUpdatable(injectExpectation) && canManage && (
             <Tooltip title={t('Add a result')}>
               <IconButton
                 aria-label="Add"
@@ -194,8 +203,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
 
           {/* Update expectation result */}
           {isManualExpectation(injectExpectation.inject_expectation_type)
-            && injectExpectation.inject_expectation_results
-            && injectExpectation.inject_expectation_results.length > 0 && (
+            && (injectExpectation.inject_expectation_results?.length ?? 0) > 0 && (
             <>
               <IconButton
                 color="primary"
@@ -223,12 +231,15 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
             </>
           )}
         </div>
-        <div className={classes.lineContainer}>
-          <Typography gutterBottom variant="h4">{t('Validation rule:')}</Typography>
-          <Typography gutterBottom>{emptyFilled(getLabelOfValidationType())}</Typography>
-        </div>
+        {(!isAgentExpectation(injectExpectation) && !isPlayerExpectation(injectExpectation))
+          && (
+            <div className={classes.lineContainer}>
+              <Typography gutterBottom variant="h4">{t('Validation rule:')}</Typography>
+              <Typography gutterBottom>{emptyFilled(getLabelOfValidationType())}</Typography>
+            </div>
+          )}
 
-        {['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
+        {(['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
           && (
             <InjectExpectationResultList
               injectExpectationId={injectExpectation.inject_expectation_id}

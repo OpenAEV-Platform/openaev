@@ -50,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(PER_CLASS)
 @DisplayName("Importing injects tests")
-public class InjectImportTest extends IntegrationTest {
+class InjectImportTest extends IntegrationTest {
 
   public final String INJECT_IMPORT_URI = INJECT_URI + "/import";
   private final Map<String, ArticleComposer.Composer> staticArticleWrappers = new HashMap<>();

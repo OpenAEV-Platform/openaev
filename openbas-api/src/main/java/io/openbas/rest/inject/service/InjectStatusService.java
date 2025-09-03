@@ -1,7 +1,7 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionAction;
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionStatus;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionStatus;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.aop.lock.Lock;

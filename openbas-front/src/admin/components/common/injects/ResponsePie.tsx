@@ -23,7 +23,7 @@ const getTotal = (distribution: ResultDistribution[]) => {
 };
 const getColor = (theme: Theme, result: string | undefined): string => {
   const colorMap: Record<string, string> = {
-    'Blocked': theme.palette.success.main ?? '',
+    'Prevented': theme.palette.success.main ?? '',
     'Detected': theme.palette.success.main ?? '',
     'Not vulnerable': theme.palette.success.main ?? '',
     'Successful': theme.palette.success.main ?? '',

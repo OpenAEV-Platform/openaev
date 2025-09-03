@@ -151,7 +151,7 @@ const InjectExpectationResultList = ({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <ItemResult label={t(expectationResult.result)} status={expectationResult.result} />
+                  {expectationResult.result && <ItemResult label={t(expectationResult.result)} status={expectationResult.result} />}
                 </TableCell>
                 <TableCell>
                   {(expectationResult.result === 'Prevented' || expectationResult.result === 'Detected' || expectationResult.result === 'SUCCESS')

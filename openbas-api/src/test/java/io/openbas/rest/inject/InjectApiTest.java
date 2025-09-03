@@ -486,9 +486,7 @@ class InjectApiTest extends IntegrationTest {
     assertEquals(1, communicationRepository.findByInjectId(createdInject1.getId()).size());
     assertEquals(
         2,
-        injectExpectationRepository
-            .findAllByInjectAndAgent(createdInject1.getId(), AGENT.getId())
-            .size());
+        injectExpectationRepository.findAllForAgent(createdInject1.getId(), AGENT.getId()).size());
     assertEquals(
         1,
         injectExpectationRepository
@@ -722,7 +720,7 @@ class InjectApiTest extends IntegrationTest {
 
       // -- ASSERT --
       List<InjectExpectation> injectExpectationSaved =
-          injectExpectationRepository.findAllByInjectAndAgent(injectSaved.getId(), agent.getId());
+          injectExpectationRepository.findAllForAgent(injectSaved.getId(), agent.getId());
       assertEquals(1, injectExpectationSaved.size());
       assertEquals(
           1,
@@ -937,7 +935,7 @@ class InjectApiTest extends IntegrationTest {
 
         performCallbackRequest(agent.getId(), inject.getId(), input);
         List<InjectExpectation> injectExpectationSaved =
-            injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
+            injectExpectationRepository.findAllForAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =
             injectExpectationSaved.getFirst().getSignatures().stream()

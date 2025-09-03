@@ -2,6 +2,8 @@ package io.openbas.expectation;
 
 import static java.util.Optional.ofNullable;
 
+import io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE;
+import jakarta.validation.constraints.NotNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -91,5 +93,18 @@ public class ExpectationPropertiesConfig {
       return DEFAULT_MANUAL_EXPECTATION_SCORE;
     }
     return defaultManualExpectationScore;
+  }
+
+  public long getExpirationTimeByType(@NotNull final EXPECTATION_TYPE type) {
+    return switch (type) {
+      case DETECTION -> getDetectionExpirationTime();
+      case PREVENTION -> getPreventionExpirationTime();
+      case VULNERABILITY -> getVulnerabilityExpirationTime();
+      case CHALLENGE -> getChallengeExpirationTime();
+      case ARTICLE -> getArticleExpirationTime();
+      case MANUAL -> getManualExpirationTime();
+      case DOCUMENT, TEXT ->
+          ofNullable(this.humanExpirationTime).orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME);
+    };
   }
 }
