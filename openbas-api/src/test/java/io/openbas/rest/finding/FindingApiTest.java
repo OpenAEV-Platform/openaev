@@ -368,7 +368,9 @@ class FindingApiTest extends IntegrationTest {
         Exercise ex = scenarioWrapper.get().getExercises().getFirst();
 
         SearchPaginationInput input = PaginationFixture.getDefault().build();
-        input.setSorts(List.of(new SortField("finding_created_at", "asc")));
+        input.setSorts(
+            List.of(
+                new SortField("finding_created_at", "asc"), new SortField("finding_value", "asc")));
 
         entityManager.flush();
         entityManager.clear();
@@ -387,7 +389,13 @@ class FindingApiTest extends IntegrationTest {
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
-                .sorted(Comparator.comparing(RelatedFindingOutput::getCreationDate))
+                .sorted(
+                    (o1, o2) -> {
+                      if (o1.getCreationDate().equals(o2.getCreationDate())) {
+                        return o1.getValue().compareTo(o2.getValue());
+                      }
+                      return o1.getCreationDate().compareTo(o2.getCreationDate());
+                    })
                 .limit(input.getSize())
                 .toList();
 
