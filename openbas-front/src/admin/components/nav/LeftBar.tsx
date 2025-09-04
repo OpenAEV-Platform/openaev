@@ -241,6 +241,10 @@ const LeftBar = () => {
               label: 'Data ingestion',
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
             },
+            {
+              link: '/admin/settings/experience',
+              label: 'Filigran Experience',
+            },
           ],
         },
       ],
