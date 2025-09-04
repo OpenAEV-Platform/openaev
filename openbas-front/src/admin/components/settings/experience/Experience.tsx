@@ -44,6 +44,7 @@ const Experience: React.FC = () => {
   const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
+
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
   });
