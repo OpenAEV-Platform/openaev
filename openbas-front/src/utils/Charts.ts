@@ -277,6 +277,8 @@ export const verticalBarsChartOptions = (
   max: ApexYAxis['max'] = undefined,
   emptyChartText: string = '',
   customTooltip?: CustomTooltipFunction,
+  customClickBarFunction?: CustomClickBarFunction,
+  customCursorBarFunction?: CustomCursorBarFunction,
 ): ApexOptions => ({
   chart: {
     type: 'bar',
@@ -288,6 +290,18 @@ export const verticalBarsChartOptions = (
     height: '100%',
     zoom: { enabled: !isFakeData },
     animations: { enabled: !isFakeData },
+    events: {
+      dataPointSelection(event: any, charContext?: any, config?: any) {
+        if (customClickBarFunction) {
+          customClickBarFunction(event, charContext, config);
+        }
+      },
+      dataPointMouseEnter(event, charContext?, config?) {
+        if (customCursorBarFunction) {
+          customCursorBarFunction(event, charContext, config);
+        }
+      },
+    },
   },
   theme: { mode: theme.palette.mode },
   dataLabels: { enabled: false },

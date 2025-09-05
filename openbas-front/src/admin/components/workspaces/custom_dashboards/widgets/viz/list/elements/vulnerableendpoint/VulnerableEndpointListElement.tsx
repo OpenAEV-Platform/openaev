@@ -1,6 +1,5 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
 import { ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
-import qs from 'qs';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -12,9 +11,8 @@ import EndpointArchFragment from '../../../../../../../../../components/common/l
 import TagsFragment from '../../../../../../../../../components/common/list/fragments/TagsFragment';
 import VulnerableEndpointActionFragment
   from '../../../../../../../../../components/common/list/fragments/VulnerableEndpointActionFragment';
-import { buildSearchPagination } from '../../../../../../../../../components/common/queryable/QueryableUtils';
 import useBodyItemsStyles from '../../../../../../../../../components/common/queryable/style/style';
-import { SIMULATION_BASE_URL } from '../../../../../../../../../constants/BaseUrls';
+import { ENDPOINT_BASE_URL } from '../../../../../../../../../constants/BaseUrls';
 import { type EsVulnerableEndpoint } from '../../../../../../../../../utils/api-types';
 import EndpointListItemFragments from '../../../../../../../common/endpoints/EndpointListItemFragments';
 import buildStyles from '../ColumnStyles';
@@ -34,29 +32,7 @@ const VulnerableEndpointListElement = (props: Props) => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
 
-  const craftedFilter = btoa(qs.stringify({
-    ...buildSearchPagination({
-      filterGroup: {
-        mode: 'and',
-        filters: [
-          {
-            key: 'finding_assets',
-            operator: 'eq',
-            mode: 'or',
-            values: [props.element.vulnerable_endpoint_id ?? ''],
-          },
-          {
-            key: 'finding_type',
-            operator: 'eq',
-            mode: 'or',
-            values: ['CVE'],
-          },
-        ],
-      },
-    }),
-    key: `simulation-findings_${props.element.base_simulation_side}`,
-  }, { allowEmptyArrays: true }));
-  const findingsTabUrl = `${SIMULATION_BASE_URL}/${props.element.base_simulation_side}/findings?query=${craftedFilter}`;
+  const endpointUrl = `${ENDPOINT_BASE_URL}/${props.element.vulnerable_endpoint_id}`;
 
   /* eslint-disable react/display-name */
   // eslint doesn't seem to be able to infer the display names of subcomponents but react can
@@ -74,15 +50,16 @@ const VulnerableEndpointListElement = (props: Props) => {
         return (endpoint: EsVulnerableEndpoint) => <VulnerableEndpointActionFragment action={endpoint.vulnerable_endpoint_action} />;
       case EndpointListItemFragments.BASE_TAGS_SIDE:
         return (endpoint: EsVulnerableEndpoint) => <TagsFragment tags={endpoint.base_tags_side ?? []} />;
-      default: return (endpoint: EsVulnerableEndpoint) => {
-        const key = column as keyof typeof endpoint;
-        const text = endpoint[key]?.toString() || '';
-        return (
-          <Tooltip title={text} placement="bottom-start">
-            <span>{text}</span>
-          </Tooltip>
-        );
-      };
+      default:
+        return (endpoint: EsVulnerableEndpoint) => {
+          const key = column as keyof typeof endpoint;
+          const text = endpoint[key]?.toString() || '';
+          return (
+            <Tooltip title={text} placement="bottom-start">
+              <span>{text}</span>
+            </Tooltip>
+          );
+        };
     }
   };
   /* eslint-enable react/display-name */
@@ -90,7 +67,7 @@ const VulnerableEndpointListElement = (props: Props) => {
   return (
     <ListItemButton
       component={Link}
-      to={findingsTabUrl}
+      to={endpointUrl}
       classes={{ root: classes.item }}
       className="noDrag"
     >

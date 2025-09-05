@@ -7,6 +7,7 @@ import io.openbas.database.model.CustomDashboardParameters;
 import io.openbas.database.model.Widget;
 import io.openbas.database.raw.RawUserAuth;
 import io.openbas.database.raw.RawUserAuthFlat;
+import io.openbas.database.repository.CustomDashboardRepository;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.engine.EngineService;
 import io.openbas.engine.api.*;
@@ -17,9 +18,11 @@ import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.WidgetService;
 import io.openbas.service.EsAttackPathService;
 import io.openbas.utils.mapper.RawUserAuthMapper;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +33,7 @@ public class DashboardService {
   private final EsAttackPathService esAttackPathService;
   private final EngineService engineService;
   private final UserRepository userRepository;
+  private final CustomDashboardRepository customDashboardRepository;
   private final WidgetService widgetService;
 
   private final RawUserAuthMapper rawUserAuthMapper;
@@ -83,7 +87,7 @@ public class DashboardService {
   /**
    * Retrieves a list of entities from Elasticsearch for a widget configured as a list.
    *
-   * @param widgetId the id from the {@link Widget} with a list configuration
+   * @param widgetId   the id from the {@link Widget} with a list configuration
    * @param parameters parameters passed at runtime (e.g. filters)
    * @return list of {@link EsBase} entities matching the list widget query
    */
@@ -93,6 +97,17 @@ public class DashboardService {
     ListRuntime runtime =
         new ListRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
     return engineService.entities(widgetContext.user(), runtime);
+  }
+
+  public List<EsBase> entitiesRuntime(ListConfiguration config, Map<String, String> parameters,
+      String customDashboardId) {
+    CustomDashboard dashboard = customDashboardRepository.findById(customDashboardId).orElse(null);
+    Map<String, CustomDashboardParameters> defParams = dashboard.toParametersMap();
+    ListRuntime runtime =
+        new ListRuntime(config, parameters, defParams);
+    RawUserAuth user = userRepository.getUserWithAuth(currentUser().getId());
+    //return new WidgetContext(runtime, parameters, defParams, user);
+    return engineService.entities(user, runtime);
   }
 
   public List<EsAttackPath> attackPaths(String widgetId, Map<String, String> parameters)

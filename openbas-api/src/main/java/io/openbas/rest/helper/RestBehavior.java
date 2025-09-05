@@ -5,6 +5,7 @@ import static io.openbas.config.SessionHelper.currentUser;
 
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openbas.aop.lock.LockAcquisitionException;
@@ -18,14 +19,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
+
 import java.util.*;
 import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -39,7 +43,8 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 @Slf4j
 public class RestBehavior {
 
-  @Resource protected ObjectMapper mapper;
+  @Resource
+  protected ObjectMapper mapper;
 
   // Build the mapping between json specific name and the actual database field name
   private Map<String, String> buildJsonMappingFields(MethodArgumentNotValidException ex) {
@@ -114,10 +119,10 @@ public class RestBehavior {
   @ExceptionHandler(UnprocessableContentException.class)
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "422",
-            description = "Unprocessable Content",
-            content = @Content(schema = @Schema(implementation = ResponseEntity.class)))
+          @ApiResponse(
+              responseCode = "422",
+              description = "Unprocessable Content",
+              content = @Content(schema = @Schema(implementation = ResponseEntity.class)))
       })
   ResponseEntity<ErrorMessage> handleUnprocessableException(UnprocessableContentException ex) {
     String errorMessage =
@@ -131,10 +136,10 @@ public class RestBehavior {
   @ExceptionHandler(AuthenticationException.class)
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "401",
-            description = "Unauthorized",
-            content = @Content(schema = @Schema(implementation = ValidationErrorBag.class))),
+          @ApiResponse(
+              responseCode = "401",
+              description = "Unauthorized",
+              content = @Content(schema = @Schema(implementation = ValidationErrorBag.class))),
       })
   public ValidationErrorBag handleValidationExceptions() {
     ValidationErrorBag bag =
@@ -151,10 +156,10 @@ public class RestBehavior {
   @ExceptionHandler(AccessDeniedException.class)
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "404",
-            description = "Resource not found",
-            content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
+          @ApiResponse(
+              responseCode = "404",
+              description = "Resource not found",
+              content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
       })
   public ResponseEntity<ErrorMessage> handleAccessDeniedExceptions() {
     // When the user does not have the appropriate access rights, return 404 Not Found.
@@ -170,10 +175,10 @@ public class RestBehavior {
   @ExceptionHandler({DataIntegrityViolationException.class, LockAcquisitionException.class})
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "409",
-            description = "Conflict",
-            content = @Content(schema = @Schema(implementation = ViolationErrorBag.class))),
+          @ApiResponse(
+              responseCode = "409",
+              description = "Conflict",
+              content = @Content(schema = @Schema(implementation = ViolationErrorBag.class))),
       })
   public ViolationErrorBag handleIntegrityException(Exception e) {
     ViolationErrorBag errorBag = new ViolationErrorBag();
@@ -198,10 +203,10 @@ public class RestBehavior {
   @ExceptionHandler(ElementNotFoundException.class)
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "404",
-            description = "Resource not found",
-            content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
+          @ApiResponse(
+              responseCode = "404",
+              description = "Resource not found",
+              content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
       })
   public ResponseEntity<ErrorMessage> handleElementNotFoundException(ElementNotFoundException ex) {
     ErrorMessage message = new ErrorMessage("Element not found: " + ex.getMessage());
@@ -229,6 +234,22 @@ public class RestBehavior {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
     log.warn(String.format("AlreadyExistingException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public void handle(HttpMessageNotReadableException ex) {
+    Throwable cause = ex.getMostSpecificCause();
+    if (cause instanceof JsonMappingException jme) {
+      String path = jme.getPath().stream()
+          .map(ref -> ref.getFieldName() != null ? ref.getFieldName() : "[" + ref.getIndex() + "]")
+          .collect(Collectors.joining("."));
+      // Use your logger here
+      System.err.println("JSON mapping error at: " + path + " — " + jme.getOriginalMessage());
+    } else {
+      System.err.println("JSON error: " + cause.getMessage());
+    }
+    // Optionally rethrow to keep default behavior
+    throw ex;
   }
 
   // --- Open channel access
