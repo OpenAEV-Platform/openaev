@@ -3,6 +3,7 @@ package io.openbas.engine.model.scenario;
 import static io.openbas.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
+import io.openbas.database.model.Scenario;
 import io.openbas.database.raw.RawScenario;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.engine.Handler;
@@ -32,12 +33,17 @@ public class ScenarioHandler implements Handler<EsScenario> {
               EsScenario esScenario = new EsScenario();
               // Base
               esScenario.setBase_id(scenario.getScenario_id());
+              esScenario.setStatus(
+                  scenario.getScenario_recurrence() != null
+                      ? Scenario.RECURRENCE_STATUS.SCHEDULED.name()
+                      : Scenario.RECURRENCE_STATUS.NOT_PLANNED.name());
               esScenario.setBase_created_at(scenario.getScenario_created_at());
               esScenario.setBase_updated_at(scenario.getScenario_injects_updated_at());
 
               esScenario.setBase_representative(scenario.getScenario_name());
               esScenario.setBase_restrictions(buildRestrictions(scenario.getScenario_id()));
               // Specific
+              esScenario.setBase_platforms_side_denormalized(scenario.getScenario_platforms());
               // Dependencies
               List<String> dependencies = new ArrayList<>();
               if (!isEmpty(scenario.getScenario_tags())) {

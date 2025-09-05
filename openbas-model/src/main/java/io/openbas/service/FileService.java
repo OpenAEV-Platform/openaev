@@ -109,6 +109,7 @@ public class FileService {
       InputStreamResource streamResource = new InputStreamResource(objectStream);
       return Optional.of(streamResource.getInputStream());
     } catch (Exception e) {
+      log.error("Error during file access", e);
       return Optional.empty();
     }
   }
@@ -144,6 +145,7 @@ public class FileService {
           new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
       return Optional.of(fileContainer);
     } catch (Exception e) {
+      log.error("Error during file container access", e);
       return Optional.empty();
     }
   }

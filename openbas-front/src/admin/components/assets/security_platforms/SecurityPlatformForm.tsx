@@ -50,6 +50,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         security_platform_logo_light: z.string().optional(),
         security_platform_logo_dark: z.string().optional(),
         asset_tags: z.string().array().optional(),
+        asset_external_reference: z.string().optional(),
       }),
     ),
     defaultValues: initialValues,

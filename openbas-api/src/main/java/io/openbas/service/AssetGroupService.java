@@ -6,9 +6,7 @@ import static io.openbas.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openbas.utils.FilterUtilsRuntime.computeFilterGroupRuntime;
 import static java.time.Instant.now;
 
-import io.openbas.database.model.Asset;
-import io.openbas.database.model.AssetGroup;
-import io.openbas.database.model.Endpoint;
+import io.openbas.database.model.*;
 import io.openbas.database.raw.RawAssetGroup;
 import io.openbas.database.repository.AssetGroupRepository;
 import io.openbas.database.specification.EndpointSpecification;
@@ -33,6 +31,7 @@ public class AssetGroupService {
   private final AssetGroupRepository assetGroupRepository;
   private final AssetService assetService;
   private final EndpointService endpointService;
+  private final TagRuleService tagRuleService;
 
   // -- ASSET GROUP --
 
@@ -210,5 +209,33 @@ public class AssetGroupService {
     return results.stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();
+  }
+
+  /**
+   * Build a map with asset groups and their list of endpoints (directly or dynamically related)
+   *
+   * @param assetGroups list
+   * @return map of asset groups with the list of endpoints
+   */
+  public Map<AssetGroup, List<Endpoint>> assetsFromAssetGroupMap(List<AssetGroup> assetGroups) {
+    return assetGroups.stream()
+        .collect(
+            Collectors.toMap(
+                group -> group,
+                group ->
+                    this.assetsFromAssetGroup(group.getId()).stream()
+                        .map(Endpoint.class::cast)
+                        .toList()));
+  }
+
+  /**
+   * Retrieves asset groups for a scenario based on tag rules using the {@code tagRuleService}.
+   *
+   * @param scenario the scenario containing tag references
+   * @return list of asset groups associated with the scenario tags
+   */
+  public List<AssetGroup> fetchAssetGroupsFromScenarioTagRules(Scenario scenario) {
+    return tagRuleService.getAssetGroupsFromTagIds(
+        scenario.getTags().stream().map(Tag::getId).toList());
   }
 }

@@ -21,7 +21,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -317,12 +316,6 @@ public class Inject implements GrantableBase, Injection {
   private List<Grant> grants = new ArrayList<>();
 
   // region transient
-  @Transient
-  @JsonIgnore
-  @Getter
-  @Setter(AccessLevel.NONE)
-  private Grant.GRANT_RESOURCE_TYPE grantResourceType = Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING;
-
   @Transient
   public String getHeader() {
     return ofNullable(this.getExercise()).map(Exercise::getHeader).orElse("");

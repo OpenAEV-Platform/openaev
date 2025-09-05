@@ -55,7 +55,7 @@ const EndpointForm: FunctionComponent<Props> = ({
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
         endpoint_hostname: z.string().optional(),
-        endpoint_ips: z.string().ip({ message: t('Invalid IP addresses') }).array().min(1),
+        endpoint_ips: z.string().ip({ message: t('Invalid IP addresses') }).array().optional(),
         endpoint_mac_addresses: z
           .string()
           .regex(regexMacAddress,
@@ -65,6 +65,7 @@ const EndpointForm: FunctionComponent<Props> = ({
         endpoint_arch: z.enum(['x86_64', 'arm64', 'Unknown']),
         endpoint_agent_version: z.string().optional(),
         endpoint_is_eol: z.boolean().optional(),
+        asset_external_reference: z.string().optional(),
       }),
     ),
     defaultValues: initialValues,

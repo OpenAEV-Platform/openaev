@@ -10,6 +10,7 @@ import io.openbas.annotation.Queryable;
 import io.openbas.database.audit.ModelBaseListener;
 import io.openbas.helper.MonoIdDeserializer;
 import io.openbas.helper.MultiIdListDeserializer;
+import io.openbas.jsonapi.BusinessId;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -59,6 +60,7 @@ public class AttackPattern implements Base {
   @Column(name = "attack_pattern_external_id")
   @JsonProperty("attack_pattern_external_id")
   @NotBlank
+  @BusinessId
   private String externalId;
 
   @Type(StringArrayType.class)

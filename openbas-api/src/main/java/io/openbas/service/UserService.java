@@ -125,6 +125,10 @@ public class UserService {
     return this.userRepository.findById(userId).orElseThrow();
   }
 
+  public List<User> users() {
+    return this.userRepository.findAll();
+  }
+
   public User currentUser() {
     return this.userRepository
         .findById(SessionHelper.currentUser().getId())

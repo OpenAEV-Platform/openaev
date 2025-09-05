@@ -2,7 +2,6 @@ package io.openbas.rest.document;
 
 import static io.openbas.config.OpenBASAnonymous.ANONYMOUS;
 import static io.openbas.config.SessionHelper.currentUser;
-import static io.openbas.database.specification.DocumentSpecification.findGrantedFor;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.mapper.DocumentMapper.toDocumentRelationsOutput;
@@ -233,36 +232,19 @@ public class DocumentApi extends RestBehavior {
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    User user = userService.currentUser();
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
-    if (user.isAdminOrBypass()) {
-      return buildPaginationJPA(
-              (Specification<Document> specification, Pageable pageable) ->
-                  this.documentRepository.findAll(specification, pageable),
-              searchPaginationInput,
-              Document.class)
-          .map(
-              (document) -> {
-                var rawPaginationDocument = new RawPaginationDocument(document);
-                rawPaginationDocument.setDocument_can_be_deleted(
-                    !securityPlatformLogos.contains(document));
-                return rawPaginationDocument;
-              });
-    } else {
-      return buildPaginationJPA(
-              (Specification<Document> specification, Pageable pageable) ->
-                  this.documentRepository.findAll(
-                      findGrantedFor(user.getId()).and(specification), pageable),
-              searchPaginationInput,
-              Document.class)
-          .map(
-              (document) -> {
-                var rawPaginationDocument = new RawPaginationDocument(document);
-                rawPaginationDocument.setDocument_can_be_deleted(
-                    !securityPlatformLogos.contains(document));
-                return rawPaginationDocument;
-              });
-    }
+    return buildPaginationJPA(
+            (Specification<Document> specification, Pageable pageable) ->
+                this.documentRepository.findAll(specification, pageable),
+            searchPaginationInput,
+            Document.class)
+        .map(
+            (document) -> {
+              var rawPaginationDocument = new RawPaginationDocument(document);
+              rawPaginationDocument.setDocument_can_be_deleted(
+                  !securityPlatformLogos.contains(document));
+              return rawPaginationDocument;
+            });
   }
 
   @GetMapping(DOCUMENT_API + "/{documentId}")
@@ -271,7 +253,8 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(@PathVariable String documentId) {
-    return resolveDocument(documentId)
+    return documentRepository
+        .findById(documentId)
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
   }
 
@@ -282,7 +265,8 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Set<Tag> documentTags(@PathVariable String documentId) {
     Document document =
-        resolveDocument(documentId)
+        documentRepository
+            .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     return document.getTags();
   }
@@ -295,7 +279,8 @@ public class DocumentApi extends RestBehavior {
   public Document documentTags(
       @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
     Document document =
-        resolveDocument(documentId)
+        documentRepository
+            .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return documentRepository.save(document);
@@ -310,7 +295,8 @@ public class DocumentApi extends RestBehavior {
   public Document updateDocumentInformation(
       @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
     Document document =
-        resolveDocument(documentId)
+        documentRepository
+            .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -371,8 +357,10 @@ public class DocumentApi extends RestBehavior {
   public void downloadDocument(@PathVariable String documentId, HttpServletResponse response)
       throws IOException {
     Document document = documentService.document(documentId);
-    response.addHeader(
-        HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + document.getName());
+
+    String encodedFilename = DocumentService.encodeFileName(document.getName());
+
+    response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encodedFilename);
     response.addHeader(HttpHeaders.CONTENT_TYPE, document.getType());
     response.setStatus(HttpServletResponse.SC_OK);
     try (InputStream fileStream =

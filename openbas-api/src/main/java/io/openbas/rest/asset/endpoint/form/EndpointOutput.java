@@ -33,6 +33,10 @@ public class EndpointOutput {
   @JsonProperty("asset_type")
   private String type;
 
+  @Schema(description = "Asset external reference")
+  @JsonProperty("asset_external_reference")
+  private String externalReference;
+
   @Schema(description = "List of agents")
   @JsonProperty("asset_agents")
   @NotNull

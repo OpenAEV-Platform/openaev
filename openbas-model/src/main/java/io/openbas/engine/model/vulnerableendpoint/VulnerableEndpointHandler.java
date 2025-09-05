@@ -137,6 +137,11 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
                 esVulnerableEndpoint.setBase_simulation_side(
                     endpoint.getVulnerable_endpoint_simulation());
               }
+              if (endpoint.getVulnerable_endpoint_scenario() != null) {
+                dependencies.add(endpoint.getVulnerable_endpoint_scenario());
+                esVulnerableEndpoint.setBase_scenario_side(
+                    endpoint.getVulnerable_endpoint_scenario());
+              }
               esVulnerableEndpoint.setBase_dependencies(dependencies);
               return esVulnerableEndpoint;
             })

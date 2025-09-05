@@ -13,6 +13,7 @@ import io.openbas.database.repository.InjectorRepository;
 import io.openbas.injectors.email.EmailContract;
 import io.openbas.injectors.ovh.OvhSmsContract;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
+import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.injector_contract.form.InjectorContractAddInput;
 import io.openbas.rest.injector_contract.form.InjectorContractUpdateInput;
@@ -49,6 +50,7 @@ public class InjectorContractService {
 
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternService attackPatternService;
+  private final CveService cveService;
   private final InjectorRepository injectorRepository;
 
   @Value("${openbas.xls.import.mail.enable}")
@@ -189,8 +191,14 @@ public class InjectorContractService {
           attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
               new HashSet<>(input.getAttackPatternsIds()));
     }
-
     injectorContract.setAttackPatterns(aps);
+
+    List<Cve> vulns = new ArrayList<>();
+    if (!input.getVulnerabilityIds().isEmpty()) {
+      vulns = cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds()));
+    }
+    injectorContract.setVulnerabilities(vulns);
+
     injectorContract.setInjector(
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
     return injectorContractRepository.save(injectorContract);
@@ -206,6 +214,8 @@ public class InjectorContractService {
     injectorContract.setAttackPatterns(
         attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
+    injectorContract.setVulnerabilities(
+        cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -219,6 +229,8 @@ public class InjectorContractService {
     injectorContract.setAttackPatterns(
         attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
+    injectorContract.setVulnerabilities(
+        cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }

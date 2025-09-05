@@ -1,7 +1,7 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { lazy, Suspense, useContext, useEffect } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { lazy, Suspense, useEffect } from 'react';
+import { Route, Routes, useNavigate } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -16,7 +16,6 @@ import { computeBannerSettings } from '../public/components/systembanners/utils'
 import { useHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
-import { AbilityContext } from '../utils/permissions/PermissionsProvider';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import LeftBar from './components/nav/LeftBar';
@@ -48,7 +47,6 @@ const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSO
 
 const Index = () => {
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
 
   const { classes } = useStyles();
   const navigate = useNavigate();
@@ -111,7 +109,7 @@ const Index = () => {
               <Route path="simulations/:exerciseId/*" element={errorWrapper(IndexExercise)()} />
               <Route path="simulations/:exerciseId/injects/:injectId/*" element={errorWrapper(InjectIndex)()} />
               <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
-              <Route path="atomic_testings/:injectId/*" element={errorWrapper(IndexAtomicTesting)()} />
+              <Route path="atomic_testings/:injectId/*" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.ATOMIC_TESTING} Component={errorWrapper(IndexAtomicTesting)()} />} />
               <Route path="scenarios" element={errorWrapper(Scenarios)()} />
               <Route path="scenarios/:scenarioId/*" element={errorWrapper(IndexScenario)()} />
               <Route path="assets/*" element={errorWrapper(Assets)()} />
@@ -124,8 +122,7 @@ const Index = () => {
               <Route path="agents/*" element={errorWrapper(IndexAgents)()} />
               <Route
                 path="settings/*"
-                element={logged.admin || ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS) ? errorWrapper(IndexSettings)()
-                  : <Navigate to="/" replace={true} />}
+                element={errorWrapper(IndexSettings)()}
               />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />

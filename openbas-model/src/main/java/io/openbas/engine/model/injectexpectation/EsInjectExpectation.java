@@ -59,6 +59,10 @@ public class EsInjectExpectation extends EsBase {
   @EsQueryable(keyword = true)
   private String base_simulation_side; // Must finish by _side
 
+  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_scenario_side; // Must finish by _side
+
   @Queryable(label = "inject")
   @EsQueryable(keyword = true)
   private String base_inject_side; // Must finish by _side
@@ -99,4 +103,8 @@ public class EsInjectExpectation extends EsBase {
       clazz = String.class)
   @EsQueryable(keyword = true)
   private Set<String> base_attack_patterns_side; // Must finish by _side
+
+  @Queryable(label = "security platform", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private Set<String> base_security_platforms_side; // Must finish by _side
 }

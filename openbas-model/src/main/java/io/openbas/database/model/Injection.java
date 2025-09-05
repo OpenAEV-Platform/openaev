@@ -8,6 +8,8 @@ public interface Injection {
 
   Exercise getExercise();
 
+  Scenario getScenario();
+
   Optional<Instant> getDate();
 
   Inject getInject();

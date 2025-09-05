@@ -7,8 +7,7 @@ import io.openbas.database.model.Exercise;
 import io.openbas.database.model.Injection;
 import io.openbas.database.model.User;
 import io.openbas.database.model.Variable;
-import io.openbas.database.repository.VariableRepository;
-import io.openbas.database.specification.VariableSpecification;
+import io.openbas.service.VariableService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,7 +21,7 @@ public class ExecutionContextService {
 
   @Resource private final OpenBASConfig openBASCOnfig;
 
-  private final VariableRepository variableRepository;
+  private final VariableService variableService;
 
   public ExecutionContext executionContext(
       @NotNull final User user, Injection injection, String team) {
@@ -42,8 +41,11 @@ public class ExecutionContextService {
       executionContext.put(
           LESSONS_URI, baseUrl + "/lessons/simulation/" + exerciseId + queryParams);
       executionContext.put(EXERCISE, injection.getExercise());
-      fillDynamicVariable(executionContext, exerciseId);
+      fillDynamicSimulationVariable(executionContext, exerciseId);
+    } else if (injection.getScenario() != null) {
+      fillDynamicScenarioVariable(executionContext, injection.getScenario().getId());
     }
+
     return executionContext;
   }
 
@@ -51,17 +53,22 @@ public class ExecutionContextService {
       @NotNull final User user, Exercise exercise, String team) {
     ExecutionContext executionContext = new ExecutionContext(user, List.of(team));
     if (exercise != null) {
-      fillDynamicVariable(executionContext, exercise.getId());
+      fillDynamicSimulationVariable(executionContext, exercise.getId());
     }
     return executionContext;
   }
 
   // -- PRIVATE --
 
-  private void fillDynamicVariable(
+  private void fillDynamicSimulationVariable(
       @NotNull ExecutionContext executionContext, @NotBlank final String exerciseId) {
-    List<Variable> variables =
-        this.variableRepository.findAll(VariableSpecification.fromExercise(exerciseId));
+    List<Variable> variables = this.variableService.variablesFromExercise(exerciseId);
+    variables.forEach((v) -> executionContext.put(v.getKey(), v.getValue()));
+  }
+
+  private void fillDynamicScenarioVariable(
+      @NotNull ExecutionContext executionContext, @NotBlank final String scenarioId) {
+    List<Variable> variables = this.variableService.variablesFromScenario(scenarioId);
     variables.forEach((v) -> executionContext.put(v.getKey(), v.getValue()));
   }
 }

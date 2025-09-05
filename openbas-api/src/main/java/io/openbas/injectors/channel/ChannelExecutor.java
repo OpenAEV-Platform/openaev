@@ -115,7 +115,7 @@ public class ChannelExecutor extends Injector {
                   // Send the email.
                   emailService.sendEmail(
                       execution,
-                      userInjectContext,
+                      List.of(userInjectContext),
                       from,
                       replyTos,
                       content.getInReplyTo(),

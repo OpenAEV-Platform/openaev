@@ -15,8 +15,8 @@ import { useHelper } from '../../../../store';
 import { type Exercise as ExerciseType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { usePermissions } from '../../../../utils/permissions/simulationPermissions';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
+import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
 import ExerciseDatePopover from './ExerciseDatePopover';
@@ -51,7 +51,7 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
   const navigate = useNavigate();
   const { classes } = useStyles();
   const permissionsContext: PermissionsContextType = {
-    permissions: usePermissions(exercise.exercise_id),
+    permissions: useSimulationPermissions(exercise.exercise_id, exercise),
     inherited_context: INHERITED_CONTEXT.SIMULATION,
   };
   const documentContext: DocumentContextType = {
@@ -166,10 +166,12 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
                 />
               )}
             </Tabs>
-            <div className={classes.scheduling}>
-              <ExerciseDatePopover exercise={exercise} />
-              {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-            </div>
+            {permissionsContext.permissions.canManage && (
+              <div className={classes.scheduling}>
+                <ExerciseDatePopover exercise={exercise} />
+                {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
+              </div>
+            )}
           </Box>
           <Suspense fallback={<Loader />}>
             <Routes>

@@ -183,7 +183,7 @@ public class ScenarioApi extends RestBehavior {
   // -- IMPORT --
 
   @PostMapping(SCENARIO_URI + "/import")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
     this.importService.handleFileImport(file, null, null);
   }

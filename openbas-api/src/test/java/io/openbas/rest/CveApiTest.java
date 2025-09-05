@@ -15,7 +15,6 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.Collector;
 import io.openbas.database.model.Cve;
 import io.openbas.database.repository.CveRepository;
-import io.openbas.rest.collector.service.CollectorService;
 import io.openbas.rest.cve.form.CVEBulkInsertInput;
 import io.openbas.rest.cve.form.CveCreateInput;
 import io.openbas.rest.cve.form.CveUpdateInput;
@@ -45,7 +44,6 @@ class CveApiTest extends IntegrationTest {
 
   @Autowired private CveComposer cveComposer;
   @Autowired private CollectorComposer collectorComposer;
-  @Autowired private CollectorService collectorService;
   @Autowired private CveRepository cveRepository;
 
   @BeforeAll

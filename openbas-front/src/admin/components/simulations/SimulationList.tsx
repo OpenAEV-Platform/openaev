@@ -194,8 +194,8 @@ const SimulationList: FunctionComponent<Props> = ({
               >
                 <ListItemButton
                   classes={{ root: classes.item }}
-                  component={ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exercise.exercise_id) ? Link : 'div'}
-                  to={ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exercise.exercise_id) ? `/admin/simulations/${exercise.exercise_id}` : undefined}
+                  component={(ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exercise.exercise_id) || ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT)) ? Link : 'div'}
+                  to={(ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exercise.exercise_id) || ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT)) ? `/admin/simulations/${exercise.exercise_id}` : undefined}
                 >
                   <ListItemIcon>
                     <HubOutlined color="primary" />

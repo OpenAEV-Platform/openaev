@@ -120,18 +120,23 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
-    if (!hasText(scenario.getFrom())) {
-      if (this.imapEnabled) {
-        scenario.setFrom(this.imapUsername);
-        scenario.setReplyTos(List.of(this.imapUsername));
-      } else {
-        scenario.setFrom(this.openBASConfig.getDefaultMailer());
-        scenario.setReplyTos(List.of(this.openBASConfig.getDefaultReplyTo()));
-      }
-    }
+    computeEmails(scenario);
     this.grantService.computeGrant(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
+  }
+
+  public void computeEmails(@NotNull Scenario scenario) {
+    if (!hasText(scenario.getFrom())) {
+      if (this.imapEnabled) {
+        scenario.setFrom(this.imapUsername);
+        scenario.setReplyTos(new ArrayList<>(Arrays.asList(this.imapUsername)));
+      } else {
+        scenario.setFrom(this.openBASConfig.getDefaultMailer());
+        scenario.setReplyTos(
+            new ArrayList<>(Arrays.asList(this.openBASConfig.getDefaultReplyTo())));
+      }
+    }
   }
 
   public List<ScenarioSimple> scenarios() {

@@ -1,6 +1,6 @@
 {
   "name": "openbas-front",
-  "version": "1.18.12",
+  "version": "1.18.18",
   "private": true,
   "main": "src/index.tsx",
   "license": "Apache-2.0",
@@ -27,7 +27,7 @@
     "@xyflow/react": "12.8.2",
     "apexcharts": "4.7.0",
     "axios": "1.11.0",
-    "ckeditor5": "45.2.1",
+    "ckeditor5": "45.2.2",
     "classcat": "5.0.5",
     "cronstrue": "2.61.0",
     "d3-hierarchy": "3.1.2",

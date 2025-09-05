@@ -94,7 +94,9 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
   );
 
   const openCreate = () => {
-    handleOpenAttackPatternCreation();
+    if (ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)) {
+      handleOpenAttackPatternCreation();
+    }
   };
   return (
     <Controller

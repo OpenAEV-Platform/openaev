@@ -54,7 +54,7 @@ const InjectTestReplayAll: FunctionComponent<Props> = ({
 
   return (
     <>
-      {permissions.canManage
+      {permissions.canLaunch
         && (
           <Tooltip title={t('Replay all tests')}>
             <span>

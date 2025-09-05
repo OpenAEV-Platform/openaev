@@ -32,6 +32,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
       };
     },
   );
+
   useDataLoader(() => {
     onFetchEvaluation(objectiveId);
   });

@@ -1,7 +1,6 @@
 package io.openbas.database.model;
 
 import static io.openbas.helper.InjectExpectationHelper.computeStatus;
-import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -19,7 +18,9 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -114,13 +115,15 @@ public class InjectExpectation implements Base {
   @Setter
   @Column(name = "inject_expectation_created_at")
   @JsonProperty("inject_expectation_created_at")
-  private Instant createdAt = now();
+  @CreationTimestamp
+  private Instant createdAt;
 
   @Queryable(filterable = true, label = "updated at")
   @Setter
   @Column(name = "inject_expectation_updated_at")
   @JsonProperty("inject_expectation_updated_at")
-  private Instant updatedAt = now();
+  @UpdateTimestamp
+  private Instant updatedAt;
 
   @Setter
   @Column(name = "inject_expectation_group")

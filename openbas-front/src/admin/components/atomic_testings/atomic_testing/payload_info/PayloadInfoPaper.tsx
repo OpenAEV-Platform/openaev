@@ -1,7 +1,8 @@
-import { Box, Chip, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
+import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import PlatformIcon from '../../../../../components/PlatformIcon';
@@ -17,14 +18,6 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(3),
   },
   allWidth: { gridColumn: 'span 2' },
-  chip: {
-    fontSize: 12,
-    height: 25,
-    marginRight: theme.spacing(1),
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 180,
-  },
   platformIcon: { marginRight: theme.spacing(1) },
 }));
 
@@ -65,14 +58,7 @@ const PayloadInfoPaper = ({ payloadOutput }: Props) => {
           {t('Attack patterns')}
         </Typography>
         {payloadOutput.payload_attack_patterns && payloadOutput.payload_attack_patterns.length === 0 ? '-' : payloadOutput.payload_attack_patterns?.map((attackPattern: AttackPatternSimple) => (
-          <Tooltip key={attackPattern.attack_pattern_id} title={`[${attackPattern.attack_pattern_external_id}] ${attackPattern.attack_pattern_name}`}>
-            <Chip
-              variant="outlined"
-              classes={{ root: classes.chip }}
-              color="primary"
-              label={`[${attackPattern.attack_pattern_external_id}] ${attackPattern.attack_pattern_name}`}
-            />
-          </Tooltip>
+          <AttackPatternChip key={attackPattern.attack_pattern_id} attackPattern={attackPattern}></AttackPatternChip>
         ))}
       </Box>
       <Box>

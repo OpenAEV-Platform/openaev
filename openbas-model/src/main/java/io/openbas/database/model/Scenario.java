@@ -41,6 +41,11 @@ import org.hibernate.annotations.UuidGenerator;
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
 public class Scenario implements GrantableBase {
 
+  public enum RECURRENCE_STATUS {
+    SCHEDULED,
+    NOT_PLANNED,
+  }
+
   public enum SEVERITY {
     @JsonProperty("low")
     low,
@@ -88,6 +93,8 @@ public class Scenario implements GrantableBase {
   @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
+  // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
+
   @Column(name = "scenario_external_reference")
   @JsonProperty("scenario_external_reference")
   private String externalReference;
@@ -95,6 +102,13 @@ public class Scenario implements GrantableBase {
   @Column(name = "scenario_external_url")
   @JsonProperty("scenario_external_url")
   private String externalUrl;
+
+  // -- OCTI GENERATION SCENARIO FROM STIX --
+
+  @OneToOne(mappedBy = "scenario")
+  @JsonProperty("scenario_security_coverage")
+  @JsonIgnore
+  private SecurityCoverage securityCoverage;
 
   // -- RECURRENCE --
 
@@ -252,6 +266,11 @@ public class Scenario implements GrantableBase {
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("scenario_lessons_categories")
   private List<LessonsCategory> lessonsCategories = new ArrayList<>();
+
+  @Getter
+  @OneToMany(mappedBy = "scenario")
+  @JsonIgnore
+  public List<Variable> variables = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(fetch = FetchType.LAZY)

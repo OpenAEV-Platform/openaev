@@ -21,6 +21,7 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
     private final List<ExerciseComposer.Composer> simulationComposers = new ArrayList<>();
     private final List<ArticleComposer.Composer> articleComposers = new ArrayList<>();
     private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
+    private final List<VariableComposer.Composer> variableComposers = new ArrayList<>();
 
     public Composer(Scenario scenario) {
       this.scenario = scenario;
@@ -56,6 +57,15 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
       return this;
     }
 
+    public Composer withVariable(VariableComposer.Composer variableComposer) {
+      variableComposers.add(variableComposer);
+      List<Variable> tempVariables = this.scenario.getVariables();
+      tempVariables.add(variableComposer.get());
+      variableComposer.get().setScenario(scenario);
+      scenario.setVariables(tempVariables);
+      return this;
+    }
+
     public Composer withArticle(ArticleComposer.Composer articleComposer) {
       articleComposers.add(articleComposer);
       List<Article> tempArticles = new ArrayList<>(this.scenario.getArticles());
@@ -71,8 +81,9 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
       scenarioRepository.save(scenario);
       simulationComposers.forEach(ExerciseComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
-      scenarioService.createScenario(scenario);
       injectComposers.forEach(InjectComposer.Composer::persist);
+      variableComposers.forEach(VariableComposer.Composer::persist);
+      scenarioService.createScenario(scenario);
       return this;
     }
 
@@ -82,6 +93,7 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
       injectComposers.forEach(InjectComposer.Composer::delete);
       tagComposers.forEach(TagComposer.Composer::delete);
       simulationComposers.forEach(ExerciseComposer.Composer::delete);
+      variableComposers.forEach(VariableComposer.Composer::delete);
       scenarioRepository.delete(scenario);
       return this;
     }

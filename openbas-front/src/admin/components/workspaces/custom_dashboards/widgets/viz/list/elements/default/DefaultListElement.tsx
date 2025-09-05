@@ -2,7 +2,6 @@ import { Description } from '@mui/icons-material';
 import { ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
-import TagsFragment from '../../../../../../../../../components/common/list/fragments/TagsFragment';
 import useBodyItemsStyles from '../../../../../../../../../components/common/queryable/style/style';
 import { type EsBase } from '../../../../../../../../../utils/api-types';
 import buildStyles from '../ColumnStyles';
@@ -28,12 +27,6 @@ const DefaultListElement = (props: Props) => {
     return (element: EsBase) => {
       const key = column as keyof typeof element;
       const text = element[key]?.toString() || '';
-      if (column === 'base_tags_side') {
-        // TODO #3533 : will be updated in chunk 2
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        return <TagsFragment tags={element[key] ?? []} />;
-      }
       return (
         <Tooltip title={text} placement="bottom-start">
           <span>{text}</span>

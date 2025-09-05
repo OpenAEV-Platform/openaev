@@ -175,10 +175,10 @@ export const putReferential = (schema: Schema, uri: string, data: unknown) => (d
     });
 };
 
-export const postReferential = (schema: Schema | null, uri: string, data: unknown) => (dispatch: Dispatch) => {
+export const postReferential = (schema: Schema | null, uri: string, data: unknown, config?: AxiosRequestConfig) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
   return api(schema)
-    .post(buildUri(uri), data)
+    .post(buildUri(uri), data, config)
     .then((response) => {
       dispatch({
         type: Constants.DATA_FETCH_SUCCESS,

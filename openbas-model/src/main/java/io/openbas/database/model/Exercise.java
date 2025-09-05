@@ -174,6 +174,13 @@ public class Exercise implements GrantableBase {
     this.setUpdatedAt(now());
   }
 
+  // STIX
+  @Getter
+  @ManyToOne
+  @JoinColumn(name = "exercise_security_coverage")
+  @JsonIgnore
+  private SecurityCoverage securityCoverage;
+
   // -- AUDIT --
 
   @Getter

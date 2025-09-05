@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openbas.annotation.Queryable;
 import io.openbas.database.audit.ModelBaseListener;
+import io.openbas.jsonapi.BusinessId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -39,6 +40,7 @@ public class Tag implements Base {
   @Queryable(searchable = true, sortable = true)
   @NotBlank
   @Schema(description = "Name of the tag")
+  @BusinessId
   private String name;
 
   @Getter

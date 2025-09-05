@@ -1,6 +1,13 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simplePostCall,
+} from '../../utils/Action';
 import { type SearchPaginationInput, type SecurityPlatform, type SecurityPlatformInput } from '../../utils/api-types';
 import * as schema from '../Schema';
 import { arrayOfSecurityPlatforms, securityPlatform } from './asset-schema';
@@ -32,6 +39,15 @@ export const searchSecurityPlatforms = (searchPaginationInput: SearchPaginationI
   const data = searchPaginationInput;
   const uri = `${SECURITY_PLATFORM_URI}/search`;
   return simplePostCall(uri, data);
+};
+
+export const searchSecurityPlatformAsOption = (searchText: string = '') => {
+  const params = { searchText };
+  return simpleCall(`${SECURITY_PLATFORM_URI}/options`, { params });
+};
+
+export const searchSecurityPlatformByIdAsOption = (ids: string[]) => {
+  return simplePostCall(`${SECURITY_PLATFORM_URI}/options`, ids);
 };
 
 export const fetchDocumentFromSecurityPlatform = (securityPlatformId: string) => (dispatch: Dispatch) => getReferential(schema.arrayOfDocuments, `${SECURITY_PLATFORM_URI}/${securityPlatformId}/documents`)(dispatch);

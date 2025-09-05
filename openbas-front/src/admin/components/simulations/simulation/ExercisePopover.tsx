@@ -1,9 +1,8 @@
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteExercise, duplicateExercise, updateExercise } from '../../../../actions/Exercise';
 import { checkExerciseTagRules } from '../../../../actions/exercises/exercise-action';
-import { type UserHelper } from '../../../../actions/helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogApplyTagRule from '../../../../components/common/DialogApplyTagRule';
 import DialogDelete from '../../../../components/common/DialogDelete';
@@ -11,14 +10,15 @@ import DialogDuplicate from '../../../../components/common/DialogDuplicate';
 import Drawer from '../../../../components/common/Drawer';
 import ExportOptionsDialog from '../../../../components/common/export/ExportOptionsDialog';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
 import {
   type CheckScenarioRulesOutput,
   type Exercise,
   type UpdateExerciseInput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { usePermissions } from '../../../../utils/permissions/simulationPermissions';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import ExerciseForm from './ExerciseForm';
 import ExerciseReports from './reports/ExerciseReports';
 
@@ -41,6 +41,8 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
+  const ability = useContext(AbilityContext);
 
   // Form
   const initialValues: UpdateExerciseInput = {
@@ -114,23 +116,18 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     handleCloseExport();
   };
 
-  const permissions = usePermissions(exercise.exercise_id);
-
-  // Fetching data
-  const { userAdmin } = useHelper((helper: UserHelper) => ({ userAdmin: helper.getMeAdmin() }));
-
   // Button Popover
   const entries = [];
   if (actions.includes('Update')) entries.push({
     label: 'Update',
     action: () => handleOpenEdit(),
-    disabled: !permissions.canManageBypassStatus,
+    disabled: !permissions.canManage,
     userRight: permissions.canManage,
   });
   if (actions.includes('Duplicate')) entries.push({
     label: 'Duplicate',
     action: () => handleOpenDuplicate(),
-    userRight: permissions.canManage,
+    userRight: permissions.canManage && ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT),
   });
   if (actions.includes('Export')) entries.push({
     label: 'Export',
@@ -145,7 +142,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   if (actions.includes('Delete')) entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
-    disabled: !userAdmin,
     userRight: permissions.canManage,
   });
 

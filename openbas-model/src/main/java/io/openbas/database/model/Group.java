@@ -35,7 +35,7 @@ public class Group implements Base {
   @NotBlank
   private String id;
 
-  @Queryable(sortable = true)
+  @Queryable(searchable = true, sortable = true)
   @Column(name = "group_name")
   @JsonProperty("group_name")
   @NotBlank

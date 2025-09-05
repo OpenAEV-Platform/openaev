@@ -101,7 +101,6 @@ const OnboardingProgressSidebar: React.FC<Props> = ({ onCloseSidebar }) => {
               )}
           </div>
         </Box>
-        <Divider />
         <Box
           bgcolor={BACKGROUND_COLOR_GREY}
           flex={1}

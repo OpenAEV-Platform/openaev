@@ -56,6 +56,8 @@ public interface RawSimulation {
 
   Set<String> getExercise_users();
 
+  Set<String> getExercise_platforms();
+
   Set<String> getLessons_answers();
 
   Set<String> getLogs();

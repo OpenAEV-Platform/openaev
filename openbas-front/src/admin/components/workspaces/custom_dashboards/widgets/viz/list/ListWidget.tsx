@@ -7,7 +7,13 @@ import SortHeadersComponentV2 from '../../../../../../../components/common/query
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../../../../components/i18n';
-import { type EsBase, type EsEndpoint, type EsVulnerableEndpoint } from '../../../../../../../utils/api-types';
+import {
+  type EsBase,
+  type EsEndpoint,
+  type EsInject, type EsScenario,
+  type EsSimulation,
+  type EsVulnerableEndpoint,
+} from '../../../../../../../utils/api-types';
 import { type ListConfiguration, type Widget } from '../../../../../../../utils/api-types-custom';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/default/DefaultElementStyles';
@@ -15,7 +21,9 @@ import DefaultListElement from './elements/default/DefaultListElement';
 import EndpointElementSecondaryAction from './elements/endpoint/EndpointElementSecondaryAction';
 import EndpointElementStyles from './elements/endpoint/EndpointElementStyles';
 import EndpointListElement from './elements/endpoint/EndpointListElement';
-import VulnerableEndpointElementSecondaryAction from './elements/vulnerableendpoint/VulnerableEndpointElementSecondaryAction';
+import InjectListElement from './elements/inject/InjectListElement';
+import VulnerableEndpointElementSecondaryAction
+  from './elements/vulnerableendpoint/VulnerableEndpointElementSecondaryAction';
 import VulnerableEndpointListElement from './elements/vulnerableendpoint/VulnerableEndpointListElement';
 
 const useStyles = makeStyles()(() => ({
@@ -65,23 +73,26 @@ const ListWidget = (props: Props) => {
 
   const getTypedUiElement = (element: EsBase, columns: string[]) => {
     switch (element.base_entity) {
-      case 'endpoint':
-        return (<EndpointListElement element={element as EsEndpoint} columns={columns} />);
-      case 'vulnerable-endpoint':
-        return (<VulnerableEndpointListElement element={element as EsVulnerableEndpoint} columns={columns} />);
-      default:
-        return (<DefaultListElement columns={columns} element={element} />);
+      case 'endpoint': return (<EndpointListElement element={element as EsEndpoint} columns={columns} />);
+      case 'vulnerable-endpoint': return (<VulnerableEndpointListElement element={element as EsVulnerableEndpoint} columns={columns} />);
+      case 'inject':
+      case 'simulation':
+      case 'scenario':
+        return (<InjectListElement columns={columns} element={element as EsInject | EsSimulation | EsScenario} />);
+      default: return (<DefaultListElement columns={columns} element={element} />);
     }
   };
 
   const getTypedSecondaryAction = (element: EsBase) => {
     switch (element.base_entity) {
-      case 'endpoint':
-        return (<EndpointElementSecondaryAction element={element as EsEndpoint} />);
-      case 'vulnerable-endpoint':
-        return (<VulnerableEndpointElementSecondaryAction element={element as EsVulnerableEndpoint} />);
-      default:
-        return (<>&nbsp;</>);
+      case 'endpoint': return (<EndpointElementSecondaryAction element={element as EsEndpoint} />);
+      case 'vulnerable-endpoint': return (<VulnerableEndpointElementSecondaryAction element={element as EsVulnerableEndpoint} />);
+        // TODO #3524
+      /* case 'inject':
+      case 'simulation':
+      case 'scenario':
+        return (<InjectElementSecondaryAction element={element as EsInject | EsSimulation | EsScenario} />); */
+      default: return (<>&nbsp;</>);
     }
   };
 

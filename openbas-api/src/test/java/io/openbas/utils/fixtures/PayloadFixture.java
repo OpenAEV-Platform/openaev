@@ -17,6 +17,7 @@ public class PayloadFixture {
   private static final Endpoint.PLATFORM_TYPE[] LINUX_PLATFORM = {Endpoint.PLATFORM_TYPE.Linux};
   private static final Endpoint.PLATFORM_TYPE[] MACOS_PLATFORM = {Endpoint.PLATFORM_TYPE.MacOS};
   private static final Endpoint.PLATFORM_TYPE[] WINDOWS_PLATFORM = {Endpoint.PLATFORM_TYPE.Windows};
+  public static final String COMMAND_PAYLOAD_NAME = "command payload";
 
   private static void initializeDefaultPayload(
       final Payload payload, final Endpoint.PLATFORM_TYPE[] platforms) {
@@ -31,7 +32,7 @@ public class PayloadFixture {
       String commandLine,
       @Nullable List<PayloadPrerequisite> prerequisites,
       @Nullable String cleanupCmd) {
-    Command command = new Command(UUID.randomUUID().toString(), COMMAND_TYPE, "command payload");
+    Command command = new Command(UUID.randomUUID().toString(), COMMAND_TYPE, COMMAND_PAYLOAD_NAME);
     command.setContent(commandLine);
     command.setExecutor(executor);
     if (prerequisites != null) {
