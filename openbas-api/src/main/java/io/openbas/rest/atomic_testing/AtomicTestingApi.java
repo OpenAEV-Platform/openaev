@@ -53,6 +53,8 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
   }
 
+  // some api use inject as resource type because they are actually used to retrieve inject data for
+  // simulation and AT
   @LogExecutionTime
   @GetMapping("/{injectId}")
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
@@ -79,7 +81,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
       @PathVariable @NotBlank final String injectId,
@@ -91,7 +93,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   public void deleteAtomicTesting(@PathVariable @NotBlank final String injectId) {
     atomicTestingService.deleteAtomicTesting(injectId);
   }
@@ -110,7 +112,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput launchAtomicTesting(
       @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.launch(atomicTestingId);
@@ -120,7 +122,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput relaunchAtomicTesting(
       @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.relaunch(atomicTestingId);
@@ -172,7 +174,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTestingTags(
       @PathVariable @NotBlank final String injectId,

@@ -30,6 +30,11 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
               + "SELECT CONCAT(a.asset_id, '_', i.inject_exercise) as base_id, "
               + "a.asset_id as vulnerable_endpoint_id, "
               + "i.inject_exercise as vulnerable_endpoint_simulation, "
+              + "MAX(se.scenario_id) as vulnerable_endpoint_scenario, " // MAX here is used to get 1
+              // element and not a list
+              // because we know that 1
+              // exercise is linked to
+              // only 1 scenario
               + "a.endpoint_hostname as vulnerable_endpoint_hostname, "
               + "a.endpoint_platform as vulnerable_endpoint_platform, "
               + "a.endpoint_is_eol as vulnerable_endpoint_eol, "
@@ -52,6 +57,7 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
               + "LEFT JOIN assets_tags at ON a.asset_id = at.asset_id "
               + "JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "JOIN exercises e ON i.inject_exercise = e.exercise_id "
+              + "LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id "
               + "WHERE (e.exercise_updated_at > :from OR a.asset_updated_at > :from) "
               + "AND f.finding_type = 'CVE' "
               + "AND a.asset_type = '"

@@ -9,7 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   Fab,
-  GridLegacy,
+  Grid,
   List,
   ListItemButton,
   ListItemIcon,
@@ -30,6 +30,8 @@ import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
+import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { resolveUserName, truncate } from '../../../../utils/String';
 import { TeamContext } from '../../common/Context';
 import TagsFilter from '../../common/filters/TagsFilter';
@@ -122,14 +124,16 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
 
   return (
     <div>
-      <Fab
-        onClick={() => setOpen(true)}
-        color="primary"
-        aria-label="Add"
-        className={classes.createButton}
-      >
-        <Add />
-      </Fab>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+        <Fab
+          onClick={() => setOpen(true)}
+          color="primary"
+          aria-label="Add"
+          className={classes.createButton}
+        >
+          <Add />
+        </Fab>
+      </Can>
       <Dialog
         open={open}
         TransitionComponent={Transition}
@@ -150,16 +154,16 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
       >
         <DialogTitle>{t('Add players in this team')}</DialogTitle>
         <DialogContent>
-          <GridLegacy container spacing={3} style={{ marginTop: -15 }}>
-            <GridLegacy item xs={8}>
-              <GridLegacy container spacing={3}>
-                <GridLegacy item xs={6}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 8 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 6 }}>
                   <SearchFilter
                     onChange={(value?: string) => setKeyword(value || '')}
                     fullWidth
                   />
-                </GridLegacy>
-                <GridLegacy item xs={6}>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
                   <TagsFilter
                     onAddTag={(value: Option) => {
                       if (value) {
@@ -170,8 +174,8 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
                     currentTags={tags}
                     fullWidth
                   />
-                </GridLegacy>
-              </GridLegacy>
+                </Grid>
+              </Grid>
               <List>
                 {filteredUsers.map((user: UserStoreExtended) => {
                   const disabled = usersIds.includes(user.user_id)
@@ -197,13 +201,15 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
                     )
                   );
                 })}
-                <CreatePlayer
-                  inline
-                  onCreate={user => setUsersIds([...usersIds, user.user_id])}
-                />
+                <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+                  <CreatePlayer
+                    inline
+                    onCreate={user => setUsersIds([...usersIds, user.user_id])}
+                  />
+                </Can>
               </List>
-            </GridLegacy>
-            <GridLegacy item xs={4}>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
               <Box className={classes.box}>
                 {usersIds.map((userId) => {
                   const user = usersMap[userId];
@@ -229,8 +235,8 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
                   );
                 })}
               </Box>
-            </GridLegacy>
-          </GridLegacy>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => {

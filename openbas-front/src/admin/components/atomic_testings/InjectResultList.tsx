@@ -196,7 +196,6 @@ const InjectResultList: FunctionComponent<Props> = ({
           </Can>
         ) : null}
       />
-      {/* eslint-disable-next-line max-len */}
       <InjectImportJsonDialog open={openJsonImportDialog} handleClose={handleCloseJsonImportDialog} handleSubmit={handleSubmitJsonImportFile} />
       <List>
         <ListItem

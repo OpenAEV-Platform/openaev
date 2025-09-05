@@ -38,6 +38,7 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       variableComposers.add(variableComposer);
       List<Variable> variables = exercise.getVariables();
       variables.add(variableComposer.get());
+      variableComposer.get().setExercise(exercise);
       this.exercise.setVariables(variables);
       return this;
     }

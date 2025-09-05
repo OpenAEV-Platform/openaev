@@ -57,6 +57,11 @@ public class Asset implements Base {
   @JsonProperty("asset_description")
   private String description;
 
+  @Queryable(searchable = true, sortable = true, filterable = true)
+  @Column(name = "asset_external_reference")
+  @JsonProperty("asset_external_reference")
+  private String externalReference;
+
   // -- TAG --
 
   @ArraySchema(schema = @Schema(type = "string"))
@@ -69,6 +74,12 @@ public class Asset implements Base {
   @JsonSerialize(using = MultiIdSetDeserializer.class)
   @JsonProperty("asset_tags")
   private Set<Tag> tags = new HashSet<>();
+
+  // UpdatedAt now used to sync with linked object
+  public void setTags(Set<Tag> tags) {
+    this.updatedAt = now();
+    this.tags = tags;
+  }
 
   @JsonIgnore
   @ManyToMany(mappedBy = "assets")

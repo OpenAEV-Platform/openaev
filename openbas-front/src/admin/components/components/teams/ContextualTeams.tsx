@@ -6,6 +6,8 @@ import { makeStyles } from 'tss-react/mui';
 
 import ItemTags from '../../../../components/ItemTags';
 import { type Team } from '../../../../utils/api-types';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSearchAnFilter from '../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../common/Context';
 import TeamPlayers from './TeamPlayers';
@@ -128,6 +130,7 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const { computeTeamUsersEnabled } = useContext(TeamContext);
   const { permissions } = useContext(PermissionsContext);
+  const ability = useContext(AbilityContext);
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -289,6 +292,7 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
           <TeamPlayers
             teamId={selectedTeam}
             handleClose={() => setSelectedTeam(null)}
+            canManage={permissions.canManage && ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
           />
         )}
       </Drawer>

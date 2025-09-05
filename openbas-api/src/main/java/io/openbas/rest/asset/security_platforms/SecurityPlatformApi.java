@@ -1,5 +1,6 @@
 package io.openbas.rest.asset.security_platforms;
 
+import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -11,6 +12,7 @@ import io.openbas.rest.asset.security_platforms.form.SecurityPlatformInput;
 import io.openbas.rest.asset.security_platforms.form.SecurityPlatformUpsertInput;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.ElementNotFoundException;
+import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,6 +23,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -184,5 +187,22 @@ public class SecurityPlatformApi {
       })
   public List<RawDocument> documentsFromSecurityPlatform(@PathVariable String securityPlatformId) {
     return documentService.documentsForSecurityPlatform(securityPlatformId);
+  }
+
+  @GetMapping(SECURITY_PLATFORM_URI + "/options")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  public List<FilterUtilsJpa.Option> optionsByName(
+      @RequestParam(required = false) final String searchText) {
+    return securityPlatformRepository.findAllByName(StringUtils.trimToNull(searchText)).stream()
+        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .toList();
+  }
+
+  @PostMapping(SECURITY_PLATFORM_URI + "/options")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+    return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()
+        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .toList();
   }
 }

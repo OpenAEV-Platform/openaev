@@ -2,7 +2,7 @@ import { EditOutlined, ExpandMoreOutlined, RateReviewOutlined } from '@mui/icons
 import { Accordion, AccordionDetails, AccordionSummary, Card, CardContent, CardHeader, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -13,11 +13,11 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { isExerciseUpdatable } from '../../../../../utils/permissions/simulationPermissions.js';
 import { resolveUserName } from '../../../../../utils/String';
+import { PermissionsContext } from '../../../common/Context.js';
 import AnimationMenu from '../AnimationMenu';
 import LogForm from './LogForm';
-import LogPopover from './LogPopover';
+import LogPopover from './LogPopover.js';
 
 const useStyles = makeStyles()(() => ({
   card: {
@@ -36,13 +36,14 @@ const Logs = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
+  const { permissions } = useContext(PermissionsContext);
+
   const [openCreateLog, setOpenCreateLog] = useState(false);
   const bottomRef = useRef(null);
   // Fetching data
   const { exerciseId } = useParams();
-  const { exercise, logs, usersMap } = useHelper((helper) => {
+  const { logs, usersMap } = useHelper((helper) => {
     return {
-      exercise: helper.getExercise(exerciseId),
       logs: helper.getExerciseLogs(exerciseId),
       usersMap: helper.getUsersMap(),
     };
@@ -83,16 +84,18 @@ const Logs = () => {
         <Typography variant="h4" style={{ float: 'left' }}>
           {t('Simulation logs')}
         </Typography>
-        {isExerciseUpdatable(exercise, true) && (
-          <IconButton
-            color="secondary"
-            onClick={handleToggleWrite}
-            size="large"
-            style={{ margin: '-15px 0 0 5px' }}
-          >
-            <EditOutlined fontSize="small" />
-          </IconButton>
-        )}
+        {permissions.canManage
+          && (
+            <IconButton
+              color="secondary"
+              onClick={handleToggleWrite}
+              size="large"
+              style={{ margin: '-15px 0 0 5px' }}
+            >
+              <EditOutlined fontSize="small" />
+            </IconButton>
+          )}
+
         {logs.map(log => (
           <Card
             key={log.log_id}
@@ -105,7 +108,7 @@ const Logs = () => {
                 padding: '7px 10px 2px 15px',
                 borderBottom: `1px solid ${theme.palette.divider}`,
               }}
-              action={<LogPopover exerciseId={exerciseId} log={log} />}
+              action={permissions.canManage && <LogPopover exerciseId={exerciseId} log={log} />}
               title={(
                 <div>
                   <div
@@ -123,7 +126,6 @@ const Logs = () => {
                                         &nbsp;
                     <span style={{ color: theme.palette.text.secondary }}>
                       {t('added an entry on')}
-                      {' '}
                       {nsdt(log.log_created_at)}
                     </span>
                   </div>
@@ -146,7 +148,7 @@ const Logs = () => {
             </CardContent>
           </Card>
         ))}
-        {isExerciseUpdatable(exercise, true) && (
+        {permissions.canManage && (
           <Accordion
             style={{ margin: `${logs.length > 0 ? '30' : '5'}px 0 30px 0` }}
             expanded={openCreateLog}
@@ -156,7 +158,7 @@ const Logs = () => {
             <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
               <Typography className={classes.heading}>
                 <RateReviewOutlined />
-                                &nbsp;&nbsp;&nbsp;&nbsp;
+              &nbsp;&nbsp;&nbsp;&nbsp;
                 <span style={{ fontWeight: 500 }}>{t('Write an entry')}</span>
               </Typography>
             </AccordionSummary>
@@ -173,6 +175,7 @@ const Logs = () => {
             </AccordionDetails>
           </Accordion>
         )}
+
         <div style={{ marginTop: 100 }} />
         <div ref={bottomRef} />
       </div>

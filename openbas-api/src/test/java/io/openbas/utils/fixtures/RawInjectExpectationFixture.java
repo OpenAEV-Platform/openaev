@@ -25,7 +25,9 @@ public class RawInjectExpectationFixture {
       String agentId,
       String assetId,
       String assetGroupId,
-      Set<String> attackPatternIds)
+      Set<String> attackPatternIds,
+      String scenarioId,
+      Set<String> securityPlatformIds)
       implements RawInjectExpectation {
 
     @Override
@@ -122,6 +124,16 @@ public class RawInjectExpectationFixture {
     public Set<String> getAttack_pattern_ids() {
       return attackPatternIds;
     }
+
+    @Override
+    public Set<String> getSecurity_platform_ids() {
+      return securityPlatformIds;
+    }
+
+    @Override
+    public String getScenario_id() {
+      return scenarioId;
+    }
   }
 
   public static RawInjectExpectation createDefaultInjectExpectation(
@@ -136,6 +148,8 @@ public class RawInjectExpectationFixture {
         expectationExpectedScore,
         null,
         false,
+        null,
+        null,
         null,
         null,
         null,

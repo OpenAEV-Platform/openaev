@@ -238,7 +238,8 @@ public interface InjectExpectationRepository
   @Query(
       value =
           """
-    SELECT
+    WITH inject_expectation_data AS (
+      SELECT
       ie.inject_expectation_id,
       ie.inject_expectation_name,
       ie.inject_expectation_description,
@@ -249,7 +250,7 @@ public interface InjectExpectationRepository
       ie.inject_expiration_time,
       ie.inject_expectation_group,
       ie.inject_expectation_created_at,
-      ie.inject_expectation_updated_at,
+      GREATEST(ie.inject_expectation_updated_at, max(i.inject_updated_at), max(ic.injector_contract_updated_at)) as inject_expectation_updated_at,
       ie.exercise_id,
       ie.inject_id,
       ie.user_id,
@@ -257,7 +258,9 @@ public interface InjectExpectationRepository
       ie.agent_id,
       ie.asset_id,
       ie.asset_group_id,
-      array_agg(ap.attack_pattern_id) AS attack_pattern_ids
+      array_agg(ap.attack_pattern_id) AS attack_pattern_ids,
+      MAX(se.scenario_id) AS scenario_id,
+      array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) AS security_platform_ids
     FROM injects_expectations ie
     LEFT JOIN exercises ex ON ex.exercise_id = ie.exercise_id
     LEFT JOIN injects i ON i.inject_id = ie.inject_id
@@ -269,11 +272,16 @@ public interface InjectExpectationRepository
     LEFT JOIN agents agent ON agent.agent_id = ie.agent_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id
     LEFT JOIN asset_groups ag ON ag.asset_group_id = ie.asset_group_id
-    WHERE ie.inject_expectation_updated_at > :from
+    LEFT JOIN scenarios_exercises se ON se.exercise_id = ie.exercise_id
+    LEFT JOIN LATERAL jsonb_array_elements(ie.inject_expectation_results::jsonb) AS r(elem) ON true
+    LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text OR r.elem->>'sourceType' = 'security-platform'
     GROUP BY
       ie.inject_expectation_id,
       ic.injector_contract_id
-    ORDER BY ie.inject_expectation_updated_at
+    )
+    SELECT * FROM inject_expectation_data ied
+    WHERE ied.inject_expectation_updated_at > :from
+    ORDER BY ied.inject_expectation_updated_at ASC
     LIMIT 500
     """,
       nativeQuery = true)

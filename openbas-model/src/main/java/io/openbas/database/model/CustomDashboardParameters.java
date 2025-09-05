@@ -3,16 +3,19 @@ package io.openbas.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openbas.database.audit.ModelBaseListener;
+import io.openbas.jsonapi.InnerRelationship;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Objects;
+import java.util.UUID;
 import lombok.Data;
-import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "custom_dashboards_parameters")
 @EntityListeners(ModelBaseListener.class)
+@InnerRelationship
 public class CustomDashboardParameters implements Base {
 
   public enum CustomDashboardParameterType {
@@ -35,11 +38,25 @@ public class CustomDashboardParameters implements Base {
 
   @Id
   @Column(name = "custom_dashboards_parameter_id", updatable = false, nullable = false)
-  @GeneratedValue(generator = "UUID")
-  @UuidGenerator
   @JsonProperty("custom_dashboards_parameter_id")
   @NotBlank
   private String id;
+
+  /**
+   * Generates a UUID **only if the ID is not already set**, just before persisting.
+   *
+   * <p>This allows: - Keeping provided IDs (e.g. from import/export). - Auto-generating IDs for new
+   * entities (e.g. via UI or tests).
+   *
+   * <p>Using `@PrePersist` avoids issues with `@GeneratedValue`, which always overrides or fails
+   * when an ID is already present on persist.
+   */
+  @PrePersist
+  protected void onCreate() {
+    if (Objects.isNull(this.id)) {
+      this.id = UUID.randomUUID().toString();
+    }
+  }
 
   @Column(name = "custom_dashboards_parameter_name", nullable = false)
   @NotNull

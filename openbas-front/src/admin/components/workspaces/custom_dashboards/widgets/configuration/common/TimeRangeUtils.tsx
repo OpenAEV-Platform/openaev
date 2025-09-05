@@ -4,10 +4,6 @@ export const LAST_QUARTER_TIME_RANGE = 'LAST_QUARTER';
 
 export const getTimeRangeItems = (t: (text: string) => string) => [
   {
-    value: 'DEFAULT',
-    label: t('Dashboard time range'),
-  },
-  {
     value: ALL_TIME_TIME_RANGE,
     label: t('All time'),
   },
@@ -39,4 +35,12 @@ export const getTimeRangeItems = (t: (text: string) => string) => [
     value: 'LAST_YEAR',
     label: t('Last year'),
   },
+];
+
+export const getTimeRangeItemsWithDefault = (t: (text: string) => string) => [
+  {
+    value: 'DEFAULT',
+    label: t('Dashboard time range'),
+  },
+  ...getTimeRangeItems(t),
 ];

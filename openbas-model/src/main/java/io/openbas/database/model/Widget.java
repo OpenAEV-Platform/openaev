@@ -2,14 +2,13 @@ package io.openbas.database.model;
 
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openbas.database.audit.ModelBaseListener;
 import io.openbas.engine.api.WidgetConfiguration;
 import io.openbas.engine.api.WidgetType;
-import io.openbas.helper.MonoIdDeserializer;
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.openbas.jsonapi.InnerRelationship;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "widgets")
 @EntityListeners(ModelBaseListener.class)
+@InnerRelationship
 public class Widget implements Base {
 
   @Id
@@ -56,9 +56,7 @@ public class Widget implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "widget_custom_dashboard")
-  @JsonSerialize(using = MonoIdDeserializer.class)
-  @JsonProperty("widget_custom_dashboard")
-  @Schema(type = "string")
+  @JsonIgnore
   private CustomDashboard customDashboard;
 
   // -- AUDIT --

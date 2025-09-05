@@ -3,6 +3,8 @@ package io.openbas.engine.model.simulation;
 import io.openbas.annotation.EsQueryable;
 import io.openbas.annotation.Indexable;
 import io.openbas.annotation.Queryable;
+import io.openbas.database.model.Endpoint;
+import io.openbas.database.model.ExerciseStatus;
 import io.openbas.engine.model.EsBase;
 import java.util.Set;
 import lombok.Getter;
@@ -17,6 +19,10 @@ public class EsSimulation extends EsBase {
 
   @Queryable(label = "simulation name", filterable = true)
   private String name;
+
+  @Queryable(label = "simulation status", filterable = true, refEnumClazz = ExerciseStatus.class)
+  @EsQueryable(keyword = true)
+  private String status;
 
   // -- SIDE --
 
@@ -39,4 +45,13 @@ public class EsSimulation extends EsBase {
   @Queryable(label = "scenario", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private String base_scenario_side; // Must finish by _side
+
+  // -- SIDE DENORMALIZED --
+  // like side but directly names instead of ids in the Set
+  // Don't forget to keep track of updated_at values in the SQL query indexing for those attributes
+  // denormalized
+
+  @Queryable(label = "platforms", filterable = true, refEnumClazz = Endpoint.PLATFORM_TYPE.class)
+  @EsQueryable(keyword = true)
+  private Set<String> base_platforms_side_denormalized;
 }

@@ -2,6 +2,7 @@ package io.openbas.utils.fixtures.composers;
 
 import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.CustomDashboardParameters;
+import io.openbas.database.model.Widget;
 import io.openbas.database.repository.CustomDashboardRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,7 @@ public class CustomDashboardComposer extends ComposerBase<CustomDashboard> {
     private final CustomDashboard customDashboard;
     private final List<CustomDashboardParameterComposer.Composer>
         customDashboardParameterComposers = new ArrayList<>();
+    private final List<WidgetComposer.Composer> widgetComposers = new ArrayList<>();
 
     public Composer(CustomDashboard customDashboard) {
       this.customDashboard = customDashboard;
@@ -33,9 +35,19 @@ public class CustomDashboardComposer extends ComposerBase<CustomDashboard> {
       return this;
     }
 
+    public Composer withWidget(WidgetComposer.Composer composer) {
+      widgetComposers.add(composer);
+      List<Widget> tempParams = this.customDashboard.getWidgets();
+      composer.get().setCustomDashboard(this.customDashboard);
+      tempParams.add(composer.get());
+      this.customDashboard.setWidgets(tempParams);
+      return this;
+    }
+
     @Override
     public CustomDashboardComposer.Composer persist() {
       customDashboardRepository.save(this.customDashboard);
+      widgetComposers.forEach(WidgetComposer.Composer::persist);
       customDashboardParameterComposers.forEach(CustomDashboardParameterComposer.Composer::persist);
       return this;
     }
@@ -43,6 +55,7 @@ public class CustomDashboardComposer extends ComposerBase<CustomDashboard> {
     @Override
     public CustomDashboardComposer.Composer delete() {
       customDashboardParameterComposers.forEach(CustomDashboardParameterComposer.Composer::delete);
+      widgetComposers.forEach(WidgetComposer.Composer::delete);
       customDashboardRepository.delete(this.customDashboard);
       return this;
     }

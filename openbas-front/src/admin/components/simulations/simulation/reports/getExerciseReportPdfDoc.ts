@@ -314,7 +314,7 @@ const getExerciseReportPdfDocDefinition = async ({
                   },
                   layout: tableCustomLayout(true, 6),
                 }
-              : { text: t('Answers : N/A') }),
+              : { text: `${t('Answers:')}-` }),
           ];
         }),
         '\n',

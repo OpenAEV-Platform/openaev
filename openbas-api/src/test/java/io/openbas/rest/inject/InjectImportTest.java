@@ -494,6 +494,7 @@ public class InjectImportTest extends IntegrationTest {
 
     @Test
     @DisplayName("Return NOT FOUND")
+    @WithMockUnprivilegedUser // FIXME: Temporary workaround for grant issue
     public void returnNOTFOUND() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 

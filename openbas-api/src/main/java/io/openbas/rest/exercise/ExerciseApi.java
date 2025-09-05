@@ -120,7 +120,7 @@ public class ExerciseApi extends RestBehavior {
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/logs")
   @RBAC(
-      resourceId = "#exercise",
+      resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)

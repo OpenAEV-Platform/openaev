@@ -40,12 +40,14 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     function handleCleanupCommandValue(payload_cleanup_command) {
       return payload_cleanup_command === '' ? null : payload_cleanup_command;
     }
+
     function handleCleanupExecutorValue(payload_cleanup_executor, payload_cleanup_command) {
       if (payload_cleanup_executor !== '' && handleCleanupCommandValue(payload_cleanup_command) !== null) {
         return payload_cleanup_executor;
       }
       return null;
     }
+
     const inputValues = R.pipe(
       R.assoc('payload_platforms', data.payload_platforms),
       R.assoc('payload_tags', data.payload_tags),
@@ -95,14 +97,13 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     });
   };
 
-  const handleExportJsonSingle = () => {
+  const handleExportJsonSingle = async () => {
     handlePopoverClose();
-    exportPayload(payload.payload_id).then((result) => {
-      const contentDisposition = result.headers['content-disposition'];
-      const match = contentDisposition.match(/filename\s*=\s*(.*)/i);
-      const filename = match[1];
-      download(result.data, filename, result.headers['content-type']);
-    });
+    const response = await exportPayload(payload.payload_id);
+
+    const match = response.headers['content-disposition'].match(/filename="?([^"]+)"?/);
+    const filename = match[1];
+    download(response.data, filename, 'application/zip');
   };
 
   const initialValues = {

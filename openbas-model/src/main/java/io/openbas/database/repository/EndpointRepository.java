@@ -24,13 +24,20 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_platform = :platform and e.endpoint_arch = :arch and e.endpoint_ips && cast(:ips as text[])",
+          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[])",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
-      @NotBlank final @Param("platform") String platform,
-      @NotBlank final @Param("arch") String arch,
       @NotNull final @Param("ips") String[] ips);
+
+  @Query(
+      value =
+          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) "
+              + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
+              + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
+      nativeQuery = true)
+  List<Endpoint> findByHostnameAndAtleastOneMacAddress(
+      @Param("hostname") String hostname, @Param("macAddresses") String[] macAddresses);
 
   @Query(
       value =
@@ -38,6 +45,13 @@ public interface EndpointRepository
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
       @NotNull final @Param("macAddresses") String[] macAddresses);
+
+  @Query(
+      value =
+          "select e.* from assets e where e.asset_external_reference = :externalReference order by e.asset_id",
+      nativeQuery = true)
+  List<Endpoint> findByExternalReference(
+      @NotNull final @Param("externalReference") String externalReference);
 
   @Override
   @Query(
@@ -113,20 +127,31 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
+          "WITH endpoint_data AS ("
+              + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
               + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.asset_updated_at, "
-              + "a.endpoint_is_eol, a.asset_description, "
-              + "array_agg(fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
-              + "array_agg(at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags "
+              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, "
+              + "GREATEST(a.asset_updated_at, max(i.inject_updated_at), max(e.exercise_updated_at), max(s.scenario_updated_at), max(f.finding_updated_at)) as endpoint_updated_at, "
+              + "array_agg(DISTINCT fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
+              + "array_agg(DISTINCT at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags, "
+              + "array_agg(DISTINCT i.inject_exercise) FILTER ( WHERE i.inject_exercise IS NOT NULL ) as endpoint_exercises, "
+              + "array_agg(DISTINCT i.inject_scenario) FILTER ( WHERE i.inject_scenario IS NOT NULL ) as endpoint_scenarios "
               + "FROM assets a "
               + "LEFT JOIN findings_assets fa ON a.asset_id = fa.asset_id "
+              + "LEFT JOIN findings f ON fa.finding_id = f.finding_id "
               + "LEFT JOIN assets_tags at ON a.asset_id = at.asset_id "
-              + "WHERE a.asset_updated_at > :from AND a.asset_type = '"
+              + "LEFT JOIN injects_assets ia ON a.asset_id = ia.asset_id "
+              + "LEFT JOIN injects i ON ia.inject_id = i.inject_id "
+              + "LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id "
+              + "LEFT JOIN scenarios s ON i.inject_scenario = s.scenario_id "
+              + "WHERE a.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
               + "' "
-              + "GROUP BY a.asset_id, a.asset_updated_at "
-              + "ORDER BY a.asset_updated_at LIMIT "
+              + "GROUP BY a.asset_id"
+              + ") "
+              + "SELECT * FROM endpoint_data ed "
+              + "WHERE ed.endpoint_updated_at > :from "
+              + "ORDER BY ed.endpoint_updated_at ASC LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)

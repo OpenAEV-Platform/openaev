@@ -16,6 +16,7 @@ import io.openbas.rest.inject.output.InjectOutput;
 import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
+import io.openbas.rest.inject.service.ScenarioInjectService;
 import io.openbas.service.*;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,10 +38,10 @@ public class ScenarioInjectApi extends RestBehavior {
   private final InjectAssistantService injectAssistantService;
   private final InjectSearchService injectSearchService;
   private final InjectRepository injectRepository;
-  private final InjectDocumentRepository injectDocumentRepository;
   private final ScenarioService scenarioService;
   private final InjectService injectService;
   private final InjectDuplicateService injectDuplicateService;
+  private final ScenarioInjectService scenarioInjectService;
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
   @RBAC(
@@ -194,9 +195,6 @@ public class ScenarioInjectApi extends RestBehavior {
   public void deleteInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
-    assert scenarioId.equals(scenario.getId());
-    this.injectDocumentRepository.deleteDocumentsFromInject(injectId);
-    this.injectRepository.deleteById(injectId);
+    this.scenarioInjectService.deleteInject(scenarioId, injectId);
   }
 }

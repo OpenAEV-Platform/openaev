@@ -45,6 +45,14 @@ public class OnboardingService {
     }
   }
 
+  public void completeStepForAllUsers(@NotBlank final String step) {
+    List<User> users = userService.users();
+
+    for (User user : users) {
+      this.completeStep(user, step);
+    }
+  }
+
   public UserOnboardingProgress skipSteps(
       @NotNull final User user, @NotNull final List<String> steps) {
     UserOnboardingProgress progress = getOrDefault(user);

@@ -1,7 +1,7 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { lazy, Suspense, useContext, useEffect } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { lazy, Suspense, useEffect } from 'react';
+import { Route, Routes, useNavigate } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -16,7 +16,6 @@ import { computeBannerSettings } from '../public/components/systembanners/utils'
 import { useHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
-import { AbilityContext } from '../utils/permissions/PermissionsProvider';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import LeftBar from './components/nav/LeftBar';
@@ -48,7 +47,6 @@ const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSO
 
 const Index = () => {
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
 
   const { classes } = useStyles();
   const navigate = useNavigate();
@@ -105,27 +103,127 @@ const Index = () => {
               <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
               <Route
                 path="findings"
-                element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.FINDINGS} Component={errorWrapper(Findings)()} />}
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.FINDINGS,
+                    }]}
+                    Component={errorWrapper(Findings)()}
+                  />
+                )}
               />
               <Route path="simulations" element={errorWrapper(Exercises)()} />
-              <Route path="simulations/:exerciseId/*" element={errorWrapper(IndexExercise)()} />
-              <Route path="simulations/:exerciseId/injects/:injectId/*" element={errorWrapper(InjectIndex)()} />
+              <Route
+                path="simulations/:exerciseId/*"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.ASSESSMENT,
+                    }, {
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.RESOURCE,
+                      resourceURIParamName: 'exerciseId',
+                    }]}
+                    Component={errorWrapper(IndexExercise)()}
+                  />
+                )}
+              />
+              <Route
+                path="simulations/:exerciseId/injects/:injectId/*"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.ASSESSMENT,
+                    }, {
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.RESOURCE,
+                      resourceURIParamName: 'exerciseId',
+                    }]}
+                    Component={errorWrapper(InjectIndex)()}
+                  />
+                )}
+              />
               <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
-              <Route path="atomic_testings/:injectId/*" element={errorWrapper(IndexAtomicTesting)()} />
+              <Route
+                path="atomic_testings/:injectId/*"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.ASSESSMENT,
+                    }, {
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.RESOURCE,
+                      resourceURIParamName: 'injectId',
+                    }]}
+                    Component={errorWrapper(IndexAtomicTesting)()}
+                  />
+                )}
+              />
               <Route path="scenarios" element={errorWrapper(Scenarios)()} />
-              <Route path="scenarios/:scenarioId/*" element={errorWrapper(IndexScenario)()} />
+              <Route
+                path="scenarios/:scenarioId/*"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.ASSESSMENT,
+                    }, {
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.RESOURCE,
+                      resourceURIParamName: 'scenarioId',
+                    }]}
+                    Component={errorWrapper(IndexScenario)()}
+                  />
+                )}
+              />
               <Route path="assets/*" element={errorWrapper(Assets)()} />
               <Route path="teams/*" element={errorWrapper(Teams)()} />
               <Route path="components/*" element={errorWrapper(IndexComponents)()} />
-              <Route path="workspaces/custom_dashboards" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.DASHBOARDS} Component={errorWrapper(CustomDashboards)()} />} />
-              <Route path="workspaces/custom_dashboards/:customDashboardId/*" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.DASHBOARDS} Component={errorWrapper(IndexCustomDashboard)()} />} />
+              <Route
+                path="workspaces/custom_dashboards"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.DASHBOARDS,
+                    }]}
+                    Component={errorWrapper(CustomDashboards)()}
+                  />
+                )}
+              />
+              <Route
+                path="workspaces/custom_dashboards/:customDashboardId/*"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.DASHBOARDS,
+                    }]}
+                    Component={errorWrapper(IndexCustomDashboard)()}
+                  />
+                )}
+              />
               <Route path="payloads" element={errorWrapper(Payloads)()} />
-              <Route path="integrations/*" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.PLATFORM_SETTINGS} Component={errorWrapper(IndexIntegrations)()} />} />
+              <Route
+                path="integrations/*"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.PLATFORM_SETTINGS,
+                    }]}
+                    Component={errorWrapper(IndexIntegrations)()}
+                  />
+                )}
+              />
               <Route path="agents/*" element={errorWrapper(IndexAgents)()} />
               <Route
                 path="settings/*"
-                element={logged.admin || ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS) ? errorWrapper(IndexSettings)()
-                  : <Navigate to="/" replace={true} />}
+                element={errorWrapper(IndexSettings)()}
               />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />

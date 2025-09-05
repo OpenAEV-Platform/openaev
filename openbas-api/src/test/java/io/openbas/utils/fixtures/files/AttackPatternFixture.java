@@ -17,4 +17,12 @@ public class AttackPatternFixture {
     attackPattern.setStixId("attack-pattern-test--" + UUID.randomUUID());
     return attackPattern;
   }
+
+  public static AttackPattern createAttackPatternsWithExternalId(final String externalId) {
+    AttackPattern attackPattern = new AttackPattern();
+    attackPattern.setName("AttackPattern-" + externalId);
+    attackPattern.setExternalId(externalId);
+    attackPattern.setStixId("attack-pattern-test--" + externalId);
+    return attackPattern;
+  }
 }

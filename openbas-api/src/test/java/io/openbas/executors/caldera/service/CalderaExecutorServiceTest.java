@@ -2,7 +2,7 @@ package io.openbas.executors.caldera.service;
 
 import static io.openbas.executors.caldera.service.CalderaExecutorService.toArch;
 import static io.openbas.executors.caldera.service.CalderaExecutorService.toPlatform;
-import static io.openbas.utils.Time.toInstant;
+import static io.openbas.utils.TimeUtils.toInstant;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

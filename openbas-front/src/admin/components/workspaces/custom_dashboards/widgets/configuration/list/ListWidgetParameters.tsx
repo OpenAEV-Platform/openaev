@@ -60,8 +60,8 @@ const ListWidgetParameters = (props: Props) => {
       });
       setPropertySelection(finalOptions);
       const newCols = finalOptions
-        // we will hide all "side" columns unless it is the tags column
-        .filter(o => !o.id.endsWith('_side') || o.id === 'base_tags_side')
+      // we will hide all "side" columns unless it is the tags column or attack patterns column
+        .filter(o => !o.id.endsWith('_side') || o.id === 'base_tags_side' || o.id === 'base_attack_patterns_side')
         .map((d) => {
           return {
             attribute: d.id,

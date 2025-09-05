@@ -2,6 +2,10 @@ package io.openbas.database.model;
 
 import java.lang.annotation.*;
 
+/**
+ * Annotation to mark a resource type that can be granted permissions. This is used to link a class
+ * to an RBAC ResourceType.
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited

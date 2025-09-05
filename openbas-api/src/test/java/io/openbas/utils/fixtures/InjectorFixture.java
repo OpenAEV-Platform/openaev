@@ -40,4 +40,13 @@ public class InjectorFixture {
     injectorRepository.save(injector);
     return injector;
   }
+
+  public Injector getWellKnownEmailInjector() {
+    Injector injector = injectorRepository.findByType("openbas_email").orElseThrow();
+    // ensure the injector is marked for payloads
+    // some tests not running in a transaction may flip this
+    injector.setPayloads(true);
+    injectorRepository.save(injector);
+    return injector;
+  }
 }

@@ -2,7 +2,7 @@ import * as R from 'ramda';
 
 import { type AttackPattern, type InjectorContractFullOutput } from '../api-types';
 
-export const externalContractTypesWithFindings = ['openbas_nmap', 'openbas_nuclei'];
+export const externalContractTypesWithFindings = ['openbas_nmap', 'openbas_nuclei', 'openbas_aws'];
 
 const computeAttackPatterns = (attackPatternIds: InjectorContractFullOutput['injector_contract_attack_patterns'], attackPatternsMap: Record<string, AttackPattern>) => {
   const attackPatternParents = (attackPatternIds ?? []).flatMap((attackPattern) => {

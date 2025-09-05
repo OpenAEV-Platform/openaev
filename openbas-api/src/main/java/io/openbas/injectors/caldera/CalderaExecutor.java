@@ -32,7 +32,7 @@ import io.openbas.rest.inject.service.InjectService;
 import io.openbas.service.AgentService;
 import io.openbas.service.AssetGroupService;
 import io.openbas.service.InjectExpectationService;
-import io.openbas.utils.Time;
+import io.openbas.utils.TimeUtils;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Stream;
@@ -329,7 +329,7 @@ public class CalderaExecutor extends Injector {
                   agentCaldera ->
                       agentCaldera.getExe_name().contains("implant")
                           && (now().toEpochMilli()
-                                  - Time.toInstant(agentCaldera.getCreated()).toEpochMilli())
+                                  - TimeUtils.toInstant(agentCaldera.getCreated()).toEpochMilli())
                               < io.openbas.helper.AgentHelper.ACTIVE_THRESHOLD
                           && (agentCaldera.getHost().equalsIgnoreCase(assetEndpoint.getHostname())
                               || agentCaldera

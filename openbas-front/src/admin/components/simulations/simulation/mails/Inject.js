@@ -1,7 +1,7 @@
 import { ReplyOutlined } from '@mui/icons-material';
 import { Button, Dialog, DialogContent, DialogTitle, GridLegacy, Paper, Typography } from '@mui/material';
 import * as R from 'ramda';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -15,6 +15,7 @@ import ItemTags from '../../../../../components/ItemTags';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { PermissionsContext } from '../../../common/Context.js';
 import AnimationMenu from '../AnimationMenu';
 import Communication from './Communication';
 import CommunicationForm from './CommunicationForm';
@@ -39,6 +40,8 @@ const Inject = () => {
   const [reply, setReply] = useState(null);
   const { t, fndt, fldt } = useFormatter();
   const { injectId, exerciseId } = useParams();
+  const { permissions } = useContext(PermissionsContext);
+
   // Fetching data
   const { exercise, inject, communications, usersMap } = useHelper((helper) => {
     return {
@@ -148,6 +151,7 @@ const Inject = () => {
       topic = R.head(R.filter(n => n.communication_id === reply, topics));
       defaultSubject = `Re: ${topic.communication_subject}`;
     }
+
     return (
       <div className={classes.container}>
         <AnimationMenu exerciseId={exerciseId} />
@@ -231,20 +235,23 @@ const Inject = () => {
                     );
                   },
                 )}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                }}
-                >
-                  <Button
-                    variant="outlined"
-                    style={{ marginBottom: 20 }}
-                    startIcon={<ReplyOutlined />}
-                    onClick={() => handleOpenReply(currentTopic.communication_id)}
+                {permissions.canManage && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                  }}
                   >
-                    {t('Reply')}
-                  </Button>
-                </div>
+                    <Button
+                      variant="outlined"
+                      style={{ marginBottom: 20 }}
+                      startIcon={<ReplyOutlined />}
+                      onClick={() => handleOpenReply(currentTopic.communication_id)}
+                    >
+                      {t('Reply')}
+                    </Button>
+                  </div>
+                )}
+
               </div>
             );
           })}

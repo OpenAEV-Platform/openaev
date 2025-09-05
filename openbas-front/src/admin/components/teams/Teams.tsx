@@ -5,7 +5,7 @@ import { type Page } from '../../../components/common/queryable/Page';
 import { useHelper } from '../../../store';
 import { type SearchPaginationInput, type Team, type TeamOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
-import { TeamContext, type TeamContextType } from '../common/Context';
+import { PermissionsContext, type PermissionsContextType, TeamContext, type TeamContextType } from '../common/Context';
 import TeamsComponent from '../components/teams/Teams';
 import { type UserStore } from './players/Player';
 
@@ -15,6 +15,17 @@ const Teams = () => {
     user: helper.getMe(),
     teams: helper.getTeams(),
   }));
+
+  const permissionsContext: PermissionsContextType = {
+    permissions: {
+      readOnly: false,
+      canManage: false,
+      canAccess: false,
+      canDelete: false,
+      canLaunch: false,
+      isRunning: false,
+    },
+  };
 
   const teamContext: TeamContextType = {
     onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
@@ -30,9 +41,11 @@ const Teams = () => {
   };
 
   return (
-    <TeamContext.Provider value={teamContext}>
-      <TeamsComponent />
-    </TeamContext.Provider>
+    <PermissionsContext.Provider value={permissionsContext}>
+      <TeamContext.Provider value={teamContext}>
+        <TeamsComponent />
+      </TeamContext.Provider>
+    </PermissionsContext.Provider>
   );
 };
 

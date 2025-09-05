@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { searchAssetGroupAsOption, searchAssetGroupLinkedToFindingsAsOption } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchSecurityPlatformAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByNameAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
 import { searchExerciseLinkedToFindingsAsOption } from '../../../../actions/exercises/exercise-action';
@@ -180,6 +181,11 @@ const useSearchOptions = () => {
         break;
       case CUSTOM_DASHBOARD:
         searchCustomDashboardAsOptions(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'base_security_platforms_side':
+        searchSecurityPlatformAsOption(search).then((response) => {
           setOptions(response.data);
         });
         break;
