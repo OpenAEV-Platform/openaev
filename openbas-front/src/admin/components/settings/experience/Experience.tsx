@@ -28,6 +28,8 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EnterpriseEditionButton from '../../common/entreprise_edition/EnterpriseEditionButton';
 import XtmHubSettings from './xtm_hub/XtmHubSettings';
 
@@ -42,7 +44,6 @@ const Experience: React.FC = () => {
   const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
-
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
   });
@@ -79,10 +80,12 @@ const Experience: React.FC = () => {
                 {t('Enterprise Edition')}
               </Typography>
               {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
-                <EnterpriseEditionButton />
+                <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+                  <EnterpriseEditionButton />
+                </Can>
               )}
               {!isEnterpriseEditionByConfig && isEnterpriseEdition && (
-                <>
+                <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
                   <Button
                     size="small"
                     variant="outlined"
@@ -132,7 +135,7 @@ const Experience: React.FC = () => {
                       </Button>
                     </DialogActions>
                   </Dialog>
-                </>
+                </Can>
               )}
             </div>
 
@@ -232,7 +235,9 @@ const Experience: React.FC = () => {
                 {t('Enterprise Edition')}
               </Typography>
               {!isEnterpriseEditionActivated && (
-                <EnterpriseEditionButton />
+                <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+                  <EnterpriseEditionButton />
+                </Can>
               )}
             </div>
 
