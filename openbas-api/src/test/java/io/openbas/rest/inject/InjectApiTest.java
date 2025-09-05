@@ -94,6 +94,9 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
   @Autowired private TeamComposer teamComposer;
@@ -1289,118 +1292,125 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(
               result -> assertTrue(result.getResolvedException() instanceof BadRequestException));
     }
+  }
 
-    @Test
-    @DisplayName("Should return documents for inject id and payload id")
-    void shouldReturnDocumentsForInjectIdAndPayloadId() throws Exception {
-      // -- PREPARE --
-      Payload payload = new Payload();
-      payload.setId("TEST_PAYLOAD");
+  @Nested
+  @WithMockAdminUser
+  @DisplayName("Fetch documents for inject by payload")
+  class ShouldFetchDocuments {
 
-      InjectorContract injectorContract = new InjectorContract();
-      injectorContract.setPayload(payload);
+    private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {
+      return injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                          .withPayload(
+                              payloadComposer
+                                  .forPayload(PayloadFixture.createDefaultFileDrop())
+                                      .withFileDrop(
+                                          documentComposer
+                                              .forDocument(
+                                                  DocumentFixture.getDocument(
+                                                      FileFixture.getPlainTextFileContent()
+                                                  )
+                                              )
+                                      )
+                          )
+              )
+              .persist()
+              .get();
+    }
 
-      Inject inject = new Inject();
-      inject.setId("TEST_INJECT");
-      inject.setInjectorContract(injectorContract);
+    private Inject getInjectWithPayloadAndExecutableDocumentsLinkedOnIt() {
+      return injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(
+                      injectorContractComposer
+                              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                              .withPayload(
+                                      payloadComposer
+                                              .forPayload(PayloadFixture.createDefaultExecutable())
+                                              .withExecutable(
+                                                      documentComposer
+                                                              .forDocument(
+                                                                      DocumentFixture.getDocument(
+                                                                              FileFixture.getBeadFileContent()
+                                                                      )
+                                                              )
+                                              )
+                              )
+              )
+              .persist()
+              .get();
+    }
 
-      // MOCK
-      when(injectRepository.findById("TEST_INJECT")).thenReturn(Optional.of(inject));
-      when(documentService.documentsForPayload("TEST_PAYLOAD")).thenReturn(List.of());
-
-      // EXECUTE
-      MockHttpServletRequestBuilder requestBuilder =
-        get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
-          .accept(MediaType.APPLICATION_JSON)
-          .param("injectId", "TEST_INJECT")
-          .param("payloadId", "TEST_PAYLOAD");
-
-      // ASSERT
-      String response = mvc.perform(requestBuilder)
-        .andExpect(status().is2xxSuccessful())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
-      assertThatJson(response);
+    private Inject getInjectWithoutPayload() {
+      return injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(
+                      injectorContractComposer
+                              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              )
+              .persist()
+              .get();
     }
 
     @Test
-    @DisplayName("Should call for documents by inject id and payload id and throw ElementNotFoundException for inject issue")
-    void shouldCallDocumentsForInjectIdAndPayloadIdAndThrowInjectElementNotFoundException() throws Exception {
-      // MOCK
-      when(injectRepository.findById("TEST")).thenReturn(Optional.empty());
+    @DisplayName("Should return drop file documents for inject id and payload id")
+    void shouldReturnDropFileDocumentsForInjectIdAndPayloadId() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithPayloadAndFileDropDocumentsLinkedOnIt();
+      InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
+      Payload payload = injectorContract.getPayload();
 
       // EXECUTE
       MockHttpServletRequestBuilder requestBuilder =
-              get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
-                      .accept(MediaType.APPLICATION_JSON)
-                      .param("injectId", "TEST")
-                      .param("payloadId", "TEST_PAYLOAD");
+              get(INJECT_URI + "/" + inject.getId() + "/payload/" + payload.getId() + "/documents")
+                      .accept(MediaType.APPLICATION_JSON);
 
       // ASSERT
       String response = mvc.perform(requestBuilder)
-              .andExpect(status().is5xxServerError())
+              .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
               .getContentAsString();
-      assertThatJson(response);
+      assertThatJson(response)
+              .node("[0].document_type")
+              .isEqualTo("text/plain");
     }
 
     @Test
-    @DisplayName("Should call for documents by inject id and payload id and throw ElementNotFoundException for payload")
-    void shouldCallDocumentsForInjectIdAndPayloadIdAndThrowPayloadElementNotFoundException() throws Exception {
-      // -- PREPARE --
-      InjectorContract injectorContract = new InjectorContract();
-      injectorContract.setPayload(null);
-
-      Inject inject = new Inject();
-      inject.setId("TEST_INJECT");
-      inject.setInjectorContract(injectorContract);
-
-      // MOCK
-      when(injectRepository.findById("TEST_INJECT")).thenReturn(Optional.of(inject));
-      when(documentService.documentsForPayload("TEST_PAYLOAD")).thenReturn(List.of());
+    @DisplayName("Should return executable documents for inject id and payload id")
+    void shouldReturnExecutableDocumentsForInjectIdAndPayloadId() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithPayloadAndExecutableDocumentsLinkedOnIt();
+      InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
+      Payload payload = injectorContract.getPayload();
 
       // EXECUTE
       MockHttpServletRequestBuilder requestBuilder =
-              get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
-                      .accept(MediaType.APPLICATION_JSON)
-                      .param("injectId", "TEST_INJECT")
-                      .param("payloadId", "TEST_PAYLOAD");
+              get(INJECT_URI + "/" + inject.getId() + "/payload/" + payload.getId() + "/documents")
+                      .accept(MediaType.APPLICATION_JSON);
 
       // ASSERT
       String response = mvc.perform(requestBuilder)
-              .andExpect(status().is5xxServerError())
+              .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
               .getContentAsString();
-      assertThatJson(response);
+      assertThatJson(response)
+              .node("[0].document_type")
+              .isEqualTo("application/octet-stream");
     }
 
     @Test
-    @DisplayName("Should call for documents by inject id and payload id and throw BadRequestException for payload and inject mismatch")
-    void shouldCallDocumentsForInjectIdAndPayloadIdAndThrowBadRequestException() throws Exception {
-      // -- PREPARE --
-      Payload payload = new Payload();
-      payload.setId("TEST_PAYLOAD");
-
-      InjectorContract injectorContract = new InjectorContract();
-      injectorContract.setPayload(payload);
-
-      Inject inject = new Inject();
-      inject.setId("TEST_INJECT");
-      inject.setInjectorContract(injectorContract);
-
-      // MOCK
-      when(injectRepository.findById("TEST_INJECT")).thenReturn(Optional.of(inject));
-      when(documentService.documentsForPayload("TEST_PAYLOAD")).thenReturn(List.of());
-
+    @DisplayName("Should return ElementNotFoundException for unknown inject")
+    void shouldReturnElementNotFoundExceptionForUnknownInject() throws Exception {
       // EXECUTE
       MockHttpServletRequestBuilder requestBuilder =
-              get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
-                      .accept(MediaType.APPLICATION_JSON)
-                      .param("injectId", "TEST_INJECT")
-                      .param("payloadId", "TEST");
+              get(INJECT_URI + "/TEST/payload/TEST/documents")
+                      .accept(MediaType.APPLICATION_JSON);
 
       // ASSERT
       String response = mvc.perform(requestBuilder)
@@ -1408,7 +1418,47 @@ class InjectApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      assertThatJson(response);
+      assertThatJson(response)
+              .node("message")
+              .isEqualTo("Element not found: inject not found with id : TEST");
+    }
+
+    @Test
+    @DisplayName("Should return ElementNotFoundException for inject without payload")
+    void shouldReturnElementNotFoundExceptionForInjectWithoutPayload() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithoutPayload();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+              get(INJECT_URI + "/" + inject.getId() + "/payload/TEST/documents")
+                      .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      String response = mvc.perform(requestBuilder)
+              .andExpect(status().is4xxClientError())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response)
+              .node("message")
+              .isEqualTo("Element not found: payload not found on inject with id : " + inject.getId());
+    }
+
+    @Test
+    @DisplayName("Should return BadRequestException when inject and payload mismatch")
+    void shouldReturnBadRequestExceptionWhenInjectAndPayloadMismatch() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithPayloadAndFileDropDocumentsLinkedOnIt();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+              get(INJECT_URI + "/" + inject.getId() + "/payload/TEST/documents")
+                      .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      mvc.perform(requestBuilder)
+          .andExpect(status().isBadRequest());
     }
   }
 }
