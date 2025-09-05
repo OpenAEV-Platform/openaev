@@ -6,6 +6,7 @@ import static java.util.Collections.emptySet;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
+import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectService;
 import java.util.*;
@@ -28,6 +29,7 @@ public class SecurityCoverageInjectService {
   private final InjectService injectService;
   private final InjectAssistantService injectAssistantService;
   private final AttackPatternService attackPatternService;
+  private final CveService cveService;
   private final AssetGroupService assetGroupService;
 
   private final InjectRepository injectRepository;
@@ -51,9 +53,31 @@ public class SecurityCoverageInjectService {
    */
   public Set<Inject> createdInjectsForScenario(
       Scenario scenario, SecurityCoverage securityCoverage) {
+
+    getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
+    getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
+
+    return injectRepository.findByScenarioId(scenario.getId());
+  }
+
+  private Set<Inject> getInjectsByVulnerabilities(
+      Scenario scenario, List<StixRefToExternalRef> vulnerabilityRefs) {
     // 1. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
-        attackPatternService.fetchInternalAttackPatternIds(securityCoverage.getAttackPatternRefs());
+        cveService.fetch(attackPatternRefs);
+
+    if (attackPatterns.isEmpty()) {
+      injectService.deleteAll(scenario.getInjects());
+      return emptySet();
+    }
+    return Set.of();
+  }
+
+  private Set<Inject> getInjectsRelatedToAttackPatterns(
+      Scenario scenario, List<StixRefToExternalRef> attackPatternRefs) {
+    // 1. Fetch internal Ids for AttackPatterns
+    Map<String, AttackPattern> attackPatterns =
+        attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
 
     if (attackPatterns.isEmpty()) {
       injectService.deleteAll(scenario.getInjects());
@@ -79,8 +103,7 @@ public class SecurityCoverageInjectService {
     } else {
       handleWithAssetGroupsCase(scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
     }
-
-    return injectRepository.findByScenarioId(scenario.getId());
+    return null;
   }
 
   /**

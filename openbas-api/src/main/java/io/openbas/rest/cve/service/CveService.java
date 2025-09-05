@@ -6,9 +6,7 @@ import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.config.cache.LicenseCacheManager;
-import io.openbas.database.model.Collector;
-import io.openbas.database.model.Cve;
-import io.openbas.database.model.Cwe;
+import io.openbas.database.model.*;
 import io.openbas.database.repository.CveRepository;
 import io.openbas.database.repository.CweRepository;
 import io.openbas.ee.Ee;
@@ -197,5 +195,23 @@ public class CveService {
             .collect(Collectors.toList());
 
     cve.setCwes(cweEntities);
+  }
+
+
+  /**
+   * Resolves external Vulnerability references from a list of vulnerability refs into internal
+   * {@link Cve} entities.
+   *
+   * @param vulnerabilityRefs list vulnerability Refs to resolve with internal vulnerability refs
+   * @return list of resolved internal vulnerability entities
+   */
+  public Map<String, Cve> fetchInternalVulnerabilityIds(
+      List<StixRefToExternalRef> vulnerabilityRefs) {
+    return getAttackPatternsByExternalIds(
+        vulnerabilityRefs.stream()
+            .map(StixRefToExternalRef::getExternalRef)
+            .collect(Collectors.toSet()))
+        .stream()
+        .collect(Collectors.toMap(vuln -> vuln.(), Function.identity()));
   }
 }

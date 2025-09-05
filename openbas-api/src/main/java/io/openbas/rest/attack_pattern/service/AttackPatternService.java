@@ -183,7 +183,7 @@ public class AttackPatternService {
     return attackPatterns;
   }
 
-  public List<AttackPattern> getAttackPatternsByInternalIdsThrowIfMissing(Set<String> ids) {
+  public List<AttackPattern> findAllByInternalIdsThrowIfMissing(Set<String> ids) {
     List<AttackPattern> attackPatterns = this.getAttackPatternsByInternalIds(ids);
     List<String> missingIds =
         ids.stream()
@@ -236,7 +236,7 @@ public class AttackPatternService {
 
   /**
    * Resolves external AttackPattern references from a list of attack pattern refs into internal
-   * {@link AttackPattern} entities using the {@code attackPatternService}.
+   * {@link AttackPattern} entities.
    *
    * @param attackPatternRefs list attackPatternRefs to resolve with internal attackPattern refs
    * @return list of resolved internal AttackPattern entities
