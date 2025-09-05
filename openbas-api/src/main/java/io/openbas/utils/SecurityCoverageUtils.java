@@ -32,7 +32,7 @@ public class SecurityCoverageUtils {
   }
 
   /**
-   * Extracts MITRE attack references from a list of STIX objects.
+   * Extracts references from a list of STIX objects.
    *
    * <p>For each object that has a {@code x_mitre_id} property, this method creates a {@link
    * StixRefToExternalRef} mapping between the object's STIX ID and its MITRE external ID.
@@ -40,7 +40,7 @@ public class SecurityCoverageUtils {
    * @param objects the list of STIX objects to scan
    * @return a list of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public static List<StixRefToExternalRef> extractAttackReferences(List<ObjectBase> objects) {
+  public static List<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
     List<StixRefToExternalRef> stixToRef = new ArrayList<>();
     for (ObjectBase obj : objects) {
       String mitreId = (String) obj.getProperty(STIX_X_MITRE_ID).getValue();
