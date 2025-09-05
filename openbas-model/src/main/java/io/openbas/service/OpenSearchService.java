@@ -51,6 +51,7 @@ import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
 import org.opensearch.client.opensearch.core.search.Hit;
 import org.opensearch.client.opensearch.generic.Requests;
 import org.opensearch.client.opensearch.generic.Response;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @Slf4j
 public class OpenSearchService implements EngineService {
@@ -439,9 +440,20 @@ public class OpenSearchService implements EngineService {
                 })
             .filter(Objects::nonNull)
             .toList();
-    if (!statuses.isEmpty()) {
-      indexingStatusRepository.saveAll(statuses);
-    }
+    statuses.forEach(
+        (indexingStatus) -> {
+          try {
+            indexingStatusRepository.save(indexingStatus);
+          } catch (DataIntegrityViolationException e) {
+            log.warn(
+                "DataIntegrityViolationException - There was a conflict. Trying to solve it ... ",
+                e);
+            IndexingStatus alreadyExistingStatus =
+                indexingStatusRepository.findByType(indexingStatus.getType()).get();
+            alreadyExistingStatus.setLastIndexing(indexingStatus.getLastIndexing());
+            indexingStatusRepository.save(alreadyExistingStatus);
+          }
+        });
   }
 
   public void bulkDelete(List<String> ids) {
