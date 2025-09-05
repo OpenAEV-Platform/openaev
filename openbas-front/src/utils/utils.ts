@@ -19,6 +19,20 @@ export function recordEntries<K extends PropertyKey, T>(object: Record<K, T>) {
   return Object.entries(object) as ([K, T])[];
 }
 
+export function arrayToRecord<T, K extends keyof T>(
+    list: T[],
+    key: K
+): Record<string, T> | null {
+  if (!list || !list.length)
+    return null;
+
+  return list.reduce((acc, item) => {
+    const recordKey = String(item[key]);
+    acc[recordKey] = item;
+    return acc;
+  }, {} as Record<string, T>);
+}
+
 export const copyToClipboard = (t: (text: string) => string, text: string) => {
   if ('clipboard' in navigator) {
     navigator.clipboard.writeText(text);

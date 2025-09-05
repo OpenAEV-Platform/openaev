@@ -128,3 +128,10 @@ export const fetchPayloadDetectionRemediationsByInject = (injectId: string) => {
   const uri = `${INJECT_URI}/detection-remediations/${injectId}`;
   return simpleCall(uri);
 };
+
+// Documents
+export const fetchDocumentsPayloadByInject = async (injectId: string, payloadId: string | undefined) => {
+  const uri = `${INJECT_URI}/${injectId}/payload/${payloadId}/documents`;
+  const result = await simpleCall(uri);
+  return result.data;
+};

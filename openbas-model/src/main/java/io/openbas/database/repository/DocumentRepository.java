@@ -142,7 +142,7 @@ public interface DocumentRepository
                                 left join scenarios sc on sc.scenario_id = scdoc.scenario_id
                                 left join documents_tags tagdoc on d.document_id = tagdoc.document_id
                                 left join tags tg on tg.tag_id = tagdoc.tag_id
-                                left join payloads pa on d.document_id = pa.file_drop_file
+                                left join payloads pa on (d.document_id = pa.file_drop_file or d.document_id = pa.executable_file)
                                 where pa.payload_id = :payloadId
                                 group by d.document_id
                                 order by d.document_id desc

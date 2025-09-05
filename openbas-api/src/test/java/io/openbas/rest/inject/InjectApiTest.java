@@ -32,10 +32,12 @@ import io.openbas.injector_contract.ContractTargetedProperty;
 import io.openbas.injector_contract.fields.ContractFieldType;
 import io.openbas.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openbas.rest.atomic_testing.form.InjectStatusOutput;
+import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.inject.form.*;
 import io.openbas.rest.inject.service.InjectStatusService;
+import io.openbas.rest.payload.form.PayloadUpsertInput;
 import io.openbas.service.ScenarioService;
 import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
@@ -74,6 +76,8 @@ import org.springframework.util.ResourceUtils;
 @Transactional
 class InjectApiTest extends IntegrationTest {
 
+  private static final String PAYLOAD_URI = "/api/payloads";
+
   static Exercise EXERCISE;
   static Scenario SCENARIO;
   static Document DOCUMENT1;
@@ -85,6 +89,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
+  @SpyBean private DocumentService documentService;
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -1283,6 +1288,127 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> assertTrue(result.getResolvedException() instanceof BadRequestException));
+    }
+
+    @Test
+    @DisplayName("Should return documents for inject id and payload id")
+    void shouldReturnDocumentsForInjectIdAndPayloadId() throws Exception {
+      // -- PREPARE --
+      Payload payload = new Payload();
+      payload.setId("TEST_PAYLOAD");
+
+      InjectorContract injectorContract = new InjectorContract();
+      injectorContract.setPayload(payload);
+
+      Inject inject = new Inject();
+      inject.setId("TEST_INJECT");
+      inject.setInjectorContract(injectorContract);
+
+      // MOCK
+      when(injectRepository.findById("TEST_INJECT")).thenReturn(Optional.of(inject));
+      when(documentService.documentsForPayload("TEST_PAYLOAD")).thenReturn(List.of());
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+        get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
+          .accept(MediaType.APPLICATION_JSON)
+          .param("injectId", "TEST_INJECT")
+          .param("payloadId", "TEST_PAYLOAD");
+
+      // ASSERT
+      String response = mvc.perform(requestBuilder)
+        .andExpect(status().is2xxSuccessful())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+      assertThatJson(response);
+    }
+
+    @Test
+    @DisplayName("Should call for documents by inject id and payload id and throw ElementNotFoundException for inject issue")
+    void shouldCallDocumentsForInjectIdAndPayloadIdAndThrowInjectElementNotFoundException() throws Exception {
+      // MOCK
+      when(injectRepository.findById("TEST")).thenReturn(Optional.empty());
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+              get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .param("injectId", "TEST")
+                      .param("payloadId", "TEST_PAYLOAD");
+
+      // ASSERT
+      String response = mvc.perform(requestBuilder)
+              .andExpect(status().is5xxServerError())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response);
+    }
+
+    @Test
+    @DisplayName("Should call for documents by inject id and payload id and throw ElementNotFoundException for payload")
+    void shouldCallDocumentsForInjectIdAndPayloadIdAndThrowPayloadElementNotFoundException() throws Exception {
+      // -- PREPARE --
+      InjectorContract injectorContract = new InjectorContract();
+      injectorContract.setPayload(null);
+
+      Inject inject = new Inject();
+      inject.setId("TEST_INJECT");
+      inject.setInjectorContract(injectorContract);
+
+      // MOCK
+      when(injectRepository.findById("TEST_INJECT")).thenReturn(Optional.of(inject));
+      when(documentService.documentsForPayload("TEST_PAYLOAD")).thenReturn(List.of());
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+              get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .param("injectId", "TEST_INJECT")
+                      .param("payloadId", "TEST_PAYLOAD");
+
+      // ASSERT
+      String response = mvc.perform(requestBuilder)
+              .andExpect(status().is5xxServerError())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response);
+    }
+
+    @Test
+    @DisplayName("Should call for documents by inject id and payload id and throw BadRequestException for payload and inject mismatch")
+    void shouldCallDocumentsForInjectIdAndPayloadIdAndThrowBadRequestException() throws Exception {
+      // -- PREPARE --
+      Payload payload = new Payload();
+      payload.setId("TEST_PAYLOAD");
+
+      InjectorContract injectorContract = new InjectorContract();
+      injectorContract.setPayload(payload);
+
+      Inject inject = new Inject();
+      inject.setId("TEST_INJECT");
+      inject.setInjectorContract(injectorContract);
+
+      // MOCK
+      when(injectRepository.findById("TEST_INJECT")).thenReturn(Optional.of(inject));
+      when(documentService.documentsForPayload("TEST_PAYLOAD")).thenReturn(List.of());
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+              get(INJECT_URI + "/${injectId}/payload/${payloadId}/documents")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .param("injectId", "TEST_INJECT")
+                      .param("payloadId", "TEST");
+
+      // ASSERT
+      String response = mvc.perform(requestBuilder)
+              .andExpect(status().is4xxClientError())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response);
     }
   }
 }

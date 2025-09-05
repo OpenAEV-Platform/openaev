@@ -8,6 +8,7 @@ import io.openbas.aop.RBAC;
 import io.openbas.aop.lock.Lock;
 import io.openbas.aop.lock.LockResourceType;
 import io.openbas.database.model.*;
+import io.openbas.database.raw.RawDocument;
 import io.openbas.database.repository.ExerciseRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.UserRepository;
@@ -15,6 +16,7 @@ import io.openbas.database.specification.InjectSpecification;
 import io.openbas.database.specification.SpecificationUtils;
 import io.openbas.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openbas.rest.atomic_testing.form.InjectStatusOutput;
+import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.exception.UnprocessableContentException;
@@ -78,6 +80,7 @@ public class InjectApi extends RestBehavior {
   private final UserRepository userRepository;
   private final PayloadMapper payloadMapper;
   private final UserService userService;
+  private final DocumentService documentService;
 
   // -- INJECTS --
 
@@ -538,5 +541,21 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId) {
     return payloadMapper.toDetectionRemediationOutputs(
         injectService.fetchDetectionRemediationsByInjectId(injectId));
+  }
+
+  @Operation(description = "Get documents by inject and payload id")
+  @GetMapping(INJECT_URI + "/{injectId}/payload/{payloadId}/documents")
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
+          @PathVariable String injectId,
+          @PathVariable String payloadId) {
+    Inject inject = injectRepository.findById(injectId).orElseThrow(() -> new ElementNotFoundException("inject not found with id : " + injectId));
+    Payload payload = inject.getPayload().orElseThrow(() -> new ElementNotFoundException("payload not found on inject with id : " + injectId));
+
+    if (!payload.getId().isEmpty() && payload.getId().equals(payloadId)) {
+      return documentService.documentsForPayload(payloadId);
+    }
+
+    throw new BadRequestException("provided payload id mismatch with provided inject id");
   }
 }
