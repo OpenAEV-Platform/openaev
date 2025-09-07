@@ -17,7 +17,7 @@
         <bcpg-jdk18on.version>1.81</bcpg-jdk18on.version>
         <commons-collections4.version>4.5.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
-        <springdoc.version>2.6.0</springdoc.version>
+        <springdoc.version>2.8.13</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.4.1</apache-poi.version>
