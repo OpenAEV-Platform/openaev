@@ -1,7 +1,7 @@
 import { HelpOutlined } from '@mui/icons-material';
 import { Avatar, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useEffect, useRef, useState } from 'react';
+import {type SyntheticEvent, useContext, useEffect, useRef, useState} from 'react';
 
 import { fetchInject } from '../../../../actions/Inject';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
