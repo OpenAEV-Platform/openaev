@@ -84,7 +84,8 @@ public class DetectionRemediationService {
     return certificate;
   }
 
-  private <T> T callAPI(OkHttpClient client, Request request, String error, Class<? extends T> clazz) {
+  private <T> T callAPI(
+      OkHttpClient client, Request request, String error, Class<? extends T> clazz) {
     try (Response response = client.newCall(request).execute()) {
       assert response.body() != null;
       if (!response.isSuccessful()) {
