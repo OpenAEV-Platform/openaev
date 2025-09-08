@@ -48,7 +48,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @Slf4j
 public class ElasticService implements EngineService {
@@ -374,19 +373,9 @@ public class ElasticService implements EngineService {
             .filter(Objects::nonNull)
             .toList();
     statuses.forEach(
-        (indexingStatus) -> {
-          try {
-            indexingStatusRepository.save(indexingStatus);
-          } catch (DataIntegrityViolationException e) {
-            log.warn(
-                "DataIntegrityViolationException - There was a conflict. Trying to solve it ... ",
-                e);
-            IndexingStatus alreadyExistingStatus =
-                indexingStatusRepository.findByType(indexingStatus.getType()).get();
-            alreadyExistingStatus.setLastIndexing(indexingStatus.getLastIndexing());
-            indexingStatusRepository.save(alreadyExistingStatus);
-          }
-        });
+        (indexingStatus) ->
+            indexingStatusRepository.safeSave(
+                indexingStatus.getType(), indexingStatus.getLastIndexing()));
   }
 
   @Override
