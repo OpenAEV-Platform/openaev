@@ -92,7 +92,7 @@ const AtomicTestingPopover: FunctionComponent<Props> = ({
   if (actions.includes('Update') && atomic.inject_injector_contract !== null) entries.push({
     label: 'Update',
     action: () => handleOpenEdit(),
-    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, atomic.inject_id),
+    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, atomic.inject_id) || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT),
   });
   if (actions.includes('Duplicate') && atomic.inject_injector_contract !== null) entries.push({
     label: 'Duplicate',
@@ -107,7 +107,7 @@ const AtomicTestingPopover: FunctionComponent<Props> = ({
   if (actions.includes('Delete')) entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
-    userRight: ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, atomic.inject_id),
+    userRight: ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, atomic.inject_id) || ability.can(ACTIONS.DELETE, SUBJECTS.ASSESSMENT),
   });
 
   return (

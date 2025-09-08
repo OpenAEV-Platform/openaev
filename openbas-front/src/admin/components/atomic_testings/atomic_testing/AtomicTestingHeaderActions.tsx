@@ -24,8 +24,8 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const theme = useTheme();
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
-
   const dispatch = useAppDispatch();
+  const hasAbility = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
 
   const [edition, setEdition] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -138,8 +138,6 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
       </Dialog>
     );
   }
-
-  const hasAbility = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
 
   return (
     <>
