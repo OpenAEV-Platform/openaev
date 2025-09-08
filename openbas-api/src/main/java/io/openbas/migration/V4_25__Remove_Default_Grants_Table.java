@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_21__Remove_Default_Grants_Table extends BaseJavaMigration {
+public class V4_25__Remove_Default_Grants_Table extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
