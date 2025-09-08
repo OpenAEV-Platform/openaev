@@ -1,5 +1,6 @@
 import { CheckCircleOutlined, GroupsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
@@ -22,6 +23,15 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import SecurityMenu from '../SecurityMenu';
 import CreateGroup from './CreateGroup';
 import GroupPopover from './GroupPopover';
+import {
+  defaultGrantAtomicTestingObserver, defaultGrantAtomicTestingPlanner,
+  defaultGrantPayloadObserver, defaultGrantPayloadPlanner,
+  defaultGrantScenarioObserver,
+  defaultGrantScenarioPlanner,
+  defaultGrantSimulationObserver,
+  defaultGrantSimulationPlanner,
+  isDefaultGrantPresent,
+} from './GroupUtils.js';
 
 const useStyles = makeStyles()(() => ({
   itemHead: {
@@ -97,6 +107,7 @@ const Groups = () => {
       field: 'group_users_number',
       label: 'Users',
       isSortable: false,
+      value: group => isDefaultGrantPresent(group.group_default_grants, defaultGrantSimulationObserver),
     },
     {
       field: 'group_roles',

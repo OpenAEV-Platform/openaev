@@ -1,19 +1,39 @@
 import { type JSX, useContext } from 'react';
+import { useParams } from 'react-router';
 
 import NoAccess from './NoAccess';
 import { AbilityContext } from './PermissionsProvider';
 import type { Actions, Subjects } from './types';
 
-type ProtectedRouteProps = {
+type GrantCheck = {
   action: Actions;
   subject: Subjects;
-  Component: JSX.Element;
+  resourceURIParamName?: string;
 };
 
-const ProtectedRoute = ({ action, subject, Component }: ProtectedRouteProps) => {
-  const ability = useContext(AbilityContext);
+type ProtectedRouteProps = {
+  Component: JSX.Element;
+  checks: GrantCheck[];
+};
 
-  if (!ability.can(action, subject)) {
+const ProtectedRoute = ({ checks, Component }: ProtectedRouteProps) => {
+  const ability = useContext(AbilityContext);
+  const params = useParams();
+
+  const grantedFor = checks.some(
+    ({ action, subject, resourceURIParamName }) => {
+      let resourceId;
+      if (resourceURIParamName) {
+        resourceId = params[resourceURIParamName];
+      }
+      if (resourceId) {
+        return ability.can(action, subject, resourceId);
+      }
+      return ability.can(action, subject);
+    },
+  );
+
+  if (!grantedFor) {
     return (
       <NoAccess />
     );

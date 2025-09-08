@@ -4,9 +4,11 @@ import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { fetchMe } from '../../../../actions/Application';
 import { launchAtomicTesting, relaunchAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AtomicTestingPopover from './AtomicTestingPopover';
@@ -22,6 +24,8 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const theme = useTheme();
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
+
+  const dispatch = useAppDispatch();
 
   const [edition, setEdition] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -51,7 +55,9 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     handleCannotLaunch();
     if (injectResultOverview?.inject_id) {
       await relaunchAtomicTesting(injectResultOverview.inject_id).then((result) => {
-        navigate(`/admin/atomic_testings/${result.data.inject_id}`);
+        dispatch(fetchMe()).then(() => {
+          navigate(`/admin/atomic_testings/${result.data.inject_id}`);
+        });
       });
     }
     handleCanLaunch();

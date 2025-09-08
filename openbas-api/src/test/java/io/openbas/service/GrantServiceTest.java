@@ -28,7 +28,6 @@ public class GrantServiceTest extends IntegrationTest {
   public void test_hasReadGrant_WHEN_has_read_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);
-
     when(grantRepository.existsByUserIdAndResourceIdAndNameIn(
             USER_ID, RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
         .thenReturn(true);

@@ -25,10 +25,54 @@ const Index = () => {
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route path="" element={<Navigate to={ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) ? 'endpoints' : 'security_platforms'} replace={true} />} />
-          <Route path="endpoints" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.ASSETS} Component={errorWrapper(Endpoints)()} />} />
-          <Route path="endpoints/:endpointId/*" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.ASSETS} Component={errorWrapper(IndexEndpoint)()} />} />
-          <Route path="asset_groups" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.ASSETS} Component={errorWrapper(AssetGroups)()} />} />
-          <Route path="security_platforms" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.SECURITY_PLATFORMS} Component={errorWrapper(SecurityPlatforms)()} />} />
+          <Route
+            path="endpoints"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.ASSETS,
+                }]}
+                Component={errorWrapper(Endpoints)()}
+              />
+            )}
+          />
+          <Route
+            path="endpoints/:endpointId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.ASSETS,
+                }]}
+                Component={errorWrapper(IndexEndpoint)()}
+              />
+            )}
+          />
+          <Route
+            path="asset_groups"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.ASSETS,
+                }]}
+                Component={errorWrapper(AssetGroups)()}
+              />
+            )}
+          />
+          <Route
+            path="security_platforms"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.SECURITY_PLATFORMS,
+                }]}
+                Component={errorWrapper(SecurityPlatforms)()}
+              />
+            )}
+          />
           {/* Not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>

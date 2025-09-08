@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -40,4 +41,10 @@ public interface GrantRepository
       @Param("userId") String userId,
       @Param("resourceId") String resourceId,
       @Param("grantTypes") List<Grant.GRANT_TYPE> grantTypes);
+
+  @Modifying
+  @Query(
+      "UPDATE Grant g SET g.resourceId = :newId WHERE g.resourceId = :currentId AND g.grantResourceType = :resourceType")
+  int updateGrantResourceIdAndType(
+      String currentId, String newId, Grant.GRANT_RESOURCE_TYPE resourceType);
 }

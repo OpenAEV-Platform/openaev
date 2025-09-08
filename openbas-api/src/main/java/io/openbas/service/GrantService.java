@@ -4,6 +4,15 @@ import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import static io.openbas.helper.StreamHelper.fromIterable;
+import io.openbas.database.model.Grant;
+import io.openbas.database.model.GrantableBase;
+import io.openbas.database.model.Group;
+import io.openbas.database.model.User;
+import io.openbas.database.repository.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -61,5 +70,12 @@ public class GrantService {
     if (!exists) {
       throw new IllegalArgumentException("A valid resource ID should be present");
     }
+  }
+
+  public void updateGrantsForNewResource(
+      @NotBlank String currentId,
+      @NotBlank String newId,
+      @NotBlank Grant.GRANT_RESOURCE_TYPE grantType) {
+    grantRepository.updateGrantResourceIdAndType(currentId, newId, grantType);
   }
 }

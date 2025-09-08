@@ -57,7 +57,6 @@ public class AtomicTestingService {
   private final DocumentRepository documentRepository;
   private final AssetGroupService assetGroupService;
   private final UserService userService;
-
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
 
@@ -222,8 +221,15 @@ public class AtomicTestingService {
     return injectService.launch(id);
   }
 
+  @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
-    return injectService.relaunch(id);
+    // Relaunching an atomic testing is considered as creating a new one.
+    // Therefore, any grants created on the current atomic testing will have to be updated with the
+    // new ID
+    InjectResultOverviewOutput relaunched = injectService.relaunch(id);
+    grantService.updateGrantsForNewResource(
+        id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
+    return relaunched;
   }
 
   // -- PAGINATION --
