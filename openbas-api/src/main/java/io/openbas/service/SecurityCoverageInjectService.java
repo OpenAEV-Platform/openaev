@@ -63,13 +63,12 @@ public class SecurityCoverageInjectService {
   private Set<Inject> getInjectsByVulnerabilities(
       Scenario scenario, List<StixRefToExternalRef> vulnerabilityRefs) {
     // 1. Fetch internal Ids for AttackPatterns
-    Map<String, AttackPattern> attackPatterns =
-        cveService.fetch(attackPatternRefs);
+    Map<String, Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
-    if (attackPatterns.isEmpty()) {
-      injectService.deleteAll(scenario.getInjects());
+    if (vulnerabilityRefs.isEmpty()) {
       return emptySet();
     }
+
     return Set.of();
   }
 
@@ -80,7 +79,6 @@ public class SecurityCoverageInjectService {
         attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
 
     if (attackPatterns.isEmpty()) {
-      injectService.deleteAll(scenario.getInjects());
       return emptySet();
     }
 

@@ -1,6 +1,7 @@
 package io.openbas.rest.attack_pattern.service;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
+import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -243,11 +244,7 @@ public class AttackPatternService {
    */
   public Map<String, AttackPattern> fetchInternalAttackPatternIds(
       List<StixRefToExternalRef> attackPatternRefs) {
-    return getAttackPatternsByExternalIds(
-            attackPatternRefs.stream()
-                .map(StixRefToExternalRef::getExternalRef)
-                .collect(Collectors.toSet()))
-        .stream()
+    return getAttackPatternsByExternalIds(getExternalIds(attackPatternRefs)).stream()
         .collect(Collectors.toMap(attack -> attack.getId(), Function.identity()));
   }
 }

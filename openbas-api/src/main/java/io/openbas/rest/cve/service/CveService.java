@@ -1,6 +1,7 @@
 package io.openbas.rest.cve.service;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
+import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,10 +18,7 @@ import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -169,6 +167,13 @@ public class CveService {
     }
   }
 
+  public List<Cve> getVulnerabilitiesByExternalIds(Set<String> ids) {
+    if (ids.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return this.cveRepository.findAllByExternalIdInIgnoreCase(new ArrayList<>(ids));
+  }
+
   public void deleteById(final String cveId) {
     cveRepository.deleteById(cveId);
   }
@@ -197,7 +202,6 @@ public class CveService {
     cve.setCwes(cweEntities);
   }
 
-
   /**
    * Resolves external Vulnerability references from a list of vulnerability refs into internal
    * {@link Cve} entities.
@@ -207,11 +211,7 @@ public class CveService {
    */
   public Map<String, Cve> fetchInternalVulnerabilityIds(
       List<StixRefToExternalRef> vulnerabilityRefs) {
-    return getAttackPatternsByExternalIds(
-        vulnerabilityRefs.stream()
-            .map(StixRefToExternalRef::getExternalRef)
-            .collect(Collectors.toSet()))
-        .stream()
-        .collect(Collectors.toMap(vuln -> vuln.(), Function.identity()));
+    return getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs)).stream()
+        .collect(Collectors.toMap(vuln -> vuln.getId(), Function.identity()));
   }
 }

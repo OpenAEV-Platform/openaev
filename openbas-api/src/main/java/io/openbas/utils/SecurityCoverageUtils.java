@@ -8,6 +8,8 @@ import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.coyote.BadRequestException;
 
 public class SecurityCoverageUtils {
@@ -66,5 +68,15 @@ public class SecurityCoverageUtils {
     }
 
     return stixToRef;
+  }
+
+  /**
+   * @param objectRefs the list of STIX objects to scan
+   * @return a list of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
+   */
+  public static Set<String> getExternalIds(List<StixRefToExternalRef> objectRefs) {
+    return objectRefs.stream()
+        .map(StixRefToExternalRef::getExternalRef)
+        .collect(Collectors.toSet());
   }
 }
