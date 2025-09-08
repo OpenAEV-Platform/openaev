@@ -1634,6 +1634,19 @@ export interface EngineSortField {
   fieldName: string;
 }
 
+export interface EsAssetGroup {
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @format date-time */
+  base_updated_at?: string;
+  name?: string;
+}
+
 export interface EsAttackPath {
   /** @uniqueItems true */
   attackPatternChildrenIds?: string[];
@@ -1678,6 +1691,9 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"scenario", EsScenario>
     | BaseEsBaseBaseEntityMapping<"tag", EsTag>
     | BaseEsBaseBaseEntityMapping<"vulnerable-endpoint", EsVulnerableEndpoint>
+    | BaseEsBaseBaseEntityMapping<"team", EsTeam>
+    | BaseEsBaseBaseEntityMapping<"security-platform", EsSecurityPlatform>
+    | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
   );
 
 export interface EsEndpoint {
@@ -1838,6 +1854,19 @@ export interface EsSearch {
   base_updated_at?: string;
 }
 
+export interface EsSecurityPlatform {
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @format date-time */
+  base_updated_at?: string;
+  name?: string;
+}
+
 export interface EsSeries {
   color?: string;
   data?: EsSeriesData[];
@@ -1887,6 +1916,19 @@ export interface EsTag {
   /** @format date-time */
   base_updated_at?: string;
   tag_color?: string;
+}
+
+export interface EsTeam {
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @format date-time */
+  base_updated_at?: string;
+  name?: string;
 }
 
 export interface EsVulnerableEndpoint {

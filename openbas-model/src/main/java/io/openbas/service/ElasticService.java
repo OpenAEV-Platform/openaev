@@ -7,15 +7,13 @@ import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.FieldSort;
-import co.elastic.clients.elasticsearch._types.FieldValue;
-import co.elastic.clients.elasticsearch._types.SortOptions;
-import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.*;
 import co.elastic.clients.elasticsearch._types.aggregations.*;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.config.EngineConfig;
 import io.openbas.database.model.CustomDashboardParameters;
@@ -385,10 +383,12 @@ public class ElasticService implements EngineService {
   public void bulkDelete(List<String> ids) {
     try {
       List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
+      // Delete the direct document corresponding to the id
       Query directId =
           TermsQuery.of(
                   t -> t.field("base_id.keyword").terms(TermsQueryField.of(tq -> tq.value(values))))
               ._toQuery();
+      // Delete "cascade" the documents including the id in their "base_dependencies"
       Query dependenciesId =
           TermsQuery.of(
                   t ->
@@ -402,6 +402,34 @@ public class ElasticService implements EngineService {
               .index(engineConfig.getIndexPrefix() + "*")
               .query(query)
               .refresh(true)
+              .build());
+      // Delete the id in the attributes of the documents including the id
+      elasticClient.updateByQuery(
+          new UpdateByQueryRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .script(
+                  Script.of(
+                      s ->
+                          s.source(
+                                  """
+                                          // For each EsBase attribute of each document
+                                          for (String key : ctx._source.keySet().toArray()) {
+                                            // If it's a "base_XXX_side" (means String id or List of ids), we delete only in the "base_XXX_side" of the EsBase the object id deleted before with the deleteByQuery
+                                            if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
+                                                if (ctx._source[key] instanceof List) {
+                                                    ctx._source[key].removeIf(item -> item == params.valueToRemove);
+                                                } else if (ctx._source[key] instanceof String && ctx._source[key] == params.valueToRemove) {
+                                                    ctx._source.remove(key);
+                                                }
+                                            }
+                                          }
+                                        """)
+                              .params(
+                                  "valueToRemove",
+                                  JsonData.of(ids.getFirst())) // Only 1 id in this list
+                              .lang("painless")))
+              .refresh(true)
+              .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
       log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
