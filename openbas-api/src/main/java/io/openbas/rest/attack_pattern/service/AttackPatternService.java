@@ -239,15 +239,13 @@ public class AttackPatternService {
    * Resolves external AttackPattern references from a {@link SecurityCoverage} into internal {@link
    * AttackPattern} entities using the {@code attackPatternService}.
    *
-   * @param securityCoverage the security assessment containing external AttackPattern references
+   * @param stixRefs list of tuples linking an atatck pattern ext ID with a stix ID
    * @return list of resolved internal AttackPattern entities
    */
   public Map<String, AttackPattern> fetchInternalAttackPatternIdsFromSecurityCoverage(
-      SecurityCoverage securityCoverage) {
+      List<StixRefToExternalRef> stixRefs) {
     return getAttackPatternsByExternalIds(
-            securityCoverage.getAttackPatternRefs().stream()
-                .map(StixRefToExternalRef::getExternalRef)
-                .collect(Collectors.toSet()))
+            stixRefs.stream().map(StixRefToExternalRef::getExternalRef).collect(Collectors.toSet()))
         .stream()
         .collect(Collectors.toMap(attack -> attack.getId(), Function.identity()));
   }
