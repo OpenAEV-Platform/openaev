@@ -28,7 +28,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private EndpointComposer endpointComposer;
-  @Autowired private SecurityAssessmentComposer securityAssessmentComposer;
+  @Autowired private SecurityCoverageComposer securityCoverageComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private EntityManager entityManager;
@@ -41,7 +41,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
     injectComposer.reset();
     injectExpectationComposer.reset();
     injectorContractComposer.reset();
-    securityAssessmentComposer.reset();
+    securityCoverageComposer.reset();
     scenarioComposer.reset();
   }
 
@@ -50,9 +50,9 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
-            .withSecurityAssessment(
-                securityAssessmentComposer.forSecurityAssessment(
-                    SecurityAssessmentFixture.createDefaultSecurityAssessment()))
+            .withSecurityCoverage(
+                securityCoverageComposer.forSecurityCoverage(
+                    SecurityCoverageFixture.createDefaultSecurityCoverage()))
             .withInject(
                 injectComposer
                     .forInject(InjectFixture.getDefaultInject())

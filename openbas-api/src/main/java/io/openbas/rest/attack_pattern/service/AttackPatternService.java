@@ -236,8 +236,8 @@ public class AttackPatternService {
   // -- STIX --
 
   /**
-   * Resolves external AttackPattern references from a {@link SecurityCoverage} into internal
-   * {@link AttackPattern} entities using the {@code attackPatternService}.
+   * Resolves external AttackPattern references from a {@link SecurityCoverage} into internal {@link
+   * AttackPattern} entities using the {@code attackPatternService}.
    *
    * @param securityCoverage the security assessment containing external AttackPattern references
    * @return list of resolved internal AttackPattern entities

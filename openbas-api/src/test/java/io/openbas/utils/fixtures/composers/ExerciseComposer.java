@@ -30,8 +30,7 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
     private final List<DocumentComposer.Composer> documentComposers = new ArrayList<>();
     private final List<VariableComposer.Composer> variableComposers = new ArrayList<>();
     private final List<PauseComposer.Composer> pauseComposers = new ArrayList<>();
-    private Optional<SecurityAssessmentComposer.Composer> securityAssessmentComposer =
-        Optional.empty();
+    private Optional<SecurityCoverageComposer.Composer> securityCoverageComposer = Optional.empty();
     private Optional<SecurityCoverageSendJobComposer.Composer> securityCoverageSendJobComposer =
         Optional.empty();
 
@@ -48,10 +47,10 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       return this;
     }
 
-    public Composer withSecurityAssessment(
-        SecurityAssessmentComposer.Composer securityAssessmentWrapper) {
-      securityAssessmentComposer = Optional.of(securityAssessmentWrapper);
-      this.exercise.setSecurityAssessment(securityAssessmentWrapper.get());
+    public Composer withSecurityCoverage(
+        SecurityCoverageComposer.Composer securityCoverageWrapper) {
+      securityCoverageComposer = Optional.of(securityCoverageWrapper);
+      this.exercise.setSecurityCoverage(securityCoverageWrapper.get());
       return this;
     }
 
@@ -170,7 +169,7 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       this.documentComposers.forEach(DocumentComposer.Composer::persist);
       this.variableComposers.forEach(VariableComposer.Composer::persist);
       this.pauseComposers.forEach(PauseComposer.Composer::persist);
-      this.securityAssessmentComposer.ifPresent(SecurityAssessmentComposer.Composer::persist);
+      this.securityCoverageComposer.ifPresent(SecurityCoverageComposer.Composer::persist);
       this.securityCoverageSendJobComposer.ifPresent(
           SecurityCoverageSendJobComposer.Composer::persist);
       exerciseService.createExercise(exercise);
@@ -182,7 +181,7 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       exerciseRepository.delete(exercise);
       this.securityCoverageSendJobComposer.ifPresent(
           SecurityCoverageSendJobComposer.Composer::delete);
-      this.securityAssessmentComposer.ifPresent(SecurityAssessmentComposer.Composer::delete);
+      this.securityCoverageComposer.ifPresent(SecurityCoverageComposer.Composer::delete);
       this.variableComposers.forEach(VariableComposer.Composer::delete);
       this.documentComposers.forEach(DocumentComposer.Composer::delete);
       this.tagComposers.forEach(TagComposer.Composer::delete);

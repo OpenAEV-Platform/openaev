@@ -41,7 +41,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private EndpointComposer endpointComposer;
-  @Autowired private SecurityAssessmentComposer securityAssessmentComposer;
+  @Autowired private SecurityCoverageComposer securityCoverageComposer;
   @Autowired private SecurityCoverageSendJobComposer securityCoverageSendJobComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private AttackPatternComposer attackPatternComposer;
@@ -59,7 +59,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     injectExpectationComposer.reset();
     injectorContractComposer.reset();
     attackPatternComposer.reset();
-    securityAssessmentComposer.reset();
+    securityCoverageComposer.reset();
     scenarioComposer.reset();
     securityPlatformComposer.reset();
     securityCoverageSendJobComposer.reset();
@@ -80,9 +80,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
-            .withSecurityAssessment(
-                securityAssessmentComposer.forSecurityAssessment(
-                    SecurityAssessmentFixture.createSecurityAssessmentWithAttackPatterns(
+            .withSecurityCoverage(
+                securityCoverageComposer.forSecurityCoverage(
+                    SecurityCoverageFixture.createSecurityCoverageWithAttackPatterns(
                         attackPatternWrappers.keySet().stream()
                             .map(AttackPatternComposer.Composer::get)
                             .toList())));
@@ -144,10 +144,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   }
 
   private DomainObject getExpectedMainSecurityCoverage(
-      SecurityAssessment securityAssessment, List<Inject> injects)
+      SecurityCoverage securityCoverage, List<Inject> injects)
       throws ParsingException, JsonProcessingException {
     return addPropertiesToDomainObject(
-        (DomainObject) stixParser.parseObject(securityAssessment.getContent()),
+        (DomainObject) stixParser.parseObject(securityCoverage.getContent()),
         Map.of("coverage", predictCoverageFromInjects(injects)));
   }
 
@@ -209,19 +209,19 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
 
     // assert
-    SecurityAssessment generatedAssessment = securityAssessmentComposer.generatedItems.getFirst();
+    SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
     List<Inject> generatedInjects = injectComposer.generatedItems;
     List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
     List<AttackPattern> generatedAttackPatterns = attackPatternComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
-        getExpectedMainSecurityCoverage(generatedAssessment, generatedInjects);
+        getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
     List<DomainObject> expectedPlatformIdentities =
         generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
 
     // main assessment is completed with coverage
     assertThatJson(
-            bundle.findById(new Identifier(generatedAssessment.getExternalId())).toStix(mapper))
+            bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
         .whenIgnoringPaths("modified")
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
@@ -276,7 +276,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     }
 
     // attack pattern SROs
-    for (StixRefToExternalRef stixRef : generatedAssessment.getAttackPatternRefs()) {
+    for (StixRefToExternalRef stixRef : generatedCoverage.getAttackPatternRefs()) {
       List<RelationshipObject> actualSros =
           bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
       assertThat(actualSros.size()).isEqualTo(1);
@@ -395,19 +395,19 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
 
     // assert
-    SecurityAssessment generatedAssessment = securityAssessmentComposer.generatedItems.getFirst();
+    SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
     List<Inject> generatedInjects = injectComposer.generatedItems;
     List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
     List<AttackPattern> generatedAttackPatterns = attackPatternComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
-        getExpectedMainSecurityCoverage(generatedAssessment, generatedInjects);
+        getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
     List<DomainObject> expectedPlatformIdentities =
         generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
 
     // main assessment is completed with coverage
     assertThatJson(
-            bundle.findById(new Identifier(generatedAssessment.getExternalId())).toStix(mapper))
+            bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
         .whenIgnoringPaths("modified")
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
@@ -462,7 +462,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     }
 
     // attack pattern SROs
-    for (StixRefToExternalRef stixRef : generatedAssessment.getAttackPatternRefs()) {
+    for (StixRefToExternalRef stixRef : generatedCoverage.getAttackPatternRefs()) {
       List<RelationshipObject> actualSros =
           bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
       assertThat(actualSros.size()).isEqualTo(1);
