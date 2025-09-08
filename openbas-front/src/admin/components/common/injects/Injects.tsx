@@ -708,8 +708,25 @@ const Injects: FunctionComponent<Props> = ({
               />
             )}
         </>
-      )}
-    </>
+      )} :
+      {
+        <>
+        {selectedInjectId !== null
+            && (
+                <UpdateInject
+                    open
+                    handleClose={() => setSelectedInjectId(null)}
+                    onUpdateInject={onUpdateInject}
+                    massUpdateInject={massUpdateInject}
+                    injectId={selectedInjectId}
+                    injects={injects}
+                    articlesFromExerciseOrScenario={articles}
+                    variablesFromExerciseOrScenario={variables}
+                    uriVariable={uriVariable}
+                />
+          />
+          )}
+
   );
 };
 
