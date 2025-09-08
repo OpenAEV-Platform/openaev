@@ -440,7 +440,7 @@ public class OpenSearchService implements EngineService {
             .filter(Objects::nonNull)
             .toList();
     statuses.forEach(
-        (indexingStatus) ->
+        indexingStatus ->
             indexingStatusRepository.safeSave(
                 indexingStatus.getType(), indexingStatus.getLastIndexing()));
   }

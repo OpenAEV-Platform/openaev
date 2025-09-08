@@ -373,7 +373,7 @@ public class ElasticService implements EngineService {
             .filter(Objects::nonNull)
             .toList();
     statuses.forEach(
-        (indexingStatus) ->
+        indexingStatus ->
             indexingStatusRepository.safeSave(
                 indexingStatus.getType(), indexingStatus.getLastIndexing()));
   }
