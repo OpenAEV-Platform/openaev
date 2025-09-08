@@ -10,8 +10,12 @@ import io.openbas.stix.types.BaseType;
 import io.openbas.stix.types.Identifier;
 import io.openbas.stix.types.StixString;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
 
 public abstract class ObjectBase implements StixSerialisable {
   private final Map<String, BaseType<?>> properties;
@@ -70,6 +74,28 @@ public abstract class ObjectBase implements StixSerialisable {
   public void setIfPresent(String propName, Consumer<String> setter) {
     if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
       setter.accept(this.getProperty(propName).getValue().toString());
+    }
+  }
+
+  public void setIfListPresent(String propName, Consumer<List<String>> setter) {
+    if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
+      Object value = getProperty(propName).getValue();
+      if (value instanceof List<?>) {
+        List<String> strings =
+            ((List<?>) value)
+                .stream()
+                    .map(
+                        v -> {
+                          if (v instanceof StixString) {
+                            return ((StixString) v).getValue();
+                          } else {
+                            return v.toString();
+                          }
+                        })
+                    .collect(Collectors.toList());
+
+        setter.accept(strings);
+      }
     }
   }
 

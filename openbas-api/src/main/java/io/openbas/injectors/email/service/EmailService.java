@@ -18,7 +18,6 @@ import jakarta.mail.internet.*;
 import jakarta.mail.util.ByteArrayDataSource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,25 +61,13 @@ public class EmailService {
       String message,
       List<DataAttachment> attachments)
       throws Exception {
-    MimeMessage mimeMessage =
-        buildMimeMessage(from, replyTos, inReplyTo, subject, message, attachments);
-    List<InternetAddress> recipients = new ArrayList<>();
-    for (ExecutionContext userContext : usersContext) {
-      recipients.add(new InternetAddress(userContext.getUser().getEmail()));
-    }
-    mimeMessage.setRecipients(Message.RecipientType.TO, recipients.toArray(InternetAddress[]::new));
-    this.sendEmailWithRetry(execution, mimeMessage);
-    String emails = usersContext.stream().map(c -> c.getUser().getEmail()).collect(joining(", "));
-    List<String> userIds = usersContext.stream().map(c -> c.getUser().getId()).toList();
-    execution.addTrace(
-        getNewSuccessTrace("Mail sent to " + emails, ExecutionTraceAction.EXECUTION, userIds));
-    // Store message in Imap after sending
-    storeMessageImap(execution, mimeMessage, userIds);
+    sendEmail(
+        execution, usersContext, from, replyTos, inReplyTo, false, subject, message, attachments);
   }
 
   public void sendEmail(
       Execution execution,
-      ExecutionContext userContext,
+      List<ExecutionContext> usersContext,
       String from,
       List<String> replyTos,
       String inReplyTo,
@@ -89,24 +76,50 @@ public class EmailService {
       String message,
       List<DataAttachment> attachments)
       throws Exception {
-    String email = userContext.getUser().getEmail();
-    String contextualSubject = buildContextualContent(subject, userContext);
-    String contextualBody = buildContextualContent(message, userContext);
+    ExecutionContext interpolationContext = (ExecutionContext) usersContext.getFirst().clone();
+    if (usersContext.size() > 1) {
+      interpolationContext.remove("user");
+    }
+    String contextualSubject = buildContextualContent(subject, interpolationContext);
+    String contextualBody = buildContextualContent(message, interpolationContext);
 
     MimeMessage mimeMessage =
         buildMimeMessage(from, replyTos, inReplyTo, contextualSubject, contextualBody, attachments);
-    mimeMessage.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
-    // Crypt if needed
-    if (mustBeEncrypted) {
+    mimeMessage.setRecipients(
+        Message.RecipientType.TO,
+        usersContext.stream()
+            .map(
+                uc -> {
+                  try {
+                    return new InternetAddress(uc.getUser().getEmail());
+                  } catch (AddressException e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .toArray(InternetAddress[]::new));
+
+    // request encryption but this is possible only for an email to a single recipient
+    if (mustBeEncrypted && usersContext.size() == 1) {
+      ExecutionContext singleUserContext = usersContext.getFirst();
       MimeMessage encMessage =
-          getEncryptedMimeMessage(userContext, from, replyTos, subject, email, mimeMessage);
+          getEncryptedMimeMessage(
+              singleUserContext,
+              from,
+              replyTos,
+              subject,
+              singleUserContext.getUser().getEmail(),
+              mimeMessage);
       this.sendEmailWithRetry(execution, encMessage);
     } else {
       this.sendEmailWithRetry(execution, mimeMessage);
     }
-    List<String> userIds = List.of(userContext.getUser().getId());
+    List<String> userIds = usersContext.stream().map(c -> c.getUser().getId()).toList();
     execution.addTrace(
-        getNewSuccessTrace("Mail sent to " + email, ExecutionTraceAction.EXECUTION, userIds));
+        getNewSuccessTrace(
+            "Mail sent to "
+                + usersContext.stream().map(c -> c.getUser().getEmail()).collect(joining(", ")),
+            ExecutionTraceAction.EXECUTION,
+            userIds));
     // Store message in Imap after sending
     storeMessageImap(execution, mimeMessage, userIds);
   }

@@ -1,6 +1,6 @@
 import { GroupsOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Drawer, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useContext, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,7 +17,7 @@ import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { useHelper } from '../../../../store';
 import { type SearchPaginationInput, type Team } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateTeam from './CreateTeam';
 import TeamPlayers from './TeamPlayers';
@@ -59,6 +59,7 @@ const Teams = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
+  const ability = useContext(AbilityContext);
 
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
@@ -246,6 +247,7 @@ const Teams = () => {
           <TeamPlayers
             teamId={selectedTeam}
             handleClose={() => onPlayersChanged(selectedTeam)}
+            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
           />
         )}
       </Drawer>

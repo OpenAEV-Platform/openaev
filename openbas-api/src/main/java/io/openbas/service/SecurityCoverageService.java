@@ -4,6 +4,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openbas.database.model.*;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.exercise.service.ExerciseService;
+import static io.openbas.utils.SecurityCoverageUtils.extractAndValidateCoverage;
+import static io.openbas.utils.SecurityCoverageUtils.extractAttackReferences;
+import static io.openbas.utils.TimeUtils.getCronExpression;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openbas.database.model.Inject;
+import io.openbas.database.model.Scenario;
+import io.openbas.database.model.SecurityCoverage;
+import io.openbas.database.repository.ScenarioRepository;
+import io.openbas.database.repository.SecurityCoverageRepository;
+import io.openbas.rest.tag.TagService;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.ObjectBase;
@@ -18,26 +30,192 @@ import io.openbas.stix.types.StixString;
 import io.openbas.stix.types.Timestamp;
 import io.openbas.utils.InjectExpectationResultUtils;
 import io.openbas.utils.ResultUtils;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-@Service
+@Slf4j
 @RequiredArgsConstructor
+@Service
 public class SecurityCoverageService {
+
+  public static final String STIX_ID = "id";
+  public static final String STIX_THREAT_CONTEXT_REF = "threat_context_ref";
+  public static final String STIX_NAME = "name";
+  public static final String STIX_DESCRIPTION = "description";
+  public static final String STIX_LABELS = "labels";
+  public static final String STIX_SCHEDULING = "scheduling";
+  public static final String STIX_PERIOD_START = "period_start";
+  public static final String STIX_PERIOD_END = "period_end";
+  public static final String STIX_ATTACK_PATTERN_TYPE = "attack-pattern";
+  public static final String ONE_SHOT = "X";
+  public static final String INCIDENT_RESPONSE = "incident-response";
+  public static final String ATTACK_SCENARIO = "attack-scenario";
+
+  private final ScenarioService scenarioService;
+  private final TagService tagService;
+  private final SecurityCoverageInjectService securityCoverageInjectService;
+
+  private final ScenarioRepository scenarioRepository;
+
+  private final SecurityCoverageRepository securityCoverageRepository;
+
   private final Parser stixParser;
   private final AttackPatternService attackPatternService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
   private final AssetService assetService;
+  private final ObjectMapper objectMapper;
+
+  /**
+   * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
+   *
+   * <p>This method parses the input STIX content, extracts relevant fields, maps them to a {@link
+   * SecurityCoverage} domain object, and saves it. It also extracts referenced attack patterns and
+   * sets optional fields like description and scheduling.
+   *
+   * @param stixJson STIX-formatted JSON string representing a security coverage
+   * @return the saved {@link SecurityCoverage} object
+   * @throws IOException if the input cannot be parsed into JSON
+   * @throws ParsingException if the STIX bundle is malformed
+   */
+  public SecurityCoverage buildSecurityCoverageFromStix(String stixJson)
+      throws IOException, ParsingException {
+
+    JsonNode root = objectMapper.readTree(stixJson);
+    Bundle bundle = stixParser.parseBundle(root.toString());
+
+    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
+
+    // Mandatory fields
+    String externalId = stixCoverageObj.getRequiredProperty(STIX_ID);
+    SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
+    securityCoverage.setExternalId(externalId);
+
+    String threatContextRef = stixCoverageObj.getRequiredProperty(STIX_THREAT_CONTEXT_REF);
+    securityCoverage.setThreatContextRef(threatContextRef);
+
+    String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
+    securityCoverage.setName(name);
+
+    // Optional fields
+    stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
+    stixCoverageObj.setIfListPresent(STIX_LABELS, securityCoverage::setLabels);
+
+    // Extract Attack Patterns
+    securityCoverage.setAttackPatternRefs(
+        extractAttackReferences(bundle.findByType(STIX_ATTACK_PATTERN_TYPE)));
+
+    // Default Fields
+    String scheduling = stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ONE_SHOT);
+    securityCoverage.setScheduling(scheduling);
+
+    // Period Start & End
+    stixCoverageObj.setInstantIfPresent(STIX_PERIOD_START, securityCoverage::setPeriodStart);
+    stixCoverageObj.setInstantIfPresent(STIX_PERIOD_END, securityCoverage::setPeriodEnd);
+
+    securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
+    return save(securityCoverage);
+  }
+
+  /**
+   * Retrieves a {@link SecurityCoverage} by its external ID. If no existing coverage is found, a
+   * new instance is returned.
+   *
+   * @param externalId the external identifier from the STIX content
+   * @return an existing or new {@link SecurityCoverage}
+   */
+  public SecurityCoverage getByExternalIdOrCreateSecurityCoverage(String externalId) {
+    return securityCoverageRepository.findByExternalId(externalId).orElseGet(SecurityCoverage::new);
+  }
+
+  /**
+   * Persists {@link SecurityCoverage} to the repository.
+   *
+   * @param securityCoverage the security coverage to save
+   * @return the saved {@link SecurityCoverage}
+   */
+  public SecurityCoverage save(SecurityCoverage securityCoverage) {
+    return securityCoverageRepository.save(securityCoverage);
+  }
+
+  /**
+   * Builds a {@link Scenario} object based on a given {@link SecurityCoverage}.
+   *
+   * <p>This will create or update the associated scenario and generate the appropriate injects by
+   * delegating to the {@code securityCoverageInjectService}.
+   *
+   * @param securityCoverage the source coverage
+   * @return the created or updated {@link Scenario}
+   */
+  public Scenario buildScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(securityCoverage);
+    securityCoverage.setScenario(scenario);
+    Set<Inject> injects =
+        securityCoverageInjectService.createdInjectsForScenario(scenario, securityCoverage);
+    scenario.setInjects(injects);
+    return scenario;
+  }
+
+  /**
+   * Updates an existing {@link Scenario} from a {@link SecurityCoverage}, or creates one if none is
+   * associated with the coverage.
+   *
+   * @param securityCoverage the {@link SecurityCoverage}
+   * @return the updated or newly created {@link Scenario}
+   */
+  public Scenario updateOrCreateScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+    if (securityCoverage.getScenario() != null) {
+      return scenarioRepository
+          .findById(securityCoverage.getScenario().getId())
+          .map(existing -> updateScenarioFromSecurityCoverage(existing, securityCoverage))
+          .orElseGet(() -> createAndInitializeScenario(securityCoverage));
+    }
+    return createAndInitializeScenario(securityCoverage);
+  }
+
+  private Scenario createAndInitializeScenario(SecurityCoverage securityCoverage) {
+    Scenario scenario = new Scenario();
+    updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
+    return scenarioService.createScenario(scenario);
+  }
+
+  private Scenario updateScenarioFromSecurityCoverage(
+      Scenario scenario, SecurityCoverage securityCoverage) {
+    updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
+    return scenarioService.updateScenario(scenario);
+  }
+
+  private void updatePropertiesFromSecurityCoverage(Scenario scenario, SecurityCoverage sa) {
+    scenario.setSecurityCoverage(sa);
+    scenario.setName(sa.getName());
+    scenario.setDescription(sa.getDescription());
+    scenario.setSeverity(Scenario.SEVERITY.high);
+    scenario.setMainFocus(INCIDENT_RESPONSE);
+    scenario.setCategory(ATTACK_SCENARIO);
+
+    Instant start = sa.getPeriodStart();
+    Instant end = sa.getPeriodEnd();
+
+    scenario.setRecurrenceStart(start);
+    scenario.setRecurrenceEnd(end);
+
+    String cron = getCronExpression(sa.getScheduling(), start);
+    scenario.setRecurrence(cron);
+
+    scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+  }
 
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)
-      throws ParsingException, JsonProcessingException {
+          throws ParsingException, JsonProcessingException {
     List<ObjectBase> objects = new ArrayList<>();
     for (SecurityCoverageSendJob securityCoverageSendJob : securityCoverageSendJobs) {
-      SecurityAssessment sa = securityCoverageSendJob.getSimulation().getSecurityAssessment();
+      SecurityCoverage sa = securityCoverageSendJob.getSimulation().getSecurityCoverage();
       if (sa == null) {
         continue;
       }
@@ -50,11 +228,11 @@ public class SecurityCoverageService {
   }
 
   private List<ObjectBase> getCoverageForSimulation(Exercise exercise)
-      throws ParsingException, JsonProcessingException {
+          throws ParsingException, JsonProcessingException {
     List<ObjectBase> objects = new ArrayList<>();
 
     // create the main coverage object
-    SecurityAssessment assessment = exercise.getSecurityAssessment();
+    SecurityCoverage assessment = exercise.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
     coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
     coverage.setProperty("coverage", getOverallCoverage(exercise));
@@ -63,28 +241,28 @@ public class SecurityCoverageService {
     // start and stop times
     Optional<Timestamp> sroStartTime = exercise.getStart().map(Timestamp::new);
     Optional<Timestamp> sroStopTime =
-        exerciseService.getLatestValidityDate(exercise).map(Timestamp::new);
+            exerciseService.getLatestValidityDate(exercise).map(Timestamp::new);
 
-    for (StixRefToExternalRef stixRef : exercise.getSecurityAssessment().getAttackPatternRefs()) {
+    for (StixRefToExternalRef stixRef : exercise.getSecurityCoverage().getAttackPatternRefs()) {
       BaseType<?> attackPatternCoverage =
-          getAttackPatternCoverage(stixRef.getExternalRef(), exercise);
+              getAttackPatternCoverage(stixRef.getExternalRef(), exercise);
       boolean covered = !((Map<String, BaseType<?>>) attackPatternCoverage.getValue()).isEmpty();
       RelationshipObject sro =
-          new RelationshipObject(
-              new HashMap<>(
-                  Map.of(
-                      CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP + "--" + exercise.getId()),
-                      CommonProperties.TYPE.toString(),
-                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      "relationship_type",
-                      new StixString("has-assessed"),
-                      RelationshipObject.Properties.SOURCE_REF.toString(),
-                      coverage.getId(),
-                      RelationshipObject.Properties.TARGET_REF.toString(),
-                      new Identifier(stixRef.getStixRef()),
-                      "covered",
-                      new io.openbas.stix.types.Boolean(covered))));
+              new RelationshipObject(
+                      new HashMap<>(
+                              Map.of(
+                                      CommonProperties.ID.toString(),
+                                      new Identifier(ObjectTypes.RELATIONSHIP + "--" + exercise.getId()),
+                                      CommonProperties.TYPE.toString(),
+                                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                                      "relationship_type",
+                                      new StixString("has-assessed"),
+                                      RelationshipObject.Properties.SOURCE_REF.toString(),
+                                      coverage.getId(),
+                                      RelationshipObject.Properties.TARGET_REF.toString(),
+                                      new Identifier(stixRef.getStixRef()),
+                                      "covered",
+                                      new io.openbas.stix.types.Boolean(covered))));
       sroStartTime.ifPresent(instant -> sro.setProperty("start_time", instant));
       sroStopTime.ifPresent(instant -> sro.setProperty("stop_time", instant));
       if (covered) {
@@ -100,21 +278,21 @@ public class SecurityCoverageService {
       BaseType<?> platformCoverage = getOverallCoveragePerPlatform(exercise, securityPlatform);
       boolean covered = !((Map<String, BaseType<?>>) platformCoverage.getValue()).isEmpty();
       RelationshipObject sro =
-          new RelationshipObject(
-              new HashMap<>(
-                  Map.of(
-                      CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
-                      CommonProperties.TYPE.toString(),
-                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      "relationship_type",
-                      new StixString("has-assessed"),
-                      RelationshipObject.Properties.SOURCE_REF.toString(),
-                      coverage.getId(),
-                      RelationshipObject.Properties.TARGET_REF.toString(),
-                      platformIdentity.getId(),
-                      "covered",
-                      new io.openbas.stix.types.Boolean(covered))));
+              new RelationshipObject(
+                      new HashMap<>(
+                              Map.of(
+                                      CommonProperties.ID.toString(),
+                                      new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
+                                      CommonProperties.TYPE.toString(),
+                                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                                      "relationship_type",
+                                      new StixString("has-assessed"),
+                                      RelationshipObject.Properties.SOURCE_REF.toString(),
+                                      coverage.getId(),
+                                      RelationshipObject.Properties.TARGET_REF.toString(),
+                                      platformIdentity.getId(),
+                                      "covered",
+                                      new io.openbas.stix.types.Boolean(covered))));
       sroStartTime.ifPresent(instant -> sro.setProperty("start_time", instant));
       sroStopTime.ifPresent(instant -> sro.setProperty("stop_time", instant));
       if (covered) {
@@ -131,13 +309,13 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> getOverallCoveragePerPlatform(
-      Exercise exercise, SecurityPlatform securityPlatform) {
+          Exercise exercise, SecurityPlatform securityPlatform) {
     return computeCoverageFromInjects(exercise.getInjects(), securityPlatform);
   }
 
   private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {
     List<AttackPattern> apList =
-        attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(Set.of(externalRef));
+            attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(Set.of(externalRef));
     Optional<AttackPattern> ap = apList.stream().findFirst();
     if (ap.isEmpty()) {
       return uncovered();
@@ -145,14 +323,14 @@ public class SecurityCoverageService {
 
     // get all injects involved in attack pattern
     List<Inject> injects =
-        exercise.getInjects().stream()
-            .filter(
-                i ->
-                    i.getInjectorContract().isPresent()
-                        && i.getInjectorContract().get().getAttackPatterns().stream()
-                            .anyMatch(
-                                attackPattern -> attackPattern.getId().equals(ap.get().getId())))
-            .toList();
+            exercise.getInjects().stream()
+                    .filter(
+                            i ->
+                                    i.getInjectorContract().isPresent()
+                                            && i.getInjectorContract().get().getAttackPatterns().stream()
+                                            .anyMatch(
+                                                    attackPattern -> attackPattern.getId().equals(ap.get().getId())))
+                    .toList();
     if (injects.isEmpty()) {
       return uncovered();
     }
@@ -161,28 +339,28 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> computeCoverageFromInjects(
-      List<Inject> injects, SecurityPlatform securityPlatform) {
+          List<Inject> injects, SecurityPlatform securityPlatform) {
     List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults =
-        resultUtils.computeGlobalExpectationResultsForPlatform(
-            injects.stream().map(Inject::getId).collect(Collectors.toSet()), securityPlatform);
+            resultUtils.computeGlobalExpectationResultsForPlatform(
+                    injects.stream().map(Inject::getId).collect(Collectors.toSet()), securityPlatform);
 
     Map<String, BaseType<?>> coverageValues = new HashMap<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
       coverageValues.put(
-          result.type().name(), new StixString(String.valueOf(result.getSuccessRate())));
+              result.type().name(), new StixString(String.valueOf(result.getSuccessRate())));
     }
     return new io.openbas.stix.types.Dictionary(coverageValues);
   }
 
   private BaseType<?> computeCoverageFromInjects(List<Inject> injects) {
     List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults =
-        resultUtils.computeGlobalExpectationResults(
-            injects.stream().map(Inject::getId).collect(Collectors.toSet()));
+            resultUtils.computeGlobalExpectationResults(
+                    injects.stream().map(Inject::getId).collect(Collectors.toSet()));
 
     Map<String, BaseType<?>> coverageValues = new HashMap<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
       coverageValues.put(
-          result.type().name(), new StixString(String.valueOf(result.getSuccessRate())));
+              result.type().name(), new StixString(String.valueOf(result.getSuccessRate())));
     }
     return new io.openbas.stix.types.Dictionary(coverageValues);
   }

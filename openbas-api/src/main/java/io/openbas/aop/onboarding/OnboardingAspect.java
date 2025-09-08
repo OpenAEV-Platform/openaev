@@ -28,7 +28,12 @@ public class OnboardingAspect {
 
       Onboarding onboarding = method.getAnnotation(Onboarding.class);
       String step = onboarding.step();
-      onboardingService.completeStep(userService.currentUser(), step);
+      boolean allUsers = onboarding.allUsers();
+      if (allUsers) {
+        onboardingService.completeStepForAllUsers(step);
+      } else {
+        onboardingService.completeStep(userService.currentUser(), step);
+      }
     } catch (Exception e) {
       log.error("[OnboardingAspect] Failed to process onboarding step", e);
     }

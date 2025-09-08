@@ -114,6 +114,6 @@ public class CustomDashboardApi extends RestBehavior {
       value = {@ApiResponse(responseCode = "200", description = "Dashboard used in the resource")})
   public List<FilterUtilsJpa.Option> optionsByResourceId(
       @PathVariable @NotBlank final String resourceId) {
-    return this.customDashboardService.findAllByResourceIdsAsOptions(resourceId);
+    return this.customDashboardService.findAllByResourceIdAsOptions(resourceId);
   }
 }

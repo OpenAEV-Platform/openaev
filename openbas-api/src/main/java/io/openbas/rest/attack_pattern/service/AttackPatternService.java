@@ -5,7 +5,7 @@ import static io.openbas.helper.StreamHelper.fromIterable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.database.model.AttackPattern;
-import io.openbas.database.model.SecurityAssessment;
+import io.openbas.database.model.SecurityCoverage;
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.database.repository.AttackPatternRepository;
 import io.openbas.ee.Ee;
@@ -236,16 +236,16 @@ public class AttackPatternService {
   // -- STIX --
 
   /**
-   * Resolves external AttackPattern references from a {@link SecurityAssessment} into internal
+   * Resolves external AttackPattern references from a {@link SecurityCoverage} into internal
    * {@link AttackPattern} entities using the {@code attackPatternService}.
    *
-   * @param securityAssessment the security assessment containing external AttackPattern references
+   * @param securityCoverage the security assessment containing external AttackPattern references
    * @return list of resolved internal AttackPattern entities
    */
-  public Map<String, AttackPattern> fetchInternalAttackPatternIdsFromSecurityAssessment(
-      SecurityAssessment securityAssessment) {
+  public Map<String, AttackPattern> fetchInternalAttackPatternIdsFromSecurityCoverage(
+      SecurityCoverage securityCoverage) {
     return getAttackPatternsByExternalIds(
-            securityAssessment.getAttackPatternRefs().stream()
+            securityCoverage.getAttackPatternRefs().stream()
                 .map(StixRefToExternalRef::getExternalRef)
                 .collect(Collectors.toSet()))
         .stream()

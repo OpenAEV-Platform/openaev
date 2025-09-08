@@ -1,6 +1,6 @@
-import { Chip, GridLegacy, Paper, Typography, useTheme } from '@mui/material';
+import { Chip, Grid, Paper, Typography, useTheme } from '@mui/material';
 import * as R from 'ramda';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import ContextLink from '../../../../components/ContextLink';
@@ -14,19 +14,38 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props { exercise: Exercise }
 
 const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const ability = useContext(AbilityContext);
+
   const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(exercise.exercise_scenario || '') }));
 
+  const renderScenarioContent = () => {
+    if (!scenario) {
+      return '-';
+    }
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, scenario.scenario_id)) {
+      return (
+        <ContextLink
+          title={scenario.scenario_name}
+          url={`${SCENARIO_BASE_URL}/${scenario.scenario_id}`}
+        />
+      );
+    }
+    return scenario.scenario_name;
+  };
+
   return (
     <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
-      <GridLegacy id="main_information" container spacing={3}>
-        <GridLegacy item xs={8} style={{ paddingTop: 10 }}>
+      <Grid id="main_information" container spacing={3}>
+        <Grid size={{ xs: 8 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -38,8 +57,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
             source={exercise.exercise_description}
             limit={300}
           />
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -47,9 +66,9 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
           >
             {t('Parent scenario')}
           </Typography>
-          {scenario ? (<ContextLink title={scenario.scenario_name} url={`${SCENARIO_BASE_URL}/${scenario.scenario_id}`} />) : '-'}
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+          {renderScenarioContent()}
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -59,8 +78,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
             {t('Severity')}
           </Typography>
           <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -69,8 +88,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
             {t('Category')}
           </Typography>
           <ItemCategory category={exercise?.exercise_category ?? ''} label={t(exercise.exercise_category ?? 'Unknown')} />
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -79,8 +98,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
             {t('Main Focus')}
           </Typography>
           <ItemMainFocus mainFocus={exercise?.exercise_main_focus ?? ''} label={t(exercise.exercise_main_focus ?? 'Unknown')} />
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -89,8 +108,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
             {t('Tags')}
           </Typography>
           <ItemTags tags={exercise.exercise_tags} limit={10} />
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -103,8 +122,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
           ) : exercise.exercise_platforms?.map(
             (platform: string) => <PlatformIcon key={platform} platform={platform} tooltip width={25} marginRight={theme.spacing(2)} />,
           )}
-        </GridLegacy>
-        <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Typography
             variant="h3"
             gutterBottom
@@ -129,8 +148,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
               label={killChainPhase.phase_name}
             />
           ))}
-        </GridLegacy>
-      </GridLegacy>
+        </Grid>
+      </Grid>
     </Paper>
   );
 };

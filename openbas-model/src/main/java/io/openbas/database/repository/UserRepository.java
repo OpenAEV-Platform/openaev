@@ -118,7 +118,11 @@ public interface UserRepository
 
   @Query(
       value =
-          "select us from users us where us.user_organization is null or us.user_organization in :organizationIds",
+          "select      us.user_id,"
+              + "      us.user_firstname,"
+              + "      us.user_lastname,"
+              + "      us.user_email,"
+              + "      us.user_organization from users us where us.user_organization is null or us.user_organization in :organizationIds",
       nativeQuery = true)
   List<RawPlayer> rawPlayersAccessibleFromOrganizations(
       @Param("organizationIds") List<String> organizationIds);

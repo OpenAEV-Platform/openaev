@@ -1,4 +1,4 @@
-import { Autocomplete, Checkbox, TextField, Tooltip } from '@mui/material';
+import { Autocomplete, Box, Checkbox, TextField, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
@@ -14,6 +14,7 @@ interface Props {
   required?: boolean;
   error?: boolean;
   className?: string;
+  variant?: 'standard' | 'outlined' | 'filled';
 }
 
 const AutocompleteField: FunctionComponent<Props> = ({
@@ -25,6 +26,7 @@ const AutocompleteField: FunctionComponent<Props> = ({
   required = false,
   error = false,
   className = '',
+  variant = 'outlined',
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -72,24 +74,19 @@ const AutocompleteField: FunctionComponent<Props> = ({
           {...paramsInput}
           error={error}
           label={label}
-          variant="outlined"
+          variant={variant}
           size="small"
           required={required}
         />
       )}
       renderOption={(props, option) => {
+        const { key, ...rest } = props;
         const checked = currentValue === option.id;
         return (
-          <Tooltip title={option.label}>
-            <li
-              {...props}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.stopPropagation();
-                }
-              }}
-              key={option.id}
-              onClick={() => handleValue(option.id)}
+          <Tooltip key={key} title={option.label}>
+            <Box
+              component="li"
+              {...rest}
               style={{
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -99,8 +96,15 @@ const AutocompleteField: FunctionComponent<Props> = ({
               }}
             >
               <Checkbox checked={checked} />
-              <span style={{ padding: `0 ${theme.spacing(1)} 0 ${theme.spacing(1)}` }}>{option.label}</span>
-            </li>
+              <div style={{
+                display: 'inline-block',
+                flexGrow: 1,
+                marginLeft: theme.spacing(1),
+              }}
+              >
+                {option.label}
+              </div>
+            </Box>
           </Tooltip>
         );
       }}

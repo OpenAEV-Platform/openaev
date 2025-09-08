@@ -4,7 +4,7 @@ import { DatePicker } from '@mui/x-date-pickers';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import { useFormatter } from '../../../../../../../components/i18n';
-import { CUSTOM_TIME_RANGE, getTimeRangeItems } from './TimeRangeUtils';
+import { CUSTOM_TIME_RANGE, getTimeRangeItemsWithDefault } from './TimeRangeUtils';
 
 const WidgetConfigTimeRangeController = () => {
   const { t } = useFormatter();
@@ -15,7 +15,7 @@ const WidgetConfigTimeRangeController = () => {
     name: 'widget_config.time_range',
   });
 
-  const timeRangeItems = getTimeRangeItems(t);
+  const timeRangeItems = getTimeRangeItemsWithDefault(t);
 
   return (
     <>

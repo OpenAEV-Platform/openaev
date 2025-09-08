@@ -1,6 +1,6 @@
 package io.openbas.utils;
 
-import static io.openbas.service.SecurityAssessmentService.ONE_SHOT;
+import static io.openbas.service.SecurityCoverageService.ONE_SHOT;
 import static java.time.ZoneOffset.UTC;
 
 import jakarta.validation.constraints.NotNull;

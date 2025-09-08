@@ -2,6 +2,7 @@ package io.openbas.rest.tag;
 
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
+import static io.openbas.utils.StringUtils.generateRandomColor;
 import static java.time.Instant.now;
 
 import io.openbas.database.model.Tag;
@@ -47,6 +48,31 @@ public class TagService {
     tag.setUpdateAttributes(input);
     tag.setUpdatedAt(now());
     return tagRepository.save(tag);
+  }
+
+  /**
+   * Generate a list of tag from a list of labels
+   *
+   * @param labels
+   * @return list of tags
+   */
+  public Set<Tag> fetchTagsFromLabels(List<String> labels) {
+    Set<Tag> tags = new HashSet();
+
+    if (labels != null) {
+      for (String label : labels) {
+        if (label == null || label.isBlank()) {
+          continue;
+        }
+        TagCreateInput tagCreateInput = new TagCreateInput();
+        tagCreateInput.setName(label);
+        tagCreateInput.setColor(generateRandomColor());
+
+        tags.add(upsertTag(tagCreateInput));
+      }
+    }
+
+    return tags;
   }
 
   public Set<Tag> buildDefaultTagsForStix() {

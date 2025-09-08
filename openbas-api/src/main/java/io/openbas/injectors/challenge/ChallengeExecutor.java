@@ -111,7 +111,7 @@ public class ChallengeExecutor extends Injector {
                 // Send the email.
                 emailService.sendEmail(
                     execution,
-                    userInjectContext,
+                    List.of(userInjectContext),
                     from,
                     replyTos,
                     content.getInReplyTo(),

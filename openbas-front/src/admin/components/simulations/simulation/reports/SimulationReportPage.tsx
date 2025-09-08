@@ -9,7 +9,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { type Exercise, type LessonsQuestion, type Report, type ReportInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { usePermissions } from '../../../../../utils/permissions/simulationPermissions';
+import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import { ReportContext, type ReportContextType } from '../../../common/Context';
 import ResponsePie from '../../../common/injects/ResponsePie';
 import ReportComment from '../../../components/reports/ReportComment';
@@ -40,7 +40,7 @@ const SimulationReportPage: FunctionComponent = () => {
     ? reportData.lessonsAnswers.filter(answer => answer.lessons_answer_question === selectedQuestion.lessonsquestion_id)
     : [];
 
-  const permissions = usePermissions(exerciseId);
+  const permissions = useSimulationPermissions(exerciseId);
   const [canEditReport, setCanEditReport] = useState(permissions.canManage);
   useEffect(() => {
     setCanEditReport(permissions.canManage);
@@ -158,7 +158,19 @@ const SimulationReportPage: FunctionComponent = () => {
                   flex: 1,
                 }}
               >
-                <ResponsePie expectationResultsByTypes={reportData.exerciseExpectationResults} disableChartAnimation />
+                { reportData.exerciseExpectationResults.length > 0 ? (
+                  <ResponsePie
+                    expectationResultsByTypes={reportData.exerciseExpectationResults}
+                    disableChartAnimation
+                  />
+                ) : (
+                  <div
+                    id="score_details"
+                    style={{ height: 1 }}
+                  >
+                    <p>&nbsp;</p>
+                  </div>
+                )}
               </Paper>
             </div>
           )}

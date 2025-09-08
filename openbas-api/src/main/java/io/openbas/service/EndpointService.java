@@ -23,6 +23,7 @@ import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.mapper.EndpointMapper;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
+import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
@@ -61,7 +62,7 @@ public class EndpointService {
 
   public static final String OPENBAS_INSTALL_DIR_WINDOWS_SERVICE =
       "C:\\Program Files (x86)\\Filigran\\OBAS Agent";
-  public static final String OPENBAS_INSTALL_DIR_WINDOWS_SERVICE_USER = "$HOME\\.openbas";
+  public static final String OPENBAS_INSTALL_DIR_WINDOWS_SERVICE_USER = ".openbas";
   public static final String OPENBAS_INSTALL_DIR_WINDOWS_SESSION_USER = "$HOME\\.openbas";
   public static final String OPENBAS_INSTALL_DIR_UNIX_SERVICE = "/opt/openbas-agent";
   public static final String OPENBAS_INSTALL_DIR_UNIX_SERVICE_USER = ".local/openbas-agent-service";
@@ -234,6 +235,7 @@ public class EndpointService {
   }
 
   // -- INSTALLATION AGENT --
+  @Transactional
   public void registerAgentEndpoint(AgentRegisterInput input) {
     // Check if agent exists (only 1 agent can be found for Tanium)
     List<Agent> existingAgents = agentService.findByExternalReference(input.getExternalReference());
@@ -276,6 +278,8 @@ public class EndpointService {
         setUpdatedEndpointAttributes(endpointToSave, inputToSave);
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
+        // TODO: Making this function transactional is not helping to solve tags
+        // addSourceTagToEndpoint(endpointToSave, inputToSave);
         endpointsToSave.add(endpointToSave);
         agentsToSave.add(agentToUpdate);
         inputs.removeIf(
@@ -309,6 +313,8 @@ public class EndpointService {
             agentToSave = new Agent();
             setNewAgentAttributes(inputToSave, agentToSave);
             setUpdatedAgentAttributes(agentToSave, inputToSave, endpointToUpdate);
+            // TODO: Making this function transactional is not helping to solve tags
+            // addSourceTagToEndpoint(endpointToUpdate, inputToSave);
             endpointsToSave.add(endpointToUpdate);
             agentsToSave.add(agentToSave);
             inputs.removeIf(
@@ -325,6 +331,8 @@ public class EndpointService {
         endpointToSave.setIps(inputToUpdate.getIps());
         endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
         endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
+        // TODO: Making this function transactional is not helping to solve tags
+        // addSourceTagToEndpoint(endpointToSave, inputToUpdate);
         endpointsToSave.add(endpointToSave);
         agentToSave = new Agent();
         setNewAgentAttributes(inputToUpdate, agentToSave);
@@ -338,6 +346,7 @@ public class EndpointService {
     return endpoints;
   }
 
+  @Transactional
   public Endpoint register(final EndpointRegisterInput input) throws IOException {
     AgentRegisterInput agentInput = toAgentEndpoint(input);
     Agent agent;
@@ -392,14 +401,43 @@ public class EndpointService {
     return endpoint;
   }
 
+  private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
+    Set<Tag> existingTags =
+        endpoint.getTags() != null ? new HashSet<>(endpoint.getTags()) : new HashSet<>();
+    existingTags.removeIf(t -> t.getName() != null && t.getName().startsWith("source:"));
+    String tagName = "source:" + input.getExecutor().getName().toLowerCase();
+    Optional<Tag> tag = tagRepository.findByName(tagName);
+    if (tag.isEmpty()) {
+      Tag newTag = new Tag();
+      newTag.setColor(input.getExecutor().getBackgroundColor());
+      newTag.setName(tagName);
+      tagRepository.save(newTag);
+      existingTags.add(newTag);
+    } else {
+      existingTags.add(tag.get());
+    }
+    endpoint.setTags(existingTags);
+  }
+
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
+    addSourceTagToEndpoint(endpoint, input);
     updateEndpoint(endpoint);
     return createOrUpdateAgent(endpoint, input);
   }
 
+  private Agent updateExistingAgent(Agent agent, AgentRegisterInput input) {
+    Endpoint endpoint = (Endpoint) agent.getAsset();
+    setUpdatedEndpointAttributes(endpoint, input);
+    addSourceTagToEndpoint(endpoint, input);
+    updateEndpoint(endpoint);
+    setUpdatedAgentAttributes(agent, input, endpoint);
+    return agentService.createOrUpdateAgent(agent);
+  }
+
   private Agent updateExistingEndpointAndCreateAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
+    addSourceTagToEndpoint(endpoint, input);
     updateEndpoint(endpoint);
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
@@ -443,14 +481,6 @@ public class EndpointService {
         EndpointMapper.mergeAddressArrays(endpoint.getMacAddresses(), input.getMacAddresses()));
   }
 
-  private Agent updateExistingAgent(Agent agent, AgentRegisterInput input) {
-    Endpoint endpoint = (Endpoint) agent.getAsset();
-    setUpdatedEndpointAttributes(endpoint, input);
-    updateEndpoint(endpoint);
-    setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
-  }
-
   private void setUpdatedAgentAttributes(Agent agent, AgentRegisterInput input, Endpoint endpoint) {
     agent.setAsset(endpoint);
     agent.setLastSeen(input.getLastSeen());
@@ -465,6 +495,7 @@ public class EndpointService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
+    addSourceTagToEndpoint(endpoint, input);
     createEndpoint(endpoint);
     Agent agent = new Agent();
     setUpdatedAgentAttributes(agent, input, endpoint);

@@ -4,6 +4,7 @@ import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openbas.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openbas.injectors.email.EmailContract.EMAIL_GLOBAL;
 import static io.openbas.utils.fixtures.InjectorFixture.createDefaultPayloadInjector;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -34,6 +35,10 @@ public class InjectorContractFixture {
 
   public InjectorContract getWellKnownSingleEmailContract() {
     return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+  }
+
+  public InjectorContract getWellKnownGlobalEmailContract() {
+    return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
   }
 
   private static ObjectNode createDefaultContent(ObjectMapper objectMapper) {

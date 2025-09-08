@@ -1,6 +1,7 @@
 package io.openbas.utils;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -23,5 +24,14 @@ public class StringUtils {
     } catch (PatternSyntaxException e) {
       return false;
     }
+  }
+
+  /** Generate a random hex color in the format #RRGGBB. */
+  public static String generateRandomColor() {
+    ThreadLocalRandom random = ThreadLocalRandom.current();
+    int r = random.nextInt(256);
+    int g = random.nextInt(256);
+    int b = random.nextInt(256);
+    return String.format("#%02X%02X%02X", r, g, b);
   }
 }

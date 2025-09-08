@@ -36,7 +36,7 @@ class EmailServiceTest extends IntegrationTest {
     when(emailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
     emailService.sendEmail(
         execution,
-        userContext,
+        List.of(userContext),
         "user@openbas.io",
         List.of("user-reply-to@openbas.io"),
         null,

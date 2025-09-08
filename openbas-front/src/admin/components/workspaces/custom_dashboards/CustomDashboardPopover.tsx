@@ -1,13 +1,19 @@
 import { type FunctionComponent, useCallback, useContext, useState } from 'react';
 
-import { deleteCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { fetchPlatformParameters } from '../../../../actions/Application';
+import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import type { LoggedHelper } from '../../../../actions/helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type CustomDashboard, type CustomDashboardInput } from '../../../../utils/api-types';
+import { useHelper } from '../../../../store';
+import { type CustomDashboard, type CustomDashboardInput, type PlatformSettings } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { download } from '../../../../utils/utils';
 import CustomDashboardForm from './CustomDashboardForm';
 
 interface Props {
@@ -21,6 +27,12 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
   // Standard hooks
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
+
+  const dispatch = useAppDispatch();
+  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  useDataLoader(() => {
+    dispatch(fetchPlatformParameters());
+  });
 
   const initialValues = {
     custom_dashboard_name: customDashboard.custom_dashboard_name,
@@ -45,6 +57,11 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
     [customDashboard.custom_dashboard_id, onUpdate],
   );
 
+  const submitExport = async () => {
+    const { data } = await exportCustomDashboard(customDashboard.custom_dashboard_id);
+    download(data, `dashboard-${customDashboard.custom_dashboard_name}.zip`, 'application/zip');
+  };
+
   const submitDelete = useCallback(async () => {
     try {
       await deleteCustomDashboard(customDashboard.custom_dashboard_id);
@@ -61,9 +78,14 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
       userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS),
     },
     {
+      label: t('Export'),
+      action: () => submitExport(),
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
+    },
+    {
       label: t('Delete'),
       action: () => toggleModal('delete'),
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DASHBOARDS),
+      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DASHBOARDS) && settings.platform_home_dashboard !== customDashboard.custom_dashboard_id,
     },
   ];
 
@@ -80,6 +102,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
           handleClose={() => toggleModal(null)}
           initialValues={initialValues}
           editing
+          customDashboardId={customDashboard.custom_dashboard_id}
         />
       </Drawer>
       <DialogDelete

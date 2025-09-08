@@ -28,6 +28,7 @@ const LeftBar = () => {
 
   const entries = [
     {
+      userRight: true,
       items: [
         {
           path: `/admin`,
@@ -50,6 +51,7 @@ const LeftBar = () => {
       ],
     },
     {
+      userRight: true,
       items: [
         {
           path: `/admin/scenarios`,
@@ -72,6 +74,7 @@ const LeftBar = () => {
       ],
     },
     {
+      userRight: true,
       items: [
         {
           path: `/admin/assets`,
@@ -166,6 +169,7 @@ const LeftBar = () => {
       ],
     },
     {
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
       items: [
         {
           path: `/admin/payloads`,
@@ -203,14 +207,14 @@ const LeftBar = () => {
       ],
     },
     {
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: true,
       items: [
         {
           path: `/admin/settings`,
           icon: () => (<SettingsOutlined />),
           label: 'Settings',
           href: 'settings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: true,
           subItems: [
             {
               link: '/admin/settings/parameters',
@@ -230,7 +234,7 @@ const LeftBar = () => {
             {
               link: '/admin/settings/taxonomies',
               label: 'Taxonomies',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: true,
             },
             {
               link: '/admin/settings/data_ingestion',

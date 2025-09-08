@@ -4,12 +4,7 @@ import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
-import {
-  deletePayload,
-  duplicatePayload,
-  exportPayloads,
-  updatePayload,
-} from '../../../actions/payloads/payload-actions';
+import { deletePayload, duplicatePayload, exportPayload, updatePayload } from '../../../actions/payloads/payload-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -39,12 +34,14 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     function handleCleanupCommandValue(payload_cleanup_command) {
       return payload_cleanup_command === '' ? null : payload_cleanup_command;
     }
+
     function handleCleanupExecutorValue(payload_cleanup_executor, payload_cleanup_command) {
       if (payload_cleanup_executor !== '' && handleCleanupCommandValue(payload_cleanup_command) !== null) {
         return payload_cleanup_executor;
       }
       return null;
     }
+
     const inputValues = R.pipe(
       R.assoc('payload_platforms', data.payload_platforms),
       R.assoc('payload_tags', data.payload_tags),
@@ -94,19 +91,13 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     });
   };
 
-  const handleExportJsonSingle = () => {
+  const handleExportJsonSingle = async () => {
     handlePopoverClose();
-    const exportData = {
-      payloads: [
-        { payload_id: payload.payload_id },
-      ],
-    };
-    exportPayloads(exportData).then((result) => {
-      const contentDisposition = result.headers['content-disposition'];
-      const match = contentDisposition.match(/filename\s*=\s*(.*)/i);
-      const filename = match[1];
-      download(result.data, filename, result.headers['content-type']);
-    });
+    const response = await exportPayload(payload.payload_id);
+
+    const match = response.headers['content-disposition'].match(/filename="?([^"]+)"?/);
+    const filename = match[1];
+    download(response.data, filename, 'application/zip');
   };
 
   const initialValues = {
@@ -152,7 +143,9 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         </Can>
-        <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem>
+        <Can I={ACTIONS.ACCESS} a={SUBJECTS.PAYLOADS}>
+          <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem>
+        </Can>
         <Can I={ACTIONS.DELETE} a={SUBJECTS.PAYLOADS}>
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         </Can>

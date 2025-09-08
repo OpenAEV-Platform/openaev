@@ -24,3 +24,12 @@ export const splitDuration = (duration = 0) => {
 };
 
 export const minutesInFuture = (minutes: number) => moment().utc().add(minutes, 'minutes');
+
+export const secondsFromToNow = (date: Date) => {
+  if (!date) {
+    return 0;
+  }
+  const timestamp = Math.floor(new Date(date).getTime() / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  return now - timestamp;
+};

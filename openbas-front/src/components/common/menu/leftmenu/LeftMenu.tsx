@@ -62,14 +62,12 @@ const LeftMenu: FunctionComponent<{ entries: LeftMenuEntries[] }> = ({ entries =
       >
         <Toolbar />
         <div style={{ marginTop: bannerHeightNumber }}>
-          {entries.map((entry, idxList) => {
+          {entries.filter(entry => entry.userRight).map((entry, idxList) => {
             return (
               <Fragment key={idxList}>
-
                 {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider />}
                 <MenuList component="nav">
-                  {entry.items.map((item) => {
-                    if (!item.userRight) return null;
+                  {entry.items.filter(entry => entry.userRight).map((item) => {
                     if (hasHref(item)) {
                       return (
                         <MenuItemGroup

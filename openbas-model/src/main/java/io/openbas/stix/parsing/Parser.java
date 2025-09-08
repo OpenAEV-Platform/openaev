@@ -1,5 +1,10 @@
 package io.openbas.stix.parsing;
 
+import static io.openbas.stix.types.Hashes.parseHashes;
+import static io.openbas.stix.types.StixString.parseString;
+import static io.openbas.stix.types.inner.ExternalReference.parseExternalReference;
+import static io.openbas.stix.types.inner.KillChainPhase.parseKillChainPhase;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,43 +53,16 @@ public class Parser {
     return ObjectFactory.instantiateFromProps(jsonObjectToPropertyMap(propertyNode));
   }
 
-  private BaseType<?> parseProperty(java.lang.String propertyName, JsonNode propertyNode)
+  private BaseType<?> parseProperty(String propertyName, JsonNode propertyNode)
       throws JsonProcessingException, ParsingException {
     switch (propertyNode.getNodeType()) {
       case OBJECT:
         if (propertyName.endsWith("hashes")) {
-          Map<HashingAlgorithms, java.lang.String> hashes = new HashMap<>();
-          Iterator<Map.Entry<java.lang.String, JsonNode>> iterator = propertyNode.fields();
-          while (iterator.hasNext()) {
-            Map.Entry<java.lang.String, JsonNode> entry = iterator.next();
-            hashes.put(HashingAlgorithms.fromValue(entry.getKey()), entry.getValue().asText());
-          }
-          return new Hashes(hashes);
+          return parseHashes(propertyNode);
         } else if (propertyNode.has("source_name")) {
-          ExternalReference externalReference = new ExternalReference();
-          externalReference.setSourceName(propertyNode.get("source_name").asText());
-          if (propertyNode.has("description")) {
-            externalReference.setDescription(propertyNode.get("description").asText());
-          }
-          if (propertyNode.has("external_id")) {
-            externalReference.setExternalId(propertyNode.get("external_id").asText());
-          }
-          if (propertyNode.has("hashes")) {
-            externalReference.setHashes(
-                (Hashes) parseProperty("hashes", propertyNode.get("hashes")));
-          }
-          if (propertyNode.has("url")) {
-            externalReference.setUrl(propertyNode.get("url").asText());
-          }
-          return new Complex<>(externalReference);
+          return new Complex<>(parseExternalReference(propertyNode));
         } else if (propertyNode.has("kill_chain_name")) {
-          KillChainPhase killChainPhase = new KillChainPhase();
-          killChainPhase.setKillChainName(propertyNode.get("kill_chain_name").asText());
-          killChainPhase.setPhaseName(propertyNode.get("phase_name").asText());
-          if (propertyNode.has("x_opencti_order")) {
-            killChainPhase.setXOpenCtiOrder(propertyNode.get("x_opencti_order").asInt());
-          }
-          return new Complex<>(killChainPhase);
+          return new Complex<>(parseKillChainPhase(propertyNode));
         } else {
           return new Dictionary(jsonObjectToPropertyMap(propertyNode));
         }
@@ -97,24 +75,9 @@ public class Parser {
         }
         return new io.openbas.stix.types.List<>(list);
       case STRING:
-        if (propertyName.endsWith("_hex")) {
-          return new Hex(propertyNode.asText());
-        }
-        if (propertyName.equals("id")
-            || propertyName.endsWith("_id")
-            || propertyName.endsWith("_ref")
-            || propertyName.endsWith("_refs")) {
-          return new Identifier(propertyNode.asText());
-        }
-        if (propertyName.endsWith("_bin")) {
-          return new Binary(propertyNode.asText());
-        }
-        if (propertyName.equals("modified") || propertyName.equals("created")) {
-          return new Timestamp(Instant.parse(propertyNode.asText()));
-        }
-        return new StixString(propertyNode.asText());
+        return parseString(propertyName, propertyNode);
       case NUMBER:
-        return new Integer(propertyNode.asInt());
+        return new io.openbas.stix.types.Integer(propertyNode.asInt());
       case BOOLEAN:
         return new io.openbas.stix.types.Boolean(propertyNode.asBoolean());
       case NULL:

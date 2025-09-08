@@ -10,8 +10,8 @@ import { useFormatter } from '../../../../components/i18n';
 import { type Scenario } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
-import useScenarioPermissions from '../../../../utils/permissions/scenarioPermissions';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import ScenarioUpdate from './ScenarioUpdate';
 
 type ScenarioActionType = 'Duplicate' | 'Update' | 'Delete' | 'Export';

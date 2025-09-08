@@ -315,53 +315,66 @@ public class ElasticService implements EngineService {
 
   // region indexing
   public <T extends EsBase> void bulkProcessing(Stream<EsModel<T>> models) {
-    models.forEach(
-        model -> {
-          Optional<IndexingStatus> indexingStatus =
-              indexingStatusRepository.findByType(model.getName());
-          Handler<? extends EsBase> handler = model.getHandler();
-          String index = model.getIndex(engineConfig);
-          Instant fetchInstant = indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
-          List<? extends EsBase> results = handler.fetch(fetchInstant);
-          if (!results.isEmpty()) {
-            // Create bulk for the data
-            BulkRequest.Builder br = new BulkRequest.Builder();
-            for (EsBase result : results) {
-              br.operations(
-                  op -> op.index(idx -> idx.index(index).id(result.getBase_id()).document(result)));
-            }
-            // Execute the bulk
-            try {
-              log.info("Indexing ({}) in progress for {}", results.size(), model.getName());
-              BulkRequest bulkRequest = br.build();
-              BulkResponse result = elasticClient.bulk(bulkRequest);
-              // Log errors, if any
-              if (result.errors()) {
-                for (BulkResponseItem item : result.items()) {
-                  if (item.error() != null) {
-                    log.error(item.error().reason());
+    List<IndexingStatus> statuses =
+        models
+            .map(
+                model -> {
+                  Optional<IndexingStatus> indexingStatus =
+                      indexingStatusRepository.findByType(model.getName());
+                  Handler<? extends EsBase> handler = model.getHandler();
+                  String index = model.getIndex(engineConfig);
+                  Instant fetchInstant =
+                      indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
+                  List<? extends EsBase> results = handler.fetch(fetchInstant);
+                  if (!results.isEmpty()) {
+                    // Create bulk for the data
+                    BulkRequest.Builder br = new BulkRequest.Builder();
+                    for (EsBase result : results) {
+                      br.operations(
+                          op ->
+                              op.index(
+                                  idx ->
+                                      idx.index(index).id(result.getBase_id()).document(result)));
+                    }
+                    // Execute the bulk
+                    try {
+                      log.info("Indexing ({}) in progress for {}", results.size(), model.getName());
+                      BulkRequest bulkRequest = br.build();
+                      BulkResponse result = elasticClient.bulk(bulkRequest);
+                      // Log errors, if any
+                      if (result.errors()) {
+                        for (BulkResponseItem item : result.items()) {
+                          if (item.error() != null) {
+                            log.error(item.error().reason());
+                          }
+                        }
+                      } else {
+                        // Update the status for the next round
+                        if (indexingStatus.isPresent()) {
+                          IndexingStatus status = indexingStatus.get();
+                          status.setLastIndexing(results.getLast().getBase_updated_at());
+                          return status;
+                        } else {
+                          IndexingStatus status = new IndexingStatus();
+                          status.setType(model.getName());
+                          status.setLastIndexing(results.getLast().getBase_updated_at());
+                          return status;
+                        }
+                      }
+                    } catch (IOException e) {
+                      log.error(
+                          String.format("bulkParallelProcessing exception: %s", e.getMessage()), e);
+                    }
+                  } else {
+                    log.info("Indexing <up to date> for {}", model.getName());
                   }
-                }
-              } else {
-                // Update the status for the next round
-                if (indexingStatus.isPresent()) {
-                  IndexingStatus status = indexingStatus.get();
-                  status.setLastIndexing(results.getLast().getBase_updated_at());
-                  indexingStatusRepository.save(status);
-                } else {
-                  IndexingStatus status = new IndexingStatus();
-                  status.setType(model.getName());
-                  status.setLastIndexing(results.getLast().getBase_updated_at());
-                  indexingStatusRepository.save(status);
-                }
-              }
-            } catch (IOException e) {
-              log.error(String.format("bulkParallelProcessing exception: %s", e.getMessage()), e);
-            }
-          } else {
-            log.info("Indexing <up to date> for {}", model.getName());
-          }
-        });
+                  return null;
+                })
+            .filter(Objects::nonNull)
+            .toList();
+    if (!statuses.isEmpty()) {
+      indexingStatusRepository.saveAll(statuses);
+    }
   }
 
   @Override

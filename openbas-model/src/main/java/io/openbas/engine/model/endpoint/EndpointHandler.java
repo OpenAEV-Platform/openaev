@@ -33,7 +33,7 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               esEndpoint.setBase_id(endpoint.getAsset_id());
               esEndpoint.setBase_representative(endpoint.getAsset_name());
               esEndpoint.setBase_created_at(endpoint.getAsset_created_at());
-              esEndpoint.setBase_updated_at(endpoint.getAsset_updated_at());
+              esEndpoint.setBase_updated_at(endpoint.getEndpoint_updated_at());
               // not sure what to put here, if anything
               esEndpoint.setBase_restrictions(buildRestrictions(endpoint.getAsset_id()));
 
@@ -49,14 +49,23 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               esEndpoint.setEndpoint_is_eol(endpoint.getEndpoint_is_eol());
               // Dependencies
               List<String> dependencies = new ArrayList<>();
-              if (!(endpoint.getAsset_findings() == null)
-                  && !endpoint.getAsset_findings().isEmpty()) {
+              if (endpoint.getAsset_findings() != null && !endpoint.getAsset_findings().isEmpty()) {
                 dependencies.addAll(endpoint.getAsset_findings());
                 esEndpoint.setBase_findings_side(endpoint.getAsset_findings());
               }
-              if (!(endpoint.getAsset_tags() == null) && !endpoint.getAsset_tags().isEmpty()) {
+              if (endpoint.getAsset_tags() != null && !endpoint.getAsset_tags().isEmpty()) {
                 dependencies.addAll(endpoint.getAsset_tags());
                 esEndpoint.setBase_tags_side(endpoint.getAsset_tags());
+              }
+              if (endpoint.getEndpoint_exercises() != null
+                  && !endpoint.getEndpoint_exercises().isEmpty()) {
+                dependencies.addAll(endpoint.getEndpoint_exercises());
+                esEndpoint.setBase_simulation_side(endpoint.getEndpoint_exercises());
+              }
+              if (endpoint.getEndpoint_scenarios() != null
+                  && !endpoint.getEndpoint_scenarios().isEmpty()) {
+                dependencies.addAll(endpoint.getEndpoint_scenarios());
+                esEndpoint.setBase_scenario_side(endpoint.getEndpoint_scenarios());
               }
               esEndpoint.setBase_dependencies(dependencies);
               return esEndpoint;

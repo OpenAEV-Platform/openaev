@@ -142,7 +142,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
 
   // Button Popover
   const entries = [];
-  if (onUpdate) entries.push({
+  entries.push({
     label: 'Update',
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
@@ -162,7 +162,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
     action: () => handleOpenRemoveFromInject(),
     userRight: true,
   });
-  if (onDelete) entries.push({
+  entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),

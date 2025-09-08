@@ -3,11 +3,16 @@ package io.openbas.rest.scenario;
 import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -22,7 +27,9 @@ import io.openbas.service.AssetGroupService;
 import io.openbas.service.EndpointService;
 import io.openbas.service.ScenarioService;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.fixtures.composers.*;
+import io.openbas.utils.fixtures.composers.AttackPatternComposer;
+import io.openbas.utils.fixtures.composers.InjectorContractComposer;
+import io.openbas.utils.fixtures.composers.PayloadComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import io.openbas.utils.mockUser.WithMockObserverUser;
@@ -32,6 +39,7 @@ import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
 class ScenarioInjectApiTest extends IntegrationTest {
+
   static String SCENARIO_INJECT_ID;
   static Scenario SCENARIO;
   static AttackPattern ATTACKPATTERN;
@@ -301,19 +310,20 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
+      Set<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
+      Inject inject = injects.stream().findFirst().get();
 
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(1, jsonArray.length());
-      assertEquals(JsonPath.read(response, "$[0].inject_id"), injects.getFirst().getId());
+      assertEquals(JsonPath.read(response, "$[0].inject_id"), inject.getId());
 
       assertEquals(1, injects.size());
-      assertEquals(2, injects.getFirst().getAssets().size());
-      assertEquals(1, injects.getFirst().getAssetGroups().size());
-      AssetGroup assetGroupInject = injects.getFirst().getAssetGroups().getFirst();
+      assertEquals(2, inject.getAssets().size());
+      assertEquals(1, inject.getAssetGroups().size());
+      AssetGroup assetGroupInject = inject.getAssetGroups().getFirst();
       assertEquals(ALL_ASSETGROUP.getId(), assetGroupInject.getId());
       org.hamcrest.MatcherAssert.assertThat(
-          injects.getFirst().getAssets().stream().map(Asset::getId).toList(),
+          inject.getAssets().stream().map(Asset::getId).toList(),
           org.hamcrest.Matchers.containsInAnyOrder(LINUX_X86_64.getId(), WINDOWS_X86_64.getId()));
     }
 
@@ -344,18 +354,19 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
+      Set<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
 
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(1, jsonArray.length());
-      assertEquals(JsonPath.read(response, "$[0].inject_id"), injects.getFirst().getId());
+      Inject inject = injects.stream().findFirst().get();
+      assertEquals(JsonPath.read(response, "$[0].inject_id"), inject.getId());
 
       assertEquals(1, injects.size());
-      assertEquals(1, injects.getFirst().getAssets().size());
-      assertEquals(1, injects.getFirst().getAssetGroups().size());
-      AssetGroup assetGroupInject = injects.getFirst().getAssetGroups().getFirst();
+      assertEquals(1, inject.getAssets().size());
+      assertEquals(1, inject.getAssetGroups().size());
+      AssetGroup assetGroupInject = inject.getAssetGroups().getFirst();
       assertEquals(ALL_WINDOWS.getId(), assetGroupInject.getId());
-      Asset assetInject = injects.getFirst().getAssets().getFirst();
+      Asset assetInject = inject.getAssets().getFirst();
       assertEquals(WINDOWS_X86_64.getId(), assetInject.getId());
     }
 
@@ -388,7 +399,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
+      Set<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
 
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(2, jsonArray.length());
@@ -420,7 +431,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
+      Set<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
 
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(2, jsonArray.length());
@@ -470,7 +481,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
+      Set<Inject> injects = injectRepository.findByScenarioId(SCENARIO.getId());
 
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(2, jsonArray.length());

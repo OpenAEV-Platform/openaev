@@ -177,9 +177,9 @@ public class Exercise implements Base {
   // STIX
   @Getter
   @ManyToOne
-  @JoinColumn(name = "exercise_security_assessment")
+  @JoinColumn(name = "exercise_security_coverage")
   @JsonIgnore
-  private SecurityAssessment securityAssessment;
+  private SecurityCoverage securityCoverage;
 
   // -- AUDIT --
 

@@ -30,11 +30,11 @@ public class EsInject extends EsBase {
 
   // -- SIDE --
 
-  @Queryable(label = "scenario")
+  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private String base_scenario_side; // Must finish by _side
 
-  @Queryable(label = "simulation", filterable = true)
+  @Queryable(label = "simulation", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private String base_simulation_side; // Must finish by _side
 

@@ -2,7 +2,7 @@ import { type ReactElement } from 'react';
 
 export interface LeftMenuEntries {
   items: LeftMenuItem[];
-  userRight?: boolean;
+  userRight: boolean;
 }
 
 export interface LeftMenuItem {

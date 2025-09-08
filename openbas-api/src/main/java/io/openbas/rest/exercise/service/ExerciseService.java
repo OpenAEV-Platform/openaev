@@ -192,6 +192,7 @@ public class ExerciseService {
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));
     exerciseDuplicate.setLessonsAnonymized(exerciseOrigin.isLessonsAnonymized());
+    exerciseDuplicate.setCustomDashboard(exerciseOrigin.getCustomDashboard());
     return exerciseDuplicate;
   }
 

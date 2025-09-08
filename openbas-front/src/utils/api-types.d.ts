@@ -1691,6 +1691,10 @@ export interface EsEndpoint {
   base_representative?: string;
   base_restrictions?: string[];
   /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
+  /** @uniqueItems true */
   base_tags_side?: string[];
   /** @format date-time */
   base_updated_at?: string;
@@ -1778,6 +1782,7 @@ export interface EsInjectExpectation {
   base_inject_side?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_scenario_side?: string;
   /** @uniqueItems true */
   base_security_platforms_side?: string[];
   base_simulation_side?: string;
@@ -1896,6 +1901,7 @@ export interface EsVulnerableEndpoint {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_scenario_side?: string;
   base_simulation_side?: string;
   /** @uniqueItems true */
   base_tags_side?: string[];
@@ -3132,6 +3138,7 @@ export interface InjectorContract {
   )[];
   /** @format date-time */
   injector_contract_updated_at: string;
+  injector_contract_vulnerabilities?: string[];
   listened?: boolean;
 }
 
@@ -3143,6 +3150,7 @@ export interface InjectorContractAddInput {
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
+  contract_vulnerability_ids?: string[];
   external_contract_id?: string;
   injector_id: string;
   is_atomic_testing?: boolean;
@@ -3263,11 +3271,13 @@ export interface InjectorContractUpdateInput {
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
+  contract_vulnerability_ids?: string[];
   is_atomic_testing?: boolean;
 }
 
 export interface InjectorContractUpdateMappingInput {
   contract_attack_patterns_ids?: string[];
+  contract_vulnerability_ids?: string[];
 }
 
 export interface InjectorCreateInput {
@@ -3311,6 +3321,11 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+export interface JsonApiDocumentResourceObject {
+  data?: ResourceObject;
+  included?: object[];
 }
 
 export type JsonNode = object;
@@ -4622,6 +4637,8 @@ export interface PlatformSettings {
   platform_base_url?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
+  /** Default home dashboard of the platform */
+  platform_home_dashboard?: string;
   /** id of the platform */
   platform_id?: string;
   /** Language of the platform */
@@ -4640,6 +4657,10 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Default scenario dashboard of the platform */
+  platform_scenario_dashboard?: string;
+  /** Default simulation dashboard of the platform */
+  platform_simulation_dashboard?: string;
   /** Theme of the platform */
   platform_theme: string;
   /** Current version of the platform */
@@ -4963,6 +4984,10 @@ export interface RelatedFindingOutput {
   finding_value: string;
 }
 
+export interface Relationship {
+  data: object;
+}
+
 export interface RenewTokenInput {
   token_id: string;
 }
@@ -5026,6 +5051,13 @@ export interface ReportInput {
 export interface ResetUserInput {
   lang?: string;
   login: string;
+}
+
+export interface ResourceObject {
+  attributes?: Record<string, object>;
+  id: string;
+  relationships?: Record<string, Relationship>;
+  type: string;
 }
 
 export interface ResultDistribution {
@@ -5315,10 +5347,16 @@ export interface SettingsPlatformWhitemarkUpdateInput {
 }
 
 export interface SettingsUpdateInput {
+  /** Default home dashboard of the platform */
+  platform_home_dashboard?: string;
   /** Language of the platform */
   platform_lang: string;
   /** Name of the platform */
   platform_name: string;
+  /** Default scenario dashboard of the platform */
+  platform_scenario_dashboard?: string;
+  /** Default simulation dashboard of the platform */
+  platform_simulation_dashboard?: string;
   /** Theme of the platform */
   platform_theme: string;
 }
@@ -6069,7 +6107,6 @@ export interface Widget {
     | StructuralHistogramWidget;
   /** @format date-time */
   widget_created_at: string;
-  widget_custom_dashboard?: string;
   widget_id: string;
   widget_layout: WidgetLayout;
   widget_type:

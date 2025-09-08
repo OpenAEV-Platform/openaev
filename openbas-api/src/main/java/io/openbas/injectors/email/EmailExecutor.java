@@ -65,7 +65,7 @@ public class EmailExecutor extends Injector {
           try {
             emailService.sendEmail(
                 execution,
-                user,
+                List.of(user),
                 from,
                 replyTos,
                 inReplyTo,

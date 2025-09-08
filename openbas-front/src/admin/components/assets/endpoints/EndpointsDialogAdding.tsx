@@ -161,7 +161,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
               </>
             );
           } else {
-            return <span>{t('N/A')}</span>;
+            return <span>-</span>;
           }
         },
         width: 10,

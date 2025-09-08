@@ -6,26 +6,18 @@ import static java.lang.String.valueOf;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openbas.database.model.InjectExpectationResult;
 import io.openbas.database.raw.RawInjectExpectation;
 import io.openbas.database.repository.InjectExpectationRepository;
 import io.openbas.engine.Handler;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
-
-  private static final String SECURITY_PLATFORM = "security-platform";
 
   private final InjectExpectationRepository injectExpectationRepository;
 
@@ -73,6 +65,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
                 dependencies.add(injectExpectation.getExercise_id());
                 esInjectExpectation.setBase_simulation_side(injectExpectation.getExercise_id());
               }
+              if (hasText(injectExpectation.getScenario_id())) {
+                dependencies.add(injectExpectation.getScenario_id());
+                esInjectExpectation.setBase_scenario_side(injectExpectation.getScenario_id());
+              }
               if (hasText(injectExpectation.getInject_id())) {
                 dependencies.add(injectExpectation.getInject_id());
                 esInjectExpectation.setBase_inject_side(injectExpectation.getInject_id());
@@ -102,26 +98,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
                 esInjectExpectation.setBase_attack_patterns_side(
                     injectExpectation.getAttack_pattern_ids());
               }
-              if (injectExpectation.getInject_expectation_results() != null
-                  && !injectExpectation.getInject_expectation_results().isBlank()) {
-                ObjectMapper mapper = new ObjectMapper();
-                try {
-                  List<InjectExpectationResult> results =
-                      mapper.readValue(
-                          injectExpectation.getInject_expectation_results(),
-                          new TypeReference<>() {});
-                  Set<String> securityPlatformIds =
-                      results.stream()
-                          .filter(
-                              injectExpectationResult ->
-                                  SECURITY_PLATFORM.equals(injectExpectationResult.getSourceType()))
-                          .map(InjectExpectationResult::getSourceId)
-                          .collect(Collectors.toSet());
-                  dependencies.addAll(securityPlatformIds);
-                  esInjectExpectation.setBase_security_platforms_side(securityPlatformIds);
-                } catch (Exception e) {
-                  esInjectExpectation.setBase_security_platforms_side(new HashSet<>());
-                }
+              if (!isEmpty(injectExpectation.getSecurity_platform_ids())) {
+                dependencies.addAll(injectExpectation.getSecurity_platform_ids());
+                esInjectExpectation.setBase_security_platforms_side(
+                    injectExpectation.getSecurity_platform_ids());
               }
               esInjectExpectation.setInject_expectation_status(
                   valueOf(computeStatusForIndexing(injectExpectation)));

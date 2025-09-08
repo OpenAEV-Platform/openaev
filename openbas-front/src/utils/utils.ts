@@ -28,16 +28,21 @@ export const copyToClipboard = (t: (text: string) => string, text: string) => {
   MESSAGING$.notifySuccess(t('Copied to clipboard'));
 };
 
-export const download = (content: string, filename: string, contentType: string | undefined) => {
+export const download = (content: string | Blob, filename: string, contentType: string | undefined) => {
   let finalContentType = contentType;
   if (!contentType) {
     finalContentType = 'application/octet-stream';
   }
+  const blob = content instanceof Blob ? content : new Blob([content], { type: finalContentType });
   const a = document.createElement('a');
-  const blob = new Blob([content], { type: finalContentType });
-  a.href = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
+  a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
 };
 
 export const removeEmptyFields = (

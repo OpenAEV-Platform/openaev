@@ -113,9 +113,9 @@ public class Scenario implements Base {
   // -- OCTI GENERATION SCENARIO FROM STIX --
 
   @OneToOne(mappedBy = "scenario")
-  @JsonProperty("scenario_security_assessment")
+  @JsonProperty("scenario_security_coverage")
   @JsonIgnore
-  private SecurityAssessment securityAssessment;
+  private SecurityCoverage securityCoverage;
 
   // -- RECURRENCE --
 

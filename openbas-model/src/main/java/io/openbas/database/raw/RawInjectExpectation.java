@@ -42,4 +42,8 @@ public interface RawInjectExpectation {
   String getAsset_group_id();
 
   Set<String> getAttack_pattern_ids();
+
+  Set<String> getSecurity_platform_ids();
+
+  String getScenario_id();
 }

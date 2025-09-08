@@ -20,7 +20,7 @@ const EndpointActiveFragment = (props: Props) => {
   });
   const { t } = useFormatter();
   if (props.endpoint.asset_agents.length <= 0) {
-    return <span>{t('N/A')}</span>;
+    return <span>-</span>;
   }
 
   const groupedExecutors = getExecutorsCount(props.endpoint, executorsMap);

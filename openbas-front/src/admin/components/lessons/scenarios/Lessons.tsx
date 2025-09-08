@@ -22,6 +22,7 @@ interface GenericSource {
   type: string;
   name: string;
   lessons_anonymized: boolean;
+  isReadOnly: boolean;
   isUpdatable: boolean;
 }
 
@@ -129,6 +130,7 @@ const Lessons: FunctionComponent<Props> = ({
                 />
               </Grid>
             )}
+
             <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">{t('Template')}</Typography>
@@ -159,6 +161,7 @@ const Lessons: FunctionComponent<Props> = ({
                 <Typography variant="h3">
                   {t('Categories and questions')}
                 </Typography>
+
                 <Button
                   startIcon={<DeleteSweepOutlined />}
                   color="error"
@@ -186,9 +189,9 @@ const Lessons: FunctionComponent<Props> = ({
           isReport={false}
         />
       </div>
-
-      {permissions.canManage
-        && <CreateLessonsCategory />}
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <CreateLessonsCategory />
+      </Can>
       <Dialog
         TransitionComponent={Transition}
         keepMounted={false}
@@ -274,16 +277,13 @@ const Lessons: FunctionComponent<Props> = ({
             >
               {t('Cancel')}
             </Button>
-            <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
-              <Button
-                color="secondary"
-                onClick={applyTemplate}
-                disabled={templateValue === null}
-              >
-                {t('Apply')}
-              </Button>
-            </Can>
-
+            <Button
+              color="secondary"
+              onClick={applyTemplate}
+              disabled={templateValue === null}
+            >
+              {t('Apply')}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

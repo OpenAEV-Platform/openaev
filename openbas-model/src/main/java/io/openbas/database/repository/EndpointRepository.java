@@ -127,20 +127,31 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
+          "WITH endpoint_data AS ("
+              + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
               + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.asset_updated_at, "
-              + "a.endpoint_is_eol, a.asset_description, "
-              + "array_agg(fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
-              + "array_agg(at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags "
+              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, "
+              + "GREATEST(a.asset_updated_at, max(i.inject_updated_at), max(e.exercise_updated_at), max(s.scenario_updated_at), max(f.finding_updated_at)) as endpoint_updated_at, "
+              + "array_agg(DISTINCT fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
+              + "array_agg(DISTINCT at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags, "
+              + "array_agg(DISTINCT i.inject_exercise) FILTER ( WHERE i.inject_exercise IS NOT NULL ) as endpoint_exercises, "
+              + "array_agg(DISTINCT i.inject_scenario) FILTER ( WHERE i.inject_scenario IS NOT NULL ) as endpoint_scenarios "
               + "FROM assets a "
               + "LEFT JOIN findings_assets fa ON a.asset_id = fa.asset_id "
+              + "LEFT JOIN findings f ON fa.finding_id = f.finding_id "
               + "LEFT JOIN assets_tags at ON a.asset_id = at.asset_id "
-              + "WHERE a.asset_updated_at > :from AND a.asset_type = '"
+              + "LEFT JOIN injects_assets ia ON a.asset_id = ia.asset_id "
+              + "LEFT JOIN injects i ON ia.inject_id = i.inject_id "
+              + "LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id "
+              + "LEFT JOIN scenarios s ON i.inject_scenario = s.scenario_id "
+              + "WHERE a.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
               + "' "
-              + "GROUP BY a.asset_id, a.asset_updated_at "
-              + "ORDER BY a.asset_updated_at LIMIT "
+              + "GROUP BY a.asset_id"
+              + ") "
+              + "SELECT * FROM endpoint_data ed "
+              + "WHERE ed.endpoint_updated_at > :from "
+              + "ORDER BY ed.endpoint_updated_at ASC LIMIT "
               + Constants.INDEXING_RECORD_SET_SIZE
               + ";",
       nativeQuery = true)

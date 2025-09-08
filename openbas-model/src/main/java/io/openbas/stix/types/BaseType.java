@@ -1,5 +1,7 @@
 package io.openbas.stix.types;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.stix.parsing.StixSerialisable;
 import java.util.Objects;
 import lombok.Getter;
@@ -24,5 +26,10 @@ public abstract class BaseType<T> implements StixSerialisable {
   @Override
   public int hashCode() {
     return Objects.hashCode(value);
+  }
+
+  @Override
+  public JsonNode toStix(ObjectMapper mapper) {
+    return mapper.valueToTree(this.value);
   }
 }

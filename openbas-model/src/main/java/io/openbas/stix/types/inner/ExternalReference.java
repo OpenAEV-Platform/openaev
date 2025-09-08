@@ -1,6 +1,9 @@
 package io.openbas.stix.types.inner;
 
+import static io.openbas.stix.types.Hashes.parseHashes;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openbas.stix.types.Hashes;
 import lombok.Getter;
@@ -24,4 +27,22 @@ public class ExternalReference {
 
   @JsonProperty("external_id")
   private String externalId;
+
+  public static ExternalReference parseExternalReference(JsonNode propertyNode) {
+    ExternalReference externalReference = new ExternalReference();
+    externalReference.setSourceName(propertyNode.get("source_name").asText());
+    if (propertyNode.has("description")) {
+      externalReference.setDescription(propertyNode.get("description").asText());
+    }
+    if (propertyNode.has("external_id")) {
+      externalReference.setExternalId(propertyNode.get("external_id").asText());
+    }
+    if (propertyNode.has("hashes")) {
+      externalReference.setHashes(parseHashes(propertyNode.get("hashes")));
+    }
+    if (propertyNode.has("url")) {
+      externalReference.setUrl(propertyNode.get("url").asText());
+    }
+    return externalReference;
+  }
 }
