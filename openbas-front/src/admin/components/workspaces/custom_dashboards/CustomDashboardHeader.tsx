@@ -1,5 +1,6 @@
 import { Tooltip, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useContext } from 'react';
+import { useNavigate } from 'react-router';
 
 import { type CustomDashboard } from '../../../../utils/api-types';
 import { truncate } from '../../../../utils/String';
@@ -8,6 +9,9 @@ import CustomDashboardParameters from './CustomDashboardParameters';
 import CustomDashboardPopover from './CustomDashboardPopover';
 
 const CustomDashboardHeader: FunctionComponent = () => {
+  // Standard hooks
+  const navigate = useNavigate();
+
   const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
 
   const handleUpdate = useCallback(
@@ -45,6 +49,7 @@ const CustomDashboardHeader: FunctionComponent = () => {
         <CustomDashboardPopover
           customDashboard={customDashboard}
           onUpdate={handleUpdate}
+          onDelete={() => navigate('/admin/workspaces/custom_dashboards')}
         />
       </div>
       <CustomDashboardParameters />

@@ -27,3 +27,11 @@ export const SUBJECTS = {
 } as const;
 
 export type Subjects = typeof SUBJECTS[keyof typeof SUBJECTS];
+
+export const INHERITED_CONTEXT = {
+  SCENARIO: 'SCENARIO',
+  SIMULATION: 'SIMULATION',
+  NONE: 'NONE',
+} as const;
+
+export type InheritedContext = typeof INHERITED_CONTEXT[keyof typeof INHERITED_CONTEXT];

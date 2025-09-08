@@ -9,6 +9,8 @@ public interface RawScenario {
 
   public String getScenario_name();
 
+  public String getScenario_recurrence();
+
   Instant getScenario_created_at();
 
   Instant getScenario_injects_updated_at();
@@ -24,4 +26,6 @@ public interface RawScenario {
   public Set<String> getScenario_teams();
 
   public Set<String> getScenario_injects();
+
+  public Set<String> getScenario_platforms();
 }

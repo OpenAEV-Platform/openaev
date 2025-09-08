@@ -6,18 +6,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openbas.database.model.Endpoint;
 import io.openbas.rest.asset.form.AssetInput;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class EndpointInput extends AssetInput {
+  @NotNull(message = MANDATORY_MESSAGE)
+  @JsonProperty("endpoint_platform")
+  private Endpoint.PLATFORM_TYPE platform;
 
-  @NotEmpty(message = MANDATORY_MESSAGE)
-  @Size(min = 1, message = MANDATORY_MESSAGE)
+  @NotNull(message = MANDATORY_MESSAGE)
+  @JsonProperty("endpoint_arch")
+  private Endpoint.PLATFORM_ARCH arch;
+
   @JsonProperty("endpoint_ips")
   private String[] ips;
 
@@ -26,14 +29,6 @@ public class EndpointInput extends AssetInput {
 
   @JsonProperty("endpoint_agent_version")
   private String agentVersion;
-
-  @NotNull(message = MANDATORY_MESSAGE)
-  @JsonProperty("endpoint_platform")
-  private Endpoint.PLATFORM_TYPE platform;
-
-  @NotNull(message = MANDATORY_MESSAGE)
-  @JsonProperty("endpoint_arch")
-  private Endpoint.PLATFORM_ARCH arch;
 
   @JsonProperty("endpoint_mac_addresses")
   private String[] macAddresses;

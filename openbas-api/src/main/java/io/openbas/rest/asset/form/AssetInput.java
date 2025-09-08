@@ -20,4 +20,7 @@ public abstract class AssetInput {
 
   @JsonProperty("asset_tags")
   private List<String> tagIds = new ArrayList<>();
+
+  @JsonProperty("asset_external_reference")
+  private String externalReference;
 }

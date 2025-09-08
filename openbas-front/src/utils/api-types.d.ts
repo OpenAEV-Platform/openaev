@@ -1422,6 +1422,7 @@ export interface Endpoint {
   /** @format date-time */
   asset_created_at: string;
   asset_description?: string;
+  asset_external_reference?: string;
   asset_id: string;
   asset_name: string;
   asset_tags?: string[];
@@ -1430,7 +1431,7 @@ export interface Endpoint {
   asset_updated_at: string;
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
-  endpoint_ips: string[];
+  endpoint_ips?: string[];
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
   endpoint_platform:
@@ -1448,16 +1449,13 @@ export interface Endpoint {
 
 export interface EndpointInput {
   asset_description?: string;
+  asset_external_reference?: string;
   asset_name: string;
   asset_tags?: string[];
   endpoint_agent_version?: string;
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
-  /**
-   * @maxItems 2147483647
-   * @minItems 1
-   */
-  endpoint_ips: string[];
+  endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
@@ -1478,6 +1476,8 @@ export interface EndpointOutput {
    * @uniqueItems true
    */
   asset_agents: AgentOutput[];
+  /** Asset external reference */
+  asset_external_reference?: string;
   /** Asset Id */
   asset_id: string;
   /** Asset name */
@@ -1566,11 +1566,7 @@ export interface EndpointRegisterInput {
   endpoint_agent_version?: string;
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
-  /**
-   * @maxItems 2147483647
-   * @minItems 1
-   */
-  endpoint_ips: string[];
+  endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
@@ -1695,6 +1691,10 @@ export interface EsEndpoint {
   base_representative?: string;
   base_restrictions?: string[];
   /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
+  /** @uniqueItems true */
   base_tags_side?: string[];
   /** @format date-time */
   base_updated_at?: string;
@@ -1750,6 +1750,8 @@ export interface EsInject {
   base_inject_contract_side?: string;
   /** @uniqueItems true */
   base_kill_chain_phases_side?: string[];
+  /** @uniqueItems true */
+  base_platforms_side_denormalized?: string[];
   base_representative?: string;
   base_restrictions?: string[];
   base_scenario_side?: string;
@@ -1760,6 +1762,8 @@ export interface EsInject {
   base_teams_side?: string[];
   /** @format date-time */
   base_updated_at?: string;
+  /** @format date-time */
+  inject_execution_date?: string;
   inject_status?: string;
   inject_title?: string;
 }
@@ -1778,6 +1782,9 @@ export interface EsInjectExpectation {
   base_inject_side?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_scenario_side?: string;
+  /** @uniqueItems true */
+  base_security_platforms_side?: string[];
   base_simulation_side?: string;
   base_team_side?: string;
   /** @format date-time */
@@ -1807,6 +1814,8 @@ export interface EsScenario {
   base_dependencies?: string[];
   base_entity?: string;
   base_id?: string;
+  /** @uniqueItems true */
+  base_platforms_side_denormalized?: string[];
   base_representative?: string;
   base_restrictions?: string[];
   /** @uniqueItems true */
@@ -1816,6 +1825,7 @@ export interface EsScenario {
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
+  status?: string;
 }
 
 export interface EsSearch {
@@ -1851,6 +1861,8 @@ export interface EsSimulation {
   base_dependencies?: string[];
   base_entity?: string;
   base_id?: string;
+  /** @uniqueItems true */
+  base_platforms_side_denormalized?: string[];
   base_representative?: string;
   base_restrictions?: string[];
   base_scenario_side?: string;
@@ -1861,6 +1873,7 @@ export interface EsSimulation {
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
+  status?: string;
 }
 
 export interface EsTag {
@@ -1888,6 +1901,7 @@ export interface EsVulnerableEndpoint {
   base_id?: string;
   base_representative?: string;
   base_restrictions?: string[];
+  base_scenario_side?: string;
   base_simulation_side?: string;
   /** @uniqueItems true */
   base_tags_side?: string[];
@@ -3124,6 +3138,7 @@ export interface InjectorContract {
   )[];
   /** @format date-time */
   injector_contract_updated_at: string;
+  injector_contract_vulnerabilities?: string[];
   listened?: boolean;
 }
 
@@ -3135,6 +3150,7 @@ export interface InjectorContractAddInput {
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
+  contract_vulnerability_ids?: string[];
   external_contract_id?: string;
   injector_id: string;
   is_atomic_testing?: boolean;
@@ -3255,11 +3271,13 @@ export interface InjectorContractUpdateInput {
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
+  contract_vulnerability_ids?: string[];
   is_atomic_testing?: boolean;
 }
 
 export interface InjectorContractUpdateMappingInput {
   contract_attack_patterns_ids?: string[];
+  contract_vulnerability_ids?: string[];
 }
 
 export interface InjectorCreateInput {
@@ -3303,6 +3321,11 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+export interface JsonApiDocumentResourceObject {
+  data?: ResourceObject;
+  included?: object[];
 }
 
 export type JsonNode = object;
@@ -4974,6 +4997,10 @@ export interface RelatedFindingOutput {
   finding_value: string;
 }
 
+export interface Relationship {
+  data: object;
+}
+
 export interface RenewTokenInput {
   token_id: string;
 }
@@ -5037,6 +5064,13 @@ export interface ReportInput {
 export interface ResetUserInput {
   lang?: string;
   login: string;
+}
+
+export interface ResourceObject {
+  attributes?: Record<string, object>;
+  id: string;
+  relationships?: Record<string, Relationship>;
+  type: string;
 }
 
 export interface ResultDistribution {
@@ -5290,6 +5324,7 @@ export interface SecurityPlatform {
 
 export interface SecurityPlatformInput {
   asset_description?: string;
+  asset_external_reference?: string;
   asset_name: string;
   asset_tags?: string[];
   security_platform_logo_dark?: string;
@@ -6079,7 +6114,6 @@ export interface Widget {
     | StructuralHistogramWidget;
   /** @format date-time */
   widget_created_at: string;
-  widget_custom_dashboard?: string;
   widget_id: string;
   widget_layout: WidgetLayout;
   widget_type:

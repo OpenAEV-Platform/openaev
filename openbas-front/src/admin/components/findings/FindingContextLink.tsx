@@ -28,7 +28,9 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
         ? `${ATOMIC_BASE_URL}/${injectId}`
         : `${SIMULATION_BASE_URL}/${simulationId}/injects/${injectId}`;
 
-      const userRight = isAtomic ? ability.can(ACTIONS.ACCESS, SUBJECTS.ATOMIC_TESTING) : ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id);
+      const userRight = isAtomic
+        ? (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectId))
+        : ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id);
 
       return userRight ? <ContextLink title={title} url={url} /> : title;
     }

@@ -1,6 +1,6 @@
 package io.openbas.executors.crowdstrike.service;
 
-import static io.openbas.utils.Time.toInstant;
+import static io.openbas.utils.TimeUtils.toInstant;
 
 import io.openbas.database.model.*;
 import io.openbas.executors.ExecutorService;

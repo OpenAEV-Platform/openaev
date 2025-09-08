@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
-public class TeamGroupHandler implements Handler<EsTeam> {
+public class TeamHandler implements Handler<EsTeam> {
 
   private final TeamRepository teamRepository;
 

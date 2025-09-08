@@ -1,10 +1,6 @@
 package io.openbas.database.specification;
 
 import io.openbas.database.model.*;
-import io.openbas.database.model.Base;
-import io.openbas.database.model.Grant;
-import io.openbas.database.model.Group;
-import io.openbas.database.model.User;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
@@ -13,6 +9,7 @@ import java.util.function.BiFunction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public class SpecificationUtils {
 
@@ -49,20 +46,22 @@ public class SpecificationUtils {
    * otherwise.
    *
    * @param userId ID of the user performing the search
-   * @param isAdmin true id the user performing the search has admin privileges
+   * @param isAdminOrBypass true id the user performing the search has admin privileges
    * @param hasCapaForClass true id the user has the capa for the specific class to bypass grants
    * @param grantType the minimum grant type required to access the resource
    */
   public static <T extends Base> Specification<T> hasGrantAccess(
       final String userId,
-      final boolean isAdmin,
+      final boolean isAdminOrBypass,
       boolean hasCapaForClass,
       Grant.GRANT_TYPE grantType) {
     return (root, query, cb) -> {
       Class<?> entityClass = root.getJavaType();
 
       // If the user is an admin or there is no grant system associated with T
-      if (isAdmin || !GrantableBase.class.isAssignableFrom(entityClass) || hasCapaForClass) {
+      if (isAdminOrBypass
+          || !GrantableBase.class.isAssignableFrom(entityClass)
+          || hasCapaForClass) {
         return cb.conjunction(); // Always true
       }
 
@@ -131,15 +130,19 @@ public class SpecificationUtils {
 
   public static <T extends GrantableBase>
       BiFunction<Specification<T>, Pageable, Page<T>> withGrantFilter(
-          BiFunction<Specification<T>, Pageable, Page<T>> findAll,
+          JpaSpecificationExecutor<T> repo,
           Grant.GRANT_TYPE grantType,
           String userId,
-          boolean isAdmin,
+          boolean isAdminOrBypass,
           boolean hasCapaForClass) {
-    return (spec, pageable) ->
-        findAll.apply(
-            spec.and(
-                SpecificationUtils.hasGrantAccess(userId, isAdmin, hasCapaForClass, grantType)),
-            pageable);
+    return (spec, pageable) -> {
+      Specification<T> grantSpec =
+          SpecificationUtils.hasGrantAccess(userId, isAdminOrBypass, hasCapaForClass, grantType);
+      return repo.findAll(spec == null ? grantSpec : spec.and(grantSpec), pageable);
+    };
+  }
+
+  public static <T extends Base> Specification<T> hasIdIn(List<String> ids) {
+    return (root, query, cb) -> root.get("id").in(ids);
   }
 }

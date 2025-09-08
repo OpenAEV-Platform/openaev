@@ -1,14 +1,14 @@
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
 import { Button, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import type { Article, Variable } from '../../../../../utils/api-types';
 import { type ContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
-import { Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
@@ -25,6 +25,7 @@ import InjectTeamsList from './teams/InjectTeamsList';
 
 interface Props {
   injectorContractContent: InjectorContractConverted['convertedContent'];
+  injectId: string;
   isAtomic: boolean;
   readOnly?: boolean;
   articles?: Article[];
@@ -34,6 +35,7 @@ interface Props {
 
 const InjectContentForm = ({
   injectorContractContent,
+  injectId,
   isAtomic,
   readOnly,
   articles = [],
@@ -43,6 +45,7 @@ const InjectContentForm = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const { control, setValue, getValues } = useFormContext();
+  const ability = useContext(AbilityContext);
 
   const injectorContractFields = injectorContractContent.fields;
   const fieldsMap = new Map<string, ContractElement>();
@@ -224,18 +227,19 @@ const InjectContentForm = ({
     {
       title: t('Inject data'),
       render: renderDynamicFields,
-      renderLeftButton: (
-        <Tooltip title={t('Reset to default values')}>
-          <IconButton
-            color="primary"
-            disabled={fieldsMap.get('expectation')?.readOnly || readOnly}
-            onClick={resetDefaultValue}
-            size="small"
-          >
-            <RotateLeftOutlined />
-          </IconButton>
-        </Tooltip>
-      ),
+      renderLeftButton: (!isAtomic || (ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT) || (injectId && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))))
+        && (
+          <Tooltip title={t('Reset to default values')}>
+            <IconButton
+              color="primary"
+              disabled={fieldsMap.get('expectation')?.readOnly || readOnly}
+              onClick={resetDefaultValue}
+              size="small"
+            >
+              <RotateLeftOutlined />
+            </IconButton>
+          </Tooltip>
+        ),
       renderRightButton: (
         <Button
           color="primary"

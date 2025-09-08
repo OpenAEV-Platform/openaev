@@ -5,7 +5,7 @@ import static java.time.Instant.now;
 import io.openbas.injectors.caldera.client.CalderaInjectorClient;
 import io.openbas.injectors.caldera.client.model.Agent;
 import io.openbas.service.AgentService;
-import io.openbas.utils.Time;
+import io.openbas.utils.TimeUtils;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +44,11 @@ public class CalderaGarbageCollectorService implements Runnable {
     agentsCaldera.forEach(
         agentCaldera -> {
           if (agentCaldera.getExe_name().contains("implant")) {
-            if ((now().toEpochMilli() - Time.toInstant(agentCaldera.getCreated()).toEpochMilli())
+            if ((now().toEpochMilli()
+                        - TimeUtils.toInstant(agentCaldera.getCreated()).toEpochMilli())
                     > KILL_TTL
                 && (now().toEpochMilli()
-                        - Time.toInstant(agentCaldera.getLast_seen()).toEpochMilli())
+                        - TimeUtils.toInstant(agentCaldera.getLast_seen()).toEpochMilli())
                     < KILL_TTL) {
               try {
                 log.info("Killing agent " + agentCaldera.getHost());
@@ -57,7 +58,8 @@ public class CalderaGarbageCollectorService implements Runnable {
                 log.info("Failed to kill agent, probably already killed");
               }
             }
-            if ((now().toEpochMilli() - Time.toInstant(agentCaldera.getCreated()).toEpochMilli())
+            if ((now().toEpochMilli()
+                        - TimeUtils.toInstant(agentCaldera.getCreated()).toEpochMilli())
                     > DELETE_TTL
                 && !killedAgents.contains(agentCaldera.getPaw())) {
               try {

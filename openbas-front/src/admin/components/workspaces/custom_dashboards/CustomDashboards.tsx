@@ -1,11 +1,12 @@
 import { AnalyticsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
 import { type CSSProperties, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchCustomDashboards } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { importCustomDashboard, searchCustomDashboards } from '../../../../actions/custom_dashboards/customdashboard-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import ImportUploaderJsonApiComponent from '../../../../components/common/import/ImportUploaderJsonApiComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -96,6 +97,16 @@ const CustomDashboards = () => {
         entityPrefix="custom_dashboard"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <ToggleButtonGroup value="fake" exclusive>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
+              <ImportUploaderJsonApiComponent
+                title={t('Import a custom dashboard')}
+                uploadFn={importCustomDashboard}
+              />
+            </Can>
+          </ToggleButtonGroup>
+        )}
       />
       <List>
         <ListItem

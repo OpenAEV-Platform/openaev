@@ -12,7 +12,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Exercise, type Exercise as ExerciseType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { usePermissions } from '../../../../utils/permissions/simulationPermissions';
+import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
@@ -37,7 +37,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const permissions = usePermissions(exerciseId);
+  const permissions = useSimulationPermissions(exerciseId);
   const [openChangeStatus, setOpenChangeStatus] = useState<Exercise['exercise_status'] | null>(null);
   const submitUpdateStatus = (status: { exercise_status: Exercise['exercise_status'] | null }) => {
     dispatch(updateExerciseStatus(exerciseId, status));
@@ -46,7 +46,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
   const executionButton = () => {
     switch (exerciseStatus) {
       case 'SCHEDULED': {
-        if (!permissions.readOnlyBypassStatus) {
+        if (permissions.canLaunch) {
           return (
             <Button
               style={{
@@ -66,7 +66,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
         return (<div />);
       }
       case 'RUNNING': {
-        if (!permissions.readOnlyBypassStatus) {
+        if (permissions.canLaunch) {
           return (
             <Button
               style={{ marginRight: 10 }}
@@ -83,7 +83,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
         return (<div />);
       }
       case 'PAUSED': {
-        if (!permissions.readOnlyBypassStatus) {
+        if (permissions.canLaunch) {
           return (
             <Button
               style={{ marginRight: 10 }}
@@ -107,7 +107,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
     switch (exerciseStatus) {
       case 'RUNNING':
       case 'PAUSED': {
-        if (!permissions.readOnlyBypassStatus) {
+        if (permissions.canLaunch) {
           return (
             <Button
               style={{ marginRight: 10 }}
@@ -124,7 +124,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       }
       case 'FINISHED':
       case 'CANCELED': {
-        if (!permissions.readOnlyBypassStatus) {
+        if (permissions.canLaunch) {
           return (
             <Button
               style={{ marginRight: 10 }}

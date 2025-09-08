@@ -1,12 +1,11 @@
 package io.openbas.engine.model.injectexpectation;
 
 import static io.openbas.engine.EsUtils.buildRestrictions;
-import static io.openbas.helper.InjectExpectationHelper.computeStatus;
+import static io.openbas.helper.InjectExpectationHelper.computeStatusForIndexing;
 import static java.lang.String.valueOf;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openbas.database.model.InjectExpectation;
 import io.openbas.database.raw.RawInjectExpectation;
 import io.openbas.database.repository.InjectExpectationRepository;
 import io.openbas.engine.Handler;
@@ -52,12 +51,6 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               esInjectExpectation.setInject_expectation_results(
                   injectExpectation.getInject_expectation_results());
 
-              InjectExpectation injectExpectationTmp = new InjectExpectation();
-              injectExpectationTmp.setScore(injectExpectation.getInject_expectation_score());
-              injectExpectationTmp.setExpectedScore(
-                  injectExpectation.getInject_expectation_expected_score());
-              esInjectExpectation.setInject_expectation_status(
-                  valueOf(computeStatus(injectExpectationTmp)));
               esInjectExpectation.setInject_expectation_score(
                   injectExpectation.getInject_expectation_score());
               esInjectExpectation.setInject_expectation_expected_score(
@@ -71,6 +64,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               if (hasText(injectExpectation.getExercise_id())) {
                 dependencies.add(injectExpectation.getExercise_id());
                 esInjectExpectation.setBase_simulation_side(injectExpectation.getExercise_id());
+              }
+              if (hasText(injectExpectation.getScenario_id())) {
+                dependencies.add(injectExpectation.getScenario_id());
+                esInjectExpectation.setBase_scenario_side(injectExpectation.getScenario_id());
               }
               if (hasText(injectExpectation.getInject_id())) {
                 dependencies.add(injectExpectation.getInject_id());
@@ -101,6 +98,13 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
                 esInjectExpectation.setBase_attack_patterns_side(
                     injectExpectation.getAttack_pattern_ids());
               }
+              if (!isEmpty(injectExpectation.getSecurity_platform_ids())) {
+                dependencies.addAll(injectExpectation.getSecurity_platform_ids());
+                esInjectExpectation.setBase_security_platforms_side(
+                    injectExpectation.getSecurity_platform_ids());
+              }
+              esInjectExpectation.setInject_expectation_status(
+                  valueOf(computeStatusForIndexing(injectExpectation)));
               esInjectExpectation.setBase_dependencies(dependencies);
               return esInjectExpectation;
             })

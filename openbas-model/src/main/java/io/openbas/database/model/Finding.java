@@ -119,6 +119,12 @@ public class Finding implements Base {
   @Queryable(filterable = true, dynamicValues = true, path = "assets.id")
   private List<Asset> assets = new ArrayList<>();
 
+  // UpdatedAt now used to sync with linked object
+  public void setAssets(List<Asset> assets) {
+    this.updateDate = now();
+    this.assets = assets;
+  }
+
   @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

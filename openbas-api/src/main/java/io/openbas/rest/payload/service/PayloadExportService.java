@@ -133,6 +133,7 @@ public class PayloadExportService {
         parentZip.write(payloadZipStream.toByteArray());
         parentZip.closeEntry();
       }
+      parentZip.finish();
     }
     return parentOutputStream.toByteArray();
   }

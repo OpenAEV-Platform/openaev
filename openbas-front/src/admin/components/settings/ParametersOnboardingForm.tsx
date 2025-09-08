@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, Divider, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
-import { FormProvider, useForm, useWatch } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
@@ -49,14 +49,13 @@ const ParametersOnboardingForm: FunctionComponent<ParametersOnboardingFormForms>
     defaultValues: initialValues,
   });
   const { handleSubmit, reset } = methods;
-
-  const watchedValues = useWatch({ control: methods.control });
-  const deps = JSON.stringify(watchedValues);
-
   useEffect(() => {
-    const t = setTimeout(() => handleSubmit(onSubmit)(), 300);
-    return () => clearTimeout(t);
-  }, [deps, methods, onSubmit]);
+    const subscription = methods.watch(() => {
+      const values = methods.getValues();
+      onSubmit(values);
+    });
+    return () => subscription.unsubscribe();
+  }, [methods, onSubmit]);
 
   const handleReset = async () => {
     dispatch(fetchDefaultPlatformParameters())
@@ -67,6 +66,7 @@ const ParametersOnboardingForm: FunctionComponent<ParametersOnboardingFormForms>
         const item = result.entities.defaultPlatformParameters[result.result];
         if (!item) return;
         reset(item);
+        handleSubmit(onSubmit)();
       });
   };
 

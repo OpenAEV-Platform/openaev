@@ -1,7 +1,10 @@
 package io.openbas.database.repository;
 
+import io.openbas.database.model.AssetType;
 import io.openbas.database.model.Document;
 import io.openbas.database.model.SecurityPlatform;
+import io.openbas.database.raw.RawAsset;
+import io.openbas.utils.Constants;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -39,4 +42,26 @@ public interface SecurityPlatformRepository
           + "union "
           + "select distinct s.logoLight from SecurityPlatform s ")
   List<Document> securityPlatformLogo();
+
+  @Query(
+      value =
+          "SELECT a.asset_id, a.asset_name, a.asset_created_at, a.asset_updated_at "
+              + "FROM assets a "
+              + "WHERE a.asset_updated_at > :from AND a.asset_type = '"
+              + AssetType.Values.SECURITY_PLATFORM_TYPE
+              + "' "
+              + "GROUP BY a.asset_id, a.asset_updated_at "
+              + "ORDER BY a.asset_updated_at LIMIT "
+              + Constants.INDEXING_RECORD_SET_SIZE
+              + ";",
+      nativeQuery = true)
+  List<RawAsset> findForIndexing(@Param("from") Instant from);
+
+  @Query(
+      "SELECT DISTINCT a FROM Asset a "
+          + "WHERE a.type = '"
+          + AssetType.Values.SECURITY_PLATFORM_TYPE
+          + "' AND "
+          + "(:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
+  List<SecurityPlatform> findAllByName(String name);
 }

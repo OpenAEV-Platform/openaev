@@ -1,5 +1,5 @@
 import { HelpOutlined } from '@mui/icons-material';
-import { GridLegacy, List, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Paper, Typography } from '@mui/material';
+import { GridLegacy, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Paper, Typography } from '@mui/material';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -83,7 +83,7 @@ const LessonsTemplate = () => {
                 <List disablePadding>
                   {questionsSorted.map((question) => {
                     return (
-                      <ListItemButton
+                      <ListItem
                         key={question.lessonstemplatequestion_id}
                         divider
                       >
@@ -101,7 +101,7 @@ const LessonsTemplate = () => {
                             lessonsTemplateQuestion={question}
                           />
                         </ListItemSecondaryAction>
-                      </ListItemButton>
+                      </ListItem>
                     );
                   })}
                   <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>

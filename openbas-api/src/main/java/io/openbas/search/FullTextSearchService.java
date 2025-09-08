@@ -149,13 +149,16 @@ public class FullTextSearchService<T extends Base> {
 
     // Specification building
     Specification<T> specs =
-        SpecificationUtils.<T>fullTextSearch(finalSearchTerm, searchListByClassMap.get(clazzT))
-            .and(
-                SpecificationUtils.hasGrantAccess(
-                    currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(capaForClass),
-                    Grant.GRANT_TYPE.OBSERVER));
+        SpecificationUtils.<T>fullTextSearch(finalSearchTerm, searchListByClassMap.get(clazzT));
+    if (GrantableBase.class.isAssignableFrom(clazzT)) {
+      specs =
+          specs.and(
+              SpecificationUtils.hasGrantAccess(
+                  currentUser.getId(),
+                  currentUser.isAdminOrBypass(),
+                  currentUser.getCapabilities().contains(capaForClass),
+                  Grant.GRANT_TYPE.OBSERVER));
+    }
 
     return buildPaginationJPA(repository::findAll, searchPaginationInput, clazzT, specs)
         .map(this::transform);

@@ -192,10 +192,14 @@ const Scenarios = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Box display="flex" gap={1}>
-            <ImportFromHubButton serviceIdentifier="obas_scenarios" />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <ImportFromHubButton serviceIdentifier="obas_scenarios" />
+            </Can>
             <ToggleButtonGroup value="fake" exclusive>
               <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-              <ImportUploaderScenario />
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+                <ImportUploaderScenario />
+              </Can>
             </ToggleButtonGroup>
           </Box>
         )}
@@ -272,7 +276,7 @@ const Scenarios = () => {
               })
         }
       </List>
-      <Can I={ACTIONS.CREATE} a={SUBJECTS.ASSESSMENT}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
         <ScenarioCreation
           onCreate={(result: Scenario) => {
             setScenarios([result, ...scenarios]);

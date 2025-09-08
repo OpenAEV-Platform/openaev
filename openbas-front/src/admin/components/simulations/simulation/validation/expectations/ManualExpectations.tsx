@@ -1,11 +1,11 @@
 import { AssignmentTurnedIn, ExpandMore, PersonOutlined } from '@mui/icons-material';
 import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Chip, Divider, List, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import * as R from 'ramda';
-import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
+import { type FunctionComponent, type SyntheticEvent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type UserHelper } from '../../../../../../actions/helper';
-import { fetchUsers } from '../../../../../../actions/User';
+import { fetchPlayers } from '../../../../../../actions/User';
 import colorStyles from '../../../../../../components/Color';
 import Drawer from '../../../../../../components/common/Drawer';
 import ExpandableText from '../../../../../../components/common/ExpendableText';
@@ -17,6 +17,7 @@ import { computeColorStyle } from '../../../../../../utils/Colors';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
+import { PermissionsContext } from '../../../../common/Context';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { FAILED } from '../../../../common/injects/expectations/ExpectationUtils';
 import ManualExpectationsValidationForm from './ManualExpectationsValidationForm';
@@ -70,6 +71,7 @@ const ManualExpectations: FunctionComponent<Props> = ({
 }) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const { permissions } = useContext(PermissionsContext);
 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [currentExpectations, setCurrentExpectations] = useState<InjectExpectationsStore[] | null>(null);
@@ -79,8 +81,9 @@ const ManualExpectations: FunctionComponent<Props> = ({
     return ({ usersMap: helper.getUsersMap() });
   });
   const dispatch = useAppDispatch();
+
   useDataLoader(() => {
-    dispatch(fetchUsers());
+    dispatch(fetchPlayers());
   });
 
   const handleItemClick = (expectationsToUpdate: InjectExpectationsStore[]) => {
@@ -213,7 +216,7 @@ const ManualExpectations: FunctionComponent<Props> = ({
             {t('Team')}
           </Typography>
           <Paper>
-            <ManualExpectationsValidationForm key={parentExpectation.target_id} expectation={parentExpectation} />
+            <ManualExpectationsValidationForm key={parentExpectation.target_id} expectation={parentExpectation} isDisabled={permissions.readOnly} />
           </Paper>
           <Divider style={{ margin: '20px 0' }} />
           <Typography
@@ -282,7 +285,7 @@ const ManualExpectations: FunctionComponent<Props> = ({
                     </div>
                   </AccordionSummary>
                   <AccordionDetails>
-                    <ManualExpectationsValidationForm expectation={e} withSummary={false} />
+                    <ManualExpectationsValidationForm expectation={e} withSummary={false} isDisabled={permissions.readOnly} />
                   </AccordionDetails>
                 </Accordion>
               );

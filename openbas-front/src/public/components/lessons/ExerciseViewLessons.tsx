@@ -11,7 +11,7 @@ import { useHelper } from '../../../store';
 import { type Exercise } from '../../../utils/api-types';
 import { useQueryParameter } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
-import { usePermissions } from '../../../utils/permissions/simulationPermissions';
+import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions';
 import LessonsPlayer from './LessonsPlayer';
 import LessonsPreview from './LessonsPreview';
 
@@ -76,7 +76,7 @@ const ExerciseViewLessons = () => {
   }, [dispatch, exerciseId, userId, finalUserId]);
 
   // Pass the full exercise because the exercise is never loaded in the store at this point
-  const permissions = usePermissions(exerciseId, exercise);
+  const permissions = useSimulationPermissions(exerciseId, exercise);
 
   const context: ViewLessonContextType = {
     onAddLessonsAnswers: (questionCategory, lessonsQuestionId, answerData) => dispatch(

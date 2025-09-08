@@ -6,13 +6,12 @@ import static java.util.stream.StreamSupport.stream;
 
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.*;
-import io.openbas.database.repository.*;
+import io.openbas.database.repository.GrantRepository;
+import io.openbas.database.repository.GroupRepository;
+import io.openbas.database.repository.OrganizationRepository;
+import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
-import io.openbas.rest.group.form.GroupCreateInput;
-import io.openbas.rest.group.form.GroupGrantInput;
-import io.openbas.rest.group.form.GroupUpdateRolesInput;
-import io.openbas.rest.group.form.GroupUpdateUsersInput;
-import io.openbas.rest.group.form.OrganizationGrantInput;
+import io.openbas.rest.group.form.*;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.service.GrantService;
 import io.openbas.service.RoleService;

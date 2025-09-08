@@ -1,13 +1,13 @@
 import { PlayArrowOutlined, SettingsOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { launchAtomicTesting, relaunchAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AtomicTestingPopover from './AtomicTestingPopover';
 import AtomicTestingUpdate from './AtomicTestingUpdate';
@@ -21,6 +21,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
+  const ability = useContext(AbilityContext);
 
   const [edition, setEdition] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -59,7 +60,9 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   function getActionButton(injectResultOverviewOutput: InjectResultOverviewOutput) {
     if (!injectResultOverviewOutput.inject_injector_contract) return null;
 
-    if (injectResultOverviewOutput.inject_ready) {
+    const hasManageAbility = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
+    const hasLaunchAbility = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
+    if (injectResultOverviewOutput.inject_ready && hasLaunchAbility) {
       const launchOrRelaunchKey = !injectResultOverviewOutput.inject_status?.status_id ? 'Launch now' : 'Relaunch now';
       return (
         <Button
@@ -77,7 +80,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           {t(launchOrRelaunchKey)}
         </Button>
       );
-    } else {
+    } else if (hasManageAbility) {
       return (
         <>
           <Button
@@ -93,6 +96,8 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           <AtomicTestingUpdate open={edition} handleClose={handleCloseEdit} atomic={injectResultOverviewOutput} />
         </>
       );
+    } else {
+      return (<></>);
     }
   }
 
@@ -128,12 +133,12 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     );
   }
 
+  const hasAbility = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
+
   return (
     <>
       <Box display="flex" flexDirection="row" alignItems="center">
-        <Can I={ACTIONS.LAUNCH} a={SUBJECTS.ATOMIC_TESTING}>
-          {getActionButton(injectResultOverview)}
-        </Can>
+        {hasAbility && getActionButton(injectResultOverview)}
         <AtomicTestingPopover
           atomic={injectResultOverview}
           actions={['Export', 'Update', 'Duplicate', 'Delete']}

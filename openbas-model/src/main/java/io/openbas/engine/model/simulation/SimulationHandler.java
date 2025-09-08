@@ -29,6 +29,7 @@ public class SimulationHandler implements Handler<EsSimulation> {
               EsSimulation esSimulation = new EsSimulation();
               // Base
               esSimulation.setBase_id(simulation.getExercise_id());
+              esSimulation.setStatus(simulation.getExercise_status());
               esSimulation.setBase_created_at(simulation.getExercise_created_at());
               esSimulation.setBase_updated_at(simulation.getExercise_injects_updated_at());
               esSimulation.setName(simulation.getExercise_name());
@@ -37,6 +38,7 @@ public class SimulationHandler implements Handler<EsSimulation> {
               esSimulation.setBase_restrictions(
                   buildRestrictions(simulation.getExercise_id(), simulation.getScenario_id()));
               // Specific
+              esSimulation.setBase_platforms_side_denormalized(simulation.getExercise_platforms());
               // Dependencies
               List<String> dependencies = new ArrayList<>();
               if (!isEmpty(simulation.getExercise_tags())) {

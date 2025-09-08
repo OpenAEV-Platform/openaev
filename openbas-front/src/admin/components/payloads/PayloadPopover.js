@@ -1,20 +1,20 @@
 import { MoreVert } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import {
   deletePayload,
   duplicatePayload,
-  exportPayloads,
+  exportPayload,
   updatePayload,
 } from '../../../actions/payloads/payload-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
-import { Can } from '../../../utils/permissions/PermissionsProvider.js';
+import { AbilityContext, Can } from '../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types.js';
 import { download } from '../../../utils/utils.js';
 import PayloadForm from './PayloadForm';
@@ -25,6 +25,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
   const [anchorEl, setAnchorEl] = useState(null);
   const dispatch = useDispatch();
   const { t } = useFormatter();
+  const ability = useContext(AbilityContext);
   const handlePopoverOpen = (event) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
@@ -39,12 +40,14 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     function handleCleanupCommandValue(payload_cleanup_command) {
       return payload_cleanup_command === '' ? null : payload_cleanup_command;
     }
+
     function handleCleanupExecutorValue(payload_cleanup_executor, payload_cleanup_command) {
       if (payload_cleanup_executor !== '' && handleCleanupCommandValue(payload_cleanup_command) !== null) {
         return payload_cleanup_executor;
       }
       return null;
     }
+
     const inputValues = R.pipe(
       R.assoc('payload_platforms', data.payload_platforms),
       R.assoc('payload_tags', data.payload_tags),
@@ -94,22 +97,17 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     });
   };
 
-  const handleExportJsonSingle = () => {
+  const handleExportJsonSingle = async () => {
     handlePopoverClose();
-    const exportData = {
-      payloads: [
-        { payload_id: payload.payload_id },
-      ],
-    };
-    exportPayloads(exportData).then((result) => {
-      const contentDisposition = result.headers['content-disposition'];
-      const match = contentDisposition.match(/filename\s*=\s*(.*)/i);
-      const filename = match[1];
-      download(result.data, filename, result.headers['content-type']);
-    });
+    const response = await exportPayload(payload.payload_id);
+
+    const match = response.headers['content-disposition'].match(/filename="?([^"]+)"?/);
+    const filename = match[1];
+    download(response.data, filename, 'application/zip');
   };
 
   const initialValues = {
+    payload_id: payload.payload_id,
     payload_name: payload.payload_name,
     payload_description: payload.payload_description,
     payload_type: payload.payload_type,
@@ -136,6 +134,8 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
       remediationId: remediation.detection_remediation_id,
     };
   });
+  const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payload.payload_id);
+  const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payload.payload_id);
   return (
     <>
       <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
@@ -149,13 +149,11 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
           <MenuItem onClick={handleOpenDuplicate}>{t('Duplicate')}</MenuItem>
         </Can>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
-          <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
-        </Can>
+        {hasUpdateCapability
+          && <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>}
         <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem>
-        <Can I={ACTIONS.DELETE} a={SUBJECTS.PAYLOADS}>
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
-        </Can>
+        {hasDeleteCapability
+          && <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>}
       </Menu>
       <DialogDelete
         open={deletion}

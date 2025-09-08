@@ -28,6 +28,7 @@ const LeftBar = () => {
 
   const entries = [
     {
+      userRight: true,
       items: [
         {
           path: `/admin`,
@@ -50,6 +51,7 @@ const LeftBar = () => {
       ],
     },
     {
+      userRight: true,
       items: [
         {
           path: `/admin/scenarios`,
@@ -67,11 +69,12 @@ const LeftBar = () => {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ATOMIC_TESTING),
+          userRight: true,
         },
       ],
     },
     {
+      userRight: true,
       items: [
         {
           path: `/admin/assets`,
@@ -166,12 +169,13 @@ const LeftBar = () => {
       ],
     },
     {
+      userRight: true,
       items: [
         {
           path: `/admin/payloads`,
           icon: () => (<SubscriptionsOutlined />),
           label: 'Payloads',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PAYLOADS),
+          userRight: true,
         },
         {
           path: `/admin/integrations`,
@@ -203,14 +207,14 @@ const LeftBar = () => {
       ],
     },
     {
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: true,
       items: [
         {
           path: `/admin/settings`,
           icon: () => (<SettingsOutlined />),
           label: 'Settings',
           href: 'settings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: true,
           subItems: [
             {
               link: '/admin/settings/parameters',
@@ -230,7 +234,7 @@ const LeftBar = () => {
             {
               link: '/admin/settings/taxonomies',
               label: 'Taxonomies',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: true,
             },
             {
               link: '/admin/settings/data_ingestion',

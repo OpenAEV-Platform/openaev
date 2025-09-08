@@ -54,9 +54,9 @@ public class GrantService {
     boolean exists =
         exerciseRepository.existsById(resourceId)
             || scenarioRepository.existsById(resourceId)
+            // Atomic testings:
             || injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId)
-            || // Atomic Testing
-            payloadRepository.existsById(resourceId);
+            || payloadRepository.existsById(resourceId);
 
     if (!exists) {
       throw new IllegalArgumentException("A valid resource ID should be present");

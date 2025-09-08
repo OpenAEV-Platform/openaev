@@ -2,6 +2,8 @@ package io.openbas.utils.fixtures.composers;
 
 import static io.openbas.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openbas.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
+import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openbas.injectors.email.EmailContract.EMAIL_GLOBAL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -28,7 +30,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
   public class Composer extends InnerComposerBase<InjectorContract> {
     private final List<String> WELL_KNOWN_CONTRACT_IDS =
-        List.of(CHALLENGE_PUBLISH, CHANNEL_PUBLISH);
+        List.of(CHALLENGE_PUBLISH, CHANNEL_PUBLISH, EMAIL_DEFAULT, EMAIL_GLOBAL);
 
     private final InjectorContract injectorContract;
     private final List<AttackPatternComposer.Composer> attackPatternComposer = new ArrayList<>();

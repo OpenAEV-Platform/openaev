@@ -134,7 +134,9 @@ public class InjectComposer extends ComposerBase<Inject> {
       this.injectorContractComposer.ifPresent(
           composer -> {
             composer.persist();
-            this.inject.setContent(composer.getInjectContent());
+            if (this.inject.getContent() == null) {
+              this.inject.setContent(composer.getInjectContent());
+            }
           });
       assetGroupComposers.forEach(AssetGroupComposer.Composer::persist);
       endpointComposers.forEach(EndpointComposer.Composer::persist);

@@ -133,6 +133,19 @@ public class CveService {
         .orElseThrow(() -> new ElementNotFoundException(CVE_NOT_FOUND_MSG + cveId));
   }
 
+  public List<Cve> findAllByIdsOrThrowIfMissing(final Set<String> vulnIds) {
+    List<Cve> vulns = fromIterable(this.cveRepository.findAllById(vulnIds));
+    List<String> missingIds =
+        vulnIds.stream()
+            .filter(id -> !vulns.stream().map(Cve::getId).toList().contains(id))
+            .toList();
+    if (!missingIds.isEmpty()) {
+      throw new ElementNotFoundException(
+          String.format("Missing vulnerabilities: %s", String.join(", ", missingIds)));
+    }
+    return vulns;
+  }
+
   public Cve findByExternalId(String externalId) {
     return cveRepository
         .findByExternalId(externalId)

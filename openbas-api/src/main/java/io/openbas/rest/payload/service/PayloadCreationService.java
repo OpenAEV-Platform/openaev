@@ -13,6 +13,7 @@ import io.openbas.ee.Ee;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.payload.PayloadUtils;
 import io.openbas.rest.payload.form.PayloadCreateInput;
+import io.openbas.service.GrantService;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class PayloadCreationService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
+  private final GrantService grantService;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
 
@@ -61,6 +63,7 @@ public class PayloadCreationService {
       fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
     }
 
+    this.grantService.computeGrant(payload);
     Payload saved = payloadRepository.save(payload);
     payloadService.updateInjectorContractsForPayload(saved);
     return saved;

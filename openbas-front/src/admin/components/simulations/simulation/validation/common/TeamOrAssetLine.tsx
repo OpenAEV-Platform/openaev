@@ -3,10 +3,10 @@ import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchAssetGroups } from '../../../../../../actions/asset_groups/assetgroup-action';
+import { fetchSimulationAssetGroups } from '../../../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../../../actions/asset_groups/assetgroup-helper';
 import { type EndpointHelper } from '../../../../../../actions/assets/asset-helper';
-import { fetchEndpoints } from '../../../../../../actions/assets/endpoint-actions';
+import { fetchSimulationEndpoints } from '../../../../../../actions/assets/endpoint-actions';
 import { fetchExerciseChallenges } from '../../../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../../../actions/channels/article-helper';
@@ -78,8 +78,8 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
     dispatch(fetchExerciseChallenges(exerciseId));
-    dispatch(fetchEndpoints());
-    dispatch(fetchAssetGroups());
+    dispatch(fetchSimulationEndpoints(exerciseId));
+    dispatch(fetchSimulationAssetGroups(exerciseId));
   });
 
   const team: Team = teamsMap[id];

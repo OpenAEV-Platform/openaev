@@ -50,10 +50,14 @@ public class CustomDashboard implements Base {
   @JsonProperty("custom_dashboard_description")
   private String description;
 
-  @OneToMany(mappedBy = "customDashboard", fetch = LAZY)
+  @OneToMany(
+      mappedBy = "customDashboard",
+      fetch = LAZY,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
   @JsonProperty("custom_dashboard_widgets")
   @JsonSerialize(using = MultiModelDeserializer.class)
-  private List<Widget> widgets;
+  private List<Widget> widgets = new ArrayList<>();
 
   @OneToMany(
       mappedBy = "customDashboard",

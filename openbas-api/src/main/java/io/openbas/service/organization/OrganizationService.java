@@ -4,9 +4,10 @@ import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.OrganizationSpecification.findGrantedFor;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.Organization;
+import io.openbas.database.model.User;
 import io.openbas.database.repository.OrganizationRepository;
+import io.openbas.service.UserService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -21,10 +22,12 @@ public class OrganizationService {
 
   private final OrganizationRepository organizationRepository;
 
+  private final UserService userService;
+
   public Page<Organization> organizationPagination(
       @NotNull SearchPaginationInput searchPaginationInput) {
-    OpenBASPrincipal currentUser = currentUser();
-    if (currentUser.isAdmin()) {
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()) {
       return buildPaginationJPA(
           (Specification<Organization> specification, Pageable pageable) ->
               this.organizationRepository.findAll(specification, pageable),

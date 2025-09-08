@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
+import io.openbas.database.specification.InjectSpecification;
+import io.openbas.database.specification.SpecificationUtils;
 import io.openbas.injector_contract.fields.ContractFieldType;
 import io.openbas.rest.atomic_testing.form.*;
 import io.openbas.rest.exception.ElementNotFoundException;
@@ -24,7 +26,6 @@ import io.openbas.utils.mapper.PayloadMapper;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import java.util.*;
 import java.util.stream.StreamSupport;
@@ -55,6 +56,7 @@ public class AtomicTestingService {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final AssetGroupService assetGroupService;
+  private final UserService userService;
 
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
@@ -226,18 +228,31 @@ public class AtomicTestingService {
 
   // -- PAGINATION --
 
-  public Page<InjectResultOutput> searchAtomicTestings(
+  /**
+   * Search atomic testings with pagination and filtering. Atomic testings are injects that are not
+   * part of any scenario or exercise (both fields are null). The search only fetches data according
+   * to user permissions via the grant system.
+   *
+   * @param searchPaginationInput Pagination and filtering parameters
+   * @return A paginated list of atomic testing results
+   */
+  public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(
       @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
+    // Atomic testings are injects where scenario and exercise are null. They are also subject to
+    // the grant system.
+    User currentUser = userService.currentUser();
+
     Specification<Inject> customSpec =
-        Specification.where(
-            (root, query, cb) -> {
-              Predicate predicate = cb.conjunction();
-              predicate = cb.and(predicate, cb.isNull(root.get("scenario")));
-              predicate = cb.and(predicate, cb.isNull(root.get("exercise")));
-              return predicate;
-            });
+        Specification.where(InjectSpecification.isAtomicTesting())
+            .and(
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(),
+                    currentUser.isAdminOrBypass(),
+                    currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
+                    Grant.GRANT_TYPE.OBSERVER));
+
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
             Specification<Inject> specificationCount,

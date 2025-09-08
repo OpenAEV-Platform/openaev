@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class TagRuleService {
-  private static final String OPEN_CTI_TAG_NAME = "opencti";
+  public static final String OPENCTI_TAG_NAME = "opencti";
 
   private final TagRuleRepository tagRuleRepository;
   private final TagRepository tagRepository;
@@ -43,9 +43,9 @@ public class TagRuleService {
   public TagRule createTagRule(@NotBlank final String tagName, final List<String> assetGroupIds) {
     // we block creation of tagrule for the opencti tag as the only rule for this tag will be
     // created by default
-    if (OPEN_CTI_TAG_NAME.equals(tagName)) {
+    if (OPENCTI_TAG_NAME.equals(tagName)) {
       throw new ForbiddenException(
-          "Creation of a rule is not allowed for the tag " + OPEN_CTI_TAG_NAME);
+          "Creation of a rule is not allowed for the tag " + OPENCTI_TAG_NAME);
     }
 
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
@@ -66,9 +66,8 @@ public class TagRuleService {
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
     // we block update of the tag in the opencti tag rule
-    if (OPEN_CTI_TAG_NAME.equals(tagRule.getTag().getName())
-        && !OPEN_CTI_TAG_NAME.equals(tagName)) {
-      throw new ForbiddenException("Update of the tag " + OPEN_CTI_TAG_NAME + " is not allowed");
+    if (OPENCTI_TAG_NAME.equals(tagRule.getTag().getName()) && !OPENCTI_TAG_NAME.equals(tagName)) {
+      throw new ForbiddenException("Update of the tag " + OPENCTI_TAG_NAME + " is not allowed");
     }
 
     tagRule.setTag(getTag(tagName));
@@ -91,9 +90,9 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
     // we block deletion of tagrule for the opencti tag
-    if (OPEN_CTI_TAG_NAME.equals(tagRule.getTag().getName())) {
+    if (OPENCTI_TAG_NAME.equals(tagRule.getTag().getName())) {
       throw new ForbiddenException(
-          "Deletion of a rule of the tag " + OPEN_CTI_TAG_NAME + " is not allowed");
+          "Deletion of a rule of the tag " + OPENCTI_TAG_NAME + " is not allowed");
     }
 
     tagRuleRepository.deleteById(tagRuleId);

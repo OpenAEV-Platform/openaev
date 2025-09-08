@@ -10,7 +10,7 @@ import { useHelper } from '../../../store';
 import { type Scenario } from '../../../utils/api-types';
 import { useQueryParameter } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
-import useScenarioPermissions from '../../../utils/permissions/scenarioPermissions';
+import useScenarioPermissions from '../../../utils/permissions/useScenarioPermissions';
 import LessonsPreview from './LessonsPreview';
 
 const ScenarioViewLessons = () => {

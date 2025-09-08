@@ -18,7 +18,8 @@ import { type NotificationRuleOutput, type Scenario } from '../../../../utils/ap
 import { parseCron, type ParsedCron } from '../../../../utils/Cron';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import useScenarioPermissions from '../../../../utils/permissions/scenarioPermissions';
+import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
+import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
 import injectContextForScenario from './ScenarioContext';
@@ -40,7 +41,10 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
-  const permissionsContext: PermissionsContextType = { permissions: useScenarioPermissions(scenario.scenario_id) };
+  const permissionsContext: PermissionsContextType = {
+    permissions: useScenarioPermissions(scenario.scenario_id),
+    inherited_context: INHERITED_CONTEXT.SCENARIO,
+  };
   const documentContext: DocumentContextType = {
     onInitDocument: () => ({
       document_tags: [],

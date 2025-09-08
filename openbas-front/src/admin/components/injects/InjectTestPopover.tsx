@@ -1,7 +1,6 @@
-import { MoreVert } from '@mui/icons-material';
-import { IconButton, Menu, MenuItem } from '@mui/material';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useState } from 'react';
+import { type FunctionComponent, useContext, useState } from 'react';
 
+import ButtonPopover from '../../../components/common/ButtonPopover';
 import DialogDelete from '../../../components/common/DialogDelete';
 import DialogTest from '../../../components/common/DialogTest';
 import { useFormatter } from '../../../components/i18n';
@@ -24,7 +23,6 @@ const InjectTestPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
 
-  const [anchorEl, setAnchorEl] = useState<Element | null>(null);
   const [openDelete, setOpenDelete] = useState(false);
   const [openTest, setOpenTest] = useState(false);
 
@@ -34,15 +32,8 @@ const InjectTestPopover: FunctionComponent<Props> = ({
     testInject,
   } = useContext(InjectTestContext);
 
-  const handlePopoverOpen = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-  };
-  const handlePopoverClose = () => setAnchorEl(null);
-
   const handleOpenDelete = () => {
     setOpenDelete(true);
-    handlePopoverClose();
   };
   const handleCloseDelete = () => setOpenDelete(false);
   const submitDelete = () => {
@@ -57,7 +48,6 @@ const InjectTestPopover: FunctionComponent<Props> = ({
 
   const handleOpenTest = () => {
     setOpenTest(true);
-    handlePopoverClose();
   };
 
   const handleCloseTest = () => {
@@ -75,31 +65,20 @@ const InjectTestPopover: FunctionComponent<Props> = ({
     handleCloseTest();
   };
 
+  // Button Popover
+  const entries = [{
+    label: t('Replay test'),
+    action: () => handleOpenTest(),
+    userRight: permissions.canLaunch,
+  }, {
+    label: t('Delete test'),
+    action: () => handleOpenDelete(),
+    userRight: permissions.canManage,
+  }];
+
   return (
     <>
-      <IconButton
-        onClick={handlePopoverOpen}
-        aria-haspopup="true"
-        size="large"
-        color="primary"
-        disabled={permissions.readOnly}
-      >
-        <MoreVert />
-      </IconButton>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handlePopoverClose}
-      >
-        <MenuItem
-          onClick={handleOpenTest}
-        >
-          {t('Replay test')}
-        </MenuItem>
-        <MenuItem onClick={handleOpenDelete}>
-          {t('Delete test')}
-        </MenuItem>
-      </Menu>
+      <ButtonPopover entries={entries} variant="icon" />
       <DialogDelete
         open={openDelete}
         handleClose={handleCloseDelete}
