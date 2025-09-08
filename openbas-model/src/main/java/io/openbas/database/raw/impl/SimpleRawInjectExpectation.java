@@ -29,6 +29,7 @@ public class SimpleRawInjectExpectation implements RawInjectExpectation {
   private String asset_group_id;
   private String asset_group_name;
   private List<String> asset_ids;
+  private String scenario_id;
   private String exercise_id;
   private String inject_id;
   private Boolean inject_expectation_group;
@@ -39,4 +40,5 @@ public class SimpleRawInjectExpectation implements RawInjectExpectation {
   public Long inject_expiration_time;
   public Instant inject_expectation_updated_at;
   public Set<String> attack_pattern_ids;
+  public Set<String> security_platform_ids;
 }

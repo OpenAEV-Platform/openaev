@@ -9,7 +9,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise as ExerciseType, type InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { usePermissions } from '../../../../../utils/permissions/simulationPermissions';
+import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import AtomicTestingRoutes from '../../../atomic_testings/atomic_testing/AtomicTestingRoutes';
 import { InjectResultOverviewOutputContext } from '../../../atomic_testings/InjectResultOverviewOutputContext';
 import { PermissionsContext, type PermissionsContextType } from '../../../common/Context';
@@ -22,7 +22,7 @@ const InjectIndexComponent: FunctionComponent<{
   exercise,
   injectResult,
 }) => {
-  const permissionsContext: PermissionsContextType = { permissions: usePermissions(exercise.exercise_id) };
+  const permissionsContext: PermissionsContextType = { permissions: useSimulationPermissions(exercise.exercise_id, exercise) };
 
   const [injectResultOverviewOutput, setInjectResultOverviewOutput] = useState<InjectResultOverviewOutput>(injectResult);
 

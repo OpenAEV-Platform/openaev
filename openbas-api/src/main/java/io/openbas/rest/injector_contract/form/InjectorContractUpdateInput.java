@@ -22,6 +22,9 @@ public class InjectorContractUpdateInput {
   @JsonProperty("contract_attack_patterns_ids")
   private List<String> attackPatternsIds = new ArrayList<>();
 
+  @JsonProperty("contract_vulnerability_ids")
+  private List<String> vulnerabilityIds = new ArrayList<>();
+
   @NotBlank(message = MANDATORY_MESSAGE)
   @JsonProperty("contract_content")
   private String content;

@@ -11,4 +11,7 @@ import lombok.Setter;
 public class InjectorContractUpdateMappingInput {
   @JsonProperty("contract_attack_patterns_ids")
   private List<String> attackPatternsIds = new ArrayList<>();
+
+  @JsonProperty("contract_vulnerability_ids")
+  private List<String> vulnerabilityIds = new ArrayList<>();
 }

@@ -1,7 +1,7 @@
 package io.openbas.executors.caldera.service;
 
 import static io.openbas.service.EndpointService.DELETE_TTL;
-import static io.openbas.utils.Time.toInstant;
+import static io.openbas.utils.TimeUtils.toInstant;
 import static java.time.Instant.now;
 
 import com.cronutils.utils.VisibleForTesting;

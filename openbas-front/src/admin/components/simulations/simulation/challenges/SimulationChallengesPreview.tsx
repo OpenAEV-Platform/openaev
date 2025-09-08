@@ -11,7 +11,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise as ExerciseType, type SimulationChallengesReader } from '../../../../../utils/api-types';
 import { useQueryParameter } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { usePermissions } from '../../../../../utils/permissions/simulationPermissions';
+import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import ChallengesPreview from '../../../common/challenges/ChallengesPreview';
 import { PreviewChallengeContext } from '../../../common/Context';
 
@@ -26,7 +26,7 @@ const SimulationChallengesPreview = () => {
     challengesReader: helper.getSimulationChallengesReader(exerciseId),
   }));
   const { exercise_information: exercise, exercise_challenges: challenges } = challengesReader ?? {};
-  const permissions = usePermissions(exerciseId, fullExercise);
+  const permissions = useSimulationPermissions(exerciseId, fullExercise);
   const [userId, challengeId] = useQueryParameter(['user', 'challenge']);
 
   useEffect(() => {

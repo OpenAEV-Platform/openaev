@@ -11,7 +11,8 @@ import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../utils/permissions/PermissionsProvider';
+import RestrictionAccess from '../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import ButtonPopover, { type PopoverEntry } from '../common/ButtonPopover';
 import { useFormatter } from '../i18n';
@@ -198,22 +199,24 @@ const FileLoader: FunctionComponent<Props> = ({
       }}
       >
         {!selectedDocument && (
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
-            <ListItem
-              className={`${classes.item} ${InputLabelProps?.required && error ? classes.errorDivider : ''}`}
-              divider
-              onClick={handleOpen}
-              color="primary"
-            >
-              <ListItemIcon color="primary">
-                <ControlPointOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary="Add document"
-                classes={{ primary: classes.text }}
-              />
-            </ListItem>
-          </Can>
+          ability.can(ACTIONS.MANAGE, SUBJECTS.DOCUMENTS)
+            ? (
+                <ListItem
+                  className={`${classes.item} ${InputLabelProps?.required && error ? classes.errorDivider : ''}`}
+                  divider
+                  onClick={handleOpen}
+                  color="primary"
+                >
+                  <ListItemIcon color="primary">
+                    <ControlPointOutlined color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Add document"
+                    classes={{ primary: classes.text }}
+                  />
+                </ListItem>
+              )
+            : <RestrictionAccess restrictedField="documents" />
         )}
         {InputLabelProps?.required && error && (
           <Typography className={classes.errorMessage}>

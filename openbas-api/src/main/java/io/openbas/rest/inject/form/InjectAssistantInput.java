@@ -34,5 +34,5 @@ public class InjectAssistantInput {
   @NotNull
   @JsonProperty("inject_by_ttp_number")
   @Schema(description = "Number of injects to generate for each TTP")
-  private Integer injectByTTPNumber;
+  private int injectByTTPNumber = 1;
 }

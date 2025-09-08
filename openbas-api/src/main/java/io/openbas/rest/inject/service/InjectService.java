@@ -1,10 +1,14 @@
 package io.openbas.rest.inject.service;
 
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.arm64;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.x86_64;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.AgentUtils.isPrimaryAgent;
 import static io.openbas.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openbas.utils.InjectorContractUtils.buildCombinationsAttackPatternPlatformsArchitectures;
 import static io.openbas.utils.StringUtils.duplicateString;
 import static io.openbas.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
@@ -62,6 +66,7 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Pageable;
@@ -1041,5 +1046,59 @@ public class InjectService {
       // 2. User has access to the non-null scenario/exercise
       return cb.or(bothNull, cb.and(scenarioAccessible, exerciseAccessible));
     };
+  }
+
+  /**
+   * Extracts the inject coverage from the scenario's injects, mapping each inject to its set of
+   * (AttackPattern × Platform × Architecture) combinations.
+   *
+   * @param scenario the scenario containing injects
+   * @return a map of injects to their AttackPattern-platform-architecture combinations
+   */
+  public Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>>
+      extractCombinationAttackPatternPlatformArchitecture(Scenario scenario) {
+
+    return scenario.getInjects().stream()
+        .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
+        .flatMap(Optional::stream)
+        .map(
+            entry -> {
+              Inject inject = entry.getKey();
+              InjectorContract ic = entry.getValue();
+
+              // Check if this injectContract has not arch and platforms
+              if (ic.getArch() == null
+                  || ic.getPlatforms() == null
+                  || ic.getPlatforms().length == 0) {
+                return Map.entry(
+                    inject, new HashSet<Triple<String, Endpoint.PLATFORM_TYPE, String>>());
+              }
+
+              // Extract archs
+              Set<String> archs =
+                  ALL_ARCHITECTURES.equals(ic.getArch())
+                      ? Set.of(arm64.name(), x86_64.name())
+                      : Set.of(ic.getArch().name());
+
+              // Extract platforms
+              Set<Endpoint.PLATFORM_TYPE> platforms =
+                  new HashSet<>(Arrays.asList(ic.getPlatforms()));
+
+              // Generate combinations
+              Set<Triple<String, Endpoint.PLATFORM_TYPE, String>> combinations =
+                  buildCombinationsAttackPatternPlatformsArchitectures(
+                      ic.getAttackPatterns(), platforms, archs);
+
+              return Map.entry(inject, combinations);
+            })
+        .collect(
+            Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue,
+                (v1, v2) -> {
+                  Set<Triple<String, Endpoint.PLATFORM_TYPE, String>> merged = new HashSet<>(v1);
+                  merged.addAll(v2);
+                  return v1;
+                }));
   }
 }

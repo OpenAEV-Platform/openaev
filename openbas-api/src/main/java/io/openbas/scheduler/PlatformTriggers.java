@@ -54,7 +54,7 @@ public class PlatformTriggers {
     return newTrigger()
         .forJob(this.platformJobs.getEngineSyncExecution())
         .withIdentity("engineSyncExecutionTrigger")
-        .withSchedule(_15_seconds)
+        .withSchedule(_15_seconds.withMisfireHandlingInstructionNextWithRemainingCount())
         .build();
   }
 }

@@ -99,7 +99,9 @@ const Simulations = () => {
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-            <ImportUploaderExercise />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <ImportUploaderExercise />
+            </Can>
           </ToggleButtonGroup>
         )}
       />
@@ -109,8 +111,7 @@ const Simulations = () => {
         secondaryAction={secondaryAction}
         loading={loading}
       />
-      {/* todo: manage and not create while the capability will be created */}
-      <Can I={ACTIONS.CREATE} a={SUBJECTS.ASSESSMENT}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
         <ExerciseCreation />
       </Can>
     </>

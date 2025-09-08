@@ -1,23 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, AlertTitle, Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import {
-  searchCustomDashboardAsOptions,
-  searchCustomDashboardAsOptionsByResourceId,
-} from '../../../../actions/custom_dashboards/customdashboard-action';
-import CustomDashboardFieldController from '../../../../components/fields/CustomDashboardFieldController';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
 import { useFormatter } from '../../../../components/i18n';
 import { type CreateExerciseInput } from '../../../../utils/api-types';
-import type { Option } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { zodImplement } from '../../../../utils/Zod';
 import { scenarioCategories } from '../../scenarios/constants';
 
@@ -48,34 +40,11 @@ const ExerciseForm: FunctionComponent<Props> = ({
     exercise_message_header: '',
     exercise_message_footer: '',
   },
-  simulationId,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
-  const [options, setOptions] = useState<Option[]>([]);
-  const ability = useContext(AbilityContext);
 
-  const fetchDashboardOptions = async (searchText: string) => {
-    let res;
-
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS)) {
-      // get all the dashboards
-      res = await searchCustomDashboardAsOptions(searchText);
-    } else if (simulationId) {
-      // get the dashboards for the scenario
-      res = await searchCustomDashboardAsOptionsByResourceId(simulationId);
-    } else {
-      // nothing to fetch
-      setOptions([]);
-      return;
-    }
-    setOptions(res.data as Option[]);
-  };
-
-  useEffect(() => {
-    fetchDashboardOptions('');
-  }, []);
   const {
     register,
     control,
@@ -360,16 +329,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
         inputProps={register('exercise_message_footer')}
         disabled={disabled}
       />
-      <div style={{ marginTop: 20 }}>
-        <CustomDashboardFieldController
-          control={control}
-          name="exercise_custom_dashboard"
-          label={t('Dashboard')}
-          options={options}
-          fetchOptions={fetchDashboardOptions}
-        />
-      </div>
-
       <div style={{
         float: 'right',
         marginTop: 20,

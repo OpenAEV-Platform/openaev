@@ -14,13 +14,17 @@ export interface CustomDashboardContextType {
   setCustomDashboard: React.Dispatch<React.SetStateAction<CustomDashboard | undefined>>;
   customDashboardParameters: Record<string, ParameterOption>;
   setCustomDashboardParameters: React.Dispatch<React.SetStateAction<Record<string, ParameterOption>>>;
+  contextId?: string;
+  canChooseDashboard?: boolean;
+  handleSelectNewDashboard?: (dashboardId: string) => void;
 }
 
 export const CustomDashboardContext = createContext<CustomDashboardContextType>({
   customDashboard: undefined,
-  setCustomDashboard: () => {
-  },
+  setCustomDashboard: () => {},
   customDashboardParameters: {},
-  setCustomDashboardParameters: () => {
-  },
+  setCustomDashboardParameters: () => {},
+  contextId: undefined, // Simulation or scenario id
+  canChooseDashboard: false,
+  handleSelectNewDashboard: undefined,
 });

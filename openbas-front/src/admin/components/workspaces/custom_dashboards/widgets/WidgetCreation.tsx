@@ -1,22 +1,29 @@
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, useContext, useState } from 'react';
 
 import { createCustomDashboardWidget } from '../../../../../actions/custom_dashboards/customdashboardwidget-action';
 import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import { type Widget } from '../../../../../utils/api-types-custom';
+import { CustomDashboardContext } from '../CustomDashboardContext';
 import WidgetForm from './configuration/WidgetForm';
 import { type WidgetInputWithoutLayout } from './WidgetUtils';
 
 const COL_WIDTH = 30;
 
-const WidgetCreation: FunctionComponent<{
-  customDashboardId: string;
-  widgets: Widget[];
-  onCreate: (widget: Widget) => void;
-}> = ({
-  customDashboardId,
-  widgets,
-  onCreate,
-}) => {
+const WidgetCreation: FunctionComponent = () => {
+  const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
+  const customDashboardId = customDashboard?.custom_dashboard_id ?? '';
+  const widgets = customDashboard?.custom_dashboard_widgets ?? [];
+
+  const onCreate = (newWidget: Widget) => {
+    setCustomDashboard((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        custom_dashboard_widgets: [...(prev.custom_dashboard_widgets ?? []), newWidget],
+      };
+    });
+  };
+
   // Dialog
   const [open, setOpen] = useState(false);
   const toggleDialog = () => setOpen(prev => !prev);

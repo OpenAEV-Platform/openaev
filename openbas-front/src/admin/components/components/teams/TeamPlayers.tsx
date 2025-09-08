@@ -17,7 +17,7 @@ import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
-import { PermissionsContext, TeamContext } from '../../common/Context';
+import { TeamContext } from '../../common/Context';
 import TagsFilter from '../../common/filters/TagsFilter';
 import { type UserStore } from '../../teams/players/Player';
 import PlayerPopover from '../../teams/players/PlayerPopover';
@@ -107,8 +107,8 @@ const inlineStyles: Record<string, CSSProperties> = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    cursor: 'pointer',
   },
+  clickable: { cursor: 'pointer' },
   user_email: {
     float: 'left',
     width: '30%',
@@ -146,15 +146,17 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   teamId: Team['team_id'];
   handleClose: () => void;
+  canManage: boolean;
 }
 
 type UserStoreExtended = UserStore & { user_enabled: boolean };
 
-const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose }) => {
+const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+
   const [keyword, setKeyword] = useState('');
   const [sortBy, setSortby] = useState('user_email');
   const [orderAsc, setOrderAsc] = useState(true);
@@ -169,7 +171,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose }) => {
     team: helper.getTeam(teamId),
     users: helper.getTeamUsers(teamId),
   }));
-  const { permissions } = useContext(PermissionsContext);
+
   const { onToggleUser, checkUserEnabled } = useContext(TeamContext);
 
   useDataLoader(() => {
@@ -309,7 +311,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose }) => {
             key={user.user_id}
             classes={{ root: classes.item }}
             divider
-            secondaryAction={permissions.canManage
+            secondaryAction={canManage
               ? (<PlayerPopover user={user} teamId={teamId} />)
               : <span> &nbsp; </span>}
           >
@@ -322,8 +324,11 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose }) => {
                   {onToggleUser && (
                     <div
                       className={classes.bodyItem}
-                      style={inlineStyles.user_enabled}
-                      onClick={() => onToggleUser(teamId, user.user_id, user.user_enabled)}
+                      style={{
+                        ...inlineStyles.user_enabled,
+                        ...(canManage ? inlineStyles.clickable : {}),
+                      }}
+                      onClick={() => canManage && onToggleUser(teamId, user.user_id, user.user_enabled)}
                     >
                       <ItemBoolean
                         status={user.user_enabled}
@@ -407,15 +412,13 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose }) => {
           </ListItem>
         ))}
       </List>
-      {
-        permissions.canManage
-        && (
-          <TeamAddPlayers
-            teamId={teamId}
-            addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
-          />
-        )
-      }
+      {canManage && (
+        <TeamAddPlayers
+          teamId={teamId}
+          addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
+        />
+      )}
+
     </>
   );
 };

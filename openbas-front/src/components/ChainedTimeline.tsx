@@ -29,7 +29,7 @@ import { type InjectOutputType, type InjectStore } from '../actions/injects/Inje
 import { type InjectHelper } from '../actions/injects/inject-helper';
 import { type ScenariosHelper } from '../actions/scenarios/scenario-helper';
 import { type TeamsHelper } from '../actions/teams/team-helper';
-import { InjectTestContext } from '../admin/components/common/Context';
+import { InjectTestContext, PermissionsContext } from '../admin/components/common/Context';
 import { useHelper } from '../store';
 import { type Inject, type InjectDependency } from '../utils/api-types';
 import { parseCron } from '../utils/Cron';
@@ -83,6 +83,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
+  const { permissions } = useContext(PermissionsContext);
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeInject>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [draggingOnGoing, setDraggingOnGoing] = useState<boolean>(false);
@@ -683,10 +684,10 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
-            nodesDraggable={true}
-            nodesConnectable={true}
+            nodesDraggable={permissions.canManage}
+            nodesConnectable={permissions.canManage}
             nodesFocusable={false}
-            elementsSelectable={false}
+            elementsSelectable={permissions.canManage}
             onNodeDrag={nodeDrag}
             onNodeDragStop={nodeDragStop}
             onNodeDragStart={nodeDragStart}

@@ -1,5 +1,6 @@
 package io.openbas.rest.scenario;
 
+import static io.openbas.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,6 +57,8 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
+  @Autowired private SettingRepository settingRepository;
+  @Autowired private CustomDashboardRepository customDashboardRepository;
 
   static String SCENARIO_ID;
 
@@ -113,6 +116,54 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(response);
     SCENARIO_ID = JsonPath.read(response, "$.scenario_id");
+  }
+
+  @DisplayName("Create scenario succeed with default dashboard")
+  @Test
+  @Order(1)
+  @WithMockAdminUser
+  @Transactional
+  void given_scenario_creation_should_set_default_custom_dashboard() throws Exception {
+    // -- PREPARE --
+    CustomDashboard defaultDashboard = new CustomDashboard();
+    defaultDashboard.setName("Default scenario dashboard");
+    CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
+
+    ScenarioInput scenarioInput = new ScenarioInput();
+    String name = "My scenario";
+    scenarioInput.setName(name);
+    String from = "no-reply@openbas.io";
+    scenarioInput.setFrom(from);
+
+    settingRepository.save(
+        settingRepository
+            .findByKey(DEFAULT_SCENARIO_DASHBOARD.key())
+            .map(
+                s -> {
+                  s.setValue(customDashboardSaved.getId());
+                  return s;
+                })
+            .orElseGet(
+                () -> new Setting(DEFAULT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId())));
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(SCENARIO_URI)
+                    .content(asJsonString(scenarioInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.scenario_name").value(name))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String newScenarioId = JsonPath.read(response, "$.scenario_id");
+    Scenario newScenario = this.scenarioRepository.findById(newScenarioId).orElseThrow();
+    assertEquals(customDashboardSaved.getId(), newScenario.getCustomDashboard().getId());
   }
 
   @DisplayName("Retrieve scenarios")

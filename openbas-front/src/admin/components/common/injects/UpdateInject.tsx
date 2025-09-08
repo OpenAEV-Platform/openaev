@@ -1,7 +1,7 @@
 import { HelpOutlined } from '@mui/icons-material';
 import { Avatar, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useEffect, useRef, useState } from 'react';
+import { type SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
 
 import { fetchInject } from '../../../../actions/Inject';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
@@ -20,7 +20,10 @@ import {
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../../utils/utils';
+import { PermissionsContext } from '../Context';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
@@ -57,6 +60,9 @@ const UpdateInject: React.FC<Props> = ({
   const [availableTabs] = useState<string[]>(['Inject details', 'Logical chains']);
   const [activeTab, setActiveTab] = useState<null | string>(availableTabs[0]);
   const [isInjectLoading, setIsInjectLoading] = useState(true);
+  const { permissions } = useContext(PermissionsContext);
+  const ability = useContext(AbilityContext);
+
   // Fetching data
   const { inject }: { inject: InjectStore } = useHelper((helper: InjectHelper) => ({ inject: helper.getInject(injectId) }));
 
@@ -146,7 +152,7 @@ const UpdateInject: React.FC<Props> = ({
           <InjectForm
             handleClose={handleClose}
             openDetails
-            disabled={!injectorContractContent}
+            disabled={!injectorContractContent || permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)}
             drawerRef={drawerRef}
             isAtomic={isAtomic}
             defaultInject={inject}
@@ -163,6 +169,7 @@ const UpdateInject: React.FC<Props> = ({
             handleClose={handleClose}
             onUpdateInject={massUpdateInject}
             injects={injects}
+            isDisabled={!permissions.canManage && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)}
           />
         )}
       </>

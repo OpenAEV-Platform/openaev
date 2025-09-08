@@ -1,43 +1,84 @@
-import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocalStorage } from 'usehooks-ts';
 
-import { type Widget } from '../../../../utils/api-types-custom';
-import CustomDashboardComponent from './CustomDashboard';
-import { CustomDashboardContext } from './CustomDashboardContext';
-import CustomDashboardHeader from './CustomDashboardHeader';
-import WidgetCreation from './widgets/WidgetCreation';
+import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import Loader from '../../../../components/Loader';
+import type { CustomDashboard } from '../../../../utils/api-types';
+import CustomDashboardComponent from './CustomDashboardComponent';
+import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
 
-const CustomDashboardWrapper: FunctionComponent<{ readOnly: boolean }> = ({ readOnly }) => {
-  // Standard hooks
-  const theme = useTheme();
-  const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
+interface CustomDashboardConfiguration {
+  customDashboardId?: CustomDashboard['custom_dashboard_id'];
+  paramLocalStorageKey: string;
+  paramsBuilder?: (dashboardParams: CustomDashboard['custom_dashboard_parameters'], params: Record<string, ParameterOption>) => Record<string, ParameterOption>;
+  parentContextId?: string;
+  canChooseDashboard?: boolean;
+  handleSelectNewDashboard?: (dashboardId: string) => void; // ==onCustomDashboardIdChange
+}
 
-  const handleWidgetCreate = (newWidget: Widget) => {
-    setCustomDashboard((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        custom_dashboard_widgets: [...(prev.custom_dashboard_widgets ?? []), newWidget],
-      };
-    });
-  };
+interface Props {
+  topSlot?: React.ReactNode;
+  bottomSlot?: React.ReactNode;
+  noDashboardSlot?: React.ReactNode;
+  readOnly?: boolean;
+  configuration: CustomDashboardConfiguration;
+}
+
+const CustomDashboardWrapper = ({
+  configuration,
+  topSlot,
+  bottomSlot,
+  noDashboardSlot,
+  readOnly = true,
+}: Props) => {
+  const { customDashboardId, paramLocalStorageKey, paramsBuilder, parentContextId: contextId, canChooseDashboard, handleSelectNewDashboard } = configuration || {};
+  const [customDashboard, setCustomDashboard] = useState<CustomDashboard>();
+  const [parameters, setParameters] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, Object.fromEntries(new Map()));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (customDashboardId) {
+      fetchCustomDashboard(customDashboardId).then((response) => {
+        const dashboard = response.data;
+        if (!dashboard) {
+          return;
+        }
+        setCustomDashboard(dashboard);
+        if (paramsBuilder) {
+          const builtParams = paramsBuilder(dashboard.custom_dashboard_parameters, parameters);
+          setParameters(builtParams);
+        }
+        setLoading(false);
+      });
+    } else {
+      setCustomDashboard(undefined);
+      setLoading(false);
+    }
+  }, [customDashboardId]);
+
+  const contextValue: CustomDashboardContextType = useMemo(() => ({
+    customDashboard,
+    setCustomDashboard,
+    customDashboardParameters: parameters,
+    setCustomDashboardParameters: setParameters,
+    contextId,
+    canChooseDashboard,
+    handleSelectNewDashboard,
+  }), [customDashboard, setCustomDashboard, parameters, setParameters]);
+
+  if (loading) {
+    return <Loader />;
+  }
 
   return (
-    <div style={{
-      display: 'grid',
-      gap: theme.spacing(2),
-    }}
-    >
-      <CustomDashboardHeader />
-      <CustomDashboardComponent readOnly={readOnly} />
-      {customDashboard && (
-        <WidgetCreation
-          customDashboardId={customDashboard.custom_dashboard_id}
-          widgets={customDashboard?.custom_dashboard_widgets ?? []}
-          onCreate={widget => handleWidgetCreate(widget)}
-        />
-      )}
-    </div>
+    <CustomDashboardContext.Provider value={contextValue}>
+      {topSlot}
+      <CustomDashboardComponent
+        readOnly={readOnly}
+        noDashboardSlot={noDashboardSlot}
+      />
+      {bottomSlot}
+    </CustomDashboardContext.Provider>
   );
 };
 

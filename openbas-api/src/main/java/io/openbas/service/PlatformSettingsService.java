@@ -174,6 +174,18 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(DEFAULT_LANG.key()))
             .map(Setting::getValue)
             .orElse(DEFAULT_LANG.defaultValue()));
+    platformSettings.setPlatformHomeDashboard(
+        ofNullable(dbSettings.get(DEFAULT_HOME_DASHBOARD.key()))
+            .map(Setting::getValue)
+            .orElse(DEFAULT_HOME_DASHBOARD.defaultValue()));
+    platformSettings.setPlatformScenarioDashboard(
+        ofNullable(dbSettings.get(DEFAULT_SCENARIO_DASHBOARD.key()))
+            .map(Setting::getValue)
+            .orElse(DEFAULT_SCENARIO_DASHBOARD.defaultValue()));
+    platformSettings.setPlatformSimulationDashboard(
+        ofNullable(dbSettings.get(DEFAULT_SIMULATION_DASHBOARD.key()))
+            .map(Setting::getValue)
+            .orElse(DEFAULT_SIMULATION_DASHBOARD.defaultValue()));
     if (this.imapEnabled) {
       platformSettings.setDefaultMailer(this.imapUsername);
       platformSettings.setDefaultReplyTo(this.imapUsername);
@@ -355,12 +367,28 @@ public class PlatformSettingsService {
     return this.settingRepository.findByKey(key);
   }
 
+  private void addSettingIfExists(
+      List<Setting> settingsToSave, Map<String, Setting> dbSettings, String key, String value) {
+    if (value != null) {
+      settingsToSave.add(resolveFromMap(dbSettings, key, value));
+    }
+  }
+
   public PlatformSettings updateBasicConfigurationSettings(SettingsUpdateInput input) {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_NAME.key(), input.getName()));
     settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_THEME.key(), input.getTheme()));
     settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_LANG.key(), input.getLang()));
+    addSettingIfExists(
+        settingsToSave, dbSettings, DEFAULT_HOME_DASHBOARD.key(), input.getHomeDashboard());
+    addSettingIfExists(
+        settingsToSave, dbSettings, DEFAULT_SCENARIO_DASHBOARD.key(), input.getScenarioDashboard());
+    addSettingIfExists(
+        settingsToSave,
+        dbSettings,
+        DEFAULT_SIMULATION_DASHBOARD.key(),
+        input.getSimulationDashboard());
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }
@@ -430,6 +458,28 @@ public class PlatformSettingsService {
 
   public PlatformSettings updateThemeDark(ThemeInput input) {
     return updateTheme(input, THEME_TYPE_DARK);
+  }
+
+  /**
+   * Clear default platform dashboard settings if they match the provided dashboardId.
+   *
+   * @param dashboardId the dashboard ID to check against default settings
+   */
+  public void clearDefaultPlatformDashboardIfMatch(String dashboardId) {
+    List<SettingKeys> clearableSettings =
+        List.of(SettingKeys.DEFAULT_SCENARIO_DASHBOARD, SettingKeys.DEFAULT_SIMULATION_DASHBOARD);
+
+    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+
+    List<Setting> settingsToSave = new ArrayList<>();
+    clearableSettings.forEach(
+        setting -> {
+          String currentValue = getValueFromMapOfSettings(dbSettings, setting.key());
+          if (dashboardId.equals(currentValue)) {
+            settingsToSave.add(resolveFromMap(dbSettings, setting.key(), setting.defaultValue()));
+          }
+        });
+    settingRepository.saveAll(settingsToSave);
   }
 
   private PlatformSettings updateTheme(ThemeInput input, String themeType) {

@@ -20,7 +20,7 @@ import {
 import { parseCron, type ParsedCron } from '../../../../utils/Cron';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useScenarioPermissions from '../../../../utils/permissions/scenarioPermissions';
+import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { InjectContext } from '../../common/Context';
 import ScenarioAssistantDrawer from './scenario_assistant/ScenarioAssistantDrawer';

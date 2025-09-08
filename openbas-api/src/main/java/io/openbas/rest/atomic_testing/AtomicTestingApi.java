@@ -41,22 +41,18 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.searchAtomicTestings(searchPaginationInput);
   }
 
+  // some api use inject as resource type because they are actually used to retrieve inject data for
+  // simulation and AT
   @LogExecutionTime
   @GetMapping("/{injectId}")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.ATOMIC_TESTING)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput findAtomicTesting(@PathVariable String injectId) {
     return atomicTestingService.findById(injectId);
   }
 
   @LogExecutionTime
   @GetMapping("/{injectId}/payload")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.ATOMIC_TESTING)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public StatusPayloadOutput findAtomicTestingPayload(@PathVariable String injectId) {
     return atomicTestingService.findPayloadOutputByInjectId(injectId);
   }
@@ -73,7 +69,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
       @PathVariable @NotBlank final String injectId,
@@ -85,7 +81,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   public void deleteAtomicTesting(@PathVariable @NotBlank final String injectId) {
     atomicTestingService.deleteAtomicTesting(injectId);
   }
@@ -104,7 +100,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput launchAtomicTesting(
       @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.launch(atomicTestingId);
@@ -114,17 +110,14 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput relaunchAtomicTesting(
       @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.relaunch(atomicTestingId);
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.ATOMIC_TESTING)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<InjectExpectation> findTargetResult(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -153,10 +146,7 @@ public class AtomicTestingApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}/merged")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.ATOMIC_TESTING)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<InjectExpectation> findTargetResultMerged(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -172,7 +162,7 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.ATOMIC_TESTING)
+      resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTestingTags(
       @PathVariable @NotBlank final String injectId,
