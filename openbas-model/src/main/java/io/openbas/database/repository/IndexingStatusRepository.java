@@ -2,11 +2,8 @@ package io.openbas.database.repository;
 
 import io.openbas.database.model.IndexingStatus;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,11 +13,4 @@ public interface IndexingStatusRepository
 
   @NotNull
   Optional<IndexingStatus> findByType(@NotNull String type);
-
-  @Query(
-      value =
-          "INSERT INTO indexing_status (indexing_status_type, indexing_status_indexing_date) VALUES (:statusName, :statusDate) ON CONFLICT (indexing_status_type) DO UPDATE SET indexing_status_indexing_date = excluded.indexing_status_indexing_date",
-      nativeQuery = true)
-  @Modifying
-  void safeSave(@NotNull String statusName, @NotNull Instant statusDate);
 }

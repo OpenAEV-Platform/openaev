@@ -439,10 +439,9 @@ public class OpenSearchService implements EngineService {
                 })
             .filter(Objects::nonNull)
             .toList();
-    statuses.forEach(
-        indexingStatus ->
-            indexingStatusRepository.safeSave(
-                indexingStatus.getType(), indexingStatus.getLastIndexing()));
+    if (!statuses.isEmpty()) {
+      indexingStatusRepository.saveAll(statuses);
+    }
   }
 
   public void bulkDelete(List<String> ids) {
