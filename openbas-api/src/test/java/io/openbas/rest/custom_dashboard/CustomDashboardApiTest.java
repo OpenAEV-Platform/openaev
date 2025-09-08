@@ -1,21 +1,27 @@
 package io.openbas.rest.custom_dashboard;
 
+import static io.openbas.database.model.SettingKeys.*;
 import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static io.openbas.utils.fixtures.CustomDashboardFixture.NAME;
 import static io.openbas.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.CustomDashboard;
+import io.openbas.database.model.Setting;
 import io.openbas.database.repository.CustomDashboardRepository;
+import io.openbas.database.repository.SettingRepository;
 import io.openbas.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import java.util.Optional;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,6 +34,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private CustomDashboardRepository repository;
   @Autowired private CustomDashboardComposer customDashboardComposer;
+  @Autowired private SettingRepository settingRepository;
 
   CustomDashboardComposer.Composer createCustomDashboardComposer() {
     return this.customDashboardComposer
@@ -108,17 +115,98 @@ class CustomDashboardApiTest extends IntegrationTest {
     assertThat(updatedDashboard.get().getDescription()).isEqualTo(customDashboardDescription);
   }
 
-  @Test
+  @Nested
   @WithMockAdminUser
-  void given_dashboard_id_when_deleting_dashboard_should_return_no_content() throws Exception {
-    // -- PREPARE --
-    CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
+  @DisplayName("Deleting Custom Dashboard")
+  class Delete {
+    @Test
+    void given_dashboard_id_when_deleting_dashboard_should_return_no_content() throws Exception {
+      // -- PREPARE --
+      CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
 
-    // -- EXECUTE & ASSERT --
-    mockMvc
-        .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
-        .andExpect(status().isNoContent());
+      // -- EXECUTE & ASSERT --
+      mockMvc
+          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+          .andExpect(status().isNoContent());
 
-    assertThat(repository.existsById(wrapper.get().getId())).isFalse();
+      assertThat(repository.existsById(wrapper.get().getId())).isFalse();
+    }
+
+    @Test
+    void given_default_home_dashboard_id_when_deleting_should_throw_error() throws Exception {
+      CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
+
+      Setting defaultDashboardSetting =
+          settingRepository
+              .findByKey(DEFAULT_HOME_DASHBOARD.key())
+              .orElseGet(
+                  () -> {
+                    Setting setting = new Setting();
+                    setting.setKey(DEFAULT_HOME_DASHBOARD.key());
+                    return setting;
+                  });
+      defaultDashboardSetting.setValue(wrapper.get().getId());
+      settingRepository.save(defaultDashboardSetting);
+
+      mockMvc
+          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+          .andExpect(status().isBadRequest())
+          .andExpect(
+              result -> {
+                String errorMessage = result.getResolvedException().getMessage();
+                assertTrue(
+                    errorMessage.contains("Default home custom dashboard can not be deleted"));
+              });
+    }
+
+    @Test
+    void given_default_scenario_dashboard_id_when_deleting_should_reset_settings()
+        throws Exception {
+      CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
+
+      Setting defaultDashboardSetting =
+          settingRepository
+              .findByKey(DEFAULT_SCENARIO_DASHBOARD.key())
+              .orElseGet(
+                  () -> {
+                    Setting setting = new Setting();
+                    setting.setKey(DEFAULT_SCENARIO_DASHBOARD.key());
+                    return setting;
+                  });
+
+      defaultDashboardSetting.setValue(wrapper.get().getId());
+      settingRepository.save(defaultDashboardSetting);
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+
+      assertThat(repository.existsById(wrapper.get().getId())).isFalse();
+      Setting defaultScenarioDashboardSetting =
+          settingRepository.findByKey(DEFAULT_SCENARIO_DASHBOARD.key()).orElseThrow();
+      assertThat(defaultScenarioDashboardSetting.getValue()).isEmpty();
+    }
+
+    @Test
+    void given_default_simulation_dashboard_id_when_deleting_should_reset_settings()
+        throws Exception {
+      CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
+
+      Setting defaultDashboardSetting =
+          settingRepository
+              .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+              .orElseGet(
+                  () -> {
+                    Setting setting = new Setting();
+                    setting.setKey(DEFAULT_SIMULATION_DASHBOARD.key());
+                    return setting;
+                  });
+
+      defaultDashboardSetting.setValue(wrapper.get().getId());
+      settingRepository.save(defaultDashboardSetting);
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+
+      assertThat(repository.existsById(wrapper.get().getId())).isFalse();
+      Setting defaultScenarioDashboardSetting =
+          settingRepository.findByKey(DEFAULT_SIMULATION_DASHBOARD.key()).orElseThrow();
+      assertThat(defaultScenarioDashboardSetting.getValue()).isEmpty();
+    }
   }
 }

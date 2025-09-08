@@ -1,6 +1,6 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
+import { type FunctionComponent, lazy, Suspense, useState } from 'react';
+import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExercise } from '../../../../actions/Exercise';
@@ -24,7 +24,7 @@ import ExerciseHeader from './ExerciseHeader';
 const Simulation = lazy(() => import('./overview/SimulationComponent'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
-const SimulationAnalysisWrapper = lazy(() => import('./analysis/SimulationAnalysisWrapper'));
+const SimulationAnalysis = lazy(() => import('./analysis/SimulationAnalysis'));
 const SimulationDefinition = lazy(() => import('./SimulationDefinition'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
@@ -47,7 +47,6 @@ const useStyles = makeStyles()(() => ({
 const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercise }) => {
   const { t, fldt } = useFormatter();
   const location = useLocation();
-  const navigate = useNavigate();
   const { classes } = useStyles();
   const permissionsContext: PermissionsContextType = { permissions: useSimulationPermissions(exercise.exercise_id, exercise) };
   const documentContext: DocumentContextType = {
@@ -62,17 +61,6 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
         : [],
     }),
   };
-
-  useEffect(() => {
-    const analysisPath = `/admin/simulations/${exercise.exercise_id}/analysis`;
-
-    if (
-      location.pathname.startsWith(analysisPath)
-      && !exercise.exercise_custom_dashboard
-    ) {
-      navigate(`/admin/simulations/${exercise.exercise_id}`, { replace: true });
-    }
-  }, [exercise.exercise_custom_dashboard, location.pathname, exercise.exercise_id, navigate]);
 
   let tabValue = location.pathname;
   if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/definition`)) {
@@ -153,14 +141,12 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
                 value={`/admin/simulations/${exercise.exercise_id}/findings`}
                 label={t('Findings')}
               />
-              {exercise.exercise_custom_dashboard && (
-                <Tab
-                  component={Link}
-                  to={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                  value={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                  label={t('Analysis')}
-                />
-              )}
+              <Tab
+                component={Link}
+                to={`/admin/simulations/${exercise.exercise_id}/analysis`}
+                value={`/admin/simulations/${exercise.exercise_id}/analysis`}
+                label={t('Analysis')}
+              />
             </Tabs>
             {permissionsContext.permissions.canManage && (
               <div className={classes.scheduling}>
@@ -184,7 +170,7 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
               <Route path="animation/validations" element={errorWrapper(Validations)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-              <Route path="analysis" element={errorWrapper(SimulationAnalysisWrapper)()} />
+              <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />
             </Routes>

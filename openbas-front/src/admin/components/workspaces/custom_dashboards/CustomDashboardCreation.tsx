@@ -26,7 +26,7 @@ const CustomDashboardCreation: FunctionComponent<Props> = ({ onCreate }) => {
           onCreate(response.data);
         }
       } finally {
-        toggleDrawer();
+        setOpen(false);
       }
     },
     [onCreate],

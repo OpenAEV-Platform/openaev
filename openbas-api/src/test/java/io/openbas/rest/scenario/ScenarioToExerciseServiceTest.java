@@ -1,5 +1,6 @@
 package io.openbas.rest.scenario;
 
+import static io.openbas.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
 import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openbas.utils.fixtures.ArticleFixture.ARTICLE_NAME;
 import static io.openbas.utils.fixtures.ArticleFixture.getArticle;
@@ -48,6 +49,8 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private VariableRepository variableRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private SettingRepository settingRepository;
+  @Autowired private CustomDashboardRepository customDashboardRepository;
 
   private static String SCENARIO_ID;
   private static String EXERCISE_ID;
@@ -239,6 +242,21 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     Variable variableSaved = this.variableRepository.save(variable);
     VARIABLE_ID = variableSaved.getId();
 
+    // Default Simulation dashboard
+    CustomDashboard defaultDashboard = new CustomDashboard();
+    defaultDashboard.setName("Default scenario dashboard");
+    CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
+    settingRepository.save(
+        settingRepository
+            .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+            .map(
+                s -> {
+                  s.setValue(customDashboardSaved.getId());
+                  return s;
+                })
+            .orElseGet(
+                () ->
+                    new Setting(DEFAULT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId())));
     // -- EXECUTE --
     Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false);
     EXERCISE_ID = exercise.getId();
@@ -282,5 +300,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
             .anyMatch(t -> Boolean.TRUE.equals(t.getContextual())));
     // Injects
     assertEquals(1, exerciseSaved.getInjects().size());
+    // Dashboard
+    assertEquals(customDashboardSaved.getId(), exerciseSaved.getCustomDashboard().getId());
   }
 }

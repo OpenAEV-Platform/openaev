@@ -1,21 +1,35 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo } from 'react';
-import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
+import { type FormEvent, type FunctionComponent, type SyntheticEvent, useMemo, useState } from 'react';
+import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import SelectFieldController, { createItems, type Item } from '../../../../components/fields/SelectFieldController';
-import TextFieldController from '../../../../components/fields/TextFieldController';
+import { fetchPlatformParameters, updatePlatformParameters } from '../../../../actions/Application';
+import type { LoggedHelper } from '../../../../actions/helper';
 import { useFormatter } from '../../../../components/i18n';
-import { type CustomDashboardInput, type CustomDashboardParametersInput } from '../../../../utils/api-types';
+import { useHelper } from '../../../../store';
+import {
+  type CustomDashboardInput,
+  type PlatformSettings,
+} from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { zodImplement } from '../../../../utils/Zod';
+import GeneralFormTab from './form/GeneralFormTab';
+import ParametersTab from './form/ParametersTab';
+
+type CustomDashboardFormType = CustomDashboardInput & {
+  is_default_home_dashboard: boolean;
+  is_default_scenario_dashboard: boolean;
+  is_default_simulation_dashboard: boolean;
+};
 
 interface Props {
   onSubmit: SubmitHandler<CustomDashboardInput>;
   initialValues?: CustomDashboardInput;
   editing?: boolean;
+  customDashboardId?: string;
   handleClose: () => void;
 }
 
@@ -27,11 +41,32 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
     custom_dashboard_parameters: [],
   },
   editing = false,
+  customDashboardId,
   handleClose,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
+
+  const dispatch = useAppDispatch();
+  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  useDataLoader(() => {
+    if (editing) {
+      dispatch(fetchPlatformParameters());
+    }
+  });
+
+  const tabs = [{
+    key: 'General',
+    label: 'General',
+  }, {
+    key: 'Parameters',
+    label: 'Parameters',
+  }];
+  const [activeTab, setActiveTab] = useState(tabs[0].key);
+  const handleActiveTabChange = (_: SyntheticEvent, newValue: string) => {
+    setActiveTab(newValue);
+  };
 
   const parametersSchema = z.object({
     custom_dashboards_parameter_id: z.string().optional(),
@@ -41,38 +76,64 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
 
   const validationSchema = useMemo(
     () =>
-      zodImplement<CustomDashboardInput>().with({
+      zodImplement<CustomDashboardFormType>().with({
         custom_dashboard_name: z.string().min(1, { message: t('Should not be empty') }),
         custom_dashboard_description: z.string().optional(),
         custom_dashboard_parameters: z.array(parametersSchema).optional(),
+        is_default_home_dashboard: z.boolean(),
+        is_default_scenario_dashboard: z.boolean(),
+        is_default_simulation_dashboard: z.boolean(),
       }),
     [],
   );
 
-  const methods = useForm<CustomDashboardInput>({
+  const methods = useForm<CustomDashboardFormType>({
     mode: 'onTouched',
     resolver: zodResolver(validationSchema),
-    defaultValues: initialValues,
+    defaultValues: {
+      ...initialValues,
+      is_default_home_dashboard: editing && settings.platform_home_dashboard === customDashboardId,
+      is_default_scenario_dashboard: editing && settings.platform_scenario_dashboard === customDashboardId,
+      is_default_simulation_dashboard: editing && settings.platform_simulation_dashboard === customDashboardId,
+    },
   });
 
   const {
     handleSubmit,
+    getValues,
     formState: { isSubmitting, isDirty },
-    control,
   } = methods;
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'custom_dashboard_parameters',
-  });
 
-  const items: Item<CustomDashboardParametersInput['custom_dashboards_parameter_type']>[] = createItems(['scenario', 'simulation']);
-  const handleAddParameter = (type: CustomDashboardParametersInput['custom_dashboards_parameter_type']) => {
-    if (type) {
-      append({
-        custom_dashboards_parameter_name: type,
-        custom_dashboards_parameter_type: type,
-      });
+  const handleSubmitWithoutDefault = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Get all values at once
+    const formValues = getValues();
+
+    const getDefaultDashboardId = (isChecked: boolean, currentDefault = '') => {
+      if (isChecked) return customDashboardId;
+      return currentDefault === customDashboardId ? '' : currentDefault;
+    };
+
+    const platformUpdates = {
+      platform_home_dashboard: getDefaultDashboardId(formValues.is_default_home_dashboard, settings.platform_home_dashboard),
+      platform_scenario_dashboard: getDefaultDashboardId(formValues.is_default_scenario_dashboard, settings.platform_scenario_dashboard),
+      platform_simulation_dashboard: getDefaultDashboardId(formValues.is_default_simulation_dashboard, settings.platform_simulation_dashboard),
+    };
+
+    // Check if anything actually changed
+    if (JSON.stringify(platformUpdates) !== JSON.stringify({
+      platform_home_dashboard: settings.platform_home_dashboard,
+      platform_scenario_dashboard: settings.platform_scenario_dashboard,
+      platform_simulation_dashboard: settings.platform_simulation_dashboard,
+    })) {
+      dispatch(updatePlatformParameters({
+        ...settings,
+        ...platformUpdates,
+      }));
     }
+
+    handleSubmit(onSubmit)(e);
+    handleClose();
   };
 
   return (
@@ -80,76 +141,40 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
       <form
         id="customDashboardForm"
         style={{
-          display: 'flex',
-          flexDirection: 'column',
+          display: 'grid',
           minHeight: '100%',
           gap: theme.spacing(2),
         }}
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmitWithoutDefault}
       >
-        <TextFieldController
-          variant="standard"
-          name="custom_dashboard_name"
-          label={t('Name')}
-          required
-        />
-        <TextFieldController
-          variant="standard"
-          name="custom_dashboard_description"
-          label={t('Description')}
-        />
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-        }}
+        <Tabs
+          value={activeTab}
+          onChange={handleActiveTabChange}
+          aria-label="tabs for payload form"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+          }}
         >
-          <Typography variant="h3" sx={{ m: 0 }}>
-            {t('Parameters')}
-          </Typography>
-          <IconButton
-            color="secondary"
-            aria-label="Add"
-            onClick={() => handleAddParameter(items[0].value)}
-            size="small"
-          >
-            <Add fontSize="small" />
-          </IconButton>
-        </div>
-        {fields.map((field, index) => (
-          <Box
-            key={field.id}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing(2),
-            }}
-          >
-            {
-              (field.custom_dashboards_parameter_type === 'simulation' || field.custom_dashboards_parameter_type === 'scenario') && (
-                <>
-                  <TextFieldController
-                    name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_name`}
-                    label={t('Parameter Name')}
-                    variant="standard"
-                    required
-                    noHelperText
-                  />
-                  <SelectFieldController
-                    name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_type`}
-                    label={t('Parameter Type')}
-                    items={items}
-                    required
-                  />
-                  <Tooltip title={t('Delete')}>
-                    <IconButton color="error" onClick={() => remove(index)}>
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )
+          {tabs.map(tab => <Tab key={tab.key} label={tab.label} value={tab.key} />)}
+        </Tabs>
+
+        {activeTab === 'General' && (
+          <GeneralFormTab
+            initialDefaultDashboardIds={
+              {
+                home: settings.platform_home_dashboard,
+                scenario: settings.platform_scenario_dashboard,
+                simulation: settings.platform_simulation_dashboard,
+              }
             }
-          </Box>
-        ))}
+          />
+        )}
+
+        {activeTab === 'Parameters' && (
+          <ParametersTab />
+        )}
+
         <Box sx={{
           display: 'flex',
           justifyContent: 'flex-end',

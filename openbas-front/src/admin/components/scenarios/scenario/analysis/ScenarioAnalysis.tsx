@@ -1,93 +1,92 @@
-import { useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useState } from 'react';
+import { useContext } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchCustomDashboard } from '../../../../../actions/custom_dashboards/customdashboard-action';
-import { fetchScenario } from '../../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
+import { fetchScenario, updateScenario } from '../../../../../actions/scenarios/scenario-actions';
+import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable/filter/constants';
-import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Scenario } from '../../../../../utils/api-types';
+import { type CustomDashboard, type Scenario } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { isNotEmptyField } from '../../../../../utils/utils';
-import CustomDashboardComponent from '../../../workspaces/custom_dashboards/CustomDashboard';
-import { CustomDashboardContext, type ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
-import CustomDashboardParameters from '../../../workspaces/custom_dashboards/CustomDashboardParameters';
+import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { type ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
+import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';
+import NoDashboardComponent from '../../../workspaces/custom_dashboards/NoDashboardComponent';
+import SelectDashboardButton from '../../../workspaces/custom_dashboards/SelectDashboardButton';
 
 const ScenarioAnalysis = () => {
-  const theme = useTheme();
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const [loading, setLoading] = useState(true);
+
   const scenario = useHelper((helper: ScenariosHelper) => {
     return helper.getScenario(scenarioId);
   });
   useDataLoader(() => {
     dispatch(fetchScenario(scenarioId));
   });
+  const handleSelectNewDashboard = (dashboardId: string) => {
+    dispatch(updateScenario(scenario.scenario_id, {
+      ...scenario,
+      scenario_custom_dashboard: dashboardId,
+    }));
+  };
 
-  const { customDashboard, setCustomDashboard, customDashboardParameters, setCustomDashboardParameters } = useContext(CustomDashboardContext);
+  const paramsBuilder = (dashboardParameters: CustomDashboard['custom_dashboard_parameters'], localStorageParams: Record<string, ParameterOption>) => {
+    const params: Record<string, ParameterOption> = {};
+    dashboardParameters?.forEach((p) => {
+      const value = localStorageParams[p.custom_dashboards_parameter_id]?.value;
+      if ('scenario' === p.custom_dashboards_parameter_type) {
+        params[p.custom_dashboards_parameter_id] = {
+          value: scenario.scenario_id,
+          hidden: true,
+        };
+      } else if ('simulation' === p.custom_dashboards_parameter_type) {
+        params[p.custom_dashboards_parameter_id] = {
+          value: value,
+          hidden: false,
+          searchOptionsConfig: {
+            filterKey: SCENARIO_SIMULATIONS,
+            contextId: scenarioId,
+          },
+        };
+      } else {
+        params[p.custom_dashboards_parameter_id] = {
+          value: value,
+          hidden: false,
+        };
+      }
+    });
+    return params;
+  };
 
-  useEffect(() => {
-    if (isNotEmptyField(scenario.scenario_custom_dashboard)) {
-      fetchCustomDashboard(scenario.scenario_custom_dashboard).then((response) => {
-        if (response.data) {
-          const dashboard = response.data;
-          setCustomDashboard(dashboard);
-
-          const params: Record<string, ParameterOption> = {};
-          dashboard.custom_dashboard_parameters?.forEach((p: {
-            custom_dashboards_parameter_type: string;
-            custom_dashboards_parameter_id: string;
-          }) => {
-            const value = customDashboardParameters[p.custom_dashboards_parameter_id]?.value;
-            if ('scenario' === p.custom_dashboards_parameter_type) {
-              params[p.custom_dashboards_parameter_id] = {
-                value: scenario.scenario_id,
-                hidden: true,
-              };
-            } else if ('simulation' === p.custom_dashboards_parameter_type) {
-              params[p.custom_dashboards_parameter_id] = {
-                value: value,
-                hidden: false,
-                searchOptionsConfig: {
-                  filterKey: SCENARIO_SIMULATIONS,
-                  contextId: scenarioId,
-                },
-              };
-            } else {
-              params[p.custom_dashboards_parameter_id] = {
-                value: value,
-                hidden: false,
-              };
-            }
-          });
-          setCustomDashboardParameters(params);
-
-          setLoading(false);
-        }
-      });
-    } else {
-      setCustomDashboard(undefined);
-      setLoading(false);
-    }
-  }, [scenario]);
-
-  if (loading) {
-    return <Loader />;
-  }
+  const configuration = {
+    customDashboardId: scenario?.scenario_custom_dashboard,
+    paramLocalStorageKey: 'custom-dashboard-scenario-' + scenarioId,
+    paramsBuilder,
+    parentContextId: scenarioId,
+    canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenarioId),
+    handleSelectNewDashboard,
+  };
 
   return (
-    <div style={{
-      display: 'grid',
-      gap: theme.spacing(2),
-    }}
-    >
-      <CustomDashboardParameters />
-      {customDashboard && <CustomDashboardComponent readOnly />}
-    </div>
+    <CustomDashboardWrapper
+      configuration={configuration}
+      noDashboardSlot={(
+        <NoDashboardComponent
+          actionComponent={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.RESOURCE} field={scenarioId}>
+              <SelectDashboardButton
+                variant="text"
+                handleApplyChange={handleSelectNewDashboard}
+                scenarioOrSimulationId={scenarioId}
+              />
+            </Can>
+          )}
+        />
+      )}
+    />
   );
 };
 

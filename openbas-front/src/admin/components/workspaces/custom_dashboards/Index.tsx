@@ -1,96 +1,29 @@
-import { Alert, AlertTitle } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react';
-import { Route, Routes, useParams } from 'react-router';
-import { useLocalStorage } from 'usehooks-ts';
+import { lazy, Suspense } from 'react';
+import { Route, Routes } from 'react-router';
+import { makeStyles } from 'tss-react/mui';
 
-import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
-import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { type CustomDashboard } from '../../../../utils/api-types';
-import { CustomDashboardContext, type ParameterOption } from './CustomDashboardContext';
 
-const CustomDashboardWrapper = lazy(() => import('./CustomDashboardWrapper'));
+const CustomDashboards = lazy(() => import('./CustomDashboards'));
+const CustomDashboard = lazy(() => import('./CustomDashboard'));
 
-const CustomDashboardIndexComponent: FunctionComponent = () => {
-  // Standard hooks
-  const { t } = useFormatter();
+const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
-  const { customDashboardId } = useParams() as { customDashboardId: CustomDashboard['custom_dashboard_id'] };
-  const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCustomDashboard(customDashboardId).then((response) => {
-      if (response.data) {
-        setCustomDashboard(response.data);
-        setLoading(false);
-      }
-    });
-  }, []);
-
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (!loading && !customDashboard) {
-    return (
-      <Alert severity="warning">
-        <AlertTitle>{t('Warning')}</AlertTitle>
-        {t('Custom dashboard is currently unavailable or you do not have sufficient permissions to access it.')}
-      </Alert>
-    );
-  }
-
+const CustomDashboardIndex = () => {
+  const { classes } = useStyles();
   return (
-    <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Dashboards') },
-          {
-            label: t('Custom dashboards'),
-            link: '/admin/workspaces/custom_dashboards',
-          },
-          {
-            label: customDashboard?.custom_dashboard_name ?? '',
-            current: true,
-          }]}
-      />
+    <div className={classes.root}>
       <Suspense fallback={<Loader />}>
         <Routes>
-          <Route
-            path=""
-            element={errorWrapper(CustomDashboardWrapper)({
-              customDashboard,
-              readOnly: false,
-            })}
-          />
+          <Route path="" element={errorWrapper(CustomDashboards)()} />
+          <Route path="/:customDashboardId" element={errorWrapper(CustomDashboard)()} />
           {/* Not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
-    </>
+    </div>
   );
 };
-
-const CustomDashboardIndex = () => {
-  const { customDashboardId } = useParams() as { customDashboardId: CustomDashboard['custom_dashboard_id'] };
-  const [customDashboardValue, setCustomDashboardValue] = useState<CustomDashboard>();
-  const [parameters, setParameters] = useLocalStorage<Record<string, ParameterOption>>('custom-dashboard-' + customDashboardId, Object.fromEntries(new Map()));
-  const contextValue = useMemo(() => ({
-    customDashboard: customDashboardValue,
-    setCustomDashboard: setCustomDashboardValue,
-    customDashboardParameters: parameters,
-    setCustomDashboardParameters: setParameters,
-  }), [customDashboardValue, setCustomDashboardValue, parameters, setParameters]);
-
-  return (
-    <CustomDashboardContext.Provider value={contextValue}>
-      <CustomDashboardIndexComponent />
-    </CustomDashboardContext.Provider>
-  );
-};
-
 export default CustomDashboardIndex;

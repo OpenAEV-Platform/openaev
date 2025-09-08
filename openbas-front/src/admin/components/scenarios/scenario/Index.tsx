@@ -3,7 +3,7 @@ import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } fr
 import { useTheme } from '@mui/material/styles';
 import cronstrue from 'cronstrue';
 import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
-import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -30,7 +30,7 @@ const Injects = lazy(() => import('./injects/ScenarioInjects'));
 const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
-const ScenarioAnalysisWrapper = lazy(() => import('./analysis/ScenarioAnalysisWrapper'));
+const ScenarioAnalysis = lazy(() => import('./analysis/ScenarioAnalysis'));
 
 // eslint-disable-next-line no-underscore-dangle
 const _MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -38,7 +38,6 @@ const _MS_PER_DAY = 1000 * 60 * 60 * 24;
 const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ scenario }) => {
   const { t, ft, locale, fld } = useFormatter();
   const location = useLocation();
-  const navigate = useNavigate();
   const theme = useTheme();
   const permissionsContext: PermissionsContextType = { permissions: useScenarioPermissions(scenario.scenario_id) };
   const documentContext: DocumentContextType = {
@@ -124,17 +123,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
     });
   };
 
-  useEffect(() => {
-    const analysisPath = `/admin/scenarios/${scenario.scenario_id}/analysis`;
-
-    if (
-      location.pathname.startsWith(analysisPath)
-      && !scenario.scenario_custom_dashboard
-    ) {
-      navigate(`/admin/scenarios/${scenario.scenario_id}`, { replace: true });
-    }
-  }, [scenario.scenario_custom_dashboard, location.pathname, scenario.scenario_id, navigate]);
-
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
@@ -215,14 +203,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
                 value={`/admin/scenarios/${scenario.scenario_id}/findings`}
                 label={t('Findings')}
               />
-              {scenario.scenario_custom_dashboard && (
-                <Tab
-                  component={Link}
-                  to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                  value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                  label={t('Analysis')}
-                />
-              )}
+              <Tab
+                component={Link}
+                to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                label={t('Analysis')}
+              />
             </Tabs>
             <div style={{
               display: 'flex',
@@ -308,7 +294,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
-              <Route path="analysis" element={errorWrapper(ScenarioAnalysisWrapper)()} />
+              <Route path="analysis" element={errorWrapper(ScenarioAnalysis)()} />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />
             </Routes>

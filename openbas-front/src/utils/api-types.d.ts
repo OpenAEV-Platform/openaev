@@ -4637,6 +4637,8 @@ export interface PlatformSettings {
   platform_base_url?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
+  /** Default home dashboard of the platform */
+  platform_home_dashboard?: string;
   /** id of the platform */
   platform_id?: string;
   /** Language of the platform */
@@ -4655,6 +4657,10 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Default scenario dashboard of the platform */
+  platform_scenario_dashboard?: string;
+  /** Default simulation dashboard of the platform */
+  platform_simulation_dashboard?: string;
   /** Theme of the platform */
   platform_theme: string;
   /** Current version of the platform */
@@ -5341,10 +5347,16 @@ export interface SettingsPlatformWhitemarkUpdateInput {
 }
 
 export interface SettingsUpdateInput {
+  /** Default home dashboard of the platform */
+  platform_home_dashboard?: string;
   /** Language of the platform */
   platform_lang: string;
   /** Name of the platform */
   platform_name: string;
+  /** Default scenario dashboard of the platform */
+  platform_scenario_dashboard?: string;
+  /** Default simulation dashboard of the platform */
+  platform_simulation_dashboard?: string;
   /** Theme of the platform */
   platform_theme: string;
 }

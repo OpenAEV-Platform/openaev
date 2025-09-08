@@ -1,10 +1,10 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, useContext, useMemo } from 'react';
 
 import ScenarioField from '../../../../components/fields/ScenarioField';
 import SimulationField from '../../../../components/fields/SimulationField';
 import { type CustomDashboardParameters as CustomDashboardParametersType } from '../../../../utils/api-types';
-import { CustomDashboardContext } from './CustomDashboardContext';
+import { CustomDashboardContext, type ParameterOption } from './CustomDashboardContext';
 import TimeRangeFilters from './TimeRangeFilters';
 import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
 
@@ -42,17 +42,14 @@ const CustomDashboardParameters: FunctionComponent = () => {
     }
   });
 
-  const renderParameterField = (p: CustomDashboardParametersType) => {
-    const param = getParameter(p.custom_dashboards_parameter_id);
-    if (param?.hidden) {
-      return null;
-    }
+  const renderParameterField = (p: CustomDashboardParametersType, paramOption: ParameterOption | undefined) => {
     switch (p.custom_dashboards_parameter_type) {
       case 'scenario':
         return (
           <ScenarioField
+            key={p.custom_dashboards_parameter_id}
             label={p.custom_dashboards_parameter_name}
-            value={param?.value}
+            value={paramOption?.value}
             onChange={(value: string | undefined) =>
               handleParametersValue(p.custom_dashboards_parameter_id, value ?? '')}
           />
@@ -60,11 +57,12 @@ const CustomDashboardParameters: FunctionComponent = () => {
       case 'simulation':
         return (
           <SimulationField
+            key={p.custom_dashboards_parameter_id}
             label={p.custom_dashboards_parameter_name}
-            value={param?.value}
+            value={paramOption?.value}
             onChange={(value: string | undefined) =>
               handleParametersValue(p.custom_dashboards_parameter_id, value ?? '')}
-            searchOptionsConfig={param?.searchOptionsConfig}
+            searchOptionsConfig={paramOption?.searchOptionsConfig}
           />
         );
       default:
@@ -72,8 +70,23 @@ const CustomDashboardParameters: FunctionComponent = () => {
     }
   };
 
+  const paramsFields = useMemo(() => {
+    return (customDashboard?.custom_dashboard_parameters ?? [])
+      .filter(p => p.custom_dashboards_parameter_type === 'scenario' || p.custom_dashboards_parameter_type === 'simulation')
+      .flatMap((p) => {
+        const paramOption = getParameter(p.custom_dashboards_parameter_id);
+        if (paramOption?.hidden) return [];
+        const field = renderParameterField(p, paramOption);
+        return field ? [field] : [];
+      });
+  }, [customDashboard]);
+
   return (
-    <>
+    <div style={{
+      display: 'grid',
+      gap: theme.spacing(2),
+    }}
+    >
       <TimeRangeFilters
         timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
         handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
@@ -82,17 +95,18 @@ const CustomDashboardParameters: FunctionComponent = () => {
         endDateValue={getParameter(dateParameters.get('endDate'))?.value}
         handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 300px))',
-          gap: theme.spacing(2),
-        }}
-      >
-        {(customDashboard?.custom_dashboard_parameters ?? []).map(p => renderParameterField(p))}
-      </div>
-    </>
-
+      {paramsFields.length > 0 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 300px))',
+            gap: theme.spacing(2),
+          }}
+        >
+          {paramsFields}
+        </div>
+      )}
+    </div>
   );
 };
 

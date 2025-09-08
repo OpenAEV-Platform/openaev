@@ -30,9 +30,7 @@ const DialogDelete: FunctionComponent<DialogDeleteProps> = ({
       slots={{ transition: Transition }}
     >
       <DialogContent>
-        {richContent ? (
-          richContent
-        ) : (
+        {richContent || (
           <DialogContentText>
             {text}
           </DialogContentText>
