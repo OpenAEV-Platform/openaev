@@ -3,7 +3,6 @@ package io.openbas.utils.mockUser;
 import static io.openbas.database.model.Grant.GRANT_TYPE.PLANNER;
 import static io.openbas.service.UserService.buildAuthenticationToken;
 
-import io.openbas.database.model.DefaultGrant;
 import io.openbas.database.model.Grant;
 import io.openbas.database.model.Group;
 import io.openbas.database.model.User;

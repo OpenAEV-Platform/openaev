@@ -1,7 +1,6 @@
 package io.openbas.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openbas.annotation.Queryable;
@@ -13,7 +12,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Fetch;
@@ -95,7 +93,6 @@ public class Group implements Base {
   @Transient
   private final ResourceType resourceType = ResourceType.USER_GROUP;
 
-  
   // endregion
 
   @Override
