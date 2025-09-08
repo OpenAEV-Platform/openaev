@@ -152,7 +152,7 @@ const UpdateInject: React.FC<Props> = ({
           <InjectForm
             handleClose={handleClose}
             openDetails
-            disabled={!injectorContractContent || permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)}
+            disabled={!injectorContractContent || permissions.readOnly || ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)}
             drawerRef={drawerRef}
             isAtomic={isAtomic}
             defaultInject={inject}
