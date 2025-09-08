@@ -64,7 +64,6 @@ public class GroupApi extends RestBehavior {
   public Group createGroup(@Valid @RequestBody GroupCreateInput input) {
     Group group = new Group();
     group.setUpdateAttributes(input);
-    group.setDefaultGrants(input.getDefaultGrants());
     return groupRepository.save(group);
   }
 
@@ -127,7 +126,6 @@ public class GroupApi extends RestBehavior {
       @PathVariable String groupId, @Valid @RequestBody GroupCreateInput input) {
     Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     group.setUpdateAttributes(input);
-    group.setDefaultGrants(input.getDefaultGrants());
     return groupRepository.save(group);
   }
 

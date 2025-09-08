@@ -3,7 +3,6 @@ package io.openbas.utils.mockUser;
 import static io.openbas.database.model.Grant.GRANT_TYPE.PLANNER;
 import static io.openbas.service.UserService.buildAuthenticationToken;
 
-import io.openbas.database.model.DefaultGrant;
 import io.openbas.database.model.Grant;
 import io.openbas.database.model.Group;
 import io.openbas.database.model.User;
@@ -64,12 +63,6 @@ public class WithMockPlannerUserSecurityContextFactory
     if (groupOpt.isEmpty()) {
       Group newGroup = new Group();
       newGroup.setName(MOCK_PLANNER_GROUP);
-      newGroup
-          .getDefaultGrants()
-          .add(new DefaultGrant(Grant.GRANT_TYPE.PLANNER, Grant.GRANT_RESOURCE_TYPE.SCENARIO));
-      newGroup
-          .getDefaultGrants()
-          .add(new DefaultGrant(Grant.GRANT_TYPE.PLANNER, Grant.GRANT_RESOURCE_TYPE.SIMULATION));
       group = this.groupRepository.save(newGroup);
       // Create grant
       Grant grant = new Grant();

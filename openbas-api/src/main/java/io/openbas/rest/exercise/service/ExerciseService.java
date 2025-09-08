@@ -135,7 +135,6 @@ public class ExerciseService {
       }
     }
 
-    this.grantService.computeGrant(exercise);
     actionMetricCollector.addSimulationCreatedCount();
     return exerciseRepository.save(exercise);
   }

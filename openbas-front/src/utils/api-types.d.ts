@@ -2469,8 +2469,6 @@ export interface Grant {
 }
 
 export interface Group {
-  /** @uniqueItems true */
-  group_default_grants?: DefaultGrant[];
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];
@@ -2483,8 +2481,6 @@ export interface Group {
 }
 
 export interface GroupCreateInput {
-  /** @uniqueItems true */
-  group_default_grants?: DefaultGrant[];
   group_default_user_assign?: boolean;
   group_description?: string;
   group_name: string;

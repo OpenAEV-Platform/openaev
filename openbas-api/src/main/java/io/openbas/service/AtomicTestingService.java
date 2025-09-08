@@ -57,10 +57,9 @@ public class AtomicTestingService {
   private final DocumentRepository documentRepository;
   private final AssetGroupService assetGroupService;
   private final UserService userService;
-  private final GrantService grantService;
-
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
+  private final GrantService grantService;
 
   // -- CRUD --
 

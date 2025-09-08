@@ -3,10 +3,7 @@ package io.openbas.rest.group.form;
 import static io.openbas.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openbas.database.model.DefaultGrant;
 import jakarta.validation.constraints.NotBlank;
-import java.util.HashSet;
-import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,9 +17,6 @@ public class GroupCreateInput {
 
   @JsonProperty("group_description")
   private String description;
-
-  @JsonProperty("group_default_grants")
-  private Set<DefaultGrant> defaultGrants = new HashSet<>();
 
   @JsonProperty("group_default_user_assign")
   private boolean defaultUserAssignation;

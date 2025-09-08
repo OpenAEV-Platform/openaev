@@ -148,7 +148,6 @@ class GroupPopover extends Component {
         'group_name',
         'group_description',
         'group_default_user_assign',
-        'group_default_grants',
       ],
       group,
     );
