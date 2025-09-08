@@ -59,6 +59,7 @@ public class AtomicTestingService {
   private final UserService userService;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
+  private final GrantService grantService;
 
   // -- CRUD --
 

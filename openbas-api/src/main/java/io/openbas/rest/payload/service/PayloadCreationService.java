@@ -63,7 +63,6 @@ public class PayloadCreationService {
       fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
     }
 
-    this.grantService.computeGrant(payload);
     Payload saved = payloadRepository.save(payload);
     payloadService.updateInjectorContractsForPayload(saved);
     return saved;
