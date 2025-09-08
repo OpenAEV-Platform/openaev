@@ -489,7 +489,10 @@ public class OpenSearchService implements EngineService {
                                                         }
                                                       }
                                                     """)
-                                          .params("valueToRemove", JsonData.of(ids.getFirst())))))) // Only 1 id in this list
+                                          .params(
+                                              "valueToRemove",
+                                              JsonData.of(
+                                                  ids.getFirst())))))) // Only 1 id in this list
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
               .build());
