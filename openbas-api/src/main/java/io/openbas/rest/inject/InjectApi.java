@@ -547,10 +547,19 @@ public class InjectApi extends RestBehavior {
   @GetMapping(INJECT_URI + "/{injectId}/payload/{payloadId}/documents")
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
-          @PathVariable String injectId,
-          @PathVariable String payloadId) {
-    Inject inject = injectRepository.findById(injectId).orElseThrow(() -> new ElementNotFoundException("inject not found with id : " + injectId));
-    Payload payload = inject.getPayload().orElseThrow(() -> new ElementNotFoundException("payload not found on inject with id : " + injectId));
+      @PathVariable String injectId, @PathVariable String payloadId) {
+    Inject inject =
+        injectRepository
+            .findById(injectId)
+            .orElseThrow(
+                () -> new ElementNotFoundException("inject not found with id : " + injectId));
+    Payload payload =
+        inject
+            .getPayload()
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "payload not found on inject with id : " + injectId));
 
     if (!payload.getId().isEmpty() && payload.getId().equals(payloadId)) {
       return documentService.documentsForPayload(payloadId);
