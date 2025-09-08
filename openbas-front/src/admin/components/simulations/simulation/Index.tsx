@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useContext, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -15,6 +15,9 @@ import { useHelper } from '../../../../store';
 import { type Exercise as ExerciseType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import NoAccess from '../../../../utils/permissions/NoAccess';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
@@ -189,6 +192,15 @@ const Index = () => {
   const dispatch = useAppDispatch();
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
+
+  // if no access display error page
+  const ability = useContext(AbilityContext);
+  if (!ability?.can?.(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exerciseId)) {
+    return (
+      <NoAccess />
+    );
+  }
+
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   useDataLoader(() => {
     setLoading(true);

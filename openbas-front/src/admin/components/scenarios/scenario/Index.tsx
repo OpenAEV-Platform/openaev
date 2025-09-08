@@ -2,7 +2,7 @@ import { NotificationsOutlined, UpdateOutlined } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import cronstrue from 'cronstrue';
-import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useContext, useEffect, useState } from 'react';
 import { Link, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
@@ -18,6 +18,9 @@ import { type NotificationRuleOutput, type Scenario } from '../../../../utils/ap
 import { parseCron, type ParsedCron } from '../../../../utils/Cron';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import NoAccess from '../../../../utils/permissions/NoAccess';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
@@ -313,6 +316,15 @@ const Index = () => {
   const { t } = useFormatter();
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
+
+  // if no access display error page
+  const ability = useContext(AbilityContext);
+  if (!ability?.can?.(ACTIONS.ACCESS, SUBJECTS.RESOURCE, scenarioId)) {
+    return (
+      <NoAccess />
+    );
+  }
+
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   useDataLoader(() => {
     setLoading(true);
