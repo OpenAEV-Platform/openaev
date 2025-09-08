@@ -45,16 +45,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class SecurityCoverageService {
 
-  public static final String STIX_ID = "id";
   public static final String STIX_THREAT_CONTEXT_REF = "threat_context_ref";
   public static final String STIX_NAME = "name";
   public static final String STIX_DESCRIPTION = "description";
-  public static final String STIX_LABELS = "labels";
   public static final String STIX_SCHEDULING = "scheduling";
   public static final String STIX_PERIOD_START = "period_start";
   public static final String STIX_PERIOD_END = "period_end";
   public static final String STIX_ATTACK_PATTERN_TYPE = "attack-pattern";
-  public static final String ONE_SHOT = "X";
   public static final String INCIDENT_RESPONSE = "incident-response";
   public static final String ATTACK_SCENARIO = "attack-scenario";
 
@@ -95,7 +92,7 @@ public class SecurityCoverageService {
     ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
 
     // Mandatory fields
-    String externalId = stixCoverageObj.getRequiredProperty(STIX_ID);
+    String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
     securityCoverage.setExternalId(externalId);
 
@@ -107,14 +104,16 @@ public class SecurityCoverageService {
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
-    stixCoverageObj.setIfListPresent(STIX_LABELS, securityCoverage::setLabels);
+    stixCoverageObj.setIfListPresent(
+        CommonProperties.LABELS.toString(), securityCoverage::setLabels);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
         extractAttackReferences(bundle.findByType(STIX_ATTACK_PATTERN_TYPE)));
 
     // Default Fields
-    String scheduling = stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ONE_SHOT);
+    String scheduling =
+        stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ScheduleFrequency.ONESHOT.toString());
     securityCoverage.setScheduling(ScheduleFrequency.fromString(scheduling));
 
     // Period Start & End
