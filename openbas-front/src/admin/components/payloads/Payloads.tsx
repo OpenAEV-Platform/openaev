@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import {fetchDocumentsPayload, importPayload, searchPayloads} from '../../../actions/payloads/payload-actions';
+import { fetchDocumentsPayload, importPayload, searchPayloads } from '../../../actions/payloads/payload-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import Drawer from '../../../components/common/Drawer';
 import ExportButton from '../../../components/common/ExportButton';
@@ -22,13 +22,13 @@ import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PayloadIcon from '../../../components/PayloadIcon';
 import PlatformIcon from '../../../components/PlatformIcon';
-import {type Document, type Payload, type SearchPaginationInput} from '../../../utils/api-types';
+import { type Document, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { arrayToRecord } from '../../../utils/utils';
 import CreatePayload from './CreatePayload';
 import PayloadComponent from './PayloadComponent';
 import PayloadPopover from './PayloadPopover';
-import {arrayToRecord} from "../../../utils/utils";
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -238,7 +238,7 @@ const Payloads = () => {
     fetchDocumentsPayload(payload.payload_id)
       .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')))
       .finally(() => setSelectedPayload(payload));
-  }
+  };
 
   return (
     <>
@@ -361,8 +361,8 @@ const Payloads = () => {
         title={t('Selected payload')}
       >
         <PayloadComponent
-            selectedPayload={selectedPayload}
-            documentsMap={documentsMap}
+          selectedPayload={selectedPayload}
+          documentsMap={documentsMap}
         />
       </Drawer>
     </>

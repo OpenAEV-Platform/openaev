@@ -1,10 +1,11 @@
 import { HelpOutlined } from '@mui/icons-material';
 import { Avatar, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import {type SyntheticEvent, useContext, useEffect, useRef, useState} from 'react';
+import { type SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
 
 import { fetchInject } from '../../../../actions/Inject';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
+import { fetchDocumentsPayloadByInject } from '../../../../actions/injects/inject-action';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -20,16 +21,15 @@ import {
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
+import PayloadComponent from '../../payloads/PayloadComponent';
 import { PermissionsContext } from '../Context';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
 import UpdateInjectLogicalChains from './UpdateInjectLogicalChains';
-import PayloadComponent from "../../payloads/PayloadComponent";
-import { fetchDocumentsPayloadByInject } from "../../../../actions/injects/inject-action";
 interface Props {
   open: boolean;
   handleClose: () => void;
@@ -76,6 +76,10 @@ const UpdateInject: React.FC<Props> = ({
     });
   });
 
+  // Setup tabs
+  const [availableTabs] = useState<string[]>(['Inject details', 'Payload Details', 'Logical chains']);
+  const [activeTab, setActiveTab] = useState<null | string>(availableTabs[0]);
+
   // Selection
   const handleTabChange = (_: SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
@@ -100,10 +104,6 @@ const UpdateInject: React.FC<Props> = ({
     return injectorContract?.injector_contract_injector_type_name ? t(injectorContract?.injector_contract_injector_type_name) : '';
   };
 
-  // Setup tabs
-  const [availableTabs] = useState<string[]>(['Inject details', 'Payload Details', 'Logical chains']);
-  const [activeTab, setActiveTab] = useState<null | string>(availableTabs[0]);
-
   return (
     <Drawer
       open={open}
@@ -127,38 +127,39 @@ const UpdateInject: React.FC<Props> = ({
             })}
           </Tabs>
         )}
-        {(activeTab !== 'Payload Details') &&
-          <InjectCardComponent
-            avatar={injectorContractContent
-              ? (
-                  <InjectIcon
-                    type={contractPayload ? (contractPayload.payload_collector_type ?? contractPayload.payload_type) : injectorContract?.injector_contract_injector_type}
-                    isPayload={isNotEmptyField(contractPayload?.payload_collector_type ?? contractPayload?.payload_type)}
-                  />
-                ) : (
-                  <Avatar sx={{
-                    width: 24,
-                    height: 24,
-                  }}
-                  >
-                    <HelpOutlined />
-                  </Avatar>
-                )}
-            title={getInjectHeaderTitle()}
-            action={(
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-              }}
-              >
-                {inject?.inject_injector_contract?.injector_contract_platforms?.map(
-                  platform => <PlatformIcon key={platform} width={20} platform={platform} marginRight={theme.spacing(2)} />,
-                )}
-              </div>
-            )}
-            content={inject?.inject_title}
-          />
-        }
+        {(activeTab !== 'Payload Details')
+          && (
+            <InjectCardComponent
+              avatar={injectorContractContent
+                ? (
+                    <InjectIcon
+                      type={contractPayload ? (contractPayload.payload_collector_type ?? contractPayload.payload_type) : injectorContract?.injector_contract_injector_type}
+                      isPayload={isNotEmptyField(contractPayload?.payload_collector_type ?? contractPayload?.payload_type)}
+                    />
+                  ) : (
+                    <Avatar sx={{
+                      width: 24,
+                      height: 24,
+                    }}
+                    >
+                      <HelpOutlined />
+                    </Avatar>
+                  )}
+              title={getInjectHeaderTitle()}
+              action={(
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                >
+                  {inject?.inject_injector_contract?.injector_contract_platforms?.map(
+                    platform => <PlatformIcon key={platform} width={20} platform={platform} marginRight={theme.spacing(2)} />,
+                  )}
+                </div>
+              )}
+              content={inject?.inject_title}
+            />
+          )}
 
         {!isInjectLoading && (isAtomic || activeTab === 'Inject details') && (
           <InjectForm
@@ -176,10 +177,10 @@ const UpdateInject: React.FC<Props> = ({
           />
         )}
         {(!isInjectLoading && !isAtomic && activeTab === 'Payload Details' && contractPayload) && (
-            <PayloadComponent
-                documentsMap={documentsMap}
-                selectedPayload={contractPayload!}
-            />
+          <PayloadComponent
+            documentsMap={documentsMap}
+            selectedPayload={contractPayload!}
+          />
         )}
         {(!isInjectLoading && !isAtomic && activeTab === 'Logical chains') && (
           <UpdateInjectLogicalChains

@@ -20,8 +20,8 @@ export function recordEntries<K extends PropertyKey, T>(object: Record<K, T>) {
 }
 
 export function arrayToRecord<T, K extends keyof T>(
-    list: T[],
-    key: K
+  list: T[],
+  key: K,
 ): Record<string, T> | null {
   if (!list || !list.length)
     return null;
