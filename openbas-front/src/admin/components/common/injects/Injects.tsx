@@ -655,60 +655,63 @@ const Injects: FunctionComponent<Props> = ({
               })}
         </List>
       )}
-      {permissions.canManage && (
-        <>
-          {selectedInjectId !== null
-            && (
-              <UpdateInject
-                open
-                handleClose={() => setSelectedInjectId(null)}
-                onUpdateInject={onUpdateInject}
-                massUpdateInject={massUpdateInject}
-                injectId={selectedInjectId}
-                injects={injects}
-                articlesFromExerciseOrScenario={articles}
-                variablesFromExerciseOrScenario={variables}
-                uriVariable={uriVariable}
-              />
-            )}
-          <ButtonCreate onClick={() => {
-            setOpenCreateDrawer(true);
-            setPresetInjectDuration(0);
-          }}
-          />
-          {
-            numberOfSelectedElements > 0 && (
-              <ToolBar
-                numberOfSelectedElements={numberOfSelectedElements}
-                totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-                selectedElements={selectedElements}
-                deSelectedElements={deSelectedElements}
-                selectAll={selectAll}
-                handleClearSelectedElements={handleClearSelectedElements}
-                teamsFromExerciseOrScenario={teams}
-                id={contextId}
-                handleUpdate={massUpdateInjects}
-                handleBulkDelete={bulkDeleteInjects}
-                handleBulkTest={massTestInjects}
-                handleExport={handleExport}
-              />
-            )
-          }
-          {openCreateDrawer
-            && (
-              <CreateInject
-                title={t('Create a new inject')}
-                open
-                handleClose={() => setOpenCreateDrawer(false)}
-                onCreateInject={onCreateInject}
-                presetInjectDuration={presetInjectDuration}
-                articlesFromExerciseOrScenario={articles}
-                uriVariable={uriVariable}
-                variablesFromExerciseOrScenario={variables}
-              />
-            )}
-        </>
-      )}
+      <>
+        {selectedInjectId !== null
+          && (
+            <UpdateInject
+              open
+              handleClose={() => setSelectedInjectId(null)}
+              onUpdateInject={onUpdateInject}
+              massUpdateInject={massUpdateInject}
+              injectId={selectedInjectId}
+              injects={injects}
+              articlesFromExerciseOrScenario={articles}
+              variablesFromExerciseOrScenario={variables}
+              uriVariable={uriVariable}
+            />
+          )}
+        {permissions.canManage && (
+
+          <>
+            <ButtonCreate onClick={() => {
+              setOpenCreateDrawer(true);
+              setPresetInjectDuration(0);
+            }}
+            />
+            {
+              numberOfSelectedElements > 0 && (
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                  selectedElements={selectedElements}
+                  deSelectedElements={deSelectedElements}
+                  selectAll={selectAll}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  teamsFromExerciseOrScenario={teams}
+                  id={contextId}
+                  handleUpdate={massUpdateInjects}
+                  handleBulkDelete={bulkDeleteInjects}
+                  handleBulkTest={massTestInjects}
+                  handleExport={handleExport}
+                />
+              )
+            }
+            {openCreateDrawer
+              && (
+                <CreateInject
+                  title={t('Create a new inject')}
+                  open
+                  handleClose={() => setOpenCreateDrawer(false)}
+                  onCreateInject={onCreateInject}
+                  presetInjectDuration={presetInjectDuration}
+                  articlesFromExerciseOrScenario={articles}
+                  uriVariable={uriVariable}
+                  variablesFromExerciseOrScenario={variables}
+                />
+              )}
+          </>
+        )}
+      </>
     </>
   );
 };
