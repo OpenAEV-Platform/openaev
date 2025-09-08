@@ -401,6 +401,7 @@ public class ElasticService implements EngineService {
           new DeleteByQueryRequest.Builder()
               .index(engineConfig.getIndexPrefix() + "*")
               .query(query)
+              .refresh(true)
               .build());
     } catch (IOException e) {
       log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);

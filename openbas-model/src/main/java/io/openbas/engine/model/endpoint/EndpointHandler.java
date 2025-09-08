@@ -50,21 +50,17 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               // Dependencies
               List<String> dependencies = new ArrayList<>();
               if (endpoint.getAsset_findings() != null && !endpoint.getAsset_findings().isEmpty()) {
-                dependencies.addAll(endpoint.getAsset_findings());
                 esEndpoint.setBase_findings_side(endpoint.getAsset_findings());
               }
               if (endpoint.getAsset_tags() != null && !endpoint.getAsset_tags().isEmpty()) {
-                dependencies.addAll(endpoint.getAsset_tags());
                 esEndpoint.setBase_tags_side(endpoint.getAsset_tags());
               }
               if (endpoint.getEndpoint_exercises() != null
                   && !endpoint.getEndpoint_exercises().isEmpty()) {
-                dependencies.addAll(endpoint.getEndpoint_exercises());
                 esEndpoint.setBase_simulation_side(endpoint.getEndpoint_exercises());
               }
               if (endpoint.getEndpoint_scenarios() != null
                   && !endpoint.getEndpoint_scenarios().isEmpty()) {
-                dependencies.addAll(endpoint.getEndpoint_scenarios());
                 esEndpoint.setBase_scenario_side(endpoint.getEndpoint_scenarios());
               }
               esEndpoint.setBase_dependencies(dependencies);

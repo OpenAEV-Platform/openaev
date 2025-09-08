@@ -94,12 +94,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
                 esInjectExpectation.setBase_asset_group_side(injectExpectation.getAsset_group_id());
               }
               if (!isEmpty(injectExpectation.getAttack_pattern_ids())) {
-                dependencies.addAll(injectExpectation.getAttack_pattern_ids());
                 esInjectExpectation.setBase_attack_patterns_side(
                     injectExpectation.getAttack_pattern_ids());
               }
               if (!isEmpty(injectExpectation.getSecurity_platform_ids())) {
-                dependencies.addAll(injectExpectation.getSecurity_platform_ids());
                 esInjectExpectation.setBase_security_platforms_side(
                     injectExpectation.getSecurity_platform_ids());
               }

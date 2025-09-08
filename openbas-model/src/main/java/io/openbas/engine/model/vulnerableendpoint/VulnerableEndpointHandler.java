@@ -124,21 +124,17 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
               }
               if (endpoint.getVulnerable_endpoint_tags() != null
                   && !endpoint.getVulnerable_endpoint_tags().isEmpty()) {
-                dependencies.addAll(endpoint.getVulnerable_endpoint_tags());
                 esVulnerableEndpoint.setBase_tags_side(endpoint.getVulnerable_endpoint_tags());
               }
               if (endpoint.getVulnerable_endpoint_agents() != null
                   && !endpoint.getVulnerable_endpoint_agents().isEmpty()) {
-                dependencies.addAll(endpoint.getVulnerable_endpoint_agents());
                 esVulnerableEndpoint.setBase_agents_side(endpoint.getVulnerable_endpoint_agents());
               }
               if (endpoint.getVulnerable_endpoint_simulation() != null) {
-                dependencies.add(endpoint.getVulnerable_endpoint_simulation());
                 esVulnerableEndpoint.setBase_simulation_side(
                     endpoint.getVulnerable_endpoint_simulation());
               }
               if (endpoint.getVulnerable_endpoint_scenario() != null) {
-                dependencies.add(endpoint.getVulnerable_endpoint_scenario());
                 esVulnerableEndpoint.setBase_scenario_side(
                     endpoint.getVulnerable_endpoint_scenario());
               }

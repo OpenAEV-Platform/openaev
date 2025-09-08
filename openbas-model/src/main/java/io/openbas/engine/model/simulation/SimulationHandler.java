@@ -42,23 +42,18 @@ public class SimulationHandler implements Handler<EsSimulation> {
               // Dependencies
               List<String> dependencies = new ArrayList<>();
               if (!isEmpty(simulation.getExercise_tags())) {
-                dependencies.addAll(simulation.getExercise_tags());
                 esSimulation.setBase_tags_side(simulation.getExercise_tags());
               }
               if (!isEmpty(simulation.getExercise_assets())) {
-                dependencies.addAll(simulation.getExercise_assets());
                 esSimulation.setBase_assets_side(simulation.getExercise_assets());
               }
               if (!isEmpty(simulation.getExercise_asset_groups())) {
-                dependencies.addAll(simulation.getExercise_asset_groups());
                 esSimulation.setBase_asset_groups_side(simulation.getExercise_asset_groups());
               }
               if (!isEmpty(simulation.getExercise_teams())) {
-                dependencies.addAll(simulation.getExercise_teams());
                 esSimulation.setBase_teams_side(simulation.getExercise_teams());
               }
               if (hasText(simulation.getScenario_id())) {
-                dependencies.add(simulation.getScenario_id());
                 esSimulation.setBase_scenario_side(simulation.getScenario_id());
               }
               esSimulation.setBase_dependencies(dependencies);

@@ -47,19 +47,15 @@ public class ScenarioHandler implements Handler<EsScenario> {
               // Dependencies
               List<String> dependencies = new ArrayList<>();
               if (!isEmpty(scenario.getScenario_tags())) {
-                dependencies.addAll(scenario.getScenario_tags());
                 esScenario.setBase_tags_side(scenario.getScenario_tags());
               }
               if (!isEmpty(scenario.getScenario_assets())) {
-                dependencies.addAll(scenario.getScenario_assets());
                 esScenario.setBase_assets_side(scenario.getScenario_assets());
               }
               if (!isEmpty(scenario.getScenario_asset_groups())) {
-                dependencies.addAll(scenario.getScenario_asset_groups());
                 esScenario.setBase_asset_groups_side(scenario.getScenario_asset_groups());
               }
               if (!isEmpty(scenario.getScenario_teams())) {
-                dependencies.addAll(scenario.getScenario_teams());
                 esScenario.setBase_teams_side(scenario.getScenario_teams());
               }
               esScenario.setBase_dependencies(dependencies);

@@ -43,12 +43,10 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
               // Dependencies
               List<String> dependencies = new ArrayList<>();
               if (hasText(attackPattern.getAttack_pattern_parent())) {
-                dependencies.add(attackPattern.getAttack_pattern_parent());
                 esAttackPattern.setBase_attack_pattern_side(
                     attackPattern.getAttack_pattern_parent());
               }
               if (!isEmpty(attackPattern.getAttack_pattern_kill_chain_phases())) {
-                dependencies.addAll(attackPattern.getAttack_pattern_kill_chain_phases());
                 esAttackPattern.setBase_kill_chain_phases_side(
                     attackPattern.getAttack_pattern_kill_chain_phases());
               }

@@ -69,7 +69,6 @@ public class InjectHandler implements Handler<EsInject> {
                 esInject.setBase_simulation_side(inject.getInject_Exercise());
               }
               if (!isEmpty(inject.getInject_attack_patterns())) {
-                dependencies.addAll(inject.getInject_attack_patterns());
                 esInject.setBase_attack_patterns_side(inject.getInject_attack_patterns());
               }
               if (!isEmpty(inject.getInject_children())) {
@@ -80,27 +79,21 @@ public class InjectHandler implements Handler<EsInject> {
                     inject.getAttack_patterns_children());
               }
               if (!isEmpty(inject.getInject_kill_chain_phases())) {
-                dependencies.addAll(inject.getInject_kill_chain_phases());
                 esInject.setBase_kill_chain_phases_side(inject.getInject_kill_chain_phases());
               }
               if (hasText(inject.getInject_injector_contract())) {
-                dependencies.add(inject.getInject_injector_contract());
                 esInject.setBase_inject_contract_side(inject.getInject_injector_contract());
               }
               if (!isEmpty(inject.getInject_tags())) {
-                dependencies.addAll(inject.getInject_tags());
                 esInject.setBase_tags_side(inject.getInject_tags());
               }
               if (!isEmpty(inject.getInject_assets())) {
-                dependencies.addAll(inject.getInject_assets());
                 esInject.setBase_assets_side(inject.getInject_assets());
               }
               if (!isEmpty(inject.getInject_asset_groups())) {
-                dependencies.addAll(inject.getInject_asset_groups());
                 esInject.setBase_asset_groups_side(inject.getInject_asset_groups());
               }
               if (!isEmpty(inject.getInject_teams())) {
-                dependencies.addAll(inject.getInject_teams());
                 esInject.setBase_teams_side(inject.getInject_teams());
               }
               esInject.setBase_dependencies(dependencies);
