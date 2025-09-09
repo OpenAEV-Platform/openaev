@@ -230,11 +230,13 @@ class UserApiTest extends IntegrationTest {
     group = groupRepository.save(group);
 
     Grant grantObserver = new Grant();
-    grantObserver.setScenario(scenario);
+    grantObserver.setResourceId(scenario.getId());
+    grantObserver.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
     grantObserver.setGroup(group);
     grantObserver.setName(Grant.GRANT_TYPE.OBSERVER);
     Grant grantPlanner = new Grant();
-    grantPlanner.setScenario(scenario);
+    grantPlanner.setResourceId(scenario.getId());
+    grantPlanner.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
     grantPlanner.setGroup(group);
     grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
     grantRepository.saveAll(List.of(grantObserver, grantPlanner));

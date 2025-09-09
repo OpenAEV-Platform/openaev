@@ -23,7 +23,18 @@ const Index = () => {
           <Route path="" element={<Navigate to="players" replace={true} />} />
           <Route path="players" element={errorWrapper(Players)()} />
           <Route path="teams" element={errorWrapper(Teams)()} />
-          <Route path="organizations" element={<ProtectedRoute action={ACTIONS.ACCESS} subject={SUBJECTS.PLATFORM_SETTINGS} Component={errorWrapper(Organizations)()} />} />
+          <Route
+            path="organizations"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PLATFORM_SETTINGS,
+                }]}
+                Component={errorWrapper(Organizations)()}
+              />
+            )}
+          />
           {/* Not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,6 +1,6 @@
 import { AddModeratorOutlined, InventoryOutlined, MoreVertOutlined } from '@mui/icons-material';
 import { Chip, IconButton, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchInjectResultOverviewOutput } from '../../../../../actions/atomic_testings/atomic-testing-actions';
@@ -11,7 +11,10 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemResult from '../../../../../components/ItemResult';
 import type { InjectExpectationResult, InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
+import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { emptyFilled } from '../../../../../utils/String';
+import { PermissionsContext } from '../../../common/Context';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import {
   HUMAN_EXPECTATION,
@@ -46,6 +49,8 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
   const { t } = useFormatter();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
+  const { permissions, inherited_context } = useContext(PermissionsContext);
 
   const [anchorEditButton, setAnchorEditButton] = useState<null | HTMLElement>(null);
   const openEditButtonMenu = Boolean(anchorEditButton);
@@ -143,6 +148,10 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
     }
   };
 
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
+    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, inject.inject_id))
+    || permissions.canManage;
+
   return (
     <>
       <Paper>
@@ -170,7 +179,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
           {((isManualExpectation(injectExpectation.inject_expectation_type)
             && injectExpectation.inject_expectation_results
             && injectExpectation.inject_expectation_results.length === 0)
-          || ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)) && (
+          || ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)) && canManage && (
             <Tooltip title={t('Add a result')}>
               <IconButton
                 aria-label="Add"

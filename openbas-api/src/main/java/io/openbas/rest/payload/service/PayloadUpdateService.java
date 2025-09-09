@@ -15,6 +15,8 @@ import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.payload.PayloadUtils;
 import io.openbas.rest.payload.form.PayloadUpdateInput;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
@@ -57,7 +59,12 @@ public class PayloadUpdateService {
     payloadUtils.copyProperties(input, payload);
 
     payload.setAttackPatterns(attackPatterns);
+    // Somehow, loading tags can create a detached error on detection remediation.
+    // Detaching the collection before and reattaching it after bypass the issue
+    List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
+    payload.setDetectionRemediations(Collections.emptyList());
     payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    payload.setDetectionRemediations(originalDrs);
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));

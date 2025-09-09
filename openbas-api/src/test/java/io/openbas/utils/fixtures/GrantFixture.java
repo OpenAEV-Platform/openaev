@@ -11,14 +11,16 @@ public class GrantFixture {
   public static Grant getGrantForSimulation(Exercise simulation, Grant.GRANT_TYPE grantType) {
     Grant grant = new Grant();
     grant.setName(grantType);
-    grant.setExercise(simulation);
+    grant.setResourceId(simulation.getId());
+    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
     return grant;
   }
 
   public static Grant getGrantForSimulation(Exercise simulation, Group group) {
     Grant grant = new Grant();
     grant.setName(Grant.GRANT_TYPE.PLANNER);
-    grant.setExercise(simulation);
+    grant.setResourceId(simulation.getId());
+    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
     grant.setGroup(group);
     return grant;
   }
@@ -30,7 +32,8 @@ public class GrantFixture {
   public static Grant getGrantForScenario(Scenario scenario, Group group) {
     Grant grant = new Grant();
     grant.setName(Grant.GRANT_TYPE.PLANNER);
-    grant.setScenario(scenario);
+    grant.setResourceId(scenario.getId());
+    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
     grant.setGroup(group);
     return grant;
   }
@@ -38,7 +41,8 @@ public class GrantFixture {
   public static Grant getGrantForScenario(Scenario scenario, Grant.GRANT_TYPE grantType) {
     Grant grant = new Grant();
     grant.setName(grantType);
-    grant.setScenario(scenario);
+    grant.setResourceId(scenario.getId());
+    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
     return grant;
   }
 }

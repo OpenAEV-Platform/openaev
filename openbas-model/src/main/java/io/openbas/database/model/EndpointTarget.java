@@ -26,7 +26,7 @@ public class EndpointTarget extends InjectTarget {
 
   @JsonIgnore
   @JsonProperty("target_asset_groups")
-  @Queryable(searchable = true, filterable = true, dynamicValues = true)
+  @Queryable(searchable = true, filterable = true, dynamicValues = true, clazz = String[].class)
   public Set<String> getAssetGroups() {
     // note that it's not possible at the entity level to fetch a complete set of
     // containing asset groups since dynamic filters do not implement a relationship

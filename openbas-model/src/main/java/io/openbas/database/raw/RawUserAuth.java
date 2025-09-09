@@ -8,7 +8,5 @@ public interface RawUserAuth {
 
   boolean getUser_admin();
 
-  Set<String> getUser_grant_exercises();
-
-  Set<String> getUser_grant_scenarios();
+  Set<RawGrant> getUser_grants();
 }

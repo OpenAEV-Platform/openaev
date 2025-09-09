@@ -15,6 +15,7 @@ import { useHelper } from '../../../../store';
 import { type Exercise as ExerciseType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
@@ -48,7 +49,10 @@ const IndexComponent: FunctionComponent<{ exercise: ExerciseType }> = ({ exercis
   const { t, fldt } = useFormatter();
   const location = useLocation();
   const { classes } = useStyles();
-  const permissionsContext: PermissionsContextType = { permissions: useSimulationPermissions(exercise.exercise_id, exercise) };
+  const permissionsContext: PermissionsContextType = {
+    permissions: useSimulationPermissions(exercise.exercise_id, exercise),
+    inherited_context: INHERITED_CONTEXT.SIMULATION,
+  };
   const documentContext: DocumentContextType = {
     onInitDocument: () => ({
       document_tags: [],

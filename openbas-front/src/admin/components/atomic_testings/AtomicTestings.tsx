@@ -71,7 +71,7 @@ const AtomicTestings = () => {
         searchPaginationInput={searchPaginationInput}
       />
 
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ATOMIC_TESTING}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
         <>
           <ButtonCreate onClick={() => setOpenCreateDrawer(true)} />
           <TeamContext.Provider value={teamContextForAtomicTesting()}>

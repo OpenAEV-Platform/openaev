@@ -8,6 +8,8 @@ import { findTeams } from '../../../../../../actions/teams/team-actions';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { type TeamOutput } from '../../../../../../utils/api-types';
+import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import TeamPopover from '../../../../components/teams/TeamPopover';
 import { TeamContext } from '../../../Context';
 import InjectAddTeams from './InjectAddTeams';
@@ -114,7 +116,12 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
           team_updated_at: '',
         }, allUsersEnabledNumber ?? 0)}
       </List>
-      {!allTeams && <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} />}
+      {!allTeams
+        && (
+          <Can I={ACTIONS.ACCESS} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} />
+          </Can>
+        )}
     </>
   );
 };

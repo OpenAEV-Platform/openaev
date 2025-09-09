@@ -2445,21 +2445,20 @@ export interface GlobalScoreBySimulationEndDate {
 }
 
 export interface Grant {
-  grant_exercise?: string;
   grant_group?: string;
   grant_id: string;
   grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  grant_scenario?: string;
+  grant_resource?: string;
+  grant_resource_type?:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "PAYLOAD"
+    | "UNKNOWN";
   listened?: boolean;
 }
 
 export interface Group {
-  group_default_exercise_assign?: ("OBSERVER" | "PLANNER" | "LAUNCHER")[];
-  group_default_exercise_observer?: boolean;
-  group_default_exercise_planner?: boolean;
-  group_default_scenario_assign?: ("OBSERVER" | "PLANNER" | "LAUNCHER")[];
-  group_default_scenario_observer?: boolean;
-  group_default_scenario_planner?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];
@@ -2472,19 +2471,20 @@ export interface Group {
 }
 
 export interface GroupCreateInput {
-  group_default_exercise_observer?: boolean;
-  group_default_exercise_planner?: boolean;
-  group_default_scenario_observer?: boolean;
-  group_default_scenario_planner?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_name: string;
 }
 
 export interface GroupGrantInput {
-  grant_exercise?: string;
   grant_name?: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  grant_scenario?: string;
+  grant_resource?: string;
+  grant_resource_type?:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "PAYLOAD"
+    | "UNKNOWN";
 }
 
 export interface GroupUpdateRolesInput {
@@ -4146,6 +4146,25 @@ export interface PageMitigation {
 
 export interface PageNotificationRuleOutput {
   content?: NotificationRuleOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageOrganization {
+  content?: Organization[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

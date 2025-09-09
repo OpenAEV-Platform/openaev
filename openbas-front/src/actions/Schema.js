@@ -339,7 +339,9 @@ export const storeHelper = state => ({
   getScenarioChallengesReader: id => entity(id, 'scenariochallengesreaders', state),
   // users
   getUsers: () => entities('users', state),
+  getGroup: id => entity(id, 'groups', state),
   getGroups: () => entities('groups', state),
+  getRoles: () => entities('roles', state),
   getUsersMap: () => maps('users', state),
   getOrganizations: () => entities('organizations', state),
   getOrganizationsMap: () => maps('organizations', state),

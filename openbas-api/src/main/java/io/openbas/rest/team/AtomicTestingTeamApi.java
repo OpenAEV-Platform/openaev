@@ -27,7 +27,7 @@ public class AtomicTestingTeamApi extends RestBehavior {
   private final TeamService teamService;
 
   @PostMapping(ATOMIC_TESTING_URI + "/teams/search")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ATOMIC_TESTING)
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   @Transactional(readOnly = true)
   public Page<TeamOutput> searchTeams(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
