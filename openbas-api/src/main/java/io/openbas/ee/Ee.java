@@ -29,6 +29,7 @@ import io.openbas.database.repository.SettingRepository;
 import io.openbas.rest.exception.LicenseRestrictionException;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
+import java.nio.charset.StandardCharsets;
 import java.security.cert.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -222,5 +223,12 @@ public class Ee {
     }
 
     return found;
+  }
+
+  public String getEncodedCertificate() {
+    String certificate = this.getEnterpriseEditionLicensePem();
+    if (certificate == null || certificate.isBlank())
+      throw new IllegalStateException("Enterprise Edition is not available");
+    return Base64.getEncoder().encodeToString(certificate.getBytes(StandardCharsets.UTF_8));
   }
 }
