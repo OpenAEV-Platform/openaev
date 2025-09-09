@@ -230,7 +230,7 @@ const InjectPopover: FunctionComponent<Props> = ({
     label: t('Test'),
     action: () => handleOpenTest(),
     disabled: isDisabled,
-    userRight: permissions.canLaunch,
+    userRight: permissions.canManage,
   });
   entries.push({
     label: t('inject_export_json_single'),

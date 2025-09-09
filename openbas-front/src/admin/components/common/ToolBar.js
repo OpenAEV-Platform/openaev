@@ -547,7 +547,6 @@ class ToolBar extends Component {
       numberOfSelectedElements,
       handleClearSelectedElements,
       variant,
-      canLaunch,
     } = this.props;
     const { actionsInputs, navOpen } = this.state;
     const isOpen = numberOfSelectedElements > 0;
@@ -643,24 +642,23 @@ class ToolBar extends Component {
                 </IconButton>
               </span>
             </Tooltip>
-            {canLaunch ? (
-              <Tooltip title={t('Test')}>
-                <span>
-                  <IconButton
-                    aria-label="test"
-                    disabled={
-                      numberOfSelectedElements === 0
-                      || this.state.processing
-                    }
-                    onClick={this.handleOpenBulkTest.bind(this)}
-                    color="primary"
-                    size="small"
-                  >
-                    <ForwardToInbox fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            ) : null}
+
+            <Tooltip title={t('Test')}>
+              <span>
+                <IconButton
+                  aria-label="test"
+                  disabled={
+                    numberOfSelectedElements === 0
+                    || this.state.processing
+                  }
+                  onClick={this.handleOpenBulkTest.bind(this)}
+                  color="primary"
+                  size="small"
+                >
+                  <ForwardToInbox fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Tooltip title={t('Delete')}>
               <span>
                 <IconButton

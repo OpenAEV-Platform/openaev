@@ -695,7 +695,6 @@ const Injects: FunctionComponent<Props> = ({
                   handleBulkDelete={bulkDeleteInjects}
                   handleBulkTest={massTestInjects}
                   handleExport={handleExport}
-                  canLaunch={permissions.canLaunch}
                 />
               )
             }

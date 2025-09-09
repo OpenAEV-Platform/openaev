@@ -104,7 +104,7 @@ public class SimulationInjectTestApi extends RestBehavior {
   @PostMapping(EXERCISE_URI + "/{simulationId}/injects/test")
   @RBAC(
       resourceId = "#simulationId",
-      actionPerformed = Action.LAUNCH,
+      actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @PreAuthorize("isSimulationPlanner(#simulationId)")
   @LogExecutionTime
@@ -125,7 +125,7 @@ public class SimulationInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.LAUNCHER).and(testable());
+        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER).and(testable());
 
     // Services calls
     // Bulk test
