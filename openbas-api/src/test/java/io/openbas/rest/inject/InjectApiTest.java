@@ -75,8 +75,6 @@ import org.springframework.util.ResourceUtils;
 @Transactional
 class InjectApiTest extends IntegrationTest {
 
-  private static final String PAYLOAD_URI = "/api/payloads";
-
   static Exercise EXERCISE;
   static Scenario SCENARIO;
   static Document DOCUMENT1;
@@ -1403,7 +1401,7 @@ class InjectApiTest extends IntegrationTest {
               .getContentAsString();
       assertThatJson(response)
           .node("message")
-          .isEqualTo("Element not found: inject not found with id : TEST");
+          .isEqualTo("Element not found: Inject not found with id: TEST");
     }
 
     @Test

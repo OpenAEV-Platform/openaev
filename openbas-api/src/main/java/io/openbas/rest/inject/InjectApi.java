@@ -548,11 +548,7 @@ public class InjectApi extends RestBehavior {
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
       @PathVariable String injectId, @PathVariable String payloadId) {
-    Inject inject =
-        injectRepository
-            .findById(injectId)
-            .orElseThrow(
-                () -> new ElementNotFoundException("inject not found with id : " + injectId));
+    Inject inject = injectService.inject(injectId);
     Payload payload =
         inject
             .getPayload()
