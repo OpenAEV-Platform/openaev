@@ -43,7 +43,6 @@ const usePayloadGrant = (groupId: string) => {
     return {
       observerId: findGrantId('OBSERVER'),
       plannerId: findGrantId('PLANNER'),
-      launcherId: findGrantId('LAUNCHER'),
     };
   };
 
@@ -57,11 +56,11 @@ const usePayloadGrant = (groupId: string) => {
     {
       label: t('Access'),
       value: (payload) => {
-        const { observerId, plannerId, launcherId } = getGrantIds(payload);
+        const { observerId, plannerId } = getGrantIds(payload);
         return (
           <Checkbox
-            checked={!!(observerId || plannerId || launcherId)}
-            disabled={!!(plannerId || launcherId)}
+            checked={!!(observerId || plannerId)}
+            disabled={!!(plannerId)}
             onChange={(_, checked) => handleGrant(payload.payload_id, observerId, 'OBSERVER', checked)}
           />
         );
@@ -71,25 +70,11 @@ const usePayloadGrant = (groupId: string) => {
     {
       label: t('Manage'),
       value: (payload) => {
-        const { plannerId, launcherId } = getGrantIds(payload);
+        const { plannerId } = getGrantIds(payload);
         return (
           <Checkbox
-            checked={!!(plannerId || launcherId)}
-            disabled={!!launcherId}
+            checked={!!(plannerId)}
             onChange={(_, checked) => handleGrant(payload.payload_id, plannerId, 'PLANNER', checked)}
-          />
-        );
-      },
-      width: '20%',
-    },
-    {
-      label: t('Launch'),
-      value: (payload) => {
-        const { launcherId } = getGrantIds(payload);
-        return (
-          <Checkbox
-            checked={!!launcherId}
-            onChange={(_, checked) => handleGrant(payload.payload_id, launcherId, 'LAUNCHER', checked)}
           />
         );
       },
