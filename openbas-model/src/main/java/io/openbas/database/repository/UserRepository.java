@@ -3,7 +3,7 @@ package io.openbas.database.repository;
 import io.openbas.database.model.User;
 import io.openbas.database.raw.RawPlayer;
 import io.openbas.database.raw.RawUser;
-import io.openbas.database.raw.RawUserAuth;
+import io.openbas.database.raw.RawUserAuthFlat;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -78,16 +78,19 @@ public interface UserRepository
 
   @Query(
       value =
-          "select us.user_id, us.user_admin, "
-              + "array_remove(array_agg(grt.grant_exercise), null) as user_grant_exercises, "
-              + "array_remove(array_agg(grt.grant_scenario), null) as user_grant_scenarios "
-              + "from users us "
-              + "left join users_groups usr_grp on us.user_id = usr_grp.user_id "
-              + "left join grants grt on grt.grant_group = usr_grp.group_id "
-              + "where us.user_id = :userId "
-              + "group by us.user_id;",
+          "SELECT "
+              + "us.user_id AS user_id, "
+              + "us.user_admin AS user_admin, "
+              + "grt.grant_id AS grant_id, "
+              + "grt.grant_name AS grant_name, "
+              + "grt.grant_resource AS grant_resource, "
+              + "grt.grant_resource_type AS grant_resource_type "
+              + "FROM users us "
+              + "LEFT JOIN users_groups usr_grp ON us.user_id = usr_grp.user_id "
+              + "LEFT JOIN grants grt ON grt.grant_group = usr_grp.group_id "
+              + "WHERE us.user_id = :userId",
       nativeQuery = true)
-  RawUserAuth getUserWithAuth(@Param("userId") String userId);
+  List<RawUserAuthFlat> getUserWithAuth(@Param("userId") String userId);
 
   @Query(
       value =

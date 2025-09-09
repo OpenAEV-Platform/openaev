@@ -15,7 +15,6 @@ import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.UserRoleDescription;
 import io.openbas.aop.onboarding.Onboarding;
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawTeam;
 import io.openbas.database.repository.*;
@@ -29,6 +28,7 @@ import io.openbas.rest.team.form.TeamUpdateInput;
 import io.openbas.rest.team.form.UpdateUsersTeamInput;
 import io.openbas.rest.team.output.TeamOutput;
 import io.openbas.service.TeamService;
+import io.openbas.service.UserService;
 import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.InputFilterOptions;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -73,6 +73,7 @@ public class TeamApi extends RestBehavior {
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
   private final TeamService teamService;
+  private final UserService userService;
 
   @LogExecutionTime
   @GetMapping(TEAM_URI)
@@ -81,8 +82,8 @@ public class TeamApi extends RestBehavior {
   @Operation(summary = "List teams", description = "Return the teams")
   public Iterable<TeamSimple> getTeams() {
     List<RawTeam> teams;
-    OpenBASPrincipal currentUser = currentUser();
-    if (currentUser.isAdmin()) {
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()) {
       // We get all the teams as raw
       teams = fromIterable(teamRepository.rawTeams());
     } else {

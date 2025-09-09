@@ -41,7 +41,6 @@ import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -222,7 +221,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Add an inject for simulation")
   @Test
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void addInjectForSimulationTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -249,7 +248,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Update inject for simulation")
   @Test
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void updateInjectForSimulationTest() throws Exception {
     // -- PREPARE --
     InjectInput injectInput = new InjectInput();

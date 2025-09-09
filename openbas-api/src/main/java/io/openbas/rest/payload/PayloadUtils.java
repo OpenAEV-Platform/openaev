@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -132,7 +133,8 @@ public class PayloadUtils {
         "attackPatterns",
         "arguments",
         "prerequisites",
-        "detectionRemediations");
+        "detectionRemediations",
+        "grants");
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));
     duplicate.setAttackPatterns(new ArrayList<>(origin.getAttackPatterns()));
@@ -152,6 +154,20 @@ public class PayloadUtils {
     if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       detectionRemediationUtils.copy(origin.getDetectionRemediations(), duplicate, false);
     }
+
+    // Copy grants (each one needs to be a fully new object)
+    List<Grant> grantCopies =
+        origin.getGrants().stream()
+            .map(
+                grant -> {
+                  Grant copy = new Grant();
+                  copy.setName(grant.getName());
+                  copy.setGroup(grant.getGroup());
+                  copy.setGrantResourceType(grant.getGrantResourceType());
+                  return copy;
+                })
+            .collect(Collectors.toList());
+    duplicate.setGrants(grantCopies);
   }
 
   public Payload copyProperties(PayloadCreateInput payloadInput, Payload target) {

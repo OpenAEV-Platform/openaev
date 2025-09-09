@@ -79,7 +79,7 @@ interface Props {
   isAtomic: boolean;
   isCreation?: boolean;
   drawerRef: RefObject<HTMLDivElement | null>;
-  defaultInject: Inject | Omit<Inject, 'inject_id' | 'inject_created_at' | 'inject_updated_at'>;
+  defaultInject: Inject | Omit<Inject, 'inject_created_at' | 'inject_updated_at'>;
   onSubmitInject: (data: InjectInput) => Promise<void>;
   injectorContractContent?: InjectorContractConverted['convertedContent'];
   articlesFromExerciseOrScenario: Article[];
@@ -264,6 +264,7 @@ const InjectForm = ({
           <InjectContentForm
             injectorContractContent={injectorContractContent}
             readOnly={isSubmitting || disabled || permissions.readOnly}
+            injectId={defaultInject.inject_id}
             isAtomic={isAtomic}
             uriVariable={uriVariable}
             variables={variablesFromExerciseOrScenario}

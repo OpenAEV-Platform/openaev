@@ -1,6 +1,5 @@
 package io.openbas.database.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openbas.helper.MonoIdDeserializer;
@@ -21,6 +20,14 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "grants")
 public class Grant implements Base {
+
+  public enum GRANT_RESOURCE_TYPE {
+    SCENARIO,
+    SIMULATION,
+    ATOMIC_TESTING,
+    PAYLOAD,
+    UNKNOWN;
+  }
 
   public enum GRANT_TYPE {
     OBSERVER(1),
@@ -76,19 +83,15 @@ public class Grant implements Base {
   @Schema(type = "string")
   private Group group;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "grant_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
-  @JsonProperty("grant_exercise")
+  @Column(name = "grant_resource")
+  @JsonProperty("grant_resource")
   @Schema(type = "string")
-  private Exercise exercise;
+  private String resourceId;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "grant_scenario")
-  @JsonSerialize(using = MonoIdDeserializer.class)
-  @JsonProperty("grant_scenario")
-  @Schema(type = "string")
-  private Scenario scenario;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "grant_resource_type")
+  @JsonProperty("grant_resource_type")
+  private GRANT_RESOURCE_TYPE grantResourceType = GRANT_RESOURCE_TYPE.UNKNOWN;
 
   @Override
   public boolean isUserHasAccess(User user) {
@@ -106,12 +109,5 @@ public class Grant implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
-  }
-
-  @JsonIgnore
-  public String getResourceId() {
-    return this.getScenario() != null
-        ? this.getScenario().getId()
-        : this.getExercise() != null ? this.getExercise().getId() : null;
   }
 }

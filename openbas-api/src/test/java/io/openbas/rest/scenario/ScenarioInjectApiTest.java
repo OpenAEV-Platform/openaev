@@ -32,8 +32,6 @@ import io.openbas.utils.fixtures.composers.InjectorContractComposer;
 import io.openbas.utils.fixtures.composers.PayloadComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockObserverUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
 import jakarta.servlet.ServletException;
 import jakarta.transaction.Transactional;
 import java.util.ArrayList;
@@ -110,7 +108,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Add an inject for scenario")
   @Test
   @Order(1)
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void addInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -145,7 +143,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve injects for scenario")
   @Test
   @Order(2)
-  @WithMockObserverUser
+  @WithMockAdminUser
   void retrieveInjectsForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -165,7 +163,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve inject for scenario")
   @Test
   @Order(3)
-  @WithMockObserverUser
+  @WithMockAdminUser
   void retrieveInjectForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -185,7 +183,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Update inject for scenario")
   @Test
   @Order(4)
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void updateInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
@@ -216,7 +214,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Delete inject for scenario")
   @Test
   @Order(5)
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void deleteInjectForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     mvc.perform(delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/" + SCENARIO_INJECT_ID))

@@ -186,7 +186,7 @@ public class SimulationDetails {
               exerciseTeamsUsers.stream().map(ExerciseTeamUser::getUser).distinct().count());
     }
     details
-        .tags(exercise.getExercise_tags())
+        .tags(new HashSet<>(exercise.getExercise_tags()))
         .users(exercise.getExercise_users())
         .objectives(objectives)
         .lessonsAnswersNumber(exercise.getLessons_answers().stream().distinct().toList().size())

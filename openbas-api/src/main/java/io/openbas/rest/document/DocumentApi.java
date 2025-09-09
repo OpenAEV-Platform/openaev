@@ -9,7 +9,6 @@ import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawDocument;
 import io.openbas.database.raw.RawPaginationDocument;
@@ -23,6 +22,7 @@ import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.service.ChannelService;
 import io.openbas.service.FileService;
+import io.openbas.service.UserService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -70,6 +70,16 @@ public class DocumentApi extends RestBehavior {
   private final FileService fileService;
   private final InjectService injectService;
   private final ChannelService channelService;
+  private final UserService userService;
+
+  private Optional<Document> resolveDocument(String documentId) {
+    User user = userService.currentUser();
+    if (user.isAdminOrBypass()) {
+      return documentRepository.findById(documentId);
+    } else {
+      return documentRepository.findByIdGranted(documentId, user.getId());
+    }
+  }
 
   @PostMapping(DOCUMENT_API)
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
@@ -222,7 +232,6 @@ public class DocumentApi extends RestBehavior {
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    OpenBASPrincipal user = currentUser();
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     return buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
