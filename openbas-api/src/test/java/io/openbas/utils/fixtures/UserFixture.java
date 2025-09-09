@@ -60,6 +60,12 @@ public class UserFixture {
     return user;
   }
 
+  public static User getAdminUser(String firstName, String lastName, String email) {
+    User user = getUser(firstName, lastName, email);
+    user.setAdmin(true);
+    return user;
+  }
+
   public static User getSavedUser() {
     User user = getUser();
     user.setId("saved-user-id");

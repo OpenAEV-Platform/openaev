@@ -169,82 +169,78 @@ const Parameters = () => {
           gridTemplateColumns: '1fr 1fr',
         }}
         >
-          <div>
-            <Typography variant="h4" gutterBottom>{t('Enterprise Edition')}</Typography>
-            <Paper className={`${classes.paperList} ${classes.marginBottom}`} variant="outlined">
-              <List style={{ padding: 0 }}>
-                <ListItem divider>
-                  <ListItemText primary={t('Organization')} />
-                  <ItemBoolean
-                    variant="xlarge"
-                    neutralLabel={settings.platform_license?.license_customer}
-                    status={null}
-                  />
+          <Typography variant="h4">{t('Enterprise Edition')}</Typography>
+          <Typography variant="h4">{t('License')}</Typography>
+          <Paper className={`${classes.paperList} ${classes.marginBottom}`} variant="outlined">
+            <List style={{ padding: 0 }}>
+              <ListItem divider>
+                <ListItemText primary={t('Organization')} />
+                <ItemBoolean
+                  variant="xlarge"
+                  neutralLabel={settings.platform_license?.license_customer}
+                  status={null}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary={t('Creator')} />
+                <ItemBoolean
+                  variant="xlarge"
+                  neutralLabel={settings.platform_license?.license_creator}
+                  status={null}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary={t('Scope')} />
+                <ItemBoolean
+                  variant="xlarge"
+                  neutralLabel={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
+                  status={null}
+                />
+              </ListItem>
+            </List>
+          </Paper>
+          <Paper className={`${classes.paperList} ${classes.marginBottom}`} variant="outlined">
+            <List style={{ padding: 0 }}>
+              {!settings.platform_license?.license_is_expired && settings.platform_license?.license_is_prevention && (
+                <ListItem divider={false}>
+                  <Alert severity="warning" variant="outlined" style={{ width: '100%' }}>
+                    {t('Your Enterprise Edition license will expire in less than 3 months.')}
+                  </Alert>
                 </ListItem>
-                <ListItem divider>
-                  <ListItemText primary={t('Creator')} />
-                  <ItemBoolean
-                    variant="xlarge"
-                    neutralLabel={settings.platform_license?.license_creator}
-                    status={null}
-                  />
+              )}
+              {!settings.platform_license?.license_is_validated && settings.platform_license?.license_is_valid_cert && (
+                <ListItem divider={false}>
+                  <Alert severity="error" variant="outlined" style={{ width: '100%' }}>
+                    {t('Your Enterprise Edition license is expired. Please contact your Filigran representative.')}
+                  </Alert>
                 </ListItem>
-                <ListItem divider>
-                  <ListItemText primary={t('Scope')} />
-                  <ItemBoolean
-                    variant="xlarge"
-                    neutralLabel={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
-                    status={null}
-                  />
-                </ListItem>
-              </List>
-            </Paper>
-          </div>
-          <div>
-            <Typography variant="h4" gutterBottom>{t('License')}</Typography>
-            <Paper className={`${classes.paperList} ${classes.marginBottom}`} variant="outlined">
-              <List style={{ padding: 0 }}>
-                {!settings.platform_license?.license_is_expired && settings.platform_license?.license_is_prevention && (
-                  <ListItem divider={false}>
-                    <Alert severity="warning" variant="outlined" style={{ width: '100%' }}>
-                      {t('Your Enterprise Edition license will expire in less than 3 months.')}
-                    </Alert>
-                  </ListItem>
-                )}
-                {!settings.platform_license?.license_is_validated && settings.platform_license?.license_is_valid_cert && (
-                  <ListItem divider={false}>
-                    <Alert severity="error" variant="outlined" style={{ width: '100%' }}>
-                      {t('Your Enterprise Edition license is expired. Please contact your Filigran representative.')}
-                    </Alert>
-                  </ListItem>
-                )}
-                <ListItem divider>
-                  <ListItemText primary={t('Start date')} />
-                  <ItemBoolean
-                    variant="xlarge"
-                    label={fldt(settings.platform_license?.license_start_date)}
-                    status={!settings.platform_license?.license_is_expired}
-                  />
-                </ListItem>
-                <ListItem divider>
-                  <ListItemText primary={t('Expiration date')} />
-                  <ItemBoolean
-                    variant="xlarge"
-                    label={fldt(settings.platform_license?.license_expiration_date)}
-                    status={!settings.platform_license?.license_is_expired}
-                  />
-                </ListItem>
-                <ListItem divider={!settings.platform_license?.license_is_prevention}>
-                  <ListItemText primary={t('License type')} />
-                  <ItemBoolean
-                    variant="large"
-                    neutralLabel={settings.platform_license?.license_type}
-                    status={null}
-                  />
-                </ListItem>
-              </List>
-            </Paper>
-          </div>
+              )}
+              <ListItem divider>
+                <ListItemText primary={t('Start date')} />
+                <ItemBoolean
+                  variant="xlarge"
+                  label={fldt(settings.platform_license?.license_start_date)}
+                  status={!settings.platform_license?.license_is_expired}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary={t('Expiration date')} />
+                <ItemBoolean
+                  variant="xlarge"
+                  label={fldt(settings.platform_license?.license_expiration_date)}
+                  status={!settings.platform_license?.license_is_expired}
+                />
+              </ListItem>
+              <ListItem divider={!settings.platform_license?.license_is_prevention}>
+                <ListItemText primary={t('License type')} />
+                <ItemBoolean
+                  variant="large"
+                  neutralLabel={settings.platform_license?.license_type}
+                  status={null}
+                />
+              </ListItem>
+            </List>
+          </Paper>
         </div>
       )}
       <div style={{
@@ -253,81 +249,80 @@ const Parameters = () => {
         gridTemplateColumns: '1fr 1fr',
       }}
       >
-        <div>
-          <Typography variant="h4">{t('Configuration')}</Typography>
-          <Paper variant="outlined" className={`${classes.paper} ${classes.marginBottom}`} style={{ minHeight: 340 }}>
-            <ParametersForm
-              onSubmit={onUpdate}
-              initialValues={{
-                platform_name: settings?.platform_name,
-                platform_theme: settings?.platform_theme,
-                platform_lang: settings?.platform_lang,
-              }}
-            />
-          </Paper>
-        </div>
-        <div>
-          <Typography variant="h4">{t('OpenBAS platform')}</Typography>
-          <Paper variant="outlined" className={`${classes.paperList} ${classes.marginBottom}`}>
-            <List>
-              <ListItem divider>
-                <ListItemText primary={t('Platform identifier')} />
-                <pre
-                  style={{
-                    padding: 0,
-                    margin: 0,
-                  }}
-                  key={settings.platform_id}
-                >
-                  <ItemCopy content={settings.platform_id ?? ''} variant="inLine" />
-                </pre>
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Version')} />
-                <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Edition')} />
-                <ItemBoolean
-                  variant="large"
-                  neutralLabel={
-                    isEnterpriseEditionValid
-                      ? t('Enterprise')
-                      : t('Community')
-                  }
-                  status={null}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText
-                  primary={t('AI Powered')}
-                />
-                <ItemBoolean
-                  variant="large"
-                  label={
-                    // eslint-disable-next-line no-nested-ternary
-                    !settings.platform_ai_enabled ? t('Disabled') : settings.platform_ai_has_token
-                      ? settings.platform_ai_type
-                      : `${settings.platform_ai_type} - ${t('Missing token')}`
-                  }
-                  status={(settings.platform_ai_enabled) && (settings.platform_ai_has_token)}
-                  tooltip={settings.platform_ai_has_token ? `${settings.platform_ai_type} - ${settings.platform_ai_model}` : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
-                />
-              </ListItem>
-              <ListItem divider>
-                <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Remove Filigran logos')} />
-                <Switch
-                  disabled={settings.platform_license?.license_is_validated === false}
-                  checked={settings.platform_whitemark === 'true'}
-                  onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
-                />
-              </ListItem>
-            </List>
-          </Paper>
-        </div>
+        <Typography variant="h4">{t('Configuration')}</Typography>
+        <Typography variant="h4">{t('OpenBAS platform')}</Typography>
+        <Paper variant="outlined" className={`${classes.paper} ${classes.marginBottom}`} style={{ minHeight: 340 }}>
+          <ParametersForm
+            onSubmit={onUpdate}
+            initialValues={{
+              platform_name: settings?.platform_name,
+              platform_theme: settings?.platform_theme,
+              platform_lang: settings?.platform_lang,
+              platform_home_dashboard: settings?.platform_home_dashboard,
+              platform_scenario_dashboard: settings?.platform_scenario_dashboard,
+              platform_simulation_dashboard: settings?.platform_simulation_dashboard,
+            }}
+          />
+        </Paper>
+        <Paper variant="outlined" style={{ height: 'auto' }} className={`${classes.paperList} ${classes.marginBottom}`}>
+          <List>
+            <ListItem divider>
+              <ListItemText primary={t('Platform identifier')} />
+              <pre
+                style={{
+                  padding: 0,
+                  margin: 0,
+                }}
+                key={settings.platform_id}
+              >
+                <ItemCopy content={settings.platform_id ?? ''} variant="inLine" />
+              </pre>
+            </ListItem>
+            <ListItem divider>
+              <ListItemText primary={t('Version')} />
+              <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
+            </ListItem>
+            <ListItem divider>
+              <ListItemText primary={t('Edition')} />
+              <ItemBoolean
+                variant="large"
+                neutralLabel={
+                  isEnterpriseEditionValid
+                    ? t('Enterprise')
+                    : t('Community')
+                }
+                status={null}
+              />
+            </ListItem>
+            <ListItem divider>
+              <ListItemText
+                primary={t('AI Powered')}
+              />
+              <ItemBoolean
+                variant="large"
+                label={
+                  // eslint-disable-next-line no-nested-ternary
+                  !settings.platform_ai_enabled ? t('Disabled') : settings.platform_ai_has_token
+                    ? settings.platform_ai_type
+                    : `${settings.platform_ai_type} - ${t('Missing token')}`
+                }
+                status={(settings.platform_ai_enabled) && (settings.platform_ai_has_token)}
+                tooltip={settings.platform_ai_has_token ? `${settings.platform_ai_type} - ${settings.platform_ai_model}` : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
+              />
+            </ListItem>
+            <ListItem divider>
+              <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />
+            </ListItem>
+            <ListItem divider>
+              <ListItemText primary={t('Remove Filigran logos')} />
+              <Switch
+                disabled={settings.platform_license?.license_is_validated === false}
+                checked={settings.platform_whitemark === 'true'}
+                onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
+              />
+            </ListItem>
+          </List>
+        </Paper>
       </div>
       <div style={{
         display: 'grid',

@@ -41,5 +41,5 @@ public interface CustomDashboardRepository
       where e.exercise_id = :resourceId
       """,
       nativeQuery = true)
-  List<CustomDashboard> findByResourceId(String resourceId);
+  Optional<CustomDashboard> findByResourceId(String resourceId);
 }

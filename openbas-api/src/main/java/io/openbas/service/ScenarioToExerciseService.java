@@ -6,6 +6,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.injectors.channel.ChannelContract;
 import io.openbas.injectors.channel.model.ChannelContent;
+import io.openbas.rest.custom_dashboard.CustomDashboardService;
 import io.openbas.utils.CopyObjectListUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -36,6 +37,8 @@ public class ScenarioToExerciseService {
   private final InjectDocumentRepository injectDocumentRepository;
   private final VariableService variableService;
   private final TeamService teamService;
+  private final PlatformSettingsService platformSettingsService;
+  private final CustomDashboardService customDashboardService;
   @Resource protected ObjectMapper mapper;
 
   @Transactional(rollbackFor = Exception.class)
@@ -63,7 +66,13 @@ public class ScenarioToExerciseService {
     exercise.setTags(CopyObjectListUtils.copy(scenario.getTags(), Tag.class));
 
     // Custom Dashboard
-    exercise.setCustomDashboard(scenario.getCustomDashboard());
+    exercise.setCustomDashboard(
+        this.platformSettingsService
+            .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
+            .map(Setting::getValue)
+            .filter(v -> !v.isEmpty())
+            .map(this.customDashboardService::customDashboard)
+            .orElse(null));
 
     Exercise exerciseSaved = this.exerciseRepository.save(exercise);
 

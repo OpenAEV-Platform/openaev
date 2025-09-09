@@ -104,7 +104,6 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
         title={t('Update the scenario')}
       >
         <ScenarioForm
-          scenarioId={scenario.scenario_id}
           initialValues={initialValues}
           editing
           disabled={permissions.readOnly}

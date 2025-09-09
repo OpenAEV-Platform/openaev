@@ -1,6 +1,6 @@
 import { MoreVert } from '@mui/icons-material';
-import { IconButton, Menu, MenuItem, ToggleButton, type ToggleButtonProps } from '@mui/material';
-import { type Dispatch, type FunctionComponent, type SetStateAction, useState } from 'react';
+import { IconButton, Menu, MenuItem, ToggleButton } from '@mui/material';
+import { type CSSProperties, type Dispatch, type FunctionComponent, type SetStateAction, useState } from 'react';
 
 import { useFormatter } from '../i18n';
 
@@ -15,14 +15,14 @@ export type VariantButtonPopover = 'toggle' | 'icon';
 
 interface Props {
   entries: PopoverEntry[];
-  buttonProps?: ToggleButtonProps;
+  style?: CSSProperties;
   variant?: VariantButtonPopover;
   disabled?: boolean;
 }
 
 const ButtonPopover: FunctionComponent<Props> = ({
   entries,
-  buttonProps,
+  style,
   variant = 'toggle',
   disabled = false,
 }) => {
@@ -43,7 +43,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
               ev.stopPropagation();
               setAnchorEl(ev.currentTarget);
             }}
-            style={{ ...buttonProps }}
+            style={{ ...style }}
             disabled={disabled}
           >
             <MoreVert fontSize="small" color={disabled ? 'disabled' : 'primary'} />
@@ -59,7 +59,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
               ev.stopPropagation();
               setAnchorEl(ev.currentTarget);
             }}
-            style={{ ...buttonProps }}
+            style={{ ...style }}
             disabled={disabled}
           >
             <MoreVert color={disabled ? 'disabled' : 'primary'} />

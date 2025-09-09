@@ -1,5 +1,6 @@
 package io.openbas.rest.exercise;
 
+import static io.openbas.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
 import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,6 +54,8 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private TagRuleRepository tagRuleRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private CustomDashboardRepository customDashboardRepository;
+  @Autowired private SettingRepository settingRepository;
 
   List<ExerciseComposer.Composer> exerciseWrapperComposers = new ArrayList<>();
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
@@ -68,6 +71,52 @@ public class ExerciseApiTest extends IntegrationTest {
     this.tagRuleRepository.deleteAll();
     this.assetGroupRepository.deleteAll();
     this.tagRepository.deleteAll();
+  }
+
+  @DisplayName("Create simulation succeed with default dashboard")
+  @Test
+  @WithMockAdminUser
+  @Transactional
+  void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
+    // -- PREPARE --
+    CustomDashboard defaultDashboard = new CustomDashboard();
+    defaultDashboard.setName("Default scenario dashboard");
+    CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
+
+    ExerciseInput exerciseInput = new ExerciseInput();
+    String name = "My scenario";
+    exerciseInput.setName(name);
+
+    settingRepository.save(
+        settingRepository
+            .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+            .map(
+                s -> {
+                  s.setValue(customDashboardSaved.getId());
+                  return s;
+                })
+            .orElseGet(
+                () ->
+                    new Setting(DEFAULT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId())));
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(EXERCISE_URI)
+                    .content(asJsonString(exerciseInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.exercise_name").value(name))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String newExerciseId = JsonPath.read(response, "$.exercise_id");
+    Exercise newExercise = this.exerciseRepository.findById(newExerciseId).orElseThrow();
+    assertEquals(customDashboardSaved.getId(), newExercise.getCustomDashboard().getId());
   }
 
   @Nested

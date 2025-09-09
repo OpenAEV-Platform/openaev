@@ -105,6 +105,7 @@ public class ExerciseApi extends RestBehavior {
   private final DocumentService documentService;
   private final ScenarioService scenarioService;
   private final UserService userService;
+  private final PlatformSettingsService platformSettingsService;
 
   // endregion
 
@@ -364,7 +365,13 @@ public class ExerciseApi extends RestBehavior {
       exercise.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      exercise.setCustomDashboard(null);
+      exercise.setCustomDashboard(
+          this.platformSettingsService
+              .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
     }
     return this.exerciseService.createExercise(exercise);
   }

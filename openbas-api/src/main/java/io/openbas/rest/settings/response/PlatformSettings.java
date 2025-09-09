@@ -53,6 +53,18 @@ public class PlatformSettings {
   @Schema(description = "Language of the platform")
   private String platformLang;
 
+  @JsonProperty("platform_home_dashboard")
+  @Schema(description = "Default home dashboard of the platform")
+  private String platformHomeDashboard;
+
+  @JsonProperty("platform_scenario_dashboard")
+  @Schema(description = "Default scenario dashboard of the platform")
+  private String platformScenarioDashboard;
+
+  @JsonProperty("platform_simulation_dashboard")
+  @Schema(description = "Default simulation dashboard of the platform")
+  private String platformSimulationDashboard;
+
   @JsonProperty("platform_whitemark")
   @Schema(description = "'true' if the platform has the whitemark activated")
   private String platformWhitemark;

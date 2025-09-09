@@ -1,7 +1,6 @@
 import { composeWithDevTools } from '@redux-devtools/extension';
 import { fromJS, isImmutable } from 'immutable';
 import * as R from 'ramda';
-import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { applyMiddleware, createStore } from 'redux';
 import { thunk } from 'redux-thunk';
@@ -61,14 +60,10 @@ const getJS = (selectorValue: any) => {
 // TODO type selector object
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useHelper = (selector: any) => {
-  const selectorValue = useSelector(state => selector(storeHelper(state)), R.equals);
-  const [selected, setSelected] = useState(getJS(selectorValue));
-
-  useEffect(() => {
-    setSelected(getJS(selectorValue));
-  }, [selectorValue]);
-
-  return selected;
+  return useSelector(
+    state => getJS(selector(storeHelper(state))),
+    R.equals, // deep-equality to avoid re-renders when structurally equal
+  );
 };
 
 export const store = initStore();
