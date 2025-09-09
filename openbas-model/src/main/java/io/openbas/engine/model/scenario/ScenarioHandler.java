@@ -8,8 +8,8 @@ import io.openbas.database.raw.RawScenario;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.engine.Handler;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -44,21 +44,27 @@ public class ScenarioHandler implements Handler<EsScenario> {
               esScenario.setBase_restrictions(buildRestrictions(scenario.getScenario_id()));
               // Specific
               esScenario.setBase_platforms_side_denormalized(scenario.getScenario_platforms());
-              // Dependencies
-              List<String> dependencies = new ArrayList<>();
+              // Dependencies (see base_dependencies in EsBase)
               if (!isEmpty(scenario.getScenario_tags())) {
                 esScenario.setBase_tags_side(scenario.getScenario_tags());
+              } else {
+                esScenario.setBase_tags_side(Set.of());
               }
               if (!isEmpty(scenario.getScenario_assets())) {
                 esScenario.setBase_assets_side(scenario.getScenario_assets());
+              } else {
+                esScenario.setBase_assets_side(Set.of());
               }
               if (!isEmpty(scenario.getScenario_asset_groups())) {
                 esScenario.setBase_asset_groups_side(scenario.getScenario_asset_groups());
+              } else {
+                esScenario.setBase_asset_groups_side(Set.of());
               }
               if (!isEmpty(scenario.getScenario_teams())) {
                 esScenario.setBase_teams_side(scenario.getScenario_teams());
+              } else {
+                esScenario.setBase_teams_side(Set.of());
               }
-              esScenario.setBase_dependencies(dependencies);
               return esScenario;
             })
         .toList();
