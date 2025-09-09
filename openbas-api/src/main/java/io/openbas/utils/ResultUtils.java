@@ -59,7 +59,7 @@ public class ResultUtils {
               exp.getResults().stream()
                   .max(Comparator.comparing(InjectExpectationResult::getScore))
                   .map(InjectExpectationResult::getScore)
-                  .orElse(0.0));
+                  .orElse(null));
         });
 
     return injectExpectationMapper.extractExpectationResultByTypes(injectIds, expectations);
