@@ -184,9 +184,10 @@ public class SchemaUtils {
             .entity(entity)
             .path(queryable.path())
             .paths(queryable.paths());
-        if ((member instanceof Method || hasText(queryable.path()) || queryable.paths().length > 0)
-            && queryable.clazz() != Queryable.Unassigned.class) {
+        if (member instanceof Method && queryable.clazz() != Queryable.Unassigned.class) {
           builder.type(queryable.clazz()); // Override
+        } else if (hasText(queryable.path()) || queryable.paths().length > 0) {
+          builder.type(Queryable.Unassigned.class);
         } else if (!queryable.clazz().equals(Queryable.Unassigned.class)) {
           builder.type(String.class);
         }

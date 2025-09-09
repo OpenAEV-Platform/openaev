@@ -140,7 +140,7 @@ public class InjectorContract implements Base {
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("injector_contract_vulnerabilities")
-  @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
+  @Queryable(searchable = false, filterable = true, path = "vulnerabilities.externalId")
   private List<Cve> vulnerabilities = new ArrayList<>();
 
   // UpdatedAt now used to sync with linked object
