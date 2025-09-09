@@ -288,8 +288,7 @@ public class PayloadService {
    * @param searchPaginationInput the input containing pagination and search criteria
    * @return a paginated list of Payloads
    */
-  public Page<Payload> searchPayloads(
-      @org.jetbrains.annotations.NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<Payload> searchPayloads(@NotNull final SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
     return buildPaginationJPA(
         SpecificationUtils.withGrantFilter(

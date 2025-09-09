@@ -998,8 +998,8 @@ public class InjectService {
   }
 
   /**
-   * Chek if a user is granted on an inject. A user can be granteed on an inject if: - The inject is
-   * linked to a scenario or simulation that the user has access to - The inject is an atomic
+   * Check if a user is granted on an inject. A user can be granteed on an inject if: - The inject
+   * is linked to a scenario or simulation that the user has access to - The inject is an atomic
    * testing and the user has access to it
    *
    * @param grantType the grant type to check
