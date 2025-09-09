@@ -10,7 +10,7 @@ export const ACTIONS = {
 export type Actions = typeof ACTIONS[keyof typeof ACTIONS];
 
 export const SUBJECTS = {
-  ASSESSMENT: 'ASSESSMENT',
+  ASSESSMENT: 'ASSESSMENT', // Scenarios, Simulations and Atomic Testings
   TEAMS_AND_PLAYERS: 'TEAMS_AND_PLAYERS',
   ASSETS: 'ASSETS',
   PAYLOADS: 'PAYLOADS',

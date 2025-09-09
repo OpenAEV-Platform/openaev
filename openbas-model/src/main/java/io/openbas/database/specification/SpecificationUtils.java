@@ -122,7 +122,7 @@ public class SpecificationUtils {
     accessibleResources.where(
         cb.and(
             cb.equal(userTable.get("id"), userId),
-            cb.equal(grantTable.get("grantResourceType"), resourceType.name()),
+            cb.equal(grantTable.get("grantResourceType"), resourceType),
             grantTable.get("name").in(allowedGrantTypes)));
 
     return accessibleResources;
