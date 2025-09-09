@@ -23,7 +23,7 @@ import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import {
-  type Article,
+  type Article, type AssetGroup,
   type FilterGroup,
   type Inject,
   type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput,
@@ -92,6 +92,7 @@ interface Props {
   articles: Article[];
   variables: Variable[];
   uriVariable: string;
+  assetGroups: AssetGroup[];
 }
 
 const Injects: FunctionComponent<Props> = ({
@@ -101,6 +102,7 @@ const Injects: FunctionComponent<Props> = ({
   articles,
   variables,
   uriVariable,
+  assetGroups,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -671,7 +673,6 @@ const Injects: FunctionComponent<Props> = ({
             />
           )}
         {permissions.canManage && (
-
           <>
             <ButtonCreate onClick={() => {
               setOpenCreateDrawer(true);
@@ -688,11 +689,13 @@ const Injects: FunctionComponent<Props> = ({
                   selectAll={selectAll}
                   handleClearSelectedElements={handleClearSelectedElements}
                   teamsFromExerciseOrScenario={teams}
+                  assetGroups={assetGroups}
                   id={contextId}
                   handleUpdate={massUpdateInjects}
                   handleBulkDelete={bulkDeleteInjects}
                   handleBulkTest={massTestInjects}
                   handleExport={handleExport}
+                  canLaunch={permissions.canLaunch}
                 />
               )
             }
