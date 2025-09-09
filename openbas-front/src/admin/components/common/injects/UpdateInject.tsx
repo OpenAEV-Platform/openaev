@@ -64,25 +64,34 @@ const UpdateInject: React.FC<Props> = ({
   const { permissions } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
 
+  // Setup tabs
+  const [availableTabs, setAvailableTabs] = useState<string[]>(['Inject details', 'Logical chains']);
+  const [activeTab, setActiveTab] = useState<null | string>(availableTabs[0]);
+
   // Fetching data
   const { inject }: { inject: InjectStore } = useHelper((helper: InjectHelper) => ({ inject: helper.getInject(injectId) }));
+  const contractPayload = inject?.inject_injector_contract?.injector_contract_payload;
+  const injectorContract = inject?.inject_injector_contract;
   const [documentsMap, setDocumentsMap] = useState<Record<string, Document> | null>(null);
   useDataLoader(() => {
     setIsInjectLoading(true);
     dispatch(fetchInject(injectId)).then(() => {
-      fetchDocumentsPayloadByInject(injectId, inject.inject_injector_contract?.injector_contract_payload?.payload_id)
-        .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')))
-        .finally(() => setIsInjectLoading(false));
+      const payloadId = inject?.inject_injector_contract?.injector_contract_payload?.payload_id;
+      if (payloadId) {
+        setAvailableTabs(['Inject details', 'Payload info', 'Logical chains']);
+      }
+      setIsInjectLoading(false);
     });
   });
-
-  // Setup tabs
-  const [availableTabs] = useState<string[]>(['Inject details', 'Payload Details', 'Logical chains']);
-  const [activeTab, setActiveTab] = useState<null | string>(availableTabs[0]);
 
   // Selection
   const handleTabChange = (_: SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
+
+    if (newValue === 'Payload info' && !documentsMap) {
+      fetchDocumentsPayloadByInject(injectId, contractPayload?.payload_id)
+        .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')));
+    }
   };
 
   const [injectorContractContent, setInjectorContractContent] = useState<InjectorContractConverted['convertedContent']>();
@@ -92,8 +101,6 @@ const UpdateInject: React.FC<Props> = ({
     }
   }, [inject]);
 
-  const contractPayload = inject?.inject_injector_contract?.injector_contract_payload;
-  const injectorContract = inject?.inject_injector_contract;
   const getInjectHeaderTitle = (): string => {
     if (injectorContract?.injector_contract_needs_executor && inject?.inject_attack_patterns?.length !== 0) {
       return `${inject?.inject_kill_chain_phases?.map((value: KillChainPhase) => value.phase_name)?.join(', ')} / ${inject?.inject_attack_patterns?.map((value: AttackPattern) => value.attack_pattern_external_id)?.join(', ')}`;
@@ -122,12 +129,12 @@ const UpdateInject: React.FC<Props> = ({
           <Tabs value={activeTab} onChange={handleTabChange} variant="fullWidth">
             {availableTabs.map((tab) => {
               return (
-                <Tab key={tab} label={tab} value={tab} />
+                <Tab key={tab} label={t(tab)} value={tab} />
               );
             })}
           </Tabs>
         )}
-        {(activeTab !== 'Payload Details')
+        {(activeTab !== 'Payload info')
           && (
             <InjectCardComponent
               avatar={injectorContractContent
@@ -176,7 +183,7 @@ const UpdateInject: React.FC<Props> = ({
             variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
           />
         )}
-        {(!isInjectLoading && !isAtomic && activeTab === 'Payload Details' && contractPayload) && (
+        {(!isInjectLoading && !isAtomic && activeTab === 'Payload info' && contractPayload) && (
           <PayloadComponent
             documentsMap={documentsMap}
             selectedPayload={contractPayload!}

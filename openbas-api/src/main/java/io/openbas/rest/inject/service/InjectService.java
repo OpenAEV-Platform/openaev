@@ -1127,4 +1127,20 @@ public class InjectService {
                   return v1;
                 }));
   }
+
+  /**
+   * Retrieve the payload linked to an inject
+   *
+   * @param injectId to search payload
+   * @return found payload
+   * @throws ElementNotFoundException if inject or payload is not found
+   */
+  public Payload getPayloadByInjectId(String injectId) {
+    Inject inject = inject(injectId);
+    return inject
+        .getPayload()
+        .orElseThrow(
+            () ->
+                new ElementNotFoundException("payload not found on inject with id : " + injectId));
+  }
 }

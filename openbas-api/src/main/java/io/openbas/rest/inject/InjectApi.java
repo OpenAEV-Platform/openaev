@@ -548,19 +548,12 @@ public class InjectApi extends RestBehavior {
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
       @PathVariable String injectId, @PathVariable String payloadId) {
-    Inject inject = injectService.inject(injectId);
-    Payload payload =
-        inject
-            .getPayload()
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException(
-                        "payload not found on inject with id : " + injectId));
+    Payload payload = injectService.getPayloadByInjectId(injectId);
 
-    if (!payload.getId().isEmpty() && payload.getId().equals(payloadId)) {
-      return documentService.documentsForPayload(payloadId);
+    if (!payloadId.equals(payload.getId())) {
+      throw new BadRequestException("provided payload id mismatch with provided inject id");
     }
 
-    throw new BadRequestException("provided payload id mismatch with provided inject id");
+    return documentService.documentsForPayload(payloadId);
   }
 }

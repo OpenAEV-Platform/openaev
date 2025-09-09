@@ -1287,7 +1287,7 @@ class InjectApiTest extends IntegrationTest {
       mvc.perform(requestBuilder)
           .andExpect(status().isBadRequest())
           .andExpect(
-              result -> assertTrue(result.getResolvedException() instanceof BadRequestException));
+              result -> assertInstanceOf(BadRequestException.class, result.getResolvedException()));
     }
   }
 
