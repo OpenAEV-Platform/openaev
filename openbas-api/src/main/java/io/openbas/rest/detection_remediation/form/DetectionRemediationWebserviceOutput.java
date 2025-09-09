@@ -33,11 +33,11 @@ public class DetectionRemediationWebserviceOutput {
       String parent_command_line;
       String image_filename;
       String command_line;
-      String file_pathString;
-      String remote_ip_addressString;
-      String remote_portString;
-      String connection_typeString;
-      String domain_nameString;
+      String file_path;
+      String remote_ip_address;
+      String remote_port;
+      String connection_type;
+      String domain_name;
     }
   }
 }
