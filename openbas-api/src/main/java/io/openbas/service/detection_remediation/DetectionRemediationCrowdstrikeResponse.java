@@ -97,4 +97,93 @@ public class DetectionRemediationCrowdstrikeResponse {
       String domain_name;
     }
   }
+
+  public String formateRules() {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < rules.size(); i++) {
+      builder.append("================================\n");
+      builder.append("<p>Rule ").append(i + 1).append("</p>\n");
+      builder.append("<p>Rule Type: ").append(rules.get(i).rule_type).append("</p>\n");
+      builder.append("<p>Action to take: ").append(rules.get(i).action_to_take).append("</p>\n");
+      builder.append("<p>Severity: ").append(rules.get(i).severity).append("</p>\n");
+      builder.append("<p>Rule name: ").append(rules.get(i).rule_name).append("</p>\n");
+      builder
+          .append("<p>Rule description: ")
+          .append(rules.get(i).rule_description)
+          .append("</p>\n");
+      builder
+          .append("<p>Tactic & Technique: ")
+          .append(rules.get(i).tactic_technique)
+          .append("</p>\n");
+      builder
+          .append("<p>Detection Strategy: ")
+          .append(rules.get(i).detection_strategy)
+          .append("</p>\n");
+
+      builder.append("<p>Field Configuration: ").append("</p>\n");
+      builder.append("<ul>");
+      builder
+          .append("<li>Grandparent Image Filename: ")
+          .append(rules.get(i).field_configuration.grandparent_image_filename)
+          .append("</ul>\n");
+      builder
+          .append("<li>Grandparent Command Line: ")
+          .append(rules.get(i).field_configuration.grandparent_command_line)
+          .append("</li>\n");
+      builder
+          .append("<li>Parent Image Filename: ")
+          .append(rules.get(i).field_configuration.parent_image_filename)
+          .append("</li>\n");
+      builder
+          .append("<li>Parent Command Line: ")
+          .append(rules.get(i).field_configuration.parent_command_line)
+          .append("</li>\n");
+      builder
+          .append("<li>Image Filename: ")
+          .append(rules.get(i).field_configuration.image_filename)
+          .append("</li>\n");
+      builder
+          .append("<li>Command Line: ")
+          .append(rules.get(i).field_configuration.command_line)
+          .append("</li>\n");
+
+      if (rules.get(i).field_configuration.file_path != null
+          && !rules.get(i).field_configuration.file_path.isEmpty())
+        builder
+            .append("<li>File Path: ")
+            .append(rules.get(i).field_configuration.file_path)
+            .append("</li>\n");
+
+      if (rules.get(i).field_configuration.remote_ip_address != null
+          && !rules.get(i).field_configuration.remote_ip_address.isEmpty())
+        builder
+            .append("<li>Remote IP Address: ")
+            .append(rules.get(i).field_configuration.remote_ip_address)
+            .append("</li>\n");
+
+      if (rules.get(i).field_configuration.remote_port != null
+          && !rules.get(i).field_configuration.remote_port.isEmpty())
+        builder
+            .append("<li>Remote TCP/UDP Port: ")
+            .append(rules.get(i).field_configuration.remote_port)
+            .append("</li>\n");
+
+      if (rules.get(i).field_configuration.connection_type != null
+          && !rules.get(i).field_configuration.connection_type.isEmpty())
+        builder
+            .append("<li>Connection Type: ")
+            .append(rules.get(i).field_configuration.connection_type)
+            .append("</li>\n");
+
+      if (rules.get(i).field_configuration.domain_name != null
+          && !rules.get(i).field_configuration.domain_name.isEmpty())
+        builder
+            .append("<li>Domain Name: ")
+            .append(rules.get(i).field_configuration.domain_name)
+            .append("</li>\n");
+
+      builder.append("</ul>");
+    }
+    return builder.toString();
+  }
 }

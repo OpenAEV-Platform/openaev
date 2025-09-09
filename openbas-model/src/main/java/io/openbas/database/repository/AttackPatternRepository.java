@@ -20,6 +20,8 @@ public interface AttackPatternRepository
   @NotNull
   Optional<AttackPattern> findById(@NotNull String id);
 
+  List<AttackPattern> findAllByIdIn(List<String> externalIds);
+
   Optional<AttackPattern> findByExternalId(@NotNull String externalId);
 
   List<AttackPattern> findAllByExternalIdInIgnoreCase(List<String> externalIds);
