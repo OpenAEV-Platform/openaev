@@ -22,6 +22,7 @@ import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.ObjectBase;
 import io.openbas.stix.objects.RelationshipObject;
 import io.openbas.stix.objects.constants.CommonProperties;
+import io.openbas.stix.objects.constants.CustomProperties;
 import io.openbas.stix.objects.constants.ObjectTypes;
 import io.openbas.stix.parsing.Parser;
 import io.openbas.stix.parsing.ParsingException;
@@ -51,8 +52,6 @@ public class SecurityCoverageService {
   public static final String STIX_SCHEDULING = "scheduling";
   public static final String STIX_PERIOD_START = "period_start";
   public static final String STIX_PERIOD_END = "period_end";
-  public static final String STIX_ATTACK_PATTERN_TYPE = "attack-pattern";
-  public static final String INCIDENT_RESPONSE = "incident-response";
   public static final String ATTACK_SCENARIO = "attack-scenario";
 
   private final ScenarioService scenarioService;
@@ -109,7 +108,7 @@ public class SecurityCoverageService {
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
-        extractAttackReferences(bundle.findByType(STIX_ATTACK_PATTERN_TYPE)));
+        extractAttackReferences(bundle.findByType(ObjectTypes.ATTACK_PATTERN.toString())));
 
     // Default Fields
     String scheduling =
@@ -197,7 +196,7 @@ public class SecurityCoverageService {
     scenario.setName(sa.getName());
     scenario.setDescription(sa.getDescription());
     scenario.setSeverity(Scenario.SEVERITY.high);
-    scenario.setMainFocus(INCIDENT_RESPONSE);
+    scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
     scenario.setCategory(ATTACK_SCENARIO);
 
     Instant start = sa.getPeriodStart();
@@ -225,7 +224,7 @@ public class SecurityCoverageService {
       objects.addAll(this.getCoverageForSimulation(ex));
     }
 
-    return new Bundle(new Identifier("bundle--" + UUID.randomUUID()), objects);
+    return new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), objects);
   }
 
   private List<ObjectBase> getCoverageForSimulation(Exercise exercise)
@@ -236,7 +235,7 @@ public class SecurityCoverageService {
     SecurityCoverage assessment = exercise.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
     coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
-    coverage.setProperty("coverage", getOverallCoverage(exercise));
+    coverage.setProperty(CustomProperties.COVERAGE.toString(), getOverallCoverage(exercise));
     objects.add(coverage);
 
     // start and stop times
@@ -253,21 +252,23 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP + "--" + exercise.getId()),
+                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      "relationship_type",
+                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
                       new StixString("has-assessed"),
                       RelationshipObject.Properties.SOURCE_REF.toString(),
                       coverage.getId(),
                       RelationshipObject.Properties.TARGET_REF.toString(),
                       new Identifier(stixRef.getStixRef()),
-                      "covered",
+                      CustomProperties.COVERED.toString(),
                       new io.openbas.stix.types.Boolean(covered))));
-      sroStartTime.ifPresent(instant -> sro.setProperty("start_time", instant));
-      sroStopTime.ifPresent(instant -> sro.setProperty("stop_time", instant));
+      sroStartTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
+      sroStopTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
       if (covered) {
-        sro.setProperty("coverage", attackPatternCoverage);
+        sro.setProperty(CustomProperties.COVERAGE.toString(), attackPatternCoverage);
       }
       objects.add(sro);
     }
@@ -283,21 +284,24 @@ public class SecurityCoverageService {
               new HashMap<>(
                   Map.of(
                       CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
+                      new Identifier(
+                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      "relationship_type",
+                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
                       new StixString("has-assessed"),
                       RelationshipObject.Properties.SOURCE_REF.toString(),
                       coverage.getId(),
                       RelationshipObject.Properties.TARGET_REF.toString(),
                       platformIdentity.getId(),
-                      "covered",
+                      CustomProperties.COVERED.toString(),
                       new io.openbas.stix.types.Boolean(covered))));
-      sroStartTime.ifPresent(instant -> sro.setProperty("start_time", instant));
-      sroStopTime.ifPresent(instant -> sro.setProperty("stop_time", instant));
+      sroStartTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
+      sroStopTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
       if (covered) {
-        sro.setProperty("coverage", platformCoverage);
+        sro.setProperty(CustomProperties.COVERAGE.toString(), platformCoverage);
       }
       objects.add(sro);
     }

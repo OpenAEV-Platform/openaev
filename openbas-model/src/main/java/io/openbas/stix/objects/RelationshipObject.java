@@ -9,7 +9,8 @@ public class RelationshipObject extends ObjectBase {
     TARGET_REF("target_ref"),
     SOURCE_REF("source_ref"),
     START_TIME("start_time"),
-    STOP_TIME("stop_time");
+    STOP_TIME("stop_time"),
+    RELATIONSHIP_TYPE("relationship_type");
 
     private final String value;
 

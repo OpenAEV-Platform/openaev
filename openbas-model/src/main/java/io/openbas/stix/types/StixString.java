@@ -1,18 +1,12 @@
 package io.openbas.stix.types;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 
 public class StixString extends BaseType<java.lang.String> {
 
   public StixString(java.lang.String value) {
     super(value);
-  }
-
-  @Override
-  public JsonNode toStix(ObjectMapper mapper) {
-    return mapper.valueToTree(this.getValue());
   }
 
   public static BaseType<?> parseString(String propertyName, JsonNode propertyNode) {

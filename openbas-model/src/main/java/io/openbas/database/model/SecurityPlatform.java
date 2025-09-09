@@ -8,6 +8,7 @@ import io.openbas.database.audit.ModelBaseListener;
 import io.openbas.helper.MonoIdDeserializer;
 import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.constants.CommonProperties;
+import io.openbas.stix.objects.constants.ObjectTypes;
 import io.openbas.stix.parsing.StixDomainObjectConvertible;
 import io.openbas.stix.types.Identifier;
 import io.openbas.stix.types.StixString;
@@ -35,7 +36,7 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
         new HashMap<>(
             Map.of(
                 CommonProperties.ID.toString(),
-                new Identifier("identity--" + this.getId()),
+                new Identifier(ObjectTypes.IDENTITY.toString(), this.getId()),
                 CommonProperties.CREATED.toString(),
                 new Timestamp(this.getCreatedAt()),
                 CommonProperties.MODIFIED.toString(),
@@ -43,7 +44,7 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
                 "name",
                 new StixString(this.getName()),
                 CommonProperties.TYPE.toString(),
-                new StixString("identity"),
+                new StixString(ObjectTypes.IDENTITY.toString()),
                 "identity_class",
                 new StixString("security-platform"))));
   }

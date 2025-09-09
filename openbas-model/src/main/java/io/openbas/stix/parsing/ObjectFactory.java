@@ -17,6 +17,8 @@ public class ObjectFactory {
   static {
     constructors.put(ObjectTypes.RELATIONSHIP, RelationshipObject::new);
     constructors.put(ObjectTypes.SIGHTING, RelationshipObject::new);
+    constructors.put(ObjectTypes.ATTACK_PATTERN, DomainObject::new);
+    constructors.put(ObjectTypes.IDENTITY, DomainObject::new);
     constructors.put(ObjectTypes.DEFAULT, DomainObject::new);
   }
 

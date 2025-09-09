@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 public enum ObjectTypes {
   RELATIONSHIP("relationship"),
   SIGHTING("sighting"),
+  IDENTITY("identity"),
+  ATTACK_PATTERN("attack-pattern"),
   DEFAULT("__default__");
 
   private final String value;

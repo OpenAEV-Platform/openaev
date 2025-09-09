@@ -16,11 +16,6 @@ public interface SecurityCoverageSendJobRepository
     extends CrudRepository<SecurityCoverageSendJob, String>,
         JpaSpecificationExecutor<SecurityCoverageSendJob> {
 
-  String findByStatusAndUpdatedAtBeforeStatement =
-      """
-
-          """;
-
   @Query("select scsj from SecurityCoverageSendJob scsj where scsj.simulation = ?1")
   Optional<SecurityCoverageSendJob> findBySimulation(@NotBlank Exercise simulation);
 

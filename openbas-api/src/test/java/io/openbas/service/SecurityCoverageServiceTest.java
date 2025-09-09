@@ -11,6 +11,7 @@ import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.RelationshipObject;
 import io.openbas.stix.objects.constants.CommonProperties;
+import io.openbas.stix.objects.constants.CustomProperties;
 import io.openbas.stix.objects.constants.ObjectTypes;
 import io.openbas.stix.parsing.Parser;
 import io.openbas.stix.parsing.ParsingException;
@@ -148,7 +149,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       throws ParsingException, JsonProcessingException {
     return addPropertiesToDomainObject(
         (DomainObject) stixParser.parseObject(securityCoverage.getContent()),
-        Map.of("coverage", predictCoverageFromInjects(injects)));
+        Map.of(CustomProperties.COVERAGE.toString(), predictCoverageFromInjects(injects)));
   }
 
   private List<DomainObject> getExpectedPlatformIdentities(
@@ -222,7 +223,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // main assessment is completed with coverage
     assertThatJson(
             bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
-        .whenIgnoringPaths("modified")
+        .whenIgnoringPaths(CommonProperties.MODIFIED.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
     // security platforms are present in bundle as Identities
@@ -240,18 +241,18 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           new RelationshipObject(
               Map.of(
                   CommonProperties.ID.toString(),
-                  new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
                   CommonProperties.TYPE.toString(),
                   new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                  "relationship_type",
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
                   new StixString("has-assessed"),
                   RelationshipObject.Properties.SOURCE_REF.toString(),
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   platformSdo.getId(),
-                  "covered",
+                  CustomProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  "coverage",
+                  CustomProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
@@ -286,18 +287,18 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           new RelationshipObject(
               Map.of(
                   CommonProperties.ID.toString(),
-                  new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
                   CommonProperties.TYPE.toString(),
                   new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                  "relationship_type",
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
                   new StixString("has-assessed"),
                   RelationshipObject.Properties.SOURCE_REF.toString(),
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   new Identifier(stixRef.getStixRef()),
-                  "covered",
+                  CustomProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  "coverage",
+                  CustomProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
@@ -408,7 +409,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // main assessment is completed with coverage
     assertThatJson(
             bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
-        .whenIgnoringPaths("modified")
+        .whenIgnoringPaths(CommonProperties.MODIFIED.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
     // security platforms are present in bundle as Identities
@@ -426,18 +427,18 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           new RelationshipObject(
               Map.of(
                   CommonProperties.ID.toString(),
-                  new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
                   CommonProperties.TYPE.toString(),
                   new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                  "relationship_type",
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
                   new StixString("has-assessed"),
                   RelationshipObject.Properties.SOURCE_REF.toString(),
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   platformSdo.getId(),
-                  "covered",
+                  CustomProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  "coverage",
+                  CustomProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
@@ -472,18 +473,18 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           new RelationshipObject(
               Map.of(
                   CommonProperties.ID.toString(),
-                  new Identifier(ObjectTypes.RELATIONSHIP + "--" + UUID.randomUUID()),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
                   CommonProperties.TYPE.toString(),
                   new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                  "relationship_type",
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
                   new StixString("has-assessed"),
                   RelationshipObject.Properties.SOURCE_REF.toString(),
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   new Identifier(stixRef.getStixRef()),
-                  "covered",
+                  CustomProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  "coverage",
+                  CustomProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
