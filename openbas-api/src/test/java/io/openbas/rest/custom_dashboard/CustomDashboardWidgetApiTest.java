@@ -52,7 +52,8 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
       throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();
-    CustomDashboard customDashboard = composer.get().getCustomDashboard();
+    CustomDashboard customDashboard = composer.persist().get().getCustomDashboard();
+
     WidgetInput input = new WidgetInput();
     input.setType(VERTICAL_BAR_CHART);
     String name = "My new widget";
