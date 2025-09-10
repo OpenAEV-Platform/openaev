@@ -344,6 +344,9 @@ public class InjectModelHelper {
         if (valueNode.isTextual()) {
           String value = valueNode.asText();
           yield value.isEmpty() ? List.of() : List.of(value);
+        } else if (valueNode.isBoolean()) {
+          String value = valueNode.asText();
+          yield value.isEmpty() ? List.of() : List.of(value);
         }
 
         yield List.of();
