@@ -59,10 +59,6 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_period_end")
   private Instant periodEnd;
 
-  @Column(name = "security_coverage_threat_context_ref")
-  @JsonProperty("security_coverage_threat_context_ref")
-  private String threatContextRef;
-
   @Type(ListArrayType.class)
   @Column(name = "security_coverage_labels", columnDefinition = "text[]")
   @JsonProperty("security_coverage_labels")
