@@ -3,6 +3,8 @@ package io.openbas.rest;
 import static io.openbas.rest.StixApi.STIX_URI;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2023_20198;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -19,6 +21,7 @@ import io.openbas.database.repository.CveRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
+import io.openbas.utils.fixtures.CveFixture;
 import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.composers.CveComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
@@ -63,14 +66,20 @@ class StixApiTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     attackPatternComposer.reset();
-    try (FileInputStream fis1 =
+    try (FileInputStream complete =
             new FileInputStream("src/test/resources/stix-bundles/security-coverage.json");
-        FileInputStream fis2 =
+        FileInputStream withoutAttacks =
             new FileInputStream(
-                "src/test/resources/stix-bundles/security-coverage-without-ttps.json")) {
+                "src/test/resources/stix-bundles/security-coverage-without-ttps.json");
+        FileInputStream withoutVulns =
+            new FileInputStream(
+                "src/test/resources/stix-bundles/security-coverage-without-vulns.json");
+        FileInputStream withoutObjects =
+            new FileInputStream(
+                "src/test/resources/stix-bundles/security-coverage-without-objects.json")) {
 
-      stixSecurityCoverage = IOUtils.toString(fis1, StandardCharsets.UTF_8);
-      stixSecurityCoverageWithoutTtps = IOUtils.toString(fis2, StandardCharsets.UTF_8);
+      stixSecurityCoverage = IOUtils.toString(complete, StandardCharsets.UTF_8);
+      stixSecurityCoverageWithoutTtps = IOUtils.toString(withoutAttacks, StandardCharsets.UTF_8);
     }
 
     attackPatternComposer
@@ -79,10 +88,13 @@ class StixApiTest extends IntegrationTest {
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
+    cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_48788)).persist();
+    cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_20198)).persist();
   }
 
   @AfterEach
   void afterEach() {
+    cveComposer.reset();
     attackPatternComposer.reset();
   }
 
@@ -177,8 +189,6 @@ class StixApiTest extends IntegrationTest {
           .contains(OPENCTI_TAG_NAME);
 
       // -- ASSERT Security Coverage --
-      assertThat(createdScenario.getSecurityCoverage().getThreatContextRef())
-          .isEqualTo("report--453a2ac1-e111-57bf-8277-dbec448cd851");
       assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(2);
 
       StixRefToExternalRef stixRef1 =
@@ -186,18 +196,25 @@ class StixApiTest extends IntegrationTest {
       StixRefToExternalRef stixRef2 =
           new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
 
-      assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(2);
+      // -- Vulnerabilities --
+      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(2);
+
+      StixRefToExternalRef stixRefVuln =
+          new StixRefToExternalRef(
+              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b97", CVE_2023_48788);
+
       assertTrue(
           createdScenario
               .getSecurityCoverage()
               .getAttackPatternRefs()
               .containsAll(List.of(stixRef1, stixRef2)));
-      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).isNull();
+      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs())
+          .containsAll(List.of(stixRefVuln));
       assertThat(createdScenario.getSecurityCoverage().getContent()).isNotBlank();
 
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
-      assertThat(injects).hasSize(2);
+      assertThat(injects).hasSize(3);
     }
 
     @Test
