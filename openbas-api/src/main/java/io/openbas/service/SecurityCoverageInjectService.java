@@ -58,6 +58,7 @@ public class SecurityCoverageInjectService {
    *
    * <ul>
    *   <li>Resolves internal vulnerabilities from the coverage
+   *   <li>Remove all inject from scenario where vulnerability refs is empty
    *   <li>Generates injects based on injector contract related to these vulnerabilities
    * </ul>
    *
