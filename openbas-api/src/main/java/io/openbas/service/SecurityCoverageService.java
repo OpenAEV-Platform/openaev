@@ -3,6 +3,18 @@ package io.openbas.service;
 import static io.openbas.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openbas.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openbas.utils.TimeUtils.getCronExpression;
+import static io.openbas.utils.constants.StixConstants.ATTACK_SCENARIO;
+import static io.openbas.utils.constants.StixConstants.INCIDENT_RESPONSE;
+import static io.openbas.utils.constants.StixConstants.ONE_SHOT;
+import static io.openbas.utils.constants.StixConstants.STIX_ATTACK_PATTERN_TYPE;
+import static io.openbas.utils.constants.StixConstants.STIX_DESCRIPTION;
+import static io.openbas.utils.constants.StixConstants.STIX_ID;
+import static io.openbas.utils.constants.StixConstants.STIX_LABELS;
+import static io.openbas.utils.constants.StixConstants.STIX_NAME;
+import static io.openbas.utils.constants.StixConstants.STIX_PERIOD_END;
+import static io.openbas.utils.constants.StixConstants.STIX_PERIOD_START;
+import static io.openbas.utils.constants.StixConstants.STIX_SCHEDULING;
+import static io.openbas.utils.constants.StixConstants.STIX_VULNERABILITY_TYPE;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,20 +39,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class SecurityCoverageService {
-
-  public static final String STIX_ID = "id";
-  public static final String STIX_NAME = "name";
-  public static final String STIX_DESCRIPTION = "description";
-  public static final String STIX_LABELS = "labels";
-  public static final String STIX_SCHEDULING = "scheduling";
-  public static final String STIX_PERIOD_START = "period_start";
-  public static final String STIX_PERIOD_END = "period_end";
-  public static final String STIX_TYPE = "type";
-  public static final String STIX_ATTACK_PATTERN_TYPE = "attack-pattern";
-  public static final String STIX_VULNERABILITY_TYPE = "vulnerability";
-  public static final String ONE_SHOT = "X";
-  public static final String INCIDENT_RESPONSE = "incident-response";
-  public static final String ATTACK_SCENARIO = "attack-scenario";
 
   private final ScenarioService scenarioService;
   private final TagService tagService;

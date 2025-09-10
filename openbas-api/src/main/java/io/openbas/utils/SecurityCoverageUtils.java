@@ -1,7 +1,11 @@
 package io.openbas.utils;
 
-import static io.openbas.service.SecurityCoverageService.STIX_NAME;
-import static io.openbas.service.SecurityCoverageService.STIX_TYPE;
+import static io.openbas.utils.constants.StixConstants.STIX_ATTACK_PATTERN_TYPE;
+import static io.openbas.utils.constants.StixConstants.STIX_ID;
+import static io.openbas.utils.constants.StixConstants.STIX_NAME;
+import static io.openbas.utils.constants.StixConstants.STIX_TYPE;
+import static io.openbas.utils.constants.StixConstants.STIX_X_MITRE_ID;
+import static io.openbas.utils.constants.StixConstants.STIX_X_SECURITY_COVERAGE;
 
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.stix.objects.Bundle;
@@ -14,11 +18,6 @@ import org.apache.coyote.BadRequestException;
 
 public class SecurityCoverageUtils {
 
-  public static final String STIX_X_MITRE_ID = "x_mitre_id";
-  public static final String STIX_ID = "id";
-  public static final String X_SECURITY_COVERAGE = "x-security-coverage";
-  public static final String STIX_TYPE_ATTACK_PATTERN = "attack-pattern";
-
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
    *
@@ -30,7 +29,7 @@ public class SecurityCoverageUtils {
    * @throws BadRequestException if the bundle does not contain exactly one such object
    */
   public static ObjectBase extractAndValidateCoverage(Bundle bundle) throws BadRequestException {
-    List<ObjectBase> coverages = bundle.findByType(X_SECURITY_COVERAGE);
+    List<ObjectBase> coverages = bundle.findByType(STIX_X_SECURITY_COVERAGE);
     if (coverages.size() != 1) {
       throw new BadRequestException("STIX bundle must contain exactly one x-security-coverage");
     }
@@ -53,7 +52,7 @@ public class SecurityCoverageUtils {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
       String refId;
 
-      if (STIX_TYPE_ATTACK_PATTERN.equals(stixType)) {
+      if (STIX_ATTACK_PATTERN_TYPE.equals(stixType)) {
         refId = (String) obj.getProperty(STIX_X_MITRE_ID).getValue();
       } else {
         refId = (String) obj.getProperty(STIX_NAME).getValue();

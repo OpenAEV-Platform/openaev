@@ -1,4 +1,4 @@
-package io.openbas.utils;
+package io.openbas.utils.constants;
 
 public class Constants {
 
