@@ -1,5 +1,5 @@
 import { EmojiEventsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { FormHelperText, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -30,9 +30,12 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-interface Props { readOnly?: boolean }
+interface Props {
+  readOnly?: boolean;
+  error?: string | null;
+}
 
-const InjectChallengesList = ({ readOnly = false }: Props) => {
+const InjectChallengesList = ({ readOnly = false, error }: Props) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
@@ -109,8 +112,14 @@ const InjectChallengesList = ({ readOnly = false }: Props) => {
           injectChallengesIds={injectChallengeIds ?? []}
           handleAddChallenges={addChallenge}
           disabled={readOnly}
+          error={error}
         />
       </Can>
+      {error && (
+        <FormHelperText error>
+          {error}
+        </FormHelperText>
+      )}
     </>
 
   );

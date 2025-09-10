@@ -111,7 +111,13 @@ public class ChannelContract extends Contractor {
                     Map.of(emailingField.getKey(), String.valueOf(true))),
                 emailingField,
                 String.valueOf(true))
-            .optional(checkboxField("encrypted", "Encrypted", false, List.of(emailingField)))
+            .optional(
+                checkboxField(
+                    "encrypted",
+                    "Encrypted",
+                    false,
+                    List.of(emailingField),
+                    Map.of(emailingField.getKey(), String.valueOf(true))))
             .build();
     Contract publishArticle =
         executableContract(

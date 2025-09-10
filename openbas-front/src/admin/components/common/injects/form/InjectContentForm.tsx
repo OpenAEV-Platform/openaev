@@ -130,7 +130,12 @@ const InjectContentForm = ({
   );
 
   // -- CHALLENGES --
-  const renderChallenges = () => <InjectChallengesList readOnly={enhancedFieldsMapByType.get('challenge')?.readOnly || readOnly} />;
+  const renderChallenges = (err?: string | null) => (
+    <InjectChallengesList
+      readOnly={enhancedFieldsMapByType.get('challenge')?.readOnly || readOnly}
+      error={err}
+    />
+  );
 
   // -- EXPECTATIONS --
   const injectExpectations = useWatch({
@@ -235,7 +240,7 @@ const InjectContentForm = ({
     {
       key: 'challenge',
       title: () => renderTitle(t('Challenges to publish'), enhancedFieldsMapByType.get('challenge')?.settings?.required),
-      render: renderChallenges,
+      render: () => renderChallenges(errors[enhancedFieldsMapByType.get('challenge')!.key]?.message as string || null),
       show: enhancedFieldsMapByType.has('challenge') && enhancedFieldsMapByType.get('challenge')?.isVisible,
     },
     {

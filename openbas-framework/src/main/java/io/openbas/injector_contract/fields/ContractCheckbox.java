@@ -1,6 +1,7 @@
 package io.openbas.injector_contract.fields;
 
 import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,11 +22,16 @@ public class ContractCheckbox extends ContractElement {
   }
 
   public static ContractCheckbox checkboxField(
-      String key, String label, boolean checked, List<ContractElement> visibleConditionFields) {
+      String key,
+      String label,
+      boolean checked,
+      List<ContractElement> visibleConditionFields,
+      Map<String, String> visibleConditionValues) {
     ContractCheckbox contractCheckbox = new ContractCheckbox(key, label);
     contractCheckbox.setDefaultValue(checked);
     contractCheckbox.setVisibleConditionFields(
         visibleConditionFields.stream().map(ContractElement::getKey).toList());
+    contractCheckbox.setVisibleConditionValues(visibleConditionValues);
     return contractCheckbox;
   }
 
