@@ -277,13 +277,16 @@ const Lessons: FunctionComponent<Props> = ({
             >
               {t('Cancel')}
             </Button>
-            <Button
-              color="secondary"
-              onClick={applyTemplate}
-              disabled={templateValue === null}
-            >
-              {t('Apply')}
-            </Button>
+            <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
+              <Button
+                color="secondary"
+                onClick={applyTemplate}
+                disabled={templateValue === null}
+              >
+                {t('Apply')}
+              </Button>
+            </Can>
+
           </div>
         </DialogContent>
       </Dialog>

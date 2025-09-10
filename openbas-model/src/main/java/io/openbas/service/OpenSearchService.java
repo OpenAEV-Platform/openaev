@@ -12,6 +12,7 @@ import io.openbas.config.EngineConfig;
 import io.openbas.database.model.CustomDashboardParameters;
 import io.openbas.database.model.Filters;
 import io.openbas.database.model.IndexingStatus;
+import io.openbas.database.raw.RawGrant;
 import io.openbas.database.raw.RawUserAuth;
 import io.openbas.database.repository.IndexingStatusRepository;
 import io.openbas.driver.OpenSearchDriver;
@@ -250,10 +251,9 @@ public class OpenSearchService implements EngineService {
     if (user.getUser_admin()) {
       return null;
     }
-    Set<String> scenarioIds = user.getUser_grant_scenarios();
-    Set<String> exerciseIds = user.getUser_grant_exercises();
-    List<String> restrictions = Stream.concat(exerciseIds.stream(), scenarioIds.stream()).toList();
-    List<FieldValue> values = restrictions.stream().map(FieldValue::of).toList();
+    Set<String> grantedResource =
+        user.getUser_grants().stream().map(RawGrant::getGrant_resource).collect(Collectors.toSet());
+    List<FieldValue> values = grantedResource.stream().map(FieldValue::of).toList();
     BoolQuery.Builder authQuery = new BoolQuery.Builder();
     Query compliantField =
         TermsQuery.of(

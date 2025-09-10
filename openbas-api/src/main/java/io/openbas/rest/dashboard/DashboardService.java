@@ -6,6 +6,7 @@ import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.CustomDashboardParameters;
 import io.openbas.database.model.Widget;
 import io.openbas.database.raw.RawUserAuth;
+import io.openbas.database.raw.RawUserAuthFlat;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.engine.EngineService;
 import io.openbas.engine.api.*;
@@ -15,6 +16,7 @@ import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.WidgetService;
 import io.openbas.service.EsAttackPathService;
+import io.openbas.utils.mapper.RawUserAuthMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -29,6 +31,8 @@ public class DashboardService {
   private final EngineService engineService;
   private final UserRepository userRepository;
   private final WidgetService widgetService;
+
+  private final RawUserAuthMapper rawUserAuthMapper;
 
   /**
    * Retrieves count data from Elasticsearch for a specific widget based on its configuration.
@@ -113,7 +117,8 @@ public class DashboardService {
    * @return list of {@link EsSearch} search results
    */
   public List<EsSearch> search(final String search) {
-    RawUserAuth userWithAuth = userRepository.getUserWithAuth(currentUser().getId());
+    List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
+    RawUserAuth userWithAuth = rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);
     return engineService.search(userWithAuth, search, null);
   }
 
@@ -124,8 +129,9 @@ public class DashboardService {
     Widget widget = widgetService.widget(widgetId);
     CustomDashboard dashboard = widget.getCustomDashboard();
     Map<String, CustomDashboardParameters> defParams = dashboard.toParametersMap();
-    RawUserAuth user = userRepository.getUserWithAuth(currentUser().getId());
-    return new WidgetContext(widget, parameters, defParams, user);
+    List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
+    RawUserAuth userWithAuth = rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);
+    return new WidgetContext(widget, parameters, defParams, userWithAuth);
   }
 
   private record WidgetContext(

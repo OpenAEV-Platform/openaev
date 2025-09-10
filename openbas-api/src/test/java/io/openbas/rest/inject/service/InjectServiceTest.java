@@ -139,6 +139,8 @@ class InjectServiceTest {
     input.getSearchPaginationInput().setFilterGroup(new Filters.FilterGroup());
     input.getSearchPaginationInput().setTextSearch("test");
 
+    when(userService.currentUser()).thenReturn(new User());
+
     // Act
     Specification<Inject> specification =
         injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
@@ -153,6 +155,8 @@ class InjectServiceTest {
     // Arrange
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of("id1", "id2"));
+
+    when(userService.currentUser()).thenReturn(new User());
 
     // Act
     Specification<Inject> specification =
@@ -169,6 +173,8 @@ class InjectServiceTest {
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of("id1", "id2"));
     input.setInjectIDsToIgnore(List.of("id3"));
+
+    when(userService.currentUser()).thenReturn(new User());
 
     // Act
     Specification<Inject> specification =
@@ -341,6 +347,8 @@ class InjectServiceTest {
     //noinspection unchecked
     when(injectRepository.findAll(any(Specification.class))).thenReturn(injects);
 
+    when(userService.currentUser()).thenReturn(new User());
+
     // Act
     List<Inject> result =
         injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
@@ -358,6 +366,8 @@ class InjectServiceTest {
     input.setInjectIDsToProcess(List.of("id1", "id2"));
 
     List<Inject> injects = List.of(new Inject(), new Inject());
+
+    when(userService.currentUser()).thenReturn(new User());
 
     //noinspection unchecked
     when(injectRepository.findAll(any(Specification.class))).thenReturn(injects);
@@ -378,6 +388,8 @@ class InjectServiceTest {
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of("id1", "id2"));
     input.setInjectIDsToIgnore(List.of("id3"));
+
+    when(userService.currentUser()).thenReturn(new User());
 
     List<Inject> injects = List.of(new Inject(), new Inject());
 

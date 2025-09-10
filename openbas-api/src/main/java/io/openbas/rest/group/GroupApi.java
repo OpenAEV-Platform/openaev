@@ -1,20 +1,19 @@
 package io.openbas.rest.group;
 
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
-import static java.time.Instant.now;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.*;
-import io.openbas.database.repository.*;
+import io.openbas.database.repository.GrantRepository;
+import io.openbas.database.repository.GroupRepository;
+import io.openbas.database.repository.OrganizationRepository;
+import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
-import io.openbas.rest.group.form.GroupCreateInput;
-import io.openbas.rest.group.form.GroupGrantInput;
-import io.openbas.rest.group.form.GroupUpdateRolesInput;
-import io.openbas.rest.group.form.GroupUpdateUsersInput;
-import io.openbas.rest.group.form.OrganizationGrantInput;
+import io.openbas.rest.group.form.*;
 import io.openbas.rest.helper.RestBehavior;
+import io.openbas.service.GrantService;
 import io.openbas.service.RoleService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,61 +21,21 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Spliterator;
-import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@AllArgsConstructor
 public class GroupApi extends RestBehavior {
 
-  private ExerciseRepository exerciseRepository;
-  private ScenarioRepository scenarioRepository;
-  private GrantRepository grantRepository;
-  private OrganizationRepository organizationRepository;
-  private GroupRepository groupRepository;
-  private UserRepository userRepository;
-  private RoleService roleService;
-
-  @Autowired
-  public void setOrganizationRepository(OrganizationRepository organizationRepository) {
-    this.organizationRepository = organizationRepository;
-  }
-
-  @Autowired
-  public void setGrantRepository(GrantRepository grantRepository) {
-    this.grantRepository = grantRepository;
-  }
-
-  @Autowired
-  public void setExerciseRepository(ExerciseRepository exerciseRepository) {
-    this.exerciseRepository = exerciseRepository;
-  }
-
-  @Autowired
-  public void setScenarioRepository(ScenarioRepository scenarioRepository) {
-    this.scenarioRepository = scenarioRepository;
-  }
-
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setGroupRepository(GroupRepository groupRepository) {
-    this.groupRepository = groupRepository;
-  }
-
-  @Autowired
-  public void setRoleService(RoleService roleService) {
-    this.roleService = roleService;
-  }
+  private final GrantRepository grantRepository;
+  private final OrganizationRepository organizationRepository;
+  private final GroupRepository groupRepository;
+  private final UserRepository userRepository;
+  private final RoleService roleService;
+  private final GrantService grantService;
 
   @GetMapping("/api/groups")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.USER_GROUP)
@@ -87,11 +46,7 @@ public class GroupApi extends RestBehavior {
   @PostMapping("/api/groups/search")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
   public Page<Group> users(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        (Specification<Group> specification, Pageable pageable) ->
-            this.groupRepository.findAll(specification, pageable),
-        searchPaginationInput,
-        Group.class);
+    return buildPaginationJPA(this.groupRepository::findAll, searchPaginationInput, Group.class);
   }
 
   @GetMapping("/api/groups/{groupId}")
@@ -109,8 +64,6 @@ public class GroupApi extends RestBehavior {
   public Group createGroup(@Valid @RequestBody GroupCreateInput input) {
     Group group = new Group();
     group.setUpdateAttributes(input);
-    group.setExercisesDefaultGrants(input.defaultExerciseGrants());
-    group.setScenariosDefaultGrants(input.defaultScenarioGrants());
     return groupRepository.save(group);
   }
 
@@ -126,20 +79,7 @@ public class GroupApi extends RestBehavior {
     Spliterator<User> userSpliterator =
         userRepository.findAllById(input.getUserIds()).spliterator();
     group.setUsers(stream(userSpliterator, false).collect(toList()));
-    Group savedGroup = groupRepository.save(group);
-    // Publish exercises impacted by this group change.
-    exerciseRepository.saveAll(
-        savedGroup.getGrants().stream()
-            .map(Grant::getExercise)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toList()));
-    // Publish scenarios impacted by this group change.
-    scenarioRepository.saveAll(
-        savedGroup.getGrants().stream()
-            .map(Grant::getScenario)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toList()));
-    return savedGroup;
+    return groupRepository.save(group);
   }
 
   @PutMapping("/api/groups/{groupId}/roles")
@@ -186,8 +126,6 @@ public class GroupApi extends RestBehavior {
       @PathVariable String groupId, @Valid @RequestBody GroupCreateInput input) {
     Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     group.setUpdateAttributes(input);
-    group.setExercisesDefaultGrants(input.defaultExerciseGrants());
-    group.setScenariosDefaultGrants(input.defaultScenarioGrants());
     return groupRepository.save(group);
   }
 
@@ -197,51 +135,35 @@ public class GroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
   @Transactional(rollbackOn = Exception.class)
-  public Grant groupGrant(@PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
-    if (input.getExerciseId() == null && input.getScenarioId() == null) {
-      throw new IllegalArgumentException("At least one of exercise or scenario should be present");
-    }
+  public Group groupGrant(@PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
+    // Validate the resourceId
+    grantService.validateResourceIdForGrant(input.getResourceId());
 
     // Resolve dependencies
     Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
-    Optional<Exercise> exerciseOpt =
-        input.getExerciseId() == null
-            ? Optional.empty()
-            : exerciseRepository.findById(input.getExerciseId());
-    Optional<Scenario> scenarioOpt =
-        input.getScenarioId() == null
-            ? Optional.empty()
-            : scenarioRepository.findById(input.getScenarioId());
 
     // Create the grant
     Grant grant = new Grant();
     grant.setName(input.getName());
     grant.setGroup(group);
-    if (exerciseOpt.isPresent()) {
-      grant.setExercise(exerciseOpt.get());
-    }
-    if (scenarioOpt.isPresent()) {
-      grant.setScenario(scenarioOpt.get());
-    }
-    Grant savedGrant = grantRepository.save(grant);
+    grant.setResourceId(input.getResourceId());
+    grant.setGrantResourceType(input.getResourceType());
 
-    // Exercise
-    if (exerciseOpt.isPresent()) {
-      Exercise exercise = exerciseOpt.get();
-      exercise.getGrants().add(savedGrant);
-      exercise.setUpdatedAt(now());
-      exerciseRepository.save(exercise);
-    }
+    group.getGrants().add(grant);
+    return groupRepository.save(group);
+  }
 
-    // Scenario
-    if (scenarioOpt.isPresent()) {
-      Scenario scenario = scenarioOpt.get();
-      scenario.getGrants().add(savedGrant);
-      scenario.setUpdatedAt(now());
-      scenarioRepository.save(scenario);
-    }
-
-    return savedGrant;
+  @DeleteMapping("/api/groups/{groupId}/grants/{grantId}")
+  @RBAC(
+      resourceId = "#groupId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER_GROUP)
+  @Transactional(rollbackOn = Exception.class)
+  public Group deleteGrant(@PathVariable String groupId, @PathVariable String grantId) {
+    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
+    Grant grant = grantRepository.findById(grantId).orElseThrow(ElementNotFoundException::new);
+    group.getGrants().remove(grant);
+    return this.groupRepository.save(group);
   }
 
   @PostMapping("/api/groups/{groupId}/organizations")
@@ -274,16 +196,6 @@ public class GroupApi extends RestBehavior {
         organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
     group.getOrganizations().remove(organization);
     return groupRepository.save(group);
-  }
-
-  @DeleteMapping("/api/grants/{grantId}")
-  @RBAC(
-      resourceId = "#grantId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER_GROUP)
-  @Transactional(rollbackOn = Exception.class)
-  public void deleteGrant(@PathVariable String grantId) {
-    grantRepository.deleteById(grantId);
   }
 
   @DeleteMapping("/api/groups/{groupId}")

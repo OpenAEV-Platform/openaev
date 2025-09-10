@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
   openbas-dev-minio:
     container_name: openbas-dev-minio
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
     ports:
       - "10000:9000"
       - "10001:9001"

@@ -214,7 +214,7 @@ public interface InjectRepository
           "select icap.attack_pattern_id, count(distinct i) as countInjects from injects i "
               + "join injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
               + "join exercises e on e.exercise_id = i.inject_exercise "
-              + "inner join grants ON grants.grant_exercise = e.exercise_id "
+              + "inner join grants ON grants.grant_resource = e.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
               + "inner join groups ON grants.grant_group = groups.group_id "
               + "inner join users_groups ON groups.group_id = users_groups.group_id "
               + "join injects_statuses injectStatus ON injectStatus.status_inject = i.inject_id "
@@ -345,4 +345,12 @@ public interface InjectRepository
    */
   @Query("SELECT CASE WHEN COUNT(i) > 0 THEN true ELSE false END FROM Inject i WHERE i.id = :id")
   boolean existsByIdWithoutLoading(@Param("id") String id);
+
+  /**
+   * Check if an Inject exists by its ID, where the Inject is an atomic testing.
+   *
+   * @param id ID of the inject to check
+   * @return true if the Inject exists and is an atomic testing, false otherwise
+   */
+  boolean existsByIdAndScenarioIsNullAndExerciseIsNull(String id);
 }

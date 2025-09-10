@@ -53,6 +53,7 @@ public class Organization implements Base {
   @Column(name = "organization_updated_at")
   @JsonProperty("organization_updated_at")
   @NotNull
+  @Queryable(sortable = true)
   private Instant updatedAt = now();
 
   @OneToMany(mappedBy = "organization", fetch = FetchType.LAZY)

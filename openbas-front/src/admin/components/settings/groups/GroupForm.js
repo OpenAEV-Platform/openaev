@@ -1,10 +1,8 @@
-import { InfoOutlined } from '@mui/icons-material';
-import { Button, GridLegacy, Tooltip, Typography } from '@mui/material';
+import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
-import OldSwitchField from '../../../../components/fields/OldSwitchField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
@@ -48,111 +46,6 @@ class GroupForm extends Component {
               label={t('Description')}
               style={{ marginTop: 20 }}
             />
-            <GridLegacy container spacing={3} style={{ marginTop: 0 }}>
-              <GridLegacy item xs={12} style={{ display: 'flex' }}>
-                <OldSwitchField
-                  name="group_default_user_assign"
-                  label={t('Auto assign')}
-                />
-                <Tooltip
-                  title={t(
-                    'The new users will automatically be assigned to this group.',
-                  )}
-                >
-                  <InfoOutlined
-                    fontSize="small"
-                    color="primary"
-                    style={{ marginTop: 8 }}
-                  />
-                </Tooltip>
-              </GridLegacy>
-              <GridLegacy item xs={12}>
-                <GridLegacy container spacing={3}>
-                  <GridLegacy item xs={12}>
-                    <Typography variant="h2" style={{ marginBottom: 0 }}>
-                      {t('Scenario')}
-                    </Typography>
-                  </GridLegacy>
-                  <GridLegacy item xs={6} style={{ display: 'flex' }}>
-                    <OldSwitchField
-                      name="group_default_scenario_observer"
-                      label={t('Auto observer')}
-                    />
-                    <Tooltip
-                      title={t(
-                        'This group will have observer permission on new scenarios.',
-                      )}
-                    >
-                      <InfoOutlined
-                        fontSize="small"
-                        color="primary"
-                        style={{ marginTop: 8 }}
-                      />
-                    </Tooltip>
-                  </GridLegacy>
-                  <GridLegacy item xs={6} style={{ display: 'flex' }}>
-                    <OldSwitchField
-                      name="group_default_scenario_planner"
-                      label={t('Auto planner')}
-                    />
-                    <Tooltip
-                      title={t(
-                        'This group will have planner permission on new scenarios.',
-                      )}
-                    >
-                      <InfoOutlined
-                        fontSize="small"
-                        color="primary"
-                        style={{ marginTop: 8 }}
-                      />
-                    </Tooltip>
-                  </GridLegacy>
-                </GridLegacy>
-              </GridLegacy>
-              <GridLegacy item xs={12}>
-                <GridLegacy container spacing={3}>
-                  <GridLegacy item xs={12}>
-                    <Typography variant="h2" style={{ marginBottom: 0 }}>
-                      {t('Simulation')}
-                    </Typography>
-                  </GridLegacy>
-                  <GridLegacy item xs={6} style={{ display: 'flex' }}>
-                    <OldSwitchField
-                      name="group_default_exercise_observer"
-                      label={t('Auto observer')}
-                    />
-                    <Tooltip
-                      title={t(
-                        'This group will have observer permission on new simulations.',
-                      )}
-                    >
-                      <InfoOutlined
-                        fontSize="small"
-                        color="primary"
-                        style={{ marginTop: 8 }}
-                      />
-                    </Tooltip>
-                  </GridLegacy>
-                  <GridLegacy item xs={6} style={{ display: 'flex' }}>
-                    <OldSwitchField
-                      name="group_default_exercise_planner"
-                      label={t('Auto planner')}
-                    />
-                    <Tooltip
-                      title={t(
-                        'This group will have planner permission on new simulations.',
-                      )}
-                    >
-                      <InfoOutlined
-                        fontSize="small"
-                        color="primary"
-                        style={{ marginTop: 8 }}
-                      />
-                    </Tooltip>
-                  </GridLegacy>
-                </GridLegacy>
-              </GridLegacy>
-            </GridLegacy>
             <div style={{
               float: 'right',
               marginTop: 20,

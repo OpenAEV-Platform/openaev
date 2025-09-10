@@ -30,7 +30,11 @@ public class PermissionService {
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
       EnumSet.of(
-          ResourceType.SCENARIO, ResourceType.SIMULATION, ResourceType.SIMULATION_OR_SCENARIO);
+          ResourceType.SCENARIO,
+          ResourceType.SIMULATION,
+          ResourceType.SIMULATION_OR_SCENARIO,
+          ResourceType.PAYLOAD,
+          ResourceType.ATOMIC_TESTING);
 
   private static final EnumSet<ResourceType> RESOURCES_USING_PARENT_PERMISSION =
       EnumSet.of(ResourceType.INJECT, ResourceType.NOTIFICATION_RULE);

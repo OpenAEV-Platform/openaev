@@ -184,15 +184,15 @@ public class SchemaUtils {
             .entity(entity)
             .path(queryable.path())
             .paths(queryable.paths());
-        if (member instanceof Method) {
+        if (member instanceof Method && queryable.clazz() != Queryable.Unassigned.class) {
           builder.type(queryable.clazz()); // Override
         } else if (hasText(queryable.path()) || queryable.paths().length > 0) {
-          builder.type(queryable.clazz()); // Override
-        } else if (!queryable.clazz().equals(Void.class)) {
+          builder.type(Queryable.Unassigned.class);
+        } else if (!queryable.clazz().equals(Queryable.Unassigned.class)) {
           builder.type(String.class);
         }
         // Enum values from redefinition
-        if (!queryable.refEnumClazz().equals(Void.class)) {
+        if (!queryable.refEnumClazz().equals(Queryable.Unassigned.class)) {
           builder.availableValues(getEnumNames(queryable.refEnumClazz()));
         }
         if (queryable.overrideOperators() != null) {

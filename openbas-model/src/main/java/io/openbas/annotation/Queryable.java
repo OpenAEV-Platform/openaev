@@ -23,9 +23,14 @@ public @interface Queryable {
 
   String[] paths() default {};
 
-  Class clazz() default Void.class;
-
-  Class refEnumClazz() default Void.class;
-
   Filters.FilterOperator[] overrideOperators() default {};
+
+  Class clazz() default Unassigned.class;
+
+  Class refEnumClazz() default Unassigned.class;
+
+  // use this absolutely specific class as a "null" value for class, refEnumClazz
+  // don't use Void here because that is a legitimate return type
+  // although there is little to justify having a queryable void method
+  class Unassigned {}
 }

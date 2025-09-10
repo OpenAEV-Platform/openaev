@@ -197,11 +197,33 @@ export const postReferential = (schema: Schema | null, uri: string, data: unknow
     });
 };
 
+export const delSubResourceReferential = (schema: Schema | null, uri: string) => (dispatch: Dispatch) => {
+  dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
+  return api(schema)
+    .delete(buildUri(uri))
+    .then((response) => {
+      dispatch({
+        type: Constants.DATA_FETCH_SUCCESS,
+        payload: response.data,
+      });
+      notifySuccess('The element has been successfully updated');
+      return response.data;
+    })
+    .catch((error) => {
+      dispatch({
+        type: Constants.DATA_FETCH_ERROR,
+        payload: error,
+      });
+      notifyErrorHandler(error);
+      throw error;
+    });
+};
+
 export const delReferential = (uri: string, type: string, id: string) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
   return api()
     .delete(buildUri(uri))
-    .then(() => {
+    .then((response) => {
       dispatch({
         type: Constants.DATA_DELETE_SUCCESS,
         payload: {
@@ -210,6 +232,7 @@ export const delReferential = (uri: string, type: string, id: string) => (dispat
         },
       });
       notifySuccess('The element has been successfully deleted');
+      return response.data;
     })
     .catch((error) => {
       dispatch({

@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -34,8 +35,8 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "exercises")
 @EntityListeners(ModelBaseListener.class)
-@Grantable(grantFieldName = "exercise")
-public class Exercise implements Base {
+@Grantable(Grant.GRANT_RESOURCE_TYPE.SIMULATION)
+public class Exercise implements GrantableBase {
 
   @Getter
   @Id
@@ -208,7 +209,14 @@ public class Exercise implements Base {
   private CustomDashboard customDashboard;
 
   @Getter
-  @OneToMany(mappedBy = "exercise", fetch = FetchType.EAGER)
+  @OneToMany(fetch = FetchType.EAGER)
+  @JoinColumn(
+      name = "grant_resource",
+      referencedColumnName = "exercise_id",
+      insertable = false,
+      updatable = false)
+  @SQLRestriction(
+      "grant_resource_type = 'SIMULATION'") // Must be present in Grant.GRANT_RESOURCE_TYPE
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 

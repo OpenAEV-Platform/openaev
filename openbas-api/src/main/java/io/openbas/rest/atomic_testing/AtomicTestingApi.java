@@ -3,24 +3,34 @@ package io.openbas.rest.atomic_testing;
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.Action;
+import io.openbas.database.model.Collector;
 import io.openbas.database.model.InjectExpectation;
 import io.openbas.database.model.ResourceType;
 import io.openbas.rest.atomic_testing.form.*;
+import io.openbas.rest.collector.service.CollectorService;
+import io.openbas.rest.exception.UnprocessableContentException;
 import io.openbas.rest.helper.RestBehavior;
+import io.openbas.rest.inject.form.InjectImportInput;
+import io.openbas.rest.inject.form.InjectImportTargetDefinition;
+import io.openbas.rest.inject.form.InjectImportTargetType;
 import io.openbas.service.AtomicTestingService;
 import io.openbas.service.InjectExpectationService;
+import io.openbas.service.InjectImportService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping(AtomicTestingApi.ATOMIC_TESTING_URI)
@@ -31,6 +41,8 @@ public class AtomicTestingApi extends RestBehavior {
 
   private final AtomicTestingService atomicTestingService;
   private final InjectExpectationService injectExpectationService;
+  private final CollectorService collectorsService;
+  private final InjectImportService injectImportService;
 
   @LogExecutionTime
   @PostMapping("/search")
@@ -38,7 +50,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return atomicTestingService.searchAtomicTestings(searchPaginationInput);
+    return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
   }
 
   // some api use inject as resource type because they are actually used to retrieve inject data for
@@ -168,5 +180,36 @@ public class AtomicTestingApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingUpdateTagsInput input) {
     return atomicTestingService.updateAtomicTestingTags(injectId, input);
+  }
+
+  @GetMapping(ATOMIC_TESTING_URI + "/{injectId}/collectors")
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @Operation(summary = "Get the Collectors used in an atomic testing remediation")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "The list of Collectors used in an atomic testing remediation")
+      })
+  public List<Collector> collectorsFromAtomicTesting(@PathVariable String injectId) {
+    return collectorsService.collectorsForAtomicTesting(injectId);
+  }
+
+  @PostMapping(
+      path = "/import",
+      consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
+  public void atomicTestingImport(
+      @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
+    // find target
+    if (file == null) {
+      throw new UnprocessableContentException("Insufficient input: file is required");
+    }
+
+    InjectImportInput targetInput = new InjectImportInput();
+    targetInput.setTarget(new InjectImportTargetDefinition());
+    targetInput.getTarget().setType(InjectImportTargetType.ATOMIC_TESTING);
+
+    this.injectImportService.importInjects(file, targetInput);
   }
 }
