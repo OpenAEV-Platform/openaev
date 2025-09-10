@@ -355,26 +355,24 @@ public interface InjectRepository
   boolean existsByIdAndScenarioIsNullAndExerciseIsNull(String id);
 
   @Modifying
-  @Transactional
   @Query(
       value =
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_vulnerabilities icv "
-              + "WHERE i.inject_injector_contract_id = ic.injector_contract_id "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
               + "AND ic.injector_contract_id = icv.injector_contract_id "
-              + "AND i.inject_scenario_id = :scenarioId",
+              + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
 
   @Modifying
-  @Transactional
   @Query(
       value =
           "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_attack_patterns icap "
-              + "WHERE i.inject_injector_contract_id = ic.injector_contract_id "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
               + "AND ic.injector_contract_id = icap.injector_contract_id "
-              + "AND i.inject_scenario_id = :scenarioId",
+              + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
