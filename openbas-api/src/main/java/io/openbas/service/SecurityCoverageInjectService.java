@@ -36,16 +36,6 @@ public class SecurityCoverageInjectService {
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
    *
-   * <p>Steps:
-   *
-   * <ul>
-   *   <li>Resolves internal AttackPatterns from the coverage
-   *   <li>Fetches asset groups based on scenario tag rules
-   *   <li>Analyzes existing inject coverage
-   *   <li>Removes outdated injects
-   *   <li>Generates missing injects depending on whether asset groups are available
-   * </ul>
-   *
    * @param scenario the scenario for which injects are managed
    * @param securityCoverage the related security coverage providing AttackPattern references
    * @return list injects related to this scenario
