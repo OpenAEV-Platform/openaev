@@ -66,11 +66,7 @@ public class FindingHandler implements Handler<EsFinding> {
               } else {
                 esFinding.setBase_endpoint_side(null);
               }
-              if (dependencies.isEmpty()) {
-                esFinding.setBase_dependencies(List.of());
-              } else {
-                esFinding.setBase_dependencies(dependencies);
-              }
+              esFinding.setBase_dependencies(dependencies);
               return esFinding;
             })
         .toList();

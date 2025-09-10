@@ -124,11 +124,7 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               }
               esInjectExpectation.setInject_expectation_status(
                   valueOf(computeStatusForIndexing(injectExpectation)));
-              if (dependencies.isEmpty()) {
-                esInjectExpectation.setBase_dependencies(List.of());
-              } else {
-                esInjectExpectation.setBase_dependencies(dependencies);
-              }
+              esInjectExpectation.setBase_dependencies(dependencies);
               return esInjectExpectation;
             })
         .toList();

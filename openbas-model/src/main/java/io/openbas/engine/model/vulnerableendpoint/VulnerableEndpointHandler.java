@@ -151,11 +151,7 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
               } else {
                 esVulnerableEndpoint.setBase_scenario_side(null);
               }
-              if (dependencies.isEmpty()) {
-                esVulnerableEndpoint.setBase_dependencies(List.of());
-              } else {
-                esVulnerableEndpoint.setBase_dependencies(dependencies);
-              }
+              esVulnerableEndpoint.setBase_dependencies(dependencies);
               return esVulnerableEndpoint;
             })
         .toList();

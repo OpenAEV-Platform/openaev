@@ -32,6 +32,23 @@ public class V4_26__Force_es_reindex_and_add_after_delete_triggers extends BaseJ
               """);
       statement.executeUpdate(
           """
+                    CREATE OR REPLACE FUNCTION update_inject_updated_at_after_delete_team()
+                        RETURNS TRIGGER AS $$
+                    BEGIN
+                        UPDATE public.injects
+                        SET inject_updated_at = now()
+                        WHERE inject_id = OLD.inject_id;
+                        RETURN OLD;
+                    END;
+                    $$ LANGUAGE plpgsql;
+
+                    -- Trigger for AFTER DELETE
+                    CREATE TRIGGER after_delete_update_inject_updated_at
+                        AFTER DELETE ON public.injects_teams
+                        FOR EACH ROW EXECUTE FUNCTION update_inject_updated_at_after_delete_team();
+                """);
+      statement.executeUpdate(
+          """
                   CREATE OR REPLACE FUNCTION update_exercise_updated_at_after_delete_team()
                       RETURNS TRIGGER AS $$
                   BEGIN

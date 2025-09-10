@@ -119,11 +119,7 @@ public class InjectHandler implements Handler<EsInject> {
               } else {
                 esInject.setBase_teams_side(Set.of());
               }
-              if (dependencies.isEmpty()) {
-                esInject.setBase_dependencies(List.of());
-              } else {
-                esInject.setBase_dependencies(dependencies);
-              }
+              esInject.setBase_dependencies(dependencies);
               return esInject;
             })
         .toList();
