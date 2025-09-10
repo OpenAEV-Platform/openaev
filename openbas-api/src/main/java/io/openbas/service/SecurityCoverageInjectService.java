@@ -6,8 +6,8 @@ import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.cve.service.CveService;
-import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectService;
+import io.openbas.rest.inject.service.InjectStixAssistantService;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class SecurityCoverageInjectService {
   public static final int NUMBER_OF_INJECTS = 1;
 
   private final InjectService injectService;
-  private final InjectAssistantService injectAssistantService;
+  private final InjectStixAssistantService injectStixAssistantService;
   private final AttackPatternService attackPatternService;
   private final CveService cveService;
   private final AssetGroupService assetGroupService;
@@ -76,7 +76,7 @@ public class SecurityCoverageInjectService {
     }
 
     // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
-    injectAssistantService.generateInjectsByVulnerabilities(
+    injectStixAssistantService.generateInjectsByVulnerabilities(
         scenario, vulnerabilities, NUMBER_OF_INJECTS);
   }
 
@@ -178,7 +178,7 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
+      injectStixAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
           scenario, missingAttacks, NUMBER_OF_INJECTS);
     }
   }
@@ -239,7 +239,7 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
+      injectStixAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
           scenario,
           missingAttacks,
           NUMBER_OF_INJECTS,
