@@ -32,7 +32,7 @@ const CustomDashboard = () => {
       configuration={configuration}
       topSlot={<CustomDashboardEditHeader />}
       bottomSlot={<WidgetCreation />}
-      readOnly={!ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS)}
+      readOnly={ability.cannot(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS)}
       noDashboardSlot={(
         <Alert severity="warning">
           <AlertTitle>{t('Warning')}</AlertTitle>

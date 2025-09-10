@@ -4,7 +4,7 @@ import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
-import { InjectContext, ViewModeContext } from '../Context';
+import { InjectContext, PermissionsContext, ViewModeContext } from '../Context';
 import InjectImportMenu from './InjectImportMenu';
 
 const useStyles = makeStyles()(() => ({
@@ -32,13 +32,14 @@ const InjectsListButtons: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const injectContext = useContext(InjectContext);
   const viewModeContext = useContext(ViewModeContext);
+  const { permissions } = useContext(PermissionsContext);
 
   const hasImportModesEnabled = () => !!injectContext.onImportInjectFromXls || !!injectContext.onImportInjectFromJson;
 
   return (
     <div className={classes.container}>
       {hasImportModesEnabled()
-        && <InjectImportMenu onImportedInjects={onImportedInjects} />}
+        && permissions.canManage && <InjectImportMenu onImportedInjects={onImportedInjects} />}
       <ToggleButtonGroup
         size="small"
         exclusive

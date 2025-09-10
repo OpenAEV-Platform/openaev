@@ -5,17 +5,23 @@ import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
-import { type DocumentHelper } from '../../../actions/helper';
-import { fetchDocumentsPayload } from '../../../actions/payloads/payload-actions';
 import AttackPatternChip from '../../../components/AttackPatternChip';
 import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
-import { type AttackPattern, type Command, type DnsResolution, type Executable, type FileDrop, type Payload as PayloadType, type PayloadArgument, type PayloadPrerequisite } from '../../../utils/api-types';
-import { useAppDispatch } from '../../../utils/hooks';
-import useDataLoader from '../../../utils/hooks/useDataLoader';
+import {
+  type AttackPattern,
+  type Command,
+  type DnsResolution,
+  type Document,
+  type Executable,
+  type FileDrop,
+  type Payload as PayloadType,
+  type PayloadArgument,
+  type PayloadPrerequisite,
+} from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import DocumentType from '../components/documents/DocumentType';
 
@@ -61,22 +67,18 @@ const inlineStyles: Record<string, CSSProperties> = {
   },
 };
 
-interface Props { selectedPayload: PayloadType | null }
+interface Props {
+  selectedPayload: PayloadType | null;
+  documentsMap: Record<string, Document> | null;
+}
 
-const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload }) => {
+const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
-  const dispatch = useAppDispatch();
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
-  const { documentsMap } = useHelper((helper: DocumentHelper) => ({ documentsMap: helper.getDocumentsMap() }));
-
-  useDataLoader(() => {
-    dispatch(fetchDocumentsPayload(selectedPayload?.payload_id as string));
-  });
-
   const getAttackCommand = (payload: PayloadType | null): string => {
     if (!payload) return '';
 
@@ -220,7 +222,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload }) => {
             </div>
           </>
         )}
-        {selectedPayload?.payload_type === 'FileDrop' && (
+        {documentsMap && selectedPayload?.payload_type === 'FileDrop' && (
           <div>
             <Typography
               variant="h3"
@@ -257,7 +259,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload }) => {
             </Typography>
           </div>
         )}
-        {selectedPayload?.payload_type === 'Executable' && (
+        {documentsMap && selectedPayload?.payload_type === 'Executable' && (
           <div>
             <Typography
               variant="h3"

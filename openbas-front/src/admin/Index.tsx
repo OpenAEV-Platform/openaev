@@ -193,18 +193,6 @@ const Index = () => {
                 />
               )}
             />
-            <Route
-              path="workspaces/custom_dashboards/:customDashboardId/*"
-              element={(
-                <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.DASHBOARDS,
-                  }]}
-                  Component={errorWrapper(IndexCustomDashboard)()}
-                />
-              )}
-            />
             <Route path="payloads" element={errorWrapper(Payloads)()} />
             <Route
               path="integrations/*"
