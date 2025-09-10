@@ -1,4 +1,4 @@
-package io.openbas.rest;
+package io.openbas.api.stix_process;
 
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.Action;

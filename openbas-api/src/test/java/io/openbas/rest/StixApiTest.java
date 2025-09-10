@@ -1,6 +1,6 @@
 package io.openbas.rest;
 
-import static io.openbas.rest.StixApi.STIX_URI;
+import static io.openbas.api.stix_process.StixApi.STIX_URI;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_20198;
