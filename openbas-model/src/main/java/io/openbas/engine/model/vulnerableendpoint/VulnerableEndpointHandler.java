@@ -13,6 +13,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -114,33 +115,41 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
               esVulnerableEndpoint.setVulnerable_endpoint_findings_summary(
                   String.join(", ", summaryItems));
 
-              // Dependencies
+              // Dependencies (see base_dependencies in EsBase)
               List<String> dependencies = new ArrayList<>();
               if (endpoint.getVulnerable_endpoint_findings() != null
                   && !endpoint.getVulnerable_endpoint_findings().isEmpty()) {
                 dependencies.addAll(endpoint.getVulnerable_endpoint_findings());
                 esVulnerableEndpoint.setBase_findings_side(
                     endpoint.getVulnerable_endpoint_findings());
+              } else {
+                esVulnerableEndpoint.setBase_findings_side(Set.of());
               }
               if (endpoint.getVulnerable_endpoint_tags() != null
                   && !endpoint.getVulnerable_endpoint_tags().isEmpty()) {
-                dependencies.addAll(endpoint.getVulnerable_endpoint_tags());
                 esVulnerableEndpoint.setBase_tags_side(endpoint.getVulnerable_endpoint_tags());
+              } else {
+                esVulnerableEndpoint.setBase_tags_side(Set.of());
               }
               if (endpoint.getVulnerable_endpoint_agents() != null
                   && !endpoint.getVulnerable_endpoint_agents().isEmpty()) {
-                dependencies.addAll(endpoint.getVulnerable_endpoint_agents());
                 esVulnerableEndpoint.setBase_agents_side(endpoint.getVulnerable_endpoint_agents());
+              } else {
+                esVulnerableEndpoint.setBase_agents_side(Set.of());
               }
               if (endpoint.getVulnerable_endpoint_simulation() != null) {
                 dependencies.add(endpoint.getVulnerable_endpoint_simulation());
                 esVulnerableEndpoint.setBase_simulation_side(
                     endpoint.getVulnerable_endpoint_simulation());
+              } else {
+                esVulnerableEndpoint.setBase_simulation_side(null);
               }
               if (endpoint.getVulnerable_endpoint_scenario() != null) {
                 dependencies.add(endpoint.getVulnerable_endpoint_scenario());
                 esVulnerableEndpoint.setBase_scenario_side(
                     endpoint.getVulnerable_endpoint_scenario());
+              } else {
+                esVulnerableEndpoint.setBase_scenario_side(null);
               }
               esVulnerableEndpoint.setBase_dependencies(dependencies);
               return esVulnerableEndpoint;

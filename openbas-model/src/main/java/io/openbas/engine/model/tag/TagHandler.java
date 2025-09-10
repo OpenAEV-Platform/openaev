@@ -6,7 +6,6 @@ import io.openbas.database.raw.RawTag;
 import io.openbas.database.repository.TagRepository;
 import io.openbas.engine.Handler;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,7 +37,6 @@ public class TagHandler implements Handler<EsTag> {
               esTag.setBase_restrictions(buildRestrictions(tag.getTag_id()));
 
               esTag.setTag_color(tag.getTag_color());
-              esTag.setBase_dependencies(new ArrayList<>());
               return esTag;
             })
         .toList();
