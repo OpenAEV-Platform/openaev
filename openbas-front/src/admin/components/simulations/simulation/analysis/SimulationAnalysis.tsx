@@ -8,7 +8,6 @@ import {
   entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation,
 } from '../../../../../actions/exercises/exercise-action';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { countByScenario } from '../../../../../actions/scenarios/scenario-actions';
 import { useHelper } from '../../../../../store';
 import { type CustomDashboard, type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
