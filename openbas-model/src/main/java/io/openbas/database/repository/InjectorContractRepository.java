@@ -44,7 +44,7 @@ public interface InjectorContractRepository
 
   @Query(
       value =
-          "SELECT injcont FROM injectors_contracts injcont "
+          "SELECT injcont.* FROM injectors_contracts injcont "
               + "LEFT JOIN injectors_contracts_vulnerabilities injconvuln ON injcont.injector_contract_id = injconvuln.injector_contract_id "
               + "LEFT JOIN cves cve ON injconvuln.vulnerability_id = cve.cve_id "
               + "WHERE cve.cve_external_id = :externalId "
