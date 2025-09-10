@@ -42,11 +42,8 @@ public class SecurityCoverageInjectService {
    */
   public Set<Inject> createdInjectsForScenario(
       Scenario scenario, SecurityCoverage securityCoverage) {
-
     getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
-
     getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
-
     return injectRepository.findByScenarioId(scenario.getId());
   }
 

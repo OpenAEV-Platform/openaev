@@ -167,13 +167,6 @@ public class CveService {
     }
   }
 
-  public Set<Cve> getVulnerabilitiesByExternalIds(Set<String> ids) {
-    if (ids.isEmpty()) {
-      return Collections.emptySet();
-    }
-    return this.cveRepository.findAllByExternalIdInIgnoreCase(ids);
-  }
-
   public void deleteById(final String cveId) {
     cveRepository.deleteById(cveId);
   }
@@ -212,5 +205,18 @@ public class CveService {
   public Set<Cve> fetchInternalVulnerabilityIds(Set<StixRefToExternalRef> vulnerabilityRefs) {
     return getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs)).stream()
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * Resolves external Vulnerability Refs from a list of vulnerability {@link Cve} entities.
+   *
+   * @param externalIds list vulnerability Refs
+   * @return list of resolved vulnerability entities
+   */
+  public Set<Cve> getVulnerabilitiesByExternalIds(Set<String> externalIds) {
+    if (externalIds.isEmpty()) {
+      return Collections.emptySet();
+    }
+    return this.cveRepository.findAllByExternalIdInIgnoreCase(externalIds);
   }
 }
