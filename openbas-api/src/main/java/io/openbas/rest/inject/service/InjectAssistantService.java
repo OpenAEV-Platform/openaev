@@ -704,8 +704,8 @@ public class InjectAssistantService {
    * Generates injects for the given scenario and vulnerabilities
    *
    * @param scenario the scenario to which the injects belong
-   * @param vulnerabilityIds the set of attack patterns (AttackPatterns) to generate injects for
-   * @param injectsPerVulnerability the number of injects to generate per AttackPattern
+   * @param vulnerabilityIds the set of Vulnerabilities (Cves) to generate injects for
+   * @param injectsPerVulnerability the number of injects to generate per Vulnerability
    * @return the list of created and saved injects
    */
   public Set<Inject> generateInjectsByVulnerabilities(
