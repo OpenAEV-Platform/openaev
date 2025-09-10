@@ -42,6 +42,7 @@ public class InjectorContract implements Base {
 
   @Column(name = "injector_contract_external_id", unique = true)
   @JsonProperty("injector_contract_external_id")
+  @Queryable(filterable = true)
   @Nullable
   private String externalId;
 
