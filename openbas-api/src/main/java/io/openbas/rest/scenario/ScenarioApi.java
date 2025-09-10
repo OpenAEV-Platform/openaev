@@ -461,7 +461,7 @@ public class ScenarioApi extends RestBehavior {
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   public long dashboardCount(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
@@ -473,7 +473,7 @@ public class ScenarioApi extends RestBehavior {
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   public List<EsSeries> dashboardSeries(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
@@ -486,7 +486,7 @@ public class ScenarioApi extends RestBehavior {
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   public List<EsBase> dashboardEntities(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
@@ -499,14 +499,8 @@ public class ScenarioApi extends RestBehavior {
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Search TagRules")
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "The list of all TagRules corresponding to the search criteria")
-      })
   public List<EsAttackPath> dashboardAttackPaths(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
