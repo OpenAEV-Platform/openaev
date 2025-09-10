@@ -2,24 +2,41 @@ import { Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 
+import type { LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
-import useAuth from '../../../../../utils/hooks/useAuth';
+import { useHelper } from '../../../../../store';
+import type { PlatformSettings } from '../../../../../utils/api-types';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
+import XtmHubTab from './XtmHubTab';
 import XtmHubUnregisteredSection from './XtmHubUnregisteredSection';
 const XtmHubSettings: React.FC = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { settings } = useAuth();
+  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+
   const isXTMHubRegistered = settings?.xtm_hub_registration_status === 'registered' || settings?.xtm_hub_registration_status === 'lost_connectivity';
 
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginBottom: theme.spacing(0.5),
+      }}
       >
-        {t('XTM Hub')}
-      </Typography>
+        <Typography
+          variant="h4"
+          gutterBottom
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            marginBottom: 0,
+          }}
+        >
+          {t('XTM Hub')}
+        </Typography>
+        <XtmHubTab />
+      </div>
       <Paper
         style={{
           padding: theme.spacing(0, 2, 2),

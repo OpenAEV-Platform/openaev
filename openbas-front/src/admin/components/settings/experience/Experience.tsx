@@ -296,7 +296,7 @@ const Experience: React.FC = () => {
           </Grid>
         )}
 
-        <Grid container flexDirection="column" gap="0" size={6} marginTop={theme.spacing(1.9)}>
+        <Grid container flexDirection="column" gap="0" size={6}>
           <XtmHubSettings />
         </Grid>
       </Grid>
