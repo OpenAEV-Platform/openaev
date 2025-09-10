@@ -5,6 +5,7 @@ import { type Page } from '../../../components/common/queryable/Page';
 import { useHelper } from '../../../store';
 import { type SearchPaginationInput, type Team, type TeamOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
+import { INHERITED_CONTEXT } from '../../../utils/permissions/types';
 import { PermissionsContext, type PermissionsContextType, TeamContext, type TeamContextType } from '../common/Context';
 import TeamsComponent from '../components/teams/Teams';
 import { type UserStore } from './players/Player';
@@ -25,6 +26,7 @@ const Teams = () => {
       canLaunch: false,
       isRunning: false,
     },
+    inherited_context: INHERITED_CONTEXT.NONE,
   };
 
   const teamContext: TeamContextType = {

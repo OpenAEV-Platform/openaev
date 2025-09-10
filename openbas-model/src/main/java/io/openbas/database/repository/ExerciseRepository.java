@@ -29,13 +29,6 @@ public interface ExerciseRepository
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);
 
-  @Query(
-      "select distinct e from Exercise e "
-          + "join e.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId")
-  List<Exercise> findAllGranted(@Param("userId") String userId);
-
   @Override
   @Query(
       "select count(distinct e) from Exercise e "
@@ -118,8 +111,8 @@ public interface ExerciseRepository
               + "FROM injects_expectations ie "
               + "INNER JOIN injects ON ie.inject_id = injects.inject_id "
               + "INNER JOIN exercises e ON injects.inject_exercise = e.exercise_id "
-              + "INNER join grants ON grants.grant_exercise = e.exercise_id "
-              + "INNER join groups ON grants.grant_group = groups.group_id "
+              + "INNER JOIN grants ON grants.grant_resource = e.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
+              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE e.exercise_created_at > :from and e.exercise_start_date is not null "
               + "AND users_groups.user_id = :userId ;",
@@ -163,8 +156,8 @@ public interface ExerciseRepository
               + "LEFT JOIN injects_expectations ie ON exercises.exercise_id = ie.exercise_id "
               + "INNER JOIN injectors_contracts ic ON injects.inject_injector_contract = ic.injector_contract_id "
               + "INNER JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
-              + "INNER join grants ON grants.grant_exercise = exercises.exercise_id "
-              + "INNER join groups ON grants.grant_group = groups.group_id "
+              + "INNER JOIN grants ON grants.grant_resource = exercises.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
+              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE exercises.exercise_created_at > :from and exercises.exercise_start_date is not null "
               + "AND users_groups.user_id = :userId ;",
@@ -218,8 +211,8 @@ public interface ExerciseRepository
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN injects ON ie.inject_id = injects.inject_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
-              + "INNER join grants ON grants.grant_exercise = ex.exercise_id "
-              + "INNER join groups ON grants.grant_group = groups.group_id "
+              + "INNER JOIN grants ON grants.grant_resource = ex.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
+              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "GROUP BY ex.exercise_id ;",

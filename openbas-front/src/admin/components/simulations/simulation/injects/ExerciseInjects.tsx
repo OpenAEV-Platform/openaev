@@ -1,10 +1,11 @@
 import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
 import { GridLegacy, Paper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, useContext, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchSimulationAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
+import { fetchAssetGroups, fetchSimulationAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
+import type { AssetGroupsHelper } from '../../../../../actions/asset_groups/assetgroup-helper';
 import { fetchSimulationEndpoints } from '../../../../../actions/assets/endpoint-actions';
 import { fetchExerciseArticles } from '../../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
@@ -14,6 +15,8 @@ import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../..
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/simulation-inject-test-actions';
+import { fetchTeams } from '../../../../../actions/teams/team-actions';
+import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
 import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
 import { useFormatter } from '../../../../../components/i18n';
@@ -21,6 +24,8 @@ import { useHelper } from '../../../../../store';
 import { type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { ArticleContext, InjectTestContext, type InjectTestContextType, TeamContext, ViewModeContext } from '../../../common/Context';
 import InjectDistributionByTeam from '../../../common/injects/InjectDistributionByTeam';
 import InjectDistributionByType from '../../../common/injects/InjectDistributionByType';
@@ -46,6 +51,7 @@ const ExerciseInjects: FunctionComponent = () => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
   const availableButtons = ['chain', 'list', 'distribution'];
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
@@ -59,23 +65,32 @@ const ExerciseInjects: FunctionComponent = () => {
     setViewMode(mode);
   };
 
-  const { exercise, teams, articles, variables } = useHelper(
-    (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper) => {
+  const { exercise, teams, articles, variables, assetGroups } = useHelper(
+    (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & AssetGroupsHelper & TeamsHelper) => {
       return {
         exercise: helper.getExercise(exerciseId),
-        teams: helper.getExerciseTeams(exerciseId),
+        teams: helper.getTeams(),
         articles: helper.getExerciseArticles(exerciseId),
         variables: helper.getExerciseVariables(exerciseId),
+        assetGroups: helper.getAssetGroups(),
       };
     },
   );
   useDataLoader(() => {
-    dispatch(fetchExerciseTeams(exerciseId));
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS)) {
+      dispatch(fetchTeams());
+    } else {
+      dispatch(fetchExerciseTeams(exerciseId));
+    }
     dispatch(fetchExerciseArticles(exerciseId));
     dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseInjectExpectations(exerciseId));
     dispatch(fetchSimulationEndpoints(exerciseId));
-    dispatch(fetchSimulationAssetGroups(exerciseId));
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+      dispatch(fetchAssetGroups());
+    } else {
+      dispatch(fetchSimulationAssetGroups(exerciseId));
+    }
     dispatch(fetchExerciseDocuments(exerciseId));
     dispatch(fetchSimulationChannels(exerciseId));
   });
@@ -102,6 +117,7 @@ const ExerciseInjects: FunctionComponent = () => {
                 articles={articles}
                 variables={variables}
                 uriVariable={`/admin/simulations/${exerciseId}/definition`}
+                assetGroups={assetGroups}
               />
             </InjectTestContext.Provider>
           </TeamContext.Provider>

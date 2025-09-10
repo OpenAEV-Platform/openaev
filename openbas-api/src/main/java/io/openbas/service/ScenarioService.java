@@ -105,7 +105,6 @@ public class ScenarioService {
   private final LicenseCacheManager licenseCacheManager;
 
   private final Ee eeService;
-  private final GrantService grantService;
   private final VariableService variableService;
   private final ChallengeService challengeService;
   private final TeamService teamService;
@@ -121,7 +120,6 @@ public class ScenarioService {
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     computeEmails(scenario);
-    this.grantService.computeGrant(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
   }

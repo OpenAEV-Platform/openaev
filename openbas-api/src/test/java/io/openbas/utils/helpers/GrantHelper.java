@@ -36,7 +36,8 @@ public class GrantHelper {
   public void grantExerciseObserver(Exercise exercise) {
     for (Group group : getAmbientSecurityContextGroups()) {
       Grant grant = createGrantForGroup(group);
-      grant.setExercise(exercise);
+      grant.setResourceId(exercise.getId());
+      grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
       grant.setName(Grant.GRANT_TYPE.OBSERVER);
       this.grantRepository.save(grant);
     }
@@ -45,7 +46,8 @@ public class GrantHelper {
   public void grantExercisePlanner(Exercise exercise) {
     for (Group group : getAmbientSecurityContextGroups()) {
       Grant grant = createGrantForGroup(group);
-      grant.setExercise(exercise);
+      grant.setResourceId(exercise.getId());
+      grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
       grant.setName(Grant.GRANT_TYPE.PLANNER);
       this.grantRepository.save(grant);
     }
@@ -54,7 +56,8 @@ public class GrantHelper {
   public void grantScenarioObserver(Scenario scenario) {
     for (Group group : getAmbientSecurityContextGroups()) {
       Grant grant = createGrantForGroup(group);
-      grant.setScenario(scenario);
+      grant.setResourceId(scenario.getId());
+      grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
       grant.setName(Grant.GRANT_TYPE.OBSERVER);
       this.grantRepository.save(grant);
     }
@@ -63,7 +66,8 @@ public class GrantHelper {
   public void grantScenarioPlanner(Scenario scenario) {
     for (Group group : getAmbientSecurityContextGroups()) {
       Grant grant = createGrantForGroup(group);
-      grant.setScenario(scenario);
+      grant.setResourceId(scenario.getId());
+      grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
       grant.setName(Grant.GRANT_TYPE.PLANNER);
       this.grantRepository.save(grant);
     }

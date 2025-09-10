@@ -23,7 +23,7 @@ import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import {
-  type Article,
+  type Article, type AssetGroup,
   type FilterGroup,
   type Inject,
   type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput,
@@ -92,6 +92,7 @@ interface Props {
   articles: Article[];
   variables: Variable[];
   uriVariable: string;
+  assetGroups: AssetGroup[];
 }
 
 const Injects: FunctionComponent<Props> = ({
@@ -101,6 +102,7 @@ const Injects: FunctionComponent<Props> = ({
   articles,
   variables,
   uriVariable,
+  assetGroups,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -655,60 +657,63 @@ const Injects: FunctionComponent<Props> = ({
               })}
         </List>
       )}
-      {permissions.canManage && (
-        <>
-          {selectedInjectId !== null
-            && (
-              <UpdateInject
-                open
-                handleClose={() => setSelectedInjectId(null)}
-                onUpdateInject={onUpdateInject}
-                massUpdateInject={massUpdateInject}
-                injectId={selectedInjectId}
-                injects={injects}
-                articlesFromExerciseOrScenario={articles}
-                variablesFromExerciseOrScenario={variables}
-                uriVariable={uriVariable}
-              />
-            )}
-          <ButtonCreate onClick={() => {
-            setOpenCreateDrawer(true);
-            setPresetInjectDuration(0);
-          }}
-          />
-          {
-            numberOfSelectedElements > 0 && (
-              <ToolBar
-                numberOfSelectedElements={numberOfSelectedElements}
-                totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-                selectedElements={selectedElements}
-                deSelectedElements={deSelectedElements}
-                selectAll={selectAll}
-                handleClearSelectedElements={handleClearSelectedElements}
-                teamsFromExerciseOrScenario={teams}
-                id={contextId}
-                handleUpdate={massUpdateInjects}
-                handleBulkDelete={bulkDeleteInjects}
-                handleBulkTest={massTestInjects}
-                handleExport={handleExport}
-              />
-            )
-          }
-          {openCreateDrawer
-            && (
-              <CreateInject
-                title={t('Create a new inject')}
-                open
-                handleClose={() => setOpenCreateDrawer(false)}
-                onCreateInject={onCreateInject}
-                presetInjectDuration={presetInjectDuration}
-                articlesFromExerciseOrScenario={articles}
-                uriVariable={uriVariable}
-                variablesFromExerciseOrScenario={variables}
-              />
-            )}
-        </>
-      )}
+      <>
+        {selectedInjectId !== null
+          && (
+            <UpdateInject
+              open
+              handleClose={() => setSelectedInjectId(null)}
+              onUpdateInject={onUpdateInject}
+              massUpdateInject={massUpdateInject}
+              injectId={selectedInjectId}
+              injects={injects}
+              articlesFromExerciseOrScenario={articles}
+              variablesFromExerciseOrScenario={variables}
+              uriVariable={uriVariable}
+            />
+          )}
+        {permissions.canManage && (
+          <>
+            <ButtonCreate onClick={() => {
+              setOpenCreateDrawer(true);
+              setPresetInjectDuration(0);
+            }}
+            />
+            {
+              numberOfSelectedElements > 0 && (
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                  selectedElements={selectedElements}
+                  deSelectedElements={deSelectedElements}
+                  selectAll={selectAll}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  teamsFromExerciseOrScenario={teams}
+                  assetGroups={assetGroups}
+                  id={contextId}
+                  handleUpdate={massUpdateInjects}
+                  handleBulkDelete={bulkDeleteInjects}
+                  handleBulkTest={massTestInjects}
+                  handleExport={handleExport}
+                />
+              )
+            }
+            {openCreateDrawer
+              && (
+                <CreateInject
+                  title={t('Create a new inject')}
+                  open
+                  handleClose={() => setOpenCreateDrawer(false)}
+                  onCreateInject={onCreateInject}
+                  presetInjectDuration={presetInjectDuration}
+                  articlesFromExerciseOrScenario={articles}
+                  uriVariable={uriVariable}
+                  variablesFromExerciseOrScenario={variables}
+                />
+              )}
+          </>
+        )}
+      </>
     </>
   );
 };

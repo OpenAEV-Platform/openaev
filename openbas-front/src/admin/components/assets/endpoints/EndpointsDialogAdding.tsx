@@ -1,7 +1,7 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/Executor';
@@ -20,6 +20,8 @@ import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../.
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AssetStatus from '../AssetStatus';
 
 interface Props {
@@ -46,12 +48,15 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
 
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
 
   useDataLoader(() => {
-    dispatch(fetchExecutors());
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+      dispatch(fetchExecutors());
+    }
   });
 
   useEffect(() => {

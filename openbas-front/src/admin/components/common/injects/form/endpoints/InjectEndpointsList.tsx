@@ -51,7 +51,7 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
           />
         )}
       />
-      <Can I={ACTIONS.ACCESS} a={SUBJECTS.DOCUMENTS}>
+      <Can I={ACTIONS.ACCESS} a={SUBJECTS.ASSETS}>
         <InjectAddEndpoints
           endpointIds={endpointIds}
           onSubmit={onEndpointChange}

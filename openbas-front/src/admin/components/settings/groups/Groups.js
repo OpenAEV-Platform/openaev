@@ -1,5 +1,5 @@
 import { CheckCircleOutlined, GroupsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
@@ -7,6 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchExercises } from '../../../../actions/Exercise';
 import { searchGroups } from '../../../../actions/Group';
 import { fetchOrganizations } from '../../../../actions/Organization';
+import { fetchRoles } from '../../../../actions/roles/roles-actions.js';
 import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
 import { fetchUsers } from '../../../../actions/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -14,6 +15,7 @@ import PaginationComponent from '../../../../components/common/pagination/Pagina
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { useFormatter } from '../../../../components/i18n';
+import { useHelper } from '../../../../store.js';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -45,26 +47,21 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles = {
-  group_name: { width: '15%' },
-  group_default_user_assign: { width: '15%' },
-  group_default_scenario_observer: {
-    width: '15%',
-    cursor: 'default',
-  },
-  group_default_scenario_planner: {
-    width: '15%',
-    cursor: 'default',
-  },
-  group_default_exercise_observer: {
-    width: '15%',
-    cursor: 'default',
-  },
-  group_default_exercise_planner: {
-    width: '15%',
-    cursor: 'default',
-  },
+  group_name: { width: '20%' },
   group_users_number: {
     width: '10%',
+    cursor: 'default',
+  },
+  group_roles: {
+    width: '20%',
+    cursor: 'default',
+  },
+  group_grants: {
+    width: '20%',
+    cursor: 'default',
+  },
+  group_update_date: {
+    width: '20%',
     cursor: 'default',
   },
 };
@@ -74,9 +71,17 @@ const Groups = () => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
   const { t } = useFormatter();
+
+  const roles = useHelper(helper => helper.getRoles());
+  const rolesMap = roles.reduce((acc, r) => {
+    if (r?.role_id && r?.role_name) acc[r.role_id] = r.role_name;
+    return acc;
+  }, {});
+
   useDataLoader(() => {
     dispatch(fetchOrganizations());
     dispatch(fetchUsers());
+    dispatch(fetchRoles());
     dispatch(fetchExercises());
     dispatch(fetchScenarios());
   });
@@ -89,34 +94,18 @@ const Groups = () => {
       isSortable: true,
     },
     {
-      field: 'group_default_user_assign',
-      label: 'Auto assign',
-      isSortable: true,
-    },
-    {
-      field: 'group_default_scenario_observer',
-      label: 'Auto observer on scenarios',
-      isSortable: false,
-    },
-    {
-      field: 'group_default_scenario_planner',
-      label: 'Auto planner on scenarios',
-      isSortable: false,
-    },
-    {
-      field: 'group_default_exercise_observer',
-      label: 'Auto observer on exercises',
-      isSortable: false,
-    },
-    {
-      field: 'group_default_exercise_planner',
-      label: 'Auto planner on exercises',
-      isSortable: false,
-    },
-    {
       field: 'group_users_number',
       label: 'Users',
       isSortable: false,
+      value: 0,
+    },
+    {
+      field: 'group_roles',
+      label: 'Roles',
+    },
+    {
+      field: 'group_grants',
+      label: 'Grants',
     },
   ];
 
@@ -128,7 +117,6 @@ const Groups = () => {
     exportType: 'tags',
     exportKeys: [
       'group_name',
-      'group_default_user_assign',
       'group_users_number',
     ],
     exportData: groups,
@@ -136,7 +124,11 @@ const Groups = () => {
   };
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{
+      display: 'flex',
+      overflow: 'auto',
+    }}
+    >
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
@@ -204,73 +196,33 @@ const Groups = () => {
                     <div className={classes.bodyItem} style={inlineStyles.group_name}>
                       {group.group_name}
                     </div>
-                    <div className={classes.bodyItem} style={inlineStyles.group_default_user_assign}>
-                      {group.group_default_user_assign ? (
-                        <Tooltip
-                          title={t(
-                            'The new users will automatically be assigned to this group.',
-                          )}
-                        >
-                          <CheckCircleOutlined fontSize="small" />
-                        </Tooltip>
-                      ) : (
-                        '-'
-                      )}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.group_default_scenario_observer}>
-                      {group.group_default_scenario_observer ? (
-                        <Tooltip
-                          title={t(
-                            'This group will have observer permission on new scenarios.',
-                          )}
-                        >
-                          <CheckCircleOutlined fontSize="small" />
-                        </Tooltip>
-                      ) : (
-                        '-'
-                      )}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.group_default_scenario_planner}>
-                      {group.group_default_scenario_planner ? (
-                        <Tooltip
-                          title={t(
-                            'This group will have planner permission on new scenarios.',
-                          )}
-                        >
-                          <CheckCircleOutlined fontSize="small" />
-                        </Tooltip>
-                      ) : (
-                        '-'
-                      )}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.group_default_exercise_observer}>
-                      {group.group_default_exercise_observer ? (
-                        <Tooltip
-                          title={t(
-                            'This group will have observer permission on new simulations.',
-                          )}
-                        >
-                          <CheckCircleOutlined fontSize="small" />
-                        </Tooltip>
-                      ) : (
-                        '-'
-                      )}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.group_default_exercise_planner}>
-                      {group.group_default_exercise_planner ? (
-                        <Tooltip
-                          title={t(
-                            'This group will have planner permission on new simulations.',
-                          )}
-                        >
-                          <CheckCircleOutlined fontSize="small" />
-                        </Tooltip>
-                      ) : (
-                        '-'
-                      )}
-                    </div>
                     <div className={classes.bodyItem} style={inlineStyles.group_users_number}>
-                      {group.group_users_number}
+                      {group.group_users.length}
+                    </div>
+                    <div className={classes.bodyItem} style={inlineStyles.group_roles}>
+                      {(() => {
+                        const ids = group.group_roles ?? [];
+                        if (!ids.length) return '-';
+
+                        const names = ids
+                          .map(id =>
+                            rolesMap[id],
+                          )
+                          .filter(Boolean);
+
+                        const shown = names.slice(0, 10);
+                        const hasMore = names.length > 10;
+
+                        return (
+                          <span>
+                            {shown.join(', ')}
+                            {hasMore ? '…' : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <div className={classes.bodyItem} style={inlineStyles.group_grants}>
+                      {group.group_grants.length > 0 ? (<CheckCircleOutlined fontSize="small" />) : ('-')}
                     </div>
                   </div>
                 )}

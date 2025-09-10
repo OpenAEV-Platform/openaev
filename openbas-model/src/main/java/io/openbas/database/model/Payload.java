@@ -20,6 +20,8 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -28,10 +30,7 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Data
 @Entity
@@ -59,7 +58,8 @@ import org.hibernate.annotations.UuidGenerator;
           value = NetworkTraffic.NETWORK_TRAFFIC_TYPE,
           schema = NetworkTraffic.class)
     })
-public class Payload implements Base {
+@Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
+public class Payload implements GrantableBase {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -224,6 +224,17 @@ public class Payload implements Base {
       orphanRemoval = true)
   @JsonProperty("payload_output_parsers")
   private Set<OutputParser> outputParsers = new HashSet<>();
+
+  @Getter
+  @OneToMany
+  @JoinColumn(
+      name = "grant_resource",
+      referencedColumnName = "payload_id",
+      insertable = false,
+      updatable = false)
+  @SQLRestriction("grant_resource_type = 'PAYLOAD'") // Must be present in Grant.GRANT_RESOURCE_TYPE
+  @JsonIgnore
+  private List<Grant> grants = new ArrayList<>();
 
   // -- AUDIT --
 

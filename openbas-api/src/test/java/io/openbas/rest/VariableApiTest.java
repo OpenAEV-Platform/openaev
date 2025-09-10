@@ -16,8 +16,7 @@ import io.openbas.database.model.Variable;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.VariableRepository;
 import io.openbas.service.ScenarioService;
-import io.openbas.utils.mockUser.WithMockObserverUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
+import io.openbas.utils.mockUser.WithMockAdminUser;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -51,7 +50,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Create variable for scenario succeed")
   @Test
   @Order(1)
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void createVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = new Scenario();
@@ -96,7 +95,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Retrieve variables for scenario")
   @Test
   @Order(2)
-  @WithMockObserverUser
+  @WithMockAdminUser
   void retrieveVariableForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -116,7 +115,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Update variable for scenario")
   @Test
   @Order(3)
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void updateVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     String response =
@@ -155,7 +154,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Delete variable for scenario")
   @Test
   @Order(4)
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void deleteVariableForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc

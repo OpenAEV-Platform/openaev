@@ -11,6 +11,8 @@ import { useHelper } from '../../../../../../store';
 import type { Article } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
+import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import ArticlePopover from '../../../articles/ArticlePopover';
 import InjectAddArticles from './InjectAddArticles';
@@ -122,12 +124,14 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
           ))
         }
       </List>
-      <InjectAddArticles
-        articles={allArticles || []}
-        injectArticlesIds={injectArticlesIds ?? []}
-        handleAddArticles={addArticles}
-        disabled={readOnly}
-      />
+      <Can I={ACTIONS.ACCESS} a={SUBJECTS.DOCUMENTS}>
+        <InjectAddArticles
+          articles={allArticles || []}
+          injectArticlesIds={injectArticlesIds ?? []}
+          handleAddArticles={addArticles}
+          disabled={readOnly}
+        />
+      </Can>
     </>
   );
 };

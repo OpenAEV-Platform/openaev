@@ -33,7 +33,6 @@ import io.openbas.utils.helpers.TagHelper;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import io.openbas.utils.mockUser.WithMockPlannerUser;
 import io.openbas.utils.mockUser.WithMockUnprivilegedUser;
-import io.openbas.utils.mockUser.WithMockUserFullPermissions;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.util.*;
@@ -495,7 +494,7 @@ public class InjectImportTest extends IntegrationTest {
 
     @Test
     @DisplayName("Return NOT FOUND")
-    @WithMockUserFullPermissions // FIXME: Temporary workaround for grant issue
+    @WithMockUnprivilegedUser // FIXME: Temporary workaround for grant issue
     public void returnNOTFOUND() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
