@@ -46,7 +46,7 @@ public class InjectAssistantService {
    *     asset IDs, asset group IDs, and the number of injects per TTP
    * @return a list of generated injects
    */
-  public List<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
+  public Set<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
     if (input.getInjectByTTPNumber() > 5) {
       throw new UnsupportedOperationException(
           "Number of inject by ttp must be less than or equal to 5");
@@ -58,13 +58,13 @@ public class InjectAssistantService {
         assetGroupService.assetsFromAssetGroupMap(assetGroups);
 
     // Process injects generation for each attack pattern
-    List<Inject> injects = new ArrayList<>();
+    Set<Inject> injects = new HashSet<>();
     input
         .getAttackPatternIds()
         .forEach(
             attackPatternId -> {
               try {
-                List<Inject> injectsToAdd =
+                Set<Inject> injectsToAdd =
                     this.generateInjectsByTTP(
                         attackPatternId,
                         endpoints,
@@ -80,7 +80,7 @@ public class InjectAssistantService {
       inject.setScenario(scenario);
     }
 
-    return this.injectRepository.saveAll(injects);
+    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
   }
 
   /**
@@ -117,11 +117,7 @@ public class InjectAssistantService {
       InjectorContract injectorContract, String identifier, String name) {
     return buildInject(
         injectorContract,
-        String.format(
-            "[%s] %s - %s",
-            identifier,
-            name,
-            injectorContract.getLabels().get("en")),
+        String.format("[%s] %s - %s", identifier, name, injectorContract.getLabels().get("en")),
         null,
         true);
   }
@@ -129,21 +125,20 @@ public class InjectAssistantService {
   /**
    * Builds a manual Inject object - also called Placeholder.
    *
-   * @param identifier the AttackPattern or vulnerability to specify in the title and description of the Inject
+   * @param identifier the AttackPattern or vulnerability to specify in the title and description of
+   *     the Inject
    * @param platform the platform to specify in the title and description of the Inject
    * @param architecture the architecture to specify in the title and description of the Inject
    * @return the built manual Inject object
    */
-  private Inject buildManualInject(
-      String identifier, String platform, String architecture) {
+  private Inject buildManualInject(String identifier, String platform, String architecture) {
     if (manualInjectorContract == null) {
       manualInjectorContract =
           this.injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
     }
     return buildInject(
         manualInjectorContract,
-        String.format(
-            "[%s] Placeholder - %s %s", identifier, platform, architecture),
+        String.format("[%s] Placeholder - %s %s", identifier, platform, architecture),
         String.format(
             "This placeholder is disabled because the TTP %s with platform %s and architecture %s is currently not covered. Please create the payloads for the missing TTP.",
             identifier, platform, architecture),
@@ -393,7 +388,10 @@ public class InjectAssistantService {
         (contract, value) -> {
           Inject inject =
               contractInjectMap.computeIfAbsent(
-                  contract, k -> buildTechnicalInjectFromInjectorContract(k, attackPattern.getExternalId(), attackPattern.getName()));
+                  contract,
+                  k ->
+                      buildTechnicalInjectFromInjectorContract(
+                          k, attackPattern.getExternalId(), attackPattern.getName()));
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
 
@@ -441,7 +439,10 @@ public class InjectAssistantService {
           contract -> {
             Inject inject =
                 contractInjectMap.computeIfAbsent(
-                    contract, k -> buildTechnicalInjectFromInjectorContract(k, attackPattern.getExternalId(), attackPattern.getName()));
+                    contract,
+                    k ->
+                        buildTechnicalInjectFromInjectorContract(
+                            k, attackPattern.getExternalId(), attackPattern.getName()));
             inject.getAssetGroups().add(group);
           });
 
@@ -470,14 +471,14 @@ public class InjectAssistantService {
    * @param injectsPerTTP the maximum number of injects to create for each TTP
    * @return a list of generated injects
    */
-  private List<Inject> generateInjectsByTTP(
+  private Set<Inject> generateInjectsByTTP(
       String attackPatternId,
       List<Endpoint> endpoints,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Integer injectsPerTTP)
       throws UnprocessableContentException {
 
-    List<Inject> injects;
+    Set<Inject> injects;
 
     // Check if attack pattern exist
     AttackPattern attackPattern = attackPatternService.findById(attackPatternId);
@@ -514,7 +515,7 @@ public class InjectAssistantService {
 
     injects =
         Stream.concat(contractInjectMap.values().stream(), manualInjectMap.values().stream())
-            .toList();
+            .collect(Collectors.toSet());
     if (injects.isEmpty()) {
       throw new UnprocessableContentException("No target found");
     }
@@ -535,9 +536,9 @@ public class InjectAssistantService {
    * @param injectsPerAttackPattern the number of injects to generate per AttackPattern
    * @return the list of created and saved injects
    */
-  public List<Inject> generateInjectsByAttackPatternsWithoutAssetGroups(
+  public Set<Inject> generateInjectsByAttackPatternsWithoutAssetGroups(
       Scenario scenario, Set<AttackPattern> attackPatterns, Integer injectsPerAttackPattern) {
-    List<Inject> injects =
+    Set<Inject> injects =
         attackPatterns.stream()
             .flatMap(
                 attackPattern ->
@@ -545,8 +546,8 @@ public class InjectAssistantService {
                         injectsPerAttackPattern, attackPattern)
                         .stream())
             .peek(inject -> inject.setScenario(scenario))
-            .toList();
-    return this.injectRepository.saveAll(injects);
+            .collect(Collectors.toSet());
+    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
   }
 
   /**
@@ -560,16 +561,16 @@ public class InjectAssistantService {
    * @return the list of created and saved injects
    * @throws UnsupportedOperationException if inject creation fails due to unprocessable content
    */
-  public List<Inject> generateInjectsByAttackPatternsWithAssetGroups(
+  public Set<Inject> generateInjectsByAttackPatternsWithAssetGroups(
       Scenario scenario,
       Set<AttackPattern> attackPatterns,
       Integer injectsPerAttackPattern,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
-    List<Inject> injects = new ArrayList<>();
+    Set<Inject> injects = new HashSet<>();
 
     for (AttackPattern attackPattern : attackPatterns) {
       try {
-        List<Inject> injectsToAdd =
+        Set<Inject> injectsToAdd =
             this.generateInjectsForSingleAttackPatternWithAssetGroups(
                 attackPattern, assetsFromGroupMap, injectsPerAttackPattern);
         injectsToAdd.forEach(inject -> inject.setScenario(scenario));
@@ -578,7 +579,7 @@ public class InjectAssistantService {
         throw new UnsupportedOperationException(e);
       }
     }
-    return this.injectRepository.saveAll(injects);
+    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
   }
 
   /**
@@ -595,7 +596,7 @@ public class InjectAssistantService {
    * @return the list of injects generated for the given attack pattern
    * @throws UnprocessableContentException if no valid inject configuration can be found
    */
-  private List<Inject> generateInjectsForSingleAttackPatternWithAssetGroups(
+  private Set<Inject> generateInjectsForSingleAttackPatternWithAssetGroups(
       AttackPattern attackPattern,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Integer injectsPerAttackPattern)
@@ -603,7 +604,7 @@ public class InjectAssistantService {
 
     // Computing best case (with all possible platforms and architecture)
     List<Endpoint> NO_ENDPOINTS = new ArrayList<>();
-    List<Inject> bestCaseInjects =
+    Set<Inject> bestCaseInjects =
         buildInjectsForAllPlatformAndArchCombinations(
             NO_ENDPOINTS,
             new ArrayList<>(assetsFromGroupMap.keySet()),
@@ -629,7 +630,7 @@ public class InjectAssistantService {
         knownInjectorContracts);
 
     return Stream.concat(contractInjectMap.values().stream(), manualInjectMap.values().stream())
-        .toList();
+        .collect(Collectors.toSet());
   }
 
   /**
@@ -651,10 +652,14 @@ public class InjectAssistantService {
 
     if (!injectorContracts.isEmpty()) {
       return injectorContracts.stream()
-          .map(ic -> buildTechnicalInjectFromInjectorContract(ic, attackPattern.getExternalId(), attackPattern.getName()))
+          .map(
+              ic ->
+                  buildTechnicalInjectFromInjectorContract(
+                      ic, attackPattern.getExternalId(), attackPattern.getName()))
           .toList();
     }
-    return List.of(buildManualInject(attackPattern.getExternalId(), "[any platform]", "[any architecture]"));
+    return List.of(
+        buildManualInject(attackPattern.getExternalId(), "[any platform]", "[any architecture]"));
   }
 
   /**
@@ -670,7 +675,7 @@ public class InjectAssistantService {
    * @param attackPattern the attack pattern to generate injects for
    * @return the list of injects, or an empty list if no contracts matched
    */
-  private List<Inject> buildInjectsForAllPlatformAndArchCombinations(
+  private Set<Inject> buildInjectsForAllPlatformAndArchCombinations(
       List<Endpoint> endpoints,
       List<AssetGroup> assetGroups,
       Integer injectsPerAttackPattern,
@@ -683,39 +688,45 @@ public class InjectAssistantService {
     return injectorContracts.stream()
         .map(
             ic -> {
-              Inject inject = buildTechnicalInjectFromInjectorContract(ic, attackPattern.getExternalId(), attackPattern.getName());
+              Inject inject =
+                  buildTechnicalInjectFromInjectorContract(
+                      ic, attackPattern.getExternalId(), attackPattern.getName());
               inject.setAssetGroups(assetGroups);
               inject.setAssets(endpoints.stream().map(Asset.class::cast).toList());
               return inject;
             })
-        .toList();
+        .collect(Collectors.toSet());
   }
 
   // -- Vulnerabilities --
 
-  public List<Inject> generateInjectsByVulnerabilities(Scenario scenario, List<String> vulnerabilityIds, int injectsPerVulnerability) {
-    List<Inject> injects =
+  public Set<Inject> generateInjectsByVulnerabilities(
+      Scenario scenario, Set<Cve> vulnerabilityIds, int injectsPerVulnerability) {
+    Set<Inject> injects =
         vulnerabilityIds.stream()
             .flatMap(
                 vulnerability ->
-                    buildInjectsByVulnerability(vulnerability, injectsPerVulnerability)
-                        .stream())
+                    buildInjectsByVulnerability(vulnerability, injectsPerVulnerability).stream())
             .peek(inject -> inject.setScenario(scenario))
-            .toList();
-    return this.injectRepository.saveAll(injects);
+            .collect(Collectors.toSet());
+    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
   }
 
-  private List<Inject> buildInjectsByVulnerability(String vulnerabilityId,
-      Integer injectsPerVulnerability) {
-    List<InjectorContract> injectorContracts =
+  private Set<Inject> buildInjectsByVulnerability(
+      Cve vulnerability, Integer injectsPerVulnerability) {
+    Set<InjectorContract> injectorContracts =
         this.injectorContractRepository.findInjectorContractsByVulnerabilityId(
-            vulnerabilityId, injectsPerVulnerability);
+            vulnerability.getExternalId(), injectsPerVulnerability);
 
     if (!injectorContracts.isEmpty()) {
       return injectorContracts.stream()
-          .map(ic -> buildTechnicalInjectFromInjectorContract(ic, vulnerabilityId))
-          .toList();
+          .map(
+              ic ->
+                  buildTechnicalInjectFromInjectorContract(
+                      ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName()))
+          .collect(Collectors.toSet());
     }
-    return List.of(buildManualInject(vulnerabilityId, "[any platform]", "[any architecture]"));
+    return Set.of(
+        buildManualInject(vulnerability.getExternalId(), "[any platform]", "[any architecture]"));
   }
 }

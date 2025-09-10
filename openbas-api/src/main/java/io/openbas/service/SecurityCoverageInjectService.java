@@ -54,27 +54,62 @@ public class SecurityCoverageInjectService {
   public Set<Inject> createdInjectsForScenario(
       Scenario scenario, SecurityCoverage securityCoverage) {
 
-    getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
-    getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
+    Set<Inject> createdInjects = new HashSet<>();
+    createdInjects.addAll(
+        getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs()));
+    createdInjects.addAll(
+        getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs()));
 
-    return injectRepository.findByScenarioId(scenario.getId());
+    return createdInjects;
   }
 
+  /**
+   * Create injects for the given scenario based on the associated security coverage and
+   * vulnerability refs.
+   *
+   * <p>Steps:
+   *
+   * <ul>
+   *   <li>Resolves internal vulnerabilities from the coverage
+   *   <li>Generates injects based on injector contract related to these vulnerabilities
+   * </ul>
+   *
+   * @param scenario the scenario for which injects are managed
+   * @param vulnerabilityRefs the related security coverage providing AttackPattern references
+   * @return list injects related to this scenario
+   */
   private Set<Inject> getInjectsByVulnerabilities(
-      Scenario scenario, List<StixRefToExternalRef> vulnerabilityRefs) {
-    // 1. Fetch internal Ids for AttackPatterns
-    List<String> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs).stream().map(vulnerability->vulnerability.getId()).collect(Collectors.toList());
+      Scenario scenario, Set<StixRefToExternalRef> vulnerabilityRefs) {
+
+    Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
     if (vulnerabilityRefs.isEmpty()) {
       return emptySet();
     }
 
-    return  injectAssistantService.generateInjectsByVulnerabilities(
+    return injectAssistantService.generateInjectsByVulnerabilities(
         scenario, vulnerabilities, NUMBER_OF_INJECTS);
   }
 
+  /**
+   * Creates and manages injects for the given scenario based on the associated security coverage.
+   *
+   * <p>Steps:
+   *
+   * <ul>
+   *   <li>Resolves internal AttackPatterns from the coverage
+   *   <li>Fetches asset groups based on scenario tag rules
+   *   <li>Analyzes existing inject coverage
+   *   <li>Removes outdated injects
+   *   <li>Generates missing injects depending on whether asset groups are available
+   * </ul>
+   *
+   * @param scenario the scenario for which injects are managed
+   * @param attackPatternRefs the related security coverage providing AttackPattern references
+   * @return list injects related to this scenario
+   */
   private Set<Inject> getInjectsRelatedToAttackPatterns(
-      Scenario scenario, List<StixRefToExternalRef> attackPatternRefs) {
+      Scenario scenario, Set<StixRefToExternalRef> attackPatternRefs) {
     // 1. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
         attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
@@ -98,12 +133,11 @@ public class SecurityCoverageInjectService {
     boolean assetGroupsAreEmpties =
         assetGroups.isEmpty() || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
     if (assetGroupsAreEmpties) {
-      handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap);
+      return handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap);
     } else {
-      handleWithAssetGroupsCase(scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
+      return handleWithAssetGroupsCase(
+          scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
     }
-
-    return injectRepository.findByScenarioId(scenario.getId());
   }
 
   /**
@@ -115,7 +149,7 @@ public class SecurityCoverageInjectService {
    * @param requiredAttackPatterns list of required AttackPatterns
    * @param injectCoverageMap current inject coverage
    */
-  private void handleNoAssetGroupsCase(
+  private Set<Inject> handleNoAssetGroupsCase(
       Scenario scenario,
       Map<String, AttackPattern> requiredAttackPatterns,
       Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap) {
@@ -155,9 +189,11 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
+      return injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
           scenario, missingAttacks, NUMBER_OF_INJECTS);
     }
+
+    return emptySet();
   }
 
   /**
@@ -177,7 +213,7 @@ public class SecurityCoverageInjectService {
    * @param attackPatterns list of required AttackPatterns
    * @param injectCoverageMap existing inject coverage
    */
-  private void handleWithAssetGroupsCase(
+  private Set<Inject> handleWithAssetGroupsCase(
       Scenario scenario,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Map<String, AttackPattern> attackPatterns,
@@ -216,12 +252,14 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
+      return injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
           scenario,
           missingAttacks,
           NUMBER_OF_INJECTS,
           missingCombinations.filteredAssetsFromGroupMap());
     }
+
+    return emptySet();
   }
 
   /**

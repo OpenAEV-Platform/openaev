@@ -8,8 +8,8 @@ import io.openbas.stix.parsing.StixSerialisable;
 import io.openbas.stix.types.BaseType;
 import io.openbas.stix.types.StixString;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -55,12 +55,12 @@ public class ObjectBase implements StixSerialisable {
     }
   }
 
-  public void setIfListPresent(String propName, Consumer<List<String>> setter) {
+  public void setIfSetPresent(String propName, Consumer<Set<String>> setter) {
     if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
       Object value = getProperty(propName).getValue();
-      if (value instanceof List<?>) {
-        List<String> strings =
-            ((List<?>) value)
+      if (value instanceof Set<?>) {
+        Set<String> strings =
+            ((Set<?>) value)
                 .stream()
                     .map(
                         v -> {
@@ -70,7 +70,7 @@ public class ObjectBase implements StixSerialisable {
                             return v.toString();
                           }
                         })
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toSet());
 
         setter.accept(strings);
       }

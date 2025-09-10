@@ -6,7 +6,7 @@ import static io.openbas.service.SecurityCoverageService.STIX_TYPE;
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,8 +46,8 @@ public class SecurityCoverageUtils {
    * @param objects the list of STIX objects to scan
    * @return a list of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public static List<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
-    List<StixRefToExternalRef> stixToRef = new ArrayList<>();
+  public static Set<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
+    Set<StixRefToExternalRef> stixToRef = new HashSet<>();
 
     for (ObjectBase obj : objects) {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
@@ -74,7 +74,7 @@ public class SecurityCoverageUtils {
    * @param objectRefs the list of STIX objects to scan
    * @return a list of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public static Set<String> getExternalIds(List<StixRefToExternalRef> objectRefs) {
+  public static Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
     return objectRefs.stream()
         .map(StixRefToExternalRef::getExternalRef)
         .collect(Collectors.toSet());

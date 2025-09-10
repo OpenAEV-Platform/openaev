@@ -243,7 +243,7 @@ public class AttackPatternService {
    * @return list of resolved internal AttackPattern entities
    */
   public Map<String, AttackPattern> fetchInternalAttackPatternIds(
-      List<StixRefToExternalRef> attackPatternRefs) {
+      Set<StixRefToExternalRef> attackPatternRefs) {
     return getAttackPatternsByExternalIds(getExternalIds(attackPatternRefs)).stream()
         .collect(Collectors.toMap(attack -> attack.getId(), Function.identity()));
   }

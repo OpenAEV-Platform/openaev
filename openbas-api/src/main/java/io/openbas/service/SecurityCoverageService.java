@@ -87,7 +87,7 @@ public class SecurityCoverageService {
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
-    stixCoverageObj.setIfListPresent(STIX_LABELS, securityCoverage::setLabels);
+    stixCoverageObj.setIfSetPresent(STIX_LABELS, securityCoverage::setLabels);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
@@ -145,6 +145,7 @@ public class SecurityCoverageService {
     Set<Inject> injects =
         securityCoverageInjectService.createdInjectsForScenario(scenario, securityCoverage);
     scenario.setInjects(injects);
+    scenarioService.updateScenario(scenario);
     return scenario;
   }
 
