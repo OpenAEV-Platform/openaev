@@ -71,11 +71,13 @@ public class SecurityCoverageInjectService {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
+    // 2. If list vulnerabilities is empty, then all the injects related to this scneario and vulenrabilities are also deleted
     if (vulnerabilityRefs.isEmpty()) {
       injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
       return;
     }
 
+    // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
     injectAssistantService.generateInjectsByVulnerabilities(
         scenario, vulnerabilities, NUMBER_OF_INJECTS);
   }
