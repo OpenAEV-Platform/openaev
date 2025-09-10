@@ -31,8 +31,13 @@ import io.openbas.rest.settings.form.*;
 import io.openbas.rest.settings.response.OAuthProvider;
 import io.openbas.rest.settings.response.PlatformSettings;
 import io.openbas.rest.stream.ai.AiConfig;
+import io.openbas.xtmhub.XtmHubRegistrationStatus;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -215,8 +220,6 @@ public class PlatformSettingsService {
       platformSettings.setPlatformAgentUrl(openBASConfig.getBaseUrlForAgent());
       platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
       platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
-      platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
-      platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
       platformSettings.setAiEnabled(aiConfig.isEnabled());
       platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
       platformSettings.setAiType(aiConfig.getType());
@@ -318,6 +321,16 @@ public class PlatformSettingsService {
             .orElse(PLATFORM_ONBOARDING_CONTEXTUAL_HELP_ENABLE.defaultValue());
     platformSettings.setOnboardingContextualHelpEnable(
         parseBoolean(onboardingContextualHelpEnable));
+
+    // XTM Hub
+    platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
+    platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
+    platformSettings.setXtmHubToken(getValueFromMapOfSettings(dbSettings, XTM_HUB_TOKEN.key()));
+    platformSettings.setXtmHubRegistrationStatus(getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_STATUS.key()));
+    platformSettings.setXtmHubRegistrationDate(getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_DATE.key()));
+    platformSettings.setXtmHubRegistrationUserId(getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_ID.key()));
+    platformSettings.setXtmHubRegistrationUserName(getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key()));
+
     return platformSettings;
   }
 
@@ -544,6 +557,42 @@ public class PlatformSettingsService {
     settingRepository.deleteAllById(
         delete.stream().map(Setting::getId).collect(Collectors.toList()));
     settingRepository.saveAll(update);
+    return findSettings();
+  }
+
+  public PlatformSettings updateXTMHubRegistration(
+    String token,
+    LocalDateTime registrationDate,
+    XtmHubRegistrationStatus registrationStatus,
+    String userId,
+    String userName
+  ) {
+    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+
+    List<Setting> settingsToSave = new ArrayList<>();
+
+    settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_TOKEN.key(), token));
+    settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_DATE.key(), registrationDate != null ? Timestamp.from(Instant.now()).toString() : null));
+    settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_STATUS.key(), registrationStatus.label));
+    settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_USER_ID.key(), userId));
+    settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key(), userName));
+
+    List<Setting> update = new ArrayList<>();
+    List<Setting> delete = new ArrayList<>();
+
+    settingsToSave.forEach(
+      setting -> {
+        if (StringUtils.hasText(setting.getValue())) {
+          update.add(setting);
+        } else if (StringUtils.hasText(setting.getId())) {
+          delete.add(setting);
+        }
+      });
+
+    settingRepository.deleteAllById(
+            delete.stream().map(Setting::getId).collect(Collectors.toList()));
+    settingRepository.saveAll(update);
+
     return findSettings();
   }
 
