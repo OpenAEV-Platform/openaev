@@ -2,6 +2,7 @@ package io.openbas.api.detection_remediation;
 
 import static io.openbas.api.detection_remediation.DetectionRemediationApi.DETECTION_REMEDIATION_URI;
 
+import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.api.detection_remediation.dto.DetectionRemediationOutput;
 import io.openbas.api.detection_remediation.dto.PayloadInput;
@@ -41,6 +42,7 @@ public class DetectionRemediationApi {
             description = "Web service is not deployed on this instance")
       })
   @GetMapping("/health")
+  @LogExecutionTime
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
     return ResponseEntity.ok(detectionRemediationAIService.checkHealthWebservice());
@@ -70,6 +72,7 @@ public class DetectionRemediationApi {
             description = "AI Webservice for collector type microsoft defender not available")
       })
   @PostMapping("/rules/crowdstrike")
+  @LogExecutionTime
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<DetectionRemediationOutput> postRuleCrowdstrike(
       @Valid @RequestBody PayloadInput input) {
