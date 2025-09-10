@@ -9,7 +9,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -47,7 +46,7 @@ public interface InjectorContractRepository
       value =
           "SELECT injcont FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_vulnerabilities injconvuln ON injcon.injector_contract_id = injconvuln.injector_contract_id "
-              + "LEFT JOIN cves cve ON injconvuln.vulnerability_id = cve.vulnerability_id "
+              + "LEFT JOIN cves cve ON injconvuln.vulnerability_id = cve.cve_id "
               + "WHERE cve.external_id = :externalId "
               + "ORDER BY injcont.injector_contract_updated_at LIMIT :injectsPerVulnerability",
       nativeQuery = true)

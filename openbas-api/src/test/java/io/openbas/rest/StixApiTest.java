@@ -15,10 +15,12 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.Inject;
 import io.openbas.database.model.Scenario;
 import io.openbas.database.model.StixRefToExternalRef;
+import io.openbas.database.repository.CveRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.utils.fixtures.composers.AttackPatternComposer;
+import io.openbas.utils.fixtures.composers.CveComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import jakarta.annotation.Resource;
@@ -50,7 +52,9 @@ class StixApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
+  @Autowired private CveRepository cveRepository;
 
+  @Autowired private CveComposer cveComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
 
   private String stixSecurityCoverage;
