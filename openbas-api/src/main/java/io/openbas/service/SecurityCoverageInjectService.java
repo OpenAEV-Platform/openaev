@@ -1,7 +1,6 @@
 package io.openbas.service;
 
 import static io.openbas.utils.AssetUtils.computePairsPlatformArchitecture;
-import static java.util.Collections.emptySet;
 
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -54,13 +53,11 @@ public class SecurityCoverageInjectService {
   public Set<Inject> createdInjectsForScenario(
       Scenario scenario, SecurityCoverage securityCoverage) {
 
-    Set<Inject> createdInjects = new HashSet<>();
-    createdInjects.addAll(
-        getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs()));
-    createdInjects.addAll(
-        getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs()));
+    getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
 
-    return createdInjects;
+    getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
+
+    return injectRepository.findByScenarioId(scenario.getId());
   }
 
   /**
@@ -78,16 +75,16 @@ public class SecurityCoverageInjectService {
    * @param vulnerabilityRefs the related security coverage providing AttackPattern references
    * @return list injects related to this scenario
    */
-  private Set<Inject> getInjectsByVulnerabilities(
+  private void getInjectsByVulnerabilities(
       Scenario scenario, Set<StixRefToExternalRef> vulnerabilityRefs) {
-
+    // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
     if (vulnerabilityRefs.isEmpty()) {
-      return emptySet();
+      injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
     }
 
-    return injectAssistantService.generateInjectsByVulnerabilities(
+    injectAssistantService.generateInjectsByVulnerabilities(
         scenario, vulnerabilities, NUMBER_OF_INJECTS);
   }
 
@@ -108,14 +105,14 @@ public class SecurityCoverageInjectService {
    * @param attackPatternRefs the related security coverage providing AttackPattern references
    * @return list injects related to this scenario
    */
-  private Set<Inject> getInjectsRelatedToAttackPatterns(
+  private void getInjectsRelatedToAttackPatterns(
       Scenario scenario, Set<StixRefToExternalRef> attackPatternRefs) {
     // 1. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
         attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
 
     if (attackPatterns.isEmpty()) {
-      return emptySet();
+      injectRepository.deleteAllInjectsWithAttackPatternContractsByScenarioId(scenario.getId());
     }
 
     // 2. Fetch asset groups via tag rules
@@ -133,10 +130,9 @@ public class SecurityCoverageInjectService {
     boolean assetGroupsAreEmpties =
         assetGroups.isEmpty() || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
     if (assetGroupsAreEmpties) {
-      return handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap);
+      handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap);
     } else {
-      return handleWithAssetGroupsCase(
-          scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
+      handleWithAssetGroupsCase(scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
     }
   }
 
@@ -149,7 +145,7 @@ public class SecurityCoverageInjectService {
    * @param requiredAttackPatterns list of required AttackPatterns
    * @param injectCoverageMap current inject coverage
    */
-  private Set<Inject> handleNoAssetGroupsCase(
+  private void handleNoAssetGroupsCase(
       Scenario scenario,
       Map<String, AttackPattern> requiredAttackPatterns,
       Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap) {
@@ -189,11 +185,9 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      return injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
+      injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
           scenario, missingAttacks, NUMBER_OF_INJECTS);
     }
-
-    return emptySet();
   }
 
   /**
@@ -213,7 +207,7 @@ public class SecurityCoverageInjectService {
    * @param attackPatterns list of required AttackPatterns
    * @param injectCoverageMap existing inject coverage
    */
-  private Set<Inject> handleWithAssetGroupsCase(
+  private void handleWithAssetGroupsCase(
       Scenario scenario,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Map<String, AttackPattern> attackPatterns,
@@ -252,14 +246,12 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      return injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
+      injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
           scenario,
           missingAttacks,
           NUMBER_OF_INJECTS,
           missingCombinations.filteredAssetsFromGroupMap());
     }
-
-    return emptySet();
   }
 
   /**

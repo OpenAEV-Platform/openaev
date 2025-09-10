@@ -141,7 +141,6 @@ public class SecurityCoverageService {
     Set<Inject> injects =
         securityCoverageInjectService.createdInjectsForScenario(scenario, securityCoverage);
     scenario.setInjects(injects);
-    scenarioService.updateScenario(scenario);
     return scenario;
   }
 
