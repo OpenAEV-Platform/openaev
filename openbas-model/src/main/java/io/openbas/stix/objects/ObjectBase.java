@@ -8,6 +8,7 @@ import io.openbas.stix.parsing.StixSerialisable;
 import io.openbas.stix.types.BaseType;
 import io.openbas.stix.types.StixString;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -58,9 +59,9 @@ public class ObjectBase implements StixSerialisable {
   public void setIfSetPresent(String propName, Consumer<Set<String>> setter) {
     if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
       Object value = getProperty(propName).getValue();
-      if (value instanceof Set<?>) {
+      if (value instanceof List<?>) {
         Set<String> strings =
-            ((Set<?>) value)
+            ((List<?>) value)
                 .stream()
                     .map(
                         v -> {

@@ -28,20 +28,6 @@
             "x_opencti_type": "x-security-coverage"
         },
         {
-            "confidence": 100,
-            "created": "2025-08-21T08:04:15.813Z",
-            "id": "vulnerability--f3e6ad4a-0d91-575b-ac6b-9299d038804a",
-            "modified": "2025-08-21T08:04:15.813Z",
-            "name": "CVE-12334",
-            "revoked": false,
-            "spec_version": "2.1",
-            "type": "vulnerability",
-            "x_opencti_cisa_kev": false,
-            "x_opencti_id": "e092ad59-55bf-46a1-b25a-fae84b717468",
-            "x_opencti_type": "Vulnerability",
-            "x_opencti_workflow_id": "4c52b960-bb81-4285-974b-7b5aecc3b62c"
-        },
-        {
             "aliases": [
                 "T1531"
             ],
@@ -98,7 +84,8 @@
             ],
             "x_opencti_id": "eb25bbe2-7af3-4d93-837c-d1933eb521e7",
             "x_opencti_type": "Attack-Pattern"
-        },{
+        },
+        {
             "id": "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975",
             "spec_version": "2.1",
             "revoked": false,

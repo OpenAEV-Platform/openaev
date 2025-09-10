@@ -2,6 +2,7 @@ package io.openbas.utils.fixtures;
 
 import io.openbas.database.model.Cve;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public class CveFixture {
 
@@ -16,5 +17,9 @@ public class CveFixture {
     cve.setCvssV31(new BigDecimal("10.0"));
     cve.setExternalId(externalId);
     return cve;
+  }
+
+  public static String getRandomExternalVulnerabilityId() {
+    return "CVE-%s".formatted(UUID.randomUUID());
   }
 }

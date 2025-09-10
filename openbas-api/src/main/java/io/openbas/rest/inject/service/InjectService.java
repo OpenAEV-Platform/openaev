@@ -1,7 +1,9 @@
 package io.openbas.rest.inject.service;
 
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
-import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.arm64;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.x86_64;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.AgentUtils.isPrimaryAgent;
@@ -1087,18 +1089,15 @@ public class InjectService {
     return scenario.getInjects().stream()
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
+        .filter(
+            entry ->
+                entry.getValue().getArch() != null
+                    && entry.getValue().getPlatforms() != null
+                    && entry.getValue().getPlatforms().length > 0)
         .map(
             entry -> {
               Inject inject = entry.getKey();
               InjectorContract ic = entry.getValue();
-
-              // Check if this injectContract has not arch and platforms
-              if (ic.getArch() == null
-                  || ic.getPlatforms() == null
-                  || ic.getPlatforms().length == 0) {
-                return Map.entry(
-                    inject, new HashSet<Triple<String, Endpoint.PLATFORM_TYPE, String>>());
-              }
 
               // Extract archs
               Set<String> archs =

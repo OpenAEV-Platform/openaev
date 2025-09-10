@@ -376,4 +376,11 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i WHERE i.inject_injector_contract = :injectorContract AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
 }

@@ -14,11 +14,6 @@
             ],
             "modified": "2025-08-04T14:00:00Z",
             "name": "Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED",
-            "object_refs": [
-                "vulnerability--f3e6ad4a-0d91-575b-ac6b-9299d038804a",
-                "attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1",
-                "attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9"
-            ],
             "period_end": "2025-09-04T14:00:00Z",
             "period_start": "2025-08-04T14:00:00Z",
             "scheduling": "d",

@@ -4,6 +4,7 @@ import static io.openbas.utils.AssetUtils.computePairsPlatformArchitecture;
 
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
+import io.openbas.injectors.manual.ManualContract;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.inject.service.InjectService;
@@ -40,11 +41,17 @@ public class SecurityCoverageInjectService {
    * @param securityCoverage the related security coverage providing AttackPattern references
    * @return list injects related to this scenario
    */
-  public Set<Inject> createdInjectsForScenario(
+  public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
       Scenario scenario, SecurityCoverage securityCoverage) {
+    cleanInjectPlaceholders(scenario.getId());
     getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
     getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
     return injectRepository.findByScenarioId(scenario.getId());
+  }
+
+  private void cleanInjectPlaceholders(String scenarioId) {
+    injectRepository.deleteAllByScenarioIdAndInjectorContract(
+        ManualContract.MANUAL_DEFAULT, scenarioId);
   }
 
   /**
@@ -68,12 +75,8 @@ public class SecurityCoverageInjectService {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
-    // 2. If list vulnerabilities is empty, then all the injects related to this scneario and
-    // vulenrabilities are also deleted
-    if (vulnerabilityRefs.isEmpty()) {
-      injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
-      return;
-    }
+    // 2. List of injects is cleaned
+    injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
 
     // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
     injectStixAssistantService.generateInjectsByVulnerabilities(

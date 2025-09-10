@@ -1,9 +1,8 @@
-package io.openbas.rest;
+package io.openbas.api.stix_process;
 
 import static io.openbas.api.stix_process.StixApi.STIX_URI;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
-import static io.openbas.utils.fixtures.CveFixture.CVE_2023_20198;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,13 +16,10 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.Inject;
 import io.openbas.database.model.Scenario;
 import io.openbas.database.model.StixRefToExternalRef;
-import io.openbas.database.repository.CveRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
-import io.openbas.utils.fixtures.CveFixture;
 import io.openbas.utils.fixtures.composers.AttackPatternComposer;
-import io.openbas.utils.fixtures.composers.CveComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import jakarta.annotation.Resource;
@@ -55,9 +51,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
-  @Autowired private CveRepository cveRepository;
 
-  @Autowired private CveComposer cveComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
 
   private String stixSecurityCoverage;
@@ -92,13 +86,10 @@ class StixApiTest extends IntegrationTest {
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
-    cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_48788)).persist();
-    cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_20198)).persist();
   }
 
   @AfterEach
   void afterEach() {
-    cveComposer.reset();
     attackPatternComposer.reset();
   }
 
@@ -201,11 +192,11 @@ class StixApiTest extends IntegrationTest {
           new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
 
       // -- Vulnerabilities --
-      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(2);
+      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(1);
 
       StixRefToExternalRef stixRefVuln =
           new StixRefToExternalRef(
-              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b97", CVE_2023_48788);
+              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975", CVE_2023_48788);
 
       assertTrue(
           createdScenario
@@ -287,10 +278,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(2);
-
-      entityManager.flush();
-      entityManager.clear();
+      assertThat(injects).hasSize(3);
 
       // Push stix without object type attack-pattern
       String updatedResponse =
@@ -333,7 +321,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(2);
+      assertThat(injects).hasSize(3);
 
       entityManager.flush();
       entityManager.clear();
@@ -356,7 +344,7 @@ class StixApiTest extends IntegrationTest {
 
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(2); // Related to injects by Attacks
+      assertThat(injects).hasSize(1); // Related to injects by Attacks
     }
 
     @Test
@@ -379,10 +367,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(2);
-
-      entityManager.flush();
-      entityManager.clear();
+      assertThat(injects).hasSize(3);
 
       // Push stix without object type attack-pattern
       String updatedResponse =
