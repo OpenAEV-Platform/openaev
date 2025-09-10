@@ -1,7 +1,11 @@
 package io.openbas.rest.injector_contract;
 
 import static io.openbas.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2018_0171;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_20198;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2023_46805;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2025_5678;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -133,7 +137,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_20198)).persist();
+          cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_48788)).persist();
         }
         em.flush();
         em.clear();
@@ -471,7 +475,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities, creating contract succeeds")
       void withExistingVulnerabilitiesCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_20198)).persist();
+          cveComposer.forCve(CveFixture.createDefaultCve(CVE_2025_5678)).persist();
         }
         em.flush();
         em.clear();
@@ -715,7 +719,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_20198)).persist();
+          cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_46805)).persist();
         }
         em.flush();
         em.clear();
@@ -810,7 +814,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         CveComposer.Composer vulnWrapper =
-            cveComposer.forCve(CveFixture.createDefaultCve(CVE_2023_20198)).persist();
+            cveComposer.forCve(CveFixture.createDefaultCve(CVE_2018_0171)).persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
                 .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
