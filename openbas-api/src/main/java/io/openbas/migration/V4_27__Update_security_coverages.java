@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_26__Update_security_coverages extends BaseJavaMigration {
+public class V4_27__Update_security_coverages extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
