@@ -37,7 +37,7 @@ public class InjectAIAssistantService {
   public Set<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
     if (input.getInjectByTTPNumber() > 5) {
       throw new UnsupportedOperationException(
-          "Number of inject by ttp must be less than or equal to 5");
+          "Number of inject by Attack Pattern must be less than or equal to 5");
     }
     List<Endpoint> endpoints = this.endpointService.endpoints(input.getAssetIds());
     List<AssetGroup> assetGroups = this.assetGroupService.assetGroups(input.getAssetGroupIds());
