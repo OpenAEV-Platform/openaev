@@ -16,6 +16,12 @@ public class StixService {
 
   private final SecurityCoverageService securityCoverageService;
 
+  /**
+   * Generate or update a Scenario from Stix bundle
+   *
+   * @param stixJson
+   * @return Scenario
+   */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
     // Update securityCoverage with the last bundle

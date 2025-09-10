@@ -98,6 +98,27 @@
             ],
             "x_opencti_id": "eb25bbe2-7af3-4d93-837c-d1933eb521e7",
             "x_opencti_type": "Attack-Pattern"
+        },{
+            "id": "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975",
+            "spec_version": "2.1",
+            "revoked": false,
+            "confidence": 100,
+            "created": "2025-09-08T10:48:57.905Z",
+            "modified": "2025-09-08T10:48:57.961Z",
+            "name": "CVE-2023-48788",
+            "x_opencti_cisa_kev": false,
+            "x_opencti_workflow_id": "4c52b960-bb81-4285-974b-7b5aecc3b62c",
+            "external_references": [
+                {
+                    "source_name": "Aruba Networks Inc.",
+                    "description": "CVE-2021-44228 - Apache log4j library vulnerability",
+                    "url": "https://www.arubanetworks.com/assets/alert/ARUBA-PSA-2021-019.txt",
+                    "external_id": "ARUBA-PSA-2021-019"
+                }
+            ],
+            "x_opencti_id": "50e82364-5bce-453e-9e79-b9743774d310",
+            "x_opencti_type": "Vulnerability",
+            "type": "vulnerability"
         }
     ]
 }

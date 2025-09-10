@@ -73,6 +73,7 @@ public class SecurityCoverageInjectService {
 
     if (vulnerabilityRefs.isEmpty()) {
       injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
+      return;
     }
 
     injectAssistantService.generateInjectsByVulnerabilities(
@@ -104,6 +105,7 @@ public class SecurityCoverageInjectService {
 
     if (attackPatterns.isEmpty()) {
       injectRepository.deleteAllInjectsWithAttackPatternContractsByScenarioId(scenario.getId());
+      return;
     }
 
     // 2. Fetch asset groups via tag rules
