@@ -79,6 +79,12 @@ export type PayloadCreateInput = Omit<ApiTypes.BasePayload, PayloadCreateInputOm
 
 export type ContractType = 'text' | 'number' | 'checkbox' | 'textarea' | 'tags' | 'select' | 'choice' | 'article' | 'challenge' | 'dependency-select' | 'attachment' | 'team' | 'expectation' | 'asset' | 'asset-group' | 'payload' | 'targeted-asset';
 
+export interface ChoiceItem {
+  label: string;
+  value: string;
+  information: string;
+};
+
 export interface ContractElement {
   key: string;
   mandatory: boolean;
@@ -86,24 +92,42 @@ export interface ContractElement {
   label: string;
   readOnly: boolean;
   mandatoryGroups?: string[];
-  mandatoryConditionField?: string;
+  mandatoryConditionFields?: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mandatoryConditionValues?: { [key: string]: any };
+  visibleConditionFields?: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visibleConditionValues?: { [key: string]: any };
   linkedFields?: {
     key: string;
     type: string;
   }[];
-  linkedValues?: string[];
   cardinality: '1' | 'n';
-  defaultValue: string | string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  defaultValue: any;
   richText?: boolean;
   tupleFilePrefix?: string;
   predefinedExpectations?: ExpectationInput[];
   dependencyField?: string;
-  choices?: Record<string, string> | {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  choices?: Record<string, any> | ChoiceItem[];
+  contractAttachment?: {
+    key: string;
     label: string;
-    value: string;
-    information: string;
   }[];
 }
+
+export type EnhancedContractElement = ContractElement & {
+  originalKey: string;
+  isInjectContentType: boolean;
+  isVisible: boolean;
+  isInMandatoryGroup: boolean;
+  mandatoryGroupContractElementLabels: string;
+  settings?: {
+    rows?: number;
+    required?: boolean;
+  };
+};
 
 export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent'> & {
   convertedContent: {

@@ -14,8 +14,10 @@ interface Props {
   platforms?: string[];
   architectures?: string;
   disabled?: boolean;
+  errorLabel?: string | null;
+  label?: string | boolean;
 }
-const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = false }: Props) => {
+const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = false, errorLabel, label }: Props) => {
   const { control, setValue } = useFormContext();
 
   const endpointIds = useWatch({
@@ -32,8 +34,8 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
     }
   }, [endpointIds]);
 
-  const onEndpointChange = (endpointIds: string[]) => setValue(name, endpointIds);
-  const onRemoveEndpoint = (endpointId: string) => setValue(name, endpointIds.filter(id => id !== endpointId));
+  const onEndpointChange = (endpointIds: string[]) => setValue(name, endpointIds, { shouldValidate: true });
+  const onRemoveEndpoint = (endpointId: string) => setValue(name, endpointIds.filter(id => id !== endpointId), { shouldValidate: true });
 
   return (
     <>
@@ -58,6 +60,8 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
           platforms={platforms}
           payloadArch={architectures}
           disabled={disabled}
+          errorLabel={errorLabel}
+          label={label}
         />
       </Can>
     </>

@@ -5,6 +5,7 @@ import static io.openbas.database.model.InjectorContract.*;
 import static java.time.Duration.between;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.StreamSupport.stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,9 +19,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.StreamSupport;
 
 public class InjectModelHelper {
 
@@ -33,12 +32,7 @@ public class InjectModelHelper {
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
       @NotNull final List<String> assetGroups) {
-    if (injectorContract == null
-        || (content == null
-            && teams.isEmpty()
-            && !allTeams
-            && assets.isEmpty()
-            && assetGroups.isEmpty())) {
+    if (injectorContract == null) {
       return false;
     }
 
@@ -57,77 +51,114 @@ public class InjectModelHelper {
 
     ObjectNode contractContent = injectorContract.getConvertedContent();
     List<JsonNode> contractFields =
-        StreamSupport.stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false)
-            .toList();
+        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
 
     boolean isReady = true;
     for (JsonNode jsonField : contractFields) {
 
-      // if field is mandatory or if field is asset, check if the field is set
-      String key = jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
-      if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
-          || (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)
-                  && jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS).asBoolean()
-              || CONTRACT_ELEMENT_CONTENT_KEY_ASSETS.equals(key))) {
+      // If field is mandatory
+      if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()) {
         isReady =
             isFieldSet(
                 allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields);
       }
 
-      // if field is mandatory conditional, if the conditional field is set check if the current
-      // field is set
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL)) {
-        String mandatoryOnConditionFieldKey =
-            jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL).asText();
-        Optional<JsonNode> mandatoryOnConditionField =
-            contractFields.stream()
-                .filter(
-                    jsonNode ->
-                        mandatoryOnConditionFieldKey.equals(
-                            jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                .findFirst();
-        // if field is mandatory conditional on a specific value and this value is equals, check the
-        // field is set
-        if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUE)) {
-          if (mandatoryOnConditionField.isEmpty()
-              || content == null
-              || Objects.equals(
-                  getFieldValue(mandatoryOnConditionField.get(), content),
-                  jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUE).asText())) {
-            if (isFieldSet(
+      // If field is mandatory group
+      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)) {
+        ArrayNode mandatoryGroups =
+            (ArrayNode) jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS);
+        if (!mandatoryGroups.isEmpty()) {
+          boolean atLeastOneSet = false;
+          for (JsonNode mandatoryFieldKey : mandatoryGroups) {
+            Optional<JsonNode> groupField =
+                contractFields.stream()
+                    .filter(
+                        jsonNode ->
+                            mandatoryFieldKey
+                                .asText()
+                                .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
+                    .findFirst();
+            if (groupField.isPresent()
+                && isFieldSet(
                     allTeams,
                     teams,
                     assets,
                     assetGroups,
-                    mandatoryOnConditionField.get(),
-                    content,
-                    injectContractFields)
-                && !isFieldSet(
-                    allTeams,
-                    teams,
-                    assets,
-                    assetGroups,
-                    jsonField,
+                    groupField.get(),
                     content,
                     injectContractFields)) {
-              isReady = false;
+              atLeastOneSet = true;
+              break;
             }
           }
-        } else if (mandatoryOnConditionField.isPresent()) {
-          if (isFieldSet(
+          if (!atLeastOneSet) {
+            isReady = false;
+          }
+        }
+      }
+
+      // If field is mandatory conditional, if the conditional field is set, check if the current
+      // field is set
+      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS)) {
+        JsonNode fields = jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS);
+
+        if (fields.isArray()) {
+          for (JsonNode node : fields) {
+            if (!node.isNull()) {
+              String fieldKey = node.asText();
+
+              Optional<JsonNode> conditionalFieldOpt =
+                  contractFields.stream()
+                      .filter(
+                          jsonNode ->
+                              fieldKey.equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
+                      .findFirst();
+
+              // If field not exists -> skip
+              if (conditionalFieldOpt.isEmpty()) {
+                continue;
+              }
+              if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES)) {
+                JsonNode conditionalValuesNode =
+                    jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
+
+                if (conditionalValuesNode.has(fieldKey)) {
+                  String specificValuesNode = conditionalValuesNode.get(fieldKey).asText();
+
+                  List<String> actualValues =
+                      getFieldValue(teams, assets, assetGroups, conditionalFieldOpt.get(), content);
+                  boolean conditionMet = actualValues.contains(specificValuesNode);
+
+                  if (!conditionMet) {
+                    continue; // condition not met → skip
+                  }
+                }
+              }
+              Optional<JsonNode> fieldOpt =
+                  contractFields.stream()
+                      .filter(
+                          jsonNode ->
+                              jsonField
+                                  .get(CONTRACT_ELEMENT_CONTENT_KEY)
+                                  .asText()
+                                  .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
+                      .findFirst();
+              // If field not exists -> skip
+              if (fieldOpt.isEmpty()) {
+                continue;
+              }
+              if (!isFieldSet(
                   allTeams,
                   teams,
                   assets,
                   assetGroups,
-                  mandatoryOnConditionField.get(),
+                  fieldOpt.get(),
                   content,
-                  injectContractFields)
-              && !isFieldSet(
-                  allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields)) {
-            isReady = false;
+                  injectContractFields)) {
+                isReady = false;
+              }
+            }
           }
-        } else {
-          isReady = false;
         }
       }
       if (!isReady) {
@@ -251,7 +282,13 @@ public class InjectModelHelper {
         }
       }
       case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET -> {
-        if (assets.isEmpty() && assetGroups.isEmpty()) {
+        if (assets.isEmpty()) {
+          isSet = false;
+        }
+      }
+
+      case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP -> {
+        if (assetGroups.isEmpty()) {
           isSet = false;
         }
       }
@@ -273,9 +310,47 @@ public class InjectModelHelper {
     return isSet;
   }
 
-  public static String getFieldValue(
-      @NotNull final JsonNode jsonField, @NotNull final ObjectNode content) {
+  public static List<String> getFieldValue(
+      @NotNull final List<String> teams,
+      @NotNull final List<String> assets,
+      @NotNull final List<String> assetGroups,
+      @NotNull final JsonNode jsonField,
+      @NotNull final ObjectNode content) {
+
     String key = jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
-    return content.get(key).asText();
+    String type = jsonField.get(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
+
+    return switch (type) {
+      case CONTRACT_ELEMENT_CONTENT_TYPE_TEAM -> teams;
+      case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET -> assets;
+      case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP -> assetGroups;
+      default -> {
+        if (content == null || content.get(key) == null || content.get(key).isNull()) {
+          yield List.of();
+        }
+
+        JsonNode valueNode = content.get(key);
+
+        if (valueNode.isArray()) {
+          List<String> values = new ArrayList<>();
+          for (JsonNode node : valueNode) {
+            if (!node.isNull()) {
+              values.add(node.asText());
+            }
+          }
+          yield values;
+        }
+
+        if (valueNode.isTextual()) {
+          String value = valueNode.asText();
+          yield value.isEmpty() ? List.of() : List.of(value);
+        } else if (valueNode.isBoolean()) {
+          String value = valueNode.asText();
+          yield value.isEmpty() ? List.of() : List.of(value);
+        }
+
+        yield List.of();
+      }
+    };
   }
 }

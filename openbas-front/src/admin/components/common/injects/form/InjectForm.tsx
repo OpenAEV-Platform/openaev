@@ -1,10 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
 import { Button } from '@mui/material';
-import { type RefObject, useContext, useEffect, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { useContext, useEffect, useState } from 'react';
+import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
-import { z } from 'zod';
+import { z, type ZodIssue, type ZodObject } from 'zod/v4';
 
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
@@ -17,9 +16,10 @@ import {
   type InjectInput,
   type Variable,
 } from '../../../../../utils/api-types';
-import { type ContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
+import { type ContractElement, type EnhancedContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
 import { splitDuration } from '../../../../../utils/Time';
 import { PermissionsContext } from '../../Context';
+import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
 
 const useStyles = makeStyles()(theme => ({
@@ -32,6 +32,7 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     justifyContent: 'flex-end',
     gap: theme.spacing(1),
+    marginTop: theme.spacing(1),
   },
   injectContentButton: {
     width: '100%',
@@ -74,11 +75,9 @@ type InjectInputForm = Omit<InjectInput, 'inject_depends_duration'> & {
 
 interface Props {
   handleClose: () => void;
-  openDetails?: boolean;
   disabled?: boolean;
   isAtomic: boolean;
   isCreation?: boolean;
-  drawerRef: RefObject<HTMLDivElement | null>;
   defaultInject: Inject | Omit<Inject, 'inject_created_at' | 'inject_updated_at'>;
   onSubmitInject: (data: InjectInput) => Promise<void>;
   injectorContractContent?: InjectorContractConverted['convertedContent'];
@@ -87,13 +86,13 @@ interface Props {
   variablesFromExerciseOrScenario: Variable[];
 }
 
+const initialZodSchema = z.object({ inject_content: z.object({}) });
+
 const InjectForm = ({
   handleClose,
-  openDetails = false,
   disabled = false,
   isAtomic,
   isCreation = false,
-  drawerRef,
   defaultInject = {} as Inject,
   injectorContractContent,
   onSubmitInject,
@@ -104,23 +103,21 @@ const InjectForm = ({
   const { classes } = useStyles();
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
-  const [defaultValues, setDefaultValues] = useState({});
-  const [openDetailContent, setOpenDetailContent] = useState(openDetails);
+  const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
+  const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
+  const [enhancedFieldsMapByType, setEnhancedFieldsMapByType] = useState<Map<ContractElement['type'], EnhancedContractElement>>(new Map());
+  const [defaultValues, setDefaultValues] = useState<Partial<InjectInputForm>>({});
+  const [mandatoryKeys, setMandatoryKeys] = useState<ZodObject>(initialZodSchema);
+  const [mandatoryGroupKeys, setMandatoryGroupKeys] = useState<ZodObject>(initialZodSchema);
   const notDynamicFields = [
     'teams',
     'assets',
-    'assetgroups',
+    'asset_groups',
     'articles',
     'challenges',
     'attachments',
     'expectations',
   ];
-  const toggleInjectContent = () => {
-    if (openDetailContent && drawerRef.current) {
-      drawerRef.current.scrollTop = 0;
-    }
-    setOpenDetailContent(!openDetailContent);
-  };
 
   const getInitialValues = (): Record<string, FieldValue> => {
     const duration = splitDuration(defaultInject?.inject_depends_duration || 0);
@@ -141,7 +138,7 @@ const InjectForm = ({
           if (!initialValues.inject_content[field.key]) {
             initialValues.inject_content = {
               ...initialValues.inject_content,
-              [field.key]: field.cardinality === '1' ? field.defaultValue?.[0] : field.defaultValue,
+              [field.key]: (field.cardinality === '1' ? field.defaultValue?.[0] : field.defaultValue) || '',
             };
           }
 
@@ -183,7 +180,52 @@ const InjectForm = ({
     return formattedContent;
   };
 
-  const onSubmit = async (data: Record<string, FieldValue>) => {
+  const strictKeys = {
+    inject_title: z.string().min(1, { message: t('This field is required.') }),
+    inject_depends_duration_days: z.string().min(1, { message: t('This field is required.') }).optional(),
+    inject_depends_duration_hours: z.string().min(1, { message: t('This field is required.') }).optional(),
+    inject_depends_duration_minutes: z.string().min(1, { message: t('This field is required.') }).optional(),
+  };
+
+  const methods = useForm<InjectInputForm>({
+    mode: isCreation ? 'onSubmit' : 'all',
+    reValidateMode: isCreation ? 'onSubmit' : 'onChange',
+    resolver: zodResolver(z.object({
+      ...strictKeys,
+      ...mandatoryKeys.shape,
+    }).check(({ value, issues }) => {
+      if (isCreation) return;
+      const parsed = mandatoryGroupKeys.safeParse(value);
+      if (!parsed?.error?.issues) return;
+      injectorContractContent?.fields.forEach((field) => {
+        if (field.mandatoryGroups) {
+          const newIssues: (ZodIssue & { currentField?: boolean })[] = [];
+          field.mandatoryGroups.forEach((mandatoryField) => {
+            const issue = parsed.error.issues.find(err => isInjectContentType(fieldsMapByKey[mandatoryField].type) ? err.path[1] === mandatoryField : err.path[0] === `inject_${mandatoryField}`);
+            if (issue) {
+              newIssues.push({
+                ...issue,
+                message: t('At least one of these fields is required.'),
+                ...(mandatoryField === field.key && { currentField: true }),
+              });
+            }
+          });
+          if (newIssues.length === field.mandatoryGroups.length) {
+            newIssues.filter(i => !i.currentField).forEach(i => issues.push(i));
+          }
+        }
+      });
+    })),
+    // defaultValues: defaultValues,
+  });
+
+  const { handleSubmit, reset, subscribe, getValues, clearErrors, trigger, formState: { isSubmitting } } = methods;
+
+  const onSubmit: SubmitHandler<InjectInputForm> = async (data) => {
+    // we cannot save, even in draft, without title
+    if (!data.inject_title?.length) {
+      return;
+    }
     if (injectorContractContent) {
       const inject_depends_duration = Number(data.inject_depends_duration_days) * 3600 * 24
         + Number(data.inject_depends_duration_hours) * 3600
@@ -207,32 +249,158 @@ const InjectForm = ({
     handleClose();
   };
 
-  const strictKeys = {
-    inject_title: z.string().min(1, { message: t('This field is required.') }),
-    inject_depends_duration_days: z.string().min(1, { message: t('This field is required.') }).optional(),
-    inject_depends_duration_hours: z.string().min(1, { message: t('This field is required.') }).optional(),
-    inject_depends_duration_minutes: z.string().min(1, { message: t('This field is required.') }).optional(),
-  };
+  useEffect(() => {
+    const fieldsToSubscribe: (keyof InjectInputForm)[] = [];
+    injectorContractContent?.fields.forEach((field) => {
+      if (field.mandatoryConditionFields?.length) {
+        field.mandatoryConditionFields.forEach((mandatoryConditionField) => {
+          const mandatoryConditionFieldType = injectorContractContent?.fields.find(f => f.key === mandatoryConditionField)?.type;
+          const fieldToSubscribe = ((mandatoryConditionFieldType && isInjectContentType(mandatoryConditionFieldType)) ? `inject_content.${mandatoryConditionField}` : `inject_${mandatoryConditionField}`) as (keyof InjectInputForm);
+          if (fieldsToSubscribe.indexOf(fieldToSubscribe) === -1) {
+            fieldsToSubscribe.push(fieldToSubscribe);
+          }
+        });
+      } else if (field.visibleConditionFields?.length) {
+        field.visibleConditionFields.forEach((visibleConditionField) => {
+          const visibleConditionFieldType = injectorContractContent?.fields.find(f => f.key === visibleConditionField)?.type;
+          const fieldToSubscribe = ((visibleConditionFieldType && isInjectContentType(visibleConditionFieldType)) ? `inject_content.${visibleConditionField}` : `inject_${visibleConditionField}`) as (keyof InjectInputForm);
+          if (fieldsToSubscribe.indexOf(fieldToSubscribe) === -1) {
+            fieldsToSubscribe.push(fieldToSubscribe);
+          }
+        });
+      }
+    });
 
-  const methods = useForm<InjectInputForm>({
-    mode: 'all',
-    resolver: zodResolver(z.object({
-      ...strictKeys,
-      ...Object.keys(defaultValues).reduce<Record<string, z.ZodTypeAny>>((acc, key) => {
-        if (!(key in strictKeys)) acc[key] = z.any();
+    const unsubscribe = subscribe({
+      name: fieldsToSubscribe,
+      exact: true,
+      formState: { values: true },
+      callback: ({ values }) => {
+        const newEnhancedFields: EnhancedContractElement[] = [];
+        const newEnhancedFieldsMapByType: Map<ContractElement['type'], EnhancedContractElement> = new Map();
+
+        let manda: ZodObject = initialZodSchema;
+        let mandaGroup: ZodObject = initialZodSchema;
+
+        injectorContractContent?.fields.forEach((field) => {
+          const isInjectContent = isInjectContentType(field.type);
+          const isRequired = isRequiredField(field, injectorContractContent?.fields, values);
+          const isVisible = isVisibleField(field, injectorContractContent?.fields, values);
+          const enhancedField = {
+            ...field,
+            key: isInjectContent ? `inject_content.${field.key}` : `inject_${field.key}`,
+            originalKey: field.key,
+            isInjectContentType: isInjectContent && field.type !== 'expectation',
+            isVisible,
+            isInMandatoryGroup: !!field.mandatoryGroups?.length,
+            mandatoryGroupContractElementLabels: injectorContractContent?.fields.filter(f => field.mandatoryGroups?.includes(f.key)).reduce((acc, f, index) => {
+              let newAcc = acc;
+              if (index !== 0) newAcc += ', ';
+              newAcc += t(f.label);
+              return newAcc;
+            }, ''),
+            settings: { required: isRequired },
+          };
+
+          newEnhancedFields.push(enhancedField);
+          newEnhancedFieldsMapByType.set(field.type, enhancedField);
+
+          if (!isCreation) {
+            if (isRequired) {
+              const validatingRule = getValidatingRule(field, t);
+              if (isInjectContent) {
+                clearErrors(`inject_content.${field.key}` as (keyof InjectInputForm));
+                manda = z.object({
+                  ...manda.shape,
+                  inject_content: z.object({
+                    ...manda.shape.inject_content.shape,
+                    [field.key]: validatingRule,
+                  }),
+                });
+              } else {
+                clearErrors(`inject_${field.key}` as (keyof InjectInputForm));
+                manda = z.object({
+                  ...manda.shape,
+                  [`inject_${field.key}`]: validatingRule,
+                });
+              }
+            } else if (field.mandatoryGroups) {
+              const validatingRule = getValidatingRule(field, t);
+
+              if (isInjectContent) {
+                mandaGroup = z.object({
+                  ...mandaGroup.shape,
+                  inject_content: z.object({
+                    ...mandaGroup.shape.inject_content.shape,
+                    [field.key]: validatingRule,
+                  }),
+                });
+                manda = z.object({
+                  ...manda.shape,
+                  inject_content: z.object({
+                    ...manda.shape.inject_content.shape,
+                    [field.key]: z.any(),
+                  }),
+                });
+              } else {
+                mandaGroup = z.object({
+                  ...mandaGroup.shape,
+                  [`inject_${field.key}`]: validatingRule,
+                });
+                manda = z.object({
+                  ...manda.shape,
+                  [`inject_${field.key}`]: z.any(),
+                });
+              }
+            }
+          }
+        });
+        if (!isCreation) {
+          setMandatoryKeys(manda);
+          setMandatoryGroupKeys(mandaGroup);
+        }
+        setEnhancedFields(newEnhancedFields);
+        setEnhancedFieldsMapByType(newEnhancedFieldsMapByType);
+      },
+    });
+    return unsubscribe;
+  }, [subscribe, injectorContractContent]);
+
+  useEffect(() => {
+    let unsubscribe;
+    if (!isCreation) {
+      const mandatoryGroupFields = (injectorContractContent?.fields.filter(field => field.mandatoryGroups?.length).map(field => isInjectContentType(field.type) ? `inject_content.${field.key}` : `inject_${field.key}`) || []) as (keyof InjectInputForm)[];
+      unsubscribe = subscribe({
+        name: mandatoryGroupFields,
+        exact: true,
+        formState: { values: true },
+        callback: () => {
+          trigger(mandatoryGroupFields as (keyof InjectInputForm)[]);
+        },
+      });
+    }
+    return unsubscribe;
+  }, [subscribe, injectorContractContent]);
+
+  useEffect(() => {
+    if (!isCreation) {
+      trigger();
+    }
+  }, [isCreation, mandatoryKeys]);
+
+  useEffect(() => {
+    if (injectorContractContent?.fields) {
+      setFieldsMapByKey(injectorContractContent.fields.reduce<Record<ContractElement['key'], ContractElement>>((acc, field) => {
+        acc[field.key] = field;
         return acc;
-      }, {}),
-    })),
-    defaultValues: defaultValues,
-  });
-
-  const { handleSubmit, reset, formState: { isSubmitting } } = methods;
+      }, {}));
+    }
+  }, [injectorContractContent]);
 
   useEffect(() => {
     const initialValues = getInitialValues();
-    setDefaultValues(initialValues);
-    setOpenDetailContent(openDetails);
     reset(initialValues);
+    setDefaultValues(initialValues);
   }, [injectorContractContent]);
 
   if (Object.keys(defaultValues).length === 0) {
@@ -260,27 +428,21 @@ const InjectForm = ({
           </div>
         )}
 
-        {injectorContractContent && openDetailContent && (
+        {injectorContractContent && (
           <InjectContentForm
-            injectorContractContent={injectorContractContent}
+            enhancedFields={enhancedFields}
+            enhancedFieldsMapByType={enhancedFieldsMapByType}
+            injectorContractVariables={injectorContractContent.variables || []}
             readOnly={isSubmitting || disabled || permissions.readOnly}
             injectId={defaultInject.inject_id}
             isAtomic={isAtomic}
+            isCreation={isCreation}
             uriVariable={uriVariable}
             variables={variablesFromExerciseOrScenario}
             articles={articlesFromExerciseOrScenario}
           />
         )}
-        { injectorContractContent && (
-          <Button
-            variant="outlined"
-            onClick={toggleInjectContent}
-            className={classes.injectContentButton}
-          >
-            {openDetailContent ? <ArrowDropUpOutlined fontSize="large" /> : <ArrowDropDownOutlined fontSize="large" />}
-            {t('Inject content')}
-          </Button>
-        )}
+
         <div className={classes.injectFormButtonsContainer}>
           <Button
             variant="contained"
@@ -292,7 +454,9 @@ const InjectForm = ({
           <Button
             variant="contained"
             color="secondary"
-            type="submit"
+            onClick={() => {
+              onSubmit(getValues());
+            }}
             disabled={isSubmitting || disabled || permissions.readOnly}
           >
             {isCreation ? t('Create') : t('Update')}

@@ -8,9 +8,10 @@ interface Props {
   label: string;
   style?: CSSProperties;
   disabled?: boolean;
+  required?: boolean;
 }
 
-const TagFieldController = ({ name, label, style = {}, disabled = false }: Props) => {
+const TagFieldController = ({ name, label, style = {}, required = false, disabled = false }: Props) => {
   const { control } = useFormContext();
 
   return (
@@ -25,6 +26,7 @@ const TagFieldController = ({ name, label, style = {}, disabled = false }: Props
           error={error}
           style={style}
           disabled={disabled}
+          required={required}
         />
       )}
     />
