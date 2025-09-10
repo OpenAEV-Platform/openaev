@@ -24,7 +24,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class SecurityCoverageInjectService {
 
-  public static final int INJECTS_PER_ATTACK_PATTERN = 1;
+  public static final int NUMBER_OF_INJECTS = 1;
 
   private final InjectService injectService;
   private final InjectAssistantService injectAssistantService;
@@ -63,13 +63,14 @@ public class SecurityCoverageInjectService {
   private Set<Inject> getInjectsByVulnerabilities(
       Scenario scenario, List<StixRefToExternalRef> vulnerabilityRefs) {
     // 1. Fetch internal Ids for AttackPatterns
-    Map<String, Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
+    List<String> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs).stream().map(vulnerability->vulnerability.getId()).collect(Collectors.toList());
 
     if (vulnerabilityRefs.isEmpty()) {
       return emptySet();
     }
 
-    return Set.of();
+    return  injectAssistantService.generateInjectsByVulnerabilities(
+        scenario, vulnerabilities, NUMBER_OF_INJECTS);
   }
 
   private Set<Inject> getInjectsRelatedToAttackPatterns(
@@ -101,7 +102,8 @@ public class SecurityCoverageInjectService {
     } else {
       handleWithAssetGroupsCase(scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
     }
-    return null;
+
+    return injectRepository.findByScenarioId(scenario.getId());
   }
 
   /**
@@ -154,7 +156,7 @@ public class SecurityCoverageInjectService {
               .collect(Collectors.toSet());
 
       injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
-          scenario, missingAttacks, INJECTS_PER_ATTACK_PATTERN);
+          scenario, missingAttacks, NUMBER_OF_INJECTS);
     }
   }
 
@@ -217,7 +219,7 @@ public class SecurityCoverageInjectService {
       injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
           scenario,
           missingAttacks,
-          INJECTS_PER_ATTACK_PATTERN,
+          NUMBER_OF_INJECTS,
           missingCombinations.filteredAssetsFromGroupMap());
     }
   }

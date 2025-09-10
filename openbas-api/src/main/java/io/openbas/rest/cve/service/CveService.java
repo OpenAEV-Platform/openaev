@@ -209,9 +209,9 @@ public class CveService {
    * @param vulnerabilityRefs list vulnerability Refs to resolve with internal vulnerability refs
    * @return list of resolved internal vulnerability entities
    */
-  public Map<String, Cve> fetchInternalVulnerabilityIds(
+  public List<Cve> fetchInternalVulnerabilityIds(
       List<StixRefToExternalRef> vulnerabilityRefs) {
     return getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs)).stream()
-        .collect(Collectors.toMap(vuln -> vuln.getId(), Function.identity()));
+        .collect(Collectors.toList());
   }
 }
