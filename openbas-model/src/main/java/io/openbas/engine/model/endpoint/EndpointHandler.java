@@ -6,8 +6,8 @@ import io.openbas.database.raw.RawEndpoint;
 import io.openbas.database.repository.EndpointRepository;
 import io.openbas.engine.Handler;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -47,27 +47,29 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               esEndpoint.setEndpoint_mac_addresses(endpoint.getEndpoint_mac_addresses());
               esEndpoint.setEndpoint_seen_ip(endpoint.getEndpoint_seen_ip());
               esEndpoint.setEndpoint_is_eol(endpoint.getEndpoint_is_eol());
-              // Dependencies
-              List<String> dependencies = new ArrayList<>();
+              // Dependencies (see base_dependencies in EsBase)
               if (endpoint.getAsset_findings() != null && !endpoint.getAsset_findings().isEmpty()) {
-                dependencies.addAll(endpoint.getAsset_findings());
                 esEndpoint.setBase_findings_side(endpoint.getAsset_findings());
+              } else {
+                esEndpoint.setBase_findings_side(Set.of());
               }
               if (endpoint.getAsset_tags() != null && !endpoint.getAsset_tags().isEmpty()) {
-                dependencies.addAll(endpoint.getAsset_tags());
                 esEndpoint.setBase_tags_side(endpoint.getAsset_tags());
+              } else {
+                esEndpoint.setBase_tags_side(Set.of());
               }
               if (endpoint.getEndpoint_exercises() != null
                   && !endpoint.getEndpoint_exercises().isEmpty()) {
-                dependencies.addAll(endpoint.getEndpoint_exercises());
                 esEndpoint.setBase_simulation_side(endpoint.getEndpoint_exercises());
+              } else {
+                esEndpoint.setBase_simulation_side(Set.of());
               }
               if (endpoint.getEndpoint_scenarios() != null
                   && !endpoint.getEndpoint_scenarios().isEmpty()) {
-                dependencies.addAll(endpoint.getEndpoint_scenarios());
                 esEndpoint.setBase_scenario_side(endpoint.getEndpoint_scenarios());
+              } else {
+                esEndpoint.setBase_scenario_side(Set.of());
               }
-              esEndpoint.setBase_dependencies(dependencies);
               return esEndpoint;
             })
         .toList();

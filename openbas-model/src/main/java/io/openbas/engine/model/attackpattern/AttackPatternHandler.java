@@ -7,8 +7,8 @@ import io.openbas.database.raw.RawAttackPattern;
 import io.openbas.database.repository.AttackPatternRepository;
 import io.openbas.engine.Handler;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -40,19 +40,19 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
               esAttackPattern.setDescription(attackPattern.getAttack_pattern_description());
               esAttackPattern.setExternalId(attackPattern.getAttack_pattern_external_id());
               esAttackPattern.setPlatforms(attackPattern.getAttack_pattern_platforms());
-              // Dependencies
-              List<String> dependencies = new ArrayList<>();
+              // Dependencies (see base_dependencies in EsBase)
               if (hasText(attackPattern.getAttack_pattern_parent())) {
-                dependencies.add(attackPattern.getAttack_pattern_parent());
                 esAttackPattern.setBase_attack_pattern_side(
                     attackPattern.getAttack_pattern_parent());
+              } else {
+                esAttackPattern.setBase_attack_pattern_side(null);
               }
               if (!isEmpty(attackPattern.getAttack_pattern_kill_chain_phases())) {
-                dependencies.addAll(attackPattern.getAttack_pattern_kill_chain_phases());
                 esAttackPattern.setBase_kill_chain_phases_side(
                     attackPattern.getAttack_pattern_kill_chain_phases());
+              } else {
+                esAttackPattern.setBase_kill_chain_phases_side(Set.of());
               }
-              esAttackPattern.setBase_dependencies(dependencies);
               return esAttackPattern;
             })
         .toList();

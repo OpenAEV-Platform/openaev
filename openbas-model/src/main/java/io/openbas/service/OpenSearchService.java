@@ -40,11 +40,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
+import org.opensearch.client.json.JsonData;
 import org.opensearch.client.opensearch.OpenSearchClient;
-import org.opensearch.client.opensearch._types.FieldSort;
-import org.opensearch.client.opensearch._types.FieldValue;
-import org.opensearch.client.opensearch._types.SortOptions;
-import org.opensearch.client.opensearch._types.SortOrder;
+import org.opensearch.client.opensearch._types.*;
 import org.opensearch.client.opensearch._types.aggregations.*;
 import org.opensearch.client.opensearch._types.query_dsl.*;
 import org.opensearch.client.opensearch.core.*;
@@ -447,10 +445,12 @@ public class OpenSearchService implements EngineService {
   public void bulkDelete(List<String> ids) {
     try {
       List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
+      // Delete the direct document corresponding to the id
       Query directId =
           TermsQuery.of(
                   t -> t.field("base_id.keyword").terms(TermsQueryField.of(tq -> tq.value(values))))
               .toQuery();
+      // Delete "cascade" the documents including the id in their "base_dependencies"
       Query dependenciesId =
           TermsQuery.of(
                   t ->
@@ -463,6 +463,38 @@ public class OpenSearchService implements EngineService {
           new DeleteByQueryRequest.Builder()
               .index(engineConfig.getIndexPrefix() + "*")
               .query(query)
+              .refresh(Refresh.True)
+              .build());
+      // Delete the id in the attributes of the documents including the id
+      openSearchClient.updateByQuery(
+          new UpdateByQueryRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .script(
+                  Script.of(
+                      s ->
+                          s.inline(
+                              InlineScript.of(
+                                  is ->
+                                      is.source(
+                                              """
+                                                      // For each EsBase attribute of each document
+                                                      for (String key : ctx._source.keySet().toArray()) {
+                                                        // If it's a "base_XXX_side" (means String id or List of ids), we delete only in the "base_XXX_side" of the EsBase the object id deleted before with the deleteByQuery
+                                                        if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
+                                                            if (ctx._source[key] instanceof List) {
+                                                                ctx._source[key].removeIf(item -> item == params.valueToRemove);
+                                                            } else if (ctx._source[key] instanceof String && ctx._source[key] == params.valueToRemove) {
+                                                                ctx._source.remove(key);
+                                                            }
+                                                        }
+                                                      }
+                                                    """)
+                                          .params(
+                                              "valueToRemove",
+                                              JsonData.of(
+                                                  ids.getFirst())))))) // Only 1 id in this list
+              .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
       log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
