@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 import io.openbas.database.helper.InjectorContractRepositoryHelper;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
+import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.injectors.manual.ManualContract;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.exception.UnprocessableContentException;
@@ -29,9 +30,11 @@ public class InjectAssistantService {
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final InjectorContractService injectorContractService;
-  private final InjectRepository injectRepository;
-  private final InjectorContractRepositoryHelper injectorContractRepositoryHelper;
   private final AttackPatternService attackPatternService;
+
+  private final InjectRepository injectRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractRepositoryHelper injectorContractRepositoryHelper;
 
   private InjectorContract manualInjectorContract = null;
 
@@ -106,17 +109,18 @@ public class InjectAssistantService {
    * Builds a technical Inject object from the provided InjectorContract and AttackPattern.
    *
    * @param injectorContract the InjectorContract to build the Inject from
-   * @param attackPattern the AttackPattern associated with the Inject
+   * @param identifier the AttackPattern or Vulnerability associated with the Inject
+   * @param name the AttackPattern or Vulnerability associated with the Inject
    * @return the built Inject object
    */
   private Inject buildTechnicalInjectFromInjectorContract(
-      InjectorContract injectorContract, AttackPattern attackPattern) {
+      InjectorContract injectorContract, String identifier, String name) {
     return buildInject(
         injectorContract,
         String.format(
             "[%s] %s - %s",
-            attackPattern.getExternalId(),
-            attackPattern.getName(),
+            identifier,
+            name,
             injectorContract.getLabels().get("en")),
         null,
         true);
@@ -125,13 +129,13 @@ public class InjectAssistantService {
   /**
    * Builds a manual Inject object - also called Placeholder.
    *
-   * @param attackPattern the AttackPattern to specify in the title and description of the Inject
+   * @param identifier the AttackPattern or vulnerability to specify in the title and description of the Inject
    * @param platform the platform to specify in the title and description of the Inject
    * @param architecture the architecture to specify in the title and description of the Inject
    * @return the built manual Inject object
    */
   private Inject buildManualInject(
-      AttackPattern attackPattern, String platform, String architecture) {
+      String identifier, String platform, String architecture) {
     if (manualInjectorContract == null) {
       manualInjectorContract =
           this.injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
@@ -139,10 +143,10 @@ public class InjectAssistantService {
     return buildInject(
         manualInjectorContract,
         String.format(
-            "[%s] Placeholder - %s %s", attackPattern.getExternalId(), platform, architecture),
+            "[%s] Placeholder - %s %s", identifier, platform, architecture),
         String.format(
             "This placeholder is disabled because the TTP %s with platform %s and architecture %s is currently not covered. Please create the payloads for the missing TTP.",
-            attackPattern.getExternalId(), platform, architecture),
+            identifier, platform, architecture),
         false);
   }
 
@@ -389,7 +393,7 @@ public class InjectAssistantService {
         (contract, value) -> {
           Inject inject =
               contractInjectMap.computeIfAbsent(
-                  contract, k -> buildTechnicalInjectFromInjectorContract(k, attackPattern));
+                  contract, k -> buildTechnicalInjectFromInjectorContract(k, attackPattern.getExternalId(), attackPattern.getName()));
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
 
@@ -401,7 +405,7 @@ public class InjectAssistantService {
                   platformArchitecture,
                   key -> {
                     String[] parts = key.split(":");
-                    return buildManualInject(attackPattern, parts[0], parts[1]);
+                    return buildManualInject(attackPattern.getExternalId(), parts[0], parts[1]);
                   });
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
@@ -437,7 +441,7 @@ public class InjectAssistantService {
           contract -> {
             Inject inject =
                 contractInjectMap.computeIfAbsent(
-                    contract, k -> buildTechnicalInjectFromInjectorContract(k, attackPattern));
+                    contract, k -> buildTechnicalInjectFromInjectorContract(k, attackPattern.getExternalId(), attackPattern.getName()));
             inject.getAssetGroups().add(group);
           });
 
@@ -447,7 +451,7 @@ public class InjectAssistantService {
                 result.unmatchedPlatformArchitecture,
                 k -> {
                   String[] parts = k.split(":");
-                  return buildManualInject(attackPattern, parts[0], parts[1]);
+                  return buildManualInject(attackPattern.getExternalId(), parts[0], parts[1]);
                 });
         inject.getAssetGroups().add(group);
       }
@@ -647,10 +651,10 @@ public class InjectAssistantService {
 
     if (!injectorContracts.isEmpty()) {
       return injectorContracts.stream()
-          .map(ic -> buildTechnicalInjectFromInjectorContract(ic, attackPattern))
+          .map(ic -> buildTechnicalInjectFromInjectorContract(ic, attackPattern.getExternalId(), attackPattern.getName()))
           .toList();
     }
-    return List.of(buildManualInject(attackPattern, "[any platform]", "[any architecture]"));
+    return List.of(buildManualInject(attackPattern.getExternalId(), "[any platform]", "[any architecture]"));
   }
 
   /**
@@ -679,11 +683,39 @@ public class InjectAssistantService {
     return injectorContracts.stream()
         .map(
             ic -> {
-              Inject inject = buildTechnicalInjectFromInjectorContract(ic, attackPattern);
+              Inject inject = buildTechnicalInjectFromInjectorContract(ic, attackPattern.getExternalId(), attackPattern.getName());
               inject.setAssetGroups(assetGroups);
               inject.setAssets(endpoints.stream().map(Asset.class::cast).toList());
               return inject;
             })
         .toList();
+  }
+
+  // -- Vulnerabilities --
+
+  public List<Inject> generateInjectsByVulnerabilities(Scenario scenario, List<String> vulnerabilityIds, int injectsPerVulnerability) {
+    List<Inject> injects =
+        vulnerabilityIds.stream()
+            .flatMap(
+                vulnerability ->
+                    buildInjectsByVulnerability(vulnerability, injectsPerVulnerability)
+                        .stream())
+            .peek(inject -> inject.setScenario(scenario))
+            .toList();
+    return this.injectRepository.saveAll(injects);
+  }
+
+  private List<Inject> buildInjectsByVulnerability(String vulnerabilityId,
+      Integer injectsPerVulnerability) {
+    List<InjectorContract> injectorContracts =
+        this.injectorContractRepository.findInjectorContractsByVulnerabilityId(
+            vulnerabilityId, injectsPerVulnerability);
+
+    if (!injectorContracts.isEmpty()) {
+      return injectorContracts.stream()
+          .map(ic -> buildTechnicalInjectFromInjectorContract(ic, vulnerabilityId))
+          .toList();
+    }
+    return List.of(buildManualInject(vulnerabilityId, "[any platform]", "[any architecture]"));
   }
 }
