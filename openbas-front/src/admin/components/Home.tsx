@@ -37,10 +37,10 @@ const Home = () => {
     customDashboardId: settings.platform_home_dashboard,
     paramLocalStorageKey: 'custom-dashboard-home',
     fetchCustomDashboard: () => fetchHomeDashboard(),
-    fetchCount: (widgetId, params) => homeDashboardCount(widgetId, params),
-    fetchSeries: (widgetId, params) => homeDashboardSeries(widgetId, params),
-    fetchEntities: (widgetId, params) => homeDashboardEntities(widgetId, params),
-    fetchAttackPaths: (widgetId, params) => homeDashboardAttackPaths(widgetId, params),
+    fetchCount: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardCount(widgetId, params),
+    fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardSeries(widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardEntities(widgetId, params),
+    fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardAttackPaths(widgetId, params),
   };
 
   return (

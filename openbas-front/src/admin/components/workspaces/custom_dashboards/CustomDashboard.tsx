@@ -21,10 +21,10 @@ const CustomDashboard = () => {
     customDashboardId: customDashboardId,
     paramLocalStorageKey: 'custom-dashboard-' + customDashboardId,
     fetchCustomDashboard: () => fetchCustomDashboard(customDashboardId),
-    fetchCount: (widgetId, params) => count(widgetId, params),
-    fetchSeries: (widgetId, params) => series(widgetId, params),
-    fetchEntities: (widgetId, params) => entities(widgetId, params),
-    fetchAttackPaths: (widgetId, params) => attackPaths(widgetId, params),
+    fetchCount: (widgetId: string, params: Record<string, string | undefined>) => count(widgetId, params),
+    fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => series(widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entities(widgetId, params),
+    fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPaths(widgetId, params),
   };
 
   return (

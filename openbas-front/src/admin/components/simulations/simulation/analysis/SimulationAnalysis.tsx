@@ -2,7 +2,13 @@ import { useContext } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchExercise, updateExercise } from '../../../../../actions/Exercise';
+import {
+  attackPathsBySimulation,
+  countBySimulation,
+  entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation,
+} from '../../../../../actions/exercises/exercise-action';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { countByScenario } from '../../../../../actions/scenarios/scenario-actions';
 import { useHelper } from '../../../../../store';
 import { type CustomDashboard, type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -14,12 +20,6 @@ import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/Custom
 import NoDashboardComponent from '../../../workspaces/custom_dashboards/NoDashboardComponent';
 import SelectDashboardButton from '../../../workspaces/custom_dashboards/SelectDashboardButton';
 import { ALL_TIME_TIME_RANGE } from '../../../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
-import {countByScenario} from "../../../../../actions/scenarios/scenario-actions";
-import {
-  attackPathsBySimulation,
-  countBySimulation,
-  entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation
-} from "../../../../../actions/exercises/exercise-action";
 
 const SimulationAnalysis = () => {
   const dispatch = useAppDispatch();
@@ -73,10 +73,10 @@ const SimulationAnalysis = () => {
     canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId),
     handleSelectNewDashboard,
     fetchCustomDashboard: () => fetchCustomDashboardFromSimulation(exerciseId),
-    fetchCount: (widgetId, params) => countBySimulation(exerciseId, widgetId, params),
-    fetchSeries: (widgetId, params) => seriesBySimulation(exerciseId, widgetId, params),
-    fetchEntities: (widgetId, params) => entitiesBySimulation(exerciseId, widgetId, params),
-    fetchAttackPaths: (widgetId, params) => attackPathsBySimulation(exerciseId, widgetId, params),
+    fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countBySimulation(exerciseId, widgetId, params),
+    fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesBySimulation(exerciseId, widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesBySimulation(exerciseId, widgetId, params),
+    fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
   };
 
   return (

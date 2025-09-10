@@ -1,6 +1,12 @@
 import { useContext } from 'react';
 import { useParams } from 'react-router';
 
+import {
+  attackPathsBySimulation,
+  countBySimulation, entitiesBySimulation,
+  fetchCustomDashboardFromSimulation,
+  seriesBySimulation,
+} from '../../../../../actions/exercises/exercise-action';
 import { fetchScenario, updateScenario } from '../../../../../actions/scenarios/scenario-actions';
 import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable/filter/constants';
@@ -14,12 +20,6 @@ import { type ParameterOption } from '../../../workspaces/custom_dashboards/Cust
 import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';
 import NoDashboardComponent from '../../../workspaces/custom_dashboards/NoDashboardComponent';
 import SelectDashboardButton from '../../../workspaces/custom_dashboards/SelectDashboardButton';
-import {
-  attackPathsBySimulation,
-  countBySimulation, entitiesBySimulation,
-  fetchCustomDashboardFromSimulation,
-  seriesBySimulation
-} from "../../../../../actions/exercises/exercise-action";
 
 const ScenarioAnalysis = () => {
   const dispatch = useAppDispatch();
@@ -75,10 +75,10 @@ const ScenarioAnalysis = () => {
     canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenarioId),
     handleSelectNewDashboard,
     fetchCustomDashboard: () => fetchCustomDashboardFromSimulation(scenarioId),
-    fetchCount: (widgetId, params) => countBySimulation(scenarioId, widgetId, params),
-    fetchSeries: (widgetId, params) => seriesBySimulation(scenarioId, widgetId, params),
-    fetchEntities: (widgetId, params) => entitiesBySimulation(scenarioId, widgetId, params),
-    fetchAttackPaths: (widgetId, params) => attackPathsBySimulation(scenarioId, widgetId, params),
+    fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countBySimulation(scenarioId, widgetId, params),
+    fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesBySimulation(scenarioId, widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesBySimulation(scenarioId, widgetId, params),
+    fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(scenarioId, widgetId, params),
   };
 
   return (
