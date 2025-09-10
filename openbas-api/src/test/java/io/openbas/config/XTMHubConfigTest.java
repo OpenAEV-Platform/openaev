@@ -2,6 +2,7 @@ package io.openbas.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openbas.IntegrationTest;
 import io.openbas.injectors.xtmhub.config.XTMHubConfig;
 import io.openbas.utils.mockConfig.WithMockXTMHubConfig;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
 @DisplayName("XTMHubConfig tests")
-public class XTMHubConfigTest {
+public class XTMHubConfigTest extends IntegrationTest {
 
   @Nested
   @WithMockXTMHubConfig(enable = true, url = "https://hub.filigran.io")

@@ -1,7 +1,7 @@
 import { HelpOutlined } from '@mui/icons-material';
 import { Avatar, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
+import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 
 import { fetchInject } from '../../../../actions/Inject';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
@@ -58,7 +58,6 @@ const UpdateInject: React.FC<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const drawerRef = useRef(null);
   const [isInjectLoading, setIsInjectLoading] = useState(true);
 
   const { permissions } = useContext(PermissionsContext);
@@ -116,7 +115,6 @@ const UpdateInject: React.FC<Props> = ({
       open={open}
       handleClose={handleClose}
       title={t('Update the inject')}
-      PaperProps={{ ref: drawerRef }}
       disableEnforceFocus
       containerStyle={{
         display: 'flex',
@@ -171,9 +169,7 @@ const UpdateInject: React.FC<Props> = ({
         {!isInjectLoading && (isAtomic || activeTab === 'Inject details') && (
           <InjectForm
             handleClose={handleClose}
-            openDetails
             disabled={!injectorContractContent || permissions.readOnly || ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)}
-            drawerRef={drawerRef}
             isAtomic={isAtomic}
             defaultInject={inject}
             injectorContractContent={injectorContractContent}

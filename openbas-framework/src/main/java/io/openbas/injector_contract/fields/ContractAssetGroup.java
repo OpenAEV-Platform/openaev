@@ -7,7 +7,7 @@ import io.openbas.injector_contract.ContractCardinality;
 public class ContractAssetGroup extends ContractCardinalityElement {
 
   public ContractAssetGroup(ContractCardinality cardinality) {
-    super(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS, "Asset groups", cardinality);
+    super(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS, "Source asset groups", cardinality);
   }
 
   public static ContractAssetGroup assetGroupField(ContractCardinality cardinality) {

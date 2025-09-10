@@ -74,7 +74,7 @@ const OutputFormTab = () => {
           sx={{ marginLeft: 'auto' }}
           variant="contained"
         >
-          {t('Add rule')}
+          {t('add_attribute')}
         </Button>
       </div>
 

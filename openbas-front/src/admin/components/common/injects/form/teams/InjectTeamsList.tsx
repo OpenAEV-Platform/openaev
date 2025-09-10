@@ -1,5 +1,5 @@
 import { GroupsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { FormHelperText, List, ListItem, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -25,9 +25,10 @@ const useStyles = makeStyles()(theme => ({
 interface Props {
   readOnly?: boolean;
   hideEnabledUsersNumber?: boolean;
+  error?: string | null;
 }
 
-const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabledUsersNumber = false }) => {
+const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabledUsersNumber = false, error }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -55,11 +56,11 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
   }, [injectTeamIds]);
 
   // -- ACTIONS --
-  const onTeamsChange = (teamIds: string[]) => setValue('inject_teams', teamIds);
+  const onTeamsChange = (teamIds: string[]) => setValue('inject_teams', teamIds, { shouldValidate: true });
 
   const onRemoveTeam = (teamId: string) => {
     const updatedTeamIds = injectTeamIds.filter((id: string) => id !== teamId);
-    setValue('inject_teams', updatedTeamIds);
+    setValue('inject_teams', updatedTeamIds, { shouldValidate: true });
   };
 
   const teamListItem = (team: TeamOutput, userEnabled: number) => (
@@ -119,9 +120,14 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
       {!allTeams
         && (
           <Can I={ACTIONS.ACCESS} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-            <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} />
+            <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} error={error} />
           </Can>
         )}
+      {!allTeams && error && (
+        <FormHelperText error>
+          {error}
+        </FormHelperText>
+      )}
     </>
   );
 };

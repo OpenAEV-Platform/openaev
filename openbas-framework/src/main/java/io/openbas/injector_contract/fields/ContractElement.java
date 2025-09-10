@@ -3,6 +3,7 @@ package io.openbas.injector_contract.fields;
 import io.openbas.model.LinkedFieldModel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.Data;
 
 @Data
@@ -18,9 +19,13 @@ public abstract class ContractElement {
 
   private List<String> mandatoryGroups;
 
-  private String mandatoryConditionField;
+  private List<String> mandatoryConditionFields;
 
-  private String mandatoryConditionValue;
+  private Map<String, String> mandatoryConditionValues;
+
+  private List<String> visibleConditionFields;
+
+  private Map<String, String> visibleConditionValues;
 
   /**
    * List of linked fields that can be used to link this field to other fields in the contract. This

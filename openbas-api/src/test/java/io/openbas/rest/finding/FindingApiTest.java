@@ -2,6 +2,7 @@ package io.openbas.rest.finding;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.FindingFixture.createDefaultTextFindingWithRandomValue;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -160,11 +161,10 @@ class FindingApiTest extends IntegrationTest {
     private List<FindingComposer.Composer> getDefaultFindings() {
       return new ArrayList<>(
           List.of(
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue()),
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue()),
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue()),
-              findingComposer.forFinding(
-                  FindingFixture.createDefaultTextFindingWithRandomValue())));
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue()),
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue()),
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue()),
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue())));
     }
 
     @Nested
@@ -187,8 +187,7 @@ class FindingApiTest extends IntegrationTest {
           for (Map.Entry<String, InjectComposer.Composer> entry :
               latestSimulationInjectWrappers.entrySet()) {
             FindingComposer.Composer findingWrapper =
-                findingComposer.forFinding(
-                    FindingFixture.createDefaultTextFindingWithRandomValue());
+                findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
             latestFindingWrappers.add(findingWrapper);
             entry.getValue().withFinding(findingWrapper);
           }
@@ -198,7 +197,7 @@ class FindingApiTest extends IntegrationTest {
         // add injects (atomic testing) with findings too
         for (int i = 0; i < 2; i++) {
           FindingComposer.Composer findingWrapper =
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
           latestFindingWrappers.add(findingWrapper);
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -252,8 +251,7 @@ class FindingApiTest extends IntegrationTest {
           for (Map.Entry<String, InjectComposer.Composer> entry :
               latestSimulationInjectWrappers.entrySet()) {
             FindingComposer.Composer findingWrapper =
-                findingComposer.forFinding(
-                    FindingFixture.createDefaultTextFindingWithRandomValue());
+                findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
             latestFindingWrappers.add(findingWrapper);
             entry.getValue().withFinding(findingWrapper);
           }
@@ -267,7 +265,7 @@ class FindingApiTest extends IntegrationTest {
         // add injects (atomic testing) with findings too
         for (int i = 0; i < 2; i++) {
           FindingComposer.Composer findingWrapper =
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
           latestFindingWrappers.add(findingWrapper);
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -322,7 +320,7 @@ class FindingApiTest extends IntegrationTest {
         for (Map.Entry<String, InjectComposer.Composer> entry :
             latestSimulationInjectWrappers.entrySet()) {
           FindingComposer.Composer findingWrapper =
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
           latestFindingWrappers.add(findingWrapper);
           entry.getValue().withFinding(findingWrapper);
         }
@@ -370,7 +368,9 @@ class FindingApiTest extends IntegrationTest {
         Exercise ex = scenarioWrapper.get().getExercises().getFirst();
 
         SearchPaginationInput input = PaginationFixture.getDefault().build();
-        input.setSorts(List.of(new SortField("finding_created_at", "asc")));
+        input.setSorts(
+            List.of(
+                new SortField("finding_created_at", "asc"), new SortField("finding_value", "asc")));
 
         entityManager.flush();
         entityManager.clear();
@@ -389,7 +389,13 @@ class FindingApiTest extends IntegrationTest {
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
-                .sorted(Comparator.comparing(RelatedFindingOutput::getCreationDate))
+                .sorted(
+                    (o1, o2) -> {
+                      if (o1.getCreationDate().equals(o2.getCreationDate())) {
+                        return o1.getValue().compareTo(o2.getValue());
+                      }
+                      return o1.getCreationDate().compareTo(o2.getCreationDate());
+                    })
                 .limit(input.getSize())
                 .toList();
 
@@ -466,7 +472,7 @@ class FindingApiTest extends IntegrationTest {
             latestSimulationInjectWrappers.entrySet()) {
           FindingComposer.Composer findingWrapper =
               findingComposer
-                  .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                  .forFinding(createDefaultTextFindingWithRandomValue())
                   .withEndpoint(endpointWrapper);
           entry.getValue().withFinding(findingWrapper);
           latestFindingWrappers.add(findingWrapper);
@@ -476,7 +482,7 @@ class FindingApiTest extends IntegrationTest {
         // add injects (atomic testing) with findings too
         for (int i = 0; i < 2; i++) {
           FindingComposer.Composer findingWrapper =
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
           latestFindingWrappers.add(findingWrapper);
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -540,7 +546,7 @@ class FindingApiTest extends IntegrationTest {
         // add injects (atomic testing) with findings too
         for (int i = 0; i < 2; i++) {
           FindingComposer.Composer findingWrapper =
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
           latestFindingWrappers.add(findingWrapper);
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -603,7 +609,7 @@ class FindingApiTest extends IntegrationTest {
             latestSimulationInjectWrappers.entrySet()) {
           FindingComposer.Composer findingWrapper =
               findingComposer
-                  .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                  .forFinding(createDefaultTextFindingWithRandomValue())
                   .withEndpoint(endpointWrapper);
           entry.getValue().withFinding(findingWrapper);
           latestFindingWrappers.add(findingWrapper);
@@ -616,7 +622,7 @@ class FindingApiTest extends IntegrationTest {
         // add injects (atomic testing) with findings too
         for (int i = 0; i < 2; i++) {
           FindingComposer.Composer findingWrapper =
-              findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+              findingComposer.forFinding(createDefaultTextFindingWithRandomValue());
           latestFindingWrappers.add(findingWrapper);
           injectComposer
               .forInject(InjectFixture.getDefaultInject())

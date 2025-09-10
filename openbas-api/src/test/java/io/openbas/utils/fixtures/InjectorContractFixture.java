@@ -2,12 +2,17 @@ package io.openbas.utils.fixtures;
 
 import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openbas.injector_contract.ContractCardinality.Multiple;
+import static io.openbas.injector_contract.ContractDef.contractBuilder;
+import static io.openbas.injector_contract.fields.ContractAsset.assetField;
+import static io.openbas.injector_contract.fields.ContractAssetGroup.assetGroupField;
 import static io.openbas.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openbas.injectors.email.EmailContract.EMAIL_GLOBAL;
 import static io.openbas.utils.fixtures.InjectorFixture.createDefaultPayloadInjector;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -18,15 +23,19 @@ import io.openbas.database.model.InjectorContract;
 import io.openbas.database.model.Payload;
 import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.injector_contract.ContractCardinality;
+import io.openbas.injector_contract.ContractDef;
 import io.openbas.injector_contract.ContractTargetedProperty;
+import io.openbas.injector_contract.fields.*;
 import io.openbas.injector_contract.fields.ContractElement;
 import io.openbas.injector_contract.fields.ContractSelect;
 import io.openbas.injector_contract.fields.ContractTargetedAsset;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 @Component
 public class InjectorContractFixture {
@@ -48,7 +57,9 @@ public class InjectorContractFixture {
   }
 
   public static InjectorContract createPayloadInjectorContractWithFieldsContent(
-      Injector injector, Payload payloadCommand, List<ContractElement> customFieldsContent)
+      Injector injector,
+      Payload payloadCommand,
+      List<ContractCardinalityElement> customFieldsContent)
       throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setInjector(injector);
@@ -142,6 +153,66 @@ public class InjectorContractFixture {
   public JsonNode toJsonNode() {
     ObjectMapper mapper = new ObjectMapper();
     return mapper.valueToTree(this); // Converts this object to a JsonNode
+  }
+
+  // -- BUILDER --
+
+  public static void addField(
+      InjectorContract injectorContract,
+      ObjectMapper mapper,
+      List<ContractElement> contractElements)
+      throws JsonProcessingException {
+    ObjectNode content = mapper.readValue(injectorContract.getContent(), ObjectNode.class);
+    List<ContractElement> elements =
+        mapper.convertValue(content.get(CONTRACT_CONTENT_FIELDS), new TypeReference<>() {});
+    if (CollectionUtils.isEmpty(elements)) {
+      elements = new ArrayList<>();
+    }
+
+    elements.addAll(contractElements);
+
+    content.set(CONTRACT_CONTENT_FIELDS, mapper.valueToTree(elements));
+    injectorContract.setContent(mapper.writeValueAsString(content));
+    injectorContract.setConvertedContent(content);
+  }
+
+  public static List<ContractElement> buildAssetField(final boolean mandatory) {
+    ContractDef builder = contractBuilder();
+    ContractAsset assetField = assetField(Multiple);
+    if (mandatory) {
+      builder.mandatory(assetField);
+    } else {
+      builder.optional(assetField);
+    }
+    return builder.build();
+  }
+
+  public static List<ContractElement> buildMandatoryGroup() {
+    ContractAsset assetField = assetField(Multiple);
+    ContractAssetGroup assetGroupField = assetGroupField(Multiple);
+    ContractDef builder = contractBuilder();
+    builder.mandatoryGroup(assetField, assetGroupField);
+    return builder.build();
+  }
+
+  public static List<ContractElement> buildMandatoryOnCondition() {
+    ContractAsset assetField = assetField(Multiple);
+    ContractAssetGroup assetGroupField = assetGroupField(Multiple);
+    ContractDef builder = contractBuilder();
+    return builder
+        .mandatoryOnCondition(assetField, assetGroupField)
+        .optional(assetGroupField)
+        .build();
+  }
+
+  public static List<ContractElement> buildMandatoryOnConditionValue(@NotBlank final String value) {
+    ContractAsset assetField = assetField(Multiple);
+    ContractAssetGroup assetGroupField = assetGroupField(Multiple);
+    ContractDef builder = contractBuilder();
+    return builder
+        .mandatoryOnConditionValue(assetField, assetGroupField, value)
+        .optional(assetGroupField)
+        .build();
   }
 
   public static void addTargetedAssetFields(

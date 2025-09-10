@@ -44,18 +44,25 @@ const useStyles = makeStyles()(theme => ({
     color: theme.palette.primary.main,
     fontWeight: 500,
   },
+  textError: {
+    fontSize: 15,
+    color: theme.palette.error.main,
+    fontWeight: 500,
+  },
 }));
 
 interface Props {
   handleAddChallenges: (challengeIds: string[]) => void;
   injectChallengesIds: string[];
   disabled?: boolean;
+  error?: string | null;
 }
 
 const InjectAddChallenges: FunctionComponent<Props> = ({
   handleAddChallenges,
   injectChallengesIds,
   disabled = false,
+  error,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -145,12 +152,12 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
         color="primary"
         disabled={disabled}
       >
-        <ListItemIcon color="primary">
-          <ControlPointOutlined color="primary" />
+        <ListItemIcon>
+          <ControlPointOutlined color={error ? 'error' : 'primary'} />
         </ListItemIcon>
         <ListItemText
           primary={t('Add challenges')}
-          classes={{ primary: classes.text }}
+          classes={{ primary: error ? classes.textError : classes.text }}
         />
       </ListItemButton>
       <Dialog
