@@ -2,6 +2,7 @@ package io.openbas.utilstest;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import io.openbas.config.EngineConfig;
+import io.openbas.driver.ElasticDriver;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,10 @@ import org.springframework.stereotype.Component;
 public class DatabaseSnapshotManager {
 
   private final JdbcTemplate jdbcTemplate;
-  private final ElasticsearchClient esClient;
+  private final ElasticDriver elasticDriver;
   private final EngineConfig config;
+
+  private ElasticsearchClient esClient;
 
   private static final Map<String, List<Map<String, Object>>> startupData = new HashMap<>();
   private static final List<String> TABLE_WITHOUT_RESTORATION = List.of("indexing_status");
@@ -101,8 +104,12 @@ public class DatabaseSnapshotManager {
 
   /** Delete ES indices */
   private void cleanElasticsearchIndices() {
-    if (esClient == null) {
-      return;
+    try {
+      if (esClient == null) {
+        esClient = elasticDriver.elasticClient();
+      }
+    } catch (Exception e) {
+      log.warn("Could not get Elasticsearch client: {}", e.getMessage());
     }
 
     try {

@@ -81,7 +81,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
   openbas-dev-elasticsearch:
     container_name: openbas-dev-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.4
     volumes:
       - esdata:/usr/share/elasticsearch/data
       - essnapshots:/usr/share/elasticsearch/snapshots
@@ -128,7 +128,7 @@ services:
       - 9600:9600
   openbas-test-elasticsearch:
     container_name: openbas-test-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.4
     environment:
       - discovery.type=single-node
       - xpack.ml.enabled=false
@@ -149,7 +149,7 @@ services:
       - 9301:9300
   openbas-dev-kibana:
     container_name: openbas-dev-kibana
-    image: docker.elastic.co/kibana/kibana:8.18.3
+    image: docker.elastic.co/kibana/kibana:9.0.4
     environment:
       - ELASTICSEARCH_HOSTS=http://openbas-dev-elasticsearch:9200
     restart: unless-stopped
@@ -159,7 +159,7 @@ services:
       - openbas-dev-elasticsearch
   openbas-test-kibana:
     container_name: openbas-test-kibana
-    image: docker.elastic.co/kibana/kibana:8.18.3
+    image: docker.elastic.co/kibana/kibana:9.0.4
     environment:
       - ELASTICSEARCH_HOSTS=http://openbas-test-elasticsearch:9200
     restart: unless-stopped

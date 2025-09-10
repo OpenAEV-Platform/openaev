@@ -13,7 +13,9 @@ import co.elastic.clients.elasticsearch.indices.put_index_template.IndexTemplate
 import co.elastic.clients.json.JsonData;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
+import co.elastic.clients.transport.rest5_client.Rest5ClientTransport;
+import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
+import co.elastic.clients.transport.rest5_client.low_level.Rest5ClientBuilder;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -25,6 +27,7 @@ import io.openbas.engine.model.EsBase;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
+import java.net.URISyntaxException;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.*;
@@ -32,15 +35,16 @@ import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -61,14 +65,15 @@ public class ElasticDriver {
     this.searchEngine = searchEngine;
   }
 
-  private ElasticsearchClient getElasticClient() {
-    RestClientBuilder restClientBuilder = RestClient.builder(HttpHost.create(config.getUrl()));
+  private ElasticsearchClient getElasticClient() throws URISyntaxException {
+    Rest5ClientBuilder restClientBuilder = Rest5Client.builder(HttpHost.create(config.getUrl()));
     HttpAsyncClientBuilder clientBuilder = HttpAsyncClientBuilder.create();
     if (config.getUsername() != null) {
       BasicCredentialsProvider credsProv = new BasicCredentialsProvider();
       credsProv.setCredentials(
-          AuthScope.ANY,
-          new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
+          new AuthScope(null, -1),
+          new UsernamePasswordCredentials(
+              config.getUsername(), config.getPassword().toCharArray()));
       clientBuilder.setDefaultCredentialsProvider(credsProv);
     }
     if (!config.isRejectUnauthorized()) {
@@ -78,20 +83,24 @@ public class ElasticDriver {
             SSLContextBuilder.create()
                 .loadTrustMaterial(null, (X509Certificate[] chain, String authType) -> true)
                 .build();
-        clientBuilder
-            .setSSLContext(sslContext)
-            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
+        PoolingAsyncClientConnectionManager connectionManager =
+            PoolingAsyncClientConnectionManagerBuilder.create()
+                .setTlsStrategy(
+                    new DefaultClientTlsStrategy(sslContext, NoopHostnameVerifier.INSTANCE))
+                .build();
+
+        clientBuilder.setConnectionManager(connectionManager);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
-    restClientBuilder.setHttpClientConfigCallback(hc -> clientBuilder);
-    RestClient restClient = restClientBuilder.build();
+    restClientBuilder.setHttpClient(clientBuilder.build());
+    Rest5Client restClient = restClientBuilder.build();
     JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper();
     jsonpMapper.objectMapper().registerModule(new JavaTimeModule());
     jsonpMapper.objectMapper().configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
     jsonpMapper.objectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    ElasticsearchTransport transport = new RestClientTransport(restClient, jsonpMapper);
+    ElasticsearchTransport transport = new Rest5ClientTransport(restClient, jsonpMapper);
     return new ElasticsearchClient(transport);
   }
 

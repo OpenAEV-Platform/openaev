@@ -24,7 +24,6 @@
         <opencsv-version>5.11.2</opencsv-version>
         <opentelemetry.version>1.52.0</opentelemetry.version>
         <opentelemetry-semconv.version>1.34.0</opentelemetry-semconv.version>
-        <elasticsearch.version>8.18.3</elasticsearch.version>
     </properties>
 
     <profiles>
@@ -50,11 +49,6 @@
             <groupId>io.openbas</groupId>
             <artifactId>openbas-framework</artifactId>
             <version>1.18.18</version>
-        </dependency>
-        <dependency>
-            <groupId>co.elastic.clients</groupId>
-            <artifactId>elasticsearch-java</artifactId>
-            <version>${elasticsearch.version}</version>
         </dependency>
         <dependency>
             <groupId>com.rabbitmq</groupId>
@@ -285,6 +279,11 @@
             <groupId>net.lingala.zip4j</groupId>
             <artifactId>zip4j</artifactId>
             <version>2.11.5</version>
+        </dependency>
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+            <version>${elasticsearch.version}</version>
         </dependency>
     </dependencies>
 
