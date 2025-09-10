@@ -359,8 +359,8 @@ public interface InjectRepository
   @Query(
       value =
           "DELETE FROM injects i "
-              + "INNER JOIN injectors_contracts ic ON i.inject_injector_contract_id = ic.injector_contract_id "
-              + "INNER JOIN injectors_contracts_vulnerabilities icv ON ic.injector_contract_id = icv.injector_contract_id "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract_id = ic.injector_contract_id "
+              + "JOIN injectors_contracts_vulnerabilities icv ON ic.injector_contract_id = icv.injector_contract_id "
               + "WHERE i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
@@ -370,8 +370,8 @@ public interface InjectRepository
   @Query(
       value =
           "DELETE FROM injects i "
-              + "INNER JOIN injectors_contracts ic ON i.inject_injector_contract_id = ic.injector_contract_id "
-              + "INNER JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract_id = ic.injector_contract_id "
+              + "JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
               + "WHERE i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(
