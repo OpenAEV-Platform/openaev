@@ -29,7 +29,6 @@ import org.springframework.stereotype.Service;
 public class SecurityCoverageService {
 
   public static final String STIX_ID = "id";
-  public static final String STIX_THREAT_CONTEXT_REF = "threat_context_ref";
   public static final String STIX_NAME = "name";
   public static final String STIX_DESCRIPTION = "description";
   public static final String STIX_LABELS = "labels";
@@ -78,9 +77,6 @@ public class SecurityCoverageService {
     String externalId = stixCoverageObj.getRequiredProperty(STIX_ID);
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
     securityCoverage.setExternalId(externalId);
-
-    String threatContextRef = stixCoverageObj.getRequiredProperty(STIX_THREAT_CONTEXT_REF);
-    securityCoverage.setThreatContextRef(threatContextRef);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
     securityCoverage.setName(name);
