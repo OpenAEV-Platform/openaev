@@ -31,11 +31,11 @@ public class WidgetService {
     // causing circular dependency
     CustomDashboard customDashboard =
         customDashboardRepository
-            .findByResourceId(customDashboardId)
+            .findById(customDashboardId)
             .orElseThrow(
                 () ->
                     new EntityNotFoundException(
-                        "CustomDashboard not found with id: " + customDashboardId));
+                        "Custom dashboard not found with id: " + customDashboardId));
     widget.setCustomDashboard(customDashboard);
     return this.widgetRepository.save(widget);
   }
