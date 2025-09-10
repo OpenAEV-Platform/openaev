@@ -12,6 +12,8 @@ import { useHelper } from '../../../../../../store';
 import type { Challenge } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
+import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChallengePopover from '../../../../components/challenges/ChallengePopover';
 import InjectAddChallenges from './InjectAddChallenges';
 
@@ -101,11 +103,13 @@ const InjectChallengesList = ({ readOnly = false }: Props) => {
           </ListItem>
         ))}
       </List>
-      <InjectAddChallenges
-        injectChallengesIds={injectChallengeIds ?? []}
-        handleAddChallenges={addChallenge}
-        disabled={readOnly}
-      />
+      <Can I={ACTIONS.ACCESS} a={SUBJECTS.CHALLENGES}>
+        <InjectAddChallenges
+          injectChallengesIds={injectChallengeIds ?? []}
+          handleAddChallenges={addChallenge}
+          disabled={readOnly}
+        />
+      </Can>
     </>
 
   );

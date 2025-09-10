@@ -59,6 +59,10 @@ public class EsInjectExpectation extends EsBase {
   @EsQueryable(keyword = true)
   private String base_simulation_side; // Must finish by _side
 
+  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private String base_scenario_side; // Must finish by _side
+
   @Queryable(label = "inject")
   @EsQueryable(keyword = true)
   private String base_inject_side; // Must finish by _side

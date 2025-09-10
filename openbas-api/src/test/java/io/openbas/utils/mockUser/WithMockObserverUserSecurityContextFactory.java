@@ -64,8 +64,6 @@ public class WithMockObserverUserSecurityContextFactory
     if (groupOpt.isEmpty()) {
       Group newGroup = new Group();
       newGroup.setName(MOCK_OBSERVER_GROUP);
-      newGroup.setScenariosDefaultGrants(List.of(OBSERVER));
-      newGroup.setExercisesDefaultGrants(List.of(OBSERVER));
       group = this.groupRepository.save(newGroup);
       // Create grant
       Grant grant = new Grant();

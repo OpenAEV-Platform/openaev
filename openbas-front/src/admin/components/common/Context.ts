@@ -39,6 +39,7 @@ import {
   type Variable,
   type VariableInput,
 } from '../../../utils/api-types';
+import { INHERITED_CONTEXT, type InheritedContext } from '../../../utils/permissions/types';
 import { type UserStore } from '../teams/players/Player';
 
 export type PermissionsContextType = {
@@ -50,6 +51,7 @@ export type PermissionsContextType = {
     canDelete: boolean;
     isRunning: boolean;
   };
+  inherited_context: InheritedContext;
 };
 
 export type ArticleContextType = {
@@ -197,6 +199,7 @@ export const PermissionsContext = createContext<PermissionsContextType>({
     readOnly: false,
     isRunning: false,
   },
+  inherited_context: INHERITED_CONTEXT.NONE,
 });
 export const ArticleContext = createContext<ArticleContextType>({
   fetchChannels(): Promise<Channel[]> {

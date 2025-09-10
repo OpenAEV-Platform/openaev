@@ -116,7 +116,6 @@ public class InjectorContract implements Base {
   private Injector injector;
 
   @ArraySchema(schema = @Schema(type = "string"))
-  @Setter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_attack_patterns",
@@ -131,6 +130,23 @@ public class InjectorContract implements Base {
   public void setAttackPatterns(List<AttackPattern> attackPatterns) {
     this.updatedAt = now();
     this.attackPatterns = attackPatterns;
+  }
+
+  @ArraySchema(schema = @Schema(type = "string"))
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "injectors_contracts_vulnerabilities",
+      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
+  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonProperty("injector_contract_vulnerabilities")
+  @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
+  private List<Cve> vulnerabilities = new ArrayList<>();
+
+  // UpdatedAt now used to sync with linked object
+  public void setVulnerabilities(List<Cve> vulnerabilities) {
+    this.updatedAt = now();
+    this.vulnerabilities = vulnerabilities;
   }
 
   @Column(name = "injector_contract_atomic_testing")

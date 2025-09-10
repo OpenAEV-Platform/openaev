@@ -79,7 +79,7 @@ interface Props {
   isAtomic: boolean;
   isCreation?: boolean;
   drawerRef: RefObject<HTMLDivElement | null>;
-  defaultInject: Inject | Omit<Inject, 'inject_id' | 'inject_created_at' | 'inject_updated_at'>;
+  defaultInject: Inject | Omit<Inject, 'inject_created_at' | 'inject_updated_at'>;
   onSubmitInject: (data: InjectInput) => Promise<void>;
   injectorContractContent?: InjectorContractConverted['convertedContent'];
   articlesFromExerciseOrScenario: Article[];
@@ -254,9 +254,9 @@ const InjectForm = ({
         {!isAtomic && (
           <div className={`${classes.triggerBox} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerBoxColorDisabled : classes.triggerBoxColor}`}>
             <div className={`${classes.triggerText} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerTextColorDisabled : classes.triggerTextColor}`}>{t('Trigger after')}</div>
-            <TextFieldController name="inject_depends_duration_days" label={t('Days')} type="number" />
-            <TextFieldController name="inject_depends_duration_hours" label={t('Hours')} type="number" />
-            <TextFieldController name="inject_depends_duration_minutes" label={t('Minutes')} type="number" />
+            <TextFieldController name="inject_depends_duration_days" label={t('Days')} type="number" disabled={permissions.readOnly} />
+            <TextFieldController name="inject_depends_duration_hours" label={t('Hours')} type="number" disabled={permissions.readOnly} />
+            <TextFieldController name="inject_depends_duration_minutes" label={t('Minutes')} type="number" disabled={permissions.readOnly} />
           </div>
         )}
 
@@ -264,6 +264,7 @@ const InjectForm = ({
           <InjectContentForm
             injectorContractContent={injectorContractContent}
             readOnly={isSubmitting || disabled || permissions.readOnly}
+            injectId={defaultInject.inject_id}
             isAtomic={isAtomic}
             uriVariable={uriVariable}
             variables={variablesFromExerciseOrScenario}

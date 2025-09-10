@@ -26,4 +26,16 @@ public class SettingsUpdateInput {
   @JsonProperty("platform_lang")
   @Schema(description = "Language of the platform")
   private String lang;
+
+  @JsonProperty("platform_home_dashboard")
+  @Schema(description = "Default home dashboard of the platform")
+  private String homeDashboard;
+
+  @JsonProperty("platform_scenario_dashboard")
+  @Schema(description = "Default scenario dashboard of the platform")
+  private String scenarioDashboard;
+
+  @JsonProperty("platform_simulation_dashboard")
+  @Schema(description = "Default simulation dashboard of the platform")
+  private String simulationDashboard;
 }

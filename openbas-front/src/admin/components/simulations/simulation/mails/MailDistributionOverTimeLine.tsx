@@ -41,7 +41,7 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
             cumulation += 1;
             return R.assoc('communication_cumulated_number', cumulation, i);
           }),
-        )(n.team_communications),
+        )(n.team_communications || []),
         n,
       );
     }),

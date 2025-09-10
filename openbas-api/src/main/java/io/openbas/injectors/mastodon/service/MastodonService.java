@@ -96,7 +96,12 @@ public class MastodonService {
                     } else {
                       execution.addTrace(
                           getNewErrorTrace(
-                              "Cannot upload attachment " + attachment.name(),
+                              "Cannot upload attachment "
+                                  + attachment.name()
+                                  + ": "
+                                  + classicHttpResponse.getCode()
+                                  + " "
+                                  + classicHttpResponse.getReasonPhrase(),
                               ExecutionTraceAction.COMPLETE));
                       return false;
                     }
@@ -104,7 +109,7 @@ public class MastodonService {
             } catch (IOException e) {
               execution.addTrace(
                   getNewErrorTrace(
-                      "Cannot upload attachment " + attachment.name(),
+                      "Cannot upload attachment " + attachment.name() + ": " + e.getMessage(),
                       ExecutionTraceAction.COMPLETE));
             }
           });
@@ -124,11 +129,16 @@ public class MastodonService {
       if (response.getCode() == HttpStatus.SC_OK) {
         return "Mastodon status sent";
       } else {
-        throw new Exception(response.getEntity().toString());
+        throw new Exception(
+            response.getCode()
+                + " "
+                + response.getReasonPhrase()
+                + ": "
+                + response.getEntity().toString());
       }
     } catch (IOException e) {
       throw new ClientProtocolException(
-          "Unexpected response for request on: " + config.getUrl() + "/graphql");
+          "Unexpected response for request on: " + config.getUrl(), e);
     }
   }
 }

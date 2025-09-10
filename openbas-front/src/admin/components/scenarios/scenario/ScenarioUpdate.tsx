@@ -10,7 +10,7 @@ import {
   type UpdateScenarioInput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useScenarioPermissions from '../../../../utils/permissions/scenarioPermissions';
+import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import ScenarioForm from '../ScenarioForm';
 
 interface Props {
@@ -104,7 +104,6 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
         title={t('Update the scenario')}
       >
         <ScenarioForm
-          scenarioId={scenario.scenario_id}
           initialValues={initialValues}
           editing
           disabled={permissions.readOnly}

@@ -1,5 +1,23 @@
 import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, GridLegacy, Link, Paper, Radio, RadioGroup, Switch, Typography, useTheme } from '@mui/material';
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  Link,
+  Paper,
+  Radio,
+  RadioGroup,
+  Switch,
+  Typography,
+  useTheme,
+} from '@mui/material';
 import * as R from 'ramda';
 import { type ChangeEvent, type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -9,7 +27,9 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsSendInput, type LessonsTemplate, type Objective, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { LessonContext } from '../../common/Context';
+import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsTemplate from '../../components/lessons/CreateLessonsTemplate';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
@@ -91,6 +111,7 @@ const Lessons: FunctionComponent<Props> = ({
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const dispatch = useAppDispatch();
+  const { permissions } = useContext(PermissionsContext);
 
   const [selectedObjective, setSelectedObjective] = useState<string | null>(null);
   const [openApplyTemplate, setOpenApplyTemplate] = useState<boolean>(false);
@@ -207,23 +228,24 @@ const Lessons: FunctionComponent<Props> = ({
         display: 'grid',
         marginTop: theme.spacing(3),
         gap: `0px ${theme.spacing(3)}`,
-        gridTemplateColumns: '1fr 1fr 1fr',
+        gridTemplateColumns: permissions.canManage ? '1fr 1fr 1fr' : '1fr 1fr',
       }}
       >
         <Typography variant="h4">{t('Details')}</Typography>
         <Typography variant="h4">{t('Parameters')}</Typography>
-        <Typography variant="h4">{t('Control')}</Typography>
+        {permissions.canManage && (
+          <Typography variant="h4">{t('Control')}</Typography>)}
         <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-          <GridLegacy container spacing={3}>
-            <GridLegacy item xs={6}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Start date')}</Typography>
               {nsdt(source.start_date)}
-            </GridLegacy>
-            <GridLegacy item xs={6}>
+            </Grid>
+            <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('End date')}</Typography>
               {nsdt(source.end_date)}
-            </GridLegacy>
-            <GridLegacy item xs={6}>
+            </Grid>
+            <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Duration')}</Typography>
               {getHoursDiff(
                 source.start_date
@@ -235,43 +257,46 @@ const Lessons: FunctionComponent<Props> = ({
               )}
               {' '}
               {t('hours')}
-            </GridLegacy>
-            <GridLegacy item xs={6}>
+            </Grid>
+            <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Team')}</Typography>
               {source.users_number}
-              {' '}
               {t('players')}
-            </GridLegacy>
-          </GridLegacy>
+            </Grid>
+          </Grid>
         </Paper>
         <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-          <GridLegacy container spacing={3}>
-            <GridLegacy item xs={6}>
-              <Typography variant="h3">{t('Questionnaire mode')}</Typography>
-              <FormControlLabel
-                control={(
-                  <Switch
-                    disabled={source.lessons_anonymized}
-                    checked={source.lessons_anonymized}
-                    onChange={() => setOpenAnonymize(true)}
-                    name="anonymized"
-                  />
-                )}
-                label={t('Anonymize answers')}
-              />
-            </GridLegacy>
-            <GridLegacy item xs={6}>
-              <Typography variant="h3">{t('Template')}</Typography>
-              <Button
-                startIcon={<ContentPasteGoOutlined />}
-                color="primary"
-                variant="contained"
-                onClick={() => setOpenApplyTemplate(true)}
-              >
-                {t('Apply')}
-              </Button>
-            </GridLegacy>
-            <GridLegacy item xs={6}>
+          <Grid container spacing={3}>
+            {permissions.canManage && (
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h3">{t('Questionnaire mode')}</Typography>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      disabled={source.lessons_anonymized}
+                      checked={source.lessons_anonymized}
+                      onChange={() => setOpenAnonymize(true)}
+                      name="anonymized"
+                    />
+                  )}
+                  label={t('Anonymize answers')}
+                />
+              </Grid>
+            )}
+            <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h3">{t('Template')}</Typography>
+                <Button
+                  startIcon={<ContentPasteGoOutlined />}
+                  color="primary"
+                  variant="contained"
+                  onClick={() => setOpenApplyTemplate(true)}
+                >
+                  {t('Apply')}
+                </Button>
+              </Grid>
+            </Can>
+            <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Check')}</Typography>
               <Button
                 startIcon={<VisibilityOutlined />}
@@ -282,53 +307,58 @@ const Lessons: FunctionComponent<Props> = ({
               >
                 {t('Preview')}
               </Button>
-            </GridLegacy>
-            <GridLegacy item xs={6}>
-              <Typography variant="h3">
-                {t('Categories and questions')}
-              </Typography>
-              <Button
-                startIcon={<DeleteSweepOutlined />}
-                color="error"
-                variant="contained"
-                onClick={() => setOpenEmptyLessons(true)}
-              >
-                {t('Clear out')}
-              </Button>
-            </GridLegacy>
-          </GridLegacy>
-        </Paper>
-        <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-          <Alert severity="info">
-            {t(
-              'Sending the questionnaire will emit an email to each player with a unique link to access and fill it.',
+            </Grid>
+            {permissions.canManage && (
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h3">
+                  {t('Categories and questions')}
+                </Typography>
+                <Button
+                  startIcon={<DeleteSweepOutlined />}
+                  color="error"
+                  variant="contained"
+                  onClick={() => setOpenEmptyLessons(true)}
+                >
+                  {t('Clear out')}
+                </Button>
+              </Grid>
             )}
-          </Alert>
-          <GridLegacy container spacing={3} style={{ marginTop: 0 }}>
-            <GridLegacy item xs={6}>
-              <Typography variant="h3">{t('Questionnaire')}</Typography>
-              <Button
-                startIcon={<ContentPasteGoOutlined />}
-                color="success"
-                variant="contained"
-                onClick={() => setOpenSendLessons(true)}
-              >
-                {t('Send')}
-              </Button>
-            </GridLegacy>
-            <GridLegacy item xs={6}>
-              <Typography variant="h3">{t('Answers')}</Typography>
-              <Button
-                startIcon={<ContentPasteGoOutlined />}
-                color="error"
-                variant="contained"
-                onClick={() => setOpenResetAnswers(true)}
-              >
-                {t('Reset')}
-              </Button>
-            </GridLegacy>
-          </GridLegacy>
+          </Grid>
         </Paper>
+        {permissions.canManage && (
+          <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {t(
+                'Sending the questionnaire will emit an email to each player with a unique link to access and fill it.',
+              )}
+            </Alert>
+            <Grid container spacing={3} style={{ marginTop: 0 }}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h3">{t('Questionnaire')}</Typography>
+                <Button
+                  startIcon={<ContentPasteGoOutlined />}
+                  color="success"
+                  variant="contained"
+                  onClick={() => setOpenSendLessons(true)}
+                >
+                  {t('Send')}
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h3">{t('Answers')}</Typography>
+                <Button
+                  startIcon={<ContentPasteGoOutlined />}
+                  color="error"
+                  variant="contained"
+                  onClick={() => setOpenResetAnswers(true)}
+                >
+                  {t('Reset')}
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        ) }
+
       </div>
       <div style={{
         display: 'grid',
@@ -339,7 +369,6 @@ const Lessons: FunctionComponent<Props> = ({
       >
         <Typography variant="h4">
           {t('Objectives')}
-          {' '}
           {
             source.isUpdatable && (<CreateObjective />)
           }
@@ -365,7 +394,9 @@ const Lessons: FunctionComponent<Props> = ({
           isReport={false}
         />
       </div>
-      <CreateLessonsCategory />
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <CreateLessonsCategory />
+      </Can>
       <Dialog
         TransitionComponent={Transition}
         keepMounted={false}

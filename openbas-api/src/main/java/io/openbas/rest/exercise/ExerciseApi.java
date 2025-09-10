@@ -110,6 +110,7 @@ public class ExerciseApi extends RestBehavior {
   private final DocumentService documentService;
   private final ScenarioService scenarioService;
   private final UserService userService;
+  private final PlatformSettingsService platformSettingsService;
 
   // endregion
 
@@ -125,7 +126,7 @@ public class ExerciseApi extends RestBehavior {
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/logs")
   @RBAC(
-      resourceId = "#exercise",
+      resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
@@ -369,7 +370,13 @@ public class ExerciseApi extends RestBehavior {
       exercise.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      exercise.setCustomDashboard(null);
+      exercise.setCustomDashboard(
+          this.platformSettingsService
+              .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
     }
     return this.exerciseService.createExercise(exercise);
   }
@@ -970,7 +977,7 @@ public class ExerciseApi extends RestBehavior {
       })
   public ResponseEntity<CustomDashboard> dashboard(@PathVariable final String simulationId) {
     return ResponseEntity.ok(
-        this.customDashboardService.findCustomDashboardBySimulationId(simulationId));
+        this.customDashboardService.findCustomDashboardByResourceId(simulationId));
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}")
@@ -982,7 +989,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.exerciseService.dashboardCount(simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(
+        simulationId, widgetId, parameters);
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}")
@@ -994,7 +1002,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.exerciseService.dashboardSeries(simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardSeriesOnResourceId(
+        simulationId, widgetId, parameters);
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}")
@@ -1006,7 +1015,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.exerciseService.dashboardEntities(simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        simulationId, widgetId, parameters);
   }
 
   @PostMapping(EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}")
@@ -1019,8 +1029,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.exerciseService.dashboardAttackPaths(simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardAttackPathsOnResourceId(
+        simulationId, widgetId, parameters);
   }
-
   // end region
 }

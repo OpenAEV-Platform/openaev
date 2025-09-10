@@ -36,7 +36,7 @@ public class EsFinding extends EsBase {
   @EsQueryable(keyword = true)
   private String base_simulation_side; // Must finish by _side
 
-  @Queryable(label = "scenario", filterable = true)
+  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private String base_scenario_side; // Must finish by _side
 

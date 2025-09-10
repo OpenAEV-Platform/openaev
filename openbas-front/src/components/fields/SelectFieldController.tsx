@@ -42,7 +42,7 @@ const SelectFieldController = ({ name, label, items, style, multiple = false, re
             multiple={multiple}
             renderValue={(v: string | string[]) => Array.isArray(v)
               ? items.filter(item => v.includes(item.value)).map(item => item.label).join(', ')
-              : items.find(item => item.value === v)?.label || ''}
+              : items.find(item => item.value === v)?.label ?? ''}
           >
             {items.map(item => (
               <MenuItem key={item.value} value={item.value}>

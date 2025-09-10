@@ -18,7 +18,7 @@ interface Props {
   onSubmit: SubmitHandler<PayloadCreateInput>;
   handleClose: () => void;
   editing: boolean;
-  initialValues?: Partial<PayloadCreateInput>;
+  initialValues?: Partial<PayloadCreateInput> & { payload_id?: string };
 }
 
 const PayloadForm = ({
@@ -26,6 +26,7 @@ const PayloadForm = ({
   handleClose,
   editing,
   initialValues = {
+    payload_id: '',
     // @ts-expect-error set payload type to null to get a controlled component from the start
     payload_type: null,
     payload_name: '',
@@ -248,7 +249,7 @@ const PayloadForm = ({
         )}
 
         {activeTab === 'Remediation' && (
-          <RemediationFormTab />
+          <RemediationFormTab payloadId={initialValues?.payload_id} />
         )}
 
         <div style={{

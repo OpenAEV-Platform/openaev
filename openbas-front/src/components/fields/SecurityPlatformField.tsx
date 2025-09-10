@@ -5,11 +5,8 @@ import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type SecurityPlatformHelper } from '../../actions/assets/asset-helper';
-import { fetchSecurityPlatforms } from '../../actions/assets/securityPlatform-actions';
 import { useHelper } from '../../store';
 import { type SecurityPlatform } from '../../utils/api-types';
-import { useAppDispatch } from '../../utils/hooks';
-import useDataLoader from '../../utils/hooks/useDataLoader';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -59,13 +56,9 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
   // Standard hooks
   const theme = useTheme();
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
   // Fetching data
   const { securityPlatforms }: { securityPlatforms: SecurityPlatform[] } = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatforms: helper.getSecurityPlatforms() }));
-  useDataLoader(() => {
-    dispatch(fetchSecurityPlatforms());
-  });
 
   // Form
   const securityPlatformsOptions = securityPlatformsToOptions(securityPlatforms, filterOptions);

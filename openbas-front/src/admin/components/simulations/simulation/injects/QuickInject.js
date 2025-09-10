@@ -46,7 +46,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
-import { isExerciseReadOnly, isExerciseUpdatable, secondsFromToNow } from '../../../../../utils/permissions/simulationPermissions.js';
+import { secondsFromToNow } from '../../../../../utils/Time.js';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import InjectAddTeams from '../../../common/injects/form/teams/InjectAddTeams.js';
 import DocumentPopover from '../../../components/documents/DocumentPopover';
@@ -466,7 +466,9 @@ class QuickInject extends Component {
   }
 
   renderFields(renderedFields, values, attachedDocs) {
-    const { exercise, classes, t, theme } = this.props;
+    const { classes, t, theme } = this.props;
+    const { isDisabled } = this.props;
+
     return (
       <div>
         {renderedFields.map((field, position) => {
@@ -483,7 +485,7 @@ class QuickInject extends Component {
                         marginTop: theme.spacing(2.5),
                         height: 250,
                       }}
-                      disabled={isExerciseReadOnly(exercise)}
+                      disabled={isDisabled}
                     />
                   )
                 : (
@@ -496,7 +498,7 @@ class QuickInject extends Component {
                       rows={10}
                       label={t(field.label)}
                       style={{ marginTop: theme.spacing(2.5) }}
-                      disabled={isExerciseReadOnly(exercise)}
+                      disabled={isDisabled}
                     />
                   );
             case 'number':
@@ -509,7 +511,7 @@ class QuickInject extends Component {
                   type="number"
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
-                  disabled={isExerciseReadOnly(exercise)}
+                  disabled={isDisabled}
                 />
               );
             case 'checkbox':
@@ -519,7 +521,7 @@ class QuickInject extends Component {
                   name={field.key}
                   label={t(field.label)}
                   style={{ marginTop: position > 0 ? theme.spacing(1.25) : theme.spacing(2.5) }}
-                  disabled={isExerciseReadOnly(exercise)}
+                  disabled={isDisabled}
                 />
               );
             case 'tuple':
@@ -532,7 +534,7 @@ class QuickInject extends Component {
                           <InputLabel
                             variant="standard"
                             shrink={true}
-                            disabled={isExerciseReadOnly(exercise)}
+                            disabled={isDisabled}
                           >
                             {t(field.label)}
                             {field.cardinality === 'n' && (
@@ -545,8 +547,8 @@ class QuickInject extends Component {
                                 aria-haspopup="true"
                                 size="medium"
                                 style={{ marginTop: -2 }}
-                                disabled={isExerciseReadOnly(exercise)}
                                 color="primary"
+                                disabled={isDisabled}
                               >
                                 <ControlPointOutlined />
                               </IconButton>
@@ -567,7 +569,7 @@ class QuickInject extends Component {
                                   fullWidth={true}
                                   label={t('Type')}
                                   style={{ marginRight: theme.spacing(2.5) }}
-                                  disabled={isExerciseReadOnly(exercise)}
+                                  disabled={isDisabled}
                                 >
                                   <MenuItem key="text" value="text">
                                     <ListItemText>{t('Text')}</ListItemText>
@@ -589,7 +591,7 @@ class QuickInject extends Component {
                                   fullWidth={true}
                                   label={t('Key')}
                                   style={{ marginRight: theme.spacing(2.5) }}
-                                  disabled={isExerciseReadOnly(exercise)}
+                                  disabled={isDisabled}
                                 />
                                 {values
                                   && values[field.key]
@@ -602,7 +604,6 @@ class QuickInject extends Component {
                                         fullWidth={true}
                                         label={t('Value')}
                                         style={{ marginRight: theme.spacing(2.5) }}
-                                        disabled={isExerciseReadOnly(exercise)}
                                       >
                                         {attachedDocs.map(doc => (
                                           <MenuItem
@@ -622,7 +623,7 @@ class QuickInject extends Component {
                                         fullWidth={true}
                                         label={t('Value')}
                                         style={{ marginRight: theme.spacing(2.5) }}
-                                        disabled={isExerciseReadOnly(exercise)}
+                                        disabled={isDisabled}
                                       />
                                     )}
                                 {field.cardinality === 'n' && (
@@ -630,8 +631,8 @@ class QuickInject extends Component {
                                     onClick={() => fields.remove(index)}
                                     aria-haspopup="true"
                                     size="small"
-                                    disabled={isExerciseReadOnly(exercise)}
                                     color="primary"
+                                    disabled={isDisabled}
                                   >
                                     <DeleteOutlined />
                                   </IconButton>
@@ -657,7 +658,7 @@ class QuickInject extends Component {
                       name={field.key}
                       fullWidth={true}
                       style={{ marginTop: theme.spacing(2.5) }}
-                      disabled={isExerciseReadOnly(exercise)}
+                      disabled={isDisabled}
                     >
                       {Object.entries(field.choices)
                         .sort((a, b) => a[1].localeCompare(b[1]))
@@ -681,7 +682,7 @@ class QuickInject extends Component {
                       name={field.key}
                       fullWidth={true}
                       style={{ marginTop: theme.spacing(2.5) }}
-                      disabled={isExerciseReadOnly(exercise)}
+                      disabled={isDisabled}
                     >
                       {Object.entries(field.choices)
                         .sort((a, b) => a[1].localeCompare(b[1]))
@@ -710,7 +711,7 @@ class QuickInject extends Component {
                       name={field.key}
                       fullWidth={true}
                       style={{ marginTop: theme.spacing(2.5) }}
-                      disabled={isExerciseReadOnly(exercise)}
+                      disabled={isDisabled}
                     >
                       {Object.entries(choices)
                         .sort((a, b) => a[1].localeCompare(b[1]))
@@ -730,6 +731,7 @@ class QuickInject extends Component {
                       name={field.key}
                       fullWidth={true}
                       style={{ marginTop: theme.spacing(2.5) }}
+                      disabled={isDisabled}
                     >
                       {Object.entries(choices)
                         .sort((a, b) => a[1].localeCompare(b[1]))
@@ -751,7 +753,7 @@ class QuickInject extends Component {
                   fullWidth={true}
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
-                  disabled={isExerciseReadOnly(exercise)}
+                  disabled={isDisabled}
                 />
               );
           }
@@ -804,6 +806,7 @@ class QuickInject extends Component {
       injectorContract,
       teamsMap,
       documentsMap,
+      isDisabled,
     } = this.props;
     const {
       allTeams,
@@ -816,6 +819,7 @@ class QuickInject extends Component {
       documentsOrderAsc,
       openVariables,
     } = this.state;
+
     // -- TEAMS --
     const teams = teamsIds
       .map(a => teamsMap[a])
@@ -975,7 +979,7 @@ class QuickInject extends Component {
                             checked={allTeams}
                             onChange={this.toggleAll.bind(this)}
                             color="primary"
-                            disabled={isExerciseReadOnly(exercise)}
+                            disabled={isDisabled}
                           />
                         )}
                         label={<strong>{t('All teams')}</strong>}
@@ -1084,6 +1088,15 @@ class QuickInject extends Component {
                               key={team.team_id}
                               classes={{ root: classes.item }}
                               divider={true}
+                              secondaryAction={(
+                                <TeamPopover
+                                  exerciseId={exerciseId}
+                                  team={team}
+                                  onRemoveTeam={this.handleRemoveTeam.bind(
+                                    this,
+                                  )}
+                                />
+                              )}
                             >
                               <ListItemIcon>
                                 <CastForEducationOutlined />
@@ -1129,18 +1142,6 @@ class QuickInject extends Component {
                                   </div>
                                 )}
                               />
-                              <ListItemSecondaryAction>
-                                {isExerciseUpdatable(exercise)
-                                  ? (
-                                      <TeamPopover
-                                        exerciseId={exerciseId}
-                                        team={team}
-                                        onRemoveTeam={this.handleRemoveTeam.bind(
-                                          this,
-                                        )}
-                                      />
-                                    ) : <span> &nbsp; </span>}
-                              </ListItemSecondaryAction>
                             </ListItem>
                           ))}
                           <InjectAddTeams
@@ -1205,7 +1206,7 @@ class QuickInject extends Component {
                   <Button
                     color="secondary"
                     variant="outlined"
-                    disabled={submitting || isExerciseReadOnly(exercise)}
+                    disabled={submitting || isDisabled}
                     onClick={this.resetDefaultvalues.bind(
                       this,
                       form.mutators.setValue,
@@ -1274,6 +1275,7 @@ class QuickInject extends Component {
                       classes={{ root: classes.itemHead }}
                       divider={false}
                       style={{ paddingTop: 0 }}
+                      secondaryAction={<>&nbsp;</>}
                     >
                       <ListItemIcon>
                         <span
@@ -1312,7 +1314,6 @@ class QuickInject extends Component {
                           </div>
                         )}
                       />
-                      <ListItemSecondaryAction>&nbsp;</ListItemSecondaryAction>
                     </ListItem>
                     {sortedDocuments.map(document => (
                       <ListItemButton
@@ -1372,10 +1373,7 @@ class QuickInject extends Component {
                                     event.preventDefault();
                                     this.toggleAttachment(document.document_id);
                                   }}
-                                  disabled={
-                                    isExerciseReadOnly(exercise)
-                                    || !hasAttachments
-                                  }
+                                  disabled={!hasAttachments || isDisabled}
                                 />
                               </div>
                             </div>
@@ -1395,7 +1393,7 @@ class QuickInject extends Component {
                                 : null
                             }
                             attached={document.document_attached}
-                            disabled={isExerciseReadOnly(exercise)}
+                            disabled={isDisabled}
                           />
                         </ListItemSecondaryAction>
                       </ListItemButton>
@@ -1419,7 +1417,7 @@ class QuickInject extends Component {
                     variant="contained"
                     color="primary"
                     type="submit"
-                    disabled={submitting || isExerciseReadOnly(exercise)}
+                    disabled={submitting || isDisabled}
                   >
                     {t('Send')}
                   </Button>

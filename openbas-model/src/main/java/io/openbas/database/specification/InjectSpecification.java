@@ -78,12 +78,11 @@ public class InjectSpecification {
   }
 
   public static Specification<Inject> forAtomicTesting() {
-    return (root, query, cb) ->
-        cb.and(
-            cb.isNull(root.get("exercise")), // No exercise
-            cb.isNull(root.get("scenario")), // No scenario
-            cb.equal(root.get("status").get("name"), ExecutionStatus.QUEUING),
-            cb.notEqual(root.get("status").get("name"), ExecutionStatus.PENDING));
+    return Specification.where(isAtomicTesting())
+        .and((root, query, cb) -> cb.equal(root.get("status").get("name"), ExecutionStatus.QUEUING))
+        .and(
+            (root, query, cb) ->
+                cb.notEqual(root.get("status").get("name"), ExecutionStatus.PENDING));
   }
 
   public static Specification<Inject> pendingInjectWithThresholdMinutes(int thresholdMinutes) {
@@ -109,5 +108,10 @@ public class InjectSpecification {
   public static Specification<Inject> testable() {
     return (root, query, cb) ->
         root.get("injectorContract").get("injector").get("type").in(VALID_TESTABLE_TYPES);
+  }
+
+  public static Specification<Inject> isAtomicTesting() {
+    return (root, query, cb) ->
+        cb.and(cb.isNull(root.get("scenario")), cb.isNull(root.get("exercise")));
   }
 }

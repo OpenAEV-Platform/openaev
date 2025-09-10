@@ -8,7 +8,6 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -42,11 +41,15 @@ public interface CustomDashboardRepository
       where e.exercise_id = :resourceId
       """,
       nativeQuery = true)
-  List<CustomDashboard> findByResourceId(String resourceId);
+  Optional<CustomDashboard> findByResourceId(String resourceId);
 
-  @Query("select e.customDashboard from Exercise e where e.id = :exerciseId")
-  CustomDashboard findCustomDashboardBySimulationId(@Param("exerciseId") String simulationId);
-
-  @Query("select s.customDashboard from Scenario s where s.id = :scenarioId")
-  CustomDashboard findCustomDashboardByScenarioId(@Param("scenarioId") String scenarioId);
+  @Query(
+      """
+      SELECT d FROM CustomDashboard d
+      WHERE d.id = (
+        SELECT s.value FROM Setting s
+        WHERE s.key = :#{T(io.openbas.database.model.SettingKeys).DEFAULT_SIMULATION_DASHBOARD.key()}
+      )
+      """)
+  Optional<CustomDashboard> findHomeDashboard();
 }

@@ -5,7 +5,11 @@ import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public class SpecificationUtils {
 
@@ -42,27 +46,27 @@ public class SpecificationUtils {
    * otherwise.
    *
    * @param userId ID of the user performing the search
-   * @param isAdmin true id the user performing the search has admin privileges
+   * @param isAdminOrBypass true id the user performing the search has admin privileges
    * @param hasCapaForClass true id the user has the capa for the specific class to bypass grants
    * @param grantType the minimum grant type required to access the resource
    */
   public static <T extends Base> Specification<T> hasGrantAccess(
       final String userId,
-      final boolean isAdmin,
+      final boolean isAdminOrBypass,
       boolean hasCapaForClass,
       Grant.GRANT_TYPE grantType) {
     return (root, query, cb) -> {
       Class<?> entityClass = root.getJavaType();
 
-      // Check if the entity has the @GrantFilter annotation
-      Grantable grantFilter = entityClass.getAnnotation(Grantable.class);
-
-      // If the user is an admin or there is no grant system associated
-      if (isAdmin || grantFilter == null || hasCapaForClass) {
+      // If the user is an admin or there is no grant system associated with T
+      if (isAdminOrBypass
+          || !GrantableBase.class.isAssignableFrom(entityClass)
+          || hasCapaForClass) {
         return cb.conjunction(); // Always true
       }
 
       List<Grant.GRANT_TYPE> allowedGrantTypes = grantType.andHigher();
+      Grant.GRANT_RESOURCE_TYPE resourceType = GrantableBase.getGrantResourceType(entityClass);
 
       // Add grant filtering
       // Create subquery to find all resource IDs the user can access
@@ -74,14 +78,13 @@ public class SpecificationUtils {
       // Join to users (Group has a 'users' collection)
       Join<Group, User> userTable = groupTable.join("users");
       // Join to the resource table (Grant class has a '{resource}' field of type ResourceType)
-      Join<Grant, ? extends Base> grantColumnTable = grantTable.join(grantFilter.grantFieldName());
-      // We want to SELECT the id from the joined Scenario entity
-      // NOT from Grant directly since Grant doesn't have resource ID
-      accessibleResources.select(grantColumnTable.get("id"));
+      accessibleResources.select(grantTable.get("resourceId"));
       // WHERE the user in the join matches our userId AND grant name is of the given value
       accessibleResources.where(
           cb.and(
-              cb.equal(userTable.get("id"), userId), grantTable.get("name").in(allowedGrantTypes)));
+              cb.equal(userTable.get("id"), userId),
+              cb.equal(grantTable.get("grantResourceType"), resourceType),
+              grantTable.get("name").in(allowedGrantTypes)));
       // Now use this subquery in main query
       // "Include only scenarios whose ID is in our subquery results"
       return root.get("id").in(accessibleResources);
@@ -89,66 +92,57 @@ public class SpecificationUtils {
   }
 
   /**
-   * Creates a subquery that returns all scenario IDs that the user has access to through grants.
+   * Creates a subquery that returns all resource IDs of a specific type that the user has access to
+   * through grants. Can be used to get injects belonging to a scenario or simulation where the user
+   * is granted, for example.
    *
    * @param query The parent criteria query used to create the subquery
    * @param cb The criteria builder for constructing query predicates
-   * @param userId The ID of the user whose accessible scenario are being queried
+   * @param userId The ID of the user whose accessible resources are being queried
+   * @param resourceType The type of resource to filter by (e.g., "SCENARIO", "EXERCISE")
    * @param allowedGrantTypes List of grant types that provide access (e.g., OBSERVER and higher)
-   * @return A subquery that selects exercise IDs the user can access
+   * @return A subquery that selects resource IDs the user can access
    */
-  public static Subquery<String> accessibleScenariosSubquery(
+  public static Subquery<String> accessibleResourcesSubquery(
       CriteriaQuery<?> query,
       CriteriaBuilder cb,
       String userId,
+      Grant.GRANT_RESOURCE_TYPE resourceType,
       List<Grant.GRANT_TYPE> allowedGrantTypes) {
 
-    Subquery<String> accessibleScenarios = query.subquery(String.class);
-    Root<Grant> grantTable = accessibleScenarios.from(Grant.class);
+    Subquery<String> accessibleResources = query.subquery(String.class);
+    Root<Grant> grantTable = accessibleResources.from(Grant.class);
     Join<Grant, Group> groupTable = grantTable.join("group");
     Join<Group, User> userTable = groupTable.join("users");
-    Join<Grant, Scenario> scenarioTable = grantTable.join("scenario");
 
-    // Select scenario ID from the joined scenario
-    accessibleScenarios.select(scenarioTable.get("id"));
+    // Select resourceId directly since we're not joining to the resource table
+    accessibleResources.select(grantTable.get("resourceId"));
 
-    // WHERE user matches AND grant type is allowed
-    accessibleScenarios.where(
+    // WHERE user matches AND resourceType matches AND grant type is allowed
+    accessibleResources.where(
         cb.and(
-            cb.equal(userTable.get("id"), userId), grantTable.get("name").in(allowedGrantTypes)));
+            cb.equal(userTable.get("id"), userId),
+            cb.equal(grantTable.get("grantResourceType"), resourceType),
+            grantTable.get("name").in(allowedGrantTypes)));
 
-    return accessibleScenarios;
+    return accessibleResources;
   }
 
-  /**
-   * Creates a subquery that returns all simulation IDs that the user has access to through grants.
-   *
-   * @param query The parent criteria query used to create the subquery
-   * @param cb The criteria builder for constructing query predicates
-   * @param userId The ID of the user whose accessible simulations are being queried
-   * @param allowedGrantTypes List of grant types that provide access (e.g., OBSERVER and higher)
-   * @return A subquery that selects exercise IDs the user can access
-   */
-  public static Subquery<String> accessibleSimulationsSubquery(
-      CriteriaQuery<?> query,
-      CriteriaBuilder cb,
-      String userId,
-      List<Grant.GRANT_TYPE> allowedGrantTypes) {
+  public static <T extends GrantableBase>
+      BiFunction<Specification<T>, Pageable, Page<T>> withGrantFilter(
+          JpaSpecificationExecutor<T> repo,
+          Grant.GRANT_TYPE grantType,
+          String userId,
+          boolean isAdminOrBypass,
+          boolean hasCapaForClass) {
+    return (spec, pageable) -> {
+      Specification<T> grantSpec =
+          SpecificationUtils.hasGrantAccess(userId, isAdminOrBypass, hasCapaForClass, grantType);
+      return repo.findAll(spec == null ? grantSpec : spec.and(grantSpec), pageable);
+    };
+  }
 
-    Subquery<String> accessibleExercises = query.subquery(String.class);
-    Root<Grant> grantTable = accessibleExercises.from(Grant.class);
-    Join<Grant, Group> groupTable = grantTable.join("group");
-    Join<Group, User> userTable = groupTable.join("users");
-    Join<Grant, Exercise> exerciseTable = grantTable.join("exercise");
-
-    // Select exercise ID from the joined exercise
-    accessibleExercises.select(exerciseTable.get("id"));
-
-    // WHERE user matches AND grant type is allowed
-    accessibleExercises.where(
-        cb.and(
-            cb.equal(userTable.get("id"), userId), grantTable.get("name").in(allowedGrantTypes)));
-
-    return accessibleExercises;
+  public static <T extends Base> Specification<T> hasIdIn(List<String> ids) {
+    return (root, query, cb) -> root.get("id").in(ids);
   }
 }

@@ -1,0 +1,31 @@
+{
+    "id": "bundle--c038a34d-411d-4a12-8f5e-fb957dbe9dc2",
+    "type": "bundle",
+    "objects": [
+        {
+            "created": "2025-08-04T14:00:00Z",
+            "description": "Security coverage test plan for threat context XYZ. -- UPDATED",
+            "id": "x-security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1",
+            "labels": [
+                "opencti",
+                "coverage",
+                "test-plan",
+                "threat-evaluation"
+            ],
+            "modified": "2025-08-04T14:00:00Z",
+            "name": "Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED",
+            "object_refs": [
+                "vulnerability--f3e6ad4a-0d91-575b-ac6b-9299d038804a",
+                "attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1",
+                "attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9"
+            ],
+            "period_end": "2025-09-04T14:00:00Z",
+            "period_start": "2025-08-04T14:00:00Z",
+            "scheduling": "d",
+            "spec_version": "2.1",
+            "threat_context_ref": "report--453a2ac1-e111-57bf-8277-dbec448cd851",
+            "type": "x-security-coverage",
+            "x_opencti_type": "x-security-coverage"
+        }
+    ]
+}

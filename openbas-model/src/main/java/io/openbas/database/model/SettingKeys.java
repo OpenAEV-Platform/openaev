@@ -3,6 +3,9 @@ package io.openbas.database.model;
 public enum SettingKeys {
   DEFAULT_THEME("platform_theme", "dark"),
   DEFAULT_LANG("platform_lang", "auto"),
+  DEFAULT_HOME_DASHBOARD("platform_home_dashboard", ""),
+  DEFAULT_SCENARIO_DASHBOARD("platform_scenario_dashboard", ""),
+  DEFAULT_SIMULATION_DASHBOARD("platform_simulation_dashboard", ""),
   PLATFORM_CONSENT_MESSAGE("platform_consent_message", ""),
   PLATFORM_CONSENT_CONFIRM_TEXT("platform_consent_confirm_text", ""),
   PLATFORM_ENTERPRISE_LICENSE("platform_enterprise_license", ""),

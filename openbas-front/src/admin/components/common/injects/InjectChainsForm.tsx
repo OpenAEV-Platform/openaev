@@ -41,9 +41,10 @@ interface Props {
   values: Inject & { inject_depends_to: InjectDependency[] };
   form: FormApi<Inject & { inject_depends_to: InjectDependency[] }, Partial<Inject & { inject_depends_to: InjectDependency[] }>>;
   injects?: InjectOutputType[];
+  isDisabled: boolean;
 }
 
-const InjectForm: FunctionComponent<Props> = ({ values, form, injects }) => {
+const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisabled }) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
 
@@ -836,7 +837,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects }) => {
           aria-label="Add"
           size="large"
           disabled={parents.length > 0
-            || injects?.filter(currentInject => currentInject.inject_depends_duration < values.inject_depends_duration).length === 0}
+            || injects?.filter(currentInject => currentInject.inject_depends_duration < values.inject_depends_duration).length === 0 || isDisabled}
           onClick={addParent}
         >
           <Add fontSize="small" />
@@ -852,6 +853,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects }) => {
               width: '100%',
               marginBottom: '10px',
             }}
+            disabled={isDisabled}
           >
             <AccordionSummary
               expandIcon={<ExpandMore />}
@@ -946,7 +948,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects }) => {
           color="secondary"
           aria-label="Add"
           size="large"
-          disabled={addChildrenButtonDisabled}
+          disabled={addChildrenButtonDisabled || isDisabled}
           onClick={addChildren}
         >
           <Add fontSize="small" />
@@ -961,6 +963,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects }) => {
               width: '100%',
               marginBottom: '10px',
             }}
+            disabled={isDisabled}
           >
             <AccordionSummary
               expandIcon={<ExpandMore />}
@@ -969,7 +972,6 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects }) => {
                 <Typography>
                   #
                   {index + 1}
-                  {' '}
                   {children.inject?.inject_title}
                 </Typography>
                 <Tooltip title={t('Delete')}>

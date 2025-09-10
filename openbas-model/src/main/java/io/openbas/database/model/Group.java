@@ -33,7 +33,7 @@ public class Group implements Base {
   @NotBlank
   private String id;
 
-  @Queryable(sortable = true)
+  @Queryable(searchable = true, sortable = true)
   @Column(name = "group_name")
   @JsonProperty("group_name")
   @NotBlank
@@ -48,23 +48,11 @@ public class Group implements Base {
   @JsonProperty("group_default_user_assign")
   private boolean defaultUserAssignation;
 
-  @JsonProperty("group_default_exercise_assign")
-  @Enumerated(EnumType.STRING)
-  @ElementCollection
-  @CollectionTable(
-      name = "groups_exercises_default_grants",
-      joinColumns = @JoinColumn(name = "group_id"))
-  private List<Grant.GRANT_TYPE> exercisesDefaultGrants = new ArrayList<>();
-
-  @JsonProperty("group_default_scenario_assign")
-  @Enumerated(EnumType.STRING)
-  @ElementCollection
-  @CollectionTable(
-      name = "groups_scenarios_default_grants",
-      joinColumns = @JoinColumn(name = "group_id"))
-  private List<Grant.GRANT_TYPE> scenariosDefaultGrants = new ArrayList<>();
-
-  @OneToMany(mappedBy = "group", fetch = FetchType.EAGER)
+  @OneToMany(
+      mappedBy = "group",
+      fetch = FetchType.EAGER,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
   @JsonProperty("group_grants")
   @JsonSerialize(using = MultiModelDeserializer.class)
   @Fetch(value = FetchMode.SUBSELECT)
@@ -104,27 +92,6 @@ public class Group implements Base {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.USER_GROUP;
-
-  // region transient
-  @JsonProperty("group_default_exercise_planner")
-  public boolean isDefaultExercisePlanner() {
-    return exercisesDefaultGrants.contains(Grant.GRANT_TYPE.PLANNER);
-  }
-
-  @JsonProperty("group_default_exercise_observer")
-  public boolean isDefaultExerciseObserver() {
-    return exercisesDefaultGrants.contains(Grant.GRANT_TYPE.OBSERVER);
-  }
-
-  @JsonProperty("group_default_scenario_planner")
-  public boolean isDefaultScenarioPlanner() {
-    return scenariosDefaultGrants.contains(Grant.GRANT_TYPE.PLANNER);
-  }
-
-  @JsonProperty("group_default_scenario_observer")
-  public boolean isDefaultScenarioObserver() {
-    return scenariosDefaultGrants.contains(Grant.GRANT_TYPE.OBSERVER);
-  }
 
   // endregion
 

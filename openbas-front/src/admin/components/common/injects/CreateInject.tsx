@@ -350,6 +350,7 @@ const CreateInject: FunctionComponent<Props> = ({
             isCreation
             drawerRef={drawerRef}
             defaultInject={{
+              inject_id: '',
               inject_title: tPick(selectedContract?.injector_contract_labels),
               inject_description: '',
               inject_depends_duration: presetInjectDuration,

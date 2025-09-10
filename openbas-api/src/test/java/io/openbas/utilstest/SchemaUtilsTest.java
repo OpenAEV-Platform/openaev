@@ -9,6 +9,7 @@ import io.openbas.schema.PropertySchema;
 import io.openbas.schema.SchemaUtils;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.Set;
 import lombok.Getter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,5 +52,94 @@ public class SchemaUtilsTest extends IntegrationTest {
             .findFirst()
             .get();
     assertThat(booleanAttribute.getOverrideOperators()).isEqualTo(List.of());
+  }
+
+  @Test
+  @DisplayName(
+      "When clazz is NOT set on queryable method returning array-like, PropertySchema has correct type")
+  public void wheClazzIsNotSetOnQueryableMethodReturningArrayLike_PropertySchemaHasCorrectType() {
+    Class<?> expectedType = Set.class;
+
+    @Getter
+    class TestClass {
+      @Queryable(filterable = true)
+      private Set<String> getStrings() {
+        return Set.of();
+      }
+    }
+
+    List<PropertySchema> propertySchemas = SchemaUtils.schema(TestClass.class);
+
+    PropertySchema stringAttribute =
+        propertySchemas.stream().filter(ps -> ps.getName().equals("getStrings")).findFirst().get();
+    assertThat(stringAttribute.getType()).isEqualTo(expectedType);
+  }
+
+  @Test
+  @DisplayName(
+      "When clazz is set on queryable method returning array-like, PropertySchema has correct type")
+  public void wheClazzIsSetOnQueryableMethodReturningArrayLike_PropertySchemaHasCorrectType() {
+    Class<?> expectedType = String[].class;
+
+    @Getter
+    class TestClass {
+      @Queryable(filterable = true, clazz = String[].class)
+      private Set<String> getStrings() {
+        return Set.of();
+      }
+    }
+
+    List<PropertySchema> propertySchemas = SchemaUtils.schema(TestClass.class);
+
+    PropertySchema stringAttribute =
+        propertySchemas.stream().filter(ps -> ps.getName().equals("getStrings")).findFirst().get();
+    assertThat(stringAttribute.getType()).isEqualTo(expectedType);
+  }
+
+  @Test
+  @DisplayName(
+      "When refEnumClazz is NOT set on queryable method returning array-like, PropertySchema has correct type")
+  public void
+      wheRefEnumClazzIsNotSetOnQueryableMethodReturningArrayLike_PropertySchemaHasCorrectType() {
+    @Getter
+    class TestClass {
+      @Queryable(filterable = true)
+      private Set<String> getOptions() {
+        return Set.of();
+      }
+    }
+
+    List<PropertySchema> propertySchemas = SchemaUtils.schema(TestClass.class);
+
+    PropertySchema stringAttribute =
+        propertySchemas.stream().filter(ps -> ps.getName().equals("getOptions")).findFirst().get();
+    assertThat(stringAttribute.getAvailableValues()).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "When refEnumClazz is set on queryable method returning array-like, PropertySchema has correct type")
+  public void
+      wheRefEnumClazzIsSetOnQueryableMethodReturningArrayLike_PropertySchemaHasCorrectType() {
+    List<String> expectedAvailableValues = List.of("A", "B", "C");
+
+    enum TestEnum {
+      A,
+      B,
+      C
+    }
+    @Getter
+    class TestClass {
+      @Queryable(filterable = true, refEnumClazz = TestEnum.class)
+      private Set<String> getOptions() {
+        return Set.of();
+      }
+    }
+
+    List<PropertySchema> propertySchemas = SchemaUtils.schema(TestClass.class);
+
+    PropertySchema stringAttribute =
+        propertySchemas.stream().filter(ps -> ps.getName().equals("getOptions")).findFirst().get();
+    assertThat(stringAttribute.getAvailableValues()).isEqualTo(expectedAvailableValues);
   }
 }

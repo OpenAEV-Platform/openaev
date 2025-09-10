@@ -76,4 +76,14 @@ public class EsEndpoint extends EsBase {
   @Queryable(label = "tags", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private Set<String> base_tags_side; // Must finish by _side
+
+  @Queryable(label = "simulation", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private Set<String>
+      base_simulation_side; // Must finish by _side, no plural (Set) to work as the other generic
+
+  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
+  @EsQueryable(keyword = true)
+  private Set<String>
+      base_scenario_side; // Must finish by _side, no plural (Set) to work as the other generic
 }

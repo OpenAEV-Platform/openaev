@@ -1,6 +1,6 @@
 import { HubOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, type ReactNode, useContext, useEffect, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -15,8 +15,6 @@ import ItemTargets from '../../../components/ItemTargets';
 import Loader from '../../../components/Loader';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type ExercisesGlobalScoresOutput, type ExerciseSimple, type ExpectationResultsByType } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import AtomicTestingResult from '../atomic_testings/atomic_testing/AtomicTestingResult';
 import ExerciseStatus from './simulation/ExerciseStatus';
 
@@ -87,7 +85,6 @@ const SimulationList: FunctionComponent<Props> = ({
   const bodyItemsStyles = useBodyItemsStyles();
   const inlineStyles = getInlineStyles(variant);
   const { nsdt, vnsdt } = useFormatter();
-  const ability = useContext(AbilityContext);
 
   const [loadingGlobalScores, setLoadingGlobalScores] = useState(true);
   const [globalScores, setGlobalScores] = useState<Record<string, ExpectationResultsByType[]>>();
@@ -194,8 +191,8 @@ const SimulationList: FunctionComponent<Props> = ({
               >
                 <ListItemButton
                   classes={{ root: classes.item }}
-                  component={ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exercise.exercise_id) ? Link : 'div'}
-                  to={ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exercise.exercise_id) ? `/admin/simulations/${exercise.exercise_id}` : undefined}
+                  component={Link}
+                  to={`/admin/simulations/${exercise.exercise_id}`}
                 >
                   <ListItemIcon>
                     <HubOutlined color="primary" />

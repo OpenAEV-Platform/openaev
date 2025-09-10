@@ -25,6 +25,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -37,8 +38,8 @@ import org.hibernate.annotations.UuidGenerator;
       name = "Scenario.tags-injects",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
-@Grantable(grantFieldName = "scenario")
-public class Scenario implements Base {
+@Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
+public class Scenario implements GrantableBase {
 
   public enum RECURRENCE_STATUS {
     SCHEDULED,
@@ -92,6 +93,8 @@ public class Scenario implements Base {
   @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
+  // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
+
   @Column(name = "scenario_external_reference")
   @JsonProperty("scenario_external_reference")
   private String externalReference;
@@ -99,6 +102,13 @@ public class Scenario implements Base {
   @Column(name = "scenario_external_url")
   @JsonProperty("scenario_external_url")
   private String externalUrl;
+
+  // -- OCTI GENERATION SCENARIO FROM STIX --
+
+  @OneToOne(mappedBy = "scenario")
+  @JsonProperty("scenario_security_coverage")
+  @JsonIgnore
+  private SecurityCoverage securityCoverage;
 
   // -- RECURRENCE --
 
@@ -164,7 +174,15 @@ public class Scenario implements Base {
   @Schema(type = "string")
   private CustomDashboard customDashboard;
 
-  @OneToMany(mappedBy = "scenario", fetch = FetchType.EAGER)
+  @Getter
+  @OneToMany(fetch = FetchType.EAGER)
+  @JoinColumn(
+      name = "grant_resource",
+      referencedColumnName = "scenario_id",
+      insertable = false,
+      updatable = false)
+  @SQLRestriction(
+      "grant_resource_type = 'SCENARIO'") // Must be present in Grant.GRANT_RESOURCE_TYPE
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 

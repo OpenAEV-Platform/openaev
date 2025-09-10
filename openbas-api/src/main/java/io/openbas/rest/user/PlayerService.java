@@ -8,12 +8,12 @@ import static io.openbas.rest.user.PlayerQueryHelper.select;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openbas.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.user.form.player.PlayerOutput;
+import io.openbas.service.UserService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -37,12 +37,13 @@ public class PlayerService {
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
+  private final UserService userService;
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
-    OpenBASPrincipal currentUser = currentUser();
-    if (currentUser.isAdmin()) {
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()) {
       playersFunction = this::paginate;
     } else {
       User local =

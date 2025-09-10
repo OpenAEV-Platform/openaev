@@ -71,6 +71,7 @@ public class ScenarioApi extends RestBehavior {
   private final EndpointService endpointService;
   private final ChannelService channelService;
   private final DocumentService documentService;
+  private final PlatformSettingsService platformSettingsService;
 
   @PostMapping(SCENARIO_URI)
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
@@ -85,7 +86,13 @@ public class ScenarioApi extends RestBehavior {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      scenario.setCustomDashboard(null);
+      scenario.setCustomDashboard(
+          this.platformSettingsService
+              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
     }
     return this.scenarioService.createScenario(scenario);
   }
@@ -447,7 +454,7 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ResponseEntity<CustomDashboard> dashboard(@PathVariable final String scenarioId) {
     return ResponseEntity.ok(
-        this.customDashboardService.findCustomDashboardByScenarioId(scenarioId));
+        this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}")
@@ -459,7 +466,7 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.scenarioService.dashboardCount(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}")
@@ -471,7 +478,8 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.scenarioService.dashboardSeries(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardSeriesOnResourceId(
+        scenarioId, widgetId, parameters);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}")
@@ -483,7 +491,8 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.scenarioService.dashboardEntities(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        scenarioId, widgetId, parameters);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}")
@@ -503,8 +512,8 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.scenarioService.dashboardAttackPaths(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardAttackPathsOnResourceId(
+        scenarioId, widgetId, parameters);
   }
-
   // end region
 }

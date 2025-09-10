@@ -1,9 +1,9 @@
+import { type AxiosResponse } from 'axios';
 import { createContext } from 'react';
 
 import { attackPaths, count, entities, series } from '../../../../actions/dashboards/dashboard-action';
 import { type SearchOptionsConfig } from '../../../../components/common/queryable/filter/useSearchOptions';
-import {type CustomDashboard, type EsAttackPath, EsBase, EsSeries} from '../../../../utils/api-types';
-import {AxiosResponse} from "axios";
+import { type CustomDashboard, type EsAttackPath, type EsBase, type EsSeries } from '../../../../utils/api-types';
 
 export interface ParameterOption {
   value: string;
@@ -20,17 +20,21 @@ export interface CustomDashboardContextType {
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
   fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
+  contextId?: string;
+  canChooseDashboard?: boolean;
+  handleSelectNewDashboard?: (dashboardId: string) => void;
 }
 
 export const CustomDashboardContext = createContext<CustomDashboardContextType>({
   customDashboard: undefined,
-  setCustomDashboard: () => {
-  },
+  setCustomDashboard: () => {},
   customDashboardParameters: {},
-  setCustomDashboardParameters: () => {
-  },
+  setCustomDashboardParameters: () => {},
   fetchCount: count,
   fetchSeries: series,
   fetchEntities: entities,
   fetchAttackPaths: attackPaths,
+  contextId: undefined, // Simulation or scenario id
+  canChooseDashboard: false,
+  handleSelectNewDashboard: undefined,
 });

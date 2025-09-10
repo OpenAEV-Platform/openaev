@@ -73,13 +73,6 @@ public interface ScenarioRepository
   List<RawExerciseSimple> rawAllByExternalReference(
       @Param("externalReference") String externalReference);
 
-  @Query(
-      "select distinct s from Scenario s "
-          + "join s.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId")
-  List<Scenario> findAllGranted(@Param("userId") String userId);
-
   @Override
   @Query(
       "select count(distinct u) from User u "
@@ -109,8 +102,8 @@ public interface ScenarioRepository
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
-              + "INNER join grants ON grants.grant_scenario = sce.scenario_id "
-              + "INNER join groups ON grants.grant_group = groups.group_id "
+              + "INNER JOIN grants ON grants.grant_resource = sce.scenario_id AND grants.grant_resource_type = 'SCENARIO' "
+              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "GROUP BY sce.scenario_id",

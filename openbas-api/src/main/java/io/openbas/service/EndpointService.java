@@ -62,7 +62,7 @@ public class EndpointService {
 
   public static final String OPENBAS_INSTALL_DIR_WINDOWS_SERVICE =
       "C:\\Program Files (x86)\\Filigran\\OBAS Agent";
-  public static final String OPENBAS_INSTALL_DIR_WINDOWS_SERVICE_USER = "$HOME\\.openbas";
+  public static final String OPENBAS_INSTALL_DIR_WINDOWS_SERVICE_USER = ".openbas";
   public static final String OPENBAS_INSTALL_DIR_WINDOWS_SESSION_USER = "$HOME\\.openbas";
   public static final String OPENBAS_INSTALL_DIR_UNIX_SERVICE = "/opt/openbas-agent";
   public static final String OPENBAS_INSTALL_DIR_UNIX_SERVICE_USER = ".local/openbas-agent-service";

@@ -230,7 +230,7 @@ const InjectPopover: FunctionComponent<Props> = ({
     label: t('Test'),
     action: () => handleOpenTest(),
     disabled: isDisabled,
-    userRight: permissions.canLaunch,
+    userRight: permissions.canManage,
   });
   entries.push({
     label: t('inject_export_json_single'),
@@ -242,13 +242,13 @@ const InjectPopover: FunctionComponent<Props> = ({
     label: t('Mark as done'),
     action: () => handleOpenDone(),
     disabled: isDisabled,
-    userRight: true,
+    userRight: permissions.canManage,
   });
   if (inject.inject_type !== 'openbas_manual' && canTriggerNow && onUpdateInjectTrigger) entries.push({
     label: t('Trigger now'),
     action: () => handleOpenTrigger(),
     disabled: isDisabled || !permissions.isRunning,
-    userRight: true,
+    userRight: permissions.canLaunch,
   });
   if (inject.inject_enabled) entries.push({
     label: t('Disable'),
