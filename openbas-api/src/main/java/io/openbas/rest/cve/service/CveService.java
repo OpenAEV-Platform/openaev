@@ -67,7 +67,7 @@ public class CveService {
 
     // Batch fetch existing CVEs
     Map<String, Cve> existingCvesMap =
-        cveRepository.findAllByExternalIdIn(externalIds.stream().toList()).stream()
+        cveRepository.findAllByExternalIdInIgnoreCase(externalIds.stream().toList()).stream()
             .collect(Collectors.toMap(Cve::getExternalId, Function.identity()));
 
     // Process with pre-fetched data
@@ -147,7 +147,7 @@ public class CveService {
 
   public List<Cve> findAllByExternalIdsOrThrowIfMissing(final Set<String> vulnIds) {
     List<Cve> vulns =
-        fromIterable(this.cveRepository.findAllByExternalIdIn(vulnIds.stream().toList()));
+        fromIterable(this.cveRepository.findAllByExternalIdInIgnoreCase(vulnIds.stream().toList()));
     throwIfMissing(vulnIds, vulns, Cve::getExternalId);
     return vulns;
   }
@@ -158,7 +158,12 @@ public class CveService {
       Function<? super Cve, String> getId) {
     List<String> missingIds =
         requiredIds.stream()
-            .filter(id -> !fetchedVulnerabilities.stream().map(getId).toList().contains(id))
+            .filter(
+                id ->
+                    !fetchedVulnerabilities.stream()
+                        .map(vuln -> getId.apply(vuln).toLowerCase())
+                        .toList()
+                        .contains(id.toLowerCase()))
             .toList();
     if (!missingIds.isEmpty()) {
       throw new ElementNotFoundException(

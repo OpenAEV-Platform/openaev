@@ -423,7 +423,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setAttackPatternsExternalIds(
             attackPatternComposer.generatedItems.stream()
-                .map(AttackPattern::getExternalId)
+                .map(ap -> ap.getExternalId().toLowerCase())
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownObasImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
@@ -531,7 +531,10 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setVulnerabilityExternalIds(
-            cveComposer.generatedItems.stream().map(Cve::getExternalId).toList());
+            // force converting the ids to lower case; it must work in case-insensitive mode
+            cveComposer.generatedItems.stream()
+                .map(vuln -> vuln.getExternalId().toLowerCase())
+                .toList());
         input.setInjectorId(injectorFixture.getWellKnownObasImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
 
