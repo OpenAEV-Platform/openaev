@@ -1,5 +1,5 @@
 <configuration>
-    <springProfile name="dev | test">
+    <springProfile name="(dev | test)">
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
         <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>

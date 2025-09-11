@@ -9,6 +9,12 @@ public class ExecutionTraceUtils {
 
   private ExecutionTraceUtils() {}
 
+  /**
+   * Convert and ExecutionStatus into an ExecutionTraceStatus
+   *
+   * @param status the status to convert
+   * @return the corresponding ExecutionTraceStatus
+   */
   public static ExecutionTraceStatus convertExecutionStatus(ExecutionStatus status) {
     return switch (status) {
       case SUCCESS -> ExecutionTraceStatus.SUCCESS;
@@ -20,6 +26,12 @@ public class ExecutionTraceUtils {
     };
   }
 
+  /**
+   * Convert InjectExecutionAction into ExecutionTraceAction
+   *
+   * @param action the InjectExecutionAction
+   * @return the ExecutionTraceAction
+   */
   public static ExecutionTraceAction convertExecutionAction(InjectExecutionAction action) {
     return switch (action) {
       case prerequisite_check -> ExecutionTraceAction.PREREQUISITE_CHECK;
