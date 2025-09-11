@@ -110,7 +110,8 @@ public class FilterUtilsRuntime {
       throw new RuntimeException(e);
     }
 
-    return Map.entry((Class<Object>) currentObject.getClass(), currentObject);
+    return Map.entry(
+        (Class<Object>) currentObject.getClass(), currentObject); // todo current est null
   }
 
   // -- OPERATOR --

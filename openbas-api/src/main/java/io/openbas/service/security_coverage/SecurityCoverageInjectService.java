@@ -10,6 +10,7 @@ import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.service.AssetGroupService;
+import io.openbas.service.EndpointService;
 import io.openbas.service.stix.InjectStixAssistantService;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,17 +93,17 @@ public class SecurityCoverageInjectService {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
-    // 2. List of injects is cleaned
+    // 2. Remove all injects
     injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
 
-    // 3. Build map Assets by target property
+    // 3. Build map Vulnerability, target property, Set<Assets>
     Map<ContractTargetedProperty, Set<Endpoint>> assetsByTargetProperty =
         assetsFromGroupMap.values().stream()
             .flatMap(List::stream)
             .filter(Objects::nonNull)
             .collect(Collectors.groupingBy(this::getTargetProperty, Collectors.toSet()));
 
-    // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
+    // 4. In other case, Injects are created with injectorContracts related to these vulnerabilities
     injectStixAssistantService.generateInjectsWithTargetsByVulnerabilities(
         scenario, vulnerabilities, assetsByTargetProperty, NUMBER_OF_INJECTS);
   }

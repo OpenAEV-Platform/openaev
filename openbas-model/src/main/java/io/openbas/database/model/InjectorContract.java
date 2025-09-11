@@ -228,6 +228,9 @@ public class InjectorContract implements Base {
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_ATTACHMENTS = "attachments";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS = "expectations";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY = "targeted-property";
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGET_SELECTOR = "target_selector";
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR =
+      "target_property_selector";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR =
       "targeted-asset-separator";
 

@@ -139,7 +139,7 @@ public class AssetGroupService {
                                     asset.getType())) // Filters for dynamic assets are applicable
                     // only to endpoints
                     .filter(filters)
-                    .toList();
+                    .toList(); // todo error null object
 
             assetGroup.setDynamicAssets(filteredAssets);
           }

@@ -1,5 +1,8 @@
 package io.openbas.service.stix;
 
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGET_SELECTOR;
 import static java.util.Collections.emptyList;
 
 import io.openbas.database.helper.InjectorContractRepositoryHelper;
@@ -229,11 +232,14 @@ public class InjectStixAssistantService {
                   ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
 
           inject.setAssets(new ArrayList<>(endpoints));
-
-          // inject contract
-          // inject.setTargetProperty(targetProperty);
-          // inject.setPropertyType("Assets");
-
+          inject
+              .getContent()
+              .put(CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR, targetProperty.name());
+          inject
+              .getContent()
+              .put(
+                  CONTRACT_ELEMENT_CONTENT_KEY_TARGET_SELECTOR,
+                  CONTRACT_ELEMENT_CONTENT_KEY_ASSETS);
           injects.add(inject);
         }
       }
