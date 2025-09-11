@@ -195,7 +195,7 @@ const Scenarios = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Box display="flex" gap={1}>
-            <ImportFromHubButton serviceIdentifier="obas_scenarios" />
+            <ImportFromHubButton serviceIdentifier="openaev_scenarios" />
             <ToggleButtonGroup value="fake" exclusive>
               <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
               <ImportUploaderScenario />
