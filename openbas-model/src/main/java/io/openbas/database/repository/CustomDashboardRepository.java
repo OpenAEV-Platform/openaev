@@ -45,11 +45,11 @@ public interface CustomDashboardRepository
 
   @Query(
       """
-      SELECT d FROM CustomDashboard d
-      WHERE d.id = (
-        SELECT s.value FROM Setting s
-        WHERE s.key = :#{T(io.openbas.database.model.SettingKeys).DEFAULT_SIMULATION_DASHBOARD.key()}
-      )
-      """)
+  SELECT d FROM CustomDashboard d
+  WHERE d.id = (
+    SELECT s.value FROM Setting s
+    WHERE s.key = 'platform_home_dashboard'
+  )
+  """)
   Optional<CustomDashboard> findHomeDashboard();
 }

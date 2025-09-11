@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Backend start" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+  <configuration default="false" name="Backend start" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" show_console_on_std_err="true" show_console_on_std_out="true">
     <option name="ACTIVE_PROFILES" value="dev" />
     <option name="ALTERNATIVE_JRE_PATH" value="$PROJECT_DIR$/../../../../../../../../../Program Files/Java/jdk-22" />
     <module name="openbas-api" />
