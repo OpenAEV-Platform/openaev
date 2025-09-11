@@ -19,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class InjectAIAssistantService {
 
+  public static final int MAX_NUMBER_INJECTS = 5;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final AttackPatternService attackPatternService;
@@ -35,7 +36,7 @@ public class InjectAIAssistantService {
    * @return a list of generated injects
    */
   public Set<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
-    if (input.getInjectByTTPNumber() > 5) {
+    if (input.getInjectByTTPNumber() > MAX_NUMBER_INJECTS) {
       throw new UnsupportedOperationException(
           "Number of inject by Attack Pattern must be less than or equal to 5");
     }
