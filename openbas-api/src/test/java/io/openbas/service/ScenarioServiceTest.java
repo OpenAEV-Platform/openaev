@@ -15,6 +15,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.model.Tag;
 import io.openbas.database.repository.*;
 import io.openbas.ee.Ee;
+import io.openbas.rest.dashboard.DashboardService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
@@ -58,6 +59,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private DashboardService dashboardService;
   @InjectMocks private ScenarioService scenarioService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -90,6 +92,7 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
+            dashboardService,
             injectRepository,
             lessonsCategoryRepository);
   }
@@ -115,6 +118,7 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
+            dashboardService,
             injectRepository,
             lessonsCategoryRepository);
   }

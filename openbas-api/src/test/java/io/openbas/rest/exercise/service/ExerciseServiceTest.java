@@ -15,6 +15,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.ee.Ee;
 import io.openbas.expectation.ExpectationType;
+import io.openbas.rest.dashboard.DashboardService;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openbas.rest.inject.service.InjectDuplicateService;
@@ -76,7 +77,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-
+  @Mock private DashboardService dashboardService;
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @InjectMocks private ExerciseService exerciseService;
@@ -94,6 +95,7 @@ class ExerciseServiceTest extends IntegrationTest {
             documentService,
             injectService,
             userService,
+            dashboardService,
             exerciseMapper,
             injectMapper,
             resultUtils,

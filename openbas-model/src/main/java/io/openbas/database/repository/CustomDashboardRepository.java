@@ -42,4 +42,14 @@ public interface CustomDashboardRepository
       """,
       nativeQuery = true)
   Optional<CustomDashboard> findByResourceId(String resourceId);
+
+  @Query(
+      """
+  SELECT d FROM CustomDashboard d
+  WHERE d.id = (
+    SELECT s.value FROM Setting s
+    WHERE s.key = 'platform_home_dashboard'
+  )
+  """)
+  Optional<CustomDashboard> findHomeDashboard();
 }

@@ -30,6 +30,7 @@ import io.openbas.database.specification.ScenarioSpecification;
 import io.openbas.ee.Ee;
 import io.openbas.export.Mixins;
 import io.openbas.helper.ObjectMapperHelper;
+import io.openbas.rest.dashboard.DashboardService;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.exercise.exports.ExerciseFileExport;
 import io.openbas.rest.exercise.exports.VariableMixin;
@@ -113,6 +114,7 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
+  private final DashboardService dashboardService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
