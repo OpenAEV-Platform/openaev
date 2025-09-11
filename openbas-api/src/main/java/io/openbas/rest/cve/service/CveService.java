@@ -135,14 +135,7 @@ public class CveService {
 
   public List<Cve> findAllByIdsOrThrowIfMissing(final Set<String> vulnIds) {
     List<Cve> vulns = fromIterable(this.cveRepository.findAllById(vulnIds));
-    List<String> missingIds =
-        vulnIds.stream()
-            .filter(id -> !vulns.stream().map(Cve::getId).toList().contains(id))
-            .toList();
-    if (!missingIds.isEmpty()) {
-      throw new ElementNotFoundException(
-          String.format("Missing vulnerabilities: %s", String.join(", ", missingIds)));
-    }
+    throwIfMissing(vulnIds, vulns, Cve::getId);
     return vulns;
   }
 
@@ -150,6 +143,27 @@ public class CveService {
     return cveRepository
         .findByExternalId(externalId)
         .orElseThrow(() -> new ElementNotFoundException(CVE_NOT_FOUND_MSG + externalId));
+  }
+
+  public List<Cve> findAllByExternalIdsOrThrowIfMissing(final Set<String> vulnIds) {
+    List<Cve> vulns =
+        fromIterable(this.cveRepository.findAllByExternalIdIn(vulnIds.stream().toList()));
+    throwIfMissing(vulnIds, vulns, Cve::getExternalId);
+    return vulns;
+  }
+
+  private void throwIfMissing(
+      Set<String> requiredIds,
+      List<Cve> fetchedVulnerabilities,
+      Function<? super Cve, String> getId) {
+    List<String> missingIds =
+        requiredIds.stream()
+            .filter(id -> !fetchedVulnerabilities.stream().map(getId).toList().contains(id))
+            .toList();
+    if (!missingIds.isEmpty()) {
+      throw new ElementNotFoundException(
+          String.format("Missing vulnerabilities: %s", String.join(", ", missingIds)));
+    }
   }
 
   public void deleteById(final String cveId) {
