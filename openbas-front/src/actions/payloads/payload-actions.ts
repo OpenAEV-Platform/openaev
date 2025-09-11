@@ -8,8 +8,14 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type Payload, type PayloadCreateInput, type PayloadUpdateInput, type SearchPaginationInput } from '../../utils/api-types';
-import { arrayOfDocuments, payload } from '../Schema';
+import {
+  type Payload,
+  type PayloadCreateInput,
+  type PayloadUpdateInput,
+  type SearchPaginationInput,
+} from '../../utils/api-types';
+import { payload } from '../Schema';
+import * as schema from '../Schema';
 
 export const PAYLOAD_URI = '/api/payloads';
 
@@ -45,9 +51,16 @@ export const deletePayload = (payloadId: Payload['payload_id']) => (dispatch: Di
 };
 
 // -- DOCUMENTS --
-export const fetchDocumentsPayload = (payloadId: string) => (dispatch: Dispatch) => {
-  const uri = `/api/payloads/${payloadId}/documents`;
-  return getReferential(arrayOfDocuments, uri)(dispatch);
+export const fetchDocumentsPayload = async (payloadId: string) => {
+  const uri = `${PAYLOAD_URI}/${payloadId}/documents`;
+  const result = await simpleCall(uri);
+  return result.data;
+};
+
+// -- COLLECTORS --
+export const fetchCollectorsForPayload = (payloadId: string) => (dispatch: Dispatch) => {
+  const uri = `/api/payloads/${payloadId}/collectors`;
+  return getReferential(schema.arrayOfCollectors, uri)(dispatch);
 };
 
 // -- EXPORT --

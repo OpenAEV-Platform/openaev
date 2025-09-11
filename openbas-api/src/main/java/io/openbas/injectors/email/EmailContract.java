@@ -65,7 +65,6 @@ public class EmailContract extends Contractor {
             .mandatory(teamField(Multiple))
             .mandatory(textField("subject", "Subject"))
             .mandatory(richTextareaField("body", "Body"))
-            // .optional(textField("inReplyTo", "InReplyTo", "HIDDEN")) - Use for direct injection
             .optional(checkboxField("encrypted", "Encrypted", false))
             .optional(attachmentField(Multiple))
             .optional(expectationsField)
@@ -85,7 +84,6 @@ public class EmailContract extends Contractor {
             .mandatory(teamField(Multiple))
             .mandatory(textField("subject", "Subject"))
             .mandatory(richTextareaField("body", "Body"))
-            // .mandatory(textField("inReplyTo", "InReplyTo", "HIDDEN"))  - Use for direct injection
             .optional(attachmentField(Multiple))
             .optional(expectationsField)
             .build();

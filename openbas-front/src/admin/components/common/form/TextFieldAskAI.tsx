@@ -1,7 +1,23 @@
-import { AutoAwesomeOutlined } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputAdornment, InputLabel, Menu, MenuItem, Select, TextField, Tooltip } from '@mui/material';
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  Menu,
+  MenuItem,
+  Select,
+  SvgIcon,
+  TextField,
+  Tooltip,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
+import { LogoXtmOneIcon } from 'filigran-icon';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent, Suspense, useState } from 'react';
 
 import { aiChangeTone, aiExplain, aiFixSpelling, aiGenMedia, aiGenMessage, aiGenSubject, aiMakeLonger, aiMakeShorter, aiSummarize } from '../../../../actions/AskAI';
 // eslint-disable-next-line import/no-cycle
@@ -196,7 +212,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                   : theme.palette.action.disabled,
               }}
             >
-              <AutoAwesomeOutlined fontSize="small" />
+              <Suspense><SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox /></Suspense>
             </IconButton>
           </span>
         </EETooltip>

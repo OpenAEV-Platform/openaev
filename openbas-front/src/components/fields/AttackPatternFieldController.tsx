@@ -128,7 +128,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {!hideAddButton && (
+                          {ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS) && !hideAddButton && (
                             <IconButton
                               style={{
                                 position: 'absolute',

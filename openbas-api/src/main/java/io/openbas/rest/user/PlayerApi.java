@@ -10,7 +10,6 @@ import static java.time.Instant.now;
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.onboarding.Onboarding;
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.config.SessionManager;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawPlayer;
@@ -53,8 +52,8 @@ public class PlayerApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
-    OpenBASPrincipal currentUser = currentUser();
-    if (currentUser.isAdmin()) {
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()) {
       players = fromIterable(userRepository.rawAllPlayers());
     } else {
       User local =

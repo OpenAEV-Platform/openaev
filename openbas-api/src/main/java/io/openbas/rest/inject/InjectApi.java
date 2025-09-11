@@ -7,22 +7,29 @@ import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.lock.Lock;
 import io.openbas.aop.lock.LockResourceType;
-import io.openbas.authorisation.AuthorisationService;
 import io.openbas.database.model.*;
-import io.openbas.database.repository.*;
+import io.openbas.database.raw.RawDocument;
+import io.openbas.database.repository.ExerciseRepository;
+import io.openbas.database.repository.InjectRepository;
+import io.openbas.database.repository.UserRepository;
 import io.openbas.database.specification.InjectSpecification;
+import io.openbas.database.specification.SpecificationUtils;
 import io.openbas.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openbas.rest.atomic_testing.form.InjectStatusOutput;
+import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.exception.UnprocessableContentException;
 import io.openbas.rest.exercise.exports.ExportOptions;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.inject.form.*;
-import io.openbas.rest.inject.service.*;
+import io.openbas.rest.inject.service.ExecutableInjectService;
+import io.openbas.rest.inject.service.InjectExecutionService;
+import io.openbas.rest.inject.service.InjectExportService;
+import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.payload.form.DetectionRemediationOutput;
-import io.openbas.rest.security.SecurityExpression;
-import io.openbas.service.ImportService;
+import io.openbas.service.InjectImportService;
+import io.openbas.service.UserService;
 import io.openbas.service.targets.TargetService;
 import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.TargetType;
@@ -36,15 +43,18 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
@@ -59,18 +69,18 @@ public class InjectApi extends RestBehavior {
 
   private static final int MAX_NEXT_INJECTS = 6;
 
-  private final AuthorisationService authorisationService;
   private final ExecutableInjectService executableInjectService;
   private final ExerciseRepository exerciseRepository;
-  private final ImportService importService;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
+  private final InjectImportService injectImportService;
   private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
-  private final ScenarioRepository scenarioRepository;
   private final TargetService targetService;
   private final UserRepository userRepository;
   private final PayloadMapper payloadMapper;
+  private final UserService userService;
+  private final DocumentService documentService;
 
   // -- INJECTS --
 
@@ -106,18 +116,19 @@ public class InjectApi extends RestBehavior {
       HttpServletResponse response)
       throws IOException {
     List<String> targetIds = injectExportRequestInput.getTargetsIds();
-    List<Inject> injects = injectRepository.findAllById(targetIds);
-
+    User currentUser = userService.currentUser();
+    List<Inject> injects =
+        injectRepository.findAll(
+            Specification.where(SpecificationUtils.<Inject>hasIdIn(targetIds))
+                .and(
+                    SpecificationUtils.hasGrantAccess(
+                        currentUser.getId(),
+                        currentUser.isAdminOrBypass(),
+                        currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS),
+                        Grant.GRANT_TYPE.OBSERVER)));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =
         new ArrayList<>(targetIds.stream().filter(id -> !foundIds.contains(id)).toList());
-    missedIds.addAll(
-        injectService
-            .authorise(injects, SecurityExpression::isInjectObserver)
-            .getUnauthorised()
-            .stream()
-            .map(Inject::getId)
-            .toList());
 
     if (!missedIds.isEmpty()) {
       throw new ElementNotFoundException(String.join(", ", missedIds));
@@ -294,42 +305,7 @@ public class InjectApi extends RestBehavior {
                           .map(Enum::toString)
                           .toList())));
     }
-
-    Exercise targetExercise = null;
-    Scenario targetScenario = null;
-
-    if (input.getTarget().getType().equals(InjectImportTargetType.SIMULATION)) {
-      targetExercise =
-          exerciseRepository
-              .findById(input.getTarget().getId())
-              .orElseThrow(ElementNotFoundException::new);
-      if (!authorisationService
-          .getSecurityExpression()
-          .isSimulationPlanner(targetExercise.getId())) {
-        throw new AccessDeniedException(
-            "Insufficient privileges to act on simulation id#%s".formatted(targetExercise.getId()));
-      }
-    }
-
-    if (input.getTarget().getType().equals(InjectImportTargetType.SCENARIO)) {
-      targetScenario =
-          scenarioRepository
-              .findById(input.getTarget().getId())
-              .orElseThrow(ElementNotFoundException::new);
-      if (!authorisationService.getSecurityExpression().isScenarioPlanner(targetScenario.getId())) {
-        throw new AccessDeniedException(
-            "Insufficient privileges to act on scenario id#%s".formatted(targetScenario.getId()));
-      }
-    }
-
-    if (input.getTarget().getType().equals(InjectImportTargetType.ATOMIC_TESTING)) {
-      if (!authorisationService.getSecurityExpression().isAdmin()) {
-        throw new AccessDeniedException(
-            "Insufficient privileges: must be admin to act on atomic testing");
-      }
-    }
-
-    this.importService.handleFileImport(file, targetExercise, targetScenario);
+    this.injectImportService.importInjects(file, input);
   }
 
   @PostMapping(INJECT_URI + "/execution/reception/{injectId}")
@@ -565,5 +541,19 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId) {
     return payloadMapper.toDetectionRemediationOutputs(
         injectService.fetchDetectionRemediationsByInjectId(injectId));
+  }
+
+  @Operation(description = "Get documents by inject and payload id")
+  @GetMapping(INJECT_URI + "/{injectId}/payload/{payloadId}/documents")
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
+      @PathVariable String injectId, @PathVariable String payloadId) {
+    Payload payload = injectService.getPayloadByInjectId(injectId);
+
+    if (!payloadId.equals(payload.getId())) {
+      throw new BadRequestException("provided payload id mismatch with provided inject id");
+    }
+
+    return documentService.documentsForPayload(payloadId);
   }
 }

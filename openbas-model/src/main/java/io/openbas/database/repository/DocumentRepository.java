@@ -142,7 +142,7 @@ public interface DocumentRepository
                                 left join scenarios sc on sc.scenario_id = scdoc.scenario_id
                                 left join documents_tags tagdoc on d.document_id = tagdoc.document_id
                                 left join tags tg on tg.tag_id = tagdoc.tag_id
-                                left join payloads pa on d.document_id = pa.file_drop_file
+                                left join payloads pa on (d.document_id = pa.file_drop_file or d.document_id = pa.executable_file)
                                 where pa.payload_id = :payloadId
                                 group by d.document_id
                                 order by d.document_id desc
@@ -162,7 +162,7 @@ public interface DocumentRepository
               + "left join scenarios sc on sc.scenario_id = scdoc.scenario_id "
               + "left join documents_tags tagdoc on d.document_id = tagdoc.document_id "
               + "left join tags tg on tg.tag_id = tagdoc.tag_id "
-              + "left join grants grt on grt.grant_exercise = exdoc.exercise_id "
+              + "left join grants grt ON grt.grant_resource = exdoc.exercise_id AND grt.grant_resource_type = 'SIMULATION' "
               + "left join groups grp on grt.grant_group = grp.group_id "
               + "left join users_groups usgrp on grp.group_id = usgrp.group_id "
               + "left outer join users u on usgrp.user_id = u.user_id "

@@ -7,6 +7,8 @@ import org.springframework.data.jpa.domain.Specification;
 
 public class DocumentSpecification {
 
+  private DocumentSpecification() {}
+
   public static Specification<Document> findGrantedFor(@NotBlank final String userId) {
     return (root, query, criteriaBuilder) -> {
       Path<Object> exercisePath =

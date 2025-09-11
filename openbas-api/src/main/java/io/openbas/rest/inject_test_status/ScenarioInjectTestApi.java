@@ -82,7 +82,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/test")
   @RBAC(
       resourceId = "#scenarioId",
-      actionPerformed = Action.LAUNCH,
+      actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
@@ -101,7 +101,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.LAUNCHER).and(testable());
+        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER).and(testable());
 
     // Services calls
     // Bulk test

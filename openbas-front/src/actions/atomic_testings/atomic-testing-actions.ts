@@ -1,5 +1,9 @@
-import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import { type Dispatch } from 'redux';
+
+import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import { type AtomicTestingInput, type SearchPaginationInput } from '../../utils/api-types';
+import { MESSAGING$ } from '../../utils/Environment';
+import * as schema from '../Schema';
 
 const ATOMIC_TESTING_URI = '/api/atomic-testings';
 const EXPECTATION_TRACE_URI = '/api/inject-expectations-traces';
@@ -67,7 +71,24 @@ export const fetchExpectationTraces = (injectExpectationId: string, sourceId: st
   return simpleCall(uri);
 };
 
+// -- COLLECTORS --
+export const fetchCollectorsForAtomicTesting = (injectId: string) => (dispatch: Dispatch) => {
+  const uri = `${ATOMIC_TESTING_URI}/${injectId}/collectors`;
+  return getReferential(schema.arrayOfCollectors, uri)(dispatch);
+};
+
+// -- ALERT LINKS COUNT --
 export const getAlertLinksCount = (injectExpectationId: string, sourceId: string | undefined, expectationResultSourceType: string | undefined) => {
   const uri = `${EXPECTATION_TRACE_URI}/count?injectExpectationId=${injectExpectationId}&sourceId=${sourceId}&expectationResultSourceType=${expectationResultSourceType}`;
   return simpleCall(uri);
+};
+
+export const importAtomicTesting = (file: File) => {
+  const uri = `${ATOMIC_TESTING_URI}/import`;
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(uri, formData).catch((error) => {
+    MESSAGING$.notifyError('Could not import atomic testing');
+    throw error;
+  });
 };

@@ -1178,22 +1178,22 @@ class QuickInject extends Component {
                         f => !builtInFields.includes(f.key) && !f.expectation,
                       )
                       .filter((f) => {
-                        // Filter display if linked fields
+                        // Filter display if visible
                         for (
                           let index = 0;
-                          index < f.linkedFields.length;
+                          index < f.visibleConditionFields.length;
                           index += 1
                         ) {
-                          const linkedField = f.linkedFields[index];
+                          const visibleConditionField = injectorContract.fields.find(g => g.key === f.visibleConditionFields[index]);
                           if (
-                            linkedField.type === 'checkbox'
-                            && values[linkedField.key] === false
+                            visibleConditionField.type === 'checkbox'
+                            && values[visibleConditionField.key] === false
                           ) {
                             return false;
                           }
                           if (
-                            linkedField.type === 'select'
-                            && !f.linkedValues.includes(values[linkedField.key])
+                            visibleConditionField.type === 'select'
+                            && !f.linkedValues.includes(values[visibleConditionField.key])
                           ) {
                             return false;
                           }

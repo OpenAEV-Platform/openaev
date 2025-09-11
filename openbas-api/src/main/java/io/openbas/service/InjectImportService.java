@@ -7,10 +7,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openbas.authorisation.AuthorisationService;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exception.ElementNotFoundException;
+import io.openbas.rest.inject.form.InjectImportInput;
+import io.openbas.rest.inject.form.InjectImportTargetType;
 import io.openbas.rest.scenario.response.ImportMessage;
 import io.openbas.rest.scenario.response.ImportPostSummary;
 import io.openbas.rest.scenario.response.ImportTestSummary;
@@ -57,6 +60,11 @@ public class InjectImportService {
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+
+  private final ExerciseRepository exerciseRepository;
+  private final AuthorisationService authorisationService;
+  private final ScenarioRepository scenarioRepository;
+  private final ImportService importService;
 
   private final List<String> importReservedField = List.of("description", "title", "trigger_time");
   final Pattern relativeDayPattern = Pattern.compile("^.*[DJ]([+\\-]?[0-9]*)(.*)$");
@@ -1180,5 +1188,26 @@ public class InjectImportService {
                               injectTime.getDate().getEpochSecond()
                                   - earliestInstant.getEpochSecond());
                     }));
+  }
+
+  public void importInjects(MultipartFile file, InjectImportInput input) throws Exception {
+    Exercise targetExercise = null;
+    Scenario targetScenario = null;
+
+    if (input.getTarget().getType().equals(InjectImportTargetType.SIMULATION)) {
+      targetExercise =
+          exerciseRepository
+              .findById(input.getTarget().getId())
+              .orElseThrow(ElementNotFoundException::new);
+    }
+
+    if (input.getTarget().getType().equals(InjectImportTargetType.SCENARIO)) {
+      targetScenario =
+          scenarioRepository
+              .findById(input.getTarget().getId())
+              .orElseThrow(ElementNotFoundException::new);
+    }
+
+    this.importService.handleFileImport(file, targetExercise, targetScenario);
   }
 }

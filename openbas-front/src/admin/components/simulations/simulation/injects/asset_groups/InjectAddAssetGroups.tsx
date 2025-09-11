@@ -24,6 +24,7 @@ interface Props {
   onSubmit: (assetGroupIds: string[]) => void;
   disabled?: boolean;
   errorLabel?: string | null;
+  label?: string | boolean;
 }
 
 const InjectAddAssetGroups: FunctionComponent<Props> = ({
@@ -31,6 +32,7 @@ const InjectAddAssetGroups: FunctionComponent<Props> = ({
   onSubmit,
   disabled = false,
   errorLabel = null,
+  label,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -56,6 +58,11 @@ const InjectAddAssetGroups: FunctionComponent<Props> = ({
           classes={{ primary: errorLabel ? classes.textError : classes.text }}
         />
       </ListItemButton>
+      {!errorLabel && label && (
+        <FormHelperText>
+          {label}
+        </FormHelperText>
+      )}
       {errorLabel && (
         <FormHelperText error>
           {errorLabel}

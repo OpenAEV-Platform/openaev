@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, TextField as MuiTextField, Typography } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
@@ -16,6 +16,9 @@ import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
+import { AbilityContext, Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAccess';
+import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 
@@ -40,10 +43,11 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
   const { securityPlatformsMap }: { securityPlatformsMap: Record<string, SecurityPlatform> }
     = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatformsMap: helper.getSecurityPlatformsMap() }));
   useDataLoader(() => {
-    dispatch(fetchSecurityPlatforms());
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)) dispatch(fetchSecurityPlatforms());
   });
   const onSubmit = (data: {
     expectation_score: number;
@@ -97,6 +101,11 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
         <Typography variant="h3">{t('Description')}</Typography>
         <ExpandableText source={expectation.inject_expectation_description} limit={120} />
       </div>
+
+      <Can not I={ACTIONS.ACCESS} a={SUBJECTS.SECURITY_PLATFORMS}>
+        <RestrictionAccess restrictedField="security platforms" />
+      </Can>
+
       <Controller
         control={control}
         name="security_platform"

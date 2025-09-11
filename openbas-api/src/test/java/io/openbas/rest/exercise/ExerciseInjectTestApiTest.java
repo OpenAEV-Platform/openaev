@@ -23,7 +23,6 @@ import io.openbas.utils.fixtures.composers.ExerciseComposer;
 import io.openbas.utils.fixtures.composers.InjectComposer;
 import io.openbas.utils.fixtures.composers.InjectTestStatusComposer;
 import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -116,7 +115,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test status when testing a specific inject")
-    @WithMockPlannerUser
+    @WithMockAdminUser
     void should_return_test_status_when_testing_specific_inject() throws Exception {
       mvc.perform(
               get(
@@ -145,7 +144,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 200 when deleting an inject test status")
-    @WithMockPlannerUser
+    @WithMockAdminUser
     void should_return_200_when_fetching_deleting_an_inject_test_status() throws Exception {
       mvc.perform(
               delete(

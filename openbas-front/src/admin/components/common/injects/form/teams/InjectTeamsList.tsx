@@ -1,5 +1,5 @@
 import { GroupsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { FormHelperText, List, ListItem, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -8,6 +8,8 @@ import { findTeams } from '../../../../../../actions/teams/team-actions';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { type TeamOutput } from '../../../../../../utils/api-types';
+import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import TeamPopover from '../../../../components/teams/TeamPopover';
 import { TeamContext } from '../../../Context';
 import InjectAddTeams from './InjectAddTeams';
@@ -23,9 +25,10 @@ const useStyles = makeStyles()(theme => ({
 interface Props {
   readOnly?: boolean;
   hideEnabledUsersNumber?: boolean;
+  error?: string | null;
 }
 
-const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabledUsersNumber = false }) => {
+const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabledUsersNumber = false, error }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -53,11 +56,11 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
   }, [injectTeamIds]);
 
   // -- ACTIONS --
-  const onTeamsChange = (teamIds: string[]) => setValue('inject_teams', teamIds);
+  const onTeamsChange = (teamIds: string[]) => setValue('inject_teams', teamIds, { shouldValidate: true });
 
   const onRemoveTeam = (teamId: string) => {
     const updatedTeamIds = injectTeamIds.filter((id: string) => id !== teamId);
-    setValue('inject_teams', updatedTeamIds);
+    setValue('inject_teams', updatedTeamIds, { shouldValidate: true });
   };
 
   const teamListItem = (team: TeamOutput, userEnabled: number) => (
@@ -114,7 +117,17 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
           team_updated_at: '',
         }, allUsersEnabledNumber ?? 0)}
       </List>
-      {!allTeams && <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} />}
+      {!allTeams
+        && (
+          <Can I={ACTIONS.ACCESS} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <InjectAddTeams disabled={readOnly} handleModifyTeams={onTeamsChange} injectTeamsIds={injectTeamIds} error={error} />
+          </Can>
+        )}
+      {!allTeams && error && (
+        <FormHelperText error>
+          {error}
+        </FormHelperText>
+      )}
     </>
   );
 };

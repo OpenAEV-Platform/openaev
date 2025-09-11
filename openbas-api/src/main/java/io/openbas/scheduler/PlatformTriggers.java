@@ -50,6 +50,7 @@ public class PlatformTriggers {
   }
 
   @Bean
+  @Profile("!test")
   public Trigger elasticSyncExecutionTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
     return newTrigger()

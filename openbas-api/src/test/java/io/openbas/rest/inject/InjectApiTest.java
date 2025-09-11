@@ -32,6 +32,7 @@ import io.openbas.injector_contract.ContractTargetedProperty;
 import io.openbas.injector_contract.fields.ContractFieldType;
 import io.openbas.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openbas.rest.atomic_testing.form.InjectStatusOutput;
+import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.inject.form.*;
@@ -41,7 +42,6 @@ import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -86,10 +86,14 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
+  @SpyBean private DocumentService documentService;
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
   @Autowired private TeamComposer teamComposer;
@@ -222,7 +226,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Add an inject for simulation")
   @Test
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void addInjectForSimulationTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -249,7 +253,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Update inject for simulation")
   @Test
-  @WithMockPlannerUser
+  @WithMockAdminUser
   void updateInjectForSimulationTest() throws Exception {
     // -- PREPARE --
     InjectInput injectInput = new InjectInput();
@@ -1283,7 +1287,159 @@ class InjectApiTest extends IntegrationTest {
       mvc.perform(requestBuilder)
           .andExpect(status().isBadRequest())
           .andExpect(
-              result -> assertTrue(result.getResolvedException() instanceof BadRequestException));
+              result -> assertInstanceOf(BadRequestException.class, result.getResolvedException()));
+    }
+  }
+
+  @Nested
+  @WithMockAdminUser
+  @DisplayName("Fetch documents for inject by payload")
+  class ShouldFetchDocuments {
+
+    private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {
+      return injectComposer
+          .forInject(InjectFixture.getDefaultInject())
+          .withInjectorContract(
+              injectorContractComposer
+                  .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withPayload(
+                      payloadComposer
+                          .forPayload(PayloadFixture.createDefaultFileDrop())
+                          .withFileDrop(
+                              documentComposer.forDocument(
+                                  DocumentFixture.getDocument(
+                                      FileFixture.getPlainTextFileContent())))))
+          .persist()
+          .get();
+    }
+
+    private Inject getInjectWithPayloadAndExecutableDocumentsLinkedOnIt() {
+      return injectComposer
+          .forInject(InjectFixture.getDefaultInject())
+          .withInjectorContract(
+              injectorContractComposer
+                  .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withPayload(
+                      payloadComposer
+                          .forPayload(PayloadFixture.createDefaultExecutable())
+                          .withExecutable(
+                              documentComposer.forDocument(
+                                  DocumentFixture.getDocument(FileFixture.getBeadFileContent())))))
+          .persist()
+          .get();
+    }
+
+    private Inject getInjectWithoutPayload() {
+      return injectComposer
+          .forInject(InjectFixture.getDefaultInject())
+          .withInjectorContract(
+              injectorContractComposer.forInjectorContract(
+                  InjectorContractFixture.createDefaultInjectorContract()))
+          .persist()
+          .get();
+    }
+
+    @Test
+    @DisplayName("Should return drop file documents for inject id and payload id")
+    void shouldReturnDropFileDocumentsForInjectIdAndPayloadId() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithPayloadAndFileDropDocumentsLinkedOnIt();
+      InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
+      Payload payload = injectorContract.getPayload();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+          get(INJECT_URI + "/" + inject.getId() + "/payload/" + payload.getId() + "/documents")
+              .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      String response =
+          mvc.perform(requestBuilder)
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response).node("[0].document_type").isEqualTo("text/plain");
+    }
+
+    @Test
+    @DisplayName("Should return executable documents for inject id and payload id")
+    void shouldReturnExecutableDocumentsForInjectIdAndPayloadId() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithPayloadAndExecutableDocumentsLinkedOnIt();
+      InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
+      Payload payload = injectorContract.getPayload();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+          get(INJECT_URI + "/" + inject.getId() + "/payload/" + payload.getId() + "/documents")
+              .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      String response =
+          mvc.perform(requestBuilder)
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response).node("[0].document_type").isEqualTo("application/octet-stream");
+    }
+
+    @Test
+    @DisplayName("Should return ElementNotFoundException for unknown inject")
+    void shouldReturnElementNotFoundExceptionForUnknownInject() throws Exception {
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+          get(INJECT_URI + "/TEST/payload/TEST/documents").accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      String response =
+          mvc.perform(requestBuilder)
+              .andExpect(status().is4xxClientError())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response)
+          .node("message")
+          .isEqualTo("Element not found: Inject not found with id: TEST");
+    }
+
+    @Test
+    @DisplayName("Should return ElementNotFoundException for inject without payload")
+    void shouldReturnElementNotFoundExceptionForInjectWithoutPayload() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithoutPayload();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+          get(INJECT_URI + "/" + inject.getId() + "/payload/TEST/documents")
+              .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      String response =
+          mvc.perform(requestBuilder)
+              .andExpect(status().is4xxClientError())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response)
+          .node("message")
+          .isEqualTo("Element not found: payload not found on inject with id : " + inject.getId());
+    }
+
+    @Test
+    @DisplayName("Should return BadRequestException when inject and payload mismatch")
+    void shouldReturnBadRequestExceptionWhenInjectAndPayloadMismatch() throws Exception {
+      // PREPARE
+      Inject inject = getInjectWithPayloadAndFileDropDocumentsLinkedOnIt();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+          get(INJECT_URI + "/" + inject.getId() + "/payload/TEST/documents")
+              .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      mvc.perform(requestBuilder).andExpect(status().isBadRequest());
     }
   }
 }

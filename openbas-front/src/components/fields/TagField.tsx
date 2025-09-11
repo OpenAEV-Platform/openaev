@@ -35,6 +35,7 @@ interface Props {
   error?: GlobalError;
   style?: CSSProperties;
   disabled?: boolean;
+  required?: boolean;
 }
 
 const TagField: FunctionComponent<Props> = ({
@@ -44,6 +45,7 @@ const TagField: FunctionComponent<Props> = ({
   error,
   style = {},
   disabled = false,
+  required = false,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -124,6 +126,7 @@ const TagField: FunctionComponent<Props> = ({
             variant="standard"
             fullWidth
             error={!!error}
+            required={required}
             slotProps={{
               input: {
                 ...params.InputProps,

@@ -7,10 +7,10 @@ import static io.openbas.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
 import io.openbas.aop.RBAC;
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.Action;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.ResourceType;
+import io.openbas.database.model.User;
 import io.openbas.database.raw.RawOrganization;
 import io.openbas.database.repository.OrganizationRepository;
 import io.openbas.database.repository.TagRepository;
@@ -19,49 +19,49 @@ import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.organization.form.OrganizationCreateInput;
 import io.openbas.rest.organization.form.OrganizationUpdateInput;
+import io.openbas.service.UserService;
+import io.openbas.service.organization.OrganizationService;
 import io.openbas.utils.FilterUtilsJpa;
+import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 public class OrganizationApi extends RestBehavior {
 
   public static final String ORGANIZATION_URI = "/api/organizations";
 
-  private OrganizationRepository organizationRepository;
-  private TagRepository tagRepository;
-  private UserRepository userRepository;
+  private final OrganizationRepository organizationRepository;
+  private final TagRepository tagRepository;
+  private final UserRepository userRepository;
+  private final OrganizationService organizationService;
 
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setTagRepository(TagRepository tagRepository) {
-    this.tagRepository = tagRepository;
-  }
-
-  @Autowired
-  public void setOrganizationRepository(OrganizationRepository organizationRepository) {
-    this.organizationRepository = organizationRepository;
-  }
+  private final UserService userService;
 
   @GetMapping(ORGANIZATION_URI)
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations() {
-    OpenBASPrincipal currentUser = currentUser();
+    User currentUser = userService.currentUser();
     List<RawOrganization> organizations;
-    if (currentUser.isAdmin()) {
+    if (currentUser.isAdminOrBypass()) {
       organizations = fromIterable(organizationRepository.rawAll());
     } else {
       organizations = fromIterable(organizationRepository.rawByUser(currentUser.getId()));
     }
     return organizations;
+  }
+
+  @PostMapping(ORGANIZATION_URI + "/search")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  public Page<Organization> organizations(
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
   @PostMapping(ORGANIZATION_URI)

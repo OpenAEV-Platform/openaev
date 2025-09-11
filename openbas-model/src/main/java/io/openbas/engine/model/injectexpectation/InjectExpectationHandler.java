@@ -12,6 +12,7 @@ import io.openbas.engine.Handler;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -59,49 +60,67 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
                   injectExpectation.getInject_expiration_time());
               esInjectExpectation.setInject_expectation_group(
                   injectExpectation.getInject_expectation_group());
-              // Dependencies
+              // Dependencies (see base_dependencies in EsBase)
               List<String> dependencies = new ArrayList<>();
               if (hasText(injectExpectation.getExercise_id())) {
                 dependencies.add(injectExpectation.getExercise_id());
                 esInjectExpectation.setBase_simulation_side(injectExpectation.getExercise_id());
+              } else {
+                esInjectExpectation.setBase_simulation_side(null);
               }
               if (hasText(injectExpectation.getScenario_id())) {
                 dependencies.add(injectExpectation.getScenario_id());
                 esInjectExpectation.setBase_scenario_side(injectExpectation.getScenario_id());
+              } else {
+                esInjectExpectation.setBase_scenario_side(null);
               }
               if (hasText(injectExpectation.getInject_id())) {
                 dependencies.add(injectExpectation.getInject_id());
                 esInjectExpectation.setBase_inject_side(injectExpectation.getInject_id());
+              } else {
+                esInjectExpectation.setBase_inject_side(null);
               }
               if (hasText(injectExpectation.getUser_id())) {
                 dependencies.add(injectExpectation.getUser_id());
                 esInjectExpectation.setBase_user_side(injectExpectation.getUser_id());
+              } else {
+                esInjectExpectation.setBase_user_side(null);
               }
               if (hasText(injectExpectation.getTeam_id())) {
                 dependencies.add(injectExpectation.getTeam_id());
                 esInjectExpectation.setBase_team_side(injectExpectation.getTeam_id());
+              } else {
+                esInjectExpectation.setBase_team_side(null);
               }
               if (hasText(injectExpectation.getAgent_id())) {
                 dependencies.add(injectExpectation.getAgent_id());
                 esInjectExpectation.setBase_agent_side(injectExpectation.getAgent_id());
+              } else {
+                esInjectExpectation.setBase_agent_side(null);
               }
               if (hasText(injectExpectation.getAsset_id())) {
                 dependencies.add(injectExpectation.getAsset_id());
                 esInjectExpectation.setBase_asset_side(injectExpectation.getAsset_id());
+              } else {
+                esInjectExpectation.setBase_asset_side(null);
               }
               if (hasText(injectExpectation.getAsset_group_id())) {
                 dependencies.add(injectExpectation.getAsset_group_id());
                 esInjectExpectation.setBase_asset_group_side(injectExpectation.getAsset_group_id());
+              } else {
+                esInjectExpectation.setBase_asset_group_side(null);
               }
               if (!isEmpty(injectExpectation.getAttack_pattern_ids())) {
-                dependencies.addAll(injectExpectation.getAttack_pattern_ids());
                 esInjectExpectation.setBase_attack_patterns_side(
                     injectExpectation.getAttack_pattern_ids());
+              } else {
+                esInjectExpectation.setBase_attack_patterns_side(Set.of());
               }
               if (!isEmpty(injectExpectation.getSecurity_platform_ids())) {
-                dependencies.addAll(injectExpectation.getSecurity_platform_ids());
                 esInjectExpectation.setBase_security_platforms_side(
                     injectExpectation.getSecurity_platform_ids());
+              } else {
+                esInjectExpectation.setBase_security_platforms_side(Set.of());
               }
               esInjectExpectation.setInject_expectation_status(
                   valueOf(computeStatusForIndexing(injectExpectation)));

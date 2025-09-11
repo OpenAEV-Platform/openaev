@@ -105,8 +105,6 @@ public class WithMockUserFullPermissionsSecurityContextFactory
     if (groupOpt.isEmpty()) {
       Group newGroup = new Group();
       newGroup.setName(MOCK_FULL_PERMISSION_GROUP);
-      newGroup.setScenariosDefaultGrants(List.of(PLANNER));
-      newGroup.setExercisesDefaultGrants(List.of(PLANNER));
       newGroup.setRoles(List.of(role));
       group = this.groupRepository.save(newGroup);
       // Create grant

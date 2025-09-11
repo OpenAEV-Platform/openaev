@@ -8,7 +8,6 @@ import static io.openbas.rest.team.TeamQueryHelper.select;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openbas.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
-import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.Tag;
 import io.openbas.database.model.Team;
@@ -45,6 +44,8 @@ public class TeamService {
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
 
+  private final UserService userService;
+
   public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
     List<RawTeam> rawTeams =
         teamRepository.rawTeamByIds(teamIds).stream()
@@ -70,8 +71,8 @@ public class TeamService {
       @NotNull SearchPaginationInput searchPaginationInput,
       @NotNull final Specification<Team> teamSpecification) {
     TriFunction<Specification<Team>, Specification<Team>, Pageable, Page<TeamOutput>> teamsFunction;
-    OpenBASPrincipal currentUser = currentUser();
-    if (currentUser.isAdmin()) {
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()) {
       teamsFunction =
           (Specification<Team> specification,
               Specification<Team> specificationCount,
