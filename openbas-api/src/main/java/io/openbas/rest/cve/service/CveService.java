@@ -63,7 +63,7 @@ public class CveService {
 
     // Batch fetch existing CVEs
     Map<String, Cve> existingCvesMap =
-        cveRepository.findAllByExternalIdInIgnoreCase(externalIds.stream().toList()).stream()
+        cveRepository.findAllByExternalIdInIgnoreCase(externalIds).stream()
             .collect(Collectors.toMap(Cve::getExternalId, Function.identity()));
 
     // Process with pre-fetched data
@@ -142,8 +142,7 @@ public class CveService {
   }
 
   public List<Cve> findAllByExternalIdsOrThrowIfMissing(final Set<String> vulnIds) {
-    List<Cve> vulns =
-        fromIterable(this.cveRepository.findAllByExternalIdInIgnoreCase(vulnIds.stream().toList()));
+    List<Cve> vulns = fromIterable(this.cveRepository.findAllByExternalIdInIgnoreCase(vulnIds));
     throwIfMissing(vulnIds, vulns, Cve::getExternalId);
     return vulns;
   }
