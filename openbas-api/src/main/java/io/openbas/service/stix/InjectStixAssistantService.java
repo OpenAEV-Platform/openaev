@@ -181,6 +181,7 @@ public class InjectStixAssistantService {
    *
    * @param scenario the scenario to which the injects belong
    * @param vulnerabilities the set of Vulnerabilities (Cves) to generate injects for
+   * @param assetsByTargetProperty map assets by target property
    * @param injectsPerVulnerability the number of injects to generate per Vulnerability
    * @return the list of created and saved injects
    */
@@ -238,7 +239,6 @@ public class InjectStixAssistantService {
       }
       return injects;
     }
-
     return Set.of(
         injectAssistantService.buildManualInject(
             vulnerability.getExternalId(), "[any platform]", "[any architecture]"));
