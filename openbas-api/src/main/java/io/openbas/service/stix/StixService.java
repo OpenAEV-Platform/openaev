@@ -1,7 +1,8 @@
-package io.openbas.service;
+package io.openbas.service.stix;
 
 import io.openbas.database.model.Scenario;
 import io.openbas.database.model.SecurityCoverage;
+import io.openbas.service.security_coverage.SecurityCoverageService;
 import io.openbas.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;

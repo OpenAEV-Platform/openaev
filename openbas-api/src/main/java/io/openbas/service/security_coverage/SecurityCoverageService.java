@@ -1,4 +1,4 @@
-package io.openbas.service;
+package io.openbas.service.security_coverage;
 
 import static io.openbas.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openbas.utils.SecurityCoverageUtils.extractObjectReferences;
@@ -24,6 +24,7 @@ import io.openbas.database.model.SecurityCoverage;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.rest.tag.TagService;
+import io.openbas.service.ScenarioService;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
 import io.openbas.stix.parsing.Parser;

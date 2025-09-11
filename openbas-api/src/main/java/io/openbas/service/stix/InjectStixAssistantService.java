@@ -1,4 +1,4 @@
-package io.openbas.rest.inject.service;
+package io.openbas.service.stix;
 
 import static java.util.Collections.emptyList;
 
@@ -6,7 +6,9 @@ import io.openbas.database.helper.InjectorContractRepositoryHelper;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.InjectorContractRepository;
+import io.openbas.injector_contract.ContractTargetedProperty;
 import io.openbas.rest.exception.UnprocessableContentException;
+import io.openbas.rest.inject.service.InjectAssistantService;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -178,17 +180,22 @@ public class InjectStixAssistantService {
    * Generates injects for the given scenario and vulnerabilities
    *
    * @param scenario the scenario to which the injects belong
-   * @param vulnerabilityIds the set of Vulnerabilities (Cves) to generate injects for
+   * @param vulnerabilities the set of Vulnerabilities (Cves) to generate injects for
    * @param injectsPerVulnerability the number of injects to generate per Vulnerability
    * @return the list of created and saved injects
    */
-  public Set<Inject> generateInjectsByVulnerabilities(
-      Scenario scenario, Set<Cve> vulnerabilityIds, int injectsPerVulnerability) {
+  public Set<Inject> generateInjectsWithTargetsByVulnerabilities(
+      Scenario scenario,
+      Set<Cve> vulnerabilities,
+      Map<ContractTargetedProperty, Set<Endpoint>> assetsByTargetProperty,
+      int injectsPerVulnerability) {
     Set<Inject> injects =
-        vulnerabilityIds.stream()
+        vulnerabilities.stream()
             .flatMap(
                 vulnerability ->
-                    buildInjectsByVulnerability(vulnerability, injectsPerVulnerability).stream())
+                    buildInjectsWithTargetsByVulnerability(
+                        vulnerability, injectsPerVulnerability, assetsByTargetProperty)
+                        .stream())
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
 
@@ -198,20 +205,40 @@ public class InjectStixAssistantService {
     return savedInjects;
   }
 
-  private Set<Inject> buildInjectsByVulnerability(
-      Cve vulnerability, Integer injectsPerVulnerability) {
+  private Set<Inject> buildInjectsWithTargetsByVulnerability(
+      Cve vulnerability,
+      Integer injectsPerVulnerability,
+      Map<ContractTargetedProperty, Set<Endpoint>> assetsByTargetProperty) {
+
+    Set<Inject> injects = new HashSet<>();
+
     Set<InjectorContract> injectorContracts =
         this.injectorContractRepository.findInjectorContractsByVulnerabilityId(
             vulnerability.getExternalId(), injectsPerVulnerability);
 
     if (!injectorContracts.isEmpty()) {
-      return injectorContracts.stream()
-          .map(
-              ic ->
-                  injectAssistantService.buildTechnicalInjectFromInjectorContract(
-                      ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName()))
-          .collect(Collectors.toSet());
+      for (InjectorContract ic : injectorContracts) {
+        for (Map.Entry<ContractTargetedProperty, Set<Endpoint>> entry :
+            assetsByTargetProperty.entrySet()) {
+          ContractTargetedProperty targetProperty = entry.getKey();
+          Set<Endpoint> endpoints = entry.getValue();
+
+          Inject inject =
+              injectAssistantService.buildTechnicalInjectFromInjectorContract(
+                  ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
+
+          inject.setAssets(new ArrayList<>(endpoints));
+
+          // inject contract
+          // inject.setTargetProperty(targetProperty);
+          // inject.setPropertyType("Assets");
+
+          injects.add(inject);
+        }
+      }
+      return injects;
     }
+
     return Set.of(
         injectAssistantService.buildManualInject(
             vulnerability.getExternalId(), "[any platform]", "[any architecture]"));
