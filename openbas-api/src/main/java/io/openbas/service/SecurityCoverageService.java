@@ -22,7 +22,7 @@ import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.ObjectBase;
 import io.openbas.stix.objects.RelationshipObject;
 import io.openbas.stix.objects.constants.CommonProperties;
-import io.openbas.stix.objects.constants.CustomProperties;
+import io.openbas.stix.objects.constants.ExtendedProperties;
 import io.openbas.stix.objects.constants.ObjectTypes;
 import io.openbas.stix.parsing.Parser;
 import io.openbas.stix.parsing.ParsingException;
@@ -235,7 +235,7 @@ public class SecurityCoverageService {
     SecurityCoverage assessment = exercise.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
     coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
-    coverage.setProperty(CustomProperties.COVERAGE.toString(), getOverallCoverage(exercise));
+    coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(exercise));
     objects.add(coverage);
 
     // start and stop times
@@ -261,14 +261,14 @@ public class SecurityCoverageService {
                       coverage.getId(),
                       RelationshipObject.Properties.TARGET_REF.toString(),
                       new Identifier(stixRef.getStixRef()),
-                      CustomProperties.COVERED.toString(),
+                      ExtendedProperties.COVERED.toString(),
                       new io.openbas.stix.types.Boolean(covered))));
       sroStartTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
       sroStopTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
       if (covered) {
-        sro.setProperty(CustomProperties.COVERAGE.toString(), attackPatternCoverage);
+        sro.setProperty(ExtendedProperties.COVERAGE.toString(), attackPatternCoverage);
       }
       objects.add(sro);
     }
@@ -294,14 +294,14 @@ public class SecurityCoverageService {
                       coverage.getId(),
                       RelationshipObject.Properties.TARGET_REF.toString(),
                       platformIdentity.getId(),
-                      CustomProperties.COVERED.toString(),
+                      ExtendedProperties.COVERED.toString(),
                       new io.openbas.stix.types.Boolean(covered))));
       sroStartTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
       sroStopTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
       if (covered) {
-        sro.setProperty(CustomProperties.COVERAGE.toString(), platformCoverage);
+        sro.setProperty(ExtendedProperties.COVERAGE.toString(), platformCoverage);
       }
       objects.add(sro);
     }
@@ -320,7 +320,7 @@ public class SecurityCoverageService {
 
   private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {
     List<AttackPattern> apList =
-        attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(Set.of(externalRef));
+        attackPatternService.getAttackPatternsByExternalIds(Set.of(externalRef));
     Optional<AttackPattern> ap = apList.stream().findFirst();
     if (ap.isEmpty()) {
       return uncovered();

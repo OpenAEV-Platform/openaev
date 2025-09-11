@@ -2,19 +2,18 @@ package io.openbas.stix.objects.constants;
 
 import jakarta.validation.constraints.NotBlank;
 
-public enum CustomProperties {
+public enum ExtendedProperties {
   COVERED("covered"),
-  COVERAGE("coverage"),
-  ;
+  COVERAGE("coverage");
 
   private final String value;
 
-  CustomProperties(String value) {
+  ExtendedProperties(String value) {
     this.value = value;
   }
 
-  public static CustomProperties fromString(@NotBlank final String value) {
-    for (CustomProperties prop : CustomProperties.values()) {
+  public static ExtendedProperties fromString(@NotBlank final String value) {
+    for (ExtendedProperties prop : ExtendedProperties.values()) {
       if (prop.value.equalsIgnoreCase(value)) {
         return prop;
       }

@@ -11,7 +11,7 @@ import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.RelationshipObject;
 import io.openbas.stix.objects.constants.CommonProperties;
-import io.openbas.stix.objects.constants.CustomProperties;
+import io.openbas.stix.objects.constants.ExtendedProperties;
 import io.openbas.stix.objects.constants.ObjectTypes;
 import io.openbas.stix.parsing.Parser;
 import io.openbas.stix.parsing.ParsingException;
@@ -149,7 +149,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       throws ParsingException, JsonProcessingException {
     return addPropertiesToDomainObject(
         (DomainObject) stixParser.parseObject(securityCoverage.getContent()),
-        Map.of(CustomProperties.COVERAGE.toString(), predictCoverageFromInjects(injects)));
+        Map.of(ExtendedProperties.COVERAGE.toString(), predictCoverageFromInjects(injects)));
   }
 
   private List<DomainObject> getExpectedPlatformIdentities(
@@ -250,9 +250,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   platformSdo.getId(),
-                  CustomProperties.COVERED.toString(),
+                  ExtendedProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  CustomProperties.COVERAGE.toString(),
+                  ExtendedProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
@@ -296,9 +296,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   new Identifier(stixRef.getStixRef()),
-                  CustomProperties.COVERED.toString(),
+                  ExtendedProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  CustomProperties.COVERAGE.toString(),
+                  ExtendedProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
@@ -436,9 +436,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   platformSdo.getId(),
-                  CustomProperties.COVERED.toString(),
+                  ExtendedProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  CustomProperties.COVERAGE.toString(),
+                  ExtendedProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
@@ -482,9 +482,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   new Identifier(stixRef.getStixRef()),
-                  CustomProperties.COVERED.toString(),
+                  ExtendedProperties.COVERED.toString(),
                   new io.openbas.stix.types.Boolean(true),
-                  CustomProperties.COVERAGE.toString(),
+                  ExtendedProperties.COVERAGE.toString(),
                   toDictionary(
                       Map.of(
                           "PREVENTION",
