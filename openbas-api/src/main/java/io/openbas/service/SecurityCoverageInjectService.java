@@ -43,9 +43,21 @@ public class SecurityCoverageInjectService {
    */
   public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
       Scenario scenario, SecurityCoverage securityCoverage) {
+
+    // 1. Remove all inject placeholders
     cleanInjectPlaceholders(scenario.getId());
-    getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
-    getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
+
+    // 2. Fetch asset groups via tag rules
+    List<AssetGroup> assetGroups = assetGroupService.fetchAssetGroupsFromScenarioTagRules(scenario);
+
+    // 3. Get all endpoints per asset group
+    Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
+        assetGroupService.assetsFromAssetGroupMap(assetGroups);
+
+    getInjectsByVulnerabilities(
+        scenario, securityCoverage.getVulnerabilitiesRefs(), assetsFromGroupMap);
+    getInjectsRelatedToAttackPatterns(
+        scenario, securityCoverage.getAttackPatternRefs(), assetsFromGroupMap);
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
@@ -71,7 +83,9 @@ public class SecurityCoverageInjectService {
    * @return list injects related to this scenario
    */
   private void getInjectsByVulnerabilities(
-      Scenario scenario, Set<StixRefToExternalRef> vulnerabilityRefs) {
+      Scenario scenario,
+      Set<StixRefToExternalRef> vulnerabilityRefs,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
@@ -101,7 +115,9 @@ public class SecurityCoverageInjectService {
    * @return list injects related to this scenario
    */
   private void getInjectsRelatedToAttackPatterns(
-      Scenario scenario, Set<StixRefToExternalRef> attackPatternRefs) {
+      Scenario scenario,
+      Set<StixRefToExternalRef> attackPatternRefs,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
     // 1. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
         attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
@@ -111,20 +127,14 @@ public class SecurityCoverageInjectService {
       return;
     }
 
-    // 2. Fetch asset groups via tag rules
-    List<AssetGroup> assetGroups = assetGroupService.fetchAssetGroupsFromScenarioTagRules(scenario);
-
-    // 3. Fetch Inject coverage
+    // 2. Fetch Inject coverage
     Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap =
         injectService.extractCombinationAttackPatternPlatformArchitecture(scenario);
 
-    // 4. Get all endpoints per asset group
-    Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
-        assetGroupService.assetsFromAssetGroupMap(assetGroups);
-
     // Check if assetgroups are empties because it could reduce the code
     boolean assetGroupsAreEmpties =
-        assetGroups.isEmpty() || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
+        assetsFromGroupMap.isEmpty()
+            || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
     if (assetGroupsAreEmpties) {
       handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap);
     } else {
