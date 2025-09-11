@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, SvgIcon, Typography } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { Suspense, useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
@@ -237,7 +237,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
                 }}
                 size="small"
                 onClick={onUseArianeClick}
-                startIcon={<Suspense><SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox /></Suspense>}
+                startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
                 endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
               >
                 {t('Use Ariane')}
