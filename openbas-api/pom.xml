@@ -22,7 +22,7 @@
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.4.1</apache-poi.version>
         <opencsv-version>5.11.2</opencsv-version>
-        <opentelemetry.version>1.52.0</opentelemetry.version>
+        <opentelemetry.version>1.54.0</opentelemetry.version>
         <opentelemetry-semconv.version>1.34.0</opentelemetry-semconv.version>
         <elasticsearch.version>8.18.3</elasticsearch.version>
     </properties>
