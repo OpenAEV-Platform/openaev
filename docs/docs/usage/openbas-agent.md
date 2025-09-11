@@ -140,3 +140,13 @@ If you experience issues with your agent, the logs are available here (see the "
 - MacOS -> [FOLDER_PATH]/openbas-agent.log
 - Windows -> [FOLDER_PATH]\openbas-agent.log
 
+If you see an error related to an inject not being executed, verify whether it was properly run by the agent.
+![implant-troubleshooting](assets/agents/implant-troubleshooting.png)
+
+When the agent deploys an implant to execute your attack:
+A new folder is created under the runtimes directory, named after the inject ID.
+
+Inside this folder, you will find:
+
+- The implant executable (.exe on Windows, corresponding binary on Linux/macOS).
+- Additional logs specific to that execution.
