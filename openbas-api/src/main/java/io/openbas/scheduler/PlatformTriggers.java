@@ -9,6 +9,7 @@ import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -59,6 +60,7 @@ public class PlatformTriggers {
   }
 
   @Bean
+  @Profile("!test")
   public Trigger securityCoverageTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
     return newTrigger()
