@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, Suspense, useState } from 'react';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 
 import { aiChangeTone, aiExplain, aiFixSpelling, aiGenMedia, aiGenMessage, aiGenSubject, aiMakeLonger, aiMakeShorter, aiSummarize } from '../../../../actions/AskAI';
 // eslint-disable-next-line import/no-cycle
@@ -212,7 +212,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                   : theme.palette.action.disabled,
               }}
             >
-              <Suspense><SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox /></Suspense>
+              <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
             </IconButton>
           </span>
         </EETooltip>
