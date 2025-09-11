@@ -530,7 +530,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities by external ID, creating contract succeeds")
       void withExistingVulnerabilitiesByExternalIdCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+          cveComposer
+              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .persist();
         }
         em.flush();
         em.clear();
