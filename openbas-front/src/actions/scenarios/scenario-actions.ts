@@ -240,3 +240,23 @@ export const checkScenarioTagRules = (scenarioId: string, newTagIds: string[]) =
   const input = { new_tags: newTagIds };
   return simplePostCall(uri, input);
 };
+
+export const fetchCustomDashboardFromScenario = (scenarioId: string) => {
+  return simpleCall(`/api/scenarios/${scenarioId}/dashboard`);
+};
+
+export const countByScenario = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`/api/scenarios/${simulationId}/dashboard/count/${widgetId}`, parameters);
+};
+
+export const seriesByScenario = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`/api/scenarios/${simulationId}/dashboard/series/${widgetId}`, parameters);
+};
+
+export const entitiesByScenario = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`/api/scenarios/${simulationId}/dashboard/entities/${widgetId}`, parameters);
+};
+
+export const attackPathsByScenario = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`/api/scenarios/${simulationId}/dashboard/attack-paths/${widgetId}`, parameters);
+};

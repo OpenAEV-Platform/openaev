@@ -24,6 +24,7 @@ import io.openbas.database.repository.*;
 import io.openbas.ee.Ee;
 import io.openbas.expectation.ExpectationType;
 import io.openbas.rest.atomic_testing.form.TargetSimple;
+import io.openbas.rest.dashboard.DashboardService;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.exercise.form.ExerciseSimple;
@@ -89,6 +90,7 @@ public class ExerciseService {
   private final DocumentService documentService;
   private final InjectService injectService;
   private final UserService userService;
+  private final DashboardService dashboardService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;

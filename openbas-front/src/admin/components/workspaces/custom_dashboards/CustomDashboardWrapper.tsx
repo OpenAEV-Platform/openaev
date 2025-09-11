@@ -1,9 +1,9 @@
+import type { AxiosResponse } from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocalStorage } from 'usehooks-ts';
 
-import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import Loader from '../../../../components/Loader';
-import type { CustomDashboard } from '../../../../utils/api-types';
+import type { CustomDashboard, EsAttackPath, EsBase, EsSeries } from '../../../../utils/api-types';
 import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
 
@@ -14,6 +14,11 @@ interface CustomDashboardConfiguration {
   parentContextId?: string;
   canChooseDashboard?: boolean;
   handleSelectNewDashboard?: (dashboardId: string) => void; // ==onCustomDashboardIdChange
+  fetchCustomDashboard: () => Promise<AxiosResponse<CustomDashboard>>;
+  fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<number>>;
+  fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
+  fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
+  fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
 }
 
 interface Props {
@@ -30,15 +35,28 @@ const CustomDashboardWrapper = ({
   bottomSlot,
   noDashboardSlot,
   readOnly = true,
+
 }: Props) => {
-  const { customDashboardId, paramLocalStorageKey, paramsBuilder, parentContextId: contextId, canChooseDashboard, handleSelectNewDashboard } = configuration || {};
+  const {
+    customDashboardId,
+    paramLocalStorageKey,
+    paramsBuilder,
+    parentContextId: contextId,
+    canChooseDashboard,
+    handleSelectNewDashboard,
+    fetchCustomDashboard,
+    fetchCount,
+    fetchSeries,
+    fetchEntities,
+    fetchAttackPaths,
+  } = configuration || {};
   const [customDashboard, setCustomDashboard] = useState<CustomDashboard>();
   const [parameters, setParameters] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, Object.fromEntries(new Map()));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (customDashboardId) {
-      fetchCustomDashboard(customDashboardId).then((response) => {
+      fetchCustomDashboard().then((response) => {
         const dashboard = response.data;
         if (!dashboard) {
           return;
@@ -64,6 +82,10 @@ const CustomDashboardWrapper = ({
     contextId,
     canChooseDashboard,
     handleSelectNewDashboard,
+    fetchEntities,
+    fetchCount,
+    fetchSeries,
+    fetchAttackPaths,
   }), [customDashboard, setCustomDashboard, parameters, setParameters]);
 
   if (loading) {

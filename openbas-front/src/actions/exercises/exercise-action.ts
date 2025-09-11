@@ -203,3 +203,23 @@ export const fetchScenarioFromSimulation = (simulationId: string) => (dispatch: 
   const uri = `/api/exercises/${simulationId}/scenario`;
   return getReferential(scenario, uri)(dispatch);
 };
+
+export const fetchCustomDashboardFromSimulation = (simulationId: string) => {
+  return simpleCall(`${EXERCISE_URI}/${simulationId}/dashboard`);
+};
+
+export const countBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/count/${widgetId}`, parameters);
+};
+
+export const seriesBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/series/${widgetId}`, parameters);
+};
+
+export const entitiesBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/entities/${widgetId}`, parameters);
+};
+
+export const attackPathsBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
+  return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/attack-paths/${widgetId}`, parameters);
+};

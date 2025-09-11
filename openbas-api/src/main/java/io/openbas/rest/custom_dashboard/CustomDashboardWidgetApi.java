@@ -60,8 +60,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @PutMapping("/{widgetId}/layout")
-  // FIXME -> displaying trigger this api so we marked it as READ but should be WRITE
-  @RBAC(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @RBAC(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidgetLayout(
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,

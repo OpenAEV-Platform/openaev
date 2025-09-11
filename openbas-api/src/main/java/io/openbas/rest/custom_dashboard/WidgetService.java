@@ -4,6 +4,7 @@ import static io.openbas.helper.StreamHelper.fromIterable;
 
 import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.Widget;
+import io.openbas.database.repository.CustomDashboardRepository;
 import io.openbas.database.repository.WidgetRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class WidgetService {
 
-  private final CustomDashboardService customDashboardService;
+  private final CustomDashboardRepository customDashboardRepository;
   private final WidgetRepository widgetRepository;
 
   // -- CRUD --
@@ -25,7 +26,16 @@ public class WidgetService {
   @Transactional
   public Widget createWidget(
       @NotBlank final String customDashboardId, @NotNull final Widget widget) {
-    CustomDashboard customDashboard = customDashboardService.customDashboard(customDashboardId);
+    // FIXME: needs some refactoring
+    // -> CustomDashboardRepository should not be called directly here but using the service here is
+    // causing circular dependency
+    CustomDashboard customDashboard =
+        customDashboardRepository
+            .findById(customDashboardId)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "Custom dashboard not found with id: " + customDashboardId));
     widget.setCustomDashboard(customDashboard);
     return this.widgetRepository.save(widget);
   }

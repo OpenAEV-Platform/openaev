@@ -2,6 +2,11 @@ import { useContext } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchExercise, updateExercise } from '../../../../../actions/Exercise';
+import {
+  attackPathsBySimulation,
+  countBySimulation,
+  entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation,
+} from '../../../../../actions/exercises/exercise-action';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { useHelper } from '../../../../../store';
 import { type CustomDashboard, type Exercise } from '../../../../../utils/api-types';
@@ -66,6 +71,11 @@ const SimulationAnalysis = () => {
     parentContextId: exerciseId,
     canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId),
     handleSelectNewDashboard,
+    fetchCustomDashboard: () => fetchCustomDashboardFromSimulation(exerciseId),
+    fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countBySimulation(exerciseId, widgetId, params),
+    fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesBySimulation(exerciseId, widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesBySimulation(exerciseId, widgetId, params),
+    fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
   };
 
   return (
