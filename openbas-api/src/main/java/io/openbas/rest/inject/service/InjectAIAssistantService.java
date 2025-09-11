@@ -69,7 +69,10 @@ public class InjectAIAssistantService {
       inject.setScenario(scenario);
     }
 
-    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
+    Set<Inject> savedInjects = new HashSet<>();
+    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
+
+    return savedInjects;
   }
 
   /**

@@ -48,7 +48,11 @@ public class InjectStixAssistantService {
                         .stream())
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
-    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
+
+    Set<Inject> savedInjects = new HashSet<>();
+    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
+
+    return savedInjects;
   }
 
   /**
@@ -80,7 +84,11 @@ public class InjectStixAssistantService {
         throw new UnsupportedOperationException(e);
       }
     }
-    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
+
+    Set<Inject> savedInjects = new HashSet<>();
+    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
+
+    return savedInjects;
   }
 
   /**
@@ -183,7 +191,11 @@ public class InjectStixAssistantService {
                     buildInjectsByVulnerability(vulnerability, injectsPerVulnerability).stream())
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
-    return this.injectRepository.saveAll(injects).stream().collect(Collectors.toSet());
+
+    Set<Inject> savedInjects = new HashSet<>();
+    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
+
+    return savedInjects;
   }
 
   private Set<Inject> buildInjectsByVulnerability(
