@@ -194,7 +194,11 @@ public class InjectorContractService {
     injectorContract.setAttackPatterns(aps);
 
     List<Cve> vulns = new ArrayList<>();
-    if (!input.getVulnerabilityIds().isEmpty()) {
+    if (!input.getVulnerabilityExternalIds().isEmpty()) {
+      vulns =
+          cveService.findAllByExternalIdsOrThrowIfMissing(
+              new HashSet<>(input.getVulnerabilityExternalIds()));
+    } else if (!input.getVulnerabilityIds().isEmpty()) {
       vulns = cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds()));
     }
     injectorContract.setVulnerabilities(vulns);

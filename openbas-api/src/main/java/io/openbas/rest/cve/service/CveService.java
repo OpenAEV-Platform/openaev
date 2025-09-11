@@ -67,7 +67,7 @@ public class CveService {
 
     // Batch fetch existing CVEs
     Map<String, Cve> existingCvesMap =
-        cveRepository.findAllByExternalIdIn(externalIds.stream().toList()).stream()
+        cveRepository.findAllByExternalIdInIgnoreCase(externalIds.stream().toList()).stream()
             .collect(Collectors.toMap(Cve::getExternalId, Function.identity()));
 
     // Process with pre-fetched data
@@ -135,14 +135,7 @@ public class CveService {
 
   public List<Cve> findAllByIdsOrThrowIfMissing(final Set<String> vulnIds) {
     List<Cve> vulns = fromIterable(this.cveRepository.findAllById(vulnIds));
-    List<String> missingIds =
-        vulnIds.stream()
-            .filter(id -> !vulns.stream().map(Cve::getId).toList().contains(id))
-            .toList();
-    if (!missingIds.isEmpty()) {
-      throw new ElementNotFoundException(
-          String.format("Missing vulnerabilities: %s", String.join(", ", missingIds)));
-    }
+    throwIfMissing(vulnIds, vulns, Cve::getId);
     return vulns;
   }
 
@@ -150,6 +143,32 @@ public class CveService {
     return cveRepository
         .findByExternalId(externalId)
         .orElseThrow(() -> new ElementNotFoundException(CVE_NOT_FOUND_MSG + externalId));
+  }
+
+  public List<Cve> findAllByExternalIdsOrThrowIfMissing(final Set<String> vulnIds) {
+    List<Cve> vulns =
+        fromIterable(this.cveRepository.findAllByExternalIdInIgnoreCase(vulnIds.stream().toList()));
+    throwIfMissing(vulnIds, vulns, Cve::getExternalId);
+    return vulns;
+  }
+
+  private void throwIfMissing(
+      Set<String> requiredIds,
+      List<Cve> fetchedVulnerabilities,
+      Function<? super Cve, String> getId) {
+    List<String> missingIds =
+        requiredIds.stream()
+            .filter(
+                id ->
+                    !fetchedVulnerabilities.stream()
+                        .map(vuln -> getId.apply(vuln).toLowerCase())
+                        .toList()
+                        .contains(id.toLowerCase()))
+            .toList();
+    if (!missingIds.isEmpty()) {
+      throw new ElementNotFoundException(
+          String.format("Missing vulnerabilities: %s", String.join(", ", missingIds)));
+    }
   }
 
   public void deleteById(final String cveId) {
