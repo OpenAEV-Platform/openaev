@@ -12,5 +12,6 @@ public interface CveRepository extends CrudRepository<Cve, String>, JpaSpecifica
 
   Optional<Cve> findByExternalId(String externalId);
 
-  List<Cve> findAllByExternalIdIn(List<String> externalIds);
+  // @Query("SELECT v FROM Cve v WHERE LOWER(v.externalId) IN :externalIds")
+  List<Cve> findAllByExternalIdInIgnoreCase(List<String> externalIds);
 }
