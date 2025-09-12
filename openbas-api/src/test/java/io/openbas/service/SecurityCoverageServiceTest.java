@@ -552,6 +552,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                         SecurityCoverageSendJobFixture.createDefaultSecurityCoverageSendJob())))
             .persist();
     entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
 
     // persist other simulation of same scenario
     Instant sroStopTime = Instant.parse("2004-06-26T12:34:56Z");
@@ -559,8 +560,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     newExercise.setStart(sroStopTime);
     scenarioWrapper.withSimulation(exerciseComposer.forExercise(newExercise)).persist();
     entityManager.flush();
-
-    entityManager.refresh(exerciseWrapper.get());
+    entityManager.refresh(newExercise);
 
     // act
     Bundle bundle =
