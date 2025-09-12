@@ -17,6 +17,7 @@ import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
 import io.openbas.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 @Slf4j
+@Transactional
 public class BatchingInjectStatusService {
 
   private final InjectRepository injectRepository;
@@ -47,7 +49,7 @@ public class BatchingInjectStatusService {
 
     Map<String, Inject> mapInjectsById =
         injectRepository
-            .findAllById(
+            .findAllByIdWithExpectations(
                 injectExecutionCallbacks.stream()
                     .map(InjectExecutionCallback::getInjectId)
                     .toList())

@@ -12,10 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -353,4 +350,9 @@ public interface InjectRepository
    * @return true if the Inject exists and is an atomic testing, false otherwise
    */
   boolean existsByIdAndScenarioIsNullAndExerciseIsNull(String id);
+
+  // Utilise un EntityGraph ad-hoc
+  @EntityGraph(attributePaths = {"expectations"})
+  @Query("SELECT i FROM Inject i WHERE i.id IN :ids")
+  List<Inject> findAllByIdWithExpectations(@Param("ids") List<String> ids);
 }
