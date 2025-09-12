@@ -15,7 +15,6 @@ import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping(CustomDashboardApi.CUSTOM_DASHBOARDS_URI)
 @RequiredArgsConstructor
-@PreAuthorize("isAdmin()")
 public class CustomDashboardApiImporter extends RestBehavior {
 
   private final ZipJsonApi<CustomDashboard> zipJsonApi;

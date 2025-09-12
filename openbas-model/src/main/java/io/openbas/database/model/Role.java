@@ -38,7 +38,7 @@ public class Role implements Base {
   @NotBlank
   private String name;
 
-  @ElementCollection(targetClass = Capability.class)
+  @ElementCollection(targetClass = Capability.class, fetch = FetchType.EAGER)
   @JoinTable(name = "roles_capabilities", joinColumns = @JoinColumn(name = "role_id"))
   @Enumerated(EnumType.STRING)
   @Column(name = "capability")
