@@ -1,5 +1,11 @@
 package io.openbas.rest.rbac;
 
+import static io.openbas.service.UserService.buildAuthenticationToken;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+
 import io.openbas.IntegrationTest;
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.*;
@@ -12,6 +18,16 @@ import io.openbas.utils.fixtures.composers.GrantComposer;
 import io.openbas.utils.fixtures.composers.GroupComposer;
 import io.openbas.utils.fixtures.composers.RoleComposer;
 import io.openbas.utils.fixtures.composers.UserComposer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -22,19 +38,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import static io.openbas.service.UserService.buildAuthenticationToken;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 @TestInstance(PER_CLASS)
 @Disabled
