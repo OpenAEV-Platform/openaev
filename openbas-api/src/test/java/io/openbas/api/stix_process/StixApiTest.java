@@ -1,6 +1,7 @@
 package io.openbas.api.stix_process;
 
 import static io.openbas.api.stix_process.StixApi.STIX_URI;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
@@ -18,6 +19,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
+import io.openbas.injector_contract.ContractTargetedProperty;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
@@ -31,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -477,6 +480,20 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(3);
+      assertThat(
+              injects.stream()
+                  .map(
+                      inject ->
+                          inject
+                              .getContent()
+                              .get(CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR)
+                              .asText())
+                  .collect(Collectors.toSet()))
+          .containsAll(
+              Set.of(
+                  ContractTargetedProperty.hostname.name(),
+                  ContractTargetedProperty.seen_ip.name(),
+                  ContractTargetedProperty.local_ip.name()));
     }
 
     @Test

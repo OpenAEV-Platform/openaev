@@ -118,7 +118,7 @@ public class SecurityCoverageInjectService {
         && !e.getIps()[0].isBlank()) {
       return ContractTargetedProperty.local_ip;
     }
-    return null; // TODO what happens with assets with any att usable?
+    return null;
   }
 
   /**
