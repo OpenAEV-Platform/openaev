@@ -17,7 +17,7 @@ public class EndpointFixture {
   public static final String WINDOWS_HOSTNAME = "Windows Hostname";
   private static final String[] NO_LOCAL_IPS = new String[0];
 
-  public static EndpointInput createWindowsEndpointInput(List<String> tagIds) {
+  private static EndpointInput baseEndpointInput(List<String> tagIds) {
     EndpointInput input = new EndpointInput();
     input.setName(WINDOWS_ASSET_NAME_INPUT);
     input.setDescription("Description of Windows asset");
@@ -31,38 +31,34 @@ public class EndpointFixture {
     return input;
   }
 
+  public static EndpointInput createWindowsEndpointInput(List<String> tagIds) {
+    return baseEndpointInput(tagIds);
+  }
+
   public static EndpointRegisterInput createWindowsEndpointRegisterInput(
       List<String> tagIds, String externalReference) {
     EndpointRegisterInput input = new EndpointRegisterInput();
-    input.setName(WINDOWS_ASSET_NAME_INPUT);
-    input.setDescription("Description of Windows asset");
-    input.setTagIds(tagIds);
-    input.setIps(IPS);
-    input.setHostname(WINDOWS_HOSTNAME);
-    input.setAgentVersion("1.8.2");
-    input.setMacAddresses(MAC_ADDRESSES);
-    input.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
-    input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    // copy shared fields from base
+    EndpointInput base = baseEndpointInput(tagIds);
+    input.setName(base.getName());
+    input.setDescription(base.getDescription());
+    input.setTagIds(base.getTagIds());
+    input.setIps(base.getIps());
+    input.setHostname(base.getHostname());
+    input.setAgentVersion(base.getAgentVersion());
+    input.setMacAddresses(base.getMacAddresses());
+    input.setPlatform(base.getPlatform());
+    input.setArch(base.getArch());
+
+    // specific field
     input.setExternalReference(externalReference);
     return input;
   }
 
-  public static Endpoint createEndpoint() {
+  private static Endpoint baseEndpoint(String name, Endpoint.PLATFORM_TYPE platform) {
     Endpoint endpoint = new Endpoint();
     endpoint.setCreatedAt(Instant.now());
     endpoint.setUpdatedAt(Instant.now());
-    endpoint.setName("Endpoint test");
-    endpoint.setDescription(ENDPOINT_DESCRIPTION);
-    endpoint.setHostname(WINDOWS_HOSTNAME);
-    endpoint.setIps(EndpointMapper.setIps(IPS));
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
-    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-    endpoint.setUpdatedAt(Instant.now());
-    return endpoint;
-  }
-
-  public static Endpoint createEndpointWithPlatform(String name, Endpoint.PLATFORM_TYPE platform) {
-    Endpoint endpoint = new Endpoint();
     endpoint.setName(name);
     endpoint.setDescription(ENDPOINT_DESCRIPTION);
     endpoint.setHostname(WINDOWS_HOSTNAME);
@@ -72,57 +68,50 @@ public class EndpointFixture {
     return endpoint;
   }
 
+  public static Endpoint createEndpoint() {
+    return baseEndpoint("Endpoint test", Endpoint.PLATFORM_TYPE.Windows);
+  }
+
+  public static Endpoint createEndpointWithPlatform(String name, Endpoint.PLATFORM_TYPE platform) {
+    return baseEndpoint(name, platform);
+  }
+
   public static Endpoint createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH arch) {
-    Endpoint endpoint = createEndpoint();
+    Endpoint endpoint = baseEndpoint("Endpoint test", Endpoint.PLATFORM_TYPE.Windows);
     endpoint.setArch(arch);
     return endpoint;
   }
 
   public static Endpoint createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH arch) {
-    Endpoint endpoint = createEndpoint();
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+    Endpoint endpoint = baseEndpoint("Endpoint test", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setArch(arch);
     return endpoint;
   }
 
   public static Endpoint createEndpointOnlyWithHostname() {
-    Endpoint endpoint = new Endpoint();
-    endpoint.setName("Hostname");
-    endpoint.setDescription(ENDPOINT_DESCRIPTION);
+    Endpoint endpoint = baseEndpoint("Hostname", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
     endpoint.setHostname("Linux Hostname");
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
     return endpoint;
   }
 
   public static Endpoint createEndpointOnlyWithLocalIP() {
-    Endpoint endpoint = new Endpoint();
-    endpoint.setName("LocalIP");
-    endpoint.setDescription(ENDPOINT_DESCRIPTION);
+    Endpoint endpoint = baseEndpoint("LocalIP", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(EndpointMapper.setIps(IPS));
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    endpoint.setHostname(null);
     return endpoint;
   }
 
   public static Endpoint createEndpointOnlyWithSeenIP() {
-    Endpoint endpoint = new Endpoint();
-    endpoint.setName("SeenIP");
-    endpoint.setDescription(ENDPOINT_DESCRIPTION);
+    Endpoint endpoint = baseEndpoint("SeenIP", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
     endpoint.setSeenIp(SEEN_IP);
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    endpoint.setHostname(null);
     return endpoint;
   }
 
   public static Endpoint createEndpointNotTargetProperty() {
-    Endpoint endpoint = new Endpoint();
-    endpoint.setName("No target Property");
-    endpoint.setDescription(ENDPOINT_DESCRIPTION);
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    Endpoint endpoint = baseEndpoint("No target Property", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
     return endpoint;
   }
