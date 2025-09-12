@@ -114,7 +114,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Adding final result to expectation does trigger coverage job")
+  @DisplayName("Adding final result to expectation triggers coverage job")
   public void addingFinalResultDoesTriggerCoverageJob() {
     ExerciseComposer.Composer exerciseWrapper = createExerciseWrapper();
 
@@ -174,9 +174,10 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
             .withSimulation(exerciseWrapper)
             .persist();
     entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
     scenarioWrapper.withSimulation(exerciseComposer.forExercise(otherSimulation)).persist();
     entityManager.flush();
-    entityManager.refresh(exerciseWrapper.get());
+    entityManager.refresh(otherSimulation);
 
     // act
     securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
