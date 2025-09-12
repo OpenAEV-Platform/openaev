@@ -32,26 +32,31 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
       <TabbedView
         tabs={[
           {
+            key: 'Scenarios',
             label: t('Scenarios'),
             component: (
               <GroupManageScenarioGrants groupId={group.group_id} />
             ),
           },
           {
+            key: 'Simulations',
             label: t('Simulations'),
             component: (
               <GroupManageSimulationGrants groupId={group.group_id} />
             ),
           },
           {
+            key: 'Organizations',
             label: t('Organizations'),
             component: <GroupManageOrganizationGrants groupId={group.group_id} />,
           },
           {
+            key: 'Atomic testings',
             label: t('Atomic testings'),
             component: <GroupManageAtomicTestingGrants groupId={group.group_id} />,
           },
           {
+            key: 'Payloads',
             label: t('Payloads'),
             component: <GroupManagePayloadGrants groupId={group.group_id} />,
           },

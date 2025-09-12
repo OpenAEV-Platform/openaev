@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button, Tab, Tabs } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FormEvent, type SyntheticEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
+import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
+import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type PayloadCreateInput } from '../../../utils/api-types-custom';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
@@ -56,44 +58,6 @@ const PayloadForm = ({
     openDialog: openEnterpriseEditionDialog,
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
-
-  const tabs = [{
-    key: 'General',
-    label: 'General',
-  }, {
-    key: 'Commands',
-    label: 'Commands',
-  }, {
-    key: 'Output',
-    label: 'Output',
-  }, {
-    key: 'Remediation',
-    label: (
-      <Box display="flex" alignItems="center">
-        {t('Remediation')}
-        {!isValidatedEnterpriseEdition && (
-          <EEChip
-            style={{ marginLeft: theme.spacing(1) }}
-            clickable
-            featureDetectedInfo={t('Remediation')}
-          />
-        )}
-      </Box>
-    ),
-  }];
-  const [activeTab, setActiveTab] = useState(tabs[0].key);
-
-  useEffect(() => {
-    if (activeTab === 'Remediation' && !isValidatedEnterpriseEdition) {
-      setActiveTab('General');
-      setEEFeatureDetectedInfo(t('Remediation'));
-      openEnterpriseEditionDialog();
-    }
-  }, [activeTab, isValidatedEnterpriseEdition]);
-
-  const handleActiveTabChange = (_: SyntheticEvent, newValue: string) => {
-    setActiveTab(newValue);
-  };
 
   const regexGroupObject = z.object({
     ...editing && { regex_group_id: z.string().optional() },
@@ -203,17 +167,51 @@ const PayloadForm = ({
     return fieldSchema?.description?.replace('-tab', '');
   };
 
+  const tabEntries: TabsEntry[] = [{
+    key: 'General',
+    label: 'General',
+  }, {
+    key: 'Commands',
+    label: 'Commands',
+  }, {
+    key: 'Output',
+    label: 'Output',
+  }, {
+    key: 'Remediation',
+    label: (
+      <Box display="flex" alignItems="center">
+        {t('Remediation')}
+        {!isValidatedEnterpriseEdition && (
+          <EEChip
+            style={{ marginLeft: theme.spacing(1) }}
+            clickable
+            featureDetectedInfo={t('Remediation')}
+          />
+        )}
+      </Box>
+    ),
+  }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isValid = await methods.trigger();
     if (!isValid) {
       const firstErrorField = Object.keys(errors)[0];
       const tabName = getTabForField(firstErrorField);
-      if (tabName) setActiveTab(tabName);
+      if (tabName) handleChangeTab(tabName);
     } else {
       handleSubmit(onSubmit)(e);
     }
   };
+
+  useEffect(() => {
+    if (currentTab === 'Remediation' && !isValidatedEnterpriseEdition) {
+      handleChangeTab('General');
+      setEEFeatureDetectedInfo(t('Remediation'));
+      openEnterpriseEditionDialog();
+    }
+  }, [currentTab, isValidatedEnterpriseEdition]);
 
   return (
     <FormProvider {...methods}>
@@ -229,26 +227,24 @@ const PayloadForm = ({
         onSubmit={handleSubmitWithoutDefault}
       >
         <Tabs
-          value={activeTab}
-          onChange={handleActiveTabChange}
-          aria-label="tabs for payload form"
-        >
-          {tabs.map(tab => <Tab key={tab.key} label={tab.label} value={tab.key} />)}
-        </Tabs>
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={newValue => handleChangeTab(newValue)}
+        />
 
-        {activeTab === 'General' && (
+        {currentTab === 'General' && (
           <GeneralFormTab />
         )}
 
-        {activeTab === 'Commands' && (
+        {currentTab === 'Commands' && (
           <CommandsFormTab disabledPayloadType={editing} />
         )}
 
-        {activeTab === 'Output' && (
+        {currentTab === 'Output' && (
           <OutputFormTab />
         )}
 
-        {activeTab === 'Remediation' && (
+        {currentTab === 'Remediation' && (
           <RemediationFormTab payloadId={initialValues?.payload_id} />
         )}
 

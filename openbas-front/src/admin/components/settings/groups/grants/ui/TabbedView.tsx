@@ -1,31 +1,25 @@
-import { Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, type ReactNode, useState } from 'react';
+import { type FunctionComponent, type ReactNode } from 'react';
 
+import Tabs, { type TabsEntry } from '../../../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../../../components/common/tabs/useTabs';
 import TabPanel from './TabPanel';
 
-interface TabConfig {
-  label: string;
-  component: ReactNode;
-}
+interface TabConfig extends TabsEntry { component: ReactNode }
 
 interface Props { tabs: TabConfig[] }
 
 const TabbedView: FunctionComponent<Props> = ({ tabs }) => {
-  const [tabSelect, setTabSelect] = useState(0);
+  const { currentTab, handleChangeTab } = useTabs(tabs[0].key);
+
   return (
     <>
       <Tabs
-        value={tabSelect}
-        onChange={(_, i) => setTabSelect(i)}
-        textColor="secondary"
-        indicatorColor="secondary"
-      >
-        {tabs.map(tab => (
-          <Tab key={tab.label} label={tab.label} />
-        ))}
-      </Tabs>
+        entries={tabs}
+        currentTab={currentTab}
+        onChange={newValue => handleChangeTab(newValue)}
+      />
       {tabs.map((tab, index) => (
-        <TabPanel key={tab.label} value={tabSelect} index={index}>
+        <TabPanel key={tab.key} value={tabs.findIndex(e => e.key === currentTab)} index={index}>
           {tab.component}
         </TabPanel>
       ))}

@@ -1,7 +1,8 @@
-import { Tab, Tabs } from '@mui/material';
-import { type SyntheticEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { fetchCve } from '../../../../actions/cve-actions';
+import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import { type CveOutput, type CveSimple } from '../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -23,19 +24,8 @@ const CveDetail = ({ selectedCve }: Props) => {
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  const tabs = ['General', 'Remediation'];
-
-  const [activeTab, setActiveTab] = useState(tabs[0]);
   const [cve, setCve] = useState<CveOutput | null>(null);
   const [cveStatus, setCveStatus] = useState<CveStatus>('loading');
-
-  useEffect(() => {
-    if (activeTab === 'Remediation' && !isEE) {
-      setActiveTab('General');
-      setEEFeatureDetectedInfo(t('Remediation'));
-      openEEDialog();
-    }
-  }, [activeTab, isEE]);
 
   useEffect(() => {
     if (!selectedCve.cve_id) return;
@@ -50,12 +40,17 @@ const CveDetail = ({ selectedCve }: Props) => {
       .catch(() => setCveStatus('notAvailable'));
   }, [selectedCve]);
 
-  const handleTabChange = (_: SyntheticEvent, newTab: string) => {
-    setActiveTab(newTab);
-  };
+  const tabEntries: TabsEntry[] = [{
+    key: 'General',
+    label: t('General'),
+  }, {
+    key: 'Remediation',
+    label: <TabLabelWithEE label={t('Remediation')} />,
+  }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   const renderTabPanels = () => {
-    switch (activeTab) {
+    switch (currentTab) {
       case 'General':
         return (
           <CveTabPanel status={cveStatus} cve={cve}>
@@ -73,18 +68,21 @@ const CveDetail = ({ selectedCve }: Props) => {
     }
   };
 
+  useEffect(() => {
+    if (currentTab === 'Remediation' && !isEE) {
+      handleChangeTab('General');
+      setEEFeatureDetectedInfo(t('Remediation'));
+      openEEDialog();
+    }
+  }, [currentTab, isEE]);
+
   return (
     <>
-      <Tabs value={activeTab} onChange={handleTabChange} aria-label="cve detail tabs">
-        {tabs.map(tab => (
-          <Tab
-            key={tab}
-            label={tab === 'Remediation' ? <TabLabelWithEE label={tab} /> : tab}
-            value={tab}
-          />
-        ))}
-      </Tabs>
-
+      <Tabs
+        entries={tabEntries}
+        currentTab={currentTab}
+        onChange={newValue => handleChangeTab(newValue)}
+      />
       {renderTabPanels()}
     </>
   );
