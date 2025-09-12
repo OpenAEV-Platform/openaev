@@ -1,21 +1,20 @@
 package io.openbas.utils;
 
+import static io.openbas.utils.constants.StixConstants.STIX_NAME;
+import static io.openbas.utils.constants.StixConstants.STIX_TYPE;
+import static io.openbas.utils.constants.StixConstants.STIX_X_MITRE_ID;
+import static io.openbas.utils.constants.StixConstants.STIX_X_SECURITY_COVERAGE;
+
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
 import io.openbas.stix.objects.constants.CommonProperties;
 import io.openbas.stix.objects.constants.ObjectTypes;
-import org.apache.coyote.BadRequestException;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static io.openbas.utils.constants.StixConstants.STIX_NAME;
-import static io.openbas.utils.constants.StixConstants.STIX_TYPE;
-import static io.openbas.utils.constants.StixConstants.STIX_X_MITRE_ID;
-import static io.openbas.utils.constants.StixConstants.STIX_X_SECURITY_COVERAGE;
+import org.apache.coyote.BadRequestException;
 
 public class SecurityCoverageUtils {
 
