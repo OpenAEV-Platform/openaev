@@ -222,29 +222,54 @@ public class InjectStixAssistantService {
 
     if (!injectorContracts.isEmpty()) {
       for (InjectorContract ic : injectorContracts) {
-        for (Map.Entry<ContractTargetedProperty, Set<Endpoint>> entry :
-            assetsByTargetProperty.entrySet()) {
-          ContractTargetedProperty targetProperty = entry.getKey();
-          Set<Endpoint> endpoints = entry.getValue();
+        if (!assetsByTargetProperty.isEmpty()) {
+          // Normal case: build injects from assets
+          for (Map.Entry<ContractTargetedProperty, Set<Endpoint>> entry :
+              assetsByTargetProperty.entrySet()) {
+            ContractTargetedProperty targetProperty = entry.getKey();
+            Set<Endpoint> endpoints = entry.getValue();
 
+            Inject inject =
+                injectAssistantService.buildTechnicalInjectFromInjectorContract(
+                    ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
+
+            inject.setAssets(new ArrayList<>(endpoints));
+            inject
+                .getContent()
+                .put(CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR, targetProperty.name());
+            inject
+                .getContent()
+                .put(
+                    CONTRACT_ELEMENT_CONTENT_KEY_TARGET_SELECTOR,
+                    CONTRACT_ELEMENT_CONTENT_KEY_ASSETS);
+
+            injects.add(inject);
+          }
+        } else {
+          // Fallback: build one inject without assets
           Inject inject =
               injectAssistantService.buildTechnicalInjectFromInjectorContract(
                   ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
 
-          inject.setAssets(new ArrayList<>(endpoints));
+          inject.setAssets(new ArrayList<>()); // no assets
           inject
               .getContent()
-              .put(CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR, targetProperty.name());
+              .put(
+                  CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR,
+                  ContractTargetedProperty.hostname.name());
           inject
               .getContent()
               .put(
                   CONTRACT_ELEMENT_CONTENT_KEY_TARGET_SELECTOR,
                   CONTRACT_ELEMENT_CONTENT_KEY_ASSETS);
+
           injects.add(inject);
         }
       }
       return injects;
     }
+
+    // No injector contracts found -> manual inject
     return Set.of(
         injectAssistantService.buildManualInject(
             vulnerability.getExternalId(), "[any platform]", "[any architecture]"));
