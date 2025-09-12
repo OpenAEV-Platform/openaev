@@ -35,11 +35,13 @@ import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.scenario.service.ScenarioStatisticService;
 import io.openbas.rest.team.output.TeamOutput;
+import io.openbas.service.*;
 import io.openbas.service.GrantService;
 import io.openbas.service.TagRuleService;
 import io.openbas.service.TeamService;
 import io.openbas.service.UserService;
 import io.openbas.service.VariableService;
+import io.openbas.service.cron.CronService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
 import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -55,7 +57,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
-import java.time.Instant;
+import java.time.*;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -89,6 +91,7 @@ public class ExerciseService {
   private final TagRuleService tagRuleService;
   private final DocumentService documentService;
   private final InjectService injectService;
+  private final CronService cronService;
   private final UserService userService;
   private final DashboardService dashboardService;
 
@@ -198,6 +201,28 @@ public class ExerciseService {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();
     return documentService.getPlayerDocuments(articles, injects);
+  }
+
+  public boolean hasPendingResults(Exercise exercise) {
+    return exercise.getInjects().stream().anyMatch(injectService::hasPendingResults);
+  }
+
+  public Optional<Exercise> getFollowingSimulation(Exercise exercise) {
+    return exercise.getScenario() != null
+        ? exerciseRepository.following(exercise)
+        : Optional.empty();
+  }
+
+  public Optional<Instant> getLatestValidityDate(Exercise exercise) {
+    Optional<Exercise> follower = this.getFollowingSimulation(exercise);
+    if (follower.isPresent()) {
+      return follower.get().getStart();
+    }
+
+    return exercise.getStart().isPresent() && exercise.getScenario() != null
+        ? cronService.getNextExecutionFromInstant(
+            exercise.getStart().get(), ZoneId.of("UTC"), exercise.getScenario().getRecurrence())
+        : Optional.empty();
   }
 
   private void getListOfExerciseTeams(
@@ -670,7 +695,8 @@ public class ExerciseService {
 
   // -- GLOBAL RESULTS --
   public List<ExpectationResultsByType> getGlobalResults(@NotBlank String exerciseId) {
-    return resultUtils.getResultsByTypes(exerciseRepository.findInjectsByExercise(exerciseId));
+    return resultUtils.computeGlobalExpectationResults(
+        exerciseRepository.findInjectsByExercise(exerciseId));
   }
 
   public ExercisesGlobalScoresOutput getExercisesGlobalScores(ExercisesGlobalScoresInput input) {

@@ -17,6 +17,12 @@ public class ScenarioFixture {
     return getScenario(null, null);
   }
 
+  public static Scenario getScenarioWithRecurrence(String cronExpression) {
+    Scenario scenario = getScenario(null, null);
+    scenario.setRecurrence(cronExpression);
+    return scenario;
+  }
+
   public static Scenario getScheduledScenario() {
     Scenario scenario = getScenario(null, null);
     scenario.setRecurrenceStart(Instant.now().plus(1, ChronoUnit.DAYS));

@@ -19,6 +19,7 @@ import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
+import io.openbas.service.cron.CronService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
 import io.openbas.utils.ResultUtils;
 import io.openbas.utils.fixtures.ExerciseFixture;
@@ -68,6 +69,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
+  @Autowired private CronService cronService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -87,6 +89,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             tagRuleService,
             documentService,
             injectService,
+            cronService,
             userService,
             dashboardService,
             exerciseMapper,

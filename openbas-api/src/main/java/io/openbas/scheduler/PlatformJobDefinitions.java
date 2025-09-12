@@ -2,10 +2,7 @@ package io.openbas.scheduler;
 
 import static org.quartz.JobKey.jobKey;
 
-import io.openbas.scheduler.jobs.ComchecksExecutionJob;
-import io.openbas.scheduler.jobs.EngineSyncExecutionJob;
-import io.openbas.scheduler.jobs.InjectsExecutionJob;
-import io.openbas.scheduler.jobs.ScenarioExecutionJob;
+import io.openbas.scheduler.jobs.*;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.springframework.context.annotation.Bean;
@@ -43,6 +40,14 @@ public class PlatformJobDefinitions {
     return JobBuilder.newJob(EngineSyncExecutionJob.class)
         .storeDurably()
         .withIdentity(jobKey("ElasticSyncExecutionJob"))
+        .build();
+  }
+
+  @Bean
+  public JobDetail getSecurityCoverageJobExecution() {
+    return JobBuilder.newJob(SecurityCoverageJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("SecurityCoverageJob"))
         .build();
   }
 }

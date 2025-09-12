@@ -10,6 +10,7 @@ import static io.openbas.utils.constants.StixConstants.STIX_X_SECURITY_COVERAGE;
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
+import io.openbas.stix.objects.constants.CommonProperties;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,6 +18,9 @@ import java.util.stream.Collectors;
 import org.apache.coyote.BadRequestException;
 
 public class SecurityCoverageUtils {
+
+  public static final String STIX_X_MITRE_ID = "x_mitre_id";
+  public static final String X_SECURITY_COVERAGE = "x-security-coverage";
 
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
@@ -59,7 +63,7 @@ public class SecurityCoverageUtils {
       }
 
       if (refId != null) {
-        String stixId = (String) obj.getProperty(STIX_ID).getValue();
+        String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
         if (stixId != null) {
           stixToRef.add(new StixRefToExternalRef(stixId, refId));
         }

@@ -18,13 +18,13 @@ public class SecurityPlatformComposer extends ComposerBase<SecurityPlatform> {
 
     @Override
     public Composer persist() {
-      securityPlatformRepository.save(securityPlatform);
+      securityPlatformRepository.save(this.securityPlatform);
       return this;
     }
 
     @Override
     public Composer delete() {
-      securityPlatformRepository.delete(securityPlatform);
+      securityPlatformRepository.delete(this.securityPlatform);
       return this;
     }
 
@@ -34,8 +34,8 @@ public class SecurityPlatformComposer extends ComposerBase<SecurityPlatform> {
     }
   }
 
-  public SecurityPlatformComposer.Composer forSecurityPlatform(SecurityPlatform securityPlatform) {
-    generatedItems.add(securityPlatform);
-    return new SecurityPlatformComposer.Composer(securityPlatform);
+  public Composer forSecurityPlatform(SecurityPlatform securityPlatform) {
+    this.generatedItems.add(securityPlatform);
+    return new Composer(securityPlatform);
   }
 }

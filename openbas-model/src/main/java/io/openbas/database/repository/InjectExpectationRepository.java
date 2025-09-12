@@ -198,6 +198,7 @@ public interface InjectExpectationRepository
               + "i.inject_expectation_type AS inject_expectation_type, "
               + "i.user_id AS user_id, "
               + "i.inject_expectation_score AS inject_expectation_score, "
+              + "i.inject_expectation_results AS inject_expectation_results, "
               + "i.inject_expectation_expected_score AS inject_expectation_expected_score, "
               + "i.inject_expectation_group AS inject_expectation_group "
               + "FROM injects_expectations i "
@@ -232,6 +233,11 @@ public interface InjectExpectationRepository
   // We don't include expectations for players, only for the team, if applicable
   List<RawInjectExpectation> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
+
+  @Query(
+      value =
+          "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
+  List<InjectExpectation> findAllForGlobalScoreByInjects(@Param("injectIds") Set<String> injectIds);
 
   // -- INDEXING --
 

@@ -1,6 +1,7 @@
 package io.openbas.database.model;
 
 import static io.openbas.helper.InjectExpectationHelper.computeStatus;
+import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -27,7 +28,18 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "injects_expectations")
 @EntityListeners(ModelBaseListener.class)
-public class InjectExpectation implements Base {
+public class InjectExpectation implements Base, Cloneable {
+
+  @Override
+  public InjectExpectation clone() {
+    try {
+      InjectExpectation clone = (InjectExpectation) super.clone();
+      // TODO: copy mutable state here, so the clone can't change the internals of the original
+      return clone;
+    } catch (CloneNotSupportedException e) {
+      throw new AssertionError();
+    }
+  }
 
   public enum EXPECTATION_TYPE {
     TEXT,
@@ -116,14 +128,14 @@ public class InjectExpectation implements Base {
   @Column(name = "inject_expectation_created_at")
   @JsonProperty("inject_expectation_created_at")
   @CreationTimestamp
-  private Instant createdAt;
+  private Instant createdAt = now();
 
   @Queryable(filterable = true, label = "updated at")
   @Setter
   @Column(name = "inject_expectation_updated_at")
   @JsonProperty("inject_expectation_updated_at")
   @UpdateTimestamp
-  private Instant updatedAt;
+  private Instant updatedAt = now();
 
   @Setter
   @Column(name = "inject_expectation_group")
