@@ -5,8 +5,10 @@ import io.openbas.injector_contract.ContractTargetedProperty;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
+@Slf4j
 public class AssetUtils {
 
   /**
@@ -39,6 +41,7 @@ public class AssetUtils {
         && !endpoint.getIps()[0].isBlank()) {
       return ContractTargetedProperty.local_ip;
     }
+    log.warn("Endpoint {} has no target property (hostname, seen IP, or local IP).", endpoint);
     return null; // If an asset has no target property, it will not be included in the injects.
   }
 }
