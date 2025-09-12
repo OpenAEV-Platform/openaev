@@ -1,26 +1,23 @@
 package io.openbas.utils;
 
-import static io.openbas.utils.constants.StixConstants.STIX_ATTACK_PATTERN_TYPE;
-import static io.openbas.utils.constants.StixConstants.STIX_ID;
+import io.openbas.database.model.StixRefToExternalRef;
+import io.openbas.stix.objects.Bundle;
+import io.openbas.stix.objects.ObjectBase;
+import io.openbas.stix.objects.constants.CommonProperties;
+import io.openbas.stix.objects.constants.ObjectTypes;
+import org.apache.coyote.BadRequestException;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import static io.openbas.utils.constants.StixConstants.STIX_NAME;
 import static io.openbas.utils.constants.StixConstants.STIX_TYPE;
 import static io.openbas.utils.constants.StixConstants.STIX_X_MITRE_ID;
 import static io.openbas.utils.constants.StixConstants.STIX_X_SECURITY_COVERAGE;
 
-import io.openbas.database.model.StixRefToExternalRef;
-import io.openbas.stix.objects.Bundle;
-import io.openbas.stix.objects.ObjectBase;
-import io.openbas.stix.objects.constants.CommonProperties;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import org.apache.coyote.BadRequestException;
-
 public class SecurityCoverageUtils {
-
-  public static final String STIX_X_MITRE_ID = "x_mitre_id";
-  public static final String X_SECURITY_COVERAGE = "x-security-coverage";
 
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
@@ -56,7 +53,7 @@ public class SecurityCoverageUtils {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
       String refId;
 
-      if (STIX_ATTACK_PATTERN_TYPE.equals(stixType)) {
+      if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         refId = (String) obj.getProperty(STIX_X_MITRE_ID).getValue();
       } else {
         refId = (String) obj.getProperty(STIX_NAME).getValue();

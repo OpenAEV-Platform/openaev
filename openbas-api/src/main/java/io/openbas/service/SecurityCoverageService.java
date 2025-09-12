@@ -3,26 +3,17 @@ package io.openbas.service;
 import static io.openbas.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openbas.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openbas.utils.constants.StixConstants.ATTACK_SCENARIO;
-import static io.openbas.utils.constants.StixConstants.INCIDENT_RESPONSE;
-import static io.openbas.utils.constants.StixConstants.ONE_SHOT;
-import static io.openbas.utils.constants.StixConstants.STIX_ATTACK_PATTERN_TYPE;
 import static io.openbas.utils.constants.StixConstants.STIX_DESCRIPTION;
-import static io.openbas.utils.constants.StixConstants.STIX_ID;
-import static io.openbas.utils.constants.StixConstants.STIX_LABELS;
 import static io.openbas.utils.constants.StixConstants.STIX_NAME;
 import static io.openbas.utils.constants.StixConstants.STIX_PERIOD_END;
 import static io.openbas.utils.constants.StixConstants.STIX_PERIOD_START;
 import static io.openbas.utils.constants.StixConstants.STIX_SCHEDULING;
-import static io.openbas.utils.constants.StixConstants.STIX_VULNERABILITY_TYPE;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.cron.ScheduleFrequency;
 import io.openbas.database.model.*;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.Scenario;
-import io.openbas.database.model.SecurityCoverage;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
@@ -47,7 +38,6 @@ import io.openbas.utils.ResultUtils;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,14 +47,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class SecurityCoverageService {
-
-  public static final String STIX_THREAT_CONTEXT_REF = "threat_context_ref";
-  public static final String STIX_NAME = "name";
-  public static final String STIX_DESCRIPTION = "description";
-  public static final String STIX_SCHEDULING = "scheduling";
-  public static final String STIX_PERIOD_START = "period_start";
-  public static final String STIX_PERIOD_END = "period_end";
-  public static final String ATTACK_SCENARIO = "attack-scenario";
 
   private final ScenarioService scenarioService;
   private final TagService tagService;
@@ -121,7 +103,7 @@ public class SecurityCoverageService {
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        extractObjectReferences(bundle.findByType(STIX_VULNERABILITY_TYPE)));
+        extractObjectReferences(bundle.findByType(ObjectTypes.STIX_VULNERABILITY_TYPE.toString())));
 
     // Default Fields
     String scheduling =

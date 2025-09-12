@@ -1,14 +1,14 @@
 package io.openbas.utils;
 
-import static io.openbas.utils.constants.StixConstants.ONE_SHOT;
-import static java.time.ZoneOffset.UTC;
-
 import jakarta.validation.constraints.NotNull;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+
+import static java.time.ZoneOffset.UTC;
 
 public class TimeUtils {
 
