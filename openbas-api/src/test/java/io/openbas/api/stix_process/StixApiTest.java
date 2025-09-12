@@ -68,7 +68,7 @@ class StixApiTest extends IntegrationTest {
   private String stixSecurityCoverageWithoutObjects;
   private String stixSecurityCoverageOnlyVulns;
   private AssetGroupComposer.Composer completeTargetProperties;
-  private AssetGroupComposer.Composer hostnameSeenIp;
+  private AssetGroupComposer.Composer noTargetProperties;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -117,12 +117,17 @@ class StixApiTest extends IntegrationTest {
             .forEndpoint(EndpointFixture.createEndpointOnlyWithLocalIP())
             .persist()
             .get();
+    Asset noTargetProperty =
+        endpointComposer
+            .forEndpoint(EndpointFixture.createEndpointNotTargetProperty())
+            .persist()
+            .get();
 
-    hostnameSeenIp =
+    noTargetProperties =
         assetGroupComposer
             .forAssetGroup(
                 AssetGroupFixture.createAssetGroupWithAssets(
-                    "HostnameSeenIp", List.of(hostname, seenIp)))
+                    "NoTargetProperty", List.of(noTargetProperty)))
             .persist();
 
     completeTargetProperties =
@@ -472,9 +477,6 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(3);
-
-      // Check cve, property
-
     }
 
     @Test
@@ -507,11 +509,11 @@ class StixApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should create scenario with 3 injects for every different target property in asset groups related to targetRule")
-    void shouldCreateScenarioWithOneInjectsWhen() throws Exception {
+        "Should create scenario with 1 inject when none target property was identified because assets have none target property")
+    void shouldCreateScenarioWithOneInjectsWhenNoneTargetPropertyWasIdentified() throws Exception {
       tagRuleComposer
           .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-target-property")))
           .persist();
 
       String createdResponse =

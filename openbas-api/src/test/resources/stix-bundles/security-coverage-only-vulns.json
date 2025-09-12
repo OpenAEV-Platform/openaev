@@ -10,7 +10,7 @@
                 "opencti",
                 "coverage",
                 "no-asset-groups",
-                "threat-evaluation"
+                "no-target-property"
             ],
             "modified": "2025-08-04T14:00:00Z",
             "name": "Security Coverage Q3 2025 - Threat Report XYZ",

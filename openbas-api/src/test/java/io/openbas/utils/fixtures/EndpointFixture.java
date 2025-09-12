@@ -115,4 +115,13 @@ public class EndpointFixture {
     endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
     return endpoint;
   }
+
+  public static Endpoint createEndpointNotTargetProperty() {
+    Endpoint endpoint = new Endpoint();
+    endpoint.setName("No target Property");
+    endpoint.setDescription(ENDPOINT_DESCRIPTION);
+    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    return endpoint;
+  }
 }
