@@ -5,11 +5,11 @@ import static io.openbas.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.aop.LogExecutionTime;
-import io.openbas.config.OpenBASConfig;
-import io.openbas.config.RabbitmqConfig;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.lock.Lock;
 import io.openbas.aop.lock.LockResourceType;
+import io.openbas.config.OpenBASConfig;
+import io.openbas.config.RabbitmqConfig;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawDocument;
 import io.openbas.database.repository.ExerciseRepository;
@@ -88,9 +88,9 @@ public class InjectApi extends RestBehavior {
   private final InjectExportService injectExportService;
   private final TargetService targetService;
   private final UserRepository userRepository;
-    private final PayloadMapper payloadMapper;
-    private final UserService userService;
-    private final DocumentService documentService;
+  private final PayloadMapper payloadMapper;
+  private final UserService userService;
+  private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
 
   private final RabbitmqConfig rabbitmqConfig;
