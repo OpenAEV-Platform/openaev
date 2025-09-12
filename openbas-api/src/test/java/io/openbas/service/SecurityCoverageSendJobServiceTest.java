@@ -174,9 +174,10 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
             .withSimulation(exerciseWrapper)
             .persist();
     entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
     scenarioWrapper.withSimulation(exerciseComposer.forExercise(otherSimulation)).persist();
     entityManager.flush();
-    entityManager.refresh(exerciseWrapper.get());
+    entityManager.refresh(otherSimulation);
 
     // act
     securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
