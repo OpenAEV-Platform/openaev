@@ -60,9 +60,9 @@ class ScenarioStatisticServiceTest extends IntegrationTest {
     when(exerciseRepository.rawLatestFinishedExercisesWithInjectsByScenarioId(scenarioId))
         .thenReturn(List.of(rawFinishedExerciseWithInjects1, rawFinishedExerciseWithInjects2));
 
-    when(resultUtils.getResultsByTypes(exercise1InjectIds))
+    when(resultUtils.computeGlobalExpectationResults(exercise1InjectIds))
         .thenReturn(ExpectationResultsByTypeFixture.exercise1GlobalScores);
-    when(resultUtils.getResultsByTypes(exercise2InjectIds))
+    when(resultUtils.computeGlobalExpectationResults(exercise2InjectIds))
         .thenReturn(ExpectationResultsByTypeFixture.exercise2GlobalScores);
 
     ScenarioStatistic result = scenarioStatisticService.getStatistics(scenarioId);

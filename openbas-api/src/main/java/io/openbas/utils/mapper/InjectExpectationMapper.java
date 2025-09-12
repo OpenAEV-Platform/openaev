@@ -148,6 +148,23 @@ public class InjectExpectationMapper {
   }
 
   /**
+   * Extract ExpectationResultsByType from exercises using data from raw queries
+   *
+   * @param injectIds
+   * @param expectations
+   * @return List of ExpectationResultsByType
+   */
+  public List<ExpectationResultsByType> extractExpectationResultByTypes(
+      Set<String> injectIds, List<InjectExpectation> expectations) {
+
+    if (expectations != null && !expectations.isEmpty()) {
+      return getExpectationResultByTypes(expectations, InjectExpectationResultUtils::getScores);
+    }
+
+    return buildExpectationResultsFromInjectContents(injectIds);
+  }
+
+  /**
    * Build InjectResults based on content of injects from an exercise
    *
    * @param injectIds the exercise id

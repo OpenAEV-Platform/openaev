@@ -78,8 +78,8 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
     @Override
     public Composer persist() {
       articleComposers.forEach(ArticleComposer.Composer::persist);
-      scenarioRepository.save(scenario);
       simulationComposers.forEach(ExerciseComposer.Composer::persist);
+      scenarioRepository.save(scenario);
       tagComposers.forEach(TagComposer.Composer::persist);
       injectComposers.forEach(InjectComposer.Composer::persist);
       variableComposers.forEach(VariableComposer.Composer::persist);

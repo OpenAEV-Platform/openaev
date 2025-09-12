@@ -67,7 +67,7 @@ public class ScenarioStatisticService {
 
   private Stream<ExpectationTypeAndGlobalScore> getExpectationTypeAndGlobalScores(
       FinishedExerciseWithInjects finishedExercise) {
-    return resultUtils.getResultsByTypes(finishedExercise.injectIds()).stream()
+    return resultUtils.computeGlobalExpectationResults(finishedExercise.injectIds()).stream()
         .map(
             expectationResultByType ->
                 getExpectationTypeAndGlobalScore(finishedExercise, expectationResultByType));

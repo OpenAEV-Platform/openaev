@@ -3,6 +3,7 @@ package io.openbas.utils;
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
+import io.openbas.stix.objects.constants.CommonProperties;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.coyote.BadRequestException;
@@ -10,7 +11,6 @@ import org.apache.coyote.BadRequestException;
 public class SecurityCoverageUtils {
 
   public static final String STIX_X_MITRE_ID = "x_mitre_id";
-  public static final String STIX_ID = "id";
   public static final String X_SECURITY_COVERAGE = "x-security-coverage";
 
   /**
@@ -45,7 +45,7 @@ public class SecurityCoverageUtils {
     for (ObjectBase obj : objects) {
       String mitreId = (String) obj.getProperty(STIX_X_MITRE_ID).getValue();
       if (mitreId != null) {
-        String stixId = (String) obj.getProperty(STIX_ID).getValue();
+        String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
         StixRefToExternalRef stixRef = new StixRefToExternalRef(stixId, mitreId);
         stixToRef.add(stixRef);
       }

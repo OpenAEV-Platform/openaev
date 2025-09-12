@@ -52,6 +52,7 @@ public class InjectExpectationService {
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final CollectorRepository collectorRepository;
+  private final SecurityCoverageSendJobService securityCoverageSendJobService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -145,6 +146,11 @@ public class InjectExpectationService {
     if (HUMAN_EXPECTATION.contains(injectExpectation.getType()) && updated.getTeam() != null) {
       computeExpectationsForTeamsAndPlayer(updated, result);
     }
+
+    List<Exercise> exercises = new ArrayList<>();
+    exercises.add(updated.getInject().getExercise());
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
+
     return updated;
   }
 
@@ -177,6 +183,9 @@ public class InjectExpectationService {
             updateInjectExpectationAgent(input, expectation, result);
           }
         });
+
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+        expectations.stream().map(exp -> exp.getInject().getExercise()).toList());
 
     injectExpectationRepository.saveAll(expectations);
   }
@@ -236,6 +245,10 @@ public class InjectExpectationService {
         && updated.getTeam() != null) {
       computeExpectationsForTeamsAndPlayer(updated, null);
     }
+
+    List<Exercise> exercises = new ArrayList<>();
+    exercises.add(updated.getInject().getExercise());
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
 
     return updated;
   }
@@ -422,6 +435,10 @@ public class InjectExpectationService {
 
     // end of computing
 
+    List<Exercise> exercises = new ArrayList<>();
+    exercises.add(injectExpectation.getInject().getExercise());
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
+
     return injectExpectation;
   }
 
@@ -473,6 +490,8 @@ public class InjectExpectationService {
       propagateUpdateToAssetGroups(inject, collector);
       // end of computing
     }
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+        injectExpectations.stream().map(exp -> exp.getInject().getExercise()).toList());
   }
 
   private void propagateUpdateToAssets(
@@ -648,7 +667,7 @@ public class InjectExpectationService {
 
   // -- FINAL UPDATE --
 
-  public InjectExpectation update(@NotNull InjectExpectation injectExpectation) {
+  private InjectExpectation update(@NotNull InjectExpectation injectExpectation) {
     injectExpectation.setUpdatedAt(now());
     Inject inject = injectExpectation.getInject();
     inject.setUpdatedAt(now());

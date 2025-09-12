@@ -2,14 +2,14 @@ package io.openbas.utils;
 
 import static java.util.Collections.emptyList;
 
-import io.openbas.database.model.AttackPattern;
-import io.openbas.database.model.Inject;
+import io.openbas.database.model.*;
 import io.openbas.database.raw.RawInjectExpectation;
 import io.openbas.database.repository.InjectExpectationRepository;
 import io.openbas.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openbas.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openbas.utils.mapper.InjectExpectationMapper;
 import jakarta.validation.constraints.NotNull;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,10 +25,6 @@ public class ResultUtils {
   private final InjectExpectationRepository injectExpectationRepository;
   private final InjectExpectationMapper injectExpectationMapper;
 
-  public List<ExpectationResultsByType> getResultsByTypes(Set<String> injectIds) {
-    return computeGlobalExpectationResults(injectIds);
-  }
-
   public List<ExpectationResultsByType> computeGlobalExpectationResults(Set<String> injectIds) {
 
     if (injectIds == null || injectIds.isEmpty()) {
@@ -39,6 +35,34 @@ public class ResultUtils {
         injectExpectationRepository.rawForComputeGlobalByInjectIds(injectIds);
 
     return injectExpectationMapper.extractExpectationResultByTypesFromRaw(injectIds, expectations);
+  }
+
+  public List<ExpectationResultsByType> computeGlobalExpectationResultsForPlatform(
+      Set<String> injectIds, SecurityPlatform securityPlatform) {
+
+    if (injectIds == null || injectIds.isEmpty()) {
+      return emptyList();
+    }
+
+    List<InjectExpectation> expectations =
+        injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds).stream()
+            .map(InjectExpectation::clone)
+            .toList();
+    expectations.forEach(
+        exp -> {
+          exp.setResults(
+              exp.getResults().stream()
+                  .filter(r -> r.getSourceId().equals(securityPlatform.getId()))
+                  .toList());
+
+          exp.setScore(
+              exp.getResults().stream()
+                  .max(Comparator.comparing(InjectExpectationResult::getScore))
+                  .map(InjectExpectationResult::getScore)
+                  .orElse(null));
+        });
+
+    return injectExpectationMapper.extractExpectationResultByTypes(injectIds, expectations);
   }
 
   public List<InjectExpectationResultsByAttackPattern> computeInjectExpectationResults(

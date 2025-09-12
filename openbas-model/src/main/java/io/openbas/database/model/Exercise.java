@@ -99,6 +99,7 @@ public class Exercise implements GrantableBase {
 
   @Column(name = "exercise_launch_order", insertable = false, updatable = false)
   @JsonIgnore
+  @Getter
   @Setter(NONE)
   private Long launchOrder;
 
