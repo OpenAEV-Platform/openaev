@@ -207,18 +207,29 @@ public class FindingService {
     // Create links with assets
     if (contractOutput.getType().toFindingAssets != null) {
       List<String> assetsIds = contractOutput.getType().toFindingAssets.apply(jsonNode);
-      finding.setAssets(assetsIds);
+      List<Optional<Asset>> assets =
+          assetsIds.stream().map(this.assetRepository::findById).toList();
+      if (!assets.isEmpty()) {
+        finding.setAssets(assets.stream().filter(Optional::isPresent).map(Optional::get).toList());
+      }
     }
     // Create links with teams
     if (contractOutput.getType().toFindingTeams != null) {
       List<String> teamsIds = contractOutput.getType().toFindingTeams.apply(jsonNode);
-      finding.setTeams(teamsIds);
+      List<Optional<Team>> teams = teamsIds.stream().map(this.teamRepository::findById).toList();
+      if (!teams.isEmpty()) {
+        finding.setTeams(teams.stream().filter(Optional::isPresent).map(Optional::get).toList());
+      }
     }
     // Create links with users
     if (contractOutput.getType().toFindingUsers != null) {
       List<String> usersIds = contractOutput.getType().toFindingUsers.apply(jsonNode);
-      finding.setUsers(usersIds);
+      List<Optional<User>> users = usersIds.stream().map(this.userRepository::findById).toList();
+      if (!users.isEmpty()) {
+        finding.setUsers(users.stream().filter(Optional::isPresent).map(Optional::get).toList());
+      }
     }
+    return finding;
   }
 
   /**
@@ -259,10 +270,8 @@ public class FindingService {
   }
 
   /** Extracts findings from structured output that was generated using output parsers. */
-  public List<SimpleFinding> extractFindingsFromOutputParsers(
-      String injectId, String assetId, Set<OutputParser> outputParsers, JsonNode structuredOutput) {
-
-    List<SimpleFinding> results = new ArrayList<>();
+  public void extractFindingsFromOutputParsers(
+      Inject inject, Agent agent, Set<OutputParser> outputParsers, JsonNode structuredOutput) {
 
     List<ContractOutputElement> contractOutputElements =
         this.getAllIsFindingContractOutputElementsOfOutputParser(outputParsers);
@@ -290,6 +299,5 @@ public class FindingService {
                 contractOutputElement.getType().toFindingValue.apply(jsonNode));
           }
         });
-    return results;
   }
 }

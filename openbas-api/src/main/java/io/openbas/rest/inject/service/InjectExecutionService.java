@@ -1,48 +1,33 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.ExecutionTraceUtils.convertExecutionAction;
-import static io.openbas.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
+import static io.openbas.utils.InjectExecutionUtils.convertExecutionAction;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.AgentRepository;
-import io.openbas.database.repository.InjectExpectationRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.finding.FindingService;
-import io.openbas.rest.inject.form.InjectExecutionAction;
 import io.openbas.rest.inject.form.InjectExecutionInput;
-import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
-import io.openbas.service.InjectExpectationService;
-import jakarta.annotation.Nullable;
-import jakarta.annotation.Resource;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
+import lombok.extern.java.Log;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
-@Slf4j
+@Log
 public class InjectExecutionService {
 
   private final InjectRepository injectRepository;
-  private final InjectExpectationRepository injectExpectationRepository;
-  private final InjectExpectationService injectExpectationService;
   private final AgentRepository agentRepository;
   private final InjectStatusService injectStatusService;
   private final FindingService findingService;
   private final StructuredOutputUtils structuredOutputUtils;
-
-  @Resource protected ObjectMapper mapper;
 
   public void handleInjectExecutionCallback(
       String injectId, String agentId, InjectExecutionInput input) {
@@ -87,13 +72,13 @@ public class InjectExecutionService {
   /** Processes the execution of an inject by updating its status and extracting findings. */
   private void processInjectExecution(
       Inject inject,
-      @Nullable Agent agent,
+      Agent agent,
       InjectExecutionInput input,
       Set<OutputParser> outputParsers,
       Optional<ObjectNode> structuredOutput) {
+
     ObjectNode structured = structuredOutput.orElse(null);
     injectStatusService.updateInjectStatus(agent, inject, input, structured);
-    addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
 
     if (structured == null) {
       return;
@@ -219,7 +204,7 @@ public class InjectExecutionService {
   }
 
   private void handleInjectExecutionError(Inject inject, Exception e) {
-    log.error(e.getMessage(), e);
+    log.log(Level.SEVERE, e.getMessage());
     if (inject != null) {
       inject
           .getStatus()

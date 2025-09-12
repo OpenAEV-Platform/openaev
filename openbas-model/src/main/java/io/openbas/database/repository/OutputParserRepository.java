@@ -14,16 +14,14 @@ import org.springframework.stereotype.Repository;
 public interface OutputParserRepository
     extends JpaRepository<OutputParser, String>, JpaSpecificationExecutor<OutputParser> {
 
-            @Query(
-                value =
-                    "SELECT i.id injectId, op outputParser, ic injectorContract "
-                        + "FROM Inject i "
-                        + "LEFT JOIN i.injectorContract ic "
-                        + "LEFT JOIN ic.payload p "
-                        + "LEFT JOIN p.outputParsers op "
-                        + "WHERE i.id IN :injectIds")
-            List<OutputParserByInject> findAllOutputParsersByInjectIds(
-                @NotNull @Param("injectIds") List<String> injectIds);
-          }
-
-        }
+  @Query(
+      value =
+          "SELECT i.id injectId, op outputParser, ic injectorContract "
+              + "FROM Inject i "
+              + "LEFT JOIN i.injectorContract ic "
+              + "LEFT JOIN ic.payload p "
+              + "LEFT JOIN p.outputParsers op "
+              + "WHERE i.id IN :injectIds")
+  List<OutputParserByInject> findAllOutputParsersByInjectIds(
+      @NotNull @Param("injectIds") List<String> injectIds);
+}
