@@ -12,6 +12,7 @@ const useBodyItemsStyles: () => {
       display: 'flex',
       flexWrap: 'nowrap',
       maxWidth: '100%',
+      fontWeight: '700',
     },
     bodyItem: {
       height: 20,

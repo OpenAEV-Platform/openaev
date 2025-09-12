@@ -51,11 +51,7 @@ const EndpointsList: FunctionComponent<Props> = ({
 
   const inlineStyles: Record<string, CSSProperties> = {
     asset_name: { width: compact ? '40%' : '30%' },
-    asset_platform: {
-      width: compact ? '10%' : '20%',
-      display: 'flex',
-      alignItems: 'center',
-    },
+    asset_platform: { width: compact ? '10%' : '20%' },
     asset_tags: { width: '30%' },
     asset_type: { width: '20%' },
   };
