@@ -15,6 +15,7 @@ public class EndpointFixture {
   public static final String SEEN_IP = "192.168.12.21";
   public static final String ENDPOINT_DESCRIPTION = "Endpoint description";
   public static final String WINDOWS_HOSTNAME = "Windows Hostname";
+  private static final String[] NO_LOCAL_IPS = new String[0];
 
   public static EndpointInput createWindowsEndpointInput(List<String> tagIds) {
     EndpointInput input = new EndpointInput();
@@ -88,7 +89,7 @@ public class EndpointFixture {
     Endpoint endpoint = new Endpoint();
     endpoint.setName("Hostname");
     endpoint.setDescription(ENDPOINT_DESCRIPTION);
-    endpoint.setIps(new String[0]);
+    endpoint.setIps(NO_LOCAL_IPS);
     endpoint.setHostname("Linux Hostname");
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
@@ -109,7 +110,7 @@ public class EndpointFixture {
     Endpoint endpoint = new Endpoint();
     endpoint.setName("SeenIP");
     endpoint.setDescription(ENDPOINT_DESCRIPTION);
-    endpoint.setIps(new String[0]);
+    endpoint.setIps(NO_LOCAL_IPS);
     endpoint.setSeenIp(SEEN_IP);
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
@@ -122,7 +123,7 @@ public class EndpointFixture {
     endpoint.setDescription(ENDPOINT_DESCRIPTION);
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-    endpoint.setIps(new String[0]);
+    endpoint.setIps(NO_LOCAL_IPS);
     return endpoint;
   }
 }
