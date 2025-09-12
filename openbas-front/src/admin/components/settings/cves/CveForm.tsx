@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button, Tab, Tabs } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FormEvent, type SyntheticEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import { type CveCreateInput } from '../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -42,26 +44,12 @@ const CveForm = ({
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
-  const tabs = ['General', 'Remediation'];
-  const [activeTab, setActiveTab] = useState(tabs[0]);
-
-  const handleActiveTabChange = (_: SyntheticEvent, newValue: string) => {
-    setActiveTab(newValue);
-  };
 
   const {
     isValidated: isValidatedEnterpriseEdition,
     openDialog: openEnterpriseEditionDialog,
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
-
-  useEffect(() => {
-    if (activeTab === 'Remediation' && !isValidatedEnterpriseEdition) {
-      setActiveTab('General');
-      setEEFeatureDetectedInfo(t('Remediation'));
-      openEnterpriseEditionDialog();
-    }
-  }, [activeTab, isValidatedEnterpriseEdition]);
 
   const cwesObject = z.object({
     cwe_external_id: z.string().min(1, { message: t('CWE ID is required') }),
@@ -112,6 +100,33 @@ const CveForm = ({
       handleSubmit(onSubmit)(e);
     }
   };
+  const tabEntries: TabsEntry[] = [{
+    key: 'General',
+    label: t('General'),
+  }, {
+    key: 'Remediation',
+    label: (
+      <Box display="flex" alignItems="center">
+        {t('Remediation')}
+        {!isValidatedEnterpriseEdition && (
+          <EEChip
+            style={{ marginLeft: theme.spacing(1) }}
+            clickable
+            featureDetectedInfo={t('Remediation')}
+          />
+        )}
+      </Box>
+    ),
+  }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+
+  useEffect(() => {
+    if (currentTab === 'Remediation' && !isValidatedEnterpriseEdition) {
+      handleChangeTab('General');
+      setEEFeatureDetectedInfo(t('Remediation'));
+      openEnterpriseEditionDialog();
+    }
+  }, [currentTab, isValidatedEnterpriseEdition]);
 
   return (
     <FormProvider {...methods}>
@@ -125,39 +140,15 @@ const CveForm = ({
         }}
         onSubmit={handleSubmitWithoutPropagation}
       >
-
         <Tabs
-          value={activeTab}
-          onChange={handleActiveTabChange}
-          aria-label="tabs for cve form"
-        >
-          {tabs.map(tab => (
-            <Tab
-              key={tab}
-              label={
-                tab === 'Remediation' ? (
-                  <Box display="flex" alignItems="center">
-                    {tab}
-                    {!isValidatedEnterpriseEdition && (
-                      <EEChip
-                        style={{ marginLeft: theme.spacing(1) }}
-                        clickable
-                        featureDetectedInfo={t('Remediation')}
-                      />
-                    )}
-                  </Box>
-                ) : (
-                  tab
-                )
-              }
-              value={tab}
-            />
-          ))}
-        </Tabs>
-        {activeTab === 'General' && (
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={newValue => handleChangeTab(newValue)}
+        />
+        {currentTab === 'General' && (
           <GeneralFormTab editing={editing} />
         )}
-        {activeTab === 'Remediation' && isValidatedEnterpriseEdition && (
+        {currentTab === 'Remediation' && isValidatedEnterpriseEdition && (
           <RemediationFormTab />
         )}
 

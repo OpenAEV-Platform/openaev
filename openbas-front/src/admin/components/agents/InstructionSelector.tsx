@@ -1,9 +1,11 @@
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Tab, Tabs, Typography } from '@mui/material';
+import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useState } from 'react';
 
+import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
+import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type Executor, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
@@ -26,23 +28,28 @@ interface InstructionSelectorProps {
 const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, platform, selectedExecutor }) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const [activeTab, setActiveTab] = useState(0);
   const [selectedOption, setSelectedOption] = useState(USER);
   const [agentFolder] = useState<null | string>(null);
   const [arch, setArch] = useState<string>(x86_64);
 
+  const tabEntries: TabsEntry[] = [{
+    key: 'Standard Installation',
+    label: t('Standard Installation'),
+  }, {
+    key: 'Advanced Installation',
+    label: t('Advanced Installation'),
+  }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+
   const { settings } = useAuth();
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedOption(event.target.value);
   };
 
   const buildInstallationUrl = (baseUrl: string) => {
-    if (activeTab === 0) return `${baseUrl}/session-user/${userToken?.token_value}`;
-    if (activeTab === 1 && selectedOption === USER) return `${baseUrl}/service-user/${userToken?.token_value}`;
+    if (currentTab === 'Standard Installation') return `${baseUrl}/session-user/${userToken?.token_value}`;
+    if (currentTab === 'Advanced Installation' && selectedOption === USER) return `${baseUrl}/service-user/${userToken?.token_value}`;
     return `${baseUrl}/service/${userToken?.token_value}`;
   };
   const buildCalderaInstallerScript = () => {
@@ -130,15 +137,15 @@ nohup ${agentFolder ?? '/opt/openbas-caldera-agent'}/openbas-caldera-agent -serv
   const buildOpenBASInstallerScript = () => {
     const buildExtraParams = (advanced: string, standard: string, other: string) => {
       let result = other;
-      if (activeTab === 1 && selectedOption === USER) {
+      if (currentTab === 'Advanced Installation' && selectedOption === USER) {
         result = advanced;
-      } else if (activeTab === 0) {
+      } else if (currentTab === 'Standard Installation') {
         result = standard;
       }
       return result;
     };
     const buildUrlScript2Windows = () => {
-      if (activeTab === 1 && selectedOption === USER) {
+      if (currentTab === 'Advanced Installation' && selectedOption === USER) {
         return `&([scriptblock]::Create((iwr ${buildInstallationUrl(settings.platform_base_url + '/api/agent/installer/openbas/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
       }
       return `iex (iwr ${buildInstallationUrl(settings.platform_base_url + '/api/agent/installer/openbas/windows')}).Content`;
@@ -228,17 +235,17 @@ nohup ${agentFolder ?? '/opt/openbas-caldera-agent'}/openbas-caldera-agent -serv
     const buildInstallationMessage = () => {
       let message = '';
       if (selectedExecutor?.executor_type === OPENBAS_AGENT) {
-        if (activeTab === 0 && platform === WINDOWS) {
+        if (currentTab === 'Standard Installation' && platform === WINDOWS) {
           message = t('Run the following PowerShell snippet in a standard prompt or download the .ps1 script.');
-        } else if (activeTab === 0 && platform !== WINDOWS) {
+        } else if (currentTab === 'Standard Installation' && platform !== WINDOWS) {
           message = t('Run the following bash snippet in a terminal or download the .sh script.');
-        } else if (activeTab !== 0 && platform === WINDOWS && selectedOption === USER) {
+        } else if (currentTab !== 'Standard Installation' && platform === WINDOWS && selectedOption === USER) {
           message = `${t('To install, copy and paste the following PowerShell snippet into an elevated prompt or download the .ps1 script.')} ${t('It can be run as administrator or as a standard user depending on the user rights used in the script parameters.')}`;
-        } else if (activeTab !== 0 && platform === WINDOWS && selectedOption !== USER) {
+        } else if (currentTab !== 'Standard Installation' && platform === WINDOWS && selectedOption !== USER) {
           message = `${t('To install, copy and paste the following PowerShell snippet into an elevated prompt or download the .ps1 script and run it with administrator privileges.')} ${t('Installing it as a system grants system-wide privileges.')}`;
-        } else if (activeTab !== 0 && platform !== WINDOWS && selectedOption === USER) {
+        } else if (currentTab !== 'Standard Installation' && platform !== WINDOWS && selectedOption === USER) {
           message = `${t('To install, copy and paste the following bash snippet into a terminal with root privileges, or download the .sh script and run it as root.')} ${t('It can be run as administrator or as a standard user depending on the user rights used in the script parameters.')}`;
-        } else if (activeTab !== 0 && platform !== WINDOWS && selectedOption !== USER) {
+        } else if (currentTab !== 'Standard Installation' && platform !== WINDOWS && selectedOption !== USER) {
           message = `${t('To install, copy and paste the following bash snippet into a terminal with root privileges, or download the .sh script and run it as root.')} ${t(`Installing it as a system grants system-wide privileges.`)}`;
         }
       } else if (selectedExecutor?.executor_type !== OPENBAS_AGENT && platform === WINDOWS) {
@@ -386,12 +393,13 @@ nohup ${agentFolder ?? '/opt/openbas-caldera-agent'}/openbas-caldera-agent -serv
           {/* OBAS */}
           {selectedExecutor && selectedExecutor.executor_type === OPENBAS_AGENT && (
             <div>
-              <Tabs value={activeTab} onChange={handleTabChange}>
-                <Tab label={t('Standard Installation')} />
-                <Tab label={t('Advanced Installation')} />
-              </Tabs>
-              {activeTab === 0 && (buildStandardInstallation())}
-              {activeTab === 1 && (buildAdvancedInstallation())}
+              <Tabs
+                entries={tabEntries}
+                currentTab={currentTab}
+                onChange={newValue => handleChangeTab(newValue)}
+              />
+              {currentTab === 'Standard Installation' && (buildStandardInstallation())}
+              {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
             </div>
           )}
         </div>
