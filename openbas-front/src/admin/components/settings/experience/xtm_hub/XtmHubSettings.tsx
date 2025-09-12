@@ -6,6 +6,8 @@ import type { LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import type { PlatformSettings } from '../../../../../utils/api-types';
+import { Can } from '../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
 import XtmHubTab from './XtmHubTab';
 import XtmHubUnregisteredSection from './XtmHubUnregisteredSection';
@@ -35,7 +37,9 @@ const XtmHubSettings: React.FC = () => {
         >
           {t('XTM Hub')}
         </Typography>
-        <XtmHubTab />
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.XTM_HUB_REGISTRATION}>
+          <XtmHubTab />
+        </Can>
       </div>
       <Paper
         style={{

@@ -1,5 +1,8 @@
 package io.openbas.xtmhub;
 
+import io.openbas.aop.RBAC;
+import io.openbas.database.model.Action;
+import io.openbas.database.model.ResourceType;
 import io.openbas.database.model.User;
 import io.openbas.rest.settings.response.PlatformSettings;
 import io.openbas.service.PlatformSettingsService;
@@ -25,6 +28,7 @@ public class XtmHubService {
     this.userService = userService;
   }
 
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_SETTINGS)
   public PlatformSettings register(@NotBlank final String token) {
     User currentUser = userService.currentUser();
     return this.platformSettingsService.updateXTMHubRegistration(
@@ -36,6 +40,7 @@ public class XtmHubService {
     );
   }
 
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_SETTINGS)
   public PlatformSettings unregister() {
     return this.platformSettingsService.updateXTMHubRegistration(
       null,
