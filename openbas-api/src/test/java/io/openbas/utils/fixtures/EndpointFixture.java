@@ -6,6 +6,7 @@ import io.openbas.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openbas.utils.mapper.EndpointMapper;
 import java.time.Instant;
 import java.util.List;
+import org.apache.logging.log4j.util.Strings;
 
 public class EndpointFixture {
 
@@ -98,7 +99,7 @@ public class EndpointFixture {
   public static Endpoint createEndpointOnlyWithLocalIP() {
     Endpoint endpoint = baseEndpoint("LocalIP", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(EndpointMapper.setIps(IPS));
-    endpoint.setHostname(null);
+    endpoint.setHostname(Strings.EMPTY);
     return endpoint;
   }
 
@@ -106,7 +107,7 @@ public class EndpointFixture {
     Endpoint endpoint = baseEndpoint("SeenIP", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
     endpoint.setSeenIp(SEEN_IP);
-    endpoint.setHostname(null);
+    endpoint.setHostname(Strings.EMPTY);
     return endpoint;
   }
 
