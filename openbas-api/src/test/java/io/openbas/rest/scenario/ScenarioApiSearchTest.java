@@ -160,7 +160,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
           throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.simpleSearchWithAndOperator(
-                "scenario_category", "incident-response", contains);
+                "scenario_category", Scenario.MAIN_FOCUS_INCIDENT_RESPONSE, contains);
 
         mvc.perform(
                 post(SCENARIO_URI + "/search")

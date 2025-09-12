@@ -1,6 +1,7 @@
 package io.openbas.rest.exercise.service;
 
 import static io.openbas.utils.InjectExpectationResultUtils.getResultDetail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,29 +26,34 @@ import io.openbas.service.TagRuleService;
 import io.openbas.service.TeamService;
 import io.openbas.service.UserService;
 import io.openbas.service.VariableService;
+import io.openbas.service.cron.CronService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
 import io.openbas.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openbas.utils.ResultUtils;
-import io.openbas.utils.fixtures.AssetGroupFixture;
-import io.openbas.utils.fixtures.ExerciseFixture;
-import io.openbas.utils.fixtures.ExpectationResultsByTypeFixture;
-import io.openbas.utils.fixtures.TagFixture;
+import io.openbas.utils.fixtures.*;
+import io.openbas.utils.fixtures.composers.ExerciseComposer;
+import io.openbas.utils.fixtures.composers.ScenarioComposer;
 import io.openbas.utils.mapper.ExerciseMapper;
 import io.openbas.utils.mapper.InjectExpectationMapper;
 import io.openbas.utils.mapper.InjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
 
-@SpringBootTest
+@Transactional
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest extends IntegrationTest {
 
@@ -77,14 +83,21 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
+  @Mock private CronService cronService;
+
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private EntityManager entityManager;
+  @Autowired private ExerciseService actualExerciseService;
+
   @Mock private DashboardService dashboardService;
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
-  @InjectMocks private ExerciseService exerciseService;
+  @InjectMocks private ExerciseService mockedExerciseService;
 
   @BeforeEach
   void setUp() {
-    exerciseService =
+    mockedExerciseService =
         new ExerciseService(
             eeService,
             grantService,
@@ -94,6 +107,7 @@ class ExerciseServiceTest extends IntegrationTest {
             tagRuleService,
             documentService,
             injectService,
+            cronService,
             userService,
             dashboardService,
             exerciseMapper,
@@ -112,6 +126,9 @@ class ExerciseServiceTest extends IntegrationTest {
             injectRepository,
             lessonsCategoryRepository,
             injectExpectationMapper);
+
+    scenarioComposer.reset();
+    exerciseComposer.reset();
   }
 
   @Test
@@ -131,13 +148,13 @@ class ExerciseServiceTest extends IntegrationTest {
     when(exerciseRepository.findInjectsByExercise(exerciseId1)).thenReturn(exercise1InjectIds);
     when(exerciseRepository.findInjectsByExercise(exerciseId2)).thenReturn(exercise2InjectIds);
 
-    when(resultUtils.getResultsByTypes(exercise1InjectIds))
+    when(resultUtils.computeGlobalExpectationResults(exercise1InjectIds))
         .thenReturn(ExpectationResultsByTypeFixture.exercise1GlobalScores);
-    when(resultUtils.getResultsByTypes(exercise2InjectIds))
+    when(resultUtils.computeGlobalExpectationResults(exercise2InjectIds))
         .thenReturn(ExpectationResultsByTypeFixture.exercise2GlobalScores);
 
     var results =
-        exerciseService.getExercisesGlobalScores(
+        mockedExerciseService.getExercisesGlobalScores(
             new ExercisesGlobalScoresInput(List.of(exerciseId1, exerciseId2)));
 
     assertEquals(
@@ -169,7 +186,7 @@ class ExerciseServiceTest extends IntegrationTest {
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
     when(injectService.canApplyAssetGroupToInject(any())).thenReturn(true);
 
-    exerciseService.updateExercice(exercise, currentTags, true);
+    mockedExerciseService.updateExercice(exercise, currentTags, true);
 
     exercise
         .getInjects()
@@ -202,7 +219,7 @@ class ExerciseServiceTest extends IntegrationTest {
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
     when(injectService.canApplyAssetGroupToInject(any())).thenReturn(false);
 
-    exerciseService.updateExercice(exercise, currentTags, true);
+    mockedExerciseService.updateExercice(exercise, currentTags, true);
 
     verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
     verify(exerciseRepository).save(exercise);
@@ -224,7 +241,7 @@ class ExerciseServiceTest extends IntegrationTest {
 
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
 
-    exerciseService.updateExercice(exercise, currentTags, false);
+    mockedExerciseService.updateExercice(exercise, currentTags, false);
 
     verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
   }
@@ -246,7 +263,7 @@ class ExerciseServiceTest extends IntegrationTest {
                 InjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
 
-    assertFalse(exerciseService.isThereAScoreDegradation(resultsMap, resultsMap));
+    assertFalse(mockedExerciseService.isThereAScoreDegradation(resultsMap, resultsMap));
   }
 
   @Test
@@ -278,7 +295,8 @@ class ExerciseServiceTest extends IntegrationTest {
                 ExpectationType.PREVENTION,
                 InjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
-    assertTrue(exerciseService.isThereAScoreDegradation(lastResultsMap, secondLastResultsMap));
+    assertTrue(
+        mockedExerciseService.isThereAScoreDegradation(lastResultsMap, secondLastResultsMap));
   }
 
   @Test
@@ -309,7 +327,8 @@ class ExerciseServiceTest extends IntegrationTest {
                 ExpectationType.HUMAN_RESPONSE,
                 InjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
-    assertFalse(exerciseService.isThereAScoreDegradation(lastResultsMap, secondLastResultsMap));
+    assertFalse(
+        mockedExerciseService.isThereAScoreDegradation(lastResultsMap, secondLastResultsMap));
   }
 
   @Test
@@ -340,6 +359,296 @@ class ExerciseServiceTest extends IntegrationTest {
                 ExpectationType.PREVENTION,
                 InjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
+  }
+
+  @Nested
+  @DisplayName("Tests for latest validity date")
+  public class LatestValidityDate {
+    @Nested
+    @DisplayName("With recurring scenario")
+    public class WithRecurringScenario {
+      private ScenarioComposer.Composer scenarioWrapper;
+
+      @BeforeEach
+      public void setup() {
+        scenarioWrapper =
+            scenarioComposer.forScenario(
+                ScenarioFixture.getScenarioWithRecurrence("56 43 10 * * *"));
+      }
+
+      @Nested
+      @DisplayName("With successor Simulation")
+      public class WithSuccessorSimulation {
+        private ExerciseComposer.Composer successorSimulationWrapper;
+        private final Instant successorSimulationStartTime = Instant.parse("2022-04-24T01:02:03Z");
+
+        @BeforeEach
+        public void setup() {
+          Exercise successorFixture = ExerciseFixture.createDefaultExercise();
+          successorFixture.setStart(successorSimulationStartTime);
+          successorSimulationWrapper = exerciseComposer.forExercise(successorFixture);
+        }
+
+        @Nested
+        @DisplayName("When considered simulation has started")
+        public class WhenConsideredSimulationHasStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+          private final Instant consideredSimulationStartTime =
+              Instant.parse("2022-04-23T01:02:03Z");
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredFixture.setStart(consideredSimulationStartTime);
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Is valid until successor start date")
+          public void isValidUntilSuccessorStartDate() {
+            scenarioWrapper
+                .withSimulation(consideredSimulationWrapper)
+                .withSimulation(successorSimulationWrapper)
+                .persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isPresent().get().isEqualTo(successorSimulationStartTime);
+          }
+        }
+
+        @Nested
+        @DisplayName("When considered simulation has not started")
+        public class WhenConsideredSimulationHasNotStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Has no validity date")
+          public void isValidUntilSuccessorStartDate() {
+            scenarioWrapper
+                .withSimulation(consideredSimulationWrapper)
+                .withSimulation(successorSimulationWrapper)
+                .persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isEmpty();
+          }
+        }
+      }
+
+      @Nested
+      @DisplayName("Without successor Simulation")
+      public class WithoutSuccessorSimulation {
+        @Nested
+        @DisplayName("When considered simulation has started")
+        public class WhenConsideredSimulationHasStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+          private final Instant consideredSimulationStartTime =
+              Instant.parse("2022-04-23T01:02:03Z");
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredFixture.setStart(consideredSimulationStartTime);
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Is valid until next scenario trigger")
+          public void isValidUntilNextScenarioTrigger() {
+            scenarioWrapper.withSimulation(consideredSimulationWrapper).persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Instant expected = Instant.parse("2022-04-23T10:43:56Z");
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isPresent().get().isEqualTo(expected);
+          }
+        }
+
+        @Nested
+        @DisplayName("When considered simulation has not started")
+        public class WhenConsideredSimulationHasNotStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Has no validity date")
+          public void isValidUntilSuccessorStartDate() {
+            scenarioWrapper.withSimulation(consideredSimulationWrapper).persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isEmpty();
+          }
+        }
+      }
+    }
+
+    @Nested
+    @DisplayName("With non-recurring scenario")
+    public class WithNonRecurringScenario {
+      private ScenarioComposer.Composer scenarioWrapper;
+
+      @BeforeEach
+      public void setup() {
+        scenarioWrapper = scenarioComposer.forScenario(ScenarioFixture.getScenario());
+      }
+
+      @Nested
+      @DisplayName("With successor Simulation")
+      public class WithSuccessorSimulation {
+        private ExerciseComposer.Composer successorSimulationWrapper;
+        private final Instant successorSimulationStartTime = Instant.parse("2022-04-24T01:02:03Z");
+
+        @BeforeEach
+        public void setup() {
+          Exercise successorFixture = ExerciseFixture.createDefaultExercise();
+          successorFixture.setStart(successorSimulationStartTime);
+          successorSimulationWrapper = exerciseComposer.forExercise(successorFixture);
+        }
+
+        @Nested
+        @DisplayName("When considered simulation has started")
+        public class WhenConsideredSimulationHasStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+          private final Instant consideredSimulationStartTime =
+              Instant.parse("2022-04-23T01:02:03Z");
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredFixture.setStart(consideredSimulationStartTime);
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Is valid until successor start date")
+          public void isValidUntilSuccessorStartDate() {
+            scenarioWrapper
+                .withSimulation(consideredSimulationWrapper)
+                .withSimulation(successorSimulationWrapper)
+                .persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isPresent().get().isEqualTo(successorSimulationStartTime);
+          }
+        }
+
+        @Nested
+        @DisplayName("When considered simulation has not started")
+        public class WhenConsideredSimulationHasNotStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Has no validity date")
+          public void isValidUntilSuccessorStartDate() {
+            scenarioWrapper
+                .withSimulation(consideredSimulationWrapper)
+                .withSimulation(successorSimulationWrapper)
+                .persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isEmpty();
+          }
+        }
+      }
+
+      @Nested
+      @DisplayName("Without successor Simulation")
+      public class WithoutSuccessorSimulation {
+        @Nested
+        @DisplayName("When considered simulation has started")
+        public class WhenConsideredSimulationHasStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+          private final Instant consideredSimulationStartTime =
+              Instant.parse("2022-04-23T01:02:03Z");
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredFixture.setStart(consideredSimulationStartTime);
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Has no validity date")
+          public void isValidUntilNextScenarioTrigger() {
+            scenarioWrapper.withSimulation(consideredSimulationWrapper).persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isEmpty();
+          }
+        }
+
+        @Nested
+        @DisplayName("When considered simulation has not started")
+        public class WhenConsideredSimulationHasNotStarted {
+          ExerciseComposer.Composer consideredSimulationWrapper;
+
+          @BeforeEach
+          public void setup() {
+            Exercise consideredFixture = ExerciseFixture.createDefaultExercise();
+            consideredSimulationWrapper = exerciseComposer.forExercise(consideredFixture);
+          }
+
+          @Test
+          @DisplayName("Has no validity date")
+          public void isValidUntilSuccessorStartDate() {
+            scenarioWrapper.withSimulation(consideredSimulationWrapper).persist();
+            entityManager.flush();
+            scenarioComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+            exerciseComposer.generatedItems.forEach(e -> entityManager.refresh(e));
+
+            Optional<Instant> latestValidity =
+                actualExerciseService.getLatestValidityDate(consideredSimulationWrapper.get());
+            assertThat(latestValidity).isEmpty();
+          }
+        }
+      }
+    }
   }
 
   private AssetGroup getAssetGroup(String name) {

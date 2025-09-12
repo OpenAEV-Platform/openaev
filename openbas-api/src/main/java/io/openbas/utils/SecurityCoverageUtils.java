@@ -1,7 +1,5 @@
 package io.openbas.utils;
 
-import static io.openbas.utils.constants.StixConstants.STIX_ATTACK_PATTERN_TYPE;
-import static io.openbas.utils.constants.StixConstants.STIX_ID;
 import static io.openbas.utils.constants.StixConstants.STIX_NAME;
 import static io.openbas.utils.constants.StixConstants.STIX_TYPE;
 import static io.openbas.utils.constants.StixConstants.STIX_X_MITRE_ID;
@@ -10,6 +8,8 @@ import static io.openbas.utils.constants.StixConstants.STIX_X_SECURITY_COVERAGE;
 import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.ObjectBase;
+import io.openbas.stix.objects.constants.CommonProperties;
+import io.openbas.stix.objects.constants.ObjectTypes;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -52,14 +52,14 @@ public class SecurityCoverageUtils {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
       String refId;
 
-      if (STIX_ATTACK_PATTERN_TYPE.equals(stixType)) {
+      if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         refId = (String) obj.getProperty(STIX_X_MITRE_ID).getValue();
       } else {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
       }
 
       if (refId != null) {
-        String stixId = (String) obj.getProperty(STIX_ID).getValue();
+        String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
         if (stixId != null) {
           stixToRef.add(new StixRefToExternalRef(stixId, refId));
         }

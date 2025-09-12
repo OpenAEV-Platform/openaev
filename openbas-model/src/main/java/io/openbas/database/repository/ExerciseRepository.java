@@ -81,6 +81,15 @@ public interface ExerciseRepository
       nativeQuery = true)
   List<Exercise> thatMustBeFinished();
 
+  @Query(
+      """
+    SELECT e FROM Exercise e, Scenario s
+    WHERE e.scenario.id = s.id AND s.id = :#{#exercise.scenario.id}
+      AND e.launchOrder > :#{#exercise.launchOrder}
+    ORDER BY e.launchOrder ASC LIMIT 1
+    """)
+  Optional<Exercise> following(@Param("exercise") Exercise exercise);
+
   /**
    * Get all the expectations created from a date
    *
