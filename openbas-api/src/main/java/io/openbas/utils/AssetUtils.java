@@ -35,13 +35,8 @@ public class AssetUtils {
       return ContractTargetedProperty.hostname;
     } else if (endpoint.getSeenIp() != null && !endpoint.getSeenIp().isBlank()) {
       return ContractTargetedProperty.seen_ip;
-    } else if (endpoint.getIps() != null
-        && endpoint.getIps().length > 0
-        && endpoint.getIps()[0] != null
-        && !endpoint.getIps()[0].isBlank()) {
+    } else {
       return ContractTargetedProperty.local_ip;
     }
-    log.warn("Endpoint {} has no target property (hostname, seen IP, or local IP).", endpoint);
-    return null; // If an asset has no target property, it will not be included in the injects.
   }
 }
