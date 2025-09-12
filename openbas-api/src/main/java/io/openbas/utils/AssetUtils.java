@@ -2,12 +2,11 @@ package io.openbas.utils;
 
 import io.openbas.database.model.Endpoint;
 import io.openbas.injector_contract.ContractTargetedProperty;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 
 @Slf4j
 public class AssetUtils {
