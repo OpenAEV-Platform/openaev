@@ -11,6 +11,7 @@ import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.service.AssetGroupService;
 import io.openbas.service.stix.InjectStixAssistantService;
+import io.openbas.utils.AssetUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -100,25 +101,11 @@ public class SecurityCoverageInjectService {
         assetsFromGroupMap.values().stream()
             .flatMap(List::stream)
             .filter(Objects::nonNull)
-            .collect(Collectors.groupingBy(this::getTargetProperty, Collectors.toSet()));
+            .collect(Collectors.groupingBy(AssetUtils::getTargetProperty, Collectors.toSet()));
 
-    // 4. In other case, Injects are created with injectorContracts related to these vulnerabilities
+    // 4. Now, njects are created with injectorContracts related to these vulnerabilities
     injectStixAssistantService.generateInjectsWithTargetsByVulnerabilities(
         scenario, vulnerabilities, assetsByTargetProperty, NUMBER_OF_INJECTS);
-  }
-
-  private ContractTargetedProperty getTargetProperty(Endpoint e) {
-    if (e.getHostname() != null && !e.getHostname().isBlank()) {
-      return ContractTargetedProperty.hostname;
-    } else if (e.getSeenIp() != null && !e.getSeenIp().isBlank()) {
-      return ContractTargetedProperty.seen_ip;
-    } else if (e.getIps() != null
-        && e.getIps().length > 0
-        && e.getIps()[0] != null
-        && !e.getIps()[0].isBlank()) {
-      return ContractTargetedProperty.local_ip;
-    }
-    return null;
   }
 
   /**

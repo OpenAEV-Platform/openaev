@@ -87,6 +87,17 @@ public class InjectAssistantService {
   }
 
   /**
+   * Builds a manual Inject with default platform and architecture in the title
+   *
+   * @param identifier the AttackPattern or vulnerability to specify in the title and description of
+   *     the Inject
+   * @return the built manual Inject object
+   */
+  public Inject buildManualInjectDefaultPlatformAndArchitecture(String identifier) {
+    return buildManualInject(identifier, "[any platform]", "[any architecture]");
+  }
+
+  /**
    * Get all platform-architecture pairs that are supported by the system.
    *
    * @return a list of all platform-architecture pairs

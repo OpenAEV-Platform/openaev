@@ -1,6 +1,7 @@
 package io.openbas.utils;
 
 import io.openbas.database.model.Endpoint;
+import io.openbas.injector_contract.ContractTargetedProperty;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,5 +20,25 @@ public class AssetUtils {
     return endpointList.stream()
         .map(ep -> Pair.of(ep.getPlatform(), ep.getArch().name()))
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * Extract target property from an Asset
+   *
+   * @param endpoint
+   * @return Target property: hostname, local IP or Seen IP
+   */
+  public static ContractTargetedProperty getTargetProperty(Endpoint endpoint) {
+    if (endpoint.getHostname() != null && !endpoint.getHostname().isBlank()) {
+      return ContractTargetedProperty.hostname;
+    } else if (endpoint.getSeenIp() != null && !endpoint.getSeenIp().isBlank()) {
+      return ContractTargetedProperty.seen_ip;
+    } else if (endpoint.getIps() != null
+        && endpoint.getIps().length > 0
+        && endpoint.getIps()[0] != null
+        && !endpoint.getIps()[0].isBlank()) {
+      return ContractTargetedProperty.local_ip;
+    }
+    return null; // If an asset has no target property, it will not be included in the injects.
   }
 }
