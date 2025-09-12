@@ -5,6 +5,8 @@ import io.openbas.database.model.Tag;
 import io.openbas.database.model.TagRule;
 import io.openbas.rest.tag_rule.form.TagRuleInput;
 import io.openbas.rest.tag_rule.form.TagRuleOutput;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +32,7 @@ public class TagRuleFixture {
     assetGroup2.setName(ASSET_GROUP_NAME_2);
 
     TagRule rule = new TagRule();
-    rule.setAssetGroups(List.of(assetGroup1, assetGroup2));
+    rule.setAssetGroups(new ArrayList<>(Arrays.asList(assetGroup1, assetGroup2)));
     rule.setTag(tag);
     rule.setId(tagRuleId);
 

@@ -4,6 +4,7 @@ import static io.openbas.api.stix_process.StixApi.STIX_URI;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2025_56785;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -13,13 +14,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.Scenario;
-import io.openbas.database.model.StixRefToExternalRef;
+import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
-import io.openbas.utils.fixtures.composers.AttackPatternComposer;
+import io.openbas.utils.fixtures.*;
+import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import jakarta.annotation.Resource;
@@ -27,6 +27,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.io.IOUtils;
@@ -53,11 +55,20 @@ class StixApiTest extends IntegrationTest {
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
 
   @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private CveComposer vulnerabilityComposer;
+  @Autowired private TagRuleComposer tagRuleComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private TagComposer tagComposer;
 
   private String stixSecurityCoverage;
   private String stixSecurityCoverageWithoutTtps;
   private String stixSecurityCoverageWithoutVulns;
   private String stixSecurityCoverageWithoutObjects;
+  private String stixSecurityCoverageOnlyVulns;
+  private AssetGroupComposer.Composer completeTargetProperties;
+  private AssetGroupComposer.Composer hostnameSeenIp;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -72,12 +83,16 @@ class StixApiTest extends IntegrationTest {
                 "src/test/resources/stix-bundles/security-coverage-without-vulns.json");
         FileInputStream withoutObjects =
             new FileInputStream(
-                "src/test/resources/stix-bundles/security-coverage-without-objects.json")) {
+                "src/test/resources/stix-bundles/security-coverage-without-objects.json");
+        FileInputStream onlyVulns =
+            new FileInputStream(
+                "src/test/resources/stix-bundles/security-coverage-only-vulns.json")) {
 
       stixSecurityCoverage = IOUtils.toString(complete, StandardCharsets.UTF_8);
       stixSecurityCoverageWithoutTtps = IOUtils.toString(withoutAttacks, StandardCharsets.UTF_8);
       stixSecurityCoverageWithoutVulns = IOUtils.toString(withoutVulns, StandardCharsets.UTF_8);
       stixSecurityCoverageWithoutObjects = IOUtils.toString(withoutObjects, StandardCharsets.UTF_8);
+      stixSecurityCoverageOnlyVulns = IOUtils.toString(onlyVulns, StandardCharsets.UTF_8);
     }
 
     attackPatternComposer
@@ -86,11 +101,51 @@ class StixApiTest extends IntegrationTest {
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
+
+    Asset hostname =
+        endpointComposer
+            .forEndpoint(EndpointFixture.createEndpointOnlyWithHostname())
+            .persist()
+            .get();
+    Asset seenIp =
+        endpointComposer
+            .forEndpoint(EndpointFixture.createEndpointOnlyWithSeenIP())
+            .persist()
+            .get();
+    Asset localIp =
+        endpointComposer
+            .forEndpoint(EndpointFixture.createEndpointOnlyWithLocalIP())
+            .persist()
+            .get();
+
+    hostnameSeenIp =
+        assetGroupComposer
+            .forAssetGroup(
+                AssetGroupFixture.createAssetGroupWithAssets(
+                    "HostnameSeenIp", List.of(hostname, seenIp)))
+            .persist();
+
+    completeTargetProperties =
+        assetGroupComposer
+            .forAssetGroup(
+                AssetGroupFixture.createAssetGroupWithAssets(
+                    "Complete target properties",
+                    new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
+            .persist();
+
+    CveComposer.Composer cveComposer =
+        vulnerabilityComposer.forCve(CveFixture.createDefaultCve(CVE_2025_56785));
+
+    injectorContractComposer
+        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+        .withVulnerability(cveComposer)
+        .persist();
   }
 
   @AfterEach
   void afterEach() {
     attackPatternComposer.reset();
+    vulnerabilityComposer.reset();
   }
 
   @Nested
@@ -388,6 +443,94 @@ class StixApiTest extends IntegrationTest {
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
       assertThat(injects).hasSize(0);
+    }
+
+    @Test
+    @DisplayName(
+        "Should create scenario with 3 injects for every different target property in asset groups related to targetRule")
+    void shouldCreateScenarioWithOneInjectByTargetProperty() throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
+          .withAssetGroup(completeTargetProperties)
+          .persist();
+
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulns))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(3);
+
+      // Check cve, property
+
+    }
+
+    @Test
+    @DisplayName(
+        "Should create scenario with 1 injects for vulnerability knowing that non target was identified")
+    void shouldCreateScenarioWithOneInjectsWhenNoTargetWasIdentified() throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
+          .persist();
+
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulns))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
+    }
+
+    @Test
+    @DisplayName(
+        "Should create scenario with 3 injects for every different target property in asset groups related to targetRule")
+    void shouldCreateScenarioWithOneInjectsWhen() throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
+          .persist();
+
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulns))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
     }
 
     @Test
