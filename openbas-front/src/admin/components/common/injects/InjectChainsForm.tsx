@@ -942,7 +942,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
 
       <div className={classes.importerStyle}>
         <Typography variant="h2" sx={{ m: 0 }}>
-          {t('Childrens')}
+          {t('Children')}
         </Typography>
         <IconButton
           color="secondary"
