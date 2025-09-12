@@ -134,10 +134,6 @@ public class InjectExpectationService {
       propagateTechnicalExpectation(updated, isAgentless);
     }
 
-    List<Exercise> exercises = new ArrayList<>();
-    exercises.add(updated.getInject().getExercise());
-    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
-
     return updated;
   }
 
@@ -177,6 +173,11 @@ public class InjectExpectationService {
       expectations.addAll(propagateToPlayers(injectExpectation, result));
     }
     this.injectExpectationRepository.saveAll(expectations);
+
+    // Security coverage job creation
+    List<Exercise> exercises = new ArrayList<>();
+    exercises.add(injectExpectation.getInject().getExercise());
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
   }
 
   private List<InjectExpectation> propagateToPlayers(
@@ -202,48 +203,11 @@ public class InjectExpectationService {
     List<InjectExpectation> expectationsForPlayers =
         getExpectationsPlayersForTeam(injectExpectation);
     List<InjectExpectation> expectationForTeams = getExpectationTeams(injectExpectation);
-
-    final boolean noExpectationScore = noExpectationScore(expectationsForPlayers);
-    final boolean anyPlayerSuccess =
-        anyExpectationsMatch(
-            expectationsForPlayers, score -> score >= injectExpectation.getExpectedScore());
-    final boolean allPlayerSuccess =
-        allExpectationsMatch(
-            expectationsForPlayers, score -> score >= injectExpectation.getExpectedScore());
-    final boolean anyPlayerError =
-        anyExpectationsMatch(
-            expectationsForPlayers, score -> score < injectExpectation.getExpectedScore());
-    final boolean allPlayerError =
-        allExpectationsMatch(
-            expectationsForPlayers, score -> score < injectExpectation.getExpectedScore());
-
-    expectationForTeams.forEach(
-        expectation -> {
-          expectation.getResults().clear();
-          if (noExpectationScore) {
-            expectation.setScore(null);
-            return;
-          }
-
-          Double score = null;
-          if (expectation.isExpectationGroup()) {
-            if (anyPlayerSuccess) {
-              score = InjectExpectationUtils.computeScore(expectation, true);
-            } else if (allPlayerError) {
-              score = InjectExpectationUtils.computeScore(expectation, false);
-            }
-          } else {
-            if (allPlayerSuccess) {
-              score = InjectExpectationUtils.computeScore(expectation, true);
-            } else if (anyPlayerError) {
-              score = InjectExpectationUtils.computeScore(expectation, false);
-            }
-          }
-          expectation.setScore(score);
-          if (result != null) {
-            expectation.getResults().add(buildForPlayerManualValidation(result, score));
-          }
-        });
+    computeScores(
+        expectationsForPlayers,
+        expectationForTeams,
+        injectExpectation,
+        (score) -> buildForPlayerManualValidation(result, score));
     return expectationForTeams;
   }
 
@@ -260,7 +224,7 @@ public class InjectExpectationService {
     injectExpectation.setScore(score);
   }
 
-  public void propagateTechnicalExpectation(
+  private void propagateTechnicalExpectation(
       @NotNull final InjectExpectation injectExpectation, final boolean isAgentless) {
     List<InjectExpectation> expectations = new ArrayList<>();
     // 1) Agent -> Asset
@@ -271,6 +235,11 @@ public class InjectExpectationService {
     // 2) Asset -> Asset Group
     expectations.addAll(propagateToAssetGroup(injectExpectation));
     this.injectExpectationRepository.saveAll(expectations);
+
+    // Security coverage job creation
+    List<Exercise> exercises = new ArrayList<>();
+    exercises.add(injectExpectation.getInject().getExercise());
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
   }
 
   private List<InjectExpectation> propagateToAsset(
@@ -278,30 +247,7 @@ public class InjectExpectationService {
     List<InjectExpectation> expectationsForAgents =
         getExpectationsAgentsForAsset(injectExpectation);
     List<InjectExpectation> expectationsForAssets = getExpectationsAssets(injectExpectation);
-
-    final boolean noExpectationScore = noExpectationScore(expectationsForAgents);
-    final boolean allAgentSuccess =
-        allExpectationsMatch(
-            expectationsForAgents, score -> score >= injectExpectation.getExpectedScore());
-    final boolean anyAgentError =
-        anyExpectationsMatch(
-            expectationsForAgents, score -> score < injectExpectation.getExpectedScore());
-
-    expectationsForAssets.forEach(
-        expectation -> {
-          if (noExpectationScore) {
-            expectation.setScore(null);
-            return;
-          }
-
-          Double score = null;
-          if (allAgentSuccess) {
-            score = InjectExpectationUtils.computeScore(expectation, true);
-          } else if (anyAgentError) {
-            score = InjectExpectationUtils.computeScore(expectation, false);
-          }
-          expectation.setScore(score);
-        });
+    computeScores(expectationsForAgents, expectationsForAssets, injectExpectation, null);
     return expectationsForAssets;
   }
 
@@ -312,44 +258,7 @@ public class InjectExpectationService {
           getExpectationsAssetsForAssetGroup(injectExpectation);
       List<InjectExpectation> expectationForAssetGroups =
           getExpectationAssetGroups(injectExpectation);
-
-      final boolean noExpectationScore = noExpectationScore(expectationsForAssets);
-      final boolean anyAssetSuccess =
-          anyExpectationsMatch(
-              expectationsForAssets, score -> score >= injectExpectation.getExpectedScore());
-      final boolean allAssetSuccess =
-          allExpectationsMatch(
-              expectationsForAssets, score -> score >= injectExpectation.getExpectedScore());
-      final boolean anyAssetError =
-          anyExpectationsMatch(
-              expectationsForAssets, score -> score < injectExpectation.getExpectedScore());
-      final boolean allAssetError =
-          allExpectationsMatch(
-              expectationsForAssets, score -> score < injectExpectation.getExpectedScore());
-
-      expectationForAssetGroups.forEach(
-          expectation -> {
-            if (noExpectationScore) {
-              expectation.setScore(null);
-              return;
-            }
-
-            Double score = null;
-            if (expectation.isExpectationGroup()) {
-              if (anyAssetSuccess) {
-                score = InjectExpectationUtils.computeScore(expectation, true);
-              } else if (allAssetError) {
-                score = InjectExpectationUtils.computeScore(expectation, false);
-              }
-            } else {
-              if (allAssetSuccess) {
-                score = InjectExpectationUtils.computeScore(expectation, true);
-              } else if (anyAssetError) {
-                score = InjectExpectationUtils.computeScore(expectation, false);
-              }
-            }
-            expectation.setScore(score);
-          });
+      computeScores(expectationsForAssets, expectationForAssetGroups, injectExpectation, null);
       return expectationForAssetGroups;
     }
     return new ArrayList<>();
@@ -363,10 +272,6 @@ public class InjectExpectationService {
     Collector collector = this.collectorService.collector(input.getCollectorId());
 
     computeTechnicalExpectation(injectExpectation, collector, input);
-
-    List<Exercise> exercises = new ArrayList<>();
-    exercises.add(injectExpectation.getInject().getExercise());
-    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
 
     return injectExpectation;
   }
@@ -546,8 +451,8 @@ public class InjectExpectationService {
                     injectId, targetId, "not applicable", targetType);
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
-            case AGENT -> injectExpectationRepository.findAllForAgent(injectId, targetId);
-            case ASSETS -> injectExpectationRepository.findAllForAsset(injectId, targetId);
+            case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
+            case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
             default ->
                 throw new RuntimeException(
                     "Target type "
@@ -571,9 +476,10 @@ public class InjectExpectationService {
         case PLAYERS ->
             injectExpectationRepository.findAllByInjectAndTeamAndPlayer(
                 injectId, parentTargetId, targetId);
-        case AGENT -> injectExpectationRepository.findAllForAgent(injectId, targetId);
-        case ASSETS -> injectExpectationRepository.findAllForAsset(injectId, targetId);
-        case ASSETS_GROUPS -> injectExpectationRepository.findAllForAssetGroup(injectId, targetId);
+        case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
+        case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+        case ASSETS_GROUPS ->
+            injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
         default ->
             throw new RuntimeException(
                 "Target type "
@@ -599,7 +505,7 @@ public class InjectExpectationService {
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
     List<InjectExpectation> injectExpectations =
-        this.injectExpectationRepository.findAllForAgent(injectId, agentId);
+        this.injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
 
     injectExpectations.forEach(
         expectation -> {

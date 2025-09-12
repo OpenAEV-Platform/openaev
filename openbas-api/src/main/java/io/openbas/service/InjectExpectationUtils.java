@@ -4,16 +4,19 @@ import static io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static java.util.Optional.ofNullable;
 
 import io.openbas.database.model.InjectExpectation;
+import io.openbas.database.model.InjectExpectationResult;
 import io.openbas.database.model.Team;
 import io.openbas.database.model.User;
 import io.openbas.execution.ExecutableInject;
 import io.openbas.expectation.ExpectationPropertiesConfig;
 import io.openbas.model.Expectation;
 import io.openbas.model.expectation.*;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class InjectExpectationUtils {
@@ -115,14 +118,60 @@ public class InjectExpectationUtils {
 
   // -- RULES OF ENGAGEMENT --
 
-  public static boolean noExpectationScore(final List<InjectExpectation> expectations) {
+  public static void computeScores(
+      @NotNull final List<InjectExpectation> childrenExpectations,
+      @NotNull final List<InjectExpectation> parentExpectations,
+      @NotNull final InjectExpectation injectExpectation,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
+    @NotNull Double expectedScore = injectExpectation.getExpectedScore();
+    boolean isGroup = injectExpectation.isExpectationGroup();
+
+    final boolean noExpectationScore = noExpectationScore(childrenExpectations);
+    final boolean allSuccess =
+        allExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean anySuccess =
+        anyExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean allError =
+        allExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+    final boolean anyError =
+        anyExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+
+    parentExpectations.forEach(
+        expectation -> {
+          if (noExpectationScore) {
+            expectation.setScore(null);
+            return;
+          }
+
+          Double score = null;
+          if (isGroup) {
+            if (anySuccess) {
+              score = InjectExpectationUtils.computeScore(expectation, true);
+            } else if (allError) {
+              score = InjectExpectationUtils.computeScore(expectation, false);
+            }
+          } else {
+            if (allSuccess) {
+              score = InjectExpectationUtils.computeScore(expectation, true);
+            } else if (anyError) {
+              score = InjectExpectationUtils.computeScore(expectation, false);
+            }
+          }
+          expectation.setScore(score);
+          if (addResult != null) {
+            expectation.getResults().add(addResult.apply(score));
+          }
+        });
+  }
+
+  private static boolean noExpectationScore(final List<InjectExpectation> expectations) {
     if (expectations == null || expectations.isEmpty()) {
       return true;
     }
     return expectations.stream().map(InjectExpectation::getScore).allMatch(Objects::isNull);
   }
 
-  public static boolean allExpectationsMatch(
+  private static boolean allExpectationsMatch(
       final List<InjectExpectation> expectations, final Predicate<Double> predicate) {
     if (expectations == null || expectations.isEmpty()) {
       return false;
@@ -132,7 +181,7 @@ public class InjectExpectationUtils {
         .allMatch(score -> score != null && predicate.test(score));
   }
 
-  public static boolean anyExpectationsMatch(
+  private static boolean anyExpectationsMatch(
       final List<InjectExpectation> expectations, final Predicate<Double> predicate) {
     if (expectations == null || expectations.isEmpty()) {
       return false;

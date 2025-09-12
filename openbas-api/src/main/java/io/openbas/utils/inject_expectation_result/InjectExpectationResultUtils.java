@@ -1,5 +1,7 @@
 package io.openbas.utils.inject_expectation_result;
 
+import static io.openbas.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.*;
+import static io.openbas.expectation.ExpectationType.VULNERABILITY;
 import static io.openbas.service.InjectExpectationService.COLLECTOR;
 import static io.openbas.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static java.time.Instant.now;
@@ -71,13 +73,13 @@ public class InjectExpectationResultUtils {
       @NotNull final InjectExpectation injectExpectation,
       @NotNull final ExpectationUpdateInput input,
       @NotNull final String resultMsg) {
-    InjectExpectationResult result =
+    InjectExpectationResult existing =
         findResultBySourceId(injectExpectation.getResults(), input.getSourceId());
-    if (result != null) {
-      result.setResult(resultMsg);
-      result.setScore(input.getScore());
+    if (existing != null) {
+      existing.setResult(resultMsg);
+      existing.setScore(input.getScore());
     } else {
-      result =
+      existing =
           InjectExpectationResult.builder()
               .sourceId(input.getSourceId())
               .sourceType(input.getSourceType())
@@ -86,7 +88,7 @@ public class InjectExpectationResultUtils {
               .date(now().toString())
               .score(input.getScore())
               .build();
-      injectExpectation.getResults().add(result);
+      injectExpectation.getResults().add(existing);
     }
   }
 
@@ -105,7 +107,7 @@ public class InjectExpectationResultUtils {
       existing.setScore(score);
       existing.setMetadata(input.getMetadata());
     } else {
-      InjectExpectationResult expectationResult =
+      existing =
           InjectExpectationResult.builder()
               .sourceId(collector.getId())
               .sourceType(COLLECTOR)
@@ -115,7 +117,7 @@ public class InjectExpectationResultUtils {
               .score(score)
               .metadata(input.getMetadata())
               .build();
-      injectExpectation.getResults().add(expectationResult);
+      injectExpectation.getResults().add(existing);
     }
   }
 
@@ -142,10 +144,10 @@ public class InjectExpectationResultUtils {
 
   public static InjectExpectationResult buildForVulnerabilityManager() {
     return InjectExpectationResult.builder()
-        .sourceId("acab8214-0379-448a-a575-05e9d934eadd")
-        .sourceType("openbas_expectations_vulnerability_manager")
-        .sourceName("Expectations Vulnerability Manager")
-        .result("Vulnerable")
+        .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)
+        .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
+        .sourceName(EXPECTATIONS_VULNERABILITY_COLLECTOR_NAME)
+        .result(VULNERABILITY.failureLabel)
         .date(String.valueOf(Instant.now()))
         .build();
   }

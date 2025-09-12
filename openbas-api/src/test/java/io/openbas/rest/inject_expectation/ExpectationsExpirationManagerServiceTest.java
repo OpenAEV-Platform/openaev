@@ -113,18 +113,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- VERIFY --
       // Agent Expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
 
@@ -134,18 +137,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
     }
@@ -168,7 +174,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // Update one expectation from one agent with source collector-id
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       InjectExpectation ie = injectExpectations.getFirst();
       ie.setResults(
@@ -187,18 +194,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- VERIFY --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(50.0, injectExpectations.getFirst().getScore());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
 
@@ -208,18 +218,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(50.0, injectExpectations.getFirst().getScore());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
     }
@@ -245,10 +258,10 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       List<InjectExpectation> injectExpectations =
           List.of(
               injectExpectationRepository
-                  .findAllForAgent(savedInject.getId(), savedAgent1.getId())
+                  .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
                   .getFirst(),
               injectExpectationRepository
-                  .findAllForAgent(savedInject.getId(), savedAgent2.getId())
+                  .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
                   .getFirst());
 
       injectExpectations.forEach(
@@ -270,18 +283,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- VERIFY --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, injectExpectations.getFirst().getScore());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(100.0, injectExpectations.getFirst().getScore());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
 
@@ -291,18 +307,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, injectExpectations.getFirst().getScore());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(100.0, injectExpectations.getFirst().getScore());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
     }
@@ -327,10 +346,10 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       List<InjectExpectation> injectExpectations =
           List.of(
               injectExpectationRepository
-                  .findAllForAgent(savedInject.getId(), savedAgent1.getId())
+                  .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
                   .getFirst(),
               injectExpectationRepository
-                  .findAllForAgent(savedInject.getId(), savedAgent2.getId())
+                  .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
                   .getFirst());
 
       List<String> ids = injectExpectations.stream().map(InjectExpectation::getId).toList();
@@ -340,11 +359,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- VERIFY --
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
 
@@ -354,11 +374,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- ASSERT --
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
     }

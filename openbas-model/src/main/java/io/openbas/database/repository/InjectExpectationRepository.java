@@ -114,7 +114,7 @@ public interface InjectExpectationRepository
               + "WHERE i.inject.id = :injectId "
               + "AND i.agent.id = :agentId "
               + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllForAgent(
+  List<InjectExpectation> findAllByInjectAndAgent(
       @Param("injectId") @NotBlank String injectId, @Param("agentId") @NotBlank String agentId);
 
   @Query(
@@ -124,7 +124,7 @@ public interface InjectExpectationRepository
               + "AND i.asset.id = :assetId "
               + "AND i.agent IS NULL "
               + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllForAsset(
+  List<InjectExpectation> findAllByInjectAndAsset(
       @Param("injectId") @NotBlank String injectId, @Param("assetId") @NotBlank String assetId);
 
   @Query(
@@ -134,7 +134,7 @@ public interface InjectExpectationRepository
               + "AND i.assetGroup.id = :assetGroupId "
               + "AND i.asset IS NULL "
               + "AND i.agent IS NULL ")
-  List<InjectExpectation> findAllForAssetGroup(
+  List<InjectExpectation> findAllByInjectAndAssetGroup(
       @Param("injectId") @NotBlank final String injectId,
       @Param("assetGroupId") @NotBlank final String assetGroupId);
 

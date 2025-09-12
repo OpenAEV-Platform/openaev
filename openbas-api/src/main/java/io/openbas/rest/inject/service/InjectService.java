@@ -234,7 +234,7 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
-  public List<Inject> isExecutedAndNotFinished() {
+  public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(SUCCESS, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
             .and(hasCollectingStatus(List.of(COLLECTING)))

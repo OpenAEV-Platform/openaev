@@ -153,7 +153,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
       ExpectationUpdateInput expectationUpdateInput = getExpectationUpdateInput("fake-1", 100.0);
@@ -162,15 +163,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.0, getScore(injectExpectations));
 
@@ -178,7 +181,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       // Add Failure result to Agent expectation
       expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
@@ -187,15 +191,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.0, getScore(injectExpectations));
 
@@ -203,7 +209,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       // Remove Error result to Agent expectation
       expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
@@ -212,15 +219,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.0, getScore(injectExpectations));
     }
@@ -249,7 +258,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent 1 expectation
       ExpectationUpdateInput expectationUpdateInput = getExpectationUpdateInput("fake-1", 100.0);
@@ -258,15 +268,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(null, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(null, getScore(injectExpectations));
 
@@ -274,7 +286,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent 2 expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
 
       // Add Failure result to Agent 2 expectation
       expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
@@ -283,15 +296,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(0.0, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, getScore(injectExpectations));
 
@@ -299,7 +314,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent 2 expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
 
       // Remove Failure result to Agent 2 expectation
       expectationUpdateInput = getExpectationUpdateInput("fake-2", 0.0);
@@ -308,15 +324,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(null, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(null, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(null, getScore(injectExpectations));
 
@@ -324,7 +342,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
 
       // Add Success result to Agent 2 expectation
       expectationUpdateInput = getExpectationUpdateInput("fake-2", 100.0);
@@ -333,15 +352,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.00, getScore(injectExpectations));
     }
@@ -374,7 +395,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Update one expectation from one agent with source collector-id
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       injectExpectations
           .getFirst()
@@ -452,7 +474,8 @@ class ExpectationApiTest extends IntegrationTest {
       // Update one expectation from one agent with source collector-id then this expectation is
       // filled and it should return just one
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
 
       injectExpectations
           .get(0)
@@ -533,7 +556,8 @@ class ExpectationApiTest extends IntegrationTest {
       // Update one expectation from one agent with source collector-id then it should return one
       // expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
 
       injectExpectations
           .get(0)
@@ -591,7 +615,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       List<InjectExpectation> injectExpectationsAgent =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
       InjectExpectationUpdateInput expectationUpdateInput =
@@ -601,15 +626,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
       // Asset Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertTrue(getResultScoreForCollector(injectExpectations, savedCollector).isEmpty());
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertTrue(getResultScoreForCollector(injectExpectations, savedCollector).isEmpty());
 
@@ -617,7 +644,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent1 expectation
       List<InjectExpectation> injectExpectationsAgent1 =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
 
       // Add Failure result to Agent1 expectation
       expectationUpdateInput =
@@ -627,15 +655,17 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent1 Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(0.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
       // Asset Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, getScore(injectExpectations));
     }
@@ -665,7 +695,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Retrieve Agent expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
       InjectExpectationUpdateInput expectationUpdateInput =
@@ -680,16 +711,18 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
       assertEquals(0.0, getResultScoreForCollector(injectExpectations, savedCollector2).get());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(100.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.0, getScore(injectExpectations));
     }
@@ -717,12 +750,14 @@ class ExpectationApiTest extends IntegrationTest {
 
       // Fetch injectExpectation created for agent 1
       List<InjectExpectation> injectExpectationsAgent1 =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       InjectExpectationUpdateInput expectationUpdateInputAgent1 =
           getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
       // Fetch injectExpectation created for agent 2
       List<InjectExpectation> injectExpectationsAgent2 =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       InjectExpectationUpdateInput expectationUpdateInputAgent2 =
           getInjectExpectationUpdateInput(savedCollector.getId(), "Not detected", false);
 
@@ -743,18 +778,21 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       // Agent Expectation
       List<InjectExpectation> injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent1.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
       injectExpectations =
-          injectExpectationRepository.findAllForAgent(savedInject.getId(), savedAgent2.getId());
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
       assertEquals(0.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
       // Asset
       injectExpectations =
-          injectExpectationRepository.findAllForAsset(savedInject.getId(), savedEndpoint.getId());
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
       assertEquals(0.0, getScore(injectExpectations));
       // Asset Group
       injectExpectations =
-          injectExpectationRepository.findAllForAssetGroup(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, getScore(injectExpectations));
     }

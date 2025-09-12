@@ -375,7 +375,7 @@ public class InjectsExecutionJob implements Job {
   }
 
   private void handleInjectExpectationCollectStatus() {
-    List<Inject> injects = injectService.isExecutedAndNotFinished();
+    List<Inject> injects = injectService.getExecutedAndNotFinished();
     if (injects.isEmpty()) {
       return;
     }

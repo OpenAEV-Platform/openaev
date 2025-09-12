@@ -42,16 +42,13 @@ public enum ExpectationType {
       @NotNull final EXPECTATION_TYPE type,
       @NotNull final Double expectedScore,
       @NotNull final Double actualScore) {
-    ExpectationType expectationType;
-    if (type.equals(EXPECTATION_TYPE.DETECTION)) {
-      expectationType = ExpectationType.DETECTION;
-    } else if (type.equals(EXPECTATION_TYPE.PREVENTION)) {
-      expectationType = ExpectationType.PREVENTION;
-    } else if (type.equals(EXPECTATION_TYPE.VULNERABILITY)) {
-      expectationType = ExpectationType.VULNERABILITY;
-    } else {
-      expectationType = ExpectationType.HUMAN_RESPONSE;
-    }
+    ExpectationType expectationType =
+        switch (type) {
+          case DETECTION -> ExpectationType.DETECTION;
+          case PREVENTION -> ExpectationType.PREVENTION;
+          case VULNERABILITY -> ExpectationType.VULNERABILITY;
+          default -> ExpectationType.HUMAN_RESPONSE;
+        };
     if (actualScore >= expectedScore) {
       return expectationType.successLabel;
     } else {
