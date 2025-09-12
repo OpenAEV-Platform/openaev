@@ -1,8 +1,9 @@
-package io.openbas.xtmhub;
+package io.openbas.rest.xtmhub;
 
 
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.settings.response.PlatformSettings;
+import io.openbas.xtmhub.XtmHubService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
