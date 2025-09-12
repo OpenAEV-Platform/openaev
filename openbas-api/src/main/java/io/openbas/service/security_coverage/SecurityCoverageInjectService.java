@@ -130,7 +130,7 @@ public class SecurityCoverageInjectService {
     allKeys.addAll(scenarioMap.keySet());
     allKeys.addAll(inputMap.keySet());
 
-    List<Cve> missingVulnerabilities = new ArrayList<>();
+    Set<Cve> missingVulnerabilities = new HashSet<>();
 
     for (Pair<Cve, ContractTargetedProperty> key : allKeys) {
       Set<Endpoint> scenarioAssets = scenarioMap.getOrDefault(key, Set.of());
