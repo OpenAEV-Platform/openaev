@@ -122,6 +122,7 @@ public class EndpointFixture {
     endpoint.setDescription(ENDPOINT_DESCRIPTION);
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    endpoint.setIps(new String[0]);
     return endpoint;
   }
 }
