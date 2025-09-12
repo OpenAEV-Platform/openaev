@@ -19,6 +19,7 @@ import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.tag.TagService;
+import io.openbas.service.AssetService;
 import io.openbas.service.ScenarioService;
 import io.openbas.service.cron.CronService;
 import io.openbas.stix.objects.Bundle;

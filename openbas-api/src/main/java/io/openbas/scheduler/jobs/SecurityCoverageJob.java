@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.database.model.SecurityCoverageSendJob;
 import io.openbas.service.SecurityCoverageSendJobService;
-import io.openbas.service.SecurityCoverageService;
+import io.openbas.service.security_coverage.SecurityCoverageService;
 import io.openbas.stix.objects.Bundle;
 import java.util.ArrayList;
 import java.util.List;

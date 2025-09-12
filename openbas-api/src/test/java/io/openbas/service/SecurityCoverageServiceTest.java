@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
+import io.openbas.service.security_coverage.SecurityCoverageService;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.RelationshipObject;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 public class SecurityCoverageServiceTest extends IntegrationTest {
+
   @Autowired private SecurityCoverageService securityCoverageService;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ScenarioComposer scenarioComposer;
