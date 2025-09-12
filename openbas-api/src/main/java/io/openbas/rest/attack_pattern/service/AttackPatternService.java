@@ -173,9 +173,9 @@ public class AttackPatternService {
             .filter(
                 id ->
                     !attackPatterns.stream()
-                        .map(AttackPattern::getExternalId)
+                        .map(ap -> ap.getExternalId().toLowerCase())
                         .toList()
-                        .contains(id))
+                        .contains(id.toLowerCase()))
             .toList();
     if (!missingIds.isEmpty()) {
       throw new ElementNotFoundException(

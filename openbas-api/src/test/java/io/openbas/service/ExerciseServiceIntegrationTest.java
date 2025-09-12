@@ -14,6 +14,7 @@ import io.openbas.config.cache.LicenseCacheManager;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.ee.Ee;
+import io.openbas.rest.dashboard.DashboardService;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
@@ -42,6 +43,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Mock GrantService grantService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
+  @Mock DashboardService dashboardService;
 
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
@@ -89,6 +91,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectService,
             cronService,
             userService,
+            dashboardService,
             exerciseMapper,
             injectMapper,
             resultUtils,

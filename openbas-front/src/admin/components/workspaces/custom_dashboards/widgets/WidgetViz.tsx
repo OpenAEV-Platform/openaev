@@ -1,6 +1,5 @@
 import { memo, useContext, useEffect, useState } from 'react';
 
-import { attackPaths, count, entities, series } from '../../../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { type EsAttackPath, type EsBase, type EsSeries } from '../../../../../utils/api-types';
@@ -31,7 +30,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const { customDashboardParameters } = useContext(CustomDashboardContext);
+  const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
 
   const fetchData = <T extends EsSeries[] | EsBase[] | EsAttackPath[] | number>(
     fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: T }>,
@@ -52,17 +51,17 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
     setLoading(true);
     switch (widget.widget_type) {
       case 'attack-path': {
-        fetchData(attackPaths, setAttackPathsVizData);
+        fetchData(fetchAttackPaths, setAttackPathsVizData);
         break;
       }
       case 'number':
-        fetchData(count, setNumberVizData);
+        fetchData(fetchCount, setNumberVizData);
         break;
       case 'list':
-        fetchData(entities, setEntitiesVizData);
+        fetchData(fetchEntities, setEntitiesVizData);
         break;
       default:
-        fetchData(series, setSeriesVizData);
+        fetchData(fetchSeries, setSeriesVizData);
     }
   }, [widget, customDashboardParameters]);
 

@@ -23,7 +23,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
@@ -69,7 +68,6 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  @PreAuthorize("isSimulationPlanner(#simulationId)")
   public InjectTestStatusOutput testInject(
       @PathVariable @NotBlank String simulationId, @PathVariable @NotBlank String injectId) {
     return injectTestStatusService.testInject(injectId);
@@ -91,7 +89,6 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @PreAuthorize("isSimulationPlanner(#simulationId)")
   public void deleteInjectTest(
       @PathVariable @NotBlank String simulationId, @PathVariable String testId) {
     injectTestStatusService.deleteInjectTest(testId);
@@ -106,7 +103,6 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @PreAuthorize("isSimulationPlanner(#simulationId)")
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
       @PathVariable @NotBlank String simulationId,
