@@ -114,7 +114,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Adding final result to expectation does trigger coverage job")
+  @DisplayName("Adding final result to expectation triggers coverage job")
   public void addingFinalResultDoesTriggerCoverageJob() {
     ExerciseComposer.Composer exerciseWrapper = createExerciseWrapper();
 
