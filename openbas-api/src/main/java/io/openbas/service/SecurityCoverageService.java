@@ -103,7 +103,7 @@ public class SecurityCoverageService {
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.STIX_VULNERABILITY_TYPE.toString())));
+        extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY.toString())));
 
     // Default Fields
     String scheduling =

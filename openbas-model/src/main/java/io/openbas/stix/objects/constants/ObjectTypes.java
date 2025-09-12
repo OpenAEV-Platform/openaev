@@ -7,7 +7,7 @@ public enum ObjectTypes {
   SIGHTING("sighting"),
   IDENTITY("identity"),
   ATTACK_PATTERN("attack-pattern"),
-  STIX_VULNERABILITY_TYPE("vulnerability"),
+  VULNERABILITY("vulnerability"),
   DEFAULT("__default__");
 
   private final String value;
