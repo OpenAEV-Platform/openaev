@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -204,6 +205,20 @@ public class RestBehavior {
             content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
       })
   public ResponseEntity<ErrorMessage> handleElementNotFoundException(ElementNotFoundException ex) {
+    ErrorMessage message = new ErrorMessage("Element not found: " + ex.getMessage());
+    log.warn(String.format("ElementNotFoundException: %s", ex.getMessage()), ex);
+    return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
+  }
+
+  @ExceptionHandler(EntityNotFoundException.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "404",
+            description = "Resource not found",
+            content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
+      })
+  public ResponseEntity<ErrorMessage> handleEntityNotFoundException(EntityNotFoundException ex) {
     ErrorMessage message = new ErrorMessage("Element not found: " + ex.getMessage());
     log.warn(String.format("ElementNotFoundException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);

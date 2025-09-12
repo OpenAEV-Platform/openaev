@@ -1,6 +1,9 @@
 package io.openbas.utils.fixtures;
 
-import io.openbas.database.model.*;
+import io.openbas.database.model.Exercise;
+import io.openbas.database.model.Grant;
+import io.openbas.database.model.Group;
+import io.openbas.database.model.Scenario;
 
 public class GrantFixture {
 
@@ -43,6 +46,19 @@ public class GrantFixture {
     grant.setName(grantType);
     grant.setResourceId(scenario.getId());
     grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+    return grant;
+  }
+
+  public static Grant getGrant(
+      String resourceId,
+      Grant.GRANT_RESOURCE_TYPE resourceType,
+      Grant.GRANT_TYPE grantType,
+      Group group) {
+    Grant grant = new Grant();
+    grant.setName(grantType);
+    grant.setResourceId(resourceId);
+    grant.setGrantResourceType(resourceType);
+    grant.setGroup(group);
     return grant;
   }
 
