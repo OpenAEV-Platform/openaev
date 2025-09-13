@@ -5,7 +5,7 @@ import { type FormEvent, type FunctionComponent, type SyntheticEvent, useMemo, u
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { fetchPlatformParameters, updatePlatformParameters } from '../../../../actions/Application';
+import { updatePlatformParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
@@ -14,7 +14,6 @@ import {
   type PlatformSettings,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { zodImplement } from '../../../../utils/Zod';
 import GeneralFormTab from './form/GeneralFormTab';
 import ParametersTab from './form/ParametersTab';
@@ -50,11 +49,6 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
 
   const dispatch = useAppDispatch();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-  useDataLoader(() => {
-    if (editing) {
-      dispatch(fetchPlatformParameters());
-    }
-  });
 
   const tabs = [{
     key: 'General',

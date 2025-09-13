@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchExercise, updateExercise } from '../../../../../actions/Exercise';
+import { updateExercise } from '../../../../../actions/Exercise';
 import {
   attackPathsBySimulation,
   countBySimulation,
@@ -11,7 +11,6 @@ import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-
 import { useHelper } from '../../../../../store';
 import { type CustomDashboard, type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import type { ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
@@ -28,9 +27,6 @@ const SimulationAnalysis = () => {
   const exercise = useHelper((helper: ExercisesHelper) => {
     return helper.getExercise(exerciseId);
   });
-  useDataLoader(() => {
-    dispatch(fetchExercise(exerciseId));
-  }, [exerciseId]);
 
   const handleSelectNewDashboard = (dashboardId: string) => {
     dispatch(updateExercise(exercise.exercise_id, {
