@@ -6,6 +6,7 @@ import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2025_56785;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2025_56786;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -141,12 +142,16 @@ class StixApiTest extends IntegrationTest {
                     new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
             .persist();
 
-    CveComposer.Composer cveComposer =
-        vulnerabilityComposer.forCve(CveFixture.createDefaultCve(CVE_2025_56785));
+    injectorContractComposer
+        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+        .withVulnerability(
+            vulnerabilityComposer.forCve(CveFixture.createDefaultCve(CVE_2025_56785)))
+        .persist();
 
     injectorContractComposer
         .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-        .withVulnerability(cveComposer)
+        .withVulnerability(
+            vulnerabilityComposer.forCve(CveFixture.createDefaultCve(CVE_2025_56786)))
         .persist();
   }
 
@@ -531,6 +536,7 @@ class StixApiTest extends IntegrationTest {
       tagRuleComposer
           .forTagRule(new TagRule())
           .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-target-property")))
+          .withAssetGroup(noTargetProperties)
           .persist();
 
       String createdResponse =
@@ -550,6 +556,56 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Should update injects when more vulnerabilities are added but target is the same")
+    void shouldUpdateInjectsWhenVulnerabilitiesAreAddedButTargetIsTheSame() throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-target-property")))
+          .withAssetGroup(noTargetProperties)
+          .persist();
+
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulns))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
+
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
+          .withAssetGroup(completeTargetProperties)
+          .persist();
+
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverageOnlyVulns))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+
+      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(updatedScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(3);
     }
 
     @Test

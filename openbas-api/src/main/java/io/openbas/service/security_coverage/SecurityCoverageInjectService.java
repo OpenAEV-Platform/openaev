@@ -1,7 +1,7 @@
 package io.openbas.service.security_coverage;
 
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR;
 import static io.openbas.utils.AssetUtils.computePairsPlatformArchitecture;
-import static io.openbas.utils.AssetUtils.getTargetProperty;
 
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -91,80 +91,104 @@ public class SecurityCoverageInjectService {
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
-    // 1. Fetch internal Ids for Vulnerabilities
+
+    // 1. Fetch internal IDs for vulnerabilities
     Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
-    // 2. Build scenario map: (CVE, TargetProperty) -> Assets
-    Map<Pair<Cve, ContractTargetedProperty>, Set<Endpoint>> scenarioMap =
+    // 2. Build a map of existing injects: (CVE, TargetProperty) -> Inject
+    Map<Pair<Cve, ContractTargetedProperty>, Inject> injectMap =
         scenario.getInjects().stream()
-            .filter(inject -> inject.getInjectorContract() != null
-                              && inject.getInjectorContract().get().getVulnerabilities() != null)
-            .flatMap(inject -> inject.getInjectorContract().get().getVulnerabilities().stream()
-                .map(vuln -> Map.entry(
-                    Pair.of(vuln, getTargetProperty(inject)),
-                    inject.getAssets())))
-            .collect(Collectors.toMap(
-                Map.Entry::getKey,
-                e -> new HashSet<>(e.getValue()),
-                (a, b) -> { a.addAll(b); return a; }
-            ));
+            .filter(
+                inject ->
+                    inject.getInjectorContract() != null
+                        && inject.getInjectorContract().get().getVulnerabilities() != null)
+            .flatMap(
+                inject ->
+                    inject.getInjectorContract().get().getVulnerabilities().stream()
+                        .map(
+                            vuln ->
+                                Map.entry(
+                                    Pair.of(
+                                        vuln,
+                                        ContractTargetedProperty.valueOf(
+                                            inject
+                                                .getContent()
+                                                .get(
+                                                    CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR)
+                                                .asText())),
+                                    inject)))
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey(),
+                    entry -> entry.getValue(),
+                    (existing, replacement) -> existing));
 
-
-    // 3. Build map Vulnerability, target property, Set<Assets>
+    // 3. Create Map from desired input: TargetProperty -> Set<Endpoint>
     Map<ContractTargetedProperty, Set<Endpoint>> assetsByTargetProperty =
         assetsFromGroupMap.values().stream()
             .flatMap(List::stream)
             .filter(Objects::nonNull)
             .collect(Collectors.groupingBy(AssetUtils::getTargetProperty, Collectors.toSet()));
 
-    // 4. Build input map: (CVE, TargetProperty) -> Assets
-    Map<Pair<Cve, ContractTargetedProperty>, Set<Endpoint>> inputMap = new HashMap<>();
+    // 4. Build desired map: (CVE, TargetProperty) -> Set<Endpoint>
+    Map<Pair<Cve, ContractTargetedProperty>, Set<Endpoint>> desiredMap = new HashMap<>();
     for (Cve vuln : vulnerabilities) {
-      for (Map.Entry<ContractTargetedProperty, Set<Endpoint>> e : assetsByTargetProperty.entrySet()) {
-        inputMap.put(Pair.of(vuln, e.getKey()), e.getValue());
+      for (Map.Entry<ContractTargetedProperty, Set<Endpoint>> entry :
+          assetsByTargetProperty.entrySet()) {
+        desiredMap.put(Pair.of(vuln, entry.getKey()), entry.getValue());
       }
     }
 
-    // 5. Compare maps and sync injects
-    Set<Pair<Cve, ContractTargetedProperty>> allKeys = new HashSet<>();
-    allKeys.addAll(scenarioMap.keySet());
-    allKeys.addAll(inputMap.keySet());
-
+    // 5. Compare maps, sync assets, and remove obsolete injects
     Set<Cve> missingVulnerabilities = new HashSet<>();
 
-    for (Pair<Cve, ContractTargetedProperty> key : allKeys) {
-      Set<Endpoint> scenarioAssets = scenarioMap.getOrDefault(key, Set.of());
-      Set<Endpoint> inputAssets    = inputMap.getOrDefault(key, Set.of());
+    // Keep track of injects to remove (obsolete)
+    List<Inject> obsoleteInjects = new ArrayList<>();
 
-      if (scenarioAssets.isEmpty() && !inputAssets.isEmpty()) {
-        // New inject needed
-        missingVulnerabilities.add(key.getLeft());
+    for (Map.Entry<Pair<Cve, ContractTargetedProperty>, Inject> entry : injectMap.entrySet()) {
+      Pair<Cve, ContractTargetedProperty> key = entry.getKey();
+      Inject inject = entry.getValue();
+
+      Set<Endpoint> desiredAssets = desiredMap.get(key);
+
+      if (desiredAssets == null || desiredAssets.isEmpty()) {
+        // This inject is no longer needed
+        obsoleteInjects.add(inject);
         continue;
       }
 
-      // Diff: find assets to add/remove
-      Set<Endpoint> toAdd = new HashSet<>(inputAssets);
-      toAdd.removeAll(scenarioAssets);
+      // Current assets as a mutable set with safe casting
+      Set<Endpoint> currentAssets =
+          inject.getAssets().stream()
+              .map(a -> (Endpoint) a)
+              .collect(Collectors.toCollection(HashSet::new));
 
-      Set<Endpoint> toRemove = new HashSet<>(scenarioAssets);
-      toRemove.removeAll(inputAssets);
+      // Assets to add/remove
+      Set<Endpoint> toAdd = new HashSet<>(desiredAssets);
+      toAdd.removeAll(currentAssets);
 
-      if (!toAdd.isEmpty()) {
-        injectRepository.addAssetsToInject(scenario, key.getLeft(), key.getRight(), toAdd);
-      }
-      if (!toRemove.isEmpty()) {
-        injectRepository.removeAssetsFromInject(scenario, key.getLeft(), key.getRight(), toRemove);
+      Set<Endpoint> toRemove = new HashSet<>(currentAssets);
+      toRemove.removeAll(desiredAssets);
+
+      // Sync inject assets
+      if (!toAdd.isEmpty()) inject.getAssets().addAll(toAdd);
+      if (!toRemove.isEmpty()) inject.getAssets().removeAll(toRemove);
+    }
+
+    // Remove obsolete injects
+    obsoleteInjects.forEach(inject -> scenario.getInjects().remove(inject));
+
+    // Track missing vulnerabilities for which no inject exists yet
+    for (Pair<Cve, ContractTargetedProperty> key : desiredMap.keySet()) {
+      if (!injectMap.containsKey(key)) {
+        missingVulnerabilities.add(key.getLeft());
       }
     }
 
-    // 6. Generate injects for vulnerabilities missing from scenario
+    // 6. Generate injects for missing vulnerabilities
     if (!missingVulnerabilities.isEmpty()) {
       injectStixAssistantService.generateInjectsWithTargetsByVulnerabilities(
-          scenario,
-          missingVulnerabilities,
-          assetsByTargetProperty,
-          NUMBER_OF_INJECTS
-      );
+          scenario, missingVulnerabilities, assetsByTargetProperty, NUMBER_OF_INJECTS);
     }
   }
 
