@@ -175,15 +175,15 @@ public class SecurityCoverageInjectService {
       if (!toRemove.isEmpty()) inject.getAssets().removeAll(toRemove);
     }
 
-    // Remove obsolete injects
-    obsoleteInjects.forEach(inject -> scenario.getInjects().remove(inject));
-
     // Track missing vulnerabilities for which no inject exists yet
     for (Pair<Cve, ContractTargetedProperty> key : desiredMap.keySet()) {
       if (!injectMap.containsKey(key)) {
         missingVulnerabilities.add(key.getLeft());
       }
     }
+
+    // Remove Obsoletes injects (vulnerability or assets are any more presents)
+    injectRepository.deleteAll(obsoleteInjects);
 
     // 6. Generate injects for missing vulnerabilities
     if (!missingVulnerabilities.isEmpty()) {
