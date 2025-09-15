@@ -3,15 +3,12 @@ import { ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/materi
 import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
-import type { AttackPatternHelper } from '../../../../../../../../../actions/attack_patterns/attackpattern-helper';
-import { getAttackPatternSelector, getAttackPatternsSelector, getMeSelector, loggedSelector } from '../../../../../../../../../actions/Schema';
 import AttackPatternChip from '../../../../../../../../../components/AttackPatternChip';
 import TagsFragment from '../../../../../../../../../components/common/list/fragments/TagsFragment';
 import useBodyItemsStyles from '../../../../../../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../../../../../../components/i18n';
 import ItemStatus from '../../../../../../../../../components/ItemStatus';
 import PlatformIcon from '../../../../../../../../../components/PlatformIcon';
-import { useHelper, useSelectorHelper } from '../../../../../../../../../store';
 import {
   type AttackPattern,
   type EsInject,
