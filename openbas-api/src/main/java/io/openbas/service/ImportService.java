@@ -70,13 +70,13 @@ public class ImportService {
 
   @Transactional(rollbackOn = Exception.class)
   public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
-        throws Exception {
+      throws Exception {
     handleInputStreamImport(file.getInputStream(), exercise, scenario);
   }
 
   @Transactional(rollbackOn = Exception.class)
   public void handleInputStreamFileImport(InputStream is, Exercise exercise, Scenario scenario)
-          throws Exception {
+      throws Exception {
     handleInputStreamImport(is, exercise, scenario);
   }
 

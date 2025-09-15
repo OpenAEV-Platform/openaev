@@ -4,11 +4,10 @@ import io.openbas.database.model.Scenario;
 import io.openbas.database.raw.RawExerciseSimple;
 import io.openbas.database.raw.RawScenario;
 import io.openbas.utils.Constants;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-
-import jakarta.validation.constraints.NotBlank;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
