@@ -59,9 +59,9 @@ public class InjectExecutionService {
       // PENDING, before going to EXECUTED.
       // So if in the future, this function is called to update a synchronous inject, we will need
       // to find a way to get the async boolean somehow and add it to this condition.
-      if (input.getAction().equals(InjectExecutionAction.complete)
+      if (InjectExecutionAction.complete.equals(input.getAction())
           && (inject.getStatus().isEmpty()
-              || !inject.getStatus().get().getName().equals(ExecutionStatus.PENDING))) {
+              || !ExecutionStatus.PENDING.equals(inject.getStatus().get().getName()))) {
         // If we receive a status update with a terminal state status, we must first check that the
         // current status is in the PENDING state
         log.warn(
