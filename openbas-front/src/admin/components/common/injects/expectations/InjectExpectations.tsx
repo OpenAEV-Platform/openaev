@@ -78,7 +78,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   const handleRemoveExpectation = (idx: number) => {
     const values = sortedExpectations.filter((_, i) => i !== idx);
-    setSortedExpectations(sortExpectations(values));
+    setSortedExpectations(values);
     handleExpectations(values);
   };
 
