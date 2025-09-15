@@ -43,6 +43,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 display: 'flex',
                 alignItems: 'flex-end',
                 marginBottom: 0,
+                minHeight: theme.spacing(4.5),
               }}
             >
               {t('Enterprise Edition')}
@@ -198,6 +199,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 display: 'flex',
                 alignItems: 'flex-end',
                 marginBottom: 0,
+                minHeight: theme.spacing(4.5),
               }}
             >
               {t('Enterprise Edition')}
@@ -221,7 +223,7 @@ const EnterpriseEditionSettings: React.FC = () => {
             <Typography variant="h6" style={{ marginBottom: theme.spacing(2) }}>
               {t('Enable powerful features with OpenAEV Enterprise Edition')}
             </Typography>
-            <Typography>{t('OpenAEV Enterprise Edition (EE) provides highly demanding organizations with a version that includes additional and powerful features, which require specific investments in research and development.')}</Typography>
+            <Typography style={{ marginBottom: theme.spacing(2) }}>{t('OpenAEV Enterprise Edition (EE) provides highly demanding organizations with a version that includes additional and powerful features, which require specific investments in research and development.')}</Typography>
             <Typography>{t('By taking an Enterprise Edition license, you will be able to use:')}</Typography>
             <List
               dense
@@ -233,6 +235,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               <ListItem style={{
                 display: 'list-item',
                 paddingLeft: 0,
+                marginLeft: theme.spacing(2),
               }}
               >
                 {t('Generative AI (content generation including emails, media pressure articles, scenarios)')}
@@ -240,6 +243,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               <ListItem style={{
                 display: 'list-item',
                 paddingLeft: 0,
+                marginLeft: theme.spacing(2),
               }}
               >
                 {t('CrowdStrike Falcon and Tanium Agent')}
@@ -247,6 +251,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               <ListItem style={{
                 display: 'list-item',
                 paddingLeft: 0,
+                marginLeft: theme.spacing(2),
               }}
               >
                 {t('Remediations in Vulnerabilities')}
@@ -254,6 +259,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               <ListItem style={{
                 display: 'list-item',
                 paddingLeft: 0,
+                marginLeft: theme.spacing(2),
               }}
               >
                 {t('And many more features...')}

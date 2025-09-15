@@ -1,4 +1,4 @@
-package io.openbas.rest.xtmhub;
+package io.openbas.api.xtmhub;
 
 import static io.openbas.config.AppConfig.MANDATORY_MESSAGE;
 

@@ -37,7 +37,6 @@ public enum ResourceType {
   GROUP_ROLE,
   ORGANIZATION,
   COLLECTOR,
-  XTM_HUB_SETTINGS,
 
   // Special resource types
   UNKNOWN,

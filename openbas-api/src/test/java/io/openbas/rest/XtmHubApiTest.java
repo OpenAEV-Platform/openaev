@@ -9,11 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
-import io.openbas.database.repository.ExerciseRepository;
-import io.openbas.database.repository.SettingRepository;
+import io.openbas.api.xtmhub.XtmHubApi;
+import io.openbas.api.xtmhub.XtmHubRegisterInput;
 import io.openbas.rest.settings.response.PlatformSettings;
-import io.openbas.rest.xtmhub.XtmHubApi;
-import io.openbas.rest.xtmhub.XtmHubRegisterInput;
 import io.openbas.service.PlatformSettingsService;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import io.openbas.xtmhub.XtmHubRegistrationStatus;
@@ -38,16 +36,16 @@ public class XtmHubApiTest extends IntegrationTest {
     String token = "token";
     XtmHubRegisterInput input = new XtmHubRegisterInput();
     input.setToken(token);
-    String response = mvc.perform(
-      put(XtmHubApi.ENDPOINT_URI + "/register")
-        .content(asJsonString(input))
-        .contentType(MediaType.APPLICATION_JSON)
-        .accept(MediaType.APPLICATION_JSON)
-      )
-      .andExpect(status().is2xxSuccessful())
-      .andReturn()
-      .getResponse()
-      .getContentAsString();
+    String response =
+        mvc.perform(
+                put(XtmHubApi.XTMHUB_URI + "/register")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
     String responseToken = JsonPath.read(response, "$.xtm_hub_token");
     String responseStatus = JsonPath.read(response, "$.xtm_hub_registration_status");
     String responseUserId = JsonPath.read(response, "$.xtm_hub_registration_user_id");
@@ -71,11 +69,11 @@ public class XtmHubApiTest extends IntegrationTest {
   @WithMockAdminUser
   @DisplayName("Should delete registration data")
   public void whenUnregisterDeleteRegistrationData() throws Exception {
-    String response = mvc.perform(
-                    put(XtmHubApi.ENDPOINT_URI + "/unregister")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .accept(MediaType.APPLICATION_JSON)
-            )
+    String response =
+        mvc.perform(
+                put(XtmHubApi.XTMHUB_URI + "/unregister")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -94,7 +92,8 @@ public class XtmHubApiTest extends IntegrationTest {
 
     PlatformSettings settings = platformSettingsService.findSettings();
     assertNull(settings.getXtmHubToken());
-    assertEquals(settings.getXtmHubRegistrationStatus(), XtmHubRegistrationStatus.UNREGISTERED.label);
+    assertEquals(
+        settings.getXtmHubRegistrationStatus(), XtmHubRegistrationStatus.UNREGISTERED.label);
     assertNull(settings.getXtmHubRegistrationUserId());
     assertNull(settings.getXtmHubRegistrationUserName());
     assertNull(settings.getXtmHubRegistrationDate());

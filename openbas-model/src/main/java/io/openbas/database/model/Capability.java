@@ -218,10 +218,7 @@ public enum Capability {
       pair(ResourceType.MAPPER, Action.DELETE),
       pair(ResourceType.GROUP_ROLE, Action.DELETE),
       pair(ResourceType.USER_GROUP, Action.DELETE),
-      pair(ResourceType.USER, Action.DELETE)),
-
-  // XTM Hub
-  MANAGE_XTM_HUB_REGISTRATION(null, pair(ResourceType.XTM_HUB_SETTINGS, Action.WRITE));
+      pair(ResourceType.USER, Action.DELETE));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 

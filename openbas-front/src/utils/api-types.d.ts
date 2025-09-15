@@ -5179,7 +5179,6 @@ export interface RoleInput {
     | "DELETE_SECURITY_PLATFORMS"
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
-    | "MANAGE_XTM_HUB_REGISTRATION"
   )[];
   role_name: string;
 }
@@ -6014,7 +6013,6 @@ export interface User {
     | "DELETE_SECURITY_PLATFORMS"
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
-    | "MANAGE_XTM_HUB_REGISTRATION"
   )[];
   /** City of the user */
   user_city?: string;

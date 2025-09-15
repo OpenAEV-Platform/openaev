@@ -10,11 +10,7 @@ const XtmHubUnregisteredSection: React.FC = () => {
   const theme = useTheme();
 
   return (
-    <div style={{ marginTop: theme.spacing(2) }}>
-      <Typography variant="h6" style={{ marginBottom: theme.spacing(2) }}>
-        {t('Experiment valuable threat management resources in the XTM Hub')}
-      </Typography>
-      <Typography>{t('XTM Hub is a central forum to access resources, share tradecraft, and optimize the use of Filigran\'s products, fostering collaboration and empowering the community.')}</Typography>
+    <>
       <Typography>{t('By registering this platform into the hub, it will allow you to:')}</Typography>
       <List
         style={{
@@ -26,6 +22,7 @@ const XtmHubUnregisteredSection: React.FC = () => {
         <ListItem style={{
           display: 'list-item',
           paddingLeft: 0,
+          marginLeft: theme.spacing(2),
         }}
         >
           {t('Deploy in one-click threat management resources such as scenarios')}
@@ -33,6 +30,7 @@ const XtmHubUnregisteredSection: React.FC = () => {
         <ListItem style={{
           display: 'list-item',
           paddingLeft: 0,
+          marginLeft: theme.spacing(2),
         }}
         >
           <span>
@@ -45,6 +43,7 @@ const XtmHubUnregisteredSection: React.FC = () => {
         <ListItem style={{
           display: 'list-item',
           paddingLeft: 0,
+          marginLeft: theme.spacing(2),
         }}
         >
           <span>
@@ -70,7 +69,7 @@ const XtmHubUnregisteredSection: React.FC = () => {
       >
         {t('Discover the Hub')}
       </GradientButton>
-    </div>
+    </>
   );
 };
 

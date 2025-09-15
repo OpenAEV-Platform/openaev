@@ -33,23 +33,31 @@ const XtmHubSettings: React.FC = () => {
             display: 'flex',
             alignItems: 'flex-end',
             marginBottom: 0,
+            minHeight: theme.spacing(4.5),
           }}
         >
           {t('XTM Hub')}
         </Typography>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.XTM_HUB_REGISTRATION}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
           <XtmHubTab />
         </Can>
       </div>
       <Paper
         style={{
-          padding: theme.spacing(0, 2, 2),
+          padding: theme.spacing(2),
           borderRadius: 4,
           flexGrow: 1,
         }}
         className="paper-for-grid"
         variant="outlined"
       >
+        <Typography variant="h6" style={{ marginBottom: theme.spacing(2) }}>
+          {t('Experiment valuable threat management resources in the XTM Hub')}
+        </Typography>
+        <Typography style={{ marginBottom: theme.spacing(2) }}>
+          {t('XTM Hub is a central forum to access resources, share tradecraft, and optimize the use of Filigran\'s products, fostering collaboration and empowering the community.')}
+        </Typography>
+
         {!isXTMHubRegistered && <XtmHubUnregisteredSection />}
 
         {isXTMHubRegistered && <XtmHubRegisteredSection />}
