@@ -1,6 +1,7 @@
 package io.openbas.service;
 
 import static io.openbas.utils.AssetUtils.extractPlatformArchPairs;
+import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -84,7 +85,7 @@ public class SecurityCoverageInjectService {
       InjectorContract contractForPlaceholder) {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities =
-        vulnerabilityService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
+        vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
 
     // 2. List of injects is cleaned
     injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());

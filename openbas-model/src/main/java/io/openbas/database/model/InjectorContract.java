@@ -140,10 +140,10 @@ public class InjectorContract implements Base {
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("injector_contract_vulnerabilities")
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
-  private List<Cve> vulnerabilities = new ArrayList<>();
+  private Set<Cve> vulnerabilities = new HashSet<>();
 
   // UpdatedAt now used to sync with linked object
-  public void setVulnerabilities(List<Cve> vulnerabilities) {
+  public void setVulnerabilities(Set<Cve> vulnerabilities) {
     this.updatedAt = now();
     this.vulnerabilities = vulnerabilities;
   }

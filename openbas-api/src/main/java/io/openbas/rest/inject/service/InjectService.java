@@ -1092,6 +1092,9 @@ public class InjectService {
     return scenario.getInjects().stream()
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
+        // Only keep attack patterns that specify both platform and architecture.
+        // Other cases should be reviewed depending on the injector contract source: vulnerability,
+        // placeholder, other
         .filter(
             entry ->
                 entry.getValue().getArch() != null
