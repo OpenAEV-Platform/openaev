@@ -187,5 +187,3 @@ const CustomDashboards = () => {
 };
 
 export default CustomDashboards;
-
-// FIXME: add a hook -> if elastic is not up, then you can access to this feature

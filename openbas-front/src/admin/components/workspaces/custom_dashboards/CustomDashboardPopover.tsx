@@ -1,6 +1,5 @@
 import { type FunctionComponent, useCallback, useContext, useState } from 'react';
 
-import { fetchPlatformParameters } from '../../../../actions/Application';
 import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import type { LoggedHelper } from '../../../../actions/helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -9,8 +8,6 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CustomDashboard, type CustomDashboardInput, type PlatformSettings } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
@@ -28,11 +25,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
 
-  const dispatch = useAppDispatch();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-  useDataLoader(() => {
-    dispatch(fetchPlatformParameters());
-  });
 
   const initialValues = {
     custom_dashboard_name: customDashboard.custom_dashboard_name,
