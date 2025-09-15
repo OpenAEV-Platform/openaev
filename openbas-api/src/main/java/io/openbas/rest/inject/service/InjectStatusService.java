@@ -127,11 +127,19 @@ public class InjectStatusService {
     // We start by computing the trace date. It should be qual to the START execution trace +
     // input.duration.
     // If the duration is 0 or if there is no START execution trace, we use the current time.
-    Instant traceCreationTime =
-        (injectStatus.getTraces().isEmpty() || input.getDuration() == 0)
-            ? Instant.now()
-            : getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
-                injectStatus, agent.getId(), input.getDuration());
+    Instant traceCreationTime;
+
+    boolean noTraces = injectStatus.getTraces().isEmpty();
+    boolean noDuration = input.getDuration() == 0;
+    String agentId = (agent == null) ? null : agent.getId();
+
+    if (noTraces || noDuration) {
+      traceCreationTime = Instant.now();
+    } else {
+      traceCreationTime =
+          getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
+              injectStatus, agentId, input.getDuration());
+    }
 
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
     ExecutionTraceStatus traceStatus = ExecutionTraceStatus.valueOf(input.getStatus());
