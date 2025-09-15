@@ -44,11 +44,15 @@ public interface InjectorContractRepository
 
   @Query(
       value =
-          "SELECT injcont.* FROM injectors_contracts injcont "
-              + "LEFT JOIN injectors_contracts_vulnerabilities injconvuln ON injcont.injector_contract_id = injconvuln.injector_contract_id "
-              + "LEFT JOIN cves cve ON injconvuln.vulnerability_id = cve.cve_id "
-              + "LOWER (cve.cve_external_id) = LOWER(:externalId) "
-              + "ORDER BY injcont.injector_contract_updated_at LIMIT :injectsPerVulnerability",
+          "SELECT injcont.* "
+              + "FROM injectors_contracts injcont "
+              + "INNER JOIN injectors_contracts_vulnerabilities injconvuln "
+              + "  ON injcont.injector_contract_id = injconvuln.injector_contract_id "
+              + "INNER JOIN cves cve "
+              + "  ON injconvuln.vulnerability_id = cve.cve_id "
+              + "WHERE LOWER(cve.cve_external_id) = LOWER(:externalId) "
+              + "ORDER BY injcont.injector_contract_updated_at "
+              + "LIMIT :injectsPerVulnerability",
       nativeQuery = true)
   Set<InjectorContract> findInjectorContractsByVulnerabilityId(
       @NotBlank String externalId, @NotNull Integer injectsPerVulnerability);

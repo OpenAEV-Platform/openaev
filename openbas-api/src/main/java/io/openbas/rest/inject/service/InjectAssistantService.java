@@ -262,7 +262,10 @@ public class InjectAssistantService {
     }
     return List.of(
         buildManualInject(
-            contractForPlaceholder, attackPattern.getExternalId(), NO_PLATFORM, NO_ARCHITECTURE));
+            contractForPlaceholder,
+            attackPattern.getExternalId(),
+            "[any platform]",
+            "[any architecture]"));
   }
 
   // -- Vulnerabilities --
@@ -310,6 +313,10 @@ public class InjectAssistantService {
                       ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName()))
           .collect(Collectors.toSet());
     }
+
+    String NO_PLATFORM = null;
+    String NO_ARCHITECTURE = null;
+
     return Set.of(
         buildManualInject(
             contractForPlaceholder, vulnerability.getExternalId(), NO_PLATFORM, NO_ARCHITECTURE));

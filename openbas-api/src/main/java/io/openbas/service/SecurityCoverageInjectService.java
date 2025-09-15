@@ -48,13 +48,13 @@ public class SecurityCoverageInjectService {
       Scenario scenario, SecurityCoverage securityCoverage) {
     cleanInjectPlaceholders(scenario.getId());
 
-    InjectorContract contractForPlaceholder =
+    InjectorContract contractForInjectPlaceholders =
         injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
     getInjectsByVulnerabilities(
-        scenario, securityCoverage.getVulnerabilitiesRefs(), contractForPlaceholder);
+        scenario, securityCoverage.getVulnerabilitiesRefs(), contractForInjectPlaceholders);
     getInjectsRelatedToAttackPatterns(
-        scenario, securityCoverage.getAttackPatternRefs(), contractForPlaceholder);
+        scenario, securityCoverage.getAttackPatternRefs(), contractForInjectPlaceholders);
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
