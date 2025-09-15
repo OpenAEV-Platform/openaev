@@ -22,7 +22,7 @@ import { type InjectorContractConverted } from '../../../../utils/api-types-cust
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../utils/permissions/types';
 import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
 import PayloadComponent from '../../payloads/PayloadComponent';
 import { PermissionsContext } from '../Context';
@@ -60,7 +60,7 @@ const UpdateInject: React.FC<Props> = ({
   const dispatch = useAppDispatch();
   const [isInjectLoading, setIsInjectLoading] = useState(true);
 
-  const { permissions } = useContext(PermissionsContext);
+  const { permissions, inherited_context } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
 
   // Setup tabs
@@ -169,7 +169,11 @@ const UpdateInject: React.FC<Props> = ({
         {!isInjectLoading && (isAtomic || activeTab === 'Inject details') && (
           <InjectForm
             handleClose={handleClose}
-            disabled={!injectorContractContent || permissions.readOnly || ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)}
+            disabled={
+              !injectorContractContent
+              || permissions.readOnly
+              || (inherited_context === INHERITED_CONTEXT.NONE && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))
+            }
             isAtomic={isAtomic}
             defaultInject={inject}
             injectorContractContent={injectorContractContent}

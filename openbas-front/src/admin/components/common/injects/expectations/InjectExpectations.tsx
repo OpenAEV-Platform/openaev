@@ -4,6 +4,8 @@ import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
+import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { truncate } from '../../../../../utils/String';
 import { PermissionsContext } from '../../Context';
 import { type ExpectationInput } from './Expectation';
@@ -24,17 +26,21 @@ interface InjectExpectationsProps {
   expectationDatas: ExpectationInput[];
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
+  injectId?: string;
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   predefinedExpectationDatas = [],
   expectationDatas,
   handleExpectations,
+  injectId,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const { permissions } = useContext(PermissionsContext);
+  const { permissions, inherited_context } = useContext(PermissionsContext);
+  const ability = useContext(AbilityContext);
+  const userCanAddExpectations = permissions.canManage || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [expectations, setExpectations] = useState<ExpectationInput[]>([]);
 
@@ -127,7 +133,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      {permissions.canManage
+      { userCanAddExpectations
         && (
           <InjectAddExpectation
             handleAddExpectation={handleAddExpectation}
