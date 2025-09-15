@@ -2,6 +2,7 @@ package io.openbas.service;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
+import static io.openbas.utils.inject_expectation_result.InjectExpectationResultUtils.buildForMediaPressure;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -114,15 +115,7 @@ public class ChannelService {
       expectationExecutions.forEach(
           injectExpectationExecution -> {
             injectExpectationExecution.setResults(
-                List.of(
-                    InjectExpectationResult.builder()
-                        .sourceId("media-pressure")
-                        .sourceType("media-pressure")
-                        .sourceName("Media pressure read")
-                        .result(Instant.now().toString())
-                        .date(Instant.now().toString())
-                        .score(injectExpectationExecution.getExpectedScore())
-                        .build()));
+                List.of(buildForMediaPressure(injectExpectationExecution)));
             injectExpectationExecution.setScore(injectExpectationExecution.getExpectedScore());
             injectExpectationExecution.setUpdatedAt(Instant.now());
             injectExpectationExecutionRepository.save(injectExpectationExecution);

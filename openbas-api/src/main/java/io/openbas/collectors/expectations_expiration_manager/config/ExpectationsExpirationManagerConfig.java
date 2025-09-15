@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class ExpectationsExpirationManagerConfig {
 
-  public static final String PRODUCT_NAME = "Expectations Expiration Manager";
-
   private boolean enable = true;
   private String id = "96e476e0-b9c4-4660-869c-98585adf754d";
   private int interval = 60;
