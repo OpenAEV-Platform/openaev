@@ -53,7 +53,8 @@ public class InjectExecutionService {
       // coherent state.
       // This prevents issues where the PENDING status took more time to persist than it took for
       // the agent to send the complete action.
-      // FIXME: At the moment, this whole function is only called by our implant. These implant are
+      // FIXME: At the moment, this whole function is called by our implant and injectors. These
+      // implant are
       // launched with the async value to true, which force the implant to go from EXECUTING to
       // PENDING, before going to EXECUTED.
       // So if in the future, this function is called to update a synchronous inject, we will need
