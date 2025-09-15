@@ -16,8 +16,10 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 @Aspect
 @Component
@@ -85,7 +87,8 @@ public class RBACAspect {
           resourceId,
           rbac.resourceType(),
           rbac.actionPerformed());
-      throw new AuthenticationException("Access denied for user: " + principal.getId()) {};
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getName()) {};
     }
   }
 }
