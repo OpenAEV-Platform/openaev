@@ -15,7 +15,7 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.Payload;
 import io.openbas.jsonapi.JsonApiDocument;
 import io.openbas.jsonapi.ResourceObject;
-import io.openbas.jsonapi.ZipJsonApi;
+import io.openbas.service.ZipJsonService;
 import io.openbas.utils.mockUser.WithMockUser;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 class PayloadApiImporterTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
-  @Autowired private ZipJsonApi<Payload> zipJsonApi;
+  @Autowired private ZipJsonService<Payload> zipJsonService;
 
   @Test
   @DisplayName("Import a payload returns complete entity")
@@ -54,7 +54,7 @@ class PayloadApiImporterTest extends IntegrationTest {
         new JsonApiDocument<>(
             new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
-    byte[] zip = zipJsonApi.writeZip(document, emptyMap());
+    byte[] zip = zipJsonService.writeZip(document, emptyMap());
     MockMultipartFile zipFile =
         new MockMultipartFile("file", "payload.zip", "application/zip", zip);
 

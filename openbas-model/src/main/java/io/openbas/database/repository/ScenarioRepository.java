@@ -7,6 +7,8 @@ import io.openbas.utils.Constants;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+
+import jakarta.validation.constraints.NotBlank;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -155,4 +157,6 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
+
+  Optional<Scenario> findByName(@NotBlank final String name);
 }

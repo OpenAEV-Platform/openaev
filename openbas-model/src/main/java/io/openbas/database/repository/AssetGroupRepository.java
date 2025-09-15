@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
+import jakarta.validation.constraints.NotBlank;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -219,4 +221,6 @@ public interface AssetGroupRepository
               + ";",
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(@Param("from") Instant from);
+
+  Optional<AssetGroup> findByName(@NotBlank final String name);
 }
