@@ -133,7 +133,7 @@ public class InjectStatusService {
     boolean noDuration = input.getDuration() == 0;
     String agentId = (agent == null) ? null : agent.getId();
 
-    if (noTraces || noDuration) {
+    if (noTraces || noDuration || agentId == null) {
       traceCreationTime = Instant.now();
     } else {
       traceCreationTime =
