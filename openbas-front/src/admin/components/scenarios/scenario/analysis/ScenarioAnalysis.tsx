@@ -6,7 +6,6 @@ import {
   countByScenario,
   entitiesByScenario,
   fetchCustomDashboardFromScenario,
-  fetchScenario,
   seriesByScenario,
   updateScenario,
 } from '../../../../../actions/scenarios/scenario-actions';
@@ -15,7 +14,6 @@ import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable
 import { useHelper } from '../../../../../store';
 import { type CustomDashboard, type Scenario } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { type ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
@@ -30,9 +28,6 @@ const ScenarioAnalysis = () => {
 
   const scenario = useHelper((helper: ScenariosHelper) => {
     return helper.getScenario(scenarioId);
-  });
-  useDataLoader(() => {
-    dispatch(fetchScenario(scenarioId));
   });
   const handleSelectNewDashboard = (dashboardId: string) => {
     dispatch(updateScenario(scenario.scenario_id, {

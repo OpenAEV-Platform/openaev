@@ -3,14 +3,12 @@ import { ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/materi
 import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
-import type { AttackPatternHelper } from '../../../../../../../../../actions/attack_patterns/attackpattern-helper';
 import AttackPatternChip from '../../../../../../../../../components/AttackPatternChip';
 import TagsFragment from '../../../../../../../../../components/common/list/fragments/TagsFragment';
 import useBodyItemsStyles from '../../../../../../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../../../../../../components/i18n';
 import ItemStatus from '../../../../../../../../../components/ItemStatus';
 import PlatformIcon from '../../../../../../../../../components/PlatformIcon';
-import { useHelper } from '../../../../../../../../../store';
 import {
   type AttackPattern,
   type EsInject,
@@ -26,19 +24,17 @@ const useStyles = makeStyles()(() => ({
 }));
 
 type Props = {
+  attackPatterns: AttackPattern[];
   columns: string[];
   element: EsInject | EsSimulation | EsScenario;
 };
 
 const InjectListElement = (props: Props) => {
+  const { attackPatterns } = props;
   const { classes } = useStyles();
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
-
-  const { attackPatterns }: { attackPatterns: AttackPattern[] } = useHelper((helper: AttackPatternHelper) => {
-    return { attackPatterns: helper.getAttackPatterns() };
-  });
 
   const tooltip = (text: string) => {
     return (

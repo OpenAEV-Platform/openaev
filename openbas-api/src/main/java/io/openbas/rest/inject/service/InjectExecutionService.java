@@ -53,14 +53,15 @@ public class InjectExecutionService {
       // coherent state.
       // This prevents issues where the PENDING status took more time to persist than it took for
       // the agent to send the complete action.
-      // FIXME: At the moment, this whole function is only called by our implant. These implant are
+      // FIXME: At the moment, this whole function is called by our implant and injectors. These
+      // implant are
       // launched with the async value to true, which force the implant to go from EXECUTING to
       // PENDING, before going to EXECUTED.
       // So if in the future, this function is called to update a synchronous inject, we will need
       // to find a way to get the async boolean somehow and add it to this condition.
-      if (input.getAction().equals(InjectExecutionAction.complete)
+      if (InjectExecutionAction.complete.equals(input.getAction())
           && (inject.getStatus().isEmpty()
-              || !inject.getStatus().get().getName().equals(ExecutionStatus.PENDING))) {
+              || !ExecutionStatus.PENDING.equals(inject.getStatus().get().getName()))) {
         // If we receive a status update with a terminal state status, we must first check that the
         // current status is in the PENDING state
         log.warn(

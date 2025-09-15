@@ -1,4 +1,4 @@
-import { Collapse, ListItemIcon, ListItemText, MenuItem, MenuList, Popover } from '@mui/material';
+import { Collapse, ListItemIcon, ListItemText, MenuItem, MenuList, Popover, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -23,6 +23,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
+  const theme = useTheme();
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
@@ -50,8 +51,8 @@ const MenuItemSub: FunctionComponent<Props> = ({
           slotProps={{
             primary: {
               padding: navOpen ? '1px 0 0 10px' : '1px 0 0 15px',
-              fontWeight: 500,
-              fontSize: navOpen ? 12 : 14,
+              fontWeight: theme.typography.h4.fontWeight,
+              fontSize: theme.typography.h4.fontSize,
             },
           }}
         />

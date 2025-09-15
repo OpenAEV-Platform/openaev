@@ -1135,7 +1135,7 @@ public class V1_DataImporter implements Importer {
           injectDocuments.forEach(
               jsonNode -> {
                 String docId = jsonNode.get("document_id").textValue();
-                if (hasText(docId)) {
+                if (hasText(docId) && baseIds.get(docId) != null) {
                   String documentId = baseIds.get(docId).getId();
                   boolean docAttached = jsonNode.get("document_attached").booleanValue();
                   injectDocumentRepository.addInjectDoc(injectId, documentId, docAttached);

@@ -1,4 +1,4 @@
-import { Breadcrumbs as MUIBreadcrumbs, Typography } from '@mui/material';
+import { Breadcrumbs as MUIBreadcrumbs, Tooltip, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -40,21 +40,29 @@ const Breadcrumbs: FunctionComponent<BreadcrumbsProps> = ({ elements, variant, s
   } else if (variant === 'object') {
     className = classes.breadcrumbsObject;
   }
+
   return (
     <MUIBreadcrumbs style={style} classes={{ root: className }}>
       {elements.map((element) => {
+        const text = truncate(element.label, 26);
         if (element.current) {
           return (
-            <Typography key={element.label} color="text.primary">{truncate(element.label, 26)}</Typography>
+            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
+              <Typography color="text.primary">{text}</Typography>
+            </Tooltip>
           );
         }
         if (!element.link) {
           return (
-            <Typography key={element.label} color="inherit">{truncate(element.label, 26)}</Typography>
+            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
+              <Typography color="inherit">{text}</Typography>
+            </Tooltip>
           );
         }
         return (
-          <Link key={element.label} to={element.link}>{truncate(element.label, 26)}</Link>
+          <Tooltip key={element.label} title={element.label} aria-label={element.label}>
+            <Link to={element.link}>{text}</Link>
+          </Tooltip>
         );
       })}
     </MUIBreadcrumbs>
