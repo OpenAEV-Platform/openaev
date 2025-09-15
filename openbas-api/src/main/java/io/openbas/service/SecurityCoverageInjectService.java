@@ -24,7 +24,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class SecurityCoverageInjectService {
 
-  public static final int NUMBER_OF_INJECTS = 1;
+  public static final int TARGET_NUMBER_OF_INJECTS = 1;
 
   private final InjectService injectService;
   private final InjectStixAssistantService injectStixAssistantService;
@@ -80,7 +80,7 @@ public class SecurityCoverageInjectService {
 
     // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
     injectStixAssistantService.generateInjectsByVulnerabilities(
-        scenario, vulnerabilities, NUMBER_OF_INJECTS);
+        scenario, vulnerabilities, TARGET_NUMBER_OF_INJECTS);
   }
 
   /**
@@ -182,7 +182,7 @@ public class SecurityCoverageInjectService {
               .collect(Collectors.toSet());
 
       injectStixAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
-          scenario, missingAttacks, NUMBER_OF_INJECTS);
+          scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS);
     }
   }
 
@@ -245,7 +245,7 @@ public class SecurityCoverageInjectService {
       injectStixAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
           scenario,
           missingAttacks,
-          NUMBER_OF_INJECTS,
+          TARGET_NUMBER_OF_INJECTS,
           missingCombinations.filteredAssetsFromGroupMap());
     }
   }
