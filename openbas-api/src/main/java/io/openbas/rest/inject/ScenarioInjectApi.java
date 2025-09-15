@@ -13,7 +13,7 @@ import io.openbas.rest.inject.form.InjectAssistantInput;
 import io.openbas.rest.inject.form.InjectInput;
 import io.openbas.rest.inject.form.InjectUpdateActivationInput;
 import io.openbas.rest.inject.output.InjectOutput;
-import io.openbas.rest.inject.service.InjectAIAssistantService;
+import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.inject.service.ScenarioInjectService;
@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioInjectApi extends RestBehavior {
 
-  private final InjectAIAssistantService injectAIAssistantService;
+  private final InjectAssistantService injectAssistantService;
   private final InjectSearchService injectSearchService;
   private final InjectRepository injectRepository;
   private final ScenarioService scenarioService;
@@ -103,7 +103,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectAIAssistantService.generateInjectsForScenario(scenario, input);
+    return this.injectAssistantService.generateInjectsForScenario(scenario, input);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")

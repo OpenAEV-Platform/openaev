@@ -8,7 +8,6 @@ import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.AgentUtils.isPrimaryAgent;
 import static io.openbas.utils.FilterUtilsJpa.computeFilterGroupJpa;
-import static io.openbas.utils.InjectorContractUtils.buildCombinationsAttackPatternPlatformsArchitectures;
 import static io.openbas.utils.StringUtils.duplicateString;
 import static io.openbas.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
@@ -1129,6 +1128,37 @@ public class InjectService {
                   merged.addAll(v2);
                   return v1;
                 }));
+  }
+
+  /**
+   * Builds the complete set of required combinations of TTPs and platform-architecture pairs.
+   *
+   * @param attackPatterns list of attack patterns (TTPs)
+   * @param platforms set of platforms
+   * @param architectures set of architecture
+   * @return set of (TTP × Platform × Architecture) combinations
+   */
+  public static Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>
+      buildCombinationsAttackPatternPlatformsArchitectures(
+          List<AttackPattern> attackPatterns,
+          Set<Endpoint.PLATFORM_TYPE> platforms,
+          Set<String> architectures) {
+
+    if (attackPatterns == null || platforms == null || architectures == null) {
+      return Collections.emptySet();
+    }
+
+    return attackPatterns.stream()
+        .flatMap(
+            attackPattern -> {
+              String id = attackPattern.getId();
+              return platforms.stream()
+                  .flatMap(
+                      platform ->
+                          architectures.stream()
+                              .map(architecture -> Triple.of(id, platform, architecture)));
+            })
+        .collect(Collectors.toSet());
   }
 
   /**

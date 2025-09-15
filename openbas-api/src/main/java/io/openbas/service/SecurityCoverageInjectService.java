@@ -1,14 +1,15 @@
 package io.openbas.service;
 
-import static io.openbas.utils.AssetUtils.computePairsPlatformArchitecture;
+import static io.openbas.utils.AssetUtils.extractPlatformArchPairs;
 
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.injectors.manual.ManualContract;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.cve.service.CveService;
+import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectService;
-import io.openbas.rest.inject.service.InjectStixAssistantService;
+import io.openbas.rest.injector_contract.InjectorContractService;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +28,11 @@ public class SecurityCoverageInjectService {
   public static final int TARGET_NUMBER_OF_INJECTS = 1;
 
   private final InjectService injectService;
-  private final InjectStixAssistantService injectStixAssistantService;
+  private final InjectAssistantService injectAssistantService;
   private final AttackPatternService attackPatternService;
-  private final CveService cveService;
+  private final CveService vulnerabilityService;
   private final AssetGroupService assetGroupService;
+  private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
 
@@ -44,8 +46,14 @@ public class SecurityCoverageInjectService {
   public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
       Scenario scenario, SecurityCoverage securityCoverage) {
     cleanInjectPlaceholders(scenario.getId());
-    getInjectsByVulnerabilities(scenario, securityCoverage.getVulnerabilitiesRefs());
-    getInjectsRelatedToAttackPatterns(scenario, securityCoverage.getAttackPatternRefs());
+
+    InjectorContract contractForPlaceholder =
+        injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
+
+    getInjectsByVulnerabilities(
+        scenario, securityCoverage.getVulnerabilitiesRefs(), contractForPlaceholder);
+    getInjectsRelatedToAttackPatterns(
+        scenario, securityCoverage.getAttackPatternRefs(), contractForPlaceholder);
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
@@ -71,16 +79,19 @@ public class SecurityCoverageInjectService {
    * @return list injects related to this scenario
    */
   private void getInjectsByVulnerabilities(
-      Scenario scenario, Set<StixRefToExternalRef> vulnerabilityRefs) {
+      Scenario scenario,
+      Set<StixRefToExternalRef> vulnerabilityRefs,
+      InjectorContract contractForPlaceholder) {
     // 1. Fetch internal Ids for Vulnerabilities
-    Set<Cve> vulnerabilities = cveService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
+    Set<Cve> vulnerabilities =
+        vulnerabilityService.fetchInternalVulnerabilityIds(vulnerabilityRefs);
 
     // 2. List of injects is cleaned
     injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
 
     // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
-    injectStixAssistantService.generateInjectsByVulnerabilities(
-        scenario, vulnerabilities, TARGET_NUMBER_OF_INJECTS);
+    injectAssistantService.generateInjectsByVulnerabilities(
+        scenario, vulnerabilities, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
   }
 
   /**
@@ -101,7 +112,9 @@ public class SecurityCoverageInjectService {
    * @return list injects related to this scenario
    */
   private void getInjectsRelatedToAttackPatterns(
-      Scenario scenario, Set<StixRefToExternalRef> attackPatternRefs) {
+      Scenario scenario,
+      Set<StixRefToExternalRef> attackPatternRefs,
+      InjectorContract contractForPlaceholder) {
     // 1. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
         attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
@@ -126,9 +139,10 @@ public class SecurityCoverageInjectService {
     boolean assetGroupsAreEmpties =
         assetGroups.isEmpty() || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
     if (assetGroupsAreEmpties) {
-      handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap);
+      handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap, contractForPlaceholder);
     } else {
-      handleWithAssetGroupsCase(scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap);
+      handleWithAssetGroupsCase(
+          scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap, contractForPlaceholder);
     }
   }
 
@@ -144,7 +158,8 @@ public class SecurityCoverageInjectService {
   private void handleNoAssetGroupsCase(
       Scenario scenario,
       Map<String, AttackPattern> requiredAttackPatterns,
-      Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap) {
+      Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap,
+      InjectorContract contractForPlaceholder) {
     Set<String> coveredAttackPatterns =
         injectCoverageMap.values().stream()
             .flatMap(Set::stream)
@@ -181,8 +196,8 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectStixAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
-          scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS);
+      injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
+          scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
     }
   }
 
@@ -207,13 +222,14 @@ public class SecurityCoverageInjectService {
       Scenario scenario,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Map<String, AttackPattern> attackPatterns,
-      Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap) {
+      Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap,
+      InjectorContract contractForPlaceholder) {
 
     // 5. Compute all (Platform, Arch) configs across all endpoints
     List<Endpoint> endpoints =
         assetsFromGroupMap.values().stream().flatMap(List::stream).collect(Collectors.toList());
     Set<Pair<Endpoint.PLATFORM_TYPE, String>> allPlatformArchs =
-        computePairsPlatformArchitecture(endpoints);
+        extractPlatformArchPairs(endpoints);
 
     // 6. Build required (AttackPattern × Platform × Arch) combinations
     Set<Triple<String, Endpoint.PLATFORM_TYPE, String>> requiredCombinations =
@@ -242,11 +258,12 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectStixAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
+      injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
           scenario,
           missingAttacks,
           TARGET_NUMBER_OF_INJECTS,
-          missingCombinations.filteredAssetsFromGroupMap());
+          missingCombinations.filteredAssetsFromGroupMap(),
+          contractForPlaceholder);
     }
   }
 
@@ -345,7 +362,7 @@ public class SecurityCoverageInjectService {
         assetsFromGroupMap.entrySet().stream()
             .filter(
                 entry ->
-                    computePairsPlatformArchitecture(entry.getValue()).stream()
+                    extractPlatformArchPairs(entry.getValue()).stream()
                         .anyMatch(missingPlatformArchs::contains))
             .map(Map.Entry::getKey)
             .toList();

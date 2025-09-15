@@ -44,7 +44,7 @@ public class StixService {
       summary =
           "The current scenario does not contain injects. "
               + "This can occur when: (1) no Attack Patterns or vulnerabilities are defined in the STIX bundle, "
-              + "or (2) the specified Attack Patterns (TTPs) and vulnerabilities are not available in the OAEV platform.";
+              + "or (2) the specified Attack Patterns and vulnerabilities are not available in the OAEV platform.";
     } else {
       summary = "Scenario with Injects created successfully";
     }
