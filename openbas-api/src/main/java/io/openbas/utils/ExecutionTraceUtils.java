@@ -5,7 +5,9 @@ import io.openbas.database.model.ExecutionTraceAction;
 import io.openbas.database.model.ExecutionTraceStatus;
 import io.openbas.rest.inject.form.InjectExecutionAction;
 
-public class InjectExecutionUtils {
+public class ExecutionTraceUtils {
+
+  private ExecutionTraceUtils() {}
 
   public static ExecutionTraceStatus convertExecutionStatus(ExecutionStatus status) {
     return switch (status) {

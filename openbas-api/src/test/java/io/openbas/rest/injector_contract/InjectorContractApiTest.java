@@ -2,17 +2,22 @@ package io.openbas.rest.injector_contract;
 
 import static io.openbas.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openbas.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
+import static io.openbas.service.UserService.buildAuthenticationToken;
+import static io.openbas.utils.JsonUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
-import io.openbas.database.model.AttackPattern;
-import io.openbas.database.model.Cve;
-import io.openbas.database.model.Filters;
-import io.openbas.database.model.InjectorContract;
+import io.openbas.database.model.*;
+import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.rest.injector_contract.form.InjectorContractAddInput;
 import io.openbas.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openbas.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -20,9 +25,7 @@ import io.openbas.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openbas.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openbas.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.fixtures.composers.AttackPatternComposer;
-import io.openbas.utils.fixtures.composers.CveComposer;
-import io.openbas.utils.fixtures.composers.InjectorContractComposer;
+import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -30,13 +33,21 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
+import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.util.PSQLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -50,12 +61,24 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private CveComposer cveComposer;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private PayloadComposer payloadComposer;
+
+  @Autowired private UserComposer userComposer;
+  @Autowired private GroupComposer groupComposer;
+  @Autowired private RoleComposer roleComposer;
+  @Autowired private GrantComposer grantComposer;
 
   @BeforeEach
   public void setup() {
     injectorContractComposer.reset();
     attackPatternComposer.reset();
+    payloadComposer.reset();
     cveComposer.reset();
+    userComposer.reset();
+    groupComposer.reset();
+    roleComposer.reset();
+    grantComposer.reset();
   }
 
   @Nested
@@ -1032,6 +1055,259 @@ public class InjectorContractApiTest extends IntegrationTest {
               mapper.writeValueAsString(
                   injectorContractComposer.generatedItems.stream()
                       .map(InjectorContractBaseOutput::fromInjectorContract)));
+    }
+  }
+
+  @Nested
+  @DisplayName("Injector Contract search tests with different user types for RBAC")
+  class InjectorContractSearchTestsForDifferentUsers {
+    // Enum for user types to make parameterized tests cleaner
+    enum UserType {
+      NO_GROUPS,
+      ADMIN,
+      WITH_BYPASS,
+      WITH_ACCESS_PAYLOADS,
+      WITH_OBSERVER_GRANT
+    }
+
+    private UserComposer.Composer createTestUser(UserType userType) {
+      return switch (userType) {
+        case NO_GROUPS ->
+            userComposer.forUser(
+                UserFixture.getUser("NoGroups", "User", UUID.randomUUID() + "@unittests.invalid"));
+        case ADMIN ->
+            userComposer.forUser(
+                UserFixture.getAdminUser(
+                    "Admin", "User", UUID.randomUUID() + "@unittests.invalid"));
+        case WITH_BYPASS -> {
+          GroupComposer.Composer bypassGroup =
+              groupComposer
+                  .forGroup(GroupFixture.createGroup())
+                  .withRole(roleComposer.forRole(RoleFixture.getRole(Set.of(Capability.BYPASS))));
+
+          yield userComposer
+              .forUser(
+                  UserFixture.getUser("Bypass", "User", UUID.randomUUID() + "@unittests.invalid"))
+              .withGroup(bypassGroup);
+        }
+        case WITH_ACCESS_PAYLOADS -> {
+          GroupComposer.Composer payloadsGroup =
+              groupComposer
+                  .forGroup(GroupFixture.createGroup())
+                  .withRole(
+                      roleComposer.forRole(
+                          RoleFixture.getRole(Set.of(Capability.ACCESS_PAYLOADS))));
+
+          yield userComposer
+              .forUser(
+                  UserFixture.getUser(
+                      "AccessPayloads", "User", UUID.randomUUID() + "@unittests.invalid"))
+              .withGroup(payloadsGroup);
+        }
+        case WITH_OBSERVER_GRANT -> {
+          Grant grant = new Grant();
+          grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.PAYLOAD);
+          grant.setName(Grant.GRANT_TYPE.OBSERVER);
+          grant.setResourceId(testPayload.getId());
+          GroupComposer.Composer observerGroup =
+              groupComposer
+                  .forGroup(GroupFixture.createGroup())
+                  .withRole(roleComposer.forRole(RoleFixture.getRole(Set.of())))
+                  .withGrant(grantComposer.forGrant(grant));
+
+          yield userComposer
+              .forUser(
+                  UserFixture.getUser("Observer", "User", UUID.randomUUID() + "@unittests.invalid"))
+              .withGroup(observerGroup);
+        }
+        default -> throw new IllegalArgumentException("Unknown user type: " + userType);
+      };
+    }
+
+    private Payload testPayload;
+    private int preExistingContractsCount;
+
+    private void createStaticInjectorContract(boolean addPayload) {
+      InjectorContractComposer.Composer icComposer =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownObasImplantInjector());
+      if (addPayload) {
+        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
+      }
+      InjectorContract ic = icComposer.persist().get();
+      if (addPayload) {
+        testPayload = ic.getPayload();
+      }
+      em.flush();
+      em.clear();
+    }
+
+    @BeforeEach
+    void setUp() {
+      preExistingContractsCount = (int) injectorContractRepository.count();
+      for (int i = 0; i < 3; ++i) {
+        createStaticInjectorContract(i == 0);
+      }
+    }
+
+    // Method source for parameterized tests
+    private static Stream<Arguments> userTestCases() {
+      return Stream.of(
+          Arguments.of(
+              "User with no groups",
+              UserType.NO_GROUPS,
+              false, // shouldSeeAllContracts
+              false // shouldSeeContractsWithPayload
+              ),
+          Arguments.of(
+              "Admin user",
+              UserType.ADMIN,
+              true, // Admin sees all
+              true),
+          Arguments.of(
+              "User with BYPASS capability",
+              UserType.WITH_BYPASS,
+              true, // BYPASS users should see all
+              true),
+          Arguments.of(
+              "User with ACCESS_PAYLOADS capability",
+              UserType.WITH_ACCESS_PAYLOADS,
+              true, // ACCESS_PAYLOADS users should see all payload-related contracts
+              true),
+          Arguments.of(
+              "User with OBSERVER grant on payload",
+              UserType.WITH_OBSERVER_GRANT,
+              false, // Doesn't see all contracts
+              true // But can see contracts with the specific granted payload
+              ));
+    }
+
+    @ParameterizedTest(name = "{index} - {0}")
+    @MethodSource("userTestCases")
+    @DisplayName("GET /injector-contracts - Test access control for different user types")
+    void testGetInjectContracts(
+        String testCase,
+        UserType userType,
+        boolean shouldSeeAllContracts,
+        boolean shouldSeeContractsWithPayload)
+        throws Exception {
+
+      // Create test user based on type
+      User testUser = createTestUser(userType).persist().get();
+
+      Authentication auth = buildAuthenticationToken(testUser);
+
+      // Perform the request with the test user context
+      ResultActions result =
+          mvc.perform(
+                  get(INJECTOR_CONTRACT_URL)
+                      .with(authentication(auth))
+                      .contentType(MediaType.APPLICATION_JSON))
+              .andDo(print())
+              .andExpect(status().is(HttpStatus.SC_OK));
+
+      // Verify the response based on user permissions
+      if (shouldSeeAllContracts || shouldSeeContractsWithPayload) {
+        // Admin, BYPASS, ACCESS_PAYLOADS users see everything
+        // User with OBSERVER grant sees contracts without payload + the specific contract with
+        // granted payload
+        // That's preExistingContractsCount + 2 (without payload) + 1 (with granted payload) =
+        // preExistingContractsCount + 3
+        result.andExpect(jsonPath("$", hasSize(equalTo(preExistingContractsCount + 3))));
+      } else {
+        // User with no groups only sees contracts without payload
+        // That's preExistingContractsCount + 2 (only the ones without payload)
+        result.andExpect(jsonPath("$", hasSize(equalTo(preExistingContractsCount + 2))));
+      }
+    }
+
+    @ParameterizedTest(name = "{index} - {0}")
+    @MethodSource("userTestCases")
+    @DisplayName(
+        "POST /injector-contracts/search without full details - Test search access control for different user types")
+    void testSearchInjectorContracts(
+        String testCase,
+        UserType userType,
+        boolean shouldSeeAllContracts,
+        boolean shouldSeeContractsWithPayload)
+        throws Exception {
+
+      // Create test user based on type
+      User testUser = createTestUser(userType).persist().get();
+
+      Authentication auth = buildAuthenticationToken(testUser);
+
+      // Create search input
+      InjectorContractSearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
+      searchPaginationInput.setIncludeFullDetails(false);
+
+      ResultActions result =
+          mvc.perform(
+                  post(INJECTOR_CONTRACT_URL + "/search")
+                      .with(authentication(auth))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput)))
+              .andExpect(status().is(HttpStatus.SC_OK));
+
+      // Verify pagination response
+      result.andExpect(jsonPath("$.totalElements").exists());
+      result.andExpect(jsonPath("$.content").isArray());
+
+      if (shouldSeeAllContracts || shouldSeeContractsWithPayload) {
+        // Should see at least contracts without payload
+        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 3)));
+      } else {
+        // Should only see contracts without payload
+        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 2)));
+      }
+    }
+
+    @ParameterizedTest(name = "{index} - {0}")
+    @MethodSource("userTestCases")
+    @DisplayName(
+        "POST /injector-contracts/search with full details - Test search access control for different user types")
+    void testSearchInjectorContractsWithFullDetails(
+        String testCase,
+        UserType userType,
+        boolean shouldSeeAllContracts,
+        boolean shouldSeeContractsWithPayload)
+        throws Exception {
+
+      // Create test user based on type
+      User testUser = createTestUser(userType).persist().get();
+
+      Authentication auth = buildAuthenticationToken(testUser);
+
+      // Create search input
+      InjectorContractSearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
+      searchPaginationInput.setIncludeFullDetails(true);
+
+      ResultActions result =
+          mvc.perform(
+                  post(INJECTOR_CONTRACT_URL + "/search")
+                      .with(authentication(auth))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput)))
+              .andExpect(status().is(HttpStatus.SC_OK));
+
+      // Verify pagination response with full details
+      result.andExpect(jsonPath("$.totalElements").exists());
+      result.andExpect(jsonPath("$.content").isArray());
+
+      // When full details are requested, verify additional fields are present
+      if (result.andReturn().getResponse().getContentAsString().contains("content")) {
+        result.andExpect(jsonPath("$.content[0].injector_contract_content").exists());
+      }
+
+      if (shouldSeeAllContracts) {
+        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 3)));
+      } else if (shouldSeeContractsWithPayload) {
+        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 3)));
+      } else {
+        // Should only see contracts without payload
+        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 2)));
+      }
     }
   }
 }

@@ -46,17 +46,9 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_name: { width: '25%' },
   endpoint_active: { width: '10%' },
   endpoint_agents_privilege: { width: '12%' },
-  endpoint_platform: {
-    width: '10%',
-    display: 'flex',
-    alignItems: 'center',
-  },
+  endpoint_platform: { width: '10%' },
   endpoint_arch: { width: '10%' },
-  endpoint_agents_executor: {
-    width: '13%',
-    display: 'flex',
-    alignItems: 'center',
-  },
+  endpoint_agents_executor: { width: '13%' },
   asset_tags: { width: '15%' },
 };
 

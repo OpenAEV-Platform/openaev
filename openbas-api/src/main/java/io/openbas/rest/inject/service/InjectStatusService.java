@@ -1,7 +1,7 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionAction;
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionStatus;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionStatus;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.aop.lock.Lock;
@@ -127,11 +127,18 @@ public class InjectStatusService {
     // We start by computing the trace date. It should be qual to the START execution trace +
     // input.duration.
     // If the duration is 0 or if there is no START execution trace, we use the current time.
-    Instant traceCreationTime =
-        (injectStatus.getTraces().isEmpty() || input.getDuration() == 0)
-            ? Instant.now()
-            : getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
-                injectStatus, agent.getId(), input.getDuration());
+    Instant traceCreationTime;
+
+    boolean noTraces = injectStatus.getTraces().isEmpty();
+    boolean noDuration = input.getDuration() == 0;
+
+    if (noTraces || noDuration || agent == null) {
+      traceCreationTime = Instant.now();
+    } else {
+      traceCreationTime =
+          getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
+              injectStatus, agent.getId(), input.getDuration());
+    }
 
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
     ExecutionTraceStatus traceStatus = ExecutionTraceStatus.valueOf(input.getStatus());
