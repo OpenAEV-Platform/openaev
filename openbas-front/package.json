@@ -1,6 +1,6 @@
 {
   "name": "openbas-front",
-  "version": "1.18.18",
+  "version": "1.18.19",
   "private": true,
   "main": "src/index.tsx",
   "license": "Apache-2.0",
