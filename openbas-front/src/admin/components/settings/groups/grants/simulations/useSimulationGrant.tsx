@@ -69,7 +69,7 @@ const useSimulationGrant = (groupId: string) => {
       width: '20%',
     },
     {
-      label: t('Manage'),
+      label: t('Manage+Delete'),
       value: (exercise) => {
         const { plannerId, launcherId } = getGrantIds(exercise);
         return (
