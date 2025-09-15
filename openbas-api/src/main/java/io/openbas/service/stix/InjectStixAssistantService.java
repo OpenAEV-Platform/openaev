@@ -16,6 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -183,26 +184,32 @@ public class InjectStixAssistantService {
    * Generates injects for the given scenario and vulnerabilities
    *
    * @param scenario the scenario to which the injects belong
-   * @param vulnerabilities the set of Vulnerabilities (Cves) to generate injects for
-   * @param assetsByTargetProperty map assets by target property
+   * @param missingMap map assets by target property
    * @param injectsPerVulnerability the number of injects to generate per Vulnerability
    * @return the list of created and saved injects
    */
   public Set<Inject> generateInjectsWithTargetsByVulnerabilities(
       Scenario scenario,
-      Set<Cve> vulnerabilities,
-      Map<ContractTargetedProperty, Set<Endpoint>> assetsByTargetProperty,
+      Map<Pair<Cve, ContractTargetedProperty>, Set<Endpoint>> missingMap,
       int injectsPerVulnerability) {
-    Set<Inject> injects =
-        vulnerabilities.stream()
-            .flatMap(
-                vulnerability ->
-                    buildInjectsWithTargetsByVulnerability(
-                        vulnerability, injectsPerVulnerability, assetsByTargetProperty)
-                        .stream())
-            .peek(inject -> inject.setScenario(scenario))
-            .collect(Collectors.toSet());
 
+    Set<Inject> injects = new HashSet<>();
+
+    for (Map.Entry<Pair<Cve, ContractTargetedProperty>, Set<Endpoint>> entry :
+        missingMap.entrySet()) {
+      Cve vulnerability = entry.getKey().getLeft();
+      ContractTargetedProperty targetProperty = entry.getKey().getRight();
+      Set<Endpoint> assetsForProperty = entry.getValue();
+
+      injects.addAll(
+          buildInjectsWithTargetsByVulnerability(
+              vulnerability, injectsPerVulnerability, Map.of(targetProperty, assetsForProperty)));
+    }
+
+    // Associate each inject with the scenario
+    injects.forEach(inject -> inject.setScenario(scenario));
+
+    // Persist injects
     Set<Inject> savedInjects = new HashSet<>();
     this.injectRepository.saveAll(injects).forEach(savedInjects::add);
 
