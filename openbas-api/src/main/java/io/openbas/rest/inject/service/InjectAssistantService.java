@@ -661,7 +661,7 @@ public class InjectAssistantService {
       return String.format(
           base,
           "vulnerability " + identifier,
-          "Please add the injector contracts related to this vulnerability.");
+          "Please add the contracts related to this vulnerability.");
     }
   }
 

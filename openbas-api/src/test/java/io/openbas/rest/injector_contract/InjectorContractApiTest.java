@@ -1,9 +1,9 @@
 package io.openbas.rest.injector_contract;
 
 import static io.openbas.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
-import static io.openbas.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
 import static io.openbas.service.UserService.buildAuthenticationToken;
 import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;

@@ -306,7 +306,7 @@ class StixApiTest extends IntegrationTest {
               .getDescription()
               .contains(
                   "This placeholder is disabled because the vulnerability CVE-2023-48788 is currently not covered. "
-                      + "Please add the injector contracts related to this vulnerability."));
+                      + "Please add the contracts related to this vulnerability."));
     }
 
     @Test
