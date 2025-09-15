@@ -67,8 +67,23 @@ public class InjectExpectationService {
 
   public InjectExpectation updateInjectExpectation(
       @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
+
     InjectExpectation injectExpectation =
         this.injectExpectationRepository.findById(expectationId).orElseThrow();
+
+    Collector collector =
+        this.collectorRepository
+            .findById(input.getSourceId())
+            .orElseThrow(ElementNotFoundException::new);
+
+    // Update inject expectation at agent level
+    String collectorName = collector.getName();
+
+    String fullName =
+        Optional.ofNullable(collector.getSecurityPlatform())
+            .map(sp -> collectorName + " (" + sp.getSecurityPlatformType() + ")")
+            .orElse(collectorName);
+
     Optional<InjectExpectationResult> exists =
         injectExpectation.getResults().stream()
             .filter(r -> input.getSourceId().equals(r.getSourceId()))
@@ -109,7 +124,7 @@ public class InjectExpectationService {
               buildInjectExpectationResult(
                   input.getSourceId(),
                   input.getSourceType(),
-                  input.getSourceName(),
+                  fullName,
                   result,
                   input.getScore()));
     }
@@ -417,12 +432,19 @@ public class InjectExpectationService {
             .orElseThrow(ElementNotFoundException::new);
 
     // Update inject expectation at agent level
+    String collectorName = collector.getName();
+
+    String fullName =
+        Optional.ofNullable(collector.getSecurityPlatform())
+            .map(sp -> collectorName + " (" + sp.getSecurityPlatformType() + ")")
+            .orElse(collectorName);
+
     injectExpectation =
         this.computeExpectation(
             injectExpectation,
             collector.getId(),
             COLLECTOR,
-            collector.getName(),
+            fullName,
             input.getResult(),
             input.getIsSuccess(),
             input.getMetadata());
