@@ -131,14 +131,13 @@ public class InjectStatusService {
 
     boolean noTraces = injectStatus.getTraces().isEmpty();
     boolean noDuration = input.getDuration() == 0;
-    String agentId = (agent == null) ? null : agent.getId();
 
-    if (noTraces || noDuration || agentId == null) {
+    if (noTraces || noDuration || agent == null) {
       traceCreationTime = Instant.now();
     } else {
       traceCreationTime =
           getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
-              injectStatus, agentId, input.getDuration());
+              injectStatus, agent.getId(), input.getDuration());
     }
 
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
