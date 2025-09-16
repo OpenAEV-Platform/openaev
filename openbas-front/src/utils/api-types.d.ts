@@ -5554,10 +5554,6 @@ export interface StatusPayloadOutput {
   payload_type?: string;
 }
 
-export interface StepsInput {
-  steps: string[];
-}
-
 export interface StructuralHistogramSeries {
   /** Filter object to search within filterable attributes */
   filter?: FilterGroup;
