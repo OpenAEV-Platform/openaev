@@ -12,7 +12,7 @@ public interface CveRepository extends CrudRepository<Cve, String>, JpaSpecifica
 
   Optional<Cve> findByExternalId(String externalId);
 
-  Set<Cve> findAllByIdInIgnoreCase(Set<String> ids);
+  Set<Cve> getAllByIdInIgnoreCaseOrderByUpdateDateDesc(Set<String> ids);
 
-  Set<Cve> getAllByExternalIdInIgnoreCase(Set<String> externalIds);
+  Set<Cve> getAllByExternalIdInIgnoreCaseOrderByUpdateDateDesc(Set<String> externalIds);
 }
