@@ -129,7 +129,7 @@ public class CveService {
   }
 
   public Set<Cve> findAllByIdsOrThrowIfMissing(final Set<String> vulnIds) {
-    Set<Cve> vulns = this.cveRepository.getAllByIdInIgnoreCaseOrderByUpdateDateDesc(vulnIds);
+    Set<Cve> vulns = this.cveRepository.getAllByIdInIgnoreCase(vulnIds);
     throwIfMissing(vulnIds, vulns, Cve::getId);
     return vulns;
   }
@@ -201,6 +201,6 @@ public class CveService {
     if (externalIds.isEmpty()) {
       return Collections.emptySet();
     }
-    return this.cveRepository.getAllByExternalIdInIgnoreCaseOrderByUpdateDateDesc(externalIds);
+    return this.cveRepository.getAllByExternalIdInIgnoreCase(externalIds);
   }
 }
