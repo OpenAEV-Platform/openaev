@@ -39,7 +39,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
 import org.apache.http.HttpStatus;
@@ -555,8 +554,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                         ",",
                         cveComposer.generatedItems.stream()
                             .sorted(Comparator.comparing(Cve::getUpdateDate))
-                            .collect(Collectors.toList())
-                            .stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
                             .toList())));
       }
@@ -617,8 +614,6 @@ public class InjectorContractApiTest extends IntegrationTest {
                         ",",
                         cveComposer.generatedItems.stream()
                             .sorted(Comparator.comparing(Cve::getUpdateDate))
-                            .collect(Collectors.toList())
-                            .stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
                             .toList())));
       }
