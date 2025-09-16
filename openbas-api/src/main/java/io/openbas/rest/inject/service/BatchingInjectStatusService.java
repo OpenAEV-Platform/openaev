@@ -7,22 +7,22 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.database.model.*;
-import io.openbas.database.repository.AgentRepository;
-import io.openbas.database.repository.InjectExpectationRepository;
-import io.openbas.database.repository.InjectRepository;
+import io.openbas.database.repository.*;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.finding.FindingService;
 import io.openbas.rest.inject.form.InjectExecutionAction;
+import io.openbas.rest.inject.form.InjectExecutionCallback;
 import io.openbas.rest.inject.form.InjectExecutionInput;
 import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
 import io.openbas.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -31,7 +31,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class InjectExecutionService {
+@Transactional
+public class BatchingInjectStatusService {
 
   private final InjectRepository injectRepository;
   private final InjectExpectationRepository injectExpectationRepository;
@@ -44,42 +45,88 @@ public class InjectExecutionService {
   @Resource protected ObjectMapper mapper;
 
   public void handleInjectExecutionCallback(
-      String injectId, String agentId, InjectExecutionInput input) {
-    Inject inject = null;
+      List<InjectExecutionCallback> injectExecutionCallbacks) {
 
-    try {
-      inject = loadInjectOrThrow(injectId);
-      // issue/3550: added this condition to ensure we only update statuses if the inject is in a
-      // coherent state.
-      // This prevents issues where the PENDING status took more time to persist than it took for
-      // the agent to send the complete action.
-      // FIXME: At the moment, this whole function is only called by our implant. These implant are
-      // launched with the async value to true, which force the implant to go from EXECUTING to
-      // PENDING, before going to EXECUTED.
-      // So if in the future, this function is called to update a synchronous inject, we will need
-      // to find a way to get the async boolean somehow and add it to this condition.
-      if (input.getAction().equals(InjectExecutionAction.complete)
-          && (inject.getStatus().isEmpty()
-              || !inject.getStatus().get().getName().equals(ExecutionStatus.PENDING))) {
-        // If we receive a status update with a terminal state status, we must first check that the
-        // current status is in the PENDING state
-        log.warn(
-            String.format(
-                "Received a complete action for inject %s with status %s, but current status is not PENDING",
-                injectId, inject.getStatus().map(is -> is.getName().toString()).orElse("unknown")));
-        throw new DataIntegrityViolationException(
-            "Cannot complete inject that is not in PENDING state");
-      }
-      Agent agent = loadAgentIfPresent(agentId);
+    Map<String, Inject> mapInjectsById =
+        injectRepository
+            .findAllByIdWithExpectations(
+                injectExecutionCallbacks.stream()
+                    .map(InjectExecutionCallback::getInjectId)
+                    .toList())
+            .stream()
+            .collect(Collectors.toMap(Inject::getId, Function.identity()));
 
-      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-      Optional<ObjectNode> structuredOutput =
-          structuredOutputUtils.computeStructuredOutput(outputParsers, input);
+    Map<String, Agent> mapAgentsById =
+        StreamSupport.stream(
+                agentRepository
+                    .findAllById(
+                        injectExecutionCallbacks.stream()
+                            .map(InjectExecutionCallback::getAgentId)
+                            .toList())
+                    .spliterator(),
+                false)
+            .collect(Collectors.toMap(Agent::getId, Function.identity()));
 
-      processInjectExecution(inject, agent, input, outputParsers, structuredOutput);
-    } catch (ElementNotFoundException | JsonProcessingException e) {
-      handleInjectExecutionError(inject, e);
-    }
+    injectExecutionCallbacks.forEach(
+        callback -> {
+          Inject inject = null;
+
+          try {
+            inject =
+                Optional.ofNullable(mapInjectsById.get(callback.getInjectId()))
+                    .orElseThrow(
+                        () ->
+                            new ElementNotFoundException(
+                                "Inject not found: " + callback.getInjectId()));
+            // issue/3550: added this condition to ensure we only update statuses if the inject is
+            // in a
+            // coherent state.
+            // This prevents issues where the PENDING status took more time to persist than it took
+            // for
+            // the agent to send the complete action.
+            // FIXME: At the moment, this whole function is only called by our implant. These
+            // implant are
+            // launched with the async value to true, which force the implant to go from EXECUTING
+            // to
+            // PENDING, before going to EXECUTED.
+            // So if in the future, this function is called to update a synchronous inject, we will
+            // need
+            // to find a way to get the async boolean somehow and add it to this condition.
+            if (callback
+                    .getInjectExecutionInput()
+                    .getAction()
+                    .equals(InjectExecutionAction.complete)
+                && (inject.getStatus().isEmpty()
+                    || !inject.getStatus().get().getName().equals(ExecutionStatus.PENDING))) {
+              // If we receive a status update with a terminal state status, we must first check
+              // that the
+              // current status is in the PENDING state
+              log.warn(
+                  String.format(
+                      "Received a complete action for inject %s with status %s, but current status is not PENDING",
+                      callback.getInjectId(),
+                      inject.getStatus().map(is -> is.getName().toString()).orElse("unknown")));
+              throw new DataIntegrityViolationException(
+                  "Cannot complete inject that is not in PENDING state");
+            }
+            Agent agent =
+                Optional.ofNullable(mapAgentsById.get(callback.getAgentId()))
+                    .orElseThrow(
+                        () ->
+                            new ElementNotFoundException(
+                                "Agent not found: " + callback.getAgentId()));
+
+            Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+            Optional<ObjectNode> structuredOutput =
+                structuredOutputUtils.computeStructuredOutput(
+                    outputParsers, callback.getInjectExecutionInput());
+
+            processInjectExecution(
+                inject, agent, callback.getInjectExecutionInput(), outputParsers, structuredOutput);
+          } catch (ElementNotFoundException | JsonProcessingException e) {
+            handleInjectExecutionError(inject, e);
+          }
+        });
   }
 
   /** Processes the execution of an inject by updating its status and extracting findings. */
@@ -209,20 +256,6 @@ public class InjectExecutionService {
                   .isSuccess(injectExpectationResult.getScore() != 0.0)
                   .build());
         });
-  }
-
-  private Agent loadAgentIfPresent(String agentId) {
-    return (agentId == null)
-        ? null
-        : agentRepository
-            .findById(agentId)
-            .orElseThrow(() -> new ElementNotFoundException("Agent not found: " + agentId));
-  }
-
-  private Inject loadInjectOrThrow(String injectId) {
-    return injectRepository
-        .findById(injectId)
-        .orElseThrow(() -> new ElementNotFoundException("Inject not found: " + injectId));
   }
 
   private void handleInjectExecutionError(Inject inject, Exception e) {

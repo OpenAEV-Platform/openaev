@@ -26,6 +26,7 @@ import io.openbas.utils.ExpectationUtils;
 import io.openbas.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -37,6 +38,9 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -339,10 +343,21 @@ public class InjectExpectationService {
 
   // -- FETCH INJECT EXPECTATIONS --
 
-  public List<InjectExpectation> expectationsNotFill() {
-    return fromIterable(this.injectExpectationRepository.findAll()).stream()
-        .filter(e -> hasAnyEmptyResult(e.getResults()))
-        .toList();
+  public Page<InjectExpectation> expectationsNotFill() {
+    return this.injectExpectationRepository.findAll(
+        (root, query, criteriaBuilder) -> {
+          if (query.getResultType() != Long.class) {
+            root.fetch("agent", JoinType.LEFT);
+          }
+          return criteriaBuilder.and(
+              criteriaBuilder.equal(
+                  criteriaBuilder.function("json_array_length", Integer.class, root.get("results")),
+                  Integer.valueOf(0)),
+              criteriaBuilder.or(
+                  criteriaBuilder.isNotNull(root.get("agent")),
+                  criteriaBuilder.isNull(root.get("score"))));
+        },
+        PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
   }
 
   // -- PREVENTION --

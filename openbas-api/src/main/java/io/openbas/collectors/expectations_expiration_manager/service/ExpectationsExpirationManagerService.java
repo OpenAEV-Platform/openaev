@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,20 +33,15 @@ public class ExpectationsExpirationManagerService {
   @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
-    List<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
+    Page<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
+    while (expectations.getTotalElements() > 0) {
+      List<InjectExpectation> updated = new ArrayList<>();
+      this.processAgentExpectations(expectations.toList(), collector);
+      this.processRemainingExpectations(expectations.toList(), collector, updated);
 
-    if (expectations.isEmpty()) {
-      return;
+      this.injectExpectationService.updateAll(updated);
+      expectations = this.injectExpectationService.expectationsNotFill();
     }
-
-    List<InjectExpectation> updated = new ArrayList<>();
-    this.processAgentExpectations(expectations, collector);
-    this.processRemainingExpectations(expectations, collector, updated);
-
-    if (updated.isEmpty()) {
-      return;
-    }
-    this.injectExpectationService.updateAll(updated);
   }
 
   // -- PRIVATE --
