@@ -47,4 +47,8 @@ public class InjectStatusFixture {
   public static InjectStatus createQueuingInjectStatus() {
     return createInjectStatus(ExecutionStatus.QUEUING);
   }
+
+  public static InjectStatus createSuccessStatus() {
+    return createInjectStatus(ExecutionStatus.SUCCESS);
+  }
 }

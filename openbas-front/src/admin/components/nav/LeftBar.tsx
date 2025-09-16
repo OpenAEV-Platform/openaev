@@ -246,7 +246,7 @@ const LeftBar = () => {
               ? [{
                   link: '/admin/settings/experience',
                   label: 'Filigran Experience',
-                  userRight: true,
+                  userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
                 }]
               : [],
           ],

@@ -20,6 +20,7 @@ import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.inject.service.InjectStatusService;
 import io.openbas.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openbas.service.NotificationEventService;
+import io.openbas.service.SecurityCoverageSendJobService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -65,6 +66,7 @@ public class InjectsExecutionJob implements Job {
   private final io.openbas.executors.Executor executor;
   private final ActionMetricCollector actionMetricCollector;
   private final NotificationEventService notificationEventService;
+  private final SecurityCoverageSendJobService securityCoverageSendJobService;
 
   private final List<ExecutionStatus> executionStatusesNotReady =
       List.of(
@@ -116,6 +118,10 @@ public class InjectsExecutionJob implements Job {
                       exercise.setUpdatedAt(now());
                     })
                 .toList());
+
+    // maybe trigger stix coverage background job
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+        exercisesFinished);
 
     // send notification
     exercisesFinished.stream()
