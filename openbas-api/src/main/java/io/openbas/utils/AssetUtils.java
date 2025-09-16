@@ -20,7 +20,7 @@ public class AssetUtils {
    * @return set of (Platform × Architecture) combinations
    */
   public static Set<Pair<Endpoint.PLATFORM_TYPE, String>> extractPlatformArchPairs(
-      Set<Endpoint> endpointSet) {
+      List<Endpoint> endpointSet) {
     return endpointSet.stream()
         .map(ep -> Pair.of(ep.getPlatform(), ep.getArch().name()))
         .collect(Collectors.toSet());

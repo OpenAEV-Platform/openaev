@@ -13,6 +13,7 @@ import io.openbas.rest.inject.form.InjectAssistantInput;
 import io.openbas.rest.inject.form.InjectInput;
 import io.openbas.rest.inject.form.InjectUpdateActivationInput;
 import io.openbas.rest.inject.output.InjectOutput;
+import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.inject.service.ScenarioInjectService;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioInjectApi extends RestBehavior {
 
-  private final InjectAssistantService injectSearchService;
+  private final InjectAssistantService injectAssistantService;
   private final InjectSearchService injectSearchService;
   private final InjectRepository injectRepository;
   private final ScenarioService scenarioService;

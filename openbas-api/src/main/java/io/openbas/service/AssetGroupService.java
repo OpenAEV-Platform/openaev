@@ -217,7 +217,7 @@ public class AssetGroupService {
    * @param assetGroups list
    * @return map of asset groups with the list of endpoints
    */
-  public Map<AssetGroup, Set<Endpoint>> assetsFromAssetGroupMap(List<AssetGroup> assetGroups) {
+  public Map<AssetGroup, List<Endpoint>> assetsFromAssetGroupMap(List<AssetGroup> assetGroups) {
     return assetGroups.stream()
         .collect(
             Collectors.toMap(
@@ -225,7 +225,7 @@ public class AssetGroupService {
                 group ->
                     this.assetsFromAssetGroup(group.getId()).stream()
                         .map(Endpoint.class::cast)
-                        .collect(Collectors.toSet())));
+                        .toList()));
   }
 
   /**
@@ -234,8 +234,9 @@ public class AssetGroupService {
    * @param scenario the scenario containing tag references
    * @return list of asset groups associated with the scenario tags
    */
-  public List<AssetGroup> fetchAssetGroupsFromScenarioTagRules(Scenario scenario) {
-    return tagRuleService.getAssetGroupsFromTagIds(
-        scenario.getTags().stream().map(Tag::getId).toList());
+  public Set<AssetGroup> fetchAssetGroupsFromScenarioTagRules(Scenario scenario) {
+    return new HashSet<>(
+        tagRuleService.getAssetGroupsFromTagIds(
+            scenario.getTags().stream().map(Tag::getId).toList()));
   }
 }
