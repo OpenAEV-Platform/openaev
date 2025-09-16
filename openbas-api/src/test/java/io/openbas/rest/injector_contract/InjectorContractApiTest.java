@@ -6,7 +6,6 @@ import static io.openbas.utils.JsonUtils.asJsonString;
 import static io.openbas.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -19,7 +18,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectorContractRepository;
@@ -531,10 +529,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths(
-                "injector_contract_created_at",
-                "injector_contract_updated_at",
-                "injector_contract_vulnerabilities")
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_ARRAY_ORDER)
             .isEqualTo(
                 String.format(
                     """
@@ -546,19 +542,19 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
                           "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                          "injector_contract_attack_patterns":[],
+                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openbas_implant",
                           "injector_contract_injector_type_name":"OpenBAS Implant"
                         }
                         """,
-                    injectorContractInternalId));
-
-        List<String> expectedVulnIds = cveComposer.generatedItems.stream().map(Cve::getId).toList();
-        List<String> responseVulnIds =
-            JsonPath.read(response, "$.injector_contract_vulnerabilities[*]");
-        assertThat(responseVulnIds).containsExactlyInAnyOrderElementsOf(expectedVulnIds);
+                    injectorContractInternalId,
+                    String.join(
+                        ",",
+                        cveComposer.generatedItems.stream()
+                            .map(vuln -> String.format("\"" + vuln.getId() + "\""))
+                            .toList())));
       }
 
       @Test
@@ -593,10 +589,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths(
-                "injector_contract_created_at",
-                "injector_contract_updated_at",
-                "injector_contract_vulnerabilities")
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_ARRAY_ORDER)
             .isEqualTo(
                 String.format(
                     """
@@ -608,18 +602,19 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
                           "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                          "injector_contract_attack_patterns":[],
+                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openbas_implant",
                           "injector_contract_injector_type_name":"OpenBAS Implant"
                         }
                         """,
-                    injectorContractInternalId));
-        List<String> expectedVulnIds = cveComposer.generatedItems.stream().map(Cve::getId).toList();
-        List<String> responseVulnIds =
-            JsonPath.read(response, "$.injector_contract_vulnerabilities[*]");
-        assertThat(responseVulnIds).containsExactlyInAnyOrderElementsOf(expectedVulnIds);
+                    injectorContractInternalId,
+                    String.join(
+                        ",",
+                        cveComposer.generatedItems.stream()
+                            .map(vuln -> String.format("\"" + vuln.getId() + "\""))
+                            .toList())));
       }
 
       @Test
