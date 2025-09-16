@@ -10,12 +10,14 @@ import {
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
+import { useHelper } from '../../../../../../../store';
 import { type EsBase } from '../../../../../../../utils/api-types';
 import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
 import buildStyles from './elements/ColumnStyles';
@@ -39,6 +41,8 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
   const navigate = useNavigate();
+
+  const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
 
   const headersFromColumns = (widgetConfig.columns ?? []).map(col => ({
     field: col,
@@ -71,10 +75,13 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
     element: EsBase,
   ) => {
     const renderer = listConfigRenderer[column];
-    const value = element[column as keyof typeof element];
+    const value = element[column as keyof typeof element] as string | boolean | string[] | boolean[];
 
     if (renderer) {
-      return renderer(value, element);
+      return renderer(value, {
+        element,
+        attackPatterns,
+      });
     }
 
     const text = value?.toString() ?? '';

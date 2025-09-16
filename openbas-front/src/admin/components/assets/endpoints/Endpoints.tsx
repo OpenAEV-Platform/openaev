@@ -18,7 +18,6 @@ import AssetPlatformFragment from '../../../../components/common/list/fragments/
 import EndpointActiveFragment from '../../../../components/common/list/fragments/EndpointActiveFragment';
 import EndpointAgentsPrivilegeFragment from '../../../../components/common/list/fragments/EndpointAgentsPrivilegeFragment';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
-import TagsFragment from '../../../../components/common/list/fragments/TagsFragment';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -26,6 +25,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
+import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
@@ -132,7 +132,7 @@ const Endpoints = () => {
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <TagsFragment tags={endpoint.asset_tags} />,
+      value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
   ];
 

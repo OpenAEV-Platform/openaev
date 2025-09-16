@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
-import TagsFragment from '../../../../components/common/list/fragments/TagsFragment';
+import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type EndpointOutput } from '../../../../utils/api-types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
@@ -73,7 +73,7 @@ const EndpointsList: FunctionComponent<Props> = ({
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <TagsFragment tags={endpoint.asset_tags} />,
+      value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TYPE,
