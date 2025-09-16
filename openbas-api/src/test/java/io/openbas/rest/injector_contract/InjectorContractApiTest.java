@@ -532,7 +532,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at", "injector_contract_vulnerabilities")
             .isEqualTo(
                 String.format(
                     """
@@ -544,20 +544,19 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
                           "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
+                          "injector_contract_attack_patterns":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openbas_implant",
                           "injector_contract_injector_type_name":"OpenBAS Implant"
                         }
                         """,
-                    injectorContractInternalId,
-                    String.join(
-                        ",",
-                        cveComposer.generatedItems.stream()
-                            .sorted(Comparator.comparing(Cve::getId))
-                            .map(vuln -> String.format("\"" + vuln.getId() + "\""))
-                            .toList())));
+                    injectorContractInternalId));
+
+        List<String> expectedVulnIds = cveComposer.generatedItems.stream().map(Cve::getId).toList();
+        List<String> responseVulnIds =
+            JsonPath.read(response, "$.injector_contract_vulnerabilities[*]");
+        assertThat(responseVulnIds).containsExactlyInAnyOrderElementsOf(expectedVulnIds);
       }
 
       @Test
