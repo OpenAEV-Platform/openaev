@@ -16,6 +16,7 @@ import io.openbas.model.expectation.ManualExpectation;
 import io.openbas.service.InjectExpectationService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -103,7 +104,9 @@ public class EmailExecutor extends Injector {
     Exercise exercise = injection.getInjection().getExercise();
     String from = exercise != null ? exercise.getFrom() : this.openBASConfig.getDefaultMailer();
     List<String> replyTos =
-        exercise != null ? exercise.getReplyTos() : List.of(this.openBASConfig.getDefaultReplyTo());
+        exercise != null
+            ? exercise.getReplyTos()
+            : new ArrayList<>(List.of(this.openBASConfig.getDefaultReplyTo()));
     //noinspection SwitchStatementWithTooFewBranches
     switch (inject
         .getInjectorContract()
