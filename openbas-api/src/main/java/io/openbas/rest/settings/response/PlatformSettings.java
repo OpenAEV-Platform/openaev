@@ -105,14 +105,6 @@ public class PlatformSettings {
   @Schema(description = "Url of OpenCTI")
   private String xtmOpenctiUrl;
 
-  @JsonProperty("xtm_hub_enable")
-  @Schema(description = "True if connection with XTM Hub is enabled")
-  private Boolean xtmHubEnable;
-
-  @JsonProperty("xtm_hub_url")
-  @Schema(description = "Url of XTM Hub")
-  private String xtmHubUrl;
-
   @JsonProperty("telemetry_manager_enable")
   @Schema(description = "True if telemetry manager enable")
   private Boolean telemetryManagerEnable;
@@ -272,4 +264,33 @@ public class PlatformSettings {
   @JsonProperty("platform_onboarding_contextual_help_enable")
   @Schema(description = "Platform onboarding contextual help enabled")
   private boolean onboardingContextualHelpEnable;
+
+  // XTM Hub
+  @JsonProperty("xtm_hub_enable")
+  @Schema(description = "True if connection with XTM Hub is enabled")
+  private Boolean xtmHubEnable;
+
+  @JsonProperty("xtm_hub_url")
+  @Schema(description = "Url of XTM Hub")
+  private String xtmHubUrl;
+
+  @JsonProperty("xtm_hub_token")
+  @Schema(description = "XTM Hub token")
+  private String xtmHubToken;
+
+  @JsonProperty("xtm_hub_registration_status")
+  @Schema(description = "XTM Hub registration status")
+  private String xtmHubRegistrationStatus;
+
+  @JsonProperty("xtm_hub_registration_date")
+  @Schema(description = "XTM Hub registration date")
+  private String xtmHubRegistrationDate;
+
+  @JsonProperty("xtm_hub_registration_user_id")
+  @Schema(description = "XTM Hub registration user id")
+  private String xtmHubRegistrationUserId;
+
+  @JsonProperty("xtm_hub_registration_user_name")
+  @Schema(description = "XTM Hub registration user name")
+  private String xtmHubRegistrationUserName;
 }

@@ -15,6 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
+import io.openbas.database.model.Inject;
+import io.openbas.database.model.Scenario;
+import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
@@ -22,6 +25,7 @@ import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.injector_contract.ContractTargetedProperty;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
+import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import jakarta.annotation.Resource;
@@ -368,7 +372,7 @@ class StixApiTest extends IntegrationTest {
           inject
               .getDescription()
               .contains(
-                  "This placeholder is disabled because the vulnerability CVE-2023-48788 is currently not covered. "
+                  "This placeholder is disabled because the Vulnerability CVE-2023-48788 is currently not covered. "
                       + "Please add the contracts related to this vulnerability."));
     }
 
@@ -422,7 +426,7 @@ class StixApiTest extends IntegrationTest {
           inject
               .getDescription()
               .contains(
-                  "This placeholder is disabled because the AttackPattern T1003 is currently not covered. "
+                  "This placeholder is disabled because the Attack Pattern T1003 is currently not covered. "
                       + "Please create the payloads for platform [any platform] and architecture [any architecture]."));
     }
 

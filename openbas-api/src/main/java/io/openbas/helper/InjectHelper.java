@@ -33,46 +33,6 @@ public class InjectHelper {
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
 
-  // -- INJECT --
-  /**
-   * Builds an Inject object based on the provided InjectorContract, title, description and enabled
-   *
-   * @param injectorContract the InjectorContract associated with the Inject
-   * @param title the title of the Inject
-   * @param description the description of the Inject
-   * @param enabled indicates whether the Inject is enabled or not
-   * @return the inject object built
-   */
-  public static Inject buildInject(
-      InjectorContract injectorContract, String title, String description, Boolean enabled) {
-    Inject inject = new Inject();
-    inject.setTitle(title);
-    inject.setDescription(description);
-    inject.setInjectorContract(injectorContract);
-    inject.setDependsDuration(0L);
-    inject.setEnabled(enabled);
-    inject.setContent(
-        InjectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
-    return inject;
-  }
-
-  /**
-   * Builds a technical Inject object from the provided InjectorContract and AttackPattern.
-   *
-   * @param injectorContract the InjectorContract to build the Inject from
-   * @param identifier the AttackPattern or Vulnerability associated with the Inject
-   * @param name the AttackPattern or Vulnerability associated with the Inject
-   * @return the built Inject object
-   */
-  public static Inject buildTechnicalInject(
-      InjectorContract injectorContract, String identifier, String name) {
-    return buildInject(
-        injectorContract,
-        String.format("[%s] %s - %s", identifier, name, injectorContract.getLabels().get("en")),
-        null,
-        true);
-  }
-
   private List<Team> getInjectTeams(@NotNull final Inject inject) {
     Exercise exercise = inject.getExercise();
     if (inject

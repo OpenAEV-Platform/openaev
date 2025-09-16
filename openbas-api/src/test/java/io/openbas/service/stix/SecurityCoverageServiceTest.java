@@ -89,6 +89,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                         attackPatternWrappers.keySet().stream()
                             .map(AttackPatternComposer.Composer::get)
                             .toList())));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     for (Map.Entry<AttackPatternComposer.Composer, java.lang.Boolean> apw :
         attackPatternWrappers.entrySet()) {
@@ -182,6 +183,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
         createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true, ap2, true));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // set SUCCESS results for all inject expectations
     injectExpectationComposer.generatedItems.forEach(
@@ -335,6 +337,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
         createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true, ap2, true));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // expectation results
     Inject successfulInject =
@@ -516,6 +519,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
         createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // set SUCCESS results for all inject expectations
     Inject successfulInject =
@@ -686,6 +690,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
     Instant sroStopTime = Instant.parse("2003-02-16T16:00:00Z");
     exerciseWrapper.get().setStart(sroStartTime);
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // persist
     exerciseWrapper.persist();

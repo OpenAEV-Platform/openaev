@@ -37,17 +37,4 @@ public class AssetUtils {
         .collect(
             Collectors.groupingBy(endpoint -> endpoint.getPlatform() + ":" + endpoint.getArch()));
   }
-
-  /**
-   * Get all platform-architecture pairs that are supported by the system.
-   *
-   * @return a list of all platform-architecture pairs
-   */
-  public static List<String> getAllPlatform() {
-    List<String> allPlatformArchitecturePairs = new ArrayList<>();
-    allPlatformArchitecturePairs.add(Endpoint.PLATFORM_TYPE.Linux.name());
-    allPlatformArchitecturePairs.add(Endpoint.PLATFORM_TYPE.MacOS.name());
-    allPlatformArchitecturePairs.add(Endpoint.PLATFORM_TYPE.Windows.name());
-    return allPlatformArchitecturePairs;
-  }
 }
