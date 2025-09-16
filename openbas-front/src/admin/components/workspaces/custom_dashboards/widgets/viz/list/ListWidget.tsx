@@ -23,7 +23,7 @@ import { type ListConfiguration } from '../../../../../../../utils/api-types-cus
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
-import listConfigRenderer from './elements/LIstColumnConfig';
+import listConfigRenderer from './elements/ListColumnConfig';
 import navigationHandlers from './elements/ListNavigationHandler';
 
 const useStyles = makeStyles()(() => ({

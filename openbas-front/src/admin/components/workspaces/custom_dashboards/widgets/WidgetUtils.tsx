@@ -6,7 +6,7 @@ import {
   type Exercise,
   type Filter,
   type FilterGroup,
-  type InjectExpectation, Series,
+  type InjectExpectation, type Series,
 } from '../../../../../utils/api-types';
 import {
   type HistogramWidget,

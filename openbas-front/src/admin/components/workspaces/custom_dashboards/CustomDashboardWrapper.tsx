@@ -7,8 +7,8 @@ import Loader from '../../../../components/Loader';
 import type { CustomDashboard, EsAttackPath, EsBase, EsSeries } from '../../../../utils/api-types';
 import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
-import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
 import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
+import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
 
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];

@@ -15,7 +15,7 @@ import ItemTags from '../../../../../../../../components/ItemTags';
 import {
   type AttackPattern,
   type EsBase,
-  type EsInjectExpectation, type Tag,
+  type EsInjectExpectation,
 } from '../../../../../../../../utils/api-types';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
 

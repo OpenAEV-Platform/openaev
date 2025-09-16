@@ -13,12 +13,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @Setter
@@ -76,8 +75,8 @@ public abstract class WidgetConfiguration {
   @JsonProperty("date_attribute")
   private String dateAttribute = "base_created_at";
 
-  @NotNull
-  List<Series> series = new ArrayList<>();
+  @NotNull List<Series> series = new ArrayList<>();
+
   @Data
   public static class Series {
     private String name;

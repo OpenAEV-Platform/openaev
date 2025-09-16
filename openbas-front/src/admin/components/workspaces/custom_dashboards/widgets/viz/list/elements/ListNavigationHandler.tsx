@@ -14,7 +14,7 @@ import {
   type EsInject, type EsInjectExpectation,
   type EsVulnerableEndpoint,
 } from '../../../../../../../../utils/api-types';
-import { getTargetTypeFromInjectExpectation } from './LIstColumnConfig';
+import { getTargetTypeFromInjectExpectation } from './ListColumnConfig';
 
 type NavigationHandler = (element: EsBase, navigate: NavigateFunction) => void;
 
