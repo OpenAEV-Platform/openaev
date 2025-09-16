@@ -1,7 +1,5 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.helper.InjectHelper.buildInject;
-import static io.openbas.helper.InjectHelper.buildTechnicalInject;
 import static io.openbas.utils.AssetUtils.getAllPlatform;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
@@ -36,6 +34,7 @@ public class InjectAssistantService {
   private final InjectorContractRepositoryHelper injectorContractRepositoryHelper;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
+  private final InjectService injectService;
   private final AttackPatternService attackPatternService;
   private final InjectorContractService injectorContractService;
 
@@ -257,7 +256,8 @@ public class InjectAssistantService {
       return injectorContracts.stream()
           .map(
               ic ->
-                  buildTechnicalInject(ic, attackPattern.getExternalId(), attackPattern.getName()))
+                  injectService.buildTechnicalInject(
+                      ic, attackPattern.getExternalId(), attackPattern.getName()))
           .toList();
     }
     return List.of(
@@ -309,7 +309,7 @@ public class InjectAssistantService {
       return injectorContracts.stream()
           .map(
               ic ->
-                  buildTechnicalInject(
+                  injectService.buildTechnicalInject(
                       ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName()))
           .collect(Collectors.toSet());
     }
@@ -400,7 +400,8 @@ public class InjectAssistantService {
         .map(
             ic -> {
               Inject inject =
-                  buildTechnicalInject(ic, attackPattern.getExternalId(), attackPattern.getName());
+                  injectService.buildTechnicalInject(
+                      ic, attackPattern.getExternalId(), attackPattern.getName());
               inject.setAssetGroups(assetGroups);
               inject.setAssets(endpoints.stream().map(Asset.class::cast).toList());
               return inject;
@@ -439,7 +440,7 @@ public class InjectAssistantService {
               contractInjectMap.computeIfAbsent(
                   contract,
                   k ->
-                      buildTechnicalInject(
+                      injectService.buildTechnicalInject(
                           k, attackPattern.getExternalId(), attackPattern.getName()));
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
@@ -541,7 +542,7 @@ public class InjectAssistantService {
                 contractInjectMap.computeIfAbsent(
                     contract,
                     k ->
-                        buildTechnicalInject(
+                        injectService.buildTechnicalInject(
                             k, attackPattern.getExternalId(), attackPattern.getName()));
             inject.getAssetGroups().add(group);
           });
@@ -633,7 +634,7 @@ public class InjectAssistantService {
       String identifier,
       String platform,
       String architecture) {
-    return buildInject(
+    return injectService.buildInject(
         contractForPlaceholder,
         formatTitle(identifier, platform, architecture),
         formatDescription(identifier, platform, architecture),
