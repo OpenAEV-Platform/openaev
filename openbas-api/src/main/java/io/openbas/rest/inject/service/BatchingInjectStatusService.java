@@ -1,6 +1,6 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionAction;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionAction;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

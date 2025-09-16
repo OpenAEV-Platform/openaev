@@ -1,33 +1,47 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionAction;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionAction;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.AgentRepository;
+import io.openbas.database.repository.InjectExpectationRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.finding.FindingService;
+import io.openbas.rest.inject.form.InjectExecutionAction;
 import io.openbas.rest.inject.form.InjectExecutionInput;
+import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
+import io.openbas.service.InjectExpectationService;
+import jakarta.annotation.Nullable;
+import jakarta.annotation.Resource;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
-@Log
+@Slf4j
 public class InjectExecutionService {
 
   private final InjectRepository injectRepository;
+  private final InjectExpectationRepository injectExpectationRepository;
+  private final InjectExpectationService injectExpectationService;
   private final AgentRepository agentRepository;
   private final InjectStatusService injectStatusService;
   private final FindingService findingService;
   private final StructuredOutputUtils structuredOutputUtils;
+
+  @Resource protected ObjectMapper mapper;
 
   public void handleInjectExecutionCallback(
       String injectId, String agentId, InjectExecutionInput input) {
@@ -39,15 +53,14 @@ public class InjectExecutionService {
       // coherent state.
       // This prevents issues where the PENDING status took more time to persist than it took for
       // the agent to send the complete action.
-      // FIXME: At the moment, this whole function is called by our implant and injectors. These
-      // implant are
+      // FIXME: At the moment, this whole function is only called by our implant. These implant are
       // launched with the async value to true, which force the implant to go from EXECUTING to
       // PENDING, before going to EXECUTED.
       // So if in the future, this function is called to update a synchronous inject, we will need
       // to find a way to get the async boolean somehow and add it to this condition.
-      if (InjectExecutionAction.complete.equals(input.getAction())
+      if (input.getAction().equals(InjectExecutionAction.complete)
           && (inject.getStatus().isEmpty()
-              || !ExecutionStatus.PENDING.equals(inject.getStatus().get().getName()))) {
+              || !inject.getStatus().get().getName().equals(ExecutionStatus.PENDING))) {
         // If we receive a status update with a terminal state status, we must first check that the
         // current status is in the PENDING state
         log.warn(
@@ -72,13 +85,13 @@ public class InjectExecutionService {
   /** Processes the execution of an inject by updating its status and extracting findings. */
   private void processInjectExecution(
       Inject inject,
-      Agent agent,
+      @Nullable Agent agent,
       InjectExecutionInput input,
       Set<OutputParser> outputParsers,
       Optional<ObjectNode> structuredOutput) {
-
     ObjectNode structured = structuredOutput.orElse(null);
     injectStatusService.updateInjectStatus(agent, inject, input, structured);
+    addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
 
     if (structured == null) {
       return;
@@ -141,7 +154,16 @@ public class InjectExecutionService {
             });
 
     if (!injectExpectations.isEmpty()) {
-      InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
+      InjectExpectationResult injectExpectationResult =
+          InjectExpectationResult.builder()
+              .sourceId("acab8214-0379-448a-a575-05e9d934eadd")
+              .date(String.valueOf(Instant.now()))
+              .sourceType("openbas_expectations_vulnerability_manager")
+              .sourceName("Expectations Vulnerability Manager")
+              .score(0.0)
+              .result("Vulnerable")
+              .metadata(null)
+              .build();
       outputParsers.forEach(
           outputParser -> {
             outputParser
@@ -204,7 +226,7 @@ public class InjectExecutionService {
   }
 
   private void handleInjectExecutionError(Inject inject, Exception e) {
-    log.log(Level.SEVERE, e.getMessage());
+    log.error(e.getMessage(), e);
     if (inject != null) {
       inject
           .getStatus()
