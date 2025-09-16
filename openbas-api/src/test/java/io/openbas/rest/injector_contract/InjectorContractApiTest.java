@@ -37,7 +37,6 @@ import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -532,7 +531,10 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at", "injector_contract_vulnerabilities")
+            .whenIgnoringPaths(
+                "injector_contract_created_at",
+                "injector_contract_updated_at",
+                "injector_contract_vulnerabilities")
             .isEqualTo(
                 String.format(
                     """
