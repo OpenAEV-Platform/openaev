@@ -359,7 +359,7 @@ class StixApiTest extends IntegrationTest {
           inject
               .getDescription()
               .contains(
-                  "This placeholder is disabled because the AttackPattern T1003 is currently not covered. "
+                  "This placeholder is disabled because the Attack Pattern T1003 is currently not covered. "
                       + "Please create the payloads for platform [any platform] and architecture [any architecture]."));
     }
 

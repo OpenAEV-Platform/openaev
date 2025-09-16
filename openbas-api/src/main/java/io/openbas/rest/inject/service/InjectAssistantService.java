@@ -1,6 +1,5 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.AssetUtils.getAllPlatform;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
@@ -117,7 +116,7 @@ public class InjectAssistantService {
     AttackPattern attackPattern = attackPatternService.findById(attackPatternId);
 
     Set<Inject> injects =
-        buildInjectsFor(
+        buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
             attackPattern,
             endpoints,
             assetsFromGroupMap,
@@ -225,7 +224,7 @@ public class InjectAssistantService {
 
     // Computing best case (with all possible platforms and architecture)
     List<Endpoint> NO_ENDPOINTS = new ArrayList<>();
-    return buildInjectsFor(
+    return buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
         attackPattern,
         NO_ENDPOINTS,
         assetsFromGroupMap,
@@ -322,8 +321,7 @@ public class InjectAssistantService {
             contractForPlaceholder, vulnerability.getExternalId(), NO_PLATFORM, NO_ARCHITECTURE));
   }
 
-  // -- Common --
-  private Set<Inject> buildInjectsFor(
+  private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
       AttackPattern attackPattern,
       List<Endpoint> endpoints,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -391,7 +389,7 @@ public class InjectAssistantService {
       List<AssetGroup> assetGroups,
       Integer injectsPerAttackPattern,
       AttackPattern attackPattern) {
-    List<String> allPlatformArchitecturePairs = getAllPlatform();
+    List<String> allPlatformArchitecturePairs = Endpoint.PLATFORM_TYPE.getAllNamesAsStrings();
     List<InjectorContract> injectorContracts =
         this.injectorContractRepositoryHelper.searchInjectorContractsByAttackPatternAndEnvironment(
             attackPattern.getExternalId(), allPlatformArchitecturePairs, injectsPerAttackPattern);
@@ -654,14 +652,14 @@ public class InjectAssistantService {
     if (platform != null && architecture != null) {
       return String.format(
           base,
-          "AttackPattern " + identifier,
+          "Attack Pattern " + identifier,
           String.format(
               "Please create the payloads for platform %s and architecture %s.",
               platform, architecture));
     } else {
       return String.format(
           base,
-          "vulnerability " + identifier,
+          "Vulnerability " + identifier,
           "Please add the contracts related to this vulnerability.");
     }
   }
