@@ -27,6 +27,7 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
 
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [assetGroupValues, setAssetGroupValues] = useState<AssetGroupOutput[]>([]);
   useEffect(() => {
     if (open) {
@@ -70,6 +71,7 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
       fetch={searchAssetGroups}
       searchPaginationInput={searchPaginationInput}
       setContent={setAssetGroups}
+      setLoading={setIsLoading}
       entityPrefix="asset_group"
       availableFilterNames={['asset_group_tags']}
       queryableHelpers={queryableHelpers}
@@ -97,6 +99,7 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
           <SelectList
             values={assetGroups}
             selectedValues={assetGroupValues}
+            isLoadingValues={isLoading}
             elements={elements}
             onSelect={addAssetGroup}
             onDelete={removeAssetGroup}
@@ -108,9 +111,11 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>{t('Cancel')}</Button>
-        <Button color="secondary" onClick={handleSubmit}>
-          {t('Update')}
-        </Button>
+        {!isLoading && (
+          <Button color="secondary" onClick={handleSubmit}>
+            {t('Update')}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

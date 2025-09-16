@@ -46,6 +46,7 @@ interface Props<T> {
   fetch: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
   searchPaginationInput: SearchPaginationInput;
   setContent: (data: T[]) => void;
+  setLoading?: (loading: boolean) => void;
   searchEnable?: boolean;
   disablePagination?: boolean;
   disableFilters?: boolean;
@@ -63,6 +64,7 @@ const PaginationComponentV2 = <T extends object>({
   fetch,
   searchPaginationInput,
   setContent,
+  setLoading,
   searchEnable = true,
   disablePagination,
   disableFilters,
@@ -81,6 +83,12 @@ const PaginationComponentV2 = <T extends object>({
 
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [options, setOptions] = useState<OptionPropertySchema[]>([]);
+
+  const setParentLoading = (loading: boolean) => {
+    if (typeof setLoading === 'function') {
+      setLoading(loading);
+    }
+  };
 
   useEffect(() => {
     if (entityPrefix) {
@@ -107,6 +115,7 @@ const PaginationComponentV2 = <T extends object>({
     }
 
     // Fetch datas
+    setParentLoading(true);
     fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
       const { data } = result;
       setContent(data.content);
@@ -114,6 +123,7 @@ const PaginationComponentV2 = <T extends object>({
       if (data.totalPages <= data.pageable.pageNumber) {
         queryableHelpers.paginationHelpers.handleChangePage(0);
       }
+      setParentLoading(false);
     });
   }, [searchPaginationInput, reloadContentCount]);
 
