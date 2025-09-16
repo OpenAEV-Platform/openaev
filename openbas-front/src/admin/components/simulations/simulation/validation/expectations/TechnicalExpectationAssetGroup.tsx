@@ -10,7 +10,7 @@ import { type AssetGroup, type Endpoint, type Team } from '../../../../../../uti
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
-import groupedByAsset from './ExpectationUtils';
+import { groupedByAsset } from './ExpectationUtils';
 import TechnicalExpectationAsset from './TechnicalExpectationAsset';
 
 const useStyles = makeStyles()(() => ({

@@ -2,7 +2,6 @@ package io.openbas.service.stix;
 
 import io.openbas.database.model.Scenario;
 import io.openbas.database.model.SecurityCoverage;
-import io.openbas.service.security_coverage.SecurityCoverageService;
 import io.openbas.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +44,7 @@ public class StixService {
       summary =
           "The current scenario does not contain injects. "
               + "This can occur when: (1) no Attack Patterns or vulnerabilities are defined in the STIX bundle, "
-              + "or (2) the specified Attack Patterns (TTPs) and vulnerabilities are not available in the OAEV platform.";
+              + "or (2) the specified Attack Patterns and vulnerabilities are not available in the OAEV platform.";
     } else {
       summary = "Scenario with Injects created successfully";
     }

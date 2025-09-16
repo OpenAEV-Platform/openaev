@@ -1,4 +1,4 @@
-package io.openbas.service;
+package io.openbas.service.stix;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
-import io.openbas.service.security_coverage.SecurityCoverageService;
+import io.openbas.service.SecurityCoverageSendJobService;
 import io.openbas.stix.objects.Bundle;
 import io.openbas.stix.objects.DomainObject;
 import io.openbas.stix.objects.RelationshipObject;

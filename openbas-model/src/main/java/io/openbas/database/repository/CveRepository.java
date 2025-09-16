@@ -1,7 +1,6 @@
 package io.openbas.database.repository;
 
 import io.openbas.database.model.Cve;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -13,7 +12,7 @@ public interface CveRepository extends CrudRepository<Cve, String>, JpaSpecifica
 
   Optional<Cve> findByExternalId(String externalId);
 
-  List<Cve> findAllByExternalIdIn(List<String> externalIds);
+  Set<Cve> getAllByIdInIgnoreCase(Set<String> ids);
 
-  Set<Cve> findAllByExternalIdInIgnoreCase(Set<String> externalIds);
+  Set<Cve> getAllByExternalIdInIgnoreCase(Set<String> externalIds);
 }

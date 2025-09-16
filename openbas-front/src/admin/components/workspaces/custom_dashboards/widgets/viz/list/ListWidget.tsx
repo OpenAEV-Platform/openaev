@@ -1,13 +1,16 @@
 import { List as MuiList, ListItem as MuiListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
+import type { AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../../../../components/i18n';
+import { useHelper } from '../../../../../../../store';
 import {
+  type AttackPattern,
   type EsBase,
   type EsEndpoint,
   type EsInject, type EsScenario,
@@ -39,6 +42,10 @@ type Props = {
 const ListWidget = (props: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+
+  const { attackPatterns }: { attackPatterns: AttackPattern[] } = useHelper((helper: AttackPatternHelper) => {
+    return { attackPatterns: helper.getAttackPatterns() };
+  });
 
   // FIXME: we will always use ListConfiguration in this component
   const config = (): ListConfiguration => {
@@ -78,7 +85,7 @@ const ListWidget = (props: Props) => {
       case 'inject':
       case 'simulation':
       case 'scenario':
-        return (<InjectListElement columns={columns} element={element as EsInject | EsSimulation | EsScenario} />);
+        return (<InjectListElement attackPatterns={attackPatterns} columns={columns} element={element as EsInject | EsSimulation | EsScenario} />);
       default: return (<DefaultListElement columns={columns} element={element} />);
     }
   };

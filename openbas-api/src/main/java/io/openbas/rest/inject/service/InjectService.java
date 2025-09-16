@@ -1,14 +1,16 @@
 package io.openbas.rest.inject.service;
 
+import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openbas.database.model.ExecutionStatus.*;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
 import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.arm64;
 import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.x86_64;
+import static io.openbas.database.specification.InjectSpecification.*;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static io.openbas.utils.AgentUtils.isPrimaryAgent;
 import static io.openbas.utils.FilterUtilsJpa.computeFilterGroupJpa;
-import static io.openbas.utils.InjectorContractUtils.buildCombinationsAttackPatternPlatformsArchitectures;
 import static io.openbas.utils.StringUtils.duplicateString;
 import static io.openbas.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
@@ -106,6 +108,8 @@ public class InjectService {
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
   }
+
+  // -- CRUD --
 
   public Inject createInject(
       @Nullable final Exercise exercise,
@@ -216,6 +220,29 @@ public class InjectService {
       injectRepository.deleteAll(injects);
     }
   }
+
+  /**
+   * Save all injects given as params
+   *
+   * @param injects the injects to delete
+   */
+  @Transactional(rollbackOn = Exception.class)
+  public void saveAll(List<Inject> injects) {
+    if (!CollectionUtils.isEmpty(injects)) {
+      injectRepository.saveAll(injects);
+    }
+  }
+
+  // -- SPECIFIC GETTER --
+
+  public List<Inject> getExecutedAndNotFinished() {
+    return this.injectRepository.findAll(
+        hasStatus(List.of(SUCCESS, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
+            .and(hasCollectingStatus(List.of(COLLECTING)))
+            .and(fromRunningSimulation()));
+  }
+
+  // -- ASSETS --
 
   public boolean hasPendingResults(Inject inject) {
     return inject.getExpectations().stream().anyMatch(ex -> ex.getResults().isEmpty());
@@ -1093,6 +1120,9 @@ public class InjectService {
     return scenario.getInjects().stream()
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
+        // Only keep attack patterns that specify both platform and architecture.
+        // Other cases should be reviewed depending on the injector contract source: vulnerability,
+        // placeholder, other
         .filter(
             entry ->
                 entry.getValue().getArch() != null
@@ -1129,6 +1159,37 @@ public class InjectService {
                   merged.addAll(v2);
                   return v1;
                 }));
+  }
+
+  /**
+   * Builds the complete set of required combinations of TTPs and platform-architecture pairs.
+   *
+   * @param attackPatterns list of attack patterns (TTPs)
+   * @param platforms set of platforms
+   * @param architectures set of architecture
+   * @return set of (TTP × Platform × Architecture) combinations
+   */
+  public static Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>
+      buildCombinationsAttackPatternPlatformsArchitectures(
+          List<AttackPattern> attackPatterns,
+          Set<Endpoint.PLATFORM_TYPE> platforms,
+          Set<String> architectures) {
+
+    if (attackPatterns == null || platforms == null || architectures == null) {
+      return Collections.emptySet();
+    }
+
+    return attackPatterns.stream()
+        .flatMap(
+            attackPattern -> {
+              String id = attackPattern.getId();
+              return platforms.stream()
+                  .flatMap(
+                      platform ->
+                          architectures.stream()
+                              .map(architecture -> Triple.of(id, platform, architecture)));
+            })
+        .collect(Collectors.toSet());
   }
 
   /**

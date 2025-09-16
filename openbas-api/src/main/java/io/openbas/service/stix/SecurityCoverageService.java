@@ -1,4 +1,4 @@
-package io.openbas.service.security_coverage;
+package io.openbas.service.stix;
 
 import static io.openbas.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openbas.utils.SecurityCoverageUtils.extractObjectReferences;
@@ -51,19 +51,19 @@ import org.springframework.stereotype.Service;
 public class SecurityCoverageService {
 
   private final ScenarioService scenarioService;
-  private final TagService tagService;
   private final SecurityCoverageInjectService securityCoverageInjectService;
+  private final TagService tagService;
   private final CronService cronService;
-
-  private final ScenarioRepository scenarioRepository;
-
-  private final SecurityCoverageRepository securityCoverageRepository;
-
-  private final Parser stixParser;
   private final AttackPatternService attackPatternService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
   private final AssetService assetService;
+
+  private final ScenarioRepository scenarioRepository;
+  private final SecurityCoverageRepository securityCoverageRepository;
+
+  private final Parser stixParser;
+
   private final ObjectMapper objectMapper;
 
   /**

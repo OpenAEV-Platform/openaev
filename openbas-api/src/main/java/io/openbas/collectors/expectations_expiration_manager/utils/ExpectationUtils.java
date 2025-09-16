@@ -12,8 +12,6 @@ import java.time.temporal.ChronoUnit;
 
 public class ExpectationUtils {
 
-  public static final String PREVENTED = "Prevented";
-
   private ExpectationUtils() {}
 
   public static boolean isExpired(@NotNull final InjectExpectation expectation) {
@@ -23,18 +21,18 @@ public class ExpectationUtils {
   }
 
   public static String computeSuccessMessage(@NotNull final EXPECTATION_TYPE expectationType) {
-    return DETECTION.equals(expectationType)
-        ? ExpectationType.DETECTION.successLabel
-        : PREVENTION.equals(expectationType)
-            ? PREVENTED
-            : ExpectationType.HUMAN_RESPONSE.successLabel;
+    return switch (expectationType) {
+      case DETECTION -> ExpectationType.DETECTION.successLabel;
+      case PREVENTION -> ExpectationType.PREVENTION.successLabel;
+      default -> ExpectationType.HUMAN_RESPONSE.successLabel;
+    };
   }
 
   public static String computeFailedMessage(@NotNull final EXPECTATION_TYPE expectationType) {
-    return DETECTION.equals(expectationType)
-        ? ExpectationType.DETECTION.failureLabel
-        : PREVENTION.equals(expectationType)
-            ? ExpectationType.PREVENTION.failureLabel
-            : ExpectationType.HUMAN_RESPONSE.failureLabel;
+    return switch (expectationType) {
+      case DETECTION -> ExpectationType.DETECTION.failureLabel;
+      case PREVENTION -> ExpectationType.PREVENTION.failureLabel;
+      default -> ExpectationType.HUMAN_RESPONSE.failureLabel;
+    };
   }
 }

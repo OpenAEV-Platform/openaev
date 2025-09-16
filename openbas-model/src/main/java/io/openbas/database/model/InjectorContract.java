@@ -14,6 +14,7 @@ import io.openbas.database.audit.ModelBaseListener;
 import io.openbas.database.converter.ContentConverter;
 import io.openbas.helper.MonoIdDeserializer;
 import io.openbas.helper.MultiIdListDeserializer;
+import io.openbas.helper.MultiIdSetDeserializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -137,13 +138,13 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_vulnerabilities",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdSetDeserializer.class)
   @JsonProperty("injector_contract_vulnerabilities")
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
-  private List<Cve> vulnerabilities = new ArrayList<>();
+  private Set<Cve> vulnerabilities = new HashSet<>();
 
   // UpdatedAt now used to sync with linked object
-  public void setVulnerabilities(List<Cve> vulnerabilities) {
+  public void setVulnerabilities(Set<Cve> vulnerabilities) {
     this.updatedAt = now();
     this.vulnerabilities = vulnerabilities;
   }

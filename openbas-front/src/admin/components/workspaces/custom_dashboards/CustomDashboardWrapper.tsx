@@ -1,11 +1,12 @@
 import type { AxiosResponse } from 'axios';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocalStorage } from 'usehooks-ts';
+import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 
 import Loader from '../../../../components/Loader';
 import type { CustomDashboard, EsAttackPath, EsBase, EsSeries } from '../../../../utils/api-types';
 import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
+import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
 
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];
@@ -35,7 +36,6 @@ const CustomDashboardWrapper = ({
   bottomSlot,
   noDashboardSlot,
   readOnly = true,
-
 }: Props) => {
   const {
     customDashboardId,
@@ -51,8 +51,36 @@ const CustomDashboardWrapper = ({
     fetchAttackPaths,
   } = configuration || {};
   const [customDashboard, setCustomDashboard] = useState<CustomDashboard>();
-  const [parameters, setParameters] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, Object.fromEntries(new Map()));
+  const parametersLocalStorage = useReadLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey);
+  const [, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
+  const [parameters, setParameters] = useState<Record<string, ParameterOption>>({});
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (customDashboard) {
+      if (!parametersLocalStorage) {
+        setParametersLocalStorage({});
+      } else {
+        let params: Record<string, ParameterOption> = parametersLocalStorage;
+        customDashboard?.custom_dashboard_parameters?.forEach((p: {
+          custom_dashboards_parameter_type: string;
+          custom_dashboards_parameter_id: string;
+        }) => {
+          if (p.custom_dashboards_parameter_type === 'timeRange') {
+            params[p.custom_dashboards_parameter_id] = {
+              value: LAST_QUARTER_TIME_RANGE,
+              hidden: false,
+            };
+          }
+        });
+        if (paramsBuilder) {
+          params = paramsBuilder(customDashboard.custom_dashboard_parameters, params);
+        }
+        setParameters(params);
+        setLoading(false);
+      }
+    }
+  }, [customDashboard, parametersLocalStorage]);
 
   useEffect(() => {
     if (customDashboardId) {
@@ -62,14 +90,8 @@ const CustomDashboardWrapper = ({
           return;
         }
         setCustomDashboard(dashboard);
-        if (paramsBuilder) {
-          const builtParams = paramsBuilder(dashboard.custom_dashboard_parameters, parameters);
-          setParameters(builtParams);
-        }
-        setLoading(false);
       });
     } else {
-      setCustomDashboard(undefined);
       setLoading(false);
     }
   }, [customDashboardId]);
@@ -78,7 +100,7 @@ const CustomDashboardWrapper = ({
     customDashboard,
     setCustomDashboard,
     customDashboardParameters: parameters,
-    setCustomDashboardParameters: setParameters,
+    setCustomDashboardParameters: setParametersLocalStorage,
     contextId,
     canChooseDashboard,
     handleSelectNewDashboard,
@@ -86,7 +108,7 @@ const CustomDashboardWrapper = ({
     fetchCount,
     fetchSeries,
     fetchAttackPaths,
-  }), [customDashboard, setCustomDashboard, parameters, setParameters]);
+  }), [customDashboard, setCustomDashboard, parameters, setParametersLocalStorage]);
 
   if (loading) {
     return <Loader />;

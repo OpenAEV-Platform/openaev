@@ -1,136 +1,194 @@
 package io.openbas.service;
 
-import static io.openbas.expectation.ExpectationPropertiesConfig.DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME;
+import static io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static java.util.Optional.ofNullable;
 
-import io.openbas.database.model.*;
+import io.openbas.database.model.InjectExpectation;
+import io.openbas.database.model.InjectExpectationResult;
+import io.openbas.database.model.Team;
+import io.openbas.database.model.User;
 import io.openbas.execution.ExecutableInject;
+import io.openbas.expectation.ExpectationPropertiesConfig;
 import io.openbas.model.Expectation;
 import io.openbas.model.expectation.*;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class InjectExpectationUtils {
 
-  public static void computeResult(
-      @NotNull final InjectExpectation expectation,
-      @NotBlank final String sourceId,
-      @NotBlank final String sourceType,
-      @NotBlank final String sourceName,
-      @NotBlank final String result,
-      @NotBlank final Double score,
-      final Map<String, String> metadata) {
-    Optional<InjectExpectationResult> exists =
-        expectation.getResults().stream().filter(r -> sourceId.equals(r.getSourceId())).findAny();
-    if (exists.isPresent()) {
-      exists.get().setResult(result);
-      exists.get().setMetadata(metadata);
-    } else {
-      InjectExpectationResult expectationResult =
-          InjectExpectationResult.builder()
-              .sourceId(sourceId)
-              .sourceType(sourceType)
-              .sourceName(sourceName)
-              .result(result)
-              .date(Instant.now().toString())
-              .score(score)
-              .metadata(metadata)
-              .build();
-      expectation.getResults().add(expectationResult);
-    }
+  private InjectExpectationUtils() {}
+
+  public static final double FAILED_SCORE_VALUE = 0.0;
+
+  // -- SCORE --
+
+  public static double computeScore(
+      @NotNull final InjectExpectation expectation, @NotBlank final boolean success) {
+    return success ? expectation.getExpectedScore() : FAILED_SCORE_VALUE;
   }
 
   // -- CONVERTER --
 
   public static InjectExpectation expectationConverter(
-      @NotNull final ExecutableInject executableInject, Expectation expectation) {
-    InjectExpectation expectationExecution = new InjectExpectation();
-    return expectationConverter(expectationExecution, executableInject, expectation);
+      @NotNull final ExecutableInject executableInject,
+      Expectation expectation,
+      ExpectationPropertiesConfig expectationPropertiesConfig) {
+    InjectExpectation injectExpectation = new InjectExpectation();
+    return expectationConverter(
+        injectExpectation, executableInject, expectation, expectationPropertiesConfig);
+  }
+
+  public static InjectExpectation expectationConverter(
+      @NotNull final Team team,
+      @NotNull final ExecutableInject executableInject,
+      Expectation expectation,
+      ExpectationPropertiesConfig expectationPropertiesConfig) {
+    InjectExpectation injectExpectation = new InjectExpectation();
+    injectExpectation.setTeam(team);
+    return expectationConverter(
+        injectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
 
   public static InjectExpectation expectationConverter(
       @NotNull final Team team,
       @NotNull final User user,
       @NotNull final ExecutableInject executableInject,
-      Expectation expectation) {
-    InjectExpectation expectationExecution = new InjectExpectation();
-    expectationExecution.setTeam(team);
-    expectationExecution.setUser(user);
-    return expectationConverter(expectationExecution, executableInject, expectation);
+      Expectation expectation,
+      ExpectationPropertiesConfig expectationPropertiesConfig) {
+    InjectExpectation injectExpectation = new InjectExpectation();
+    injectExpectation.setTeam(team);
+    injectExpectation.setUser(user);
+    return expectationConverter(
+        injectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
 
-  public static InjectExpectation expectationConverter(
-      @NotNull final Team team,
+  private static InjectExpectation expectationConverter(
+      @NotNull InjectExpectation injectExpectation,
       @NotNull final ExecutableInject executableInject,
-      Expectation expectation) {
-    InjectExpectation expectationExecution = new InjectExpectation();
-    expectationExecution.setTeam(team);
-    return expectationConverter(expectationExecution, executableInject, expectation);
-  }
+      @NotNull final Expectation expectation,
+      ExpectationPropertiesConfig expectationPropertiesConfig) {
 
-  public static InjectExpectation expectationConverter(
-      @NotNull InjectExpectation expectationExecution,
-      @NotNull final ExecutableInject executableInject,
-      @NotNull final Expectation expectation) {
-    expectationExecution.setExercise(executableInject.getInjection().getExercise());
-    expectationExecution.setInject(executableInject.getInjection().getInject());
-    expectationExecution.setExpectedScore(expectation.getScore());
-    expectationExecution.setExpectationGroup(expectation.isExpectationGroup());
-    expectationExecution.setExpirationTime(
+    injectExpectation.setExercise(executableInject.getInjection().getExercise());
+    injectExpectation.setInject(executableInject.getInjection().getInject());
+    injectExpectation.setExpectedScore(expectation.getScore());
+    injectExpectation.setExpectationGroup(expectation.isExpectationGroup());
+    injectExpectation.setName(expectation.getName());
+    injectExpectation.setExpirationTime(
         ofNullable(expectation.getExpirationTime())
-            .orElse(DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME));
-    switch (expectation.type()) {
-      case ARTICLE -> {
-        expectationExecution.setName(expectation.getName());
-        expectationExecution.setArticle(((ChannelExpectation) expectation).getArticle());
+            .orElse(expectationPropertiesConfig.getExpirationTimeByType(expectation.type())));
+
+    switch (expectation) {
+      case ChannelExpectation e when expectation.type() == ARTICLE -> {
+        injectExpectation.setArticle(e.getArticle());
       }
-      case CHALLENGE -> {
-        expectationExecution.setName(expectation.getName());
-        expectationExecution.setChallenge(((ChallengeExpectation) expectation).getChallenge());
+      case ChallengeExpectation e when expectation.type() == CHALLENGE -> {
+        injectExpectation.setChallenge(e.getChallenge());
       }
-      case DOCUMENT -> expectationExecution.setType(InjectExpectation.EXPECTATION_TYPE.DOCUMENT);
-      case TEXT -> expectationExecution.setType(InjectExpectation.EXPECTATION_TYPE.TEXT);
-      case DETECTION -> {
-        DetectionExpectation detectionExpectation = (DetectionExpectation) expectation;
-        expectationExecution.setName(detectionExpectation.getName());
-        expectationExecution.setDetection(
-            detectionExpectation.getAgent(),
-            detectionExpectation.getAsset(),
-            detectionExpectation.getAssetGroup());
-        expectationExecution.setSignatures(detectionExpectation.getInjectExpectationSignatures());
+      case Expectation ignored when expectation.type() == DOCUMENT -> {
+        injectExpectation.setType(DOCUMENT);
       }
-      case PREVENTION -> {
-        PreventionExpectation preventionExpectation = (PreventionExpectation) expectation;
-        expectationExecution.setName(preventionExpectation.getName());
-        expectationExecution.setPrevention(
-            preventionExpectation.getAgent(),
-            preventionExpectation.getAsset(),
-            preventionExpectation.getAssetGroup());
-        expectationExecution.setSignatures(preventionExpectation.getInjectExpectationSignatures());
+      case Expectation ignored when expectation.type() == TEXT -> {
+        injectExpectation.setType(TEXT);
       }
-      case VULNERABILITY -> {
-        VulnerabilityExpectation vulnerabilityExpectation = (VulnerabilityExpectation) expectation;
-        expectationExecution.setName(vulnerabilityExpectation.getName());
-        expectationExecution.setVulnerability(
-            vulnerabilityExpectation.getAgent(),
-            vulnerabilityExpectation.getAsset(),
-            vulnerabilityExpectation.getAssetGroup());
-        expectationExecution.setSignatures(
-            vulnerabilityExpectation.getInjectExpectationSignatures());
+      case DetectionExpectation e when expectation.type() == DETECTION -> {
+        injectExpectation.setDetection(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        injectExpectation.setSignatures(e.getInjectExpectationSignatures());
       }
-      case MANUAL -> {
-        ManualExpectation manualExpectation = (ManualExpectation) expectation;
-        expectationExecution.setName(((ManualExpectation) expectation).getName());
-        expectationExecution.setManual(
-            manualExpectation.getAgent(),
-            manualExpectation.getAsset(),
-            manualExpectation.getAssetGroup());
-        expectationExecution.setDescription(((ManualExpectation) expectation).getDescription());
+      case PreventionExpectation e when expectation.type() == PREVENTION -> {
+        injectExpectation.setPrevention(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        injectExpectation.setSignatures(e.getInjectExpectationSignatures());
+      }
+      case VulnerabilityExpectation e when expectation.type() == VULNERABILITY -> {
+        injectExpectation.setVulnerability(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        injectExpectation.setSignatures(e.getInjectExpectationSignatures());
+      }
+      case ManualExpectation e when expectation.type() == MANUAL -> {
+        injectExpectation.setManual(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        injectExpectation.setDescription(e.getDescription());
       }
       default -> throw new IllegalStateException("Unexpected value: " + expectation);
     }
-    return expectationExecution;
+    return injectExpectation;
+  }
+
+  // -- RULES OF ENGAGEMENT --
+
+  public static void computeScores(
+      @NotNull final List<InjectExpectation> childrenExpectations,
+      @NotNull final List<InjectExpectation> parentExpectations,
+      @NotNull final InjectExpectation injectExpectation,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
+    @NotNull Double expectedScore = injectExpectation.getExpectedScore();
+    boolean isGroup = injectExpectation.isExpectationGroup();
+
+    final boolean noExpectationScore = noExpectationScore(childrenExpectations);
+    final boolean allSuccess =
+        allExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean anySuccess =
+        anyExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean allError =
+        allExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+    final boolean anyError =
+        anyExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+
+    parentExpectations.forEach(
+        expectation -> {
+          if (noExpectationScore) {
+            expectation.setScore(null);
+            return;
+          }
+
+          Double score = null;
+          if (isGroup) {
+            if (anySuccess) {
+              score = InjectExpectationUtils.computeScore(expectation, true);
+            } else if (allError) {
+              score = InjectExpectationUtils.computeScore(expectation, false);
+            }
+          } else {
+            if (allSuccess) {
+              score = InjectExpectationUtils.computeScore(expectation, true);
+            } else if (anyError) {
+              score = InjectExpectationUtils.computeScore(expectation, false);
+            }
+          }
+          expectation.setScore(score);
+          if (addResult != null) {
+            expectation.getResults().add(addResult.apply(score));
+          }
+        });
+  }
+
+  private static boolean noExpectationScore(final List<InjectExpectation> expectations) {
+    if (expectations == null || expectations.isEmpty()) {
+      return true;
+    }
+    return expectations.stream().map(InjectExpectation::getScore).allMatch(Objects::isNull);
+  }
+
+  private static boolean allExpectationsMatch(
+      final List<InjectExpectation> expectations, final Predicate<Double> predicate) {
+    if (expectations == null || expectations.isEmpty()) {
+      return false;
+    }
+    return expectations.stream()
+        .map(InjectExpectation::getScore)
+        .allMatch(score -> score != null && predicate.test(score));
+  }
+
+  private static boolean anyExpectationsMatch(
+      final List<InjectExpectation> expectations, final Predicate<Double> predicate) {
+    if (expectations == null || expectations.isEmpty()) {
+      return false;
+    }
+    return expectations.stream()
+        .map(InjectExpectation::getScore)
+        .filter(Objects::nonNull)
+        .anyMatch(predicate);
   }
 }

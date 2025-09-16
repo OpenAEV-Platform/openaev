@@ -31,7 +31,7 @@ public class InjectorContractApi extends RestBehavior {
   private final InjectorContractService injectorContractService;
 
   @GetMapping(INJECTOR_CONTRACT_URL)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECTOR_CONTRACT)
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Iterable<RawInjectorsContrats> injectContracts() {
     return injectorContractService.getAllRawInjectContracts();
   }

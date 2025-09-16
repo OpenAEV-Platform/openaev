@@ -2622,6 +2622,7 @@ export interface Inject {
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
   inject_city?: string;
+  inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
   /** @format int64 */
   inject_communications_not_ack_number?: number;
@@ -4635,7 +4636,7 @@ export interface PlatformSettings {
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
   /** List of enabled dev features */
-  enabled_dev_features?: "_RESERVED"[];
+  enabled_dev_features?: ("_RESERVED" | "OPENAEV_REGISTRATION")[];
   /** True if the Caldera Executor is enabled */
   executor_caldera_enable?: boolean;
   /** Url of the Caldera Executor */

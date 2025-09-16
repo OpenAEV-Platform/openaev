@@ -361,7 +361,15 @@ class StixApiTest extends IntegrationTest {
 
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(1); // Related to Inject by vulnerability
+      assertThat(injects).hasSize(1); // After update with only one object type vulnerability
+      Inject inject = injects.stream().findFirst().get();
+      assertTrue(inject.getTitle().contains("[CVE-2023-48788]"));
+      assertTrue(
+          inject
+              .getDescription()
+              .contains(
+                  "This placeholder is disabled because the vulnerability CVE-2023-48788 is currently not covered. "
+                      + "Please add the contracts related to this vulnerability."));
     }
 
     @Test
@@ -407,7 +415,15 @@ class StixApiTest extends IntegrationTest {
 
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(1); // Related to injects by Attacks
+      assertThat(injects).hasSize(1); // After update with only one object type vulnerability
+      Inject inject = injects.stream().findFirst().get();
+      assertTrue(inject.getTitle().contains("[T1003]"));
+      assertTrue(
+          inject
+              .getDescription()
+              .contains(
+                  "This placeholder is disabled because the AttackPattern T1003 is currently not covered. "
+                      + "Please create the payloads for platform [any platform] and architecture [any architecture]."));
     }
 
     @Test
