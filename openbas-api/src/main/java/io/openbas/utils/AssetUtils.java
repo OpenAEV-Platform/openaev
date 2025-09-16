@@ -1,7 +1,6 @@
 package io.openbas.utils;
 
 import io.openbas.database.model.Endpoint;
-import io.openbas.injector_contract.ContractTargetedProperty;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -50,21 +49,5 @@ public class AssetUtils {
     allPlatformArchitecturePairs.add(Endpoint.PLATFORM_TYPE.MacOS.name());
     allPlatformArchitecturePairs.add(Endpoint.PLATFORM_TYPE.Windows.name());
     return allPlatformArchitecturePairs;
-  }
-
-  /**
-   * Extract target property from an Asset
-   *
-   * @param endpoint
-   * @return Target property: hostname, local IP or Seen IP
-   */
-  public static ContractTargetedProperty getTargetProperty(Endpoint endpoint) {
-    if (endpoint.getHostname() != null && !endpoint.getHostname().isBlank()) {
-      return ContractTargetedProperty.hostname;
-    } else if (endpoint.getSeenIp() != null && !endpoint.getSeenIp().isBlank()) {
-      return ContractTargetedProperty.seen_ip;
-    } else {
-      return ContractTargetedProperty.local_ip;
-    }
   }
 }
