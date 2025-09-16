@@ -50,6 +50,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
 
@@ -204,6 +205,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       fetch={searchEndpoints}
       searchPaginationInput={searchPaginationInput}
       setContent={setEndpoints}
+      setLoading={setIsLoading}
       entityPrefix="endpoint"
       availableFilterNames={availableFilterNames}
       queryableHelpers={queryableHelpers}
@@ -231,6 +233,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
           <SelectList<EndpointOutput, Endpoint>
             values={endpoints}
             selectedValues={endpointValues}
+            isLoadingValues={isLoading}
             elements={elements}
             onSelect={addEndpoint}
             onDelete={removeEndpoint}
@@ -242,9 +245,11 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>{t('Cancel')}</Button>
-        <Button color="secondary" onClick={handleSubmit}>
-          {t('Update')}
-        </Button>
+        {!isLoading && (
+          <Button color="secondary" onClick={handleSubmit}>
+            {t('Update')}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

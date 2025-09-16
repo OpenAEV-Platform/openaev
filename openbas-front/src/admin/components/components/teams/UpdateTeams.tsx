@@ -23,6 +23,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
   const { t } = useFormatter();
   const { searchTeams, onReplaceTeam } = useContext(TeamContext);
 
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [teamValues, setTeamValues] = useState<TeamOutput[]>([]);
   const [selectedTeamValues, setSelectedTeamValues] = useState<TeamOutput[]>([]);
 
@@ -76,6 +77,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
       fetch={input => searchTeams(input)}
       searchPaginationInput={searchPaginationInput}
       setContent={setTeamValues}
+      setLoading={setIsLoading}
       entityPrefix="team"
       availableFilterNames={availableFilterNames}
       queryableHelpers={queryableHelpers}
@@ -112,6 +114,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
             <SelectList
               values={teamValues}
               selectedValues={selectedTeamValues}
+              isLoadingValues={isLoading}
               elements={elements}
               onSelect={addTeam}
               onDelete={removeTeam}
@@ -131,9 +134,11 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={handleSubmit}>
-            {t('Update')}
-          </Button>
+          {!isLoading && (
+            <Button color="secondary" onClick={handleSubmit}>
+              {t('Update')}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </>
