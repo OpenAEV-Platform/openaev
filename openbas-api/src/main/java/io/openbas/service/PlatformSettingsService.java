@@ -4,7 +4,6 @@ import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.model.SettingKeys.*;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
-import static java.lang.String.valueOf;
 import static java.util.Optional.ofNullable;
 
 import io.openbas.config.EngineConfig;

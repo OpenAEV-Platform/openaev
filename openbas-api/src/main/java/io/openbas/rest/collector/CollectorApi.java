@@ -1,6 +1,5 @@
 package io.openbas.rest.collector;
 
-
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.Action;
 import io.openbas.database.model.Collector;
