@@ -6,14 +6,19 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.openbas.database.model.Filters;
 import io.openbas.utils.CustomDashboardTimeRange;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -70,6 +75,14 @@ public abstract class WidgetConfiguration {
   @NotBlank
   @JsonProperty("date_attribute")
   private String dateAttribute = "base_created_at";
+
+  @NotNull
+  List<Series> series = new ArrayList<>();
+  @Data
+  public static class Series {
+    private String name;
+    private Filters.FilterGroup filter = new Filters.FilterGroup();
+  }
 
   WidgetConfiguration(WidgetConfigurationType configurationType) {
     this.configurationType = configurationType;

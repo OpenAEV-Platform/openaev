@@ -1,5 +1,5 @@
 import { simplePostCall } from '../../utils/Action';
-import { type ListConfiguration } from '../../utils/api-types-custom';
+import { type WidgetToEntitiesInput } from '../../utils/api-types';
 
 export const DASHBOARD_URI = '/api/dashboards';
 
@@ -15,12 +15,8 @@ export const entities = (widgetId: string, parameters: Record<string, string | u
   return simplePostCall(`${DASHBOARD_URI}/entities/${widgetId}`, parameters);
 };
 
-export const entitiesWithNoWidget = (customDashboardId: string, parameters: Record<string, string>, widgetConfiguration: ListConfiguration) => {
-  return simplePostCall(`${DASHBOARD_URI}/entities/widgetless`, {
-    customDashboardId,
-    parameters,
-    widgetConfiguration,
-  });
+export const widgetToEntitiesRuntime = (widgetId: string, input: WidgetToEntitiesInput) => {
+  return simplePostCall(`${DASHBOARD_URI}/entities-runtime/${widgetId}`, input);
 };
 
 export const attackPaths = (widgetId: string, parameters: Record<string, string | undefined>) => {

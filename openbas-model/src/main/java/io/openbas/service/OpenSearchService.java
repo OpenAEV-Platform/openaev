@@ -21,8 +21,7 @@ import io.openbas.engine.EngineService;
 import io.openbas.engine.EsModel;
 import io.openbas.engine.Handler;
 import io.openbas.engine.api.*;
-import io.openbas.engine.api.DateHistogramWidget.DateHistogramSeries;
-import io.openbas.engine.api.StructuralHistogramWidget.StructuralHistogramSeries;
+import io.openbas.engine.api.WidgetConfiguration.Series;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
 import io.openbas.engine.query.EsSeries;
@@ -546,7 +545,7 @@ public class OpenSearchService implements EngineService {
   public EsSeries termHistogram(
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
-      StructuralHistogramSeries config,
+      Series config,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters) {
 
@@ -621,7 +620,7 @@ public class OpenSearchService implements EngineService {
    */
   private EsSeries termHistogramSTerms(
       @NotNull final RawUserAuth user,
-      @NotNull final StructuralHistogramSeries config,
+      @NotNull final Series config,
       @NotNull final Aggregate aggregate,
       @NotNull final String field) {
     boolean isSideAggregation = field.endsWith("_side");
@@ -656,7 +655,7 @@ public class OpenSearchService implements EngineService {
    * @return a series
    */
   private EsSeries termHistogramDTerms(
-      @NotNull final StructuralHistogramSeries config, @NotNull final Aggregate aggregate) {
+      @NotNull final Series config, @NotNull final Aggregate aggregate) {
     Buckets<DoubleTermsBucket> buckets = aggregate.dterms().buckets();
     List<EsSeriesData> data =
         buckets.array().stream()
@@ -677,7 +676,7 @@ public class OpenSearchService implements EngineService {
    * @return a series
    */
   private EsSeries termHistogramLTerms(
-      @NotNull final StructuralHistogramSeries config, @NotNull final Aggregate aggregate) {
+      @NotNull final Series config, @NotNull final Aggregate aggregate) {
     Buckets<LongTermsBucket> buckets = aggregate.lterms().buckets();
     List<EsSeriesData> data =
         buckets.array().stream()
@@ -702,7 +701,7 @@ public class OpenSearchService implements EngineService {
   public EsSeries dateHistogram(
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
-      DateHistogramSeries config,
+      Series config,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters) {
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();

@@ -80,14 +80,11 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
       {teamsTotalScores.length > 0 ? (
         <Chart
           id="exercise_distribution_score_over_time"
-          options={lineChartOptions(
+          options={lineChartOptions({
             theme,
-            true,
-            nsdt,
-            null,
-            undefined,
-            false,
-          )}
+            isTimeSeries: true,
+            xFormatter: nsdt,
+          })}
           series={teamsPercentScoresData}
           type="line"
           width="100%"

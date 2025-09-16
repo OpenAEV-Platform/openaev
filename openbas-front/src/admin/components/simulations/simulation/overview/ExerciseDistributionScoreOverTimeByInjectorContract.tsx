@@ -68,14 +68,11 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
       {injectsTypesScores.length > 0 ? (
         <Chart
           id="exercise_distribution_score_over_time_by_inject"
-          options={lineChartOptions(
+          options={lineChartOptions({
             theme,
-            true,
-            nsdt,
-            null,
-            undefined,
-            false,
-          )}
+            isTimeSeries: true,
+            xFormatter: nsdt,
+          })}
           series={injectsTypesScores}
           type="line"
           width="100%"

@@ -53,7 +53,7 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
     <>
       {sortedTeamsByCommunicationNumber.length > 0 ? (
         <Chart
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={totalMailsByTeamData}
           type="bar"
           width="100%"

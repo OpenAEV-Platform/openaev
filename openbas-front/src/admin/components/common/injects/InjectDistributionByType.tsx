@@ -54,7 +54,7 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
     <>
       {injectsByType.length > 0 ? (
         <Chart
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={injectsByInjectorContractData}
           type="bar"
           width="100%"

@@ -2,7 +2,7 @@ import { memo, useContext, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { type EsAttackPath, type EsBase, type EsSeries } from '../../../../../utils/api-types';
+import { type EsAttackPath, type EsBase, type EsSeries, type ListConfiguration } from '../../../../../utils/api-types';
 import { type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types-custom';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
@@ -108,37 +108,38 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
     case 'vertical-barchart':
       return (
         <VerticalBarChart
+          widgetId={widget.widget_id}
           widgetConfig={widget.widget_config}
           series={seriesData}
           errorMessage={errorMessage}
-          customDashboardParameters={customDashboardParameters}
-          widgetCustomDashboard={widget.widget_custom_dashboard}
         />
       );
     case 'horizontal-barchart':
       return (
         <HorizontalBarChart
+          widgetId={widget.widget_id}
           widgetConfig={widget.widget_config}
           series={seriesData}
         />
       );
     case 'line':
-      return <LineChart series={seriesData} />;
+      return <LineChart widgetId={widget.widget_id} series={seriesData} />;
     case 'donut': {
       // The seriesLimit is set to 1 for the donut.
       const data = seriesData[0].data;
       return (
         <DonutChart
-          labels={data.map(s => s?.x || t('-'))}
-          series={data.map(s => s?.y || 0)}
+          widgetId={widget.widget_id}
+          datas={data}
         />
       );
     }
     case 'list':
-      return (<ListWidget elements={entitiesVizData} config={widget.widget_config} />);
+      return (<ListWidget elements={entitiesVizData} widgetConfig={widget.widget_config as ListConfiguration} />);
     case 'number':
       return (
         <NumberWidget
+          widgetId={widget.widget_id}
           data={numberVizData}
         />
       );

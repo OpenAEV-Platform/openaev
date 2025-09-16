@@ -25,14 +25,6 @@ public class StructuralHistogramWidget extends HistogramWidget {
 
   @NotBlank private String field;
 
-  @NotNull List<StructuralHistogramSeries> series = new ArrayList<>();
-
-  @Data
-  public static class StructuralHistogramSeries {
-
-    private String name;
-    private Filters.FilterGroup filter = new Filters.FilterGroup();
-  }
 
   public StructuralHistogramWidget() {
     super(STRUCTURAL_MODE);

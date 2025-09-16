@@ -4,6 +4,7 @@ import { createContext } from 'react';
 import { attackPaths, count, entities, series } from '../../../../actions/dashboards/dashboard-action';
 import { type SearchOptionsConfig } from '../../../../components/common/queryable/filter/useSearchOptions';
 import { type CustomDashboard, type EsAttackPath, type EsBase, type EsSeries } from '../../../../utils/api-types';
+import { type WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
 
 export interface ParameterOption {
   value: string;
@@ -23,6 +24,10 @@ export interface CustomDashboardContextType {
   contextId?: string;
   canChooseDashboard?: boolean;
   handleSelectNewDashboard?: (dashboardId: string) => void;
+
+  // handle widget data drawer
+  openWidgetDataDrawer: (conf: WidgetDataDrawerConf) => void;
+  closeWidgetDataDrawer: () => void;
 }
 
 export const CustomDashboardContext = createContext<CustomDashboardContextType>({
@@ -37,4 +42,8 @@ export const CustomDashboardContext = createContext<CustomDashboardContextType>(
   contextId: undefined, // Simulation or scenario id
   canChooseDashboard: false,
   handleSelectNewDashboard: undefined,
+
+  // handle widget data drawer
+  openWidgetDataDrawer: () => {},
+  closeWidgetDataDrawer: () => {},
 });

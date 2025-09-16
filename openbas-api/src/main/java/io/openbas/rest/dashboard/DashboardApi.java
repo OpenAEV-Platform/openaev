@@ -2,18 +2,17 @@ package io.openbas.rest.dashboard;
 
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.*;
-import io.openbas.engine.api.ListConfiguration;
-import io.openbas.engine.api.WidgetConfiguration;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
 import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openbas.rest.helper.RestBehavior;
-
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,21 +57,14 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.entities(widgetId, parameters);
   }
 
-  @PostMapping(DASHBOARD_URI + "/entities/widgetless")
+  @PostMapping(DASHBOARD_URI + "/entities-runtime/{widgetId}")
   @RBAC(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public List<EsBase> entities(@RequestBody(required = false) PARAMS parameters) {
-    return this.dashboardService.entitiesRuntime((ListConfiguration) parameters.widgetConfiguration,
-        parameters.parameters, parameters.customDashboardId);
-  }
-
-  public record PARAMS(
-      String customDashboardId,
-      Map<String, String> parameters,
-      WidgetConfiguration widgetConfiguration) {
-
+  public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
+    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
   }
 
   @PostMapping(DASHBOARD_URI + "/attack-paths/{widgetId}")

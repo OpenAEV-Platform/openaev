@@ -1,5 +1,6 @@
 import type { AxiosResponse } from 'axios';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 
 import Loader from '../../../../components/Loader';
@@ -7,6 +8,7 @@ import type { CustomDashboard, EsAttackPath, EsBase, EsSeries } from '../../../.
 import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
 import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
+import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
 
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];
@@ -55,6 +57,20 @@ const CustomDashboardWrapper = ({
   const [, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
   const [parameters, setParameters] = useState<Record<string, ParameterOption>>({});
   const [loading, setLoading] = useState(true);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handleOpenWidgetDataDrawer = (conf: WidgetDataDrawerConf) => {
+    searchParams.set('widget-id', conf.widgetId);
+    searchParams.set('series-index', conf.series_index.toString());
+    searchParams.set('filter-value', conf.filter_value);
+    setSearchParams(searchParams, { replace: true });
+  };
+  const handleCloseWidgetDataDrawer = () => {
+    searchParams.delete('widget-id');
+    searchParams.delete('series-index');
+    searchParams.delete('filter-value');
+    setSearchParams(searchParams, { replace: true });
+  };
 
   useEffect(() => {
     if (customDashboard) {
@@ -108,6 +124,8 @@ const CustomDashboardWrapper = ({
     fetchCount,
     fetchSeries,
     fetchAttackPaths,
+    openWidgetDataDrawer: handleOpenWidgetDataDrawer,
+    closeWidgetDataDrawer: handleCloseWidgetDataDrawer,
   }), [customDashboard, setCustomDashboard, parameters, setParametersLocalStorage]);
 
   if (loading) {

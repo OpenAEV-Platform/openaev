@@ -39,14 +39,11 @@ const InjectOverTimeLine: FunctionComponent<Props> = ({ injects }) => {
     <>
       {injectsOverTime.length > 0 ? (
         <Chart
-          options={lineChartOptions(
+          options={lineChartOptions({
             theme,
-            true,
-            nsdt,
-            null,
-            undefined,
-            false,
-          )}
+            isTimeSeries: true,
+            xFormatter: nsdt,
+          })}
           series={injectsData}
           type="line"
           width="100%"

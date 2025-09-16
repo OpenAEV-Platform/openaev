@@ -61,7 +61,7 @@ public interface EngineService {
   EsSeries termHistogram(
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
-      StructuralHistogramWidget.StructuralHistogramSeries config,
+      WidgetConfiguration.Series config,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters);
 
@@ -87,7 +87,7 @@ public interface EngineService {
   EsSeries dateHistogram(
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
-      DateHistogramWidget.DateHistogramSeries config,
+      WidgetConfiguration.Series config,
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters);
 
