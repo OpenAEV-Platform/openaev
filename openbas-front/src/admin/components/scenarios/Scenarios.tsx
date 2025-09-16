@@ -193,7 +193,7 @@ const Scenarios = () => {
         topBarButtons={(
           <Box display="flex" gap={1}>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <ImportFromHubButton serviceIdentifier="obas_scenarios" />
+              <ImportFromHubButton serviceIdentifier="openaev_scenarios" />
             </Can>
             <ToggleButtonGroup value="fake" exclusive>
               <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />

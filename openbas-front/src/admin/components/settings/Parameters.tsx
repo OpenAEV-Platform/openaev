@@ -103,7 +103,6 @@ const Parameters = () => {
           <div>
             {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-
                 <EnterpriseEditionButton />
               </Can>
             )}
