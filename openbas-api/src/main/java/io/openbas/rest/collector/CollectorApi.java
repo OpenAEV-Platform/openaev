@@ -1,9 +1,7 @@
 package io.openbas.rest.collector;
 
-import static io.openbas.utils.UserOnboardingProgressUtils.COLLECTOR_SETUP;
 
 import io.openbas.aop.RBAC;
-import io.openbas.aop.onboarding.Onboarding;
 import io.openbas.database.model.Action;
 import io.openbas.database.model.Collector;
 import io.openbas.database.model.ResourceType;
@@ -92,7 +90,6 @@ public class CollectorApi extends RestBehavior {
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackOn = Exception.class)
-  @Onboarding(step = COLLECTOR_SETUP, allUsers = true)
   public Collector registerCollector(
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {

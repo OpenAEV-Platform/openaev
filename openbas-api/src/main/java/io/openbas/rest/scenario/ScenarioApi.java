@@ -4,14 +4,12 @@ import static io.openbas.database.specification.ScenarioSpecification.byName;
 import static io.openbas.database.specification.TeamSpecification.fromScenario;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
-import static io.openbas.utils.UserOnboardingProgressUtils.LAUNCH_SCENARIO_GET_STARTED;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
-import io.openbas.aop.onboarding.Onboarding;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawPaginationScenario;
 import io.openbas.database.repository.*;
@@ -363,7 +361,6 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  @Onboarding(step = LAUNCH_SCENARIO_GET_STARTED)
   public Exercise createRunningExerciseFromScenario(
       @PathVariable @NotBlank final String scenarioId) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);

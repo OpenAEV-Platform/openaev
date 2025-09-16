@@ -20,7 +20,6 @@ import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
-import OnboardingRenderer from './components/onboarding/OnboardingRenderer';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
 
 const Home = lazy(() => import('./components/Home'));
@@ -93,7 +92,6 @@ const Index = () => {
       <LeftBar />
       <Box component="main" sx={boxSx}>
         <div className={classes.toolbar} />
-        <OnboardingRenderer />
         <Suspense fallback={<Loader />}>
           <Routes>
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />

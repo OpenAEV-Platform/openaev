@@ -11,7 +11,6 @@ import io.openbas.config.SessionHelper;
 import io.openbas.database.model.Group;
 import io.openbas.database.model.Token;
 import io.openbas.database.model.User;
-import io.openbas.database.model.UserOnboardingStatus;
 import io.openbas.database.repository.*;
 import io.openbas.database.specification.GroupSpecification;
 import io.openbas.rest.exception.ElementNotFoundException;
@@ -168,16 +167,5 @@ public class UserService {
         },
         "",
         roles);
-  }
-
-  // -- ONBOARDING --
-
-  public User updateOnboarding(
-      @NotNull final UserOnboardingStatus onboardingWidgetEnable,
-      @NotNull final UserOnboardingStatus onboardingContextualHelpEnable) {
-    User user = this.currentUser();
-    user.setOnboardingWidgetEnable(onboardingWidgetEnable);
-    user.setOnboardingContextualHelpEnable(onboardingContextualHelpEnable);
-    return this.updateUser(user);
   }
 }

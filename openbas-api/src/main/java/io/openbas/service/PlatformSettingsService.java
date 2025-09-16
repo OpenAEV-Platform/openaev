@@ -308,19 +308,6 @@ public class PlatformSettingsService {
     // License
     platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
 
-    // Onboarding
-    String onboardingWidgetEnable =
-        ofNullable(dbSettings.get(PLATFORM_ONBOARDING_WIDGET_ENABLE.key()))
-            .map(Setting::getValue)
-            .orElse(PLATFORM_ONBOARDING_WIDGET_ENABLE.defaultValue());
-    platformSettings.setOnboardingWidgetEnable(parseBoolean(onboardingWidgetEnable));
-    String onboardingContextualHelpEnable =
-        ofNullable(dbSettings.get(PLATFORM_ONBOARDING_CONTEXTUAL_HELP_ENABLE.key()))
-            .map(Setting::getValue)
-            .orElse(PLATFORM_ONBOARDING_CONTEXTUAL_HELP_ENABLE.defaultValue());
-    platformSettings.setOnboardingContextualHelpEnable(
-        parseBoolean(onboardingContextualHelpEnable));
-
     // XTM Hub
     platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
     platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
@@ -334,16 +321,6 @@ public class PlatformSettingsService {
     platformSettings.setXtmHubRegistrationUserName(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key()));
 
-    return platformSettings;
-  }
-
-  public PlatformSettings defaultValues() {
-    PlatformSettings platformSettings = new PlatformSettings();
-    // Onboarding
-    platformSettings.setOnboardingWidgetEnable(
-        parseBoolean(PLATFORM_ONBOARDING_WIDGET_ENABLE.defaultValue()));
-    platformSettings.setOnboardingContextualHelpEnable(
-        parseBoolean(PLATFORM_ONBOARDING_CONTEXTUAL_HELP_ENABLE.defaultValue()));
     return platformSettings;
   }
 
@@ -446,24 +423,6 @@ public class PlatformSettingsService {
     settingsToSave.add(
         resolveFromMap(
             dbSettings, PLATFORM_CONSENT_CONFIRM_TEXT.key(), input.getConsentConfirmText()));
-    settingRepository.saveAll(settingsToSave);
-    return findSettings();
-  }
-
-  public PlatformSettings updateSettingsOnboarding(SettingsOnboardingUpdateInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-    List<Setting> settingsToSave = new ArrayList<>();
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            PLATFORM_ONBOARDING_WIDGET_ENABLE.key(),
-            valueOf(input.isOnboardingWidgetEnable())));
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            PLATFORM_ONBOARDING_CONTEXTUAL_HELP_ENABLE.key(),
-            valueOf(input.isOnboardingContextualHelpEnable())));
-
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }

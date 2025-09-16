@@ -31,21 +31,3 @@ export const langItems = (t: (text: string) => string) => [
     label: t('Chinese'),
   },
 ];
-
-export const onboardingItems: (t: (text: string) => string) => {
-  value: 'DEFAULT' | 'ENABLED' | 'DISABLED';
-  label: string;
-}[] = (t: (text: string) => string) => [
-  {
-    value: 'DEFAULT',
-    label: t('Default'),
-  },
-  {
-    value: 'ENABLED',
-    label: t('Enabled'),
-  },
-  {
-    value: 'DISABLED',
-    label: t('Disabled'),
-  },
-];
