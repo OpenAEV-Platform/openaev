@@ -4738,6 +4738,16 @@ export interface PlatformSettings {
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
+  /** XTM Hub registration date */
+  xtm_hub_registration_date?: string;
+  /** XTM Hub registration status */
+  xtm_hub_registration_status?: string;
+  /** XTM Hub registration user id */
+  xtm_hub_registration_user_id?: string;
+  /** XTM Hub registration user name */
+  xtm_hub_registration_user_name?: string;
+  /** XTM Hub token */
+  xtm_hub_token?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
   /** True if connection with OpenCTI is enabled */
@@ -6232,4 +6242,9 @@ export interface WidgetLayout {
   widget_layout_x: number;
   /** @format int32 */
   widget_layout_y: number;
+}
+
+export interface XtmHubRegisterInput {
+  /** The registration token */
+  token: string;
 }
