@@ -217,7 +217,7 @@ public class AssetGroupService {
    * @param assetGroups list
    * @return map of asset groups with the list of endpoints
    */
-  public Map<AssetGroup, List<Endpoint>> assetsFromAssetGroupMap(List<AssetGroup> assetGroups) {
+  public Map<AssetGroup, Set<Endpoint>> assetsFromAssetGroupMap(List<AssetGroup> assetGroups) {
     return assetGroups.stream()
         .collect(
             Collectors.toMap(
@@ -225,7 +225,7 @@ public class AssetGroupService {
                 group ->
                     this.assetsFromAssetGroup(group.getId()).stream()
                         .map(Endpoint.class::cast)
-                        .toList()));
+                        .collect(Collectors.toSet())));
   }
 
   /**
