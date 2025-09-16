@@ -613,7 +613,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                     String.join(
                         ",",
                         cveComposer.generatedItems.stream()
-                            .sorted(Comparator.comparing(Cve::getCreationDate).reversed())
+                            .sorted(Comparator.comparing(Cve::getUpdateDate).reversed())
                             .collect(Collectors.toList())
                             .stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
