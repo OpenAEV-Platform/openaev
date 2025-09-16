@@ -1,8 +1,9 @@
-package io.openbas.rest;
+package io.openbas.api.stix_process;
 
-import static io.openbas.rest.StixApi.STIX_URI;
+import static io.openbas.api.stix_process.StixApi.STIX_URI;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
+import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -55,18 +56,28 @@ class StixApiTest extends IntegrationTest {
 
   private String stixSecurityCoverage;
   private String stixSecurityCoverageWithoutTtps;
+  private String stixSecurityCoverageWithoutVulns;
+  private String stixSecurityCoverageWithoutObjects;
 
   @BeforeEach
   void setUp() throws Exception {
     attackPatternComposer.reset();
-    try (FileInputStream fis1 =
+    try (FileInputStream complete =
             new FileInputStream("src/test/resources/stix-bundles/security-coverage.json");
-        FileInputStream fis2 =
+        FileInputStream withoutAttacks =
             new FileInputStream(
-                "src/test/resources/stix-bundles/security-coverage-without-ttps.json")) {
+                "src/test/resources/stix-bundles/security-coverage-without-ttps.json");
+        FileInputStream withoutVulns =
+            new FileInputStream(
+                "src/test/resources/stix-bundles/security-coverage-without-vulns.json");
+        FileInputStream withoutObjects =
+            new FileInputStream(
+                "src/test/resources/stix-bundles/security-coverage-without-objects.json")) {
 
-      stixSecurityCoverage = IOUtils.toString(fis1, StandardCharsets.UTF_8);
-      stixSecurityCoverageWithoutTtps = IOUtils.toString(fis2, StandardCharsets.UTF_8);
+      stixSecurityCoverage = IOUtils.toString(complete, StandardCharsets.UTF_8);
+      stixSecurityCoverageWithoutTtps = IOUtils.toString(withoutAttacks, StandardCharsets.UTF_8);
+      stixSecurityCoverageWithoutVulns = IOUtils.toString(withoutVulns, StandardCharsets.UTF_8);
+      stixSecurityCoverageWithoutObjects = IOUtils.toString(withoutObjects, StandardCharsets.UTF_8);
     }
 
     attackPatternComposer
@@ -173,8 +184,6 @@ class StixApiTest extends IntegrationTest {
           .contains(OPENCTI_TAG_NAME);
 
       // -- ASSERT Security Coverage --
-      assertThat(createdScenario.getSecurityCoverage().getThreatContextRef())
-          .isEqualTo("report--453a2ac1-e111-57bf-8277-dbec448cd851");
       assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(2);
 
       StixRefToExternalRef stixRef1 =
@@ -182,18 +191,25 @@ class StixApiTest extends IntegrationTest {
       StixRefToExternalRef stixRef2 =
           new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
 
-      assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(2);
+      // -- Vulnerabilities --
+      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(1);
+
+      StixRefToExternalRef stixRefVuln =
+          new StixRefToExternalRef(
+              "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975", CVE_2023_48788);
+
       assertTrue(
           createdScenario
               .getSecurityCoverage()
               .getAttackPatternRefs()
               .containsAll(List.of(stixRef1, stixRef2)));
-      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).isNull();
+      assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs())
+          .containsAll(List.of(stixRefVuln));
       assertThat(createdScenario.getSecurityCoverage().getContent()).isNotBlank();
 
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
-      assertThat(injects).hasSize(2);
+      assertThat(injects).hasSize(3);
     }
 
     @Test
@@ -217,7 +233,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(2);
+      assertThat(injects).hasSize(3);
 
       entityManager.flush();
       entityManager.clear();
@@ -239,7 +255,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(2);
+      assertThat(injects).hasSize(3);
     }
 
     @Test
@@ -262,7 +278,58 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(2);
+      assertThat(injects).hasSize(3);
+
+      // Push stix without object type attack-pattern
+      String updatedResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageWithoutTtps))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(updatedScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
+
+      // ASSERT injects for updated stix
+      injects = injectRepository.findByScenarioId(updatedScenario.getId());
+      assertThat(injects).hasSize(1); // After update with only one object type vulnerability
+      Inject inject = injects.stream().findFirst().get();
+      assertTrue(inject.getTitle().contains("[CVE-2023-48788]"));
+      assertTrue(
+          inject
+              .getDescription()
+              .contains(
+                  "This placeholder is disabled because the Vulnerability CVE-2023-48788 is currently not covered. "
+                      + "Please add the contracts related to this vulnerability."));
+    }
+
+    @Test
+    @DisplayName(
+        "Should update scenario from same security coverage but deleting injects when vulnerabilities are not defined in stix")
+    void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsVulnerabilities() throws Exception {
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverage))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(3);
 
       entityManager.flush();
       entityManager.clear();
@@ -272,7 +339,58 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageWithoutTtps))
+                      .content(stixSecurityCoverageWithoutVulns))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(updatedScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
+
+      // ASSERT injects for updated stix
+      injects = injectRepository.findByScenarioId(updatedScenario.getId());
+      assertThat(injects).hasSize(1); // After update with only one object type vulnerability
+      Inject inject = injects.stream().findFirst().get();
+      assertTrue(inject.getTitle().contains("[T1003]"));
+      assertTrue(
+          inject
+              .getDescription()
+              .contains(
+                  "This placeholder is disabled because the Attack Pattern T1003 is currently not covered. "
+                      + "Please create the payloads for platform [any platform] and architecture [any architecture]."));
+    }
+
+    @Test
+    @DisplayName(
+        "Should update scenario from same security coverage but deleting injects when none objects are not defined in stix")
+    void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsOtherObjects() throws Exception {
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverage))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(3);
+
+      // Push stix without object type attack-pattern
+      String updatedResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageWithoutObjects))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()

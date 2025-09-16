@@ -99,7 +99,7 @@ public class ScenarioInjectApi extends RestBehavior {
   @Operation(
       summary = "Assistant to generate injects for scenario",
       description = "Generates injects based on the provided attack pattern and targets.")
-  public List<Inject> generateInjectsForScenario(
+  public Set<Inject> generateInjectsForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);

@@ -206,12 +206,12 @@ public class InjectorContractService {
               new HashSet<>(input.getAttackPatternsExternalIds()));
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
-          attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
+          attackPatternService.findAllByInternalIdsThrowIfMissing(
               new HashSet<>(input.getAttackPatternsIds()));
     }
     injectorContract.setAttackPatterns(aps);
 
-    List<Cve> vulns = new ArrayList<>();
+    Set<Cve> vulns = new HashSet<>();
     if (!input.getVulnerabilityExternalIds().isEmpty()) {
       vulns =
           cveService.findAllByExternalIdsOrThrowIfMissing(
@@ -234,7 +234,7 @@ public class InjectorContractService {
             .orElseThrow(ElementNotFoundException::new);
     injectorContract.setUpdateAttributes(input);
     injectorContract.setAttackPatterns(
-        attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
+        attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
     injectorContract.setVulnerabilities(
         cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));
@@ -249,7 +249,7 @@ public class InjectorContractService {
             .findByIdOrExternalId(injectorContractId, injectorContractId)
             .orElseThrow(ElementNotFoundException::new);
     injectorContract.setAttackPatterns(
-        attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
+        attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
     injectorContract.setVulnerabilities(
         cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));

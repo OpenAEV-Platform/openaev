@@ -31,7 +31,7 @@ import io.openbas.service.FileService;
 import io.openbas.service.ImportEntry;
 import io.openbas.service.ScenarioService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
-import io.openbas.utils.Constants;
+import io.openbas.utils.constants.Constants;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Resource;
 import java.time.Instant;

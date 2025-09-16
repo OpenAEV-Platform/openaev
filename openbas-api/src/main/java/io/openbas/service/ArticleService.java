@@ -1,6 +1,6 @@
 package io.openbas.service;
 
-import static io.openbas.utils.Constants.ARTICLES;
+import static io.openbas.utils.constants.Constants.ARTICLES;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

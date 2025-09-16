@@ -9,7 +9,7 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.model.Tag;
 import io.openbas.database.repository.*;
-import io.openbas.utils.Constants;
+import io.openbas.utils.constants.Constants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;

@@ -32,8 +32,6 @@ public class InjectHelper {
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
 
-  // -- INJECT --
-
   private List<Team> getInjectTeams(@NotNull final Inject inject) {
     Exercise exercise = inject.getExercise();
     if (inject

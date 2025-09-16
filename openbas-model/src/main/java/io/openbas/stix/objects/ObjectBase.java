@@ -12,6 +12,7 @@ import io.openbas.stix.types.StixString;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -75,11 +76,11 @@ public abstract class ObjectBase implements StixSerialisable {
     }
   }
 
-  public void setIfListPresent(String propName, Consumer<List<String>> setter) {
+  public void setIfSetPresent(String propName, Consumer<Set<String>> setter) {
     if (this.hasProperty(propName) && this.getProperty(propName).getValue() != null) {
       Object value = getProperty(propName).getValue();
       if (value instanceof List<?>) {
-        List<String> strings =
+        Set<String> strings =
             ((List<?>) value)
                 .stream()
                     .map(
@@ -90,7 +91,7 @@ public abstract class ObjectBase implements StixSerialisable {
                             return v.toString();
                           }
                         })
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toSet());
 
         setter.accept(strings);
       }
