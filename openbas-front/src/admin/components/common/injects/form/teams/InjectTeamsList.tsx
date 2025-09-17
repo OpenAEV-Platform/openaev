@@ -53,14 +53,30 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
     } else {
       setTeams([]);
     }
-  }, [injectTeamIds]);
+  }, []);
 
   // -- ACTIONS --
-  const onTeamsChange = (teamIds: string[]) => setValue('inject_teams', teamIds, { shouldValidate: true });
+  const onTeamsChange = async (teamIds: string[]) => {
+    setValue('inject_teams', teamIds, { shouldValidate: true });
+
+    if (teamIds.length > 0) {
+      const result = await findTeams(teamIds);
+      setTeams(result.data.sort((a: TeamOutput, b: TeamOutput) =>
+        a.team_name.localeCompare(b.team_name),
+      ));
+    } else {
+      setTeams([]);
+    }
+  };
 
   const onRemoveTeam = (teamId: string) => {
     const updatedTeamIds = injectTeamIds.filter((id: string) => id !== teamId);
     setValue('inject_teams', updatedTeamIds, { shouldValidate: true });
+    if (updatedTeamIds.length > 0) {
+      setTeams(prev => prev.filter(team => team.team_id !== teamId));
+    } else {
+      setTeams([]);
+    }
   };
 
   const teamListItem = (team: TeamOutput, userEnabled: number) => (
