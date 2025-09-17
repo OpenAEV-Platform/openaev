@@ -42,7 +42,7 @@ const RemediationFormTab = ({ payloadId }: RemediationFormTabProps) => {
       setLoading(true);
       dispatch(fetchCollectors()).finally(() => {
         setLoading(false);
-      }); ;
+      });
     } else if (payloadId) {
       setLoading(true);
       dispatch(fetchCollectorsForPayload(payloadId)).finally(() => {

@@ -3,6 +3,7 @@ import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../i18n';
+import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
   navOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 const MenuItemToggle: FunctionComponent<Props> = ({ navOpen, onClick }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const leftMenuStyle = useLeftMenuStyle();
 
   return (
     <MenuItem
@@ -19,19 +21,13 @@ const MenuItemToggle: FunctionComponent<Props> = ({ navOpen, onClick }) => {
       dense
       onClick={onClick}
     >
-      <ListItemIcon style={{ minWidth: 20 }}>
+      <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
         {navOpen ? <ChevronLeft /> : <ChevronRight />}
       </ListItemIcon>
       {navOpen && (
         <ListItemText
           primary={t('Collapse')}
-          slotProps={{
-            primary: {
-              padding: '1px 0 0 15px',
-              fontWeight: 500,
-              fontSize: 14,
-            },
-          }}
+          slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
         />
       )}
     </MenuItem>
