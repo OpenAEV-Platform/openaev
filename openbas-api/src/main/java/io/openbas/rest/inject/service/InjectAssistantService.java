@@ -17,7 +17,6 @@ import io.openbas.service.EndpointService;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -28,8 +27,6 @@ import org.springframework.validation.annotation.Validated;
 public class InjectAssistantService {
 
   public static final int MAX_NUMBER_INJECTS = 5;
-  public static final String NO_PLATFORM = null;
-  public static final String NO_ARCHITECTURE = null;
 
   private final InjectorContractRepositoryHelper injectorContractRepositoryHelper;
   private final AssetGroupService assetGroupService;
@@ -285,10 +282,8 @@ public class InjectAssistantService {
       int injectsPerVulnerability,
       InjectorContract contractForPlaceholder) {
 
-    Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract = new HashMap<>();
-
-    // injectorContractRepository.findInjectorContractsByVulnerabilityIds(
-    //   vulnerabilities, injectsPerVulnerability);
+    Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract =
+        computeMapVulnerabilityInjectorContracts(vulnerabilities, injectsPerVulnerability);
 
     Set<Inject> injects =
         vulnerabilities.stream()
@@ -296,7 +291,8 @@ public class InjectAssistantService {
                 vulnerability ->
                     buildInjectsWithTargetsByVulnerability(
                         vulnerability,
-                        mapVulnerabilityInjectorContract.get(vulnerability.getId()),
+                        mapVulnerabilityInjectorContract.getOrDefault(
+                            vulnerability.getExternalId().toLowerCase(), Set.of()),
                         endpoints,
                         contractForPlaceholder)
                         .stream())
@@ -309,11 +305,40 @@ public class InjectAssistantService {
     return savedInjects;
   }
 
+  private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
+      Set<Cve> vulnerabilities, int injectsPerVulnerability) {
+    Set<String> vulnerabilityExternalIds =
+        vulnerabilities.stream()
+            .map(v -> v.getExternalId())
+            .map(String::toLowerCase)
+            .collect(Collectors.toSet());
+
+    Set<InjectorContract> contracts =
+        injectorContractRepository.findInjectorContractsByVulnerabilityIdIn(
+            vulnerabilityExternalIds, injectsPerVulnerability);
+
+    Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract = new HashMap<>();
+
+    contracts.forEach(
+        contract -> {
+          contract.getVulnerabilities().stream()
+              .map(v -> v.getExternalId().toLowerCase())
+              .filter(vulnExternalId -> vulnerabilityExternalIds.contains(vulnExternalId))
+              .forEach(
+                  vulnId ->
+                      mapVulnerabilityInjectorContract
+                          .computeIfAbsent(vulnId, k -> new HashSet<>())
+                          .add(contract));
+        });
+    return mapVulnerabilityInjectorContract;
+  }
+
   /**
-   * Builds a set of {@link Inject} objects for a given vulnerability, using the provided target
-   * assets (grouped by their {@link ContractTargetedProperty}).
+   * Builds a set of {@link Inject} objects for a given vulnerability
    *
    * @param vulnerability the {@link Cve} vulnerability to generate injects for
+   * @param injectorContracts related to this vulnerability
+   * @param endpoints endpoints related to asset groups
    * @return a set of generated {@link Inject} objects, never {@code null}
    */
   private Set<Inject> buildInjectsWithTargetsByVulnerability(
@@ -335,14 +360,13 @@ public class InjectAssistantService {
     Set<Inject> injects = new HashSet<>();
     for (InjectorContract ic : injectorContracts) {
       Inject inject =
-          buildTechnicalInject(
+          injectService.buildTechnicalInject(
               ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
       inject.setAssets(new ArrayList<>(endpoints));
       injects.add(inject);
     }
     return injects;
   }
-
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
       AttackPattern attackPattern,
