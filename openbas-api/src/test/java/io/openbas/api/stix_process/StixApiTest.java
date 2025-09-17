@@ -647,7 +647,7 @@ class StixApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should update injects when more targets are added")
-    void shouldUpdateInjectsWhenTargesAreAdded() throws Exception {
+    void shouldUpdateInjectsWhenTargetsAreAdded() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
 
