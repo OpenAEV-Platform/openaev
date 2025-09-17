@@ -488,17 +488,14 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should create scenario with 1 injects with 3 assets")
     void shouldCreateScenarioWithOneInjectWithThreeEndpoints() throws Exception {
-      tagRuleComposer
-          .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-          .withAssetGroup(completeAssetGroup)
-          .persist();
+      String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
 
       String createdResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulns))
+                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
