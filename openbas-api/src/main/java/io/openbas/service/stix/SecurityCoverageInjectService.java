@@ -57,11 +57,13 @@ public class SecurityCoverageInjectService {
     Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
         assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
 
-    InjectorContract contractForInjectPlaceholders =
-        injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
-
+    // Set flat of all endpoints
     Set<Endpoint> flatEndpointsFromMap =
         assetsFromGroupMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
+
+    // Fetch InjectorContract to use for inject placeholder
+    InjectorContract contractForInjectPlaceholders =
+        injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
     // Build injects from Vulnerabilities
     getInjectsByVulnerabilities(
