@@ -20,7 +20,6 @@ import io.openbas.service.FileService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.helpers.TagHelper;
-import io.openbas.utils.mockUser.WithMockUnprivilegedUser;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.*;
@@ -354,7 +353,7 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("When passing null input")
   public class WhenPassingNullInput {
 
@@ -407,8 +406,8 @@ class InjectImportTest extends IntegrationTest {
   public class WhenLackingPLANNERPermissionsOnExercise {
 
     @Test
-    @DisplayName("Return NOT FOUND")
-    public void returnNOTFOUND() throws Exception {
+    @DisplayName("Return FORBIDDEN")
+    public void returnFORBIDDEN() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
       Exercise targetExercise =
@@ -417,13 +416,12 @@ class InjectImportTest extends IntegrationTest {
       InjectImportInput input =
           createTargetInput(InjectImportTargetType.SIMULATION, targetExercise.getId());
 
-      // the backend hides UNAUTHORIZED with NOT_FOUND
-      doImport(exportData, input).andExpect(status().isNotFound());
+      doImport(exportData, input).andExpect(status().isForbidden());
     }
   }
 
   @Nested
-  @WithMockUser(withCapabilities = Capability.ACCESS_ASSESSMENT)
+  @WithMockUser(withCapabilities = Capability.MANAGE_ASSESSMENT)
   @DisplayName("When destination exercise is not found")
   public class WhenDestinationExerciseNotFound {
 
@@ -445,8 +443,8 @@ class InjectImportTest extends IntegrationTest {
   public class WhenLackingPLANNERPermissionsOnScenario {
 
     @Test
-    @DisplayName("Return NOT FOUND")
-    public void returnNOTFOUND() throws Exception {
+    @DisplayName("Return FORBIDDEN")
+    public void returnFORBIDDEN() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
       Scenario targetScenario =
@@ -458,13 +456,12 @@ class InjectImportTest extends IntegrationTest {
       InjectImportInput input =
           createTargetInput(InjectImportTargetType.SCENARIO, targetScenario.getId());
 
-      // the backend hides UNAUTHORIZED with NOT_FOUND
-      doImport(exportData, input).andExpect(status().isNotFound());
+      doImport(exportData, input).andExpect(status().isForbidden());
     }
   }
 
   @Nested
-  @WithMockUser(withCapabilities = Capability.ACCESS_ASSESSMENT)
+  @WithMockUser(withCapabilities = Capability.MANAGE_ASSESSMENT)
   @DisplayName("When destination scenario is not found")
   public class WhenDestinationScenarioNotFound {
 
@@ -486,14 +483,14 @@ class InjectImportTest extends IntegrationTest {
   public class WhenLackingADMINPermissionsForAtomicTests {
 
     @Test
-    @DisplayName("Return NOT FOUND")
-    public void returnNOTFOUND() throws Exception {
+    @DisplayName("Return FORBIDDEN")
+    public void returnFORBIDDEN() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
       InjectImportInput input =
           createTargetInput(InjectImportTargetType.ATOMIC_TESTING, UUID.randomUUID().toString());
 
-      doImport(exportData, input).andExpect(status().isNotFound());
+      doImport(exportData, input).andExpect(status().isForbidden());
     }
   }
 

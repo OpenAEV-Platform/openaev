@@ -3,6 +3,7 @@ package io.openbas.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
+import io.openbas.database.model.Capability;
 import io.openbas.database.model.Exercise;
 import io.openbas.database.model.Inject;
 import io.openbas.rest.exercise.service.ExerciseService;
@@ -14,7 +15,7 @@ import io.openbas.rest.report.form.ReportInput;
 import io.openbas.rest.report.model.Report;
 import io.openbas.rest.report.service.ReportService;
 import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,7 +75,7 @@ public class ReportApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockPlannerUser
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   @DisplayName("Reports for exercise")
   class ReportsForExercise {
     @DisplayName("Create report")

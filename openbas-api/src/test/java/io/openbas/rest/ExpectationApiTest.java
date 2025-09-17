@@ -40,10 +40,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import static io.openbas.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 
 @TestInstance(PER_CLASS)
@@ -681,7 +677,7 @@ class ExpectationApiTest extends IntegrationTest {
      * propagation to asset and asset-group levels for each collector.
      */
     @Test
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     @DisplayName("Add results on inject expectation from two collectors on one agent")
     void updateInjectExpectationFromTwoCollectors() throws Exception {
       // -- PREPARE --

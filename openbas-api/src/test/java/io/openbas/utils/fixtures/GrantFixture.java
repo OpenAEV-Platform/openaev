@@ -1,9 +1,6 @@
 package io.openbas.utils.fixtures;
 
-import io.openbas.database.model.Exercise;
-import io.openbas.database.model.Grant;
-import io.openbas.database.model.Group;
-import io.openbas.database.model.Scenario;
+import io.openbas.database.model.*;
 
 public class GrantFixture {
 

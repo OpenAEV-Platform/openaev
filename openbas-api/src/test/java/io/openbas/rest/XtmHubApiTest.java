@@ -1,25 +1,26 @@
 package io.openbas.rest;
 
-import static io.openbas.database.model.User.*;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.api.xtmhub.XtmHubApi;
 import io.openbas.api.xtmhub.XtmHubRegisterInput;
 import io.openbas.rest.settings.response.PlatformSettings;
 import io.openbas.service.PlatformSettingsService;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.xtmhub.XtmHubRegistrationStatus;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -30,7 +31,7 @@ public class XtmHubApiTest extends IntegrationTest {
   @Autowired private PlatformSettingsService platformSettingsService;
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Should save registration data")
   public void whenRegisterUpdateRegistrationData() throws Exception {
     String token = "token";
@@ -53,20 +54,20 @@ public class XtmHubApiTest extends IntegrationTest {
     String responseRegistrationDate = JsonPath.read(response, "$.xtm_hub_registration_date");
     assertEquals(responseToken, token);
     assertEquals(responseStatus, XtmHubRegistrationStatus.REGISTERED.label);
-    assertEquals(responseUserId, ADMIN_UUID);
-    assertEquals(responseUserName, ADMIN_FIRSTNAME + " " + ADMIN_LASTNAME);
+    assertEquals(responseUserId, testUserHolder.get().getId());
+    assertEquals(responseUserName, testUserHolder.get().getName());
     assertNotNull(responseRegistrationDate);
 
     PlatformSettings settings = platformSettingsService.findSettings();
     assertEquals(settings.getXtmHubToken(), token);
     assertEquals(settings.getXtmHubRegistrationStatus(), XtmHubRegistrationStatus.REGISTERED.label);
-    assertEquals(settings.getXtmHubRegistrationUserId(), ADMIN_UUID);
-    assertEquals(settings.getXtmHubRegistrationUserName(), ADMIN_FIRSTNAME + " " + ADMIN_LASTNAME);
+    assertEquals(settings.getXtmHubRegistrationUserId(), testUserHolder.get().getId());
+    assertEquals(settings.getXtmHubRegistrationUserName(), testUserHolder.get().getName());
     assertNotNull(settings.getXtmHubRegistrationDate());
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Should delete registration data")
   public void whenUnregisterDeleteRegistrationData() throws Exception {
     String response =

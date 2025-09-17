@@ -8,7 +8,6 @@ import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockUnprivilegedUser;
 import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -137,7 +136,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("Without authorisation")
   public class WhenInjectWithoutAuthorisation {
     @Test

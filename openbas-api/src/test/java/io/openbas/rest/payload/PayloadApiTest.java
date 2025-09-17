@@ -18,7 +18,6 @@ import io.openbas.utils.fixtures.PayloadFixture;
 import io.openbas.utils.fixtures.PayloadInputFixture;
 import io.openbas.utils.fixtures.composers.CollectorComposer;
 import io.openbas.utils.mockUser.WithMockUser;
-import io.openbas.utils.mockUser.WithMockUserFullPermissions;
 import jakarta.annotation.Resource;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -477,7 +476,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Upsert architecture of a Payload")
-  @WithMockUserFullPermissions
+  @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand());
     payload.setExternalId("external-id");
@@ -510,7 +509,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Upsert Payload with output parser")
-  @WithMockUserFullPermissions
+  @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void
       given_payload_upsert_input_with_output_parsers_should_return_updated_payload_with_output_parsers()
           throws Exception {
@@ -556,7 +555,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Upsert Payload with detection remediations")
-  @WithMockUserFullPermissions
+  @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void
       given_payload_upsert_input_with_detection_remediation_should_return_updated_payload_with_detection_remediations()
           throws Exception {

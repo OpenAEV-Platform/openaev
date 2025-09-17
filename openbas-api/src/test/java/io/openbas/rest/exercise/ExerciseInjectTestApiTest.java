@@ -187,23 +187,21 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should return 404 when testing a specific inject")
+    @DisplayName("Should return 403 when testing a specific inject")
     @WithMockUser
-    void should_return_404_when_testing_specific_inject() throws Exception {
-      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
-
+    void should_return_403_when_testing_specific_inject() throws Exception {
       mvc.perform(
               get(
                   EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
                   simulation.getId(),
                   inject1.getId()))
-          .andExpect(status().isNotFound());
+        .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Should return 404 when performing bulk test with inject IDs")
+    @DisplayName("Should return 403 when performing bulk test with inject IDs")
     @WithMockUser
-    void should_return_404_when_bulk_testing_with_inject_ids() throws Exception {
+    void should_return_403_when_bulk_testing_with_inject_ids() throws Exception {
       addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
 
       InjectBulkProcessingInput input = new InjectBulkProcessingInput();
@@ -214,20 +212,20 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
               post(EXERCISE_URI + "/{simulationId}/injects/test", simulation.getId())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
-          .andExpect(status().isNotFound());
+        .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Should return 404 when fetching a deleted inject test status")
+    @DisplayName("Should return 403 when fetching a deleted inject test status")
     @WithMockUser
-    void should_return_404_when_fetching_deleted_inject_test_status() throws Exception {
+    void should_return_403_when_fetching_deleted_inject_test_status() throws Exception {
       addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
       mvc.perform(
               delete(
                   EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
                   simulation.getId(),
                   injectTestStatus1.getId()))
-          .andExpect(status().isNotFound());
+        .andExpect(status().isForbidden());
     }
   }
 }

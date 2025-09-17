@@ -77,6 +77,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openbas.database.model.ExecutionStatus.*;
+
 @RequiredArgsConstructor
 @Service
 @Slf4j

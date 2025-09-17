@@ -165,7 +165,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Simulation variable is interpolated")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void simulationVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -214,7 +214,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("User variable is interpolated in simulation inject test")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void userVariableIsInterpolatedInSimulationInjectTest() throws Exception {
       User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
@@ -355,7 +355,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Simulation variable is interpolated")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void simulationVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -405,7 +405,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "When a single user is used in a multi email, user variable is interpolated in simulation inject test")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void userVariableIsInterpolatedInSimulationInjectTest() throws Exception {
       User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
@@ -514,7 +514,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test status using test id")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     void should_return_test_status_by_testId() throws Exception {
       mvc.perform(get(SCENARIO_URI + "/injects/test/{testId}", injectTestStatus1Wrapper.get().getId()))
           .andExpect(status().isOk());
@@ -535,14 +535,16 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test statuses when performing bulk test with inject IDs")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT})
     void should_return_test_statuses_when_bulk_testing_with_inject_ids() throws Exception {
+      Inject testInject = inject1Wrapper.persist().get();
+      Scenario testScenario = scenarioWrapper.persist().get();
       InjectBulkProcessingInput input = new InjectBulkProcessingInput();
-      input.setInjectIDsToProcess(List.of(inject1Wrapper.get().getId()));
-      input.setSimulationOrScenarioId(scenarioWrapper.get().getId());
+      input.setInjectIDsToProcess(List.of(testInject.getId()));
+      input.setSimulationOrScenarioId(testScenario.getId());
 
       mvc.perform(
-          post(SCENARIO_URI + "/{scenarioId}/injects/test", scenarioWrapper.get().getId())
+          post(SCENARIO_URI + "/{scenarioId}/injects/test", testScenario.getId())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
           .andExpect(status().isOk())
@@ -569,8 +571,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
       @Test
       @DisplayName("Should return 403 when search a paginated inject test results")
-      @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
-      void should_return_200_when_search_paginated_results() throws Exception {
+      void should_return_403_when_search_paginated_results() throws Exception {
         SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
         mvc.perform(
                 post(
@@ -590,21 +591,19 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should return 404 when testing a specific inject")
-      @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
-      void should_return_404_when_testing_specific_inject() throws Exception {
+      @DisplayName("Should return 403 when testing a specific inject")
+      void should_return_403_when_testing_specific_inject() throws Exception {
         mvc.perform(
                 get(
                     SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
                     scenarioWrapper.persist().get().getId(),
                     inject1Wrapper.get().getId()))
-            .andExpect(status().isNotFound());
+          .andExpect(status().isForbidden());
       }
 
       @Test
-      @DisplayName("Should return 404 when performing bulk test with inject IDs")
-      @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
-      void should_return_404_when_bulk_testing_with_inject_ids() throws Exception {
+      @DisplayName("Should return 403 when performing bulk test with inject IDs")
+      void should_return_403_when_bulk_testing_with_inject_ids() throws Exception {
         InjectBulkProcessingInput input = new InjectBulkProcessingInput();
         input.setInjectIDsToProcess(
             List.of(inject1Wrapper.get().getId(), inject2Wrapper.get().getId()));
@@ -616,7 +615,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                     scenarioWrapper.persist().get().getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input)))
-            .andExpect(status().isNotFound());
+          .andExpect(status().isForbidden());
       }
     }
   }
