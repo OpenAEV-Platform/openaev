@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,12 +98,16 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
       @RequestParam String injectExpectationId, @RequestParam String sourceId) {
-    Collector collector =
-        collectorRepository
-            .findById(sourceId)
-            .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
-    return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
-        injectExpectationId, collector.getSecurityPlatform().getId());
+    try {
+      Collector collector =
+          collectorRepository
+              .findById(sourceId)
+              .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
+      return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
+          injectExpectationId, collector.getSecurityPlatform().getId());
+    } catch (ElementNotFoundException e) {
+      return Collections.emptyList();
+    }
   }
 
   @Operation(summary = "Get inject expectation traces' count")

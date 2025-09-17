@@ -71,7 +71,6 @@ public class PreventionExpectation implements Expectation {
     preventionExpectation.setDescription(description);
     preventionExpectation.setAsset(asset);
     preventionExpectation.setAssetGroup(assetGroup);
-    preventionExpectation.setExpectationGroup(assetGroup != null);
     preventionExpectation.setExpirationTime(expirationTime);
     return preventionExpectation;
   }

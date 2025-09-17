@@ -38,7 +38,7 @@ const PaginatedListLoader: FunctionComponent<Props> = ({
             size="large"
             disabled
           >
-            <MoreVert fontSize="small" color="disabled" />
+            <MoreVert color="disabled" />
           </IconButton>
         )}
       >

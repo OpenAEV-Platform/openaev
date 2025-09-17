@@ -4,11 +4,9 @@ import static io.openbas.service.EndpointService.JFROG_BASE;
 import static io.openbas.service.EndpointService.SERVICE;
 import static io.openbas.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openbas.utils.AgentUtils.AVAILABLE_PLATFORMS;
-import static io.openbas.utils.UserOnboardingProgressUtils.ENDPOINT_SETUP;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.aop.RBAC;
-import io.openbas.aop.onboarding.Onboarding;
 import io.openbas.database.model.Action;
 import io.openbas.database.model.Executor;
 import io.openbas.database.model.ResourceType;
@@ -324,7 +322,6 @@ public class ExecutorApi extends RestBehavior {
       })
   @GetMapping(value = "/api/agent/installer/openbas/{platform}/{installationMode}/{token}")
   @RBAC(skipRBAC = true)
-  @Onboarding(step = ENDPOINT_SETUP)
   public @ResponseBody ResponseEntity<String> getOpenBasAgentInstaller(
       @Parameter(
               description =

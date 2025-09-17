@@ -2,7 +2,6 @@ import { fromJS, List, Map } from 'immutable';
 import { schema } from 'normalizr';
 
 import locale from '../utils/BrowserLanguage.js';
-import { useronboardingprogress } from './onboarding/onboarding-schema.js';
 
 export const document = new schema.Entity(
   'documents',
@@ -32,12 +31,6 @@ export const platformParameters = new schema.Entity(
   'platformParameters',
   {},
   { idAttribute: () => 'parameters' },
-);
-
-export const defaultPlatformParameters = new schema.Entity(
-  'defaultPlatformParameters',
-  {},
-  { idAttribute: () => 'defaultParameters' },
 );
 
 export const token = new schema.Entity(
@@ -485,6 +478,4 @@ export const storeHelper = state => ({
   getScenarioLessonsQuestions: id => entities('lessonsquestions', state).filter(
     l => l.get('lessons_question_scenario') === id,
   ),
-  getOnboarding: () => entity(me(state)?.get('user_onboarding_progress'), useronboardingprogress.key, state),
-  getOnboardings: () => entities(useronboardingprogress.key, state),
 });

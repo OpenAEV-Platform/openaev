@@ -1,8 +1,10 @@
 package io.openbas.rest.inject_expectation;
 
-import static io.openbas.collectors.expectations_expiration_manager.utils.ExpectationUtils.PREVENTED;
+import static io.openbas.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openbas.injectors.openbas.OpenBASInjector.OPENBAS_INJECTOR_ID;
 import static io.openbas.injectors.openbas.OpenBASInjector.OPENBAS_INJECTOR_NAME;
+import static io.openbas.utils.fixtures.ExpectationFixture.createDetectionExpectations;
+import static io.openbas.utils.fixtures.ExpectationFixture.createPreventionExpectations;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -11,15 +13,10 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.execution.ExecutableInject;
-import io.openbas.expectation.ExpectationType;
-import io.openbas.model.expectation.DetectionExpectation;
-import io.openbas.model.expectation.PreventionExpectation;
+import io.openbas.model.Expectation;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.fixtures.composers.AgentComposer;
-import io.openbas.utils.fixtures.composers.EndpointComposer;
-import io.openbas.utils.fixtures.composers.InjectComposer;
-import io.openbas.utils.fixtures.composers.InjectExpectationComposer;
+import io.openbas.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +24,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(MockitoExtension.class)
@@ -35,7 +31,6 @@ class InjectExpectationServiceTest extends IntegrationTest {
 
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
   private static final String INJECTOR_TYPE = "openbas_implant";
-  static Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
   // Saved entities for test setup
   @Autowired private InjectComposer injectComposer;
@@ -51,6 +46,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private AgentRepository agentRepository;
+  @Autowired private CollectorComposer collectorComposer;
 
   @Autowired private InjectExpectationService injectExpectationService;
 
@@ -70,6 +66,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("asset name"));
+    collectorComposer.forCollector(CollectorFixture.createDefaultCollector("FAKE")).persist();
   }
 
   @AfterAll
@@ -115,39 +112,31 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Agent savedAgent = createAgent("external01");
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject = createExecutableInject(savedInject, emptyList());
-    DetectionExpectation detectionExpectation =
-        ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-            savedAsset, null, EXPIRATION_TIME_SIX_HOURS);
-    PreventionExpectation preventionExpectation =
-        ExpectationFixture.createTechnicalPreventionExpectationForAsset(
-            savedAsset, null, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAgent =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent, savedAsset, null, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    PreventionExpectation preventionExpectationAgent =
-        ExpectationFixture.createTechnicalPreventionExpectation(
-            savedAgent, savedAsset, null, EXPIRATION_TIME_SIX_HOURS, emptyList());
+    List<Expectation> detectionExpectations =
+        createDetectionExpectations(
+            List.of(savedAgent), savedAsset, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> preventionExpectations =
+        createPreventionExpectations(
+            List.of(savedAgent), savedAsset, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> expectations =
+        java.util.stream.Stream.concat(
+                detectionExpectations.stream(), preventionExpectations.stream())
+            .toList();
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject,
-        List.of(
-            preventionExpectation,
-            detectionExpectation,
-            preventionExpectationAgent,
-            detectionExpectationAgent));
+    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
 
     // -- ASSERT --
     assertEquals(4, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAsset(savedInject.getId(), null, savedAsset.getId())
+            .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())
             .size());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(savedInject.getId(), null, savedAgent.getId())
+            .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
             .size());
   }
 
@@ -161,43 +150,32 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject =
         createExecutableInject(savedInject, List.of(savedAssetGroup));
-    DetectionExpectation detectionExpectation =
-        ExpectationFixture.createDetectionExpectationForAssetGroup(
-            savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    PreventionExpectation preventionExpectation =
-        ExpectationFixture.createPreventionExpectationForAssetGroup(
-            savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAsset =
-        ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-            savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    PreventionExpectation preventionExpectationAsset =
-        ExpectationFixture.createTechnicalPreventionExpectationForAsset(
-            savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAgent =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent, savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    PreventionExpectation preventionExpectationAgent =
-        ExpectationFixture.createTechnicalPreventionExpectation(
-            savedAgent, savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+    List<Expectation> detectionExpectations =
+        createDetectionExpectations(
+            List.of(savedAgent),
+            savedAsset,
+            savedAssetGroup,
+            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> preventionExpectations =
+        createPreventionExpectations(
+            List.of(savedAgent),
+            savedAsset,
+            savedAssetGroup,
+            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> expectations =
+        java.util.stream.Stream.concat(
+                detectionExpectations.stream(), preventionExpectations.stream())
+            .toList();
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject,
-        List.of(
-            preventionExpectation,
-            detectionExpectation,
-            preventionExpectationAsset,
-            detectionExpectationAsset,
-            preventionExpectationAgent,
-            detectionExpectationAgent));
+    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
 
     // -- ASSERT --
     assertEquals(6, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAsset(
-                savedInject.getId(), savedAssetGroup.getId(), savedAsset.getId())
+            .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())
             .size());
     assertEquals(
         2,
@@ -207,8 +185,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(
-                savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
+            .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
             .size());
   }
 
@@ -220,52 +197,42 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Agent savedAgent1 = createAgent("external02");
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject = createExecutableInject(savedInject, emptyList());
-    DetectionExpectation detectionExpectation =
-        ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-            savedAsset, null, EXPIRATION_TIME_SIX_HOURS);
-    PreventionExpectation preventionExpectation =
-        ExpectationFixture.createTechnicalPreventionExpectationForAsset(
-            savedAsset, null, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAgent =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent, savedAsset, null, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    PreventionExpectation preventionExpectationAgent =
-        ExpectationFixture.createTechnicalPreventionExpectation(
-            savedAgent, savedAsset, null, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    DetectionExpectation detectionExpectationAgent1 =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent1, savedAsset, null, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    PreventionExpectation preventionExpectationAgent1 =
-        ExpectationFixture.createTechnicalPreventionExpectation(
-            savedAgent1, savedAsset, null, EXPIRATION_TIME_SIX_HOURS, emptyList());
+    List<Expectation> detectionExpectations =
+        createDetectionExpectations(
+            List.of(savedAgent, savedAgent1),
+            savedAsset,
+            null,
+            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> preventionExpectations =
+        createPreventionExpectations(
+            List.of(savedAgent, savedAgent1),
+            savedAsset,
+            null,
+            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> expectations =
+        java.util.stream.Stream.concat(
+                detectionExpectations.stream(), preventionExpectations.stream())
+            .toList();
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject,
-        List.of(
-            preventionExpectation,
-            detectionExpectation,
-            preventionExpectationAgent,
-            detectionExpectationAgent,
-            preventionExpectationAgent1,
-            detectionExpectationAgent1));
+    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
 
     // -- ASSERT --
     assertEquals(6, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAsset(savedInject.getId(), null, savedAsset.getId())
+            .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())
             .size());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(savedInject.getId(), null, savedAgent.getId())
+            .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
             .size());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(savedInject.getId(), null, savedAgent1.getId())
+            .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
             .size());
   }
 
@@ -279,51 +246,33 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject =
         createExecutableInject(savedInject, List.of(savedAssetGroup));
-    DetectionExpectation detectionExpectation =
-        ExpectationFixture.createDetectionExpectationForAssetGroup(
-            savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    PreventionExpectation preventionExpectation =
-        ExpectationFixture.createPreventionExpectationForAssetGroup(
-            savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAsset =
-        ExpectationFixture.createTechnicalDetectionExpectationForAsset(
-            savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    PreventionExpectation preventionExpectationAsset =
-        ExpectationFixture.createTechnicalPreventionExpectationForAsset(
-            savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS);
-    DetectionExpectation detectionExpectationAgent =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent, savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    PreventionExpectation preventionExpectationAgent =
-        ExpectationFixture.createTechnicalPreventionExpectation(
-            savedAgent, savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    DetectionExpectation detectionExpectationAgent1 =
-        ExpectationFixture.createTechnicalDetectionExpectation(
-            savedAgent1, savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
-    PreventionExpectation preventionExpectationAgent1 =
-        ExpectationFixture.createTechnicalPreventionExpectation(
-            savedAgent1, savedAsset, savedAssetGroup, EXPIRATION_TIME_SIX_HOURS, emptyList());
+
+    List<Expectation> detectionExpectations =
+        createDetectionExpectations(
+            List.of(savedAgent, savedAgent1),
+            savedAsset,
+            savedAssetGroup,
+            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> preventionExpectations =
+        createPreventionExpectations(
+            List.of(savedAgent, savedAgent1),
+            savedAsset,
+            savedAssetGroup,
+            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    List<Expectation> expectations =
+        java.util.stream.Stream.concat(
+                detectionExpectations.stream(), preventionExpectations.stream())
+            .toList();
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject,
-        List.of(
-            preventionExpectation,
-            detectionExpectation,
-            preventionExpectationAsset,
-            detectionExpectationAsset,
-            preventionExpectationAgent,
-            detectionExpectationAgent,
-            preventionExpectationAgent1,
-            detectionExpectationAgent1));
+    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
 
     // -- ASSERT --
     assertEquals(8, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAsset(
-                savedInject.getId(), savedAssetGroup.getId(), savedAsset.getId())
+            .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())
             .size());
     assertEquals(
         2,
@@ -333,101 +282,12 @@ class InjectExpectationServiceTest extends IntegrationTest {
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(
-                savedInject.getId(), savedAssetGroup.getId(), savedAgent.getId())
+            .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
             .size());
     assertEquals(
         2,
         injectExpectationRepository
-            .findAllByInjectAndAssetGroupAndAgent(
-                savedInject.getId(), savedAssetGroup.getId(), savedAgent1.getId())
+            .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
             .size());
-  }
-
-  @Transactional
-  @Nested
-  @DisplayName("Verify Result label for InjectExpectation at asset level")
-  class ResultLabelInjectExpectation {
-
-    @Test
-    @DisplayName("InjectExpectation Asset should be Prevented")
-    void
-        given_expectation_agent_prevented_when_compute_asset_expectation_then_asset_expectation_should_be_prevented() {
-      assertAssetExpectationResult(
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_STATUS.PENDING,
-          InjectExpectation.EXPECTATION_STATUS.SUCCESS,
-          PREVENTED,
-          100D);
-    }
-
-    @Test
-    @DisplayName("InjectExpectation Asset should be Not Detected")
-    void
-        given_expectation_agent_not_detected_when_compute_asset_expectation_then_asset_expectation_should_be_not_detected() {
-      assertAssetExpectationResult(
-          InjectExpectation.EXPECTATION_TYPE.DETECTION,
-          InjectExpectation.EXPECTATION_STATUS.PENDING,
-          InjectExpectation.EXPECTATION_STATUS.FAILED,
-          ExpectationType.DETECTION.failureLabel,
-          0D);
-    }
-
-    private void assertAssetExpectationResult(
-        InjectExpectation.EXPECTATION_TYPE expectationType,
-        InjectExpectation.EXPECTATION_STATUS assetStatus,
-        InjectExpectation.EXPECTATION_STATUS agentStatus,
-        String expectedResult,
-        Double score) {
-      AgentComposer.Composer agent =
-          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
-      EndpointComposer.Composer endpoint =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).withAgent(agent);
-
-      InjectExpectation assetExpectation =
-          InjectExpectationFixture.createExpectationWithTypeAndStatus(expectationType, assetStatus);
-
-      InjectExpectation agentExpectation =
-          InjectExpectationFixture.createExpectationWithTypeAndStatus(expectationType, agentStatus);
-
-      agentExpectation.setResults(
-          List.of(
-              InjectExpectationResult.builder()
-                  .sourceType("sourceType")
-                  .sourceName("sourceName")
-                  .sourceId("sourceId")
-                  .score(score)
-                  .result(expectedResult)
-                  .build()));
-
-      Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withEndpoint(endpoint)
-              .withExpectation(
-                  injectExpectationComposer
-                      .forExpectation(agentExpectation)
-                      .withAgent(agent)
-                      .withEndpoint(endpoint))
-              .withExpectation(
-                  injectExpectationComposer.forExpectation(assetExpectation).withEndpoint(endpoint))
-              .persist()
-              .get();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      injectExpectationService.computeExpectationAsset(
-          assetExpectation, List.of(agentExpectation), "sourceId", "sourceType", "sourceName");
-
-      List<InjectExpectation> savedExpectations =
-          injectExpectationRepository.findAllByInjectAndAsset(
-              inject.getId(), endpoint.get().getId());
-
-      assertEquals(
-          expectedResult,
-          savedExpectations.get(0).getResults().get(0).getResult(),
-          "Asset expectation result should match expected");
-    }
   }
 }

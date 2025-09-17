@@ -1,7 +1,6 @@
 package io.openbas.api.stix_process;
 
 import static io.openbas.api.stix_process.StixApi.STIX_URI;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
@@ -17,12 +16,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
+import io.openbas.database.model.Inject;
+import io.openbas.database.model.Scenario;
+import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
-import io.openbas.injector_contract.ContractTargetedProperty;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
+import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import jakarta.annotation.Resource;
@@ -34,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,8 @@ class StixApiTest extends IntegrationTest {
 
   public static final String T_1531 = "T1531";
   public static final String T_1003 = "T1003";
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR =
+      "target_property_selector";
 
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
@@ -71,8 +74,7 @@ class StixApiTest extends IntegrationTest {
   private String stixSecurityCoverageWithoutVulns;
   private String stixSecurityCoverageWithoutObjects;
   private String stixSecurityCoverageOnlyVulns;
-  private AssetGroupComposer.Composer completeTargetProperties;
-  private AssetGroupComposer.Composer noTargetProperties;
+  private AssetGroupComposer.Composer completeAssetGroup;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -121,25 +123,12 @@ class StixApiTest extends IntegrationTest {
             .forEndpoint(EndpointFixture.createEndpointOnlyWithLocalIP())
             .persist()
             .get();
-    Asset noTargetProperty =
-        endpointComposer
-            .forEndpoint(EndpointFixture.createEndpointNotTargetProperty())
-            .persist()
-            .get();
 
-    noTargetProperties =
+    completeAssetGroup =
         assetGroupComposer
             .forAssetGroup(
                 AssetGroupFixture.createAssetGroupWithAssets(
-                    "NoTargetProperty", new ArrayList<>(Arrays.asList(noTargetProperty))))
-            .persist();
-
-    completeTargetProperties =
-        assetGroupComposer
-            .forAssetGroup(
-                AssetGroupFixture.createAssetGroupWithAssets(
-                    "Complete target properties",
-                    new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
+                    "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
             .persist();
 
     injectorContractComposer
@@ -383,7 +372,15 @@ class StixApiTest extends IntegrationTest {
 
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(1); // Related to Inject by vulnerability
+      assertThat(injects).hasSize(1); // After update with only one object type vulnerability
+      Inject inject = injects.stream().findFirst().get();
+      assertTrue(inject.getTitle().contains("[CVE-2023-48788]"));
+      assertTrue(
+          inject
+              .getDescription()
+              .contains(
+                  "This placeholder is disabled because the Vulnerability CVE-2023-48788 is currently not covered. "
+                      + "Please add the contracts related to this vulnerability."));
     }
 
     @Test
@@ -429,7 +426,15 @@ class StixApiTest extends IntegrationTest {
 
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(1); // Related to injects by Attacks
+      assertThat(injects).hasSize(1); // After update with only one object type vulnerability
+      Inject inject = injects.stream().findFirst().get();
+      assertTrue(inject.getTitle().contains("[T1003]"));
+      assertTrue(
+          inject
+              .getDescription()
+              .contains(
+                  "This placeholder is disabled because the Attack Pattern T1003 is currently not covered. "
+                      + "Please create the payloads for platform [any platform] and architecture [any architecture]."));
     }
 
     @Test
@@ -476,11 +481,13 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "Should create scenario with 3 injects for every different target property in asset groups related to targetRule")
-    void shouldCreateScenarioWithOneInjectByTargetProperty() throws Exception {
-      String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
+    @DisplayName("Should create scenario with 1 injects with 3 assets")
+    void shouldCreateScenarioWithOneInjectWithThreeEndpoints() throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
+          .withAssetGroup(completeAssetGroup)
+          .persist();
 
       String createdResponse =
           mvc.perform(
@@ -498,21 +505,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
-      assertThat(
-              injects.stream()
-                  .map(
-                      inject ->
-                          inject
-                              .getContent()
-                              .get(CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR)
-                              .asText())
-                  .collect(Collectors.toSet()))
-          .containsAll(
-              Set.of(
-                  ContractTargetedProperty.hostname.name(),
-                  ContractTargetedProperty.seen_ip.name(),
-                  ContractTargetedProperty.local_ip.name()));
+      assertThat(injects).hasSize(1);
     }
 
     @Test

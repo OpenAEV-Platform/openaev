@@ -54,7 +54,7 @@ public class AgentUtils {
 
   public static List<Agent> getPrimaryAgents(Endpoint endpoint) {
     return endpoint.getAgents().stream()
-        .filter(agent -> isPrimaryAgent(agent))
+        .filter(AgentUtils::isPrimaryAgent)
         .collect(Collectors.toList());
   }
 }

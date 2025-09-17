@@ -1,5 +1,7 @@
 package io.openbas.service;
 
+import static io.openbas.service.InjectExpectationService.COLLECTOR;
+
 import io.openbas.database.model.Collector;
 import io.openbas.database.model.InjectExpectation;
 import io.openbas.database.model.InjectExpectationTrace;
@@ -26,8 +28,6 @@ public class InjectExpectationTraceService {
   private final SecurityPlatformRepository securityPlatformRepository;
   private final CollectorRepository collectorRepository;
 
-  private static final String COLLECTOR_TYPE = "collector";
-
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
       @NotNull String injectExpectationId, @NotNull String sourceId) {
     return this.injectExpectationTraceRepository.findByExpectationAndSecurityPlatform(
@@ -38,7 +38,7 @@ public class InjectExpectationTraceService {
       @NotNull String injectExpectationId,
       @NotNull String sourceId,
       String expectationResultSourceType) {
-    if (expectationResultSourceType.equalsIgnoreCase(COLLECTOR_TYPE)) {
+    if (expectationResultSourceType.equalsIgnoreCase(COLLECTOR)) {
       SecurityPlatform securityPlatform =
           securityPlatformRepository
               .findByExternalReference(sourceId)

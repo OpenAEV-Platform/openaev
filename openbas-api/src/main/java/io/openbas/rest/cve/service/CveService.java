@@ -1,7 +1,6 @@
 package io.openbas.rest.cve.service;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,7 +62,7 @@ public class CveService {
 
     // Batch fetch existing CVEs
     Map<String, Cve> existingCvesMap =
-        cveRepository.findAllByExternalIdInIgnoreCase(externalIds).stream()
+        getVulnerabilitiesByExternalIds(externalIds).stream()
             .collect(Collectors.toMap(Cve::getExternalId, Function.identity()));
 
     // Process with pre-fetched data
@@ -129,8 +128,8 @@ public class CveService {
         .orElseThrow(() -> new ElementNotFoundException(CVE_NOT_FOUND_MSG + cveId));
   }
 
-  public List<Cve> findAllByIdsOrThrowIfMissing(final Set<String> vulnIds) {
-    List<Cve> vulns = fromIterable(this.cveRepository.findAllById(vulnIds));
+  public Set<Cve> findAllByIdsOrThrowIfMissing(final Set<String> vulnIds) {
+    Set<Cve> vulns = this.cveRepository.getAllByIdInIgnoreCase(vulnIds);
     throwIfMissing(vulnIds, vulns, Cve::getId);
     return vulns;
   }
@@ -141,25 +140,23 @@ public class CveService {
         .orElseThrow(() -> new ElementNotFoundException(CVE_NOT_FOUND_MSG + externalId));
   }
 
-  public List<Cve> findAllByExternalIdsOrThrowIfMissing(final Set<String> vulnIds) {
-    List<Cve> vulns = fromIterable(this.cveRepository.findAllByExternalIdInIgnoreCase(vulnIds));
+  public Set<Cve> findAllByExternalIdsOrThrowIfMissing(final Set<String> vulnIds) {
+    Set<Cve> vulns = getVulnerabilitiesByExternalIds(vulnIds);
     throwIfMissing(vulnIds, vulns, Cve::getExternalId);
     return vulns;
   }
 
   private void throwIfMissing(
       Set<String> requiredIds,
-      List<Cve> fetchedVulnerabilities,
+      Set<Cve> fetchedVulnerabilities,
       Function<? super Cve, String> getId) {
+
+    List<String> fetchedIdLower =
+        fetchedVulnerabilities.stream().map(vuln -> getId.apply(vuln).toLowerCase()).toList();
+
     List<String> missingIds =
-        requiredIds.stream()
-            .filter(
-                id ->
-                    !fetchedVulnerabilities.stream()
-                        .map(vuln -> getId.apply(vuln).toLowerCase())
-                        .toList()
-                        .contains(id.toLowerCase()))
-            .toList();
+        requiredIds.stream().filter(id -> !fetchedIdLower.contains(id.toLowerCase())).toList();
+
     if (!missingIds.isEmpty()) {
       throw new ElementNotFoundException(
           String.format("Missing vulnerabilities: %s", String.join(", ", missingIds)));
@@ -195,27 +192,15 @@ public class CveService {
   }
 
   /**
-   * Resolves external Vulnerability references from a list of vulnerability refs into internal
-   * {@link Cve} entities.
+   * Resolves external Vulnerability Refs from a set of vulnerability {@link Cve} entities.
    *
-   * @param vulnerabilityRefs list vulnerability Refs to resolve with internal vulnerability refs
-   * @return list of resolved internal vulnerability entities
-   */
-  public Set<Cve> fetchInternalVulnerabilityIds(Set<StixRefToExternalRef> vulnerabilityRefs) {
-    return getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs)).stream()
-        .collect(Collectors.toSet());
-  }
-
-  /**
-   * Resolves external Vulnerability Refs from a list of vulnerability {@link Cve} entities.
-   *
-   * @param externalIds list vulnerability Refs
-   * @return list of resolved vulnerability entities
+   * @param externalIds set vulnerability Refs
+   * @return set of resolved vulnerability entities
    */
   public Set<Cve> getVulnerabilitiesByExternalIds(Set<String> externalIds) {
     if (externalIds.isEmpty()) {
       return Collections.emptySet();
     }
-    return this.cveRepository.findAllByExternalIdInIgnoreCase(externalIds);
+    return this.cveRepository.getAllByExternalIdInIgnoreCase(externalIds);
   }
 }

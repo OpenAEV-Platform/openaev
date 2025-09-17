@@ -52,7 +52,12 @@ public class Endpoint extends Asset {
     @JsonProperty("Internal")
     Internal,
     @JsonProperty("Unknown")
-    Unknown,
+    Unknown;
+
+    /** Returns all enum constant names as strings. */
+    public static List<String> getAllNamesAsStrings() {
+      return Arrays.stream(values()).map(Enum::name).toList();
+    }
   }
 
   @Queryable(filterable = true)

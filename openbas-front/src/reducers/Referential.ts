@@ -54,7 +54,6 @@ export const entitiesInitializer = Map({
     collectors: Map({}),
     executors: Map({}),
     mitigations: Map({}),
-    useronboardingprogresses: Map({}),
   }),
 });
 

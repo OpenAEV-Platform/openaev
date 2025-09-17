@@ -39,7 +39,7 @@ public class ExerciseArticleApi extends RestBehavior {
   public Iterable<ArticleOutput> exerciseArticles(@PathVariable @NotBlank final String exerciseId) {
     List<Inject> injects =
         this.injectRepository.findAll(
-            InjectSpecification.fromExercise(exerciseId)
+            InjectSpecification.fromSimulation(exerciseId)
                 .and(InjectSpecification.fromContract(CHANNEL_PUBLISH)));
     List<Article> articles =
         this.articleRepository.findAll(ArticleSpecification.fromExercise(exerciseId));

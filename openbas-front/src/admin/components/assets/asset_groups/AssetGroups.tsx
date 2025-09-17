@@ -43,10 +43,7 @@ const useStyles = makeStyles()(() => ({
 const inlineStyles: Record<string, CSSProperties> = {
   asset_group_name: { width: '20%' },
   asset_group_description: { width: '20%' },
-  asset_group_assets: {
-    width: '35%',
-    cursor: 'default',
-  },
+  asset_group_assets: { width: '35%' },
   asset_group_tags: { width: '25%' },
 };
 
@@ -62,7 +59,10 @@ const computeRuleValues = (assetGroup: AssetGroupOutput, t: (value: string) => s
                 key={filter.key}
                 variant="filled"
                 size="small"
-                sx={{ borderRadius: 1 }}
+                sx={{
+                  borderRadius: 1,
+                  height: 20,
+                }}
                 label={<FilterChipValues filter={filter} />}
               />
             </Fragment>

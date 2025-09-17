@@ -4,7 +4,9 @@ import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openbas.database.model.Capability;
+import io.openbas.database.model.Group;
 import io.openbas.database.model.Role;
+import io.openbas.database.repository.GroupRepository;
 import io.openbas.database.repository.RoleRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class RoleService {
   private final RoleRepository roleRepository;
+  private final GroupRepository groupRepository;
 
   public Optional<Role> findById(String id) {
     return roleRepository.findById(id);
@@ -68,6 +71,11 @@ public class RoleService {
         roleRepository
             .findById(roleId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
+
+    List<Group> groups = groupRepository.findAllByRoles(role);
+    for (Group g : groups) {
+      g.getRoles().remove(role);
+    }
 
     roleRepository.deleteById(roleId);
   }

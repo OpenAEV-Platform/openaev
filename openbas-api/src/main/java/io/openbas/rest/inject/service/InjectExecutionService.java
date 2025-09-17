@@ -1,6 +1,7 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.utils.InjectExecutionUtils.convertExecutionAction;
+import static io.openbas.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openbas.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -53,14 +54,15 @@ public class InjectExecutionService {
       // coherent state.
       // This prevents issues where the PENDING status took more time to persist than it took for
       // the agent to send the complete action.
-      // FIXME: At the moment, this whole function is only called by our implant. These implant are
+      // FIXME: At the moment, this whole function is called by our implant and injectors. These
+      // implant are
       // launched with the async value to true, which force the implant to go from EXECUTING to
       // PENDING, before going to EXECUTED.
       // So if in the future, this function is called to update a synchronous inject, we will need
       // to find a way to get the async boolean somehow and add it to this condition.
-      if (input.getAction().equals(InjectExecutionAction.complete)
+      if (InjectExecutionAction.complete.equals(input.getAction())
           && (inject.getStatus().isEmpty()
-              || !inject.getStatus().get().getName().equals(ExecutionStatus.PENDING))) {
+              || !ExecutionStatus.PENDING.equals(inject.getStatus().get().getName()))) {
         // If we receive a status update with a terminal state status, we must first check that the
         // current status is in the PENDING state
         log.warn(
@@ -154,16 +156,7 @@ public class InjectExecutionService {
             });
 
     if (!injectExpectations.isEmpty()) {
-      InjectExpectationResult injectExpectationResult =
-          InjectExpectationResult.builder()
-              .sourceId("acab8214-0379-448a-a575-05e9d934eadd")
-              .date(String.valueOf(Instant.now()))
-              .sourceType("openbas_expectations_vulnerability_manager")
-              .sourceName("Expectations Vulnerability Manager")
-              .score(0.0)
-              .result("Vulnerable")
-              .metadata(null)
-              .build();
+      InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
       outputParsers.forEach(
           outputParser -> {
             outputParser

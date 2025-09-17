@@ -181,33 +181,6 @@ public class User implements Base {
   @Schema(description = "City of the user")
   private String city;
 
-  // Onboarding
-  @Getter(NONE)
-  @Setter
-  @Enumerated(EnumType.STRING)
-  @Column(name = "user_onboarding_widget_enable")
-  @JsonProperty("user_onboarding_widget_enable")
-  @Schema(description = "User onboarding widget enabled")
-  @NotNull
-  private UserOnboardingStatus onboardingWidgetEnable = UserOnboardingStatus.DEFAULT;
-
-  public UserOnboardingStatus getOnboardingWidgetEnable() {
-    return ofNullable(this.onboardingWidgetEnable).orElse(UserOnboardingStatus.DEFAULT);
-  }
-
-  @Getter(NONE)
-  @Setter
-  @Enumerated(EnumType.STRING)
-  @Column(name = "user_onboarding_contextual_help_enable")
-  @JsonProperty("user_onboarding_contextual_help_enable")
-  @Schema(description = "User onboarding contextual help enabled")
-  @NotNull
-  private UserOnboardingStatus onboardingContextualHelpEnable = UserOnboardingStatus.DEFAULT;
-
-  public UserOnboardingStatus getOnboardingContextualHelpEnable() {
-    return ofNullable(this.onboardingContextualHelpEnable).orElse(UserOnboardingStatus.DEFAULT);
-  }
-
   // -- RELATIONS --
 
   @ArraySchema(schema = @Schema(description = "Group IDs of the user", type = "string"))
@@ -380,15 +353,6 @@ public class User implements Base {
   public boolean isUserHasAccess(User user) {
     return user.isAdmin() || user.getId().equals(getId());
   }
-
-  // -- ONBOARDING --
-
-  @Setter
-  @Schema(type = "string")
-  @JsonSerialize(using = MonoIdDeserializer.class)
-  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-  @JsonProperty("user_onboarding_progress")
-  private UserOnboardingProgress onboardingProgress;
 
   @Override
   public boolean equals(Object o) {

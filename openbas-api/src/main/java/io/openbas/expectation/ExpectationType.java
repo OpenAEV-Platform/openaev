@@ -1,9 +1,12 @@
 package io.openbas.expectation;
 
+import io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE;
+import jakarta.validation.constraints.NotNull;
+
 public enum ExpectationType {
   DETECTION("Detected", "Pending", "Partially Detected", "Not Detected"),
   HUMAN_RESPONSE("Successful", "Pending", "Partial", "Failed"),
-  PREVENTION("Blocked", "Pending", "Partially Prevented", "Not Prevented"),
+  PREVENTION("Prevented", "Pending", "Partially Prevented", "Not Prevented"),
   VULNERABILITY("Not vulnerable", "Pending", "Partially vulnerable", "Vulnerable");
 
   public final String successLabel;
@@ -32,6 +35,24 @@ public enum ExpectationType {
         return ExpectationType.HUMAN_RESPONSE;
       default:
         return valueOf(value);
+    }
+  }
+
+  public static String label(
+      @NotNull final EXPECTATION_TYPE type,
+      @NotNull final Double expectedScore,
+      @NotNull final Double actualScore) {
+    ExpectationType expectationType =
+        switch (type) {
+          case DETECTION -> ExpectationType.DETECTION;
+          case PREVENTION -> ExpectationType.PREVENTION;
+          case VULNERABILITY -> ExpectationType.VULNERABILITY;
+          default -> ExpectationType.HUMAN_RESPONSE;
+        };
+    if (actualScore >= expectedScore) {
+      return expectationType.successLabel;
+    } else {
+      return expectationType.failureLabel;
     }
   }
 }

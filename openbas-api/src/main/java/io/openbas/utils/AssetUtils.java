@@ -1,8 +1,8 @@
 package io.openbas.utils;
 
 import io.openbas.database.model.Endpoint;
-import io.openbas.injector_contract.ContractTargetedProperty;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,7 @@ public class AssetUtils {
    * @param endpointList list of attack patterns (TTPs)
    * @return set of (Platform × Architecture) combinations
    */
-  public static Set<Pair<Endpoint.PLATFORM_TYPE, String>> computePairsPlatformArchitecture(
+  public static Set<Pair<Endpoint.PLATFORM_TYPE, String>> extractPlatformArchPairs(
       List<Endpoint> endpointList) {
     return endpointList.stream()
         .map(ep -> Pair.of(ep.getPlatform(), ep.getArch().name()))
@@ -25,18 +25,15 @@ public class AssetUtils {
   }
 
   /**
-   * Extract target property from an Asset
+   * Aggregate endpoints by their platform and architecture.
    *
-   * @param endpoint
-   * @return Target property: hostname, local IP or Seen IP
+   * @param endpoints the list of endpoints to group
+   * @return a map where the key is a string combining platform and architecture, and the value is a
+   *     list of endpoints that match that platform-architecture pair
    */
-  public static ContractTargetedProperty getTargetProperty(Endpoint endpoint) {
-    if (endpoint.getHostname() != null && !endpoint.getHostname().isBlank()) {
-      return ContractTargetedProperty.hostname;
-    } else if (endpoint.getSeenIp() != null && !endpoint.getSeenIp().isBlank()) {
-      return ContractTargetedProperty.seen_ip;
-    } else {
-      return ContractTargetedProperty.local_ip;
-    }
+  public static Map<String, List<Endpoint>> mapEndpointsByPlatformArch(List<Endpoint> endpoints) {
+    return endpoints.stream()
+        .collect(
+            Collectors.groupingBy(endpoint -> endpoint.getPlatform() + ":" + endpoint.getArch()));
   }
 }

@@ -84,7 +84,7 @@ public class SecurityCoverageSendJobService {
   private boolean shouldCreateCoverageSendJob(Exercise exercise) {
     return exercise != null
         && exercise.getSecurityCoverage() != null
-        && !exerciseService.hasPendingResults(exercise)
+        && exerciseService.isFinished(exercise)
         && exerciseService.getFollowingSimulation(exercise).isEmpty();
   }
 }

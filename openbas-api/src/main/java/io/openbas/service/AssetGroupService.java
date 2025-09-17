@@ -232,10 +232,11 @@ public class AssetGroupService {
    * Retrieves asset groups for a scenario based on tag rules using the {@code tagRuleService}.
    *
    * @param scenario the scenario containing tag references
-   * @return list of asset groups associated with the scenario tags
+   * @return set of asset groups associated with the scenario tags
    */
-  public List<AssetGroup> fetchAssetGroupsFromScenarioTagRules(Scenario scenario) {
-    return tagRuleService.getAssetGroupsFromTagIds(
-        scenario.getTags().stream().map(Tag::getId).toList());
+  public Set<AssetGroup> fetchAssetGroupsFromScenarioTagRules(Scenario scenario) {
+    return new HashSet<>(
+        tagRuleService.getAssetGroupsFromTagIds(
+            scenario.getTags().stream().map(Tag::getId).toList()));
   }
 }
