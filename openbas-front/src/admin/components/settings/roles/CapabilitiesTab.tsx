@@ -105,10 +105,17 @@ const CapabilitiesTab: FC<CapabilitiesTabProps> = ({ capabilities, capability, d
   return (
     <>
       <Box
-        ml={depth * 2}
+        pl={depth * 2}
         display="flex"
         alignItems="center"
         justifyContent="space-between"
+        width="100%"
+        sx={{
+          backgroundColor: selected.includes(capability.value)
+            ? 'action.selected'
+            : 'transparent',
+          paddingRight: theme.spacing(2),
+        }}
       >
         <div className={classes.capability_name}>
           <LocalPoliceOutlined sx={{ opacity: capability.checkable ? 1 : 0.5 }} />
