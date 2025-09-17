@@ -73,6 +73,7 @@ class StixApiTest extends IntegrationTest {
   private String stixSecurityCoverageWithoutObjects;
   private String stixSecurityCoverageOnlyVulns;
   private AssetGroupComposer.Composer completeAssetGroup;
+  private AssetGroupComposer.Composer emptyAssetGroup;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -122,6 +123,12 @@ class StixApiTest extends IntegrationTest {
             .persist()
             .get();
 
+    emptyAssetGroup =
+        assetGroupComposer
+            .forAssetGroup(
+                AssetGroupFixture.createAssetGroupWithAssets("no assets", new ArrayList<>()))
+            .persist();
+
     completeAssetGroup =
         assetGroupComposer
             .forAssetGroup(
@@ -144,13 +151,13 @@ class StixApiTest extends IntegrationTest {
     tagRuleComposer
         .forTagRule(new TagRule())
         .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-target-properties")))
-        .withAssetGroup(noTargetProperties)
+        .withAssetGroup(emptyAssetGroup)
         .persist();
 
     tagRuleComposer
         .forTagRule(new TagRule())
         .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-        .withAssetGroup(completeTargetProperties)
+        .withAssetGroup(completeAssetGroup)
         .persist();
 
     tagRuleComposer
@@ -491,7 +498,7 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
+                      .content(stixSecurityCoverageOnlyVulns))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
