@@ -43,7 +43,7 @@ public class DetectionRemediationApi {
       })
   @GetMapping("/health")
   @LogExecutionTime
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @RBAC(skipRBAC = true)
   public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
     return ResponseEntity.ok(detectionRemediationAIService.checkHealthWebservice());
   }
