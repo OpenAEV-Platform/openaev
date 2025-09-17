@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
-import { meTokens, renewToken, updateMeInformation, updateMeOnboarding, updateMePassword, updateMeProfile } from '../../../actions/User';
+import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/User';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -12,7 +12,6 @@ import { countryOption } from '../../../utils/Option';
 import PasswordForm from './PasswordForm';
 import ProfileForm from './ProfileForm';
 import UserForm from './UserForm';
-import UserOnboardingForm from './UserOnboardingForm.js';
 
 const Index = () => {
   const { t } = useFormatter();
@@ -47,9 +46,6 @@ const Index = () => {
   const onUpdatePassword = data => dispatch(
     updateMePassword(data.user_current_password, data.user_plain_password),
   );
-  const onUpdateOnboarding = data => dispatch(
-    updateMeOnboarding(data.user_onboarding_widget_enable, data.user_onboarding_contextual_help_enable),
-  );
   const initialValues = {
     user_firstname: user.user_firstname,
     user_lastname: user.user_lastname,
@@ -60,11 +56,8 @@ const Index = () => {
     user_lang: user.user_lang,
     user_theme: user.user_theme,
     user_is_external: user.user_is_external,
-    user_onboarding_enable: user.user_onboarding_enable,
     user_organization: user.user_organization ?? '',
     user_country: countryOption(user.user_country)?.id ?? '',
-    user_onboarding_widget_enable: user.user_onboarding_widget_enable,
-    user_onboarding_contextual_help_enable: user.user_onboarding_contextual_help_enable,
   };
   const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
   return (
@@ -80,12 +73,6 @@ const Index = () => {
           {t('Profile')}
         </Typography>
         <UserForm onSubmit={onUpdate} initialValues={initialValues} />
-      </Paper>
-      <Paper>
-        <Typography variant="h1" style={{ marginBottom: 20 }}>
-          {t('onboarding_help_settings')}
-        </Typography>
-        <UserOnboardingForm onSubmit={onUpdateOnboarding} initialValues={initialValues} />
       </Paper>
       <Paper>
         <Typography variant="h1" style={{ marginBottom: 20 }}>

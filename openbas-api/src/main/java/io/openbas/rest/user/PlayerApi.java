@@ -4,12 +4,10 @@ import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.helper.DatabaseHelper.updateRelation;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
-import static io.openbas.utils.UserOnboardingProgressUtils.PLAYER_SETUP;
 import static java.time.Instant.now;
 
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
-import io.openbas.aop.onboarding.Onboarding;
 import io.openbas.config.SessionManager;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawPlayer;
@@ -88,7 +86,6 @@ public class PlayerApi extends RestBehavior {
   @PostMapping(PLAYER_URI)
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
-  @Onboarding(step = PLAYER_SETUP)
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
     checkOrganizationAccess(userRepository, input.getOrganizationId());
     User user = new User();

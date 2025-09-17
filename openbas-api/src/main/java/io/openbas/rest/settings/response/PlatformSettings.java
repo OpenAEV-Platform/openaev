@@ -256,15 +256,6 @@ public class PlatformSettings {
   @Schema(description = "Platform licensing")
   private License platformLicense;
 
-  // ONBOARDING
-  @JsonProperty("platform_onboarding_widget_enable")
-  @Schema(description = "Platform onboarding widget enabled")
-  private boolean onboardingWidgetEnable;
-
-  @JsonProperty("platform_onboarding_contextual_help_enable")
-  @Schema(description = "Platform onboarding contextual help enabled")
-  private boolean onboardingContextualHelpEnable;
-
   // XTM Hub
   @JsonProperty("xtm_hub_enable")
   @Schema(description = "True if connection with XTM Hub is enabled")
