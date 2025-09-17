@@ -1,6 +1,8 @@
 package io.openbas.runner;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doThrow;
 
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
@@ -11,11 +13,14 @@ import io.openbas.service.AssetGroupService;
 import io.openbas.service.EndpointService;
 import io.openbas.service.ImportService;
 import io.openbas.service.ZipJsonService;
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @SpringBootTest
@@ -37,6 +42,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ImportService importService;
   @Autowired private ZipJsonService<CustomDashboard> zipJsonService;
+  @Autowired private ResourcePatternResolver resolver;
+  @Mock private ImportService mockImportService;
+  @Mock private ZipJsonService<CustomDashboard> mockZipJsonService;
+  @Mock private ResourcePatternResolver mockResolver;
 
   @BeforeEach
   void beforeEach() {
@@ -61,7 +70,8 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             endpointService,
             assetGroupService,
             importService,
-            zipJsonService);
+            zipJsonService,
+            resolver);
     ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", false);
 
     // EXECUTE
@@ -98,7 +108,8 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             endpointService,
             assetGroupService,
             importService,
-            zipJsonService);
+            zipJsonService,
+            resolver);
     ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
     Setting setting = new Setting();
     setting.setKey("starterpack");
@@ -129,6 +140,98 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("Should not init StarterPack Scenarios for import failure")
+  public void shouldNotInitStarterPackScenariosForImportFailure() throws Exception {
+    // PREPARE
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            mockImportService,
+            zipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    long scenarioCount = scenarioRepository.count();
+    assertEquals(0, scenarioCount);
+    this.verifyDashboardExist();
+    this.verifyParameterExist();
+  }
+
+  @Test
+  @DisplayName("Should not init StarterPack Dashboards for import failure")
+  public void shouldNotInitStarterPackDashboardsForImportFailure() throws Exception {
+    // PREPARE
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            importService,
+            mockZipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    doThrow(new IOException())
+        .when(mockZipJsonService)
+        .handleImport(any(), eq("custom_dashboard_name"), isNull());
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    this.verifyScenarioExist();
+    long dashboardCount = customDashboardRepository.count();
+    assertEquals(0, dashboardCount);
+    this.verifyParameterExist();
+  }
+
+  @Test
+  @DisplayName("Should not init StarterPack Scenarios and Dashboards for import failure")
+  public void shouldNotInitStarterPackScenariosAndDashboardsForImportFailure() throws Exception {
+    // PREPARE
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            importService,
+            zipJsonService,
+            mockResolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    doThrow(new IOException())
+        .when(mockResolver)
+        .getResources(eq("classpath:starterpack/scenarios/*"));
+    doThrow(new IOException())
+        .when(mockResolver)
+        .getResources(eq("classpath:starterpack/dashboards/*"));
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    long scenarioCount = scenarioRepository.count();
+    assertEquals(0, scenarioCount);
+    long dashboardCount = customDashboardRepository.count();
+    assertEquals(0, dashboardCount);
+    this.verifyParameterExist();
+  }
+
+  @Test
   @DisplayName("Should init StarterPack")
   public void shouldInitStarterPack() {
     // PREPARE
@@ -139,7 +242,8 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             endpointService,
             assetGroupService,
             importService,
-            zipJsonService);
+            zipJsonService,
+            resolver);
     ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
 
     // EXECUTE

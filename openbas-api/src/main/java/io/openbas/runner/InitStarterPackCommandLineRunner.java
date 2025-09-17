@@ -16,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +61,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private final AssetGroupService assetGroupService;
   private final ImportService importService;
   private final ZipJsonService<CustomDashboard> zipJsonService;
+  private final ResourcePatternResolver resolver;
 
   public InitStarterPackCommandLineRunner(
       SettingRepository settingRepository,
@@ -69,13 +69,15 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       EndpointService endpointService,
       AssetGroupService assetGroupService,
       ImportService importService,
-      ZipJsonService<CustomDashboard> zipJsonService) {
+      ZipJsonService<CustomDashboard> zipJsonService,
+      ResourcePatternResolver resolver) {
     this.settingRepository = settingRepository;
     this.tagService = tagService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
     this.importService = importService;
     this.zipJsonService = zipJsonService;
+    this.resolver = resolver;
   }
 
   @Override
@@ -170,9 +172,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
   private List<Resource> listFilesInResourceFolder(String folderName) {
     try {
-      ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
       return Arrays.stream(
-              resolver.getResources(
+              this.resolver.getResources(
                   "classpath:" + Config.STARTERPACK_KEY + "/" + folderName + "/*"))
           .toList();
     } catch (Exception e) {
