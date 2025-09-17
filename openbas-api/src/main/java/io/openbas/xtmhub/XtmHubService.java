@@ -24,11 +24,13 @@ public class XtmHubService {
         LocalDateTime.now(),
         XtmHubRegistrationStatus.REGISTERED,
         currentUser.getId(),
-        currentUser.getName());
+        currentUser.getName(),
+        LocalDateTime.now(),
+        true);
   }
 
   public PlatformSettings unregister() {
     return this.platformSettingsService.updateXTMHubRegistration(
-        null, null, XtmHubRegistrationStatus.UNREGISTERED, null, null);
+        null, null, XtmHubRegistrationStatus.UNREGISTERED, null, null, null, null);
   }
 }

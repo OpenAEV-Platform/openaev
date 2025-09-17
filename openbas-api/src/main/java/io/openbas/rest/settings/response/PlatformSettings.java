@@ -288,4 +288,12 @@ public class PlatformSettings {
   @JsonProperty("xtm_hub_registration_user_name")
   @Schema(description = "XTM Hub registration user name")
   private String xtmHubRegistrationUserName;
+
+  @JsonProperty("xtm_hub_last_connectivity_check")
+  @Schema(description = "XTM Hub last connectivity check")
+  private String xtmHubLastConnectivityCheck;
+
+  @JsonProperty("xtm_hub_should_send_connectivity_email")
+  @Schema(description = "XTM Hub should send connectivity email")
+  private String xtmHubShouldSendConnectivityEmail;
 }
