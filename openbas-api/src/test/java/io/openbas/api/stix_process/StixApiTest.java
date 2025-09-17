@@ -1,6 +1,8 @@
 package io.openbas.api.stix_process;
 
 import static io.openbas.api.stix_process.StixApi.STIX_URI;
+import static io.openbas.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
+import static io.openbas.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
@@ -16,15 +18,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.Scenario;
-import io.openbas.database.model.StixRefToExternalRef;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockAdminUser;
 import jakarta.annotation.Resource;
@@ -136,16 +134,22 @@ class StixApiTest extends IntegrationTest {
                     "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
             .persist();
 
-    injectorContractComposer
-        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-        .withVulnerability(
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve(CVE_2025_56785)))
-        .persist();
+    CveComposer.Composer vuln56785 =
+        vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56785"));
 
     injectorContractComposer
-        .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-        .withVulnerability(
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve(CVE_2025_56786)))
+        .forInjectorContract(
+            InjectorContractFixture.createInjectorContract(createContentWithFieldAsset()))
+        .withVulnerability(vuln56785)
+        .persist();
+
+    CveComposer.Composer vuln56786 =
+        vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56786"));
+
+    injectorContractComposer
+        .forInjectorContract(
+            InjectorContractFixture.createInjectorContract(createContentWithFieldAssetGroup()))
+        .withVulnerability(vuln56786)
         .persist();
 
     tagRuleComposer
@@ -486,8 +490,10 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should create scenario with 1 injects with 3 assets")
-    void shouldCreateScenarioWithOneInjectWithThreeEndpoints() throws Exception {
+    @DisplayName(
+        "Should create scenario with 1 injects with 3 assets when contract has no field asset group but asset")
+    void shouldCreateScenarioWithOneInjectWithThreeEndpointsWhenContractHasNotAssetGroupField()
+        throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
 
@@ -508,14 +514,24 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(3);
+      assertThat(inject.getAssetGroups()).hasSize(0);
     }
 
     @Test
     @DisplayName(
-        "Should I create a scenario with one inject for a vulnerability, knowing that asset group is empty")
-    void shouldCreateScenarioWithOneInjectsWhenEmptyAssetGroups() throws Exception {
+        "Should create scenario with 1 injects with 1 asset group when contract has field asset group")
+    void shouldCreateScenarioWithOneInjectWithOneAssetGroupWhenContractHasAssetGroupField()
+        throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
+          .withAssetGroup(completeAssetGroup)
+          .persist();
+
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-group");
+          stixSecurityCoverageOnlyVulns.replace("CVE-2025-56785", "CVE-2025-56786");
 
       String createdResponse =
           mvc.perform(
@@ -534,7 +550,19 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(0);
+      assertThat(inject.getAssetGroups()).hasSize(1);
     }
+
+    @Test
+    @DisplayName(
+        "Should create scenario with 1 inject for vulnerability when no asset group is present")
+    void shouldCreateScenarioWithOneInjectWhenNoAssetGroupsExist() throws Exception {
+      tagRuleComposer
+          .forTagRule(new TagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
+          .persist();
 
     @Test
     @DisplayName("Should create scenario with 1 inject when no asset groups")
@@ -581,6 +609,9 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(0);
+      assertThat(inject.getAssetGroups()).hasSize(0);
     }
 
     @Test
