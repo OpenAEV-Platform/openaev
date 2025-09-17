@@ -1,8 +1,14 @@
 package io.openbas.rest.inject.service;
 
+import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openbas.database.helper.InjectorContractRepositoryHelper;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -278,7 +284,7 @@ public class InjectAssistantService {
   public Set<Inject> generateInjectsWithTargetsByVulnerabilities(
       Scenario scenario,
       Set<Cve> vulnerabilities,
-      Set<Endpoint> endpoints,
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       int injectsPerVulnerability,
       InjectorContract contractForPlaceholder) {
 
@@ -293,7 +299,7 @@ public class InjectAssistantService {
                         vulnerability,
                         mapVulnerabilityInjectorContract.getOrDefault(
                             vulnerability.getExternalId().toLowerCase(), Set.of()),
-                        endpoints,
+                        assetGroupListMap,
                         contractForPlaceholder)
                         .stream())
             .peek(inject -> inject.setScenario(scenario))
@@ -338,13 +344,13 @@ public class InjectAssistantService {
    *
    * @param vulnerability the {@link Cve} vulnerability to generate injects for
    * @param injectorContracts related to this vulnerability
-   * @param endpoints endpoints related to asset groups
+   * @param assetGroupListMap
    * @return a set of generated {@link Inject} objects, never {@code null}
    */
   private Set<Inject> buildInjectsWithTargetsByVulnerability(
       Cve vulnerability,
       Set<InjectorContract> injectorContracts,
-      Set<Endpoint> endpoints,
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       InjectorContract contractForPlaceholder) {
 
     if (injectorContracts.isEmpty()) {
@@ -362,10 +368,45 @@ public class InjectAssistantService {
       Inject inject =
           injectService.buildTechnicalInject(
               ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
-      inject.setAssets(new ArrayList<>(endpoints));
+      // Set the targets in the inject based on the field types in the contract's content.fields.
+      // Fields of type "asset-group" take priority, because tag rules are directly associated with
+      // asset groups.
+      // If no "asset-group" fields are present, we flatten the endpoints from the asset groups and
+      // set them as assets in the inject.
+      addTargetsDependingOnContract(assetGroupListMap, ic, inject);
       injects.add(inject);
     }
     return injects;
+  }
+
+  private static void addTargetsDependingOnContract(
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap, InjectorContract ic, Inject inject) {
+    JsonNode fieldsNode = ic.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
+
+    if (fieldsNode != null && fieldsNode.isArray()) {
+      boolean hasAssetGroup = false;
+      boolean hasAsset = false;
+
+      for (JsonNode field : (ArrayNode) fieldsNode) {
+        String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
+        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(type)) {
+          hasAssetGroup = true;
+          break;
+        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(type)) {
+          hasAsset = true;
+        }
+      }
+
+      if (hasAssetGroup) {
+        // Priority: asset-group exists because We use tag Rules to fetch asset groups
+        inject.setAssetGroups(new ArrayList<>(assetGroupListMap.keySet()));
+      } else if (hasAsset) {
+        // Only compute flattened endpoints if asset exists
+        Set<Endpoint> flatEndpointsFromMap =
+            assetGroupListMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
+        inject.setAssets(new ArrayList<>(flatEndpointsFromMap));
+      }
+    }
   }
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(

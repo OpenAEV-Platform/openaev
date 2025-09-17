@@ -57,22 +57,18 @@ public class SecurityCoverageInjectService {
     Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
         assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
 
-    // 4. Set flat of all endpoints
-    Set<Endpoint> flatEndpointsFromMap =
-        assetsFromGroupMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
-
-    // 5. Fetch InjectorContract to use for inject placeholder
+    // 4. Fetch InjectorContract to use for inject placeholder
     InjectorContract contractForInjectPlaceholders =
         injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
-    // 6. Build injects from Vulnerabilities
+    // 5. Build injects from Vulnerabilities
     getInjectsByVulnerabilities(
         scenario,
         securityCoverage.getVulnerabilitiesRefs(),
-        flatEndpointsFromMap,
+        assetsFromGroupMap,
         contractForInjectPlaceholders);
 
-    // 7. Build injects from Attack Patterns
+    // 6. Build injects from Attack Patterns
     getInjectsRelatedToAttackPatterns(
         scenario,
         securityCoverage.getAttackPatternRefs(),
@@ -106,7 +102,7 @@ public class SecurityCoverageInjectService {
   private void getInjectsByVulnerabilities(
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
-      Set<Endpoint> endpoints,
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       InjectorContract contractForPlaceholder) {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities =
@@ -117,7 +113,11 @@ public class SecurityCoverageInjectService {
 
     // 3. Now, injects are created with injectorContracts related to these vulnerabilities
     injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
-        scenario, vulnerabilities, endpoints, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
+        scenario,
+        vulnerabilities,
+        assetGroupListMap,
+        TARGET_NUMBER_OF_INJECTS,
+        contractForPlaceholder);
   }
 
   /**
