@@ -39,6 +39,7 @@ const GettingStartedFAQ = () => {
             <Typography>{faq.summary}</Typography>
           </AccordionSummary>
           <AccordionDetails>
+            {faq.details}
           </AccordionDetails>
         </Accordion>
       ))}

@@ -15,7 +15,7 @@ const iframeStyle: React.CSSProperties = {
   borderRadius: '12px',
 };
 
-interface VideoPlayerProps {videoLink: string;}
+interface VideoPlayerProps { videoLink: string }
 
 const VideoPlayer = ({ videoLink }: VideoPlayerProps) => {
   const scriptLoadedRef = useRef(false);
