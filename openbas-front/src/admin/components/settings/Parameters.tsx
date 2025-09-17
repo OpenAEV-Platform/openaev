@@ -3,21 +3,20 @@ import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformEnterpriseEditionParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters, updateSettingsOnboarding } from '../../../actions/Application';
+import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformEnterpriseEditionParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import ItemCopy from '../../../components/ItemCopy';
 import { useHelper } from '../../../store';
-import { type PlatformSettings, type SettingsEnterpriseEditionUpdateInput, type SettingsOnboardingUpdateInput, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
+import { type PlatformSettings, type SettingsEnterpriseEditionUpdateInput, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EnterpriseEditionButton from '../common/entreprise_edition/EnterpriseEditionButton';
 import ParametersForm from './ParametersForm';
-import ParametersOnboardingForm from './ParametersOnboardingForm';
 import ThemeForm from './ThemeForm';
 
 const useStyles = makeStyles()(theme => ({
@@ -76,7 +75,6 @@ const Parameters = () => {
   const onUpdateDarkParameters = (data: ThemeInput) => dispatch(updatePlatformDarkParameters(data));
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
   const updatePlatformWhitemark = (data: SettingsPlatformWhitemarkUpdateInput) => dispatch(updatePlatformWhitemarkParameters(data));
-  const updateOnboarding = (data: SettingsOnboardingUpdateInput) => dispatch(updateSettingsOnboarding(data));
   return (
     <>
       <div style={{
@@ -103,7 +101,6 @@ const Parameters = () => {
           <div>
             {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-
                 <EnterpriseEditionButton />
               </Can>
             )}
@@ -375,14 +372,6 @@ const Parameters = () => {
               </ListItem>
             </List>
           </Paper>
-          <Typography variant="h4" sx={{ mt: 2 }}>{t('onboarding_help_settings')}</Typography>
-          <ParametersOnboardingForm
-            onSubmit={updateOnboarding}
-            initialValues={{
-              platform_onboarding_contextual_help_enable: settings?.platform_onboarding_contextual_help_enable,
-              platform_onboarding_widget_enable: settings?.platform_onboarding_widget_enable,
-            }}
-          />
         </div>
       </div>
     </>

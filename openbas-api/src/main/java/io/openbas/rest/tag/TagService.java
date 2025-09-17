@@ -48,12 +48,12 @@ public class TagService {
   }
 
   /**
-   * Generate a list of tag from a list of labels
+   * Generate a set of tag from a set of labels
    *
    * @param labels
-   * @return list of tags
+   * @return set of tags
    */
-  public Set<Tag> fetchTagsFromLabels(List<String> labels) {
+  public Set<Tag> fetchTagsFromLabels(Set<String> labels) {
     Set<Tag> tags = new HashSet();
 
     if (labels != null) {

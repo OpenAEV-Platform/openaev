@@ -353,4 +353,34 @@ public interface InjectRepository
    * @return true if the Inject exists and is an atomic testing, false otherwise
    */
   boolean existsByIdAndScenarioIsNullAndExerciseIsNull(String id);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i "
+              + "USING injectors_contracts ic, injectors_contracts_vulnerabilities icv "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.injector_contract_id = icv.injector_contract_id "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i "
+              + "USING injectors_contracts ic, injectors_contracts_attack_patterns icap "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.injector_contract_id = icap.injector_contract_id "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllInjectsWithAttackPatternContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i WHERE i.inject_injector_contract = :injectorContract AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
 }

@@ -66,7 +66,7 @@ const CustomDashboardWrapper = ({
           custom_dashboards_parameter_type: string;
           custom_dashboards_parameter_id: string;
         }) => {
-          if (p.custom_dashboards_parameter_type === 'timeRange') {
+          if (p.custom_dashboards_parameter_type === 'timeRange' && !parametersLocalStorage[p.custom_dashboards_parameter_id]) {
             params[p.custom_dashboards_parameter_id] = {
               value: LAST_QUARTER_TIME_RANGE,
               hidden: false,

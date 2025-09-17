@@ -80,13 +80,13 @@ const AutocompleteField: FunctionComponent<Props> = ({
         />
       )}
       renderOption={(props, option) => {
-        const { key, ...rest } = props;
+        delete props.key;
         const checked = currentValue === option.id;
         return (
-          <Tooltip key={key} title={option.label}>
+          <Tooltip key={option.id} title={option.label}>
             <Box
               component="li"
-              {...rest}
+              {...props}
               style={{
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

@@ -10,8 +10,8 @@ import io.openbas.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
@@ -62,19 +62,15 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_period_end")
   private Instant periodEnd;
 
-  @Column(name = "security_coverage_threat_context_ref")
-  @JsonProperty("security_coverage_threat_context_ref")
-  private String threatContextRef;
-
   @Type(ListArrayType.class)
   @Column(name = "security_coverage_labels", columnDefinition = "text[]")
   @JsonProperty("security_coverage_labels")
-  private List<String> labels = new ArrayList<>();
+  private Set<String> labels = new HashSet<>();
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_attack_pattern_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_attack_pattern_refs")
-  private List<StixRefToExternalRef> attackPatternRefs;
+  private Set<StixRefToExternalRef> attackPatternRefs;
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_content", columnDefinition = "jsonb", nullable = false)
@@ -84,7 +80,7 @@ public class SecurityCoverage implements Base {
   @Type(JsonType.class)
   @Column(name = "security_coverage_vulnerabilities_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_vulnerabilities_refs")
-  private List<StixRefToExternalRef> vulnerabilitiesRefs;
+  private Set<StixRefToExternalRef> vulnerabilitiesRefs;
 
   @OneToOne
   @JoinColumn(name = "security_coverage_scenario")

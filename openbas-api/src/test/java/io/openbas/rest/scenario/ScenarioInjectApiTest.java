@@ -273,7 +273,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
       assertTrue(
           exception
               .getMessage()
-              .contains("Number of inject by ttp must be less than or equal to 5"));
+              .contains("Number of inject by Attack Pattern must be less than or equal to 5"));
     }
 
     @DisplayName(

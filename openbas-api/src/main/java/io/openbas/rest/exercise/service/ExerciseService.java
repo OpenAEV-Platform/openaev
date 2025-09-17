@@ -5,9 +5,9 @@ import static io.openbas.database.criteria.GenericCriteria.countQuery;
 import static io.openbas.database.specification.ExerciseSpecification.*;
 import static io.openbas.database.specification.TeamSpecification.fromIds;
 import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.utils.Constants.ARTICLES;
 import static io.openbas.utils.JpaUtils.arrayAggOnId;
 import static io.openbas.utils.StringUtils.duplicateString;
+import static io.openbas.utils.constants.Constants.ARTICLES;
 import static io.openbas.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
@@ -136,7 +136,7 @@ public class ExerciseService {
         exercise.setReplyTos(List.of(imapUsername));
       } else {
         exercise.setFrom(openBASConfig.getDefaultMailer());
-        exercise.setReplyTos(List.of(openBASConfig.getDefaultReplyTo()));
+        exercise.setReplyTos(new ArrayList<>(List.of(openBASConfig.getDefaultReplyTo())));
       }
     }
 
@@ -201,10 +201,6 @@ public class ExerciseService {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();
     return documentService.getPlayerDocuments(articles, injects);
-  }
-
-  public boolean hasPendingResults(Exercise exercise) {
-    return exercise.getInjects().stream().anyMatch(injectService::hasPendingResults);
   }
 
   public Optional<Exercise> getFollowingSimulation(Exercise exercise) {
@@ -805,6 +801,10 @@ public class ExerciseService {
         .stream()
         .findFirst()
         .orElse(null);
+  }
+
+  public boolean isFinished(Exercise exercise) {
+    return ExerciseStatus.FINISHED.equals(exercise.getStatus());
   }
 
   public boolean isThereAScoreDegradation(

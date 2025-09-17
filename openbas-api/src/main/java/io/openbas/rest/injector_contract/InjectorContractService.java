@@ -10,6 +10,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.raw.RawInjectorsContrats;
 import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.database.repository.InjectorRepository;
+import io.openbas.database.specification.InjectorContractSpecification;
 import io.openbas.injectors.email.EmailContract;
 import io.openbas.injectors.ovh.OvhSmsContract;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
@@ -20,6 +21,7 @@ import io.openbas.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openbas.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openbas.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openbas.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openbas.service.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
@@ -52,6 +54,7 @@ public class InjectorContractService {
   private final AttackPatternService attackPatternService;
   private final CveService cveService;
   private final InjectorRepository injectorRepository;
+  private final UserService userService;
 
   @Value("${openbas.xls.import.mail.enable}")
   private boolean mailImportEnabled;
@@ -112,9 +115,16 @@ public class InjectorContractService {
       selectForInjectorContractBase(cb, cq, injectorContractRoot);
     }
 
+    // Always apply access spec
+    Specification<InjectorContract> accessSpec =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+
+    Specification<InjectorContract> combinedSpec =
+        (specification == null ? accessSpec : specification.and(accessSpec));
+
     // -- Text Search and Filters --
     if (specification != null) {
-      Predicate predicate = specification.toPredicate(injectorContractRoot, cq, cb);
+      Predicate predicate = combinedSpec.toPredicate(injectorContractRoot, cq, cb);
       if (predicate != null) {
         cq.where(predicate);
       }
@@ -132,7 +142,9 @@ public class InjectorContractService {
     query.setMaxResults(pageable.getPageSize());
 
     // -- Count Query --
-    Long total = countQuery(cb, this.entityManager, InjectorContract.class, specificationCount);
+    Specification<InjectorContract> combinedSpecCount =
+        (specificationCount == null ? accessSpec : specificationCount.and(accessSpec));
+    Long total = countQuery(cb, this.entityManager, InjectorContract.class, combinedSpecCount);
 
     QuerySetup qs = new QuerySetup();
     qs.setQuery(query);
@@ -167,7 +179,13 @@ public class InjectorContractService {
   }
 
   public Iterable<RawInjectorsContrats> getAllRawInjectContracts() {
-    return injectorContractRepository.getAllRawInjectorsContracts();
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()
+        || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
+      return injectorContractRepository.getAllRawInjectorsContracts();
+    }
+    return injectorContractRepository.getAllRawInjectorsContractsWithoutPayloadOrGranted(
+        currentUser.getId());
   }
 
   public InjectorContract getSingleInjectorContract(String injectorContractId) {
@@ -188,12 +206,12 @@ public class InjectorContractService {
               new HashSet<>(input.getAttackPatternsExternalIds()));
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
-          attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
+          attackPatternService.findAllByInternalIdsThrowIfMissing(
               new HashSet<>(input.getAttackPatternsIds()));
     }
     injectorContract.setAttackPatterns(aps);
 
-    List<Cve> vulns = new ArrayList<>();
+    Set<Cve> vulns = new HashSet<>();
     if (!input.getVulnerabilityExternalIds().isEmpty()) {
       vulns =
           cveService.findAllByExternalIdsOrThrowIfMissing(
@@ -216,7 +234,7 @@ public class InjectorContractService {
             .orElseThrow(ElementNotFoundException::new);
     injectorContract.setUpdateAttributes(input);
     injectorContract.setAttackPatterns(
-        attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
+        attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
     injectorContract.setVulnerabilities(
         cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));
@@ -231,7 +249,7 @@ public class InjectorContractService {
             .findByIdOrExternalId(injectorContractId, injectorContractId)
             .orElseThrow(ElementNotFoundException::new);
     injectorContract.setAttackPatterns(
-        attackPatternService.getAttackPatternsByInternalIdsThrowIfMissing(
+        attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
     injectorContract.setVulnerabilities(
         cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));

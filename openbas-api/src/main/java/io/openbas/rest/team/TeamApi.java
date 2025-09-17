@@ -5,7 +5,6 @@ import static io.openbas.database.specification.TeamSpecification.*;
 import static io.openbas.helper.DatabaseHelper.updateRelation;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
-import static io.openbas.utils.UserOnboardingProgressUtils.TEAM_SETUP;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.time.Instant.now;
@@ -14,7 +13,6 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.UserRoleDescription;
-import io.openbas.aop.onboarding.Onboarding;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawTeam;
 import io.openbas.database.repository.*;
@@ -150,7 +148,6 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  @Onboarding(step = TEAM_SETUP)
   public Team createTeam(@Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
     Team team = new Team();

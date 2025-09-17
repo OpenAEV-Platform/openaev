@@ -100,7 +100,7 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
   }, []);
 
   const EXPECTATION_TYPES = [
-    ['PREVENTION', 'Prevention', 'Blocked'],
+    ['PREVENTION', 'Prevention', 'Prevented'],
     ['DETECTION', 'Detection', 'Detected'],
     ['VULNERABILITY', 'Vulnerability', 'Not vulnerable'],
     ['HUMAN_RESPONSE', 'Human Response', 'Successful'],

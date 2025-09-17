@@ -13,7 +13,7 @@ import io.openbas.database.repository.*;
 import io.openbas.rest.exercise.exports.ExportOptions;
 import io.openbas.rest.exercise.service.ExportService;
 import io.openbas.service.ChallengeService;
-import io.openbas.utils.Constants;
+import io.openbas.utils.constants.Constants;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.helpers.TagHelper;
