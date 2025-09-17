@@ -379,7 +379,7 @@ public class InjectAssistantService {
     return injects;
   }
 
-  private static void addTargetsDependingOnContract(
+  private void addTargetsDependingOnContract(
       Map<AssetGroup, List<Endpoint>> assetGroupListMap, InjectorContract ic, Inject inject) {
     JsonNode fieldsNode = ic.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
 
