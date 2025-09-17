@@ -62,6 +62,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private InjectorFixture injectorFixture;
 
   private String stixSecurityCoverage;
   private String stixSecurityCoverageWithoutTtps;
@@ -132,22 +133,20 @@ class StixApiTest extends IntegrationTest {
                     "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
             .persist();
 
-    CveComposer.Composer vuln56785 =
-        vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56785"));
-
     injectorContractComposer
         .forInjectorContract(
             InjectorContractFixture.createInjectorContract(createContentWithFieldAsset()))
-        .withVulnerability(vuln56785)
+        .withInjector(injectorFixture.getWellKnownObasImplantInjector())
+        .withVulnerability(
+            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56785")))
         .persist();
-
-    CveComposer.Composer vuln56786 =
-        vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56786"));
 
     injectorContractComposer
         .forInjectorContract(
             InjectorContractFixture.createInjectorContract(createContentWithFieldAssetGroup()))
-        .withVulnerability(vuln56786)
+        .withInjector(injectorFixture.getWellKnownObasImplantInjector())
+        .withVulnerability(
+            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56786")))
         .persist();
 
     tagRuleComposer
