@@ -29,7 +29,7 @@ public class DetectionRemediationApi {
   private final DetectionRemediationAIService detectionRemediationAIService;
   private final DetectionRemediationService detectionRemediationService;
 
-  public static final String DETECTION_REMEDIATION_URI = "api/detection-remediation";
+  public static final String DETECTION_REMEDIATION_URI = "api/detection-remediations";
 
   @Operation(summary = "Get the status of the remediation-detection web service")
   @ApiResponses(
