@@ -354,8 +354,8 @@ public class SecurityCoverageInjectService {
     missingCombinations.removeAll(coveredCombinations);
 
     // 10. Filter AttackPatterns that are still missing
-    List<String> filteredAttackPatterns =
-        missingCombinations.stream().map(Triple::getLeft).toList();
+    Set<String> filteredAttackPatterns =
+        missingCombinations.stream().map(Triple::getLeft).collect(Collectors.toSet());
 
     // 11. Filter AssetGroups based on missing (Platform × Arch)
     Map<AssetGroup, List<Endpoint>> filteredAssetsFromGroupMap =
@@ -402,6 +402,6 @@ public class SecurityCoverageInjectService {
    * @param filteredAssetsFromGroupMap map of relevant asset groups with their endpoints
    */
   private record MissingCombinations(
-      List<String> filteredAttackPatterns,
+      Set<String> filteredAttackPatterns,
       Map<AssetGroup, List<Endpoint>> filteredAssetsFromGroupMap) {}
 }
