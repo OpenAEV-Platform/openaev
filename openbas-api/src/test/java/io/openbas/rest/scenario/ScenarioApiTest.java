@@ -20,6 +20,7 @@ import io.openbas.rest.scenario.form.CheckScenarioRulesInput;
 import io.openbas.rest.scenario.form.ScenarioInput;
 import io.openbas.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openbas.rest.scenario.form.ScenarioUpdateTeamsInput;
+import io.openbas.service.AssetGroupService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.mockUser.WithMockUser;
@@ -58,6 +59,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
+  @Autowired private AssetGroupService assetGroupService;
 
   @AfterEach
   void afterEach() {
@@ -397,6 +399,9 @@ public class ScenarioApiTest extends IntegrationTest {
       InjectInput input = new InjectInput();
       input.setTitle(scenario.getInjects().getFirst().getTitle());
       input.setAssetGroups(List.of(dynamicAssetGroupSaved.getId()));
+      // necessary to avoid detach exception in test context since we removed the test order and
+      // added the transactional.
+      assetGroupService.computeDynamicAssets(dynamicAssetGroupSaved);
 
       mvc.perform(
               put(SCENARIO_URI

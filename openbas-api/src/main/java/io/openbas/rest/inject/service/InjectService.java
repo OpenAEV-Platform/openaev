@@ -1,5 +1,18 @@
 package io.openbas.rest.inject.service;
 
+import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openbas.database.model.ExecutionStatus.*;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
+import static io.openbas.database.specification.InjectSpecification.*;
+import static io.openbas.helper.StreamHelper.fromIterable;
+import static io.openbas.helper.StreamHelper.iterableToSet;
+import static io.openbas.utils.AgentUtils.isPrimaryAgent;
+import static io.openbas.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openbas.utils.StringUtils.duplicateString;
+import static io.openbas.utils.pagination.SearchUtilsJpa.computeSearchJpa;
+import static java.time.Instant.now;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,6 +54,13 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -53,27 +73,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openbas.database.model.ExecutionStatus.*;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
-import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
-import static io.openbas.database.specification.InjectSpecification.*;
-import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.helper.StreamHelper.iterableToSet;
-import static io.openbas.utils.AgentUtils.isPrimaryAgent;
-import static io.openbas.utils.FilterUtilsJpa.computeFilterGroupJpa;
-import static io.openbas.utils.StringUtils.duplicateString;
-import static io.openbas.utils.pagination.SearchUtilsJpa.computeSearchJpa;
-import static java.time.Instant.now;
 
 @RequiredArgsConstructor
 @Service
