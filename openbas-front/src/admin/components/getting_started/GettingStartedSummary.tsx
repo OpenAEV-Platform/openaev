@@ -1,4 +1,4 @@
-import { List, Paper, Typography } from '@mui/material';
+import { Box, List, Paper, Typography } from '@mui/material';
 
 import { useFormatter } from '../../../components/i18n';
 import VideoPlayer from './VideoPlayer';
@@ -7,7 +7,7 @@ const GettingStartedSummary = () => {
   const { t } = useFormatter();
 
   return (
-    <>
+    <Box>
       <Typography variant="h1">
         {t('getting_started_welcome')}
       </Typography>
@@ -18,9 +18,7 @@ const GettingStartedSummary = () => {
         }}
         >
           <div>
-            <Typography>
-              {t('getting_started_description')}
-            </Typography>
+            {t('getting_started_description')}
             <List sx={{
               listStyleType: 'disc',
               pl: 3,
@@ -35,7 +33,7 @@ const GettingStartedSummary = () => {
           <VideoPlayer videoLink="https://app.storylane.io/demo/bxqijbtlfklz" />
         </div>
       </Paper>
-    </>
+    </Box>
   );
 };
 
