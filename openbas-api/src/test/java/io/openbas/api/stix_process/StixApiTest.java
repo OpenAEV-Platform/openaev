@@ -6,8 +6,6 @@ import static io.openbas.injector_contract.InjectorContractContentUtilsTest.crea
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.service.TagRuleService.OPENCTI_TAG_NAME;
 import static io.openbas.utils.fixtures.CveFixture.CVE_2023_48788;
-import static io.openbas.utils.fixtures.CveFixture.CVE_2025_56785;
-import static io.openbas.utils.fixtures.CveFixture.CVE_2025_56786;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -524,14 +522,10 @@ class StixApiTest extends IntegrationTest {
         "Should create scenario with 1 injects with 1 asset group when contract has field asset group")
     void shouldCreateScenarioWithOneInjectWithOneAssetGroupWhenContractHasAssetGroupField()
         throws Exception {
-      tagRuleComposer
-          .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-          .withAssetGroup(completeAssetGroup)
-          .persist();
-
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("CVE-2025-56785", "CVE-2025-56786");
+          stixSecurityCoverageOnlyVulns
+              .replace("opencti", "empty-asset-group")
+              .replace("CVE-2025-56785", "CVE-2025-56786");
 
       String createdResponse =
           mvc.perform(
@@ -559,14 +553,6 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should create scenario with 1 inject for vulnerability when no asset group is present")
     void shouldCreateScenarioWithOneInjectWhenNoAssetGroupsExist() throws Exception {
-      tagRuleComposer
-          .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
-          .persist();
-
-    @Test
-    @DisplayName("Should create scenario with 1 inject when no asset groups")
-    void shouldCreateScenarioWithOneInjectWhenNoAssetGroups() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "no-asset-groups");
 
@@ -587,6 +573,9 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(0);
+      assertThat(inject.getAssetGroups()).hasSize(0);
     }
 
     @Test
