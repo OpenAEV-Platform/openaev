@@ -159,6 +159,17 @@ const RemediationFormTab = ({ payloadId, payload, initialValueRemediation, submi
                     >
                     </DetectionRemediationInfo>
 
+                    <DetectionRemediationUseAriane
+                      collectorType={tabs[activeTab].collector_type}
+                      updatePayload={true}
+                      content={getValues('remediations.' + tabs[activeTab].collector_type).content}
+                      t={t}
+                      submitFormByRemediationTab={submitFormByRemediationTab}
+                      onUpdate={onUpdate}
+                      payloadFormFields={control._formValues}
+                      onResult={onClickUseAriane}>
+                    </DetectionRemediationUseAriane>
+
                   </div>
                   { tabs.map(tab => (
                     <div
