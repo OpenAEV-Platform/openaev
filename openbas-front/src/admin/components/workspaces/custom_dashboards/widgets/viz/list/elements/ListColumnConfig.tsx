@@ -10,6 +10,7 @@ import EndpointArchFragment from '../../../../../../../../components/common/list
 import InverseBooleanFragment from '../../../../../../../../components/common/list/fragments/InverseBooleanFragment';
 import VulnerableEndpointActionFragment
   from '../../../../../../../../components/common/list/fragments/VulnerableEndpointActionFragment';
+import { useFormatter } from '../../../../../../../../components/i18n';
 import ItemStatus from '../../../../../../../../components/ItemStatus';
 import ItemTags from '../../../../../../../../components/ItemTags';
 import {
@@ -53,28 +54,41 @@ const injectColumnsRenderers: RendererMap = {
   ['inject_execution_date']: value => <DateFragment value={value as string} />,
 };
 
-export const getTargetTypeFromInjectExpectation = (expectation: EsInjectExpectation): string => {
-  let target = '';
+export const getTargetTypeFromInjectExpectation = (expectation: EsInjectExpectation): {
+  label: string;
+  type: string;
+} => {
+  let label = '';
+  let type = '';
   if (expectation.base_user_side != null) {
-    target = 'PLAYERS';
+    label = 'player';
+    type = 'PLAYERS';
   } else if (expectation.base_team_side != null) {
-    target = 'TEAMS';
+    label = 'team';
+    type = 'TEAMS';
   } else if (expectation.base_agent_side != null) {
-    target = 'AGENT';
+    label = 'agent';
+    type = 'AGENT';
   } else if (expectation.base_asset_side != null) {
-    target = 'ASSETS';
+    label = 'endpoint';
+    type = 'ASSETS';
   } else if (expectation.base_asset_group_side != null) {
-    target = 'ASSETS_GROUPS';
+    label = 'asset group';
+    type = 'ASSETS_GROUPS';
   }
-  return target;
+  return {
+    label,
+    type,
+  };
 };
 
 const injectExpectationRenderers: RendererMap = {
   ['inject_expectation_source']: (_, { element }) => {
-    const targetType = getTargetTypeFromInjectExpectation(element as EsInjectExpectation);
+    const { t } = useFormatter();
+    const target = getTargetTypeFromInjectExpectation(element as EsInjectExpectation);
     return (
-      <Tooltip title={targetType} placement="bottom-start">
-        <span>{targetType}</span>
+      <Tooltip title={target.label} placement="bottom-start">
+        <span>{(t(target.label)).toUpperCase()}</span>
       </Tooltip>
     );
   },
