@@ -1,9 +1,13 @@
 package io.openbas.rest.injector_contract;
 
+import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_CARDINALITY;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_NOT_DYNAMIC;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openbas.database.model.InjectorContract.DEFAULT_VALUE_FIELD;
 import static io.openbas.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
 
@@ -101,5 +105,35 @@ public class InjectorContractContentUtils {
     }
 
     return null;
+  }
+
+  /**
+   * Extracts the target field type from the given InjectorContract. This method is specifically
+   * used in the "Import Stix" feature, where Tag Rules are applied to determine the targets. In
+   * this method, Asset Group fields are given priority over Asset fields because they are related
+   * to Tag Rules.
+   *
+   * @param injectorContract converted content to inspect
+   * @return a String representing the target field type: either Asset Group or Asset
+   */
+  public static String extractTargetField(InjectorContract injectorContract) {
+    JsonNode fieldsNode = injectorContract.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
+
+    if (fieldsNode != null && fieldsNode.isArray()) {
+      boolean hasAsset = false;
+
+      for (JsonNode field : (ArrayNode) fieldsNode) {
+        String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
+        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(type)) {
+          return CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
+        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(type)) {
+          hasAsset = true;
+        }
+      }
+      if (hasAsset) {
+        return CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
+      }
+    }
+    return "";
   }
 }

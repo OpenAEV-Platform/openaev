@@ -1,5 +1,8 @@
 package io.openbas.service.stix;
 
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
+import static io.openbas.rest.injector_contract.InjectorContractContentUtils.extractTargetField;
 import static io.openbas.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 
@@ -55,7 +58,7 @@ public class SecurityCoverageInjectService {
     Set<AssetGroup> assetGroups = assetGroupService.fetchAssetGroupsFromScenarioTagRules(scenario);
 
     // 3. Get all endpoints per asset group
-    Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
+    Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap =
         assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
 
     // 4. Fetch InjectorContract to use for inject placeholder
@@ -66,14 +69,14 @@ public class SecurityCoverageInjectService {
     getInjectsByVulnerabilities(
         scenario,
         securityCoverage.getVulnerabilitiesRefs(),
-        assetsFromGroupMap,
+        requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
     // 6. Build injects from Attack Patterns
     getInjectsByAttackPatterns(
         scenario,
         securityCoverage.getAttackPatternRefs(),
-        assetsFromGroupMap,
+        requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
     return injectRepository.findByScenarioId(scenario.getId());
@@ -105,7 +108,7 @@ public class SecurityCoverageInjectService {
   private void getInjectsByVulnerabilities(
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
-      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
+      Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap,
       InjectorContract contractForPlaceholder) {
 
     // 1. Fetch internal Ids for Vulnerabilities
@@ -118,7 +121,7 @@ public class SecurityCoverageInjectService {
     // 3. Sync covered injects and remove obsolete ones
     List<Inject> injectsToRemove =
         syncCoveredInjectsWithRequired(
-            coveredCveInjectsMap, requiredVulnerabilities, requiredEndpoints);
+            coveredCveInjectsMap, requiredVulnerabilities, requiredAssetGroupMap);
     injectRepository.deleteAll(injectsToRemove);
 
     // 4. Identify missing injects
@@ -134,7 +137,7 @@ public class SecurityCoverageInjectService {
       injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
           scenario,
           missingVulns,
-          assetGroupListMap,
+          requiredAssetGroupMap,
           TARGET_NUMBER_OF_INJECTS,
           contractForPlaceholder);
     }
@@ -159,7 +162,7 @@ public class SecurityCoverageInjectService {
   private List<Inject> syncCoveredInjectsWithRequired(
       Map<Cve, Set<Inject>> coveredCveEndpointsMap,
       Set<Cve> requiredVulnerabilities,
-      Set<Endpoint> requiredEndpoints) {
+      Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap) {
 
     List<Inject> injectsToRemove = new ArrayList<>();
 
@@ -168,12 +171,28 @@ public class SecurityCoverageInjectService {
       Set<Inject> injects = coveredCveEndpointsMap.get(coveredVuln);
 
       for (Inject inject : injects) {
-        // If vuln from inject is not present in reqVuln or assets are not the same as
-        // requiredEndpoints then we remove the inject
-        if (!requiredVulnerabilities.contains(coveredVuln)) {
+        Optional<InjectorContract> contractOpt = inject.getInjectorContract();
+
+        // Remove inject if vulnerability is not required or contract is missing
+        if (!requiredVulnerabilities.contains(coveredVuln) || contractOpt.isEmpty()) {
           injectsToRemove.add(inject);
-        } else {
-          syncInjectAssets(inject, requiredEndpoints);
+          continue;
+        }
+
+        // Contract is present
+        InjectorContract contract = contractOpt.get();
+        String targetField = extractTargetField(contract);
+
+        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(targetField)) {
+          // Priority: asset-group exists because We use tag rules to fetch asset groups
+          syncInjectAssetGroups(inject, requiredAssetGroupMap.keySet());
+        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(targetField)) {
+          // Only compute flattened endpoints if asset exists
+          Set<Endpoint> flatEndpointsFromMap =
+              requiredAssetGroupMap.values().stream()
+                  .flatMap(List::stream)
+                  .collect(Collectors.toSet());
+          syncInjectAssets(inject, flatEndpointsFromMap);
         }
       }
     }
@@ -195,6 +214,17 @@ public class SecurityCoverageInjectService {
 
     if (!toAdd.isEmpty()) inject.getAssets().addAll(toAdd);
     if (!toRemove.isEmpty()) inject.getAssets().removeAll(toRemove);
+  }
+
+  private void syncInjectAssetGroups(Inject inject, Set<AssetGroup> requiredGroups) {
+    Set<AssetGroup> toAdd = new HashSet<>(requiredGroups);
+    toAdd.removeAll(inject.getAssetGroups());
+
+    Set<AssetGroup> toRemove = new HashSet<>(inject.getAssetGroups());
+    toRemove.removeAll(requiredGroups);
+
+    if (!toAdd.isEmpty()) inject.getAssetGroups().addAll(toAdd);
+    if (!toRemove.isEmpty()) inject.getAssetGroups().removeAll(toRemove);
   }
 
   // -- INJECTS BY ATTACK PATTERNS --
