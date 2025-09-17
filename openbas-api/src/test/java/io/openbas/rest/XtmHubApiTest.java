@@ -47,16 +47,23 @@ public class XtmHubApiTest extends IntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
+
     String responseToken = JsonPath.read(response, "$.xtm_hub_token");
     String responseStatus = JsonPath.read(response, "$.xtm_hub_registration_status");
     String responseUserId = JsonPath.read(response, "$.xtm_hub_registration_user_id");
     String responseUserName = JsonPath.read(response, "$.xtm_hub_registration_user_name");
     String responseRegistrationDate = JsonPath.read(response, "$.xtm_hub_registration_date");
+    String responseLastConnectivityCheck =
+        JsonPath.read(response, "$.xtm_hub_last_connectivity_check");
+    String responseShouldSendConnectivityEmail =
+        JsonPath.read(response, "$.xtm_hub_should_send_connectivity_email");
     assertEquals(responseToken, token);
     assertEquals(responseStatus, XtmHubRegistrationStatus.REGISTERED.label);
     assertEquals(responseUserId, testUserHolder.get().getId());
     assertEquals(responseUserName, testUserHolder.get().getName());
     assertNotNull(responseRegistrationDate);
+    assertNotNull(responseLastConnectivityCheck);
+    assertEquals(responseShouldSendConnectivityEmail, "true");
 
     PlatformSettings settings = platformSettingsService.findSettings();
     assertEquals(settings.getXtmHubToken(), token);
@@ -64,6 +71,8 @@ public class XtmHubApiTest extends IntegrationTest {
     assertEquals(settings.getXtmHubRegistrationUserId(), testUserHolder.get().getId());
     assertEquals(settings.getXtmHubRegistrationUserName(), testUserHolder.get().getName());
     assertNotNull(settings.getXtmHubRegistrationDate());
+    assertNotNull(responseLastConnectivityCheck);
+    assertEquals(responseShouldSendConnectivityEmail, "true");
   }
 
   @Test
@@ -85,11 +94,17 @@ public class XtmHubApiTest extends IntegrationTest {
     String responseUserId = JsonPath.read(response, "$.xtm_hub_registration_user_id");
     String responseUserName = JsonPath.read(response, "$.xtm_hub_registration_user_name");
     String responseRegistrationDate = JsonPath.read(response, "$.xtm_hub_registration_date");
+    String responseLastConnectivityCheck =
+        JsonPath.read(response, "$.xtm_hub_last_connectivity_check");
+    String responseShouldSendConnectivityEmail =
+        JsonPath.read(response, "$.xtm_hub_should_send_connectivity_email");
     assertNull(responseToken);
     assertEquals(responseStatus, XtmHubRegistrationStatus.UNREGISTERED.label);
     assertNull(responseUserId);
     assertNull(responseUserName);
     assertNull(responseRegistrationDate);
+    assertNull(responseLastConnectivityCheck);
+    assertNull(responseShouldSendConnectivityEmail);
 
     PlatformSettings settings = platformSettingsService.findSettings();
     assertNull(settings.getXtmHubToken());
@@ -98,5 +113,7 @@ public class XtmHubApiTest extends IntegrationTest {
     assertNull(settings.getXtmHubRegistrationUserId());
     assertNull(settings.getXtmHubRegistrationUserName());
     assertNull(settings.getXtmHubRegistrationDate());
+    assertNull(settings.getXtmHubLastConnectivityCheck());
+    assertNull(settings.getXtmHubShouldSendConnectivityEmail());
   }
 }

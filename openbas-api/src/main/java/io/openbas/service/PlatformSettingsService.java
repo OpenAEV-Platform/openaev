@@ -33,8 +33,6 @@ import io.openbas.xtmhub.XtmHubRegistrationStatus;
 import io.openbas.xtmhub.config.XTMHubConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -319,7 +317,10 @@ public class PlatformSettingsService {
         getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_ID.key()));
     platformSettings.setXtmHubRegistrationUserName(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key()));
-
+    platformSettings.setXtmHubLastConnectivityCheck(
+        getValueFromMapOfSettings(dbSettings, XTM_HUB_LAST_CONNECTIVITY_CHECK.key()));
+    platformSettings.setXtmHubShouldSendConnectivityEmail(
+        getValueFromMapOfSettings(dbSettings, XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
     return platformSettings;
   }
 
@@ -525,7 +526,9 @@ public class PlatformSettingsService {
       LocalDateTime registrationDate,
       XtmHubRegistrationStatus registrationStatus,
       String userId,
-      String userName) {
+      String userName,
+      LocalDateTime lastConnectivityCheck,
+      Boolean shouldSendConnectivityEmail) {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
 
     List<Setting> settingsToSave = new ArrayList<>();
@@ -535,11 +538,21 @@ public class PlatformSettingsService {
         resolveFromMap(
             dbSettings,
             XTM_HUB_REGISTRATION_DATE.key(),
-            registrationDate != null ? Timestamp.from(Instant.now()).toString() : null));
+            registrationDate != null ? registrationDate.toString() : null));
     settingsToSave.add(
         resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_STATUS.key(), registrationStatus.label));
     settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_USER_ID.key(), userId));
     settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key(), userName));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
+            lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
+            shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null));
 
     List<Setting> update = new ArrayList<>();
     List<String> delete = new ArrayList<>();
