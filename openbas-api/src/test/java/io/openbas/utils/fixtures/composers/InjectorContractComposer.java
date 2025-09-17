@@ -19,6 +19,8 @@ import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -63,7 +65,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     public Composer withVulnerability(CveComposer.Composer cveComposer) {
       this.vulnerabilityComposer.add(cveComposer);
-      List<Cve> tempVulnerability = this.injectorContract.getVulnerabilities();
+      Set<Cve> tempVulnerability = this.injectorContract.getVulnerabilities();
       tempVulnerability.add(cveComposer.get());
       this.injectorContract.setVulnerabilities(tempVulnerability);
       return this;
