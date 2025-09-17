@@ -117,7 +117,7 @@ public class SecurityCoverageInjectService {
         vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
 
     // 2. Fetch covered vulnerabilities and endpoints
-    Map<Cve, Set<Inject>> coveredCveInjectsMap = buildCoveredCveInjectsMap(scenario);
+    Map<Cve, Set<Inject>> coveredCveInjectsMap = buildCoveredCveInjectsMap(scenario.getInjects());
 
     // 3. Sync covered injects and remove obsolete ones
     List<Inject> injectsToRemove =
@@ -125,7 +125,7 @@ public class SecurityCoverageInjectService {
             coveredCveInjectsMap, requiredVulnerabilities, requiredEndpoints);
     injectRepository.deleteAll(injectsToRemove);
 
-    // 6. Identify missing injects
+    // 4. Identify missing injects
     Set<Cve> missingVulns = new HashSet<>();
     for (Cve key : requiredVulnerabilities) {
       if (!coveredCveInjectsMap.containsKey(key)) {
@@ -133,7 +133,7 @@ public class SecurityCoverageInjectService {
       }
     }
 
-    // 7. Generate injects for missing vulnerabilities
+    // 5. Generate injects for missing vulnerabilities
     if (!missingVulns.isEmpty()) {
       injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
           scenario,
@@ -144,9 +144,8 @@ public class SecurityCoverageInjectService {
     }
   }
 
-  // --- Helper methods ---
-  private Map<Cve, Set<Inject>> buildCoveredCveInjectsMap(Scenario scenario) {
-    return scenario.getInjects().stream()
+  private Map<Cve, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
+    return coveredInjects.stream()
         // Keep only injects that have a contract and vulnerabilities
         .filter(
             inject ->
