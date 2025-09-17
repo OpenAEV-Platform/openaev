@@ -1,7 +1,9 @@
 package io.openbas.rest.inject;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.rest.inject.InjectApi.INJECT_URI;
+import static io.openbas.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
+import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.utils.fixtures.PayloadFixture.createDetectionRemediation;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -11,7 +13,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.model.Tag;
@@ -20,9 +21,6 @@ import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.ee.Ee;
 import io.openbas.rest.exercise.exports.ExportOptions;
-import io.openbas.rest.inject.form.InjectImportInput;
-import io.openbas.rest.inject.form.InjectImportTargetDefinition;
-import io.openbas.rest.inject.form.InjectImportTargetType;
 import io.openbas.rest.inject.service.InjectExportService;
 import io.openbas.service.ArticleService;
 import io.openbas.service.ChallengeService;
@@ -40,7 +38,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.mock.web.MockPart;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +47,9 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Importing injects tests")
 class InjectImportTest extends IntegrationTest {
 
-  public final String INJECT_IMPORT_URI = INJECT_URI + "/import";
+  String SCENARIO_IMPORT_URI = SCENARIO_URI + "/%s/injects/import";
+  String SIMULATION_IMPORT_URI = EXERCISE_URI + "/%s/injects/import";
+  String ATOMIC_TESTING_IMPORT_URI = ATOMIC_TESTING_URI + "/import";
   private final Map<String, ArticleComposer.Composer> staticArticleWrappers = new HashMap<>();
   private final String KNOWN_ARTICLE_WRAPPER_KEY = "known article key";
 
@@ -276,30 +275,30 @@ class InjectImportTest extends IntegrationTest {
     return data;
   }
 
-  private ResultActions doImport(byte[] importZipData, InjectImportInput input) throws Exception {
-    return doImportStringInput(importZipData, objectMapper.writeValueAsString(input));
+  private ResultActions doImportForScenario(String scenarioId, byte[] importZipData)
+      throws Exception {
+    String uri = String.format(SCENARIO_IMPORT_URI, scenarioId);
+    return doImportStringInput(uri, importZipData);
   }
 
-  private ResultActions doImportStringInput(byte[] importZipData, String input) throws Exception {
-    MockPart jsonPart = new MockPart("input", input.getBytes());
-    jsonPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+  private ResultActions doImportForSimulation(String simulationId, byte[] importZipData)
+      throws Exception {
+    String uri = String.format(SIMULATION_IMPORT_URI, simulationId);
+    return doImportStringInput(uri, importZipData);
+  }
+
+  private ResultActions doImportForAtomicTestings(byte[] importZipData) throws Exception {
+    return doImportStringInput(ATOMIC_TESTING_IMPORT_URI, importZipData);
+  }
+
+  private ResultActions doImportStringInput(String uri, byte[] importZipData) throws Exception {
     ResultActions ra =
         mvc.perform(
-            multipart(INJECT_IMPORT_URI)
+            multipart(uri)
                 .file(new MockMultipartFile("file", importZipData))
-                .part(jsonPart)
                 .contentType(MediaType.MULTIPART_FORM_DATA));
     clearEntityManager();
     return ra;
-  }
-
-  private InjectImportInput createTargetInput(InjectImportTargetType targetType, String targetId) {
-    InjectImportInput input = new InjectImportInput();
-    InjectImportTargetDefinition targetDefinition = new InjectImportTargetDefinition();
-    targetDefinition.setType(targetType);
-    targetDefinition.setId(targetId);
-    input.setTarget(targetDefinition);
-    return input;
   }
 
   private List<Inject> getImportedInjectsFromDb() {
@@ -352,50 +351,15 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser
+  @WithMockUser(withCapabilities = Capability.MANAGE_ASSESSMENT)
   @DisplayName("When passing null input")
   public class WhenPassingNullInput {
 
     @Test
-    @DisplayName("Return BAD REQUEST")
-    public void returnBADREQUEST() throws Exception {
-      byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
-
-      doImport(exportData, null).andExpect(status().isBadRequest());
-    }
-  }
-
-  @Nested
-  @WithMockUser(withCapabilities = Capability.MANAGE_ASSESSMENT)
-  @DisplayName("When passing null target")
-  public class WhenPassingNullTarget {
-
-    @Test
-    @DisplayName("Return UNPROCESSABLE CONTENT")
-    public void returnUNPROCESSABLECONTENT() throws Exception {
-      byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
-
-      doImport(exportData, new InjectImportInput()).andExpect(status().isUnprocessableEntity());
-    }
-  }
-
-  @Nested
-  @WithMockUser
-  @DisplayName("When passing invalid target type")
-  public class WhenPassingInvalidTargetType {
-
-    @Test
-    @DisplayName("Return BAD REQUEST")
-    public void returnBADREQUEST() throws Exception {
-      byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
-
-      InjectImportInput input = createTargetInput(InjectImportTargetType.SCENARIO, null);
-      ObjectNode inputAsNode = objectMapper.valueToTree(input);
-      ((ObjectNode) inputAsNode.get("target"))
-          .set("type", objectMapper.valueToTree("something_bad"));
-
-      doImportStringInput(exportData, objectMapper.writeValueAsString(inputAsNode))
-          .andExpect(status().isBadRequest());
+    @DisplayName("Return UNPROCESSABLE_ENTITY")
+    public void returnUNPROCESSABLE_ENTITY() throws Exception {
+      doImportForScenario(UUID.randomUUID().toString(), null)
+          .andExpect(status().isUnprocessableEntity());
     }
   }
 
@@ -412,10 +376,7 @@ class InjectImportTest extends IntegrationTest {
       Exercise targetExercise =
           exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
 
-      InjectImportInput input =
-          createTargetInput(InjectImportTargetType.SIMULATION, targetExercise.getId());
-
-      doImport(exportData, input).andExpect(status().isForbidden());
+      doImportForSimulation(targetExercise.getId(), exportData).andExpect(status().isForbidden());
     }
   }
 
@@ -429,10 +390,8 @@ class InjectImportTest extends IntegrationTest {
     public void returnNotFound() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
-      InjectImportInput input =
-          createTargetInput(InjectImportTargetType.SIMULATION, UUID.randomUUID().toString());
-
-      doImport(exportData, input).andExpect(status().isNotFound());
+      doImportForSimulation(UUID.randomUUID().toString(), exportData)
+          .andExpect(status().isNotFound());
     }
   }
 
@@ -452,10 +411,7 @@ class InjectImportTest extends IntegrationTest {
               .persist()
               .get();
 
-      InjectImportInput input =
-          createTargetInput(InjectImportTargetType.SCENARIO, targetScenario.getId());
-
-      doImport(exportData, input).andExpect(status().isForbidden());
+      doImportForScenario(targetScenario.getId(), exportData).andExpect(status().isForbidden());
     }
   }
 
@@ -469,10 +425,8 @@ class InjectImportTest extends IntegrationTest {
     public void returnNotFound() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
-      InjectImportInput input =
-          createTargetInput(InjectImportTargetType.SCENARIO, UUID.randomUUID().toString());
-
-      doImport(exportData, input).andExpect(status().isNotFound());
+      doImportForScenario(UUID.randomUUID().toString(), exportData)
+          .andExpect(status().isNotFound());
     }
   }
 
@@ -486,10 +440,7 @@ class InjectImportTest extends IntegrationTest {
     public void returnFORBIDDEN() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
-      InjectImportInput input =
-          createTargetInput(InjectImportTargetType.ATOMIC_TESTING, UUID.randomUUID().toString());
-
-      doImport(exportData, input).andExpect(status().isForbidden());
+      doImportForAtomicTestings(exportData).andExpect(status().isForbidden());
     }
   }
 
@@ -528,11 +479,9 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
 
         for (Inject expected : injectComposer.generatedItems) {
           Exercise dest =
@@ -568,11 +517,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Article expected : articleComposer.generatedItems) {
@@ -603,11 +549,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Channel expected : channelComposer.generatedItems) {
@@ -643,11 +586,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Challenge expected : challengeComposer.generatedItems) {
@@ -688,14 +628,12 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
 
         // We need to save the collector to check the import
         collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Payload expected : payloadComposer.generatedItems) {
@@ -742,11 +680,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected : teamComposer.generatedItems) {
@@ -772,11 +707,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (User expected : userComposer.generatedItems) {
@@ -809,11 +741,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Organization expected : organizationComposer.generatedItems) {
@@ -850,11 +779,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Tag expected : tagComposer.generatedItems) {
@@ -882,11 +808,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Document expected : documentComposer.generatedItems) {
@@ -926,11 +849,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Inject expected : injectComposer.generatedItems) {
@@ -967,11 +887,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Article expected : articleComposer.generatedItems) {
@@ -1002,11 +919,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Channel expected : channelComposer.generatedItems) {
@@ -1042,11 +956,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Challenge expected : challengeComposer.generatedItems) {
@@ -1087,14 +998,12 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
 
         // We need to save the collector to check the import
         collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Payload expected : payloadComposer.generatedItems) {
@@ -1150,11 +1059,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().isOk());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().isOk());
         clearEntityManager();
 
         for (Team expected : teamComposer.generatedItems) {
@@ -1180,11 +1086,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (User expected : userComposer.generatedItems) {
@@ -1217,11 +1120,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Organization expected : organizationComposer.generatedItems) {
@@ -1258,11 +1158,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Tag expected : tagComposer.generatedItems) {
@@ -1290,11 +1187,8 @@ class InjectImportTest extends IntegrationTest {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Document expected : documentComposer.generatedItems) {
@@ -1326,9 +1220,8 @@ class InjectImportTest extends IntegrationTest {
       public void eachInjectWasCreatedInAtomicTesting() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Inject expected : injectComposer.generatedItems) {
@@ -1366,12 +1259,11 @@ class InjectImportTest extends IntegrationTest {
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
         // We need to save the collector to check the import
         collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Payload expected : payloadComposer.generatedItems) {
@@ -1416,9 +1308,8 @@ class InjectImportTest extends IntegrationTest {
       public void allPlatformTeamsHaveBeenRecreated() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -1443,9 +1334,8 @@ class InjectImportTest extends IntegrationTest {
       public void contextualTeamsAreNotRecreated() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -1465,9 +1355,8 @@ class InjectImportTest extends IntegrationTest {
       public void allUsersFromPlatformTeamsHaveBeenRecreated() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (User expected :
@@ -1501,9 +1390,8 @@ class InjectImportTest extends IntegrationTest {
       public void allOrganisationsHaveBeenRecreated() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Organization expected : organizationComposer.generatedItems) {
@@ -1537,9 +1425,8 @@ class InjectImportTest extends IntegrationTest {
       public void allTagsHaveBeenRecreated() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Tag expected : tagComposer.generatedItems) {
@@ -1563,9 +1450,8 @@ class InjectImportTest extends IntegrationTest {
       public void allDocumentsHaveBeenRecreated() throws Exception {
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Document expected : documentComposer.generatedItems) {
@@ -1589,7 +1475,7 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT})
   @DisplayName("When imported objects already exist on the destination")
   public class WhenImportedObjectsAlreadyExistOnDestination {
 
@@ -1606,11 +1492,8 @@ class InjectImportTest extends IntegrationTest {
       public void allInjectsWereAppendedToExercise() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
 
         for (Inject expected : injectComposer.generatedItems) {
           Exercise dest =
@@ -1644,11 +1527,8 @@ class InjectImportTest extends IntegrationTest {
       public void createNewArticlesAnyway() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Article expected : articleComposer.generatedItems) {
@@ -1678,11 +1558,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingChannelsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Channel expected : channelComposer.generatedItems) {
@@ -1703,11 +1580,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingChallengesAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Challenge expected : challengeComposer.generatedItems) {
@@ -1727,11 +1601,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingPayloadsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Payload expected : payloadComposer.generatedItems) {
@@ -1755,11 +1626,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingPlatformTeamsAreAssignedToExercise() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -1778,11 +1646,8 @@ class InjectImportTest extends IntegrationTest {
       public void contextualTeamsAreRecreatedForExercise() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -1808,11 +1673,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingUsersAreAssignedToExercise() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (User expected : userComposer.generatedItems) {
@@ -1833,11 +1695,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingOrganisationsAreAssignedToExercise() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Organization expected : organizationComposer.generatedItems) {
@@ -1869,11 +1728,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingTagsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Tag expected : tagComposer.generatedItems) {
@@ -1895,11 +1751,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingDocumentsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SIMULATION, destinationExerciseWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Document expected : documentComposer.generatedItems) {
@@ -1932,11 +1785,8 @@ class InjectImportTest extends IntegrationTest {
       public void allInjectsWereAppendedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
 
         for (Inject expected : injectComposer.generatedItems) {
           Scenario dest =
@@ -1970,11 +1820,8 @@ class InjectImportTest extends IntegrationTest {
       public void createNewArticlesAnyway() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Article expected : articleComposer.generatedItems) {
@@ -2004,11 +1851,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingChannelsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Channel expected : channelComposer.generatedItems) {
@@ -2029,11 +1873,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingChallengesAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Challenge expected : challengeComposer.generatedItems) {
@@ -2053,11 +1894,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingPayloadsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Payload expected : payloadComposer.generatedItems) {
@@ -2081,11 +1919,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingPlatformTeamsAreAssignedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -2104,11 +1939,8 @@ class InjectImportTest extends IntegrationTest {
       public void contextualTeamsAreRecreatedForScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -2134,11 +1966,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingUsersAreAssignedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (User expected : userComposer.generatedItems) {
@@ -2159,11 +1988,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingOrganisationsAreAssignedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Organization expected : organizationComposer.generatedItems) {
@@ -2195,11 +2021,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingTagsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Tag expected : tagComposer.generatedItems) {
@@ -2221,11 +2044,8 @@ class InjectImportTest extends IntegrationTest {
       public void existingDocumentsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
-        InjectImportInput input =
-            createTargetInput(
-                InjectImportTargetType.SCENARIO, destinationScenarioWrapper.get().getId());
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
+            .andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Document expected : documentComposer.generatedItems) {
@@ -2252,9 +2072,8 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Each inject is added to its own atomic testing")
       public void eachInjectWasAddedToAtomicTesting() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
 
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
 
         for (Inject expected : injectComposer.generatedItems) {
           Optional<Inject> reused =
@@ -2285,9 +2104,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Create new articles anyway")
       public void createNewArticlesAnyway() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Article expected : articleComposer.generatedItems) {
@@ -2314,9 +2131,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing channels are reused")
       public void existingChannelsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Channel expected : channelComposer.generatedItems) {
@@ -2334,9 +2149,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing challenges are reused")
       public void existingChallengesAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Challenge expected : challengeComposer.generatedItems) {
@@ -2354,9 +2167,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing payloads are reused")
       public void existingPayloadsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Payload expected : payloadComposer.generatedItems) {
@@ -2377,9 +2188,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing platform teams are assigned to atomic testing")
       public void existingPlatformTeamsAreAssignedToAtomicTesting() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -2398,9 +2207,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Contextual teams are not recreated for atomic testing")
       public void contextualTeamsAreNotRecreatedForAtomicTesting() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Team expected :
@@ -2419,9 +2226,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing users are assigned to atomic testing")
       public void existingUsersAreAssignedToAtomicTesting() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (User expected :
@@ -2443,9 +2248,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing organisations are assigned to atomic testing")
       public void existingOrganisationsAreAssignedToAtomicTesting() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Organization expected : organizationComposer.generatedItems) {
@@ -2474,9 +2277,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing tags are reused")
       public void existingTagsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Tag expected : tagComposer.generatedItems) {
@@ -2495,9 +2296,7 @@ class InjectImportTest extends IntegrationTest {
       @DisplayName("Existing documents are reused")
       public void existingDocumentsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
-        InjectImportInput input = createTargetInput(InjectImportTargetType.ATOMIC_TESTING, null);
-
-        doImport(exportData, input).andExpect(status().is2xxSuccessful());
+        doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();
 
         for (Document expected : documentComposer.generatedItems) {

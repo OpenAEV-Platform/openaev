@@ -15,7 +15,10 @@ import {
 } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/simulation-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import { importInjects, searchExerciseInjectsSimple } from '../../../../actions/injects/inject-action';
+import {
+  importInjectsForSimulation,
+  searchExerciseInjectsSimple,
+} from '../../../../actions/injects/inject-action';
 import { type Page } from '../../../../components/common/queryable/Page';
 import {
   type Exercise,
@@ -76,12 +79,7 @@ const injectContextForExercise = (exercise: Exercise) => {
       return dispatch(deleteInjectForExercise(exercise.exercise_id, injectId));
     },
     onImportInjectFromJson(file: File): Promise<void> {
-      return importInjects(file, {
-        target: {
-          type: 'SIMULATION',
-          id: exercise.exercise_id,
-        },
-      }).then(response => new Promise((resolve, _reject) => {
+      return importInjectsForSimulation(exercise.exercise_id, file).then(response => new Promise((resolve, _reject) => {
         dispatch(fetchExerciseInjects(exercise.exercise_id));
         dispatch(fetchExercise(exercise.exercise_id));
         dispatch(fetchExerciseTeams(exercise.exercise_id));

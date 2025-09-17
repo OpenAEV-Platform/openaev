@@ -77,15 +77,10 @@ public class PermissionService {
     // for inject/article the permission will be based on the parent's (scenario/simulation/test)
     // permission
     if (RESOURCES_USING_PARENT_PERMISSION.contains(resourceType)) {
-      // Inject import fall back to MANAGE_ASSESSMENT
-      if (resourceType == ResourceType.INJECT && Action.CREATE.equals(action)) {
-        return user.getCapabilities().contains(Capability.MANAGE_ASSESSMENT);
-      } else {
-        Target parentTarget = resolveTarget(resourceId, resourceType, action);
-        resourceId = parentTarget.resourceId;
-        resourceType = parentTarget.resourceType;
-        action = parentTarget.action;
-      }
+      Target parentTarget = resolveTarget(resourceId, resourceType, action);
+      resourceId = parentTarget.resourceId;
+      resourceType = parentTarget.resourceType;
+      action = parentTarget.action;
     }
 
     // if resource is grantable then the search api is open as it will be filtered in the code

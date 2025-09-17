@@ -20,7 +20,6 @@ import io.openbas.rest.atomic_testing.form.InjectStatusOutput;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exception.ElementNotFoundException;
-import io.openbas.rest.exception.UnprocessableContentException;
 import io.openbas.rest.exercise.exports.ExportOptions;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.inject.form.*;
@@ -45,7 +44,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -55,11 +53,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -287,32 +283,6 @@ public class InjectApi extends RestBehavior {
       throw new BadRequestException(String.format("Invalid target type %s", targetType));
     }
     return targetService.getTargetOptionsByIds(injectTargetTypeEnum, ids);
-  }
-
-  @PostMapping(
-      path = INJECT_URI + "/import",
-      consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECT)
-  public void injectsImport(
-      @RequestPart("file") MultipartFile file,
-      @RequestPart("input") InjectImportInput input,
-      HttpServletResponse response)
-      throws Exception {
-    // find target
-    if (input == null || input.getTarget() == null) {
-      throw new UnprocessableContentException("Insufficient input: target must not be null");
-    }
-    if (!List.of(InjectImportTargetType.values()).contains(input.getTarget().getType())) {
-      throw new UnprocessableContentException(
-          "Invalid target type: must be one of %s"
-              .formatted(
-                  String.join(
-                      ", ",
-                      Arrays.stream(InjectImportTargetType.values())
-                          .map(Enum::toString)
-                          .toList())));
-    }
-    this.injectImportService.importInjects(file, input);
   }
 
   @PostMapping(INJECT_URI + "/execution/reception/{injectId}")
