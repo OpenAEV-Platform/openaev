@@ -128,8 +128,7 @@ class StixApiTest extends IntegrationTest {
         assetGroupComposer
             .forAssetGroup(
                 AssetGroupFixture.createAssetGroupWithAssets(
-                    "Complete",
-                    new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
+                    "Complete", new ArrayList<>(Arrays.asList(hostname, seenIp, localIp))))
             .persist();
 
     CveComposer.Composer cveComposer =
@@ -461,8 +460,7 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "Should create scenario with 1 injects with 3 assets")
+    @DisplayName("Should create scenario with 1 injects with 3 assets")
     void shouldCreateScenarioWithOneInjectWithThreeEndpoints() throws Exception {
       tagRuleComposer
           .forTagRule(new TagRule())
