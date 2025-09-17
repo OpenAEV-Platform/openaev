@@ -18,6 +18,7 @@ import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
+import GettingStartedRoutes from './components/getting_started/GettingStartedRoutes';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
@@ -205,6 +206,7 @@ const Index = () => {
               )}
             />
             <Route path="agents/*" element={errorWrapper(IndexAgents)()} />
+            {GettingStartedRoutes}
             <Route
               path="settings/*"
               element={errorWrapper(IndexSettings)()}
