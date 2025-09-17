@@ -1,5 +1,16 @@
 package io.openbas.rest.scenario;
 
+import static io.openbas.database.model.Filters.FilterOperator.contains;
+import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.InjectFixture.getInjectForEmailContract;
+import static io.openbas.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Inject;
 import io.openbas.database.model.InjectorContract;
@@ -11,24 +22,12 @@ import io.openbas.utils.fixtures.PaginationFixture;
 import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.openbas.utils.pagination.SortField;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static io.openbas.database.model.Filters.FilterOperator.contains;
-import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
-import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.InjectFixture.getInjectForEmailContract;
-import static io.openbas.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 public class ScenarioInjectApiSearchTest extends IntegrationTest {

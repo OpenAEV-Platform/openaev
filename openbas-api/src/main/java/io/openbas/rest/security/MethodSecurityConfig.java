@@ -18,8 +18,6 @@ public class MethodSecurityConfig {
 
   @Bean
   MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-    return new SecurityExpressionHandler(
-        this.userRepository,
-      this.exerciseRepository);
+    return new SecurityExpressionHandler(this.userRepository, this.exerciseRepository);
   }
 }

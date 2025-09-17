@@ -2,6 +2,7 @@ package io.openbas.rest.security;
 
 import io.openbas.database.repository.ExerciseRepository;
 import io.openbas.database.repository.UserRepository;
+import java.util.function.Supplier;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
@@ -13,8 +14,6 @@ import org.springframework.security.authentication.AuthenticationTrustResolver;
 import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.function.Supplier;
 
 public class SecurityExpressionHandler extends DefaultMethodSecurityExpressionHandler {
 
@@ -41,8 +40,7 @@ public class SecurityExpressionHandler extends DefaultMethodSecurityExpressionHa
   }
 
   public SecurityExpressionHandler(
-      final UserRepository userRepository,
-      final ExerciseRepository exerciseRepository) {
+      final UserRepository userRepository, final ExerciseRepository exerciseRepository) {
     this.userRepository = userRepository;
     this.exerciseRepository = exerciseRepository;
   }
@@ -55,10 +53,7 @@ public class SecurityExpressionHandler extends DefaultMethodSecurityExpressionHa
       AuthenticationTrustResolver trustResolver,
       RoleHierarchy roleHierarchy) {
     SecurityExpression se =
-        new SecurityExpression(
-            authentication,
-            userRepository,
-          exerciseRepository);
+        new SecurityExpression(authentication, userRepository, exerciseRepository);
     se.setPermissionEvaluator(permissionEvaluator);
     se.setTrustResolver(trustResolver);
     se.setRoleHierarchy(roleHierarchy);

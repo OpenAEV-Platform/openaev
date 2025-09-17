@@ -1,11 +1,21 @@
 package io.openbas.rest;
 
+import static io.openbas.rest.asset.security_platforms.SecurityPlatformApi.SECURITY_PLATFORM_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.SecurityPlatform;
 import io.openbas.database.repository.SecurityPlatformRepository;
 import io.openbas.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,17 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static io.openbas.rest.asset.security_platforms.SecurityPlatformApi.SECURITY_PLATFORM_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 @TestInstance(PER_CLASS)
 @Transactional

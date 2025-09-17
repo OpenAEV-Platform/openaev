@@ -1,5 +1,7 @@
 package io.openbas.service;
 
+import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
+
 import io.openbas.database.model.*;
 import io.openbas.database.repository.NotificationRuleRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
@@ -8,17 +10,14 @@ import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
-import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service

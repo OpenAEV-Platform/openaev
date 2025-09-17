@@ -6,12 +6,11 @@ import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.inject.service.InjectStatusService;
 import io.openbas.rest.injector_contract.InjectorContractService;
 import jakarta.validation.constraints.NotNull;
+import java.util.EnumSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.EnumSet;
-import java.util.Set;
 
 @RequiredArgsConstructor
 @Service

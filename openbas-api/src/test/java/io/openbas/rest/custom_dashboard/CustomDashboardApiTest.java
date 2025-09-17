@@ -1,23 +1,5 @@
 package io.openbas.rest.custom_dashboard;
 
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.CustomDashboard;
-import io.openbas.database.model.Setting;
-import io.openbas.database.repository.CustomDashboardRepository;
-import io.openbas.database.repository.SettingRepository;
-import io.openbas.rest.custom_dashboard.form.CustomDashboardInput;
-import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
-import io.openbas.utils.mockUser.WithMockUser;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
-
 import static io.openbas.database.model.SettingKeys.*;
 import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
@@ -28,6 +10,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.CustomDashboard;
+import io.openbas.database.model.Setting;
+import io.openbas.database.repository.CustomDashboardRepository;
+import io.openbas.database.repository.SettingRepository;
+import io.openbas.rest.custom_dashboard.form.CustomDashboardInput;
+import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
+import io.openbas.utils.mockUser.WithMockUser;
+import java.util.Optional;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 class CustomDashboardApiTest extends IntegrationTest {

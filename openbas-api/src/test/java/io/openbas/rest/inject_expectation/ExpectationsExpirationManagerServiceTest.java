@@ -16,13 +16,12 @@ import io.openbas.model.Expectation;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.mockUser.WithMockUser;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.util.List;
-import java.util.Map;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(MockitoExtension.class)

@@ -9,6 +9,7 @@ import static io.openbas.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openbas.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static io.openbas.utils.fixtures.ExpectationFixture.*;
+import static io.openbas.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 import static io.openbas.utils.fixtures.InjectExpectationFixture.getInjectExpectationUpdateInput;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,8 +40,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static io.openbas.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 
 @TestInstance(PER_CLASS)
 class ExpectationApiTest extends IntegrationTest {

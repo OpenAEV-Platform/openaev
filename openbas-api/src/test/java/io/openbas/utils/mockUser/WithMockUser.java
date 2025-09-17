@@ -1,7 +1,6 @@
 package io.openbas.utils.mockUser;
 
 import io.openbas.database.model.Capability;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

@@ -1,23 +1,5 @@
 package io.openbas.rest;
 
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.Document;
-import io.openbas.database.model.Payload;
-import io.openbas.database.repository.DocumentRepository;
-import io.openbas.database.repository.PayloadRepository;
-import io.openbas.utils.fixtures.DocumentFixture;
-import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockUser;
-import io.openbas.utils.pagination.SearchPaginationInput;
-import io.openbas.utils.pagination.SortField;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static io.openbas.database.model.Endpoint.PLATFORM_ARCH.arm64;
 import static io.openbas.database.model.Endpoint.PLATFORM_TYPE.Linux;
 import static io.openbas.database.model.Filters.FilterOperator.contains;
@@ -30,6 +12,23 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.Document;
+import io.openbas.database.model.Payload;
+import io.openbas.database.repository.DocumentRepository;
+import io.openbas.database.repository.PayloadRepository;
+import io.openbas.utils.fixtures.DocumentFixture;
+import io.openbas.utils.fixtures.PaginationFixture;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
+import io.openbas.utils.pagination.SortField;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 public class PayloadApiSearchTest extends IntegrationTest {

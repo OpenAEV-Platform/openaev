@@ -1,20 +1,19 @@
 package io.openbas.rest.security;
 
+import static io.openbas.database.model.User.ROLE_ADMIN;
+
 import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.Exercise;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.ExerciseRepository;
 import io.openbas.database.repository.UserRepository;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.security.access.expression.SecurityExpressionRoot;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionOperations;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.List;
-import java.util.Optional;
-
-import static io.openbas.database.model.User.ROLE_ADMIN;
 
 public class SecurityExpression extends SecurityExpressionRoot
     implements MethodSecurityExpressionOperations {

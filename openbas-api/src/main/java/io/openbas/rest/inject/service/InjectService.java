@@ -56,6 +56,13 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -68,17 +75,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openbas.database.model.ExecutionStatus.*;
 
 @RequiredArgsConstructor
 @Service
@@ -1127,34 +1123,30 @@ public class InjectService {
 
       // Case A: atomic inject (no parents) AND inject.id is in atomic grants
       Predicate atomicAccessible =
-        cb.and(bothParentsNull, root.get("id").in(accessibleAtomicTestings));
+          cb.and(bothParentsNull, root.get("id").in(accessibleAtomicTestings));
 
       // Case B: inject linked to scenario -> scenario.id must be in scenario grants
       Predicate scenarioPresentAndAccessible =
-        cb.and(cb.isNotNull(scenarioIdPath), scenarioIdPath.in(accessibleScenarios));
+          cb.and(cb.isNotNull(scenarioIdPath), scenarioIdPath.in(accessibleScenarios));
 
       // Case C: inject linked to exercise/simulation -> exercise.id must be in simulation grants
       Predicate exercisePresentAndAccessible =
-        cb.and(cb.isNotNull(exerciseIdPath), exerciseIdPath.in(accessibleSimulations));
+          cb.and(cb.isNotNull(exerciseIdPath), exerciseIdPath.in(accessibleSimulations));
 
       return cb.or(
-        // Case 1: atomic test (no parents, direct grant required)
-        cb.and(
-          cb.isNull(root.get("scenario")),
-          cb.isNull(root.get("exercise")),
-          root.get("id").in(accessibleAtomicTestings)
-        ),
-        // Case 2: linked to a scenario, and user has access
-        cb.and(
-          cb.isNotNull(root.get("scenario")),
-          root.get("scenario").get("id").in(accessibleScenarios)
-        ),
-        // Case 3: linked to a simulation, and user has access
-        cb.and(
-          cb.isNotNull(root.get("exercise")),
-          root.get("exercise").get("id").in(accessibleSimulations)
-        )
-      );
+          // Case 1: atomic test (no parents, direct grant required)
+          cb.and(
+              cb.isNull(root.get("scenario")),
+              cb.isNull(root.get("exercise")),
+              root.get("id").in(accessibleAtomicTestings)),
+          // Case 2: linked to a scenario, and user has access
+          cb.and(
+              cb.isNotNull(root.get("scenario")),
+              root.get("scenario").get("id").in(accessibleScenarios)),
+          // Case 3: linked to a simulation, and user has access
+          cb.and(
+              cb.isNotNull(root.get("exercise")),
+              root.get("exercise").get("id").in(accessibleSimulations)));
     };
   }
 

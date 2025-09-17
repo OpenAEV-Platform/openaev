@@ -1,5 +1,7 @@
 package io.openbas.utils.mockUser;
 
+import static io.openbas.service.UserService.buildAuthenticationToken;
+
 import io.openbas.database.model.User;
 import io.openbas.utils.fixtures.GroupFixture;
 import io.openbas.utils.fixtures.RoleFixture;
@@ -8,16 +10,13 @@ import io.openbas.utils.fixtures.composers.GrantComposer;
 import io.openbas.utils.fixtures.composers.GroupComposer;
 import io.openbas.utils.fixtures.composers.RoleComposer;
 import io.openbas.utils.fixtures.composers.UserComposer;
+import java.util.Set;
+import java.util.UUID;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.TestContext;
 import org.springframework.test.context.support.AbstractTestExecutionListener;
-
-import java.util.Set;
-import java.util.UUID;
-
-import static io.openbas.service.UserService.buildAuthenticationToken;
 
 public class WithMockUserTestExecutionListener extends AbstractTestExecutionListener {
 
@@ -35,21 +34,30 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
     TestUserHolder testUserHolder = ctx.getBean(TestUserHolder.class);
 
     // Build user from annotation
-    String userFirstName = annotation.userFirstName().isEmpty() ? UUID.randomUUID().toString() : annotation.userFirstName();
-    String userLastName = annotation.userLastName().isEmpty() ? UUID.randomUUID().toString() : annotation.userLastName();
-    String userMail = annotation.userMail().isEmpty() ? UUID.randomUUID() + "@unittests.invalid" : annotation.userMail();
-    User testUser = userComposer
-      .forUser(UserFixture.getUser(userFirstName, userLastName, userMail, annotation.isAdmin()))
-      .withGroup(
-        groupComposer.forGroup(GroupFixture.createGroup())
-          .withRole(
-            roleComposer.forRole(
-              RoleFixture.getRole(Set.of(annotation.withCapabilities()))
-            )
-          )
-      )
-      .persist()
-      .get();
+    String userFirstName =
+        annotation.userFirstName().isEmpty()
+            ? UUID.randomUUID().toString()
+            : annotation.userFirstName();
+    String userLastName =
+        annotation.userLastName().isEmpty()
+            ? UUID.randomUUID().toString()
+            : annotation.userLastName();
+    String userMail =
+        annotation.userMail().isEmpty()
+            ? UUID.randomUUID() + "@unittests.invalid"
+            : annotation.userMail();
+    User testUser =
+        userComposer
+            .forUser(
+                UserFixture.getUser(userFirstName, userLastName, userMail, annotation.isAdmin()))
+            .withGroup(
+                groupComposer
+                    .forGroup(GroupFixture.createGroup())
+                    .withRole(
+                        roleComposer.forRole(
+                            RoleFixture.getRole(Set.of(annotation.withCapabilities())))))
+            .persist()
+            .get();
     userComposer.reset(); // reset to avoid side effects in following tests
 
     testUserHolder.set(testUser);
@@ -77,7 +85,7 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
   private WithMockUser findWithMockUserAnnotation(TestContext testContext) {
     // 1. Check method first
     WithMockUser annotation =
-      AnnotatedElementUtils.findMergedAnnotation(testContext.getTestMethod(), WithMockUser.class);
+        AnnotatedElementUtils.findMergedAnnotation(testContext.getTestMethod(), WithMockUser.class);
     if (annotation != null) {
       return annotation;
     }

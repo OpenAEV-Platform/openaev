@@ -1,5 +1,8 @@
 package io.openbas.rest.inject;
 
+import static io.openbas.config.SessionHelper.currentUser;
+import static io.openbas.helper.StreamHelper.fromIterable;
+
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.lock.Lock;
@@ -40,6 +43,11 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -52,15 +60,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import static io.openbas.config.SessionHelper.currentUser;
-import static io.openbas.helper.StreamHelper.fromIterable;
 
 @Slf4j
 @RestController
@@ -132,7 +131,7 @@ public class InjectApi extends RestBehavior {
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),
                         currentUser.isAdminOrBypass(),
-                      currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                         Grant.GRANT_TYPE.OBSERVER)));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =

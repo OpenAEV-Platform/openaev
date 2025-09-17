@@ -1,5 +1,11 @@
 package io.openbas.rest.notification_rule;
 
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
@@ -18,12 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @TestInstance(PER_CLASS)
@@ -110,7 +110,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @Transactional
   void updateNotificationRule() throws Exception {
-    NotificationRule notificationRule = createNotificationRuleInDb("resourceid", testUserHolder.get());
+    NotificationRule notificationRule =
+        createNotificationRuleInDb("resourceid", testUserHolder.get());
 
     String updatedSubject = "updated Subject";
     UpdateNotificationRuleInput updatedInput =
@@ -182,7 +183,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @Transactional
   void findNotificationRule() throws Exception {
-    NotificationRule notificationRule = createNotificationRuleInDb("resourceid", testUserHolder.get());
+    NotificationRule notificationRule =
+        createNotificationRuleInDb("resourceid", testUserHolder.get());
 
     String response =
         mvc.perform(
@@ -212,7 +214,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
   @Transactional
   void findNotificationRuleByResource() throws Exception {
 
-    NotificationRule notificationRule = createNotificationRuleInDb("resourceid", testUserHolder.get());
+    NotificationRule notificationRule =
+        createNotificationRuleInDb("resourceid", testUserHolder.get());
 
     String response =
         mvc.perform(

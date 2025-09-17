@@ -27,15 +27,15 @@ import io.openbas.rest.injector_contract.form.InjectorContractUpdateMappingInput
 import io.openbas.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openbas.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openbas.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.CveFixture;
 import io.openbas.utils.fixtures.InjectorContractFixture;
 import io.openbas.utils.fixtures.InjectorFixture;
 import io.openbas.utils.fixtures.PaginationFixture;
+import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.composers.CveComposer;
 import io.openbas.utils.fixtures.composers.InjectorContractComposer;
-import io.openbas.utils.fixtures.*;
-import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;

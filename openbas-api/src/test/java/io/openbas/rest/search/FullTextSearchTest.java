@@ -1,5 +1,15 @@
 package io.openbas.rest.search;
 
+import static io.openbas.search.FullTextSearchApi.GLOBAL_SEARCH_URI;
+import static io.openbas.service.UserService.buildAuthenticationToken;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
@@ -14,6 +24,11 @@ import io.openbas.utils.fixtures.composers.RoleComposer;
 import io.openbas.utils.fixtures.composers.UserComposer;
 import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,22 +42,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import static io.openbas.search.FullTextSearchApi.GLOBAL_SEARCH_URI;
-import static io.openbas.service.UserService.buildAuthenticationToken;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
 @TestInstance(PER_CLASS)
@@ -218,13 +217,16 @@ public class FullTextSearchTest extends IntegrationTest {
     SearchPaginationInput searchPaginationInput =
         PaginationFixture.getDefault().textSearch(searchTerm).build();
 
-    grants.forEach(grant -> addGrantToCurrentUser(grant.getGrantResourceType(), grant.getName(), grant.getResourceId()));
+    grants.forEach(
+        grant ->
+            addGrantToCurrentUser(
+                grant.getGrantResourceType(), grant.getName(), grant.getResourceId()));
 
     // -- EXECUTE --
     mvc.perform(
             post(GLOBAL_SEARCH_URI + "/" + Scenario.class.getName())
                 .contentType(MediaType.APPLICATION_JSON)
-              .content(asJsonString(searchPaginationInput)))
+                .content(asJsonString(searchPaginationInput)))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.content.size()").value(expectedCount))
         .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(expectedIds.toArray())));

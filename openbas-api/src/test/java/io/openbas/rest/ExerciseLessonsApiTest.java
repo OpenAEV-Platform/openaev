@@ -1,5 +1,15 @@
 package io.openbas.rest;
 
+import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.ExerciseFixture.getExercise;
+import static io.openbas.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
+import static io.openbas.utils.fixtures.TeamFixture.getTeam;
+import static io.openbas.utils.fixtures.UserFixture.getUser;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Exercise;
 import io.openbas.database.model.LessonsCategory;
@@ -13,6 +23,7 @@ import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.lessons.form.LessonsSendInput;
 import io.openbas.service.MailingService;
 import io.openbas.utils.mockUser.WithMockUser;
+import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,18 +31,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
-
-import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.ExerciseFixture.getExercise;
-import static io.openbas.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
-import static io.openbas.utils.fixtures.TeamFixture.getTeam;
-import static io.openbas.utils.fixtures.UserFixture.getUser;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc

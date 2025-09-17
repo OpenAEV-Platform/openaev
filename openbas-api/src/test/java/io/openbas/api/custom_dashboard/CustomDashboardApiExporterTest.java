@@ -1,21 +1,5 @@
 package io.openbas.api.custom_dashboard;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openbas.IntegrationTest;
-import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
-import io.openbas.utils.fixtures.composers.CustomDashboardParameterComposer;
-import io.openbas.utils.fixtures.composers.WidgetComposer;
-import io.openbas.utils.mockUser.WithMockUser;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
-import java.util.stream.StreamSupport;
-
 import static io.openbas.database.model.CustomDashboardParameters.CustomDashboardParameterType.simulation;
 import static io.openbas.engine.api.WidgetType.VERTICAL_BAR_CHART;
 import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
@@ -28,6 +12,21 @@ import static io.openbas.utilstest.ZipUtils.extractAllFilesFromZip;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openbas.IntegrationTest;
+import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
+import io.openbas.utils.fixtures.composers.CustomDashboardParameterComposer;
+import io.openbas.utils.fixtures.composers.WidgetComposer;
+import io.openbas.utils.mockUser.WithMockUser;
+import java.util.Map;
+import java.util.stream.StreamSupport;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockUser(isAdmin = true)

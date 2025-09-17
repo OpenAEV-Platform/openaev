@@ -18,19 +18,16 @@ import org.springframework.test.context.TestExecutionListeners;
 @AutoConfigureMockMvc(print = MockMvcPrint.SYSTEM_ERR)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestExecutionListeners(
-  value = {StartupSnapshotTestListener.class, WithMockUserTestExecutionListener.class},
-  mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS
-)
+    value = {StartupSnapshotTestListener.class, WithMockUserTestExecutionListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public abstract class IntegrationTest {
 
-  @Autowired
-  GrantComposer grantComposer;
-  @Autowired
-  protected TestUserHolder testUserHolder;
-  @Autowired
-  protected EntityManager entityManager;
+  @Autowired GrantComposer grantComposer;
+  @Autowired protected TestUserHolder testUserHolder;
+  @Autowired protected EntityManager entityManager;
 
-  public void addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE grantResourceType, Grant.GRANT_TYPE grantType, String resourceId) {
+  public void addGrantToCurrentUser(
+      Grant.GRANT_RESOURCE_TYPE grantResourceType, Grant.GRANT_TYPE grantType, String resourceId) {
     User user = testUserHolder.get();
     Group group = user.getGroups().getFirst();
 

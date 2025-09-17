@@ -1,5 +1,14 @@
 package io.openbas.rest.dashboard;
 
+import static io.openbas.database.model.CustomDashboardParameters.CustomDashboardParameterType.timeRange;
+import static io.openbas.rest.dashboard.DashboardApi.DASHBOARD_URI;
+import static io.openbas.utils.CustomDashboardTimeRange.LAST_QUARTER;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.CustomDashboardParameters;
@@ -20,11 +29,6 @@ import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -32,15 +36,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static io.openbas.database.model.CustomDashboardParameters.CustomDashboardParameterType.timeRange;
-import static io.openbas.rest.dashboard.DashboardApi.DASHBOARD_URI;
-import static io.openbas.utils.CustomDashboardTimeRange.LAST_QUARTER;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 @Transactional
 @WithMockUser(isAdmin = true)

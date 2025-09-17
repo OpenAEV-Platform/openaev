@@ -3,14 +3,13 @@ package io.openbas.database.specification;
 import io.openbas.database.model.*;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiFunction;
 
 public class SpecificationUtils {
 
@@ -102,7 +101,7 @@ public class SpecificationUtils {
       accessibleResources.where(
           cb.and(
               cb.equal(userTable.get("id"), userId),
-            grantTable.get("grantResourceType").in(resourceTypes),
+              grantTable.get("grantResourceType").in(resourceTypes),
               grantTable.get("name").in(allowedGrantTypes)));
 
       // Special handling for Inject: check its own id OR its scenario.id OR its exercise.id

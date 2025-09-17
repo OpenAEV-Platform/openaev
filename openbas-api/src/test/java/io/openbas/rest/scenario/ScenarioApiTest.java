@@ -1,5 +1,14 @@
 package io.openbas.rest.scenario;
 
+import static io.openbas.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
+import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
@@ -16,24 +25,14 @@ import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static io.openbas.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
-import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
@@ -162,7 +161,8 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void retrieveScenariosTest() throws Exception {
     // -- PREPARE --
-    Scenario testScenario = scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     // -- EXECUTE --
     String response =
@@ -183,12 +183,14 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void retrieveScenarioTest() throws Exception {
     // -- PREPARE --
-    Scenario testScenario = scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     // -- EXECUTE --
     String response =
         this.mvc
-          .perform(get(SCENARIO_URI + "/" + testScenario.getId()).accept(MediaType.APPLICATION_JSON))
+            .perform(
+                get(SCENARIO_URI + "/" + testScenario.getId()).accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -203,7 +205,8 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void updateScenarioTest() throws Exception {
     // -- PREPARE --
-    Scenario testScenario = scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     ScenarioInput scenarioInput = new ScenarioInput();
     String subtitle = "A subtitle";
@@ -215,7 +218,7 @@ public class ScenarioApiTest extends IntegrationTest {
     String response =
         this.mvc
             .perform(
-              put(SCENARIO_URI + "/" + testScenario.getId())
+                put(SCENARIO_URI + "/" + testScenario.getId())
                     .content(asJsonString(scenarioInput))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON))
@@ -234,11 +237,12 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
   void deleteScenarioTest() throws Exception {
     // -- PREPARE --
-    Scenario testScenario = scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     // -- EXECUTE 1 ASSERT --
     this.mvc
-      .perform(delete(SCENARIO_URI + "/" + testScenario.getId()))
+        .perform(delete(SCENARIO_URI + "/" + testScenario.getId()))
         .andExpect(status().is2xxSuccessful());
   }
 

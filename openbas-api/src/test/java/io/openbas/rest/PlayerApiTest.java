@@ -1,5 +1,14 @@
 package io.openbas.rest;
 
+import static io.openbas.config.AppConfig.EMAIL_FORMAT;
+import static io.openbas.rest.user.PlayerApi.PLAYER_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Capability;
@@ -15,6 +24,7 @@ import io.openbas.utils.fixtures.PlayerFixture;
 import io.openbas.utils.fixtures.TagFixture;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -23,17 +33,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-import static io.openbas.config.AppConfig.EMAIL_FORMAT;
-import static io.openbas.rest.user.PlayerApi.PLAYER_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional

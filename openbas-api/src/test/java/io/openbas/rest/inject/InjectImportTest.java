@@ -1,5 +1,15 @@
 package io.openbas.rest.inject;
 
+import static io.openbas.helper.StreamHelper.fromIterable;
+import static io.openbas.rest.inject.InjectApi.INJECT_URI;
+import static io.openbas.utils.fixtures.PayloadFixture.createDetectionRemediation;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.IntegrationTest;
@@ -22,6 +32,9 @@ import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.helpers.TagHelper;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -31,20 +44,6 @@ import org.springframework.mock.web.MockPart;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Stream;
-
-import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.rest.inject.InjectApi.INJECT_URI;
-import static io.openbas.utils.fixtures.PayloadFixture.createDetectionRemediation;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
 @TestInstance(PER_CLASS)

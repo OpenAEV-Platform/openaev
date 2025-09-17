@@ -1,5 +1,16 @@
 package io.openbas.rest.inject;
 
+import static io.openbas.rest.inject.InjectApi.INJECT_URI;
+import static io.openbas.service.UserService.buildAuthenticationToken;
+import static io.openbas.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
@@ -14,6 +25,12 @@ import io.openbas.utils.helpers.GrantHelper;
 import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,24 +40,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import static io.openbas.rest.inject.InjectApi.INJECT_URI;
-import static io.openbas.service.UserService.buildAuthenticationToken;
-import static io.openbas.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -403,7 +402,10 @@ public class InjectExportTest extends IntegrationTest {
               .filter(wrapper -> wrapper.get().getScenario() != null)
               .findAny()
               .get();
-      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.OBSERVER, injectWithScenario.get().getScenario().getId());
+      addGrantToCurrentUser(
+          Grant.GRANT_RESOURCE_TYPE.SCENARIO,
+          Grant.GRANT_TYPE.OBSERVER,
+          injectWithScenario.get().getScenario().getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -567,7 +569,9 @@ public class InjectExportTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        assertThatJson(not_found_response).node("message").isEqualTo("Element not found: No injects to export");
+        assertThatJson(not_found_response)
+            .node("message")
+            .isEqualTo("Element not found: No injects to export");
       }
 
       @Test

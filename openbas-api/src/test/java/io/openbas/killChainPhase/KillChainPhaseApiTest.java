@@ -1,30 +1,5 @@
 package io.openbas.killChainPhase;
 
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.KillChainPhase;
-import io.openbas.database.repository.KillChainPhaseRepository;
-import io.openbas.database.specification.KillChainPhaseSpecification;
-import io.openbas.rest.kill_chain_phase.KillChainPhaseApi;
-import io.openbas.utils.FilterUtilsJpa;
-import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockUser;
-import io.openbas.utils.pagination.SearchPaginationInput;
-import io.openbas.utils.pagination.SortField;
-import org.junit.jupiter.api.*;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import static io.openbas.database.model.Filters.FilterOperator.contains;
 import static io.openbas.database.model.Filters.FilterOperator.eq;
 import static io.openbas.database.specification.KillChainPhaseSpecification.byName;
@@ -37,6 +12,30 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.KillChainPhase;
+import io.openbas.database.repository.KillChainPhaseRepository;
+import io.openbas.database.specification.KillChainPhaseSpecification;
+import io.openbas.rest.kill_chain_phase.KillChainPhaseApi;
+import io.openbas.utils.FilterUtilsJpa;
+import io.openbas.utils.fixtures.PaginationFixture;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
+import io.openbas.utils.pagination.SortField;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.junit.jupiter.api.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 public class KillChainPhaseApiTest extends IntegrationTest {

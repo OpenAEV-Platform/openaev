@@ -1,21 +1,5 @@
 package io.openbas.rest.asset_group;
 
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.AssetGroup;
-import io.openbas.database.repository.AssetGroupRepository;
-import io.openbas.utils.fixtures.AssetGroupFixture;
-import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockUser;
-import io.openbas.utils.pagination.SearchPaginationInput;
-import io.openbas.utils.pagination.SortField;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static io.openbas.database.model.Filters.FilterOperator.contains;
 import static io.openbas.database.model.Filters.FilterOperator.not_contains;
 import static io.openbas.rest.asset_group.AssetGroupApi.ASSET_GROUP_URI;
@@ -25,6 +9,21 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.AssetGroup;
+import io.openbas.database.repository.AssetGroupRepository;
+import io.openbas.utils.fixtures.AssetGroupFixture;
+import io.openbas.utils.fixtures.PaginationFixture;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
+import io.openbas.utils.pagination.SortField;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 public class AssetGroupApiSearchTest extends IntegrationTest {
