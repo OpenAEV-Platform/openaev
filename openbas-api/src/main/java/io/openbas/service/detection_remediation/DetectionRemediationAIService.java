@@ -68,16 +68,6 @@ public class DetectionRemediationAIService {
         CLIENT_RULES, request, errorMessage, json, DetectionRemediationCrowdstrikeResponse.class);
   }
 
-  @Operation(summary = "Get the status of the remediation-detection web service")
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Web service status successfully retrieved"),
-        @ApiResponse(
-            responseCode = "503",
-            description = "Web service is not deployed on this instance")
-      })
   public DetectionRemediationHealthResponse checkHealthWebservice() {
     // Check if account has EE licence
     ee.getEncodedCertificate();
