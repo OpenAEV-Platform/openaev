@@ -1,22 +1,5 @@
-import {
-  DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, DomainOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined,
-  OnlinePredictionOutlined,
-  PersonOutlined,
-  RowingOutlined,
-  SchoolOutlined,
-  SettingsOutlined,
-  SmartButtonOutlined,
-  SubscriptionsOutlined,
-  TerminalOutlined,
-} from '@mui/icons-material';
-import {
-  Binoculars,
-  NewspaperVariantMultipleOutline,
-  PostOutline,
-  SecurityNetwork,
-  SelectGroup,
-  Target,
-} from 'mdi-material-ui';
+import { DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, DomainOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined, OnlinePredictionOutlined, PersonOutlined, RocketLaunchOutlined, RowingOutlined, SchoolOutlined, SettingsOutlined, SmartButtonOutlined, SubscriptionsOutlined, TerminalOutlined } from '@mui/icons-material';
+import { Binoculars, NewspaperVariantMultipleOutline, PostOutline, SecurityNetwork, SelectGroup, Target } from 'mdi-material-ui';
 import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
@@ -254,8 +237,21 @@ const LeftBar = () => {
       ],
     },
   ];
+  const bottomEntries = [
+    {
+      userRight: true,
+      items: [
+        {
+          path: `/admin/getting_started`,
+          icon: () => (<RocketLaunchOutlined />),
+          label: 'Getting Started',
+          userRight: true,
+        },
+      ],
+    },
+  ];
   return (
-    <LeftMenu entries={entries} />
+    <LeftMenu entries={entries} bottomEntries={bottomEntries} />
   );
 };
 

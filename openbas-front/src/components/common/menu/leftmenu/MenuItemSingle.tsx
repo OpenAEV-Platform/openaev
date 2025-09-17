@@ -1,11 +1,11 @@
 import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuItem } from './leftmenu-model';
 import StyledTooltip from './StyledTooltip';
+import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
   navOpen: boolean;
@@ -16,7 +16,7 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
   // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
-  const theme = useTheme();
+  const leftMenuStyle = useLeftMenuStyle();
 
   const isCurrentTab = location.pathname === item.path;
   return (
@@ -32,23 +32,13 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
           height: 35,
         }}
       >
-        <ListItemIcon style={{
-          minWidth: 20,
-          color: theme.palette.text.primary,
-        }}
-        >
+        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
           {item.icon()}
         </ListItemIcon>
         {navOpen && (
           <ListItemText
             primary={t(item.label)}
-            sx={{ pl: 1 }}
-            slotProps={{
-              primary: {
-                fontWeight: 500,
-                fontSize: 14,
-              },
-            }}
+            slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
           />
         )}
       </MenuItem>

@@ -6,6 +6,7 @@ import { useFormatter } from '../../../i18n';
 import { type LeftMenuSubItem } from './leftmenu-model';
 import StyledTooltip from './StyledTooltip';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
+import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
   menu: string;
@@ -24,6 +25,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const location = useLocation();
   const theme = useTheme();
+  const leftMenuStyle = useLeftMenuStyle();
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
@@ -42,7 +44,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
         onClick={!navOpen ? handleSelectedMenuClose : undefined}
       >
         {icon && (
-          <ListItemIcon style={{ minWidth: 20 }}>
+          <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
             {icon()}
           </ListItemIcon>
         )}
@@ -50,7 +52,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
           primary={t(label)}
           slotProps={{
             primary: {
-              padding: navOpen ? '1px 0 0 10px' : '1px 0 0 15px',
+              paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
               fontWeight: theme.typography.h4.fontWeight,
               fontSize: theme.typography.h4.fontSize,
             },

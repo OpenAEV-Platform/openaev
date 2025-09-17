@@ -1,6 +1,5 @@
 import { ExpandLessOutlined, ExpandMoreOutlined } from '@mui/icons-material';
 import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { useLocation } from 'react-router';
 
@@ -9,6 +8,7 @@ import { useFormatter } from '../../../i18n';
 import { type LeftMenuItemWithHref } from './leftmenu-model';
 import SubMenu from './MenuItemSub';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
+import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
   item: LeftMenuItemWithHref;
@@ -20,7 +20,7 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
   // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
-  const theme = useTheme();
+  const leftMenuStyle = useLeftMenuStyle();
   const { dimension } = useDimensions();
   const isMobile = dimension.width < 768;
 
@@ -49,24 +49,14 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
         onMouseEnter={() => !navOpen && handleSelectedMenuOpen(item.href)}
         onMouseLeave={() => !navOpen && handleSelectedMenuClose()}
       >
-        <ListItemIcon style={{
-          minWidth: 20,
-          color: theme.palette.text.primary,
-        }}
-        >
+        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
           {item.icon()}
         </ListItemIcon>
         {navOpen && (
           <>
             <ListItemText
               primary={t(item.label)}
-              sx={{ pl: 1 }}
-              slotProps={{
-                primary: {
-                  fontWeight: 500,
-                  fontSize: 14,
-                },
-              }}
+              slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
             />
             {selectedMenu === item.href ? (
               <ExpandLessOutlined />

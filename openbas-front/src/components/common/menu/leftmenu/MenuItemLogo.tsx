@@ -7,6 +7,7 @@ import logoFiligranLight from '../../../../static/images/logo_filigran_light.png
 import logoFiligranTextDark from '../../../../static/images/logo_filigran_text_dark.png';
 import logoFiligranTextLight from '../../../../static/images/logo_filigran_text_light.png';
 import { fileUri } from '../../../../utils/Environment';
+import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
   navOpen: boolean;
@@ -18,18 +19,19 @@ const MenuItemLogo: FunctionComponent<Props> = ({
   onClick,
 }) => {
   // Standard hooks
+  const leftMenuStyle = useLeftMenuStyle();
   const theme = useTheme();
   const { palette } = theme;
   const isDarkMode = palette.mode === 'dark';
 
   return (
     <MenuItem
+      aria-label="Filigran logo menu item"
       dense
       onClick={onClick}
-      aria-label="Filigran logo menu item"
     >
       <Tooltip title="By Filigran">
-        <ListItemIcon style={{ minWidth: 20 }}>
+        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
           <img
             src={fileUri(isDarkMode ? logoFiligranDark : logoFiligranLight)}
             alt="logo"
@@ -39,7 +41,7 @@ const MenuItemLogo: FunctionComponent<Props> = ({
       </Tooltip>
       {navOpen && (
         <ListItemIcon
-          style={{ padding: '4px 0 0 15px' }}
+          style={{ padding: `${theme.spacing(0.5)} 0 0 ${theme.spacing(1.3)}` }}
         >
           <img
             src={fileUri(isDarkMode ? logoFiligranTextDark : logoFiligranTextLight)}
