@@ -258,6 +258,7 @@ public class PayloadMapper {
             .payloadId(detectionRemediation.getPayload().getId())
             .collectorType(detectionRemediation.getCollector().getType())
             .values(detectionRemediation.getValues())
+            .authorRule(detectionRemediation.getAuthorRule())
             .build();
     return output;
   }

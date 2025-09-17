@@ -1,22 +1,31 @@
-import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import {MoreVert} from '@mui/icons-material';
+import {
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    IconButton,
+    Menu,
+    MenuItem
+} from '@mui/material';
 import * as R from 'ramda';
-import { useContext, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import {useContext, useState} from 'react';
+import {useDispatch} from 'react-redux';
 
 import {
-  deletePayload,
-  duplicatePayload,
-  exportPayload,
-  updatePayload,
+    deletePayload,
+    duplicatePayload,
+    exportPayload,
+    updatePayload,
 } from '../../../actions/payloads/payload-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
-import { useFormatter } from '../../../components/i18n';
-import { AbilityContext, Can } from '../../../utils/permissions/PermissionsProvider.js';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types.js';
-import { download } from '../../../utils/utils.js';
+import {useFormatter} from '../../../components/i18n';
+import {AbilityContext, Can} from '../../../utils/permissions/PermissionsProvider.js';
+import {ACTIONS, SUBJECTS} from '../../../utils/permissions/types.js';
+import {download} from '../../../utils/utils.js';
 import PayloadForm from './PayloadForm';
 
 const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdate, disableDelete }) => {
@@ -66,7 +75,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
         const payloadUpdated = result.entities.payloads[result.result];
         onUpdate(payloadUpdated);
       }
-      handleCloseEdit();
+
     });
   };
 
@@ -107,6 +116,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
   };
 
   const initialValues = {
+      ...payload,
     payload_id: payload.payload_id,
     payload_name: payload.payload_name,
     payload_description: payload.payload_description,
@@ -126,14 +136,18 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     executable_file: payload.executable_file,
     payload_cleanup_executor: payload.payload_cleanup_executor === null ? '' : payload.payload_cleanup_executor,
     payload_cleanup_command: payload.payload_cleanup_command === null ? '' : payload.payload_cleanup_command,
+    payload_updated_at: payload.payload_updated_at,
     remediations: {},
   };
   payload.payload_detection_remediations?.forEach((remediation) => {
-    initialValues.remediations[remediation.detection_remediation_collector_type] = {
-      content: remediation.detection_remediation_values,
-      remediationId: remediation.detection_remediation_id,
-    };
+      initialValues.remediations[remediation.detection_remediation_collector_type] = {
+          content: remediation.detection_remediation_values,
+          remediationId: remediation.detection_remediation_id,
+          updateAt: remediation.detection_remediation_updated_at,
+          authorRule: remediation.author_rule
+      };
   });
+    console.log(initialValues)
   const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payload.payload_id);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payload.payload_id);
   return (
@@ -184,7 +198,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
         handleClose={handleCloseEdit}
         title={t('Update the payload')}
       >
-        <PayloadForm onSubmit={onSubmitEdit} handleClose={handleCloseEdit} editing initialValues={initialValues} />
+        <PayloadForm onSubmit={onSubmitEdit} handleClose={handleCloseEdit} editing initialValues={initialValues} onUpdate={onUpdate}/>
       </Drawer>
     </>
   );

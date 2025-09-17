@@ -26,6 +26,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Builder
 public class DetectionRemediation implements Base {
 
   public enum AUTHOR_RULE {

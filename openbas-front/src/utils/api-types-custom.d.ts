@@ -120,3 +120,4 @@ export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent
     variables?: ContractVariable[];
   };
 };
+

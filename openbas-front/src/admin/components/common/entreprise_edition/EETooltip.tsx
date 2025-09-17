@@ -1,6 +1,5 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
 import { type ReactElement, useContext, useState } from 'react';
-
 import { useFormatter } from '../../../../components/i18n';
 import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -11,10 +10,12 @@ const EETooltip = ({
   children,
   title,
   forAi,
+  style
 }: {
   children: ReactElement;
   title?: string;
   forAi?: boolean;
+  style?:React.CSSProperties
 }) => {
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
@@ -25,7 +26,9 @@ const EETooltip = ({
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured } = useAI();
   if (isEnterpriseEdition && (!forAi || (forAi && enabled && configured))) {
-    return <Tooltip title={title ? t(title) : undefined}>{children}</Tooltip>;
+
+    return <Tooltip title={title ? <div style={style}>
+      {t(title)}</div>: undefined}>{children}</Tooltip>;
   }
   if (isEnterpriseEdition && forAi && !enabled) {
     return (

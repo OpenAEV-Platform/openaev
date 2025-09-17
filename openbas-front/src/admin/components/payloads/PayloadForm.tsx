@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FormEvent, type SyntheticEvent, useEffect, useState } from 'react';
+import { type FormEvent, type SyntheticEvent, useEffect, useRef, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
@@ -15,6 +15,7 @@ import OutputFormTab from './form/OutputFormTab';
 import RemediationFormTab from './form/RemediationFormTab';
 
 interface Props {
+  onUpdate;
   onSubmit: SubmitHandler<PayloadCreateInput>;
   handleClose: () => void;
   editing: boolean;
@@ -22,6 +23,7 @@ interface Props {
 }
 
 const PayloadForm = ({
+                       onUpdate,
   onSubmit,
   handleClose,
   editing,
@@ -45,6 +47,7 @@ const PayloadForm = ({
     payload_arguments: [],
     payload_prerequisites: [],
     payload_output_parsers: [],
+    payload_updated_at:'',
     payload_execution_arch: 'ALL_ARCHITECTURES',
     remediations: {},
   },
@@ -56,6 +59,7 @@ const PayloadForm = ({
     openDialog: openEnterpriseEditionDialog,
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
+  const closePanelRef = useRef(true);
 
   const tabs = [{
     key: 'General',
@@ -206,18 +210,38 @@ const PayloadForm = ({
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isValid = await methods.trigger();
+
     if (!isValid) {
       const firstErrorField = Object.keys(errors)[0];
       const tabName = getTabForField(firstErrorField);
       if (tabName) setActiveTab(tabName);
     } else {
       handleSubmit(onSubmit)(e);
+      if(closePanelRef.current)
+        handleClose();
+
+      closePanelRef.current = true;
     }
   };
 
+  const formRef = useRef<HTMLFormElement>(null);
+  const submitFormByRemediationTab = async (): Promise<boolean> => {
+
+    const isValidForm = await methods.trigger();
+
+    if (formRef.current) {
+
+      //Prevent close the panel due to submit form
+      closePanelRef.current = false;
+      formRef.current.requestSubmit();
+
+    }
+    return isValidForm;
+  }
+  console.log("ICI PAYLOD FORM")
   return (
     <FormProvider {...methods}>
-      <form
+      <form ref={formRef}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -249,7 +273,11 @@ const PayloadForm = ({
         )}
 
         {activeTab === 'Remediation' && (
-          <RemediationFormTab payloadId={initialValues?.payload_id} />
+          <RemediationFormTab payloadId={initialValues?.payload_id}
+                              payload={initialValues}
+                              initialValueRemediation={initialValues?.remediations}
+                              submitFormByRemediationTab={submitFormByRemediationTab}
+                              onUpdate={onUpdate}/>
         )}
 
         <div style={{
@@ -272,7 +300,7 @@ const PayloadForm = ({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            {t('Cancel')}
+            { isSubmitting ? t('Close') : t('Cancel')}
           </Button>
         </div>
       </form>
