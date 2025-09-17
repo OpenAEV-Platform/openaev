@@ -1,19 +1,5 @@
 package io.openbas.rest.exercise;
 
-import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
-import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.InjectFixture.getInjectForEmailContract;
-import static java.time.Instant.now;
-import static java.time.temporal.ChronoUnit.MINUTES;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import static org.mockito.Mockito.mockStatic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
@@ -24,9 +10,20 @@ import io.openbas.helper.InjectHelper;
 import io.openbas.injectors.email.model.EmailContent;
 import io.openbas.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockito.MockedStatic;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -34,13 +31,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.*;
-import org.mockito.MockedStatic;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
+
+import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.InjectFixture.getInjectForEmailContract;
+import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.MINUTES;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @TestInstance(PER_CLASS)
@@ -170,7 +173,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Start an exercise manually")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void manualStartExerciseTest() throws Exception {
     // -- PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -223,7 +226,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from canceled to scheduled")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void rescheduledExerciseTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -251,7 +254,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from finished to scheduled")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void rescheduledExerciseFromFinishedStateTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -279,7 +282,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from pause to running")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void runExerciseAfterPauseTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -334,7 +337,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from running to paused")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void pauseAnExerciseTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -385,7 +388,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise from running to canceled")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void cancelAnExerciseTest() throws Exception {
     // --PREPARE--
     Exercise exercise = exerciseRepository.save(ExerciseFixture.createRunningAttackExercise());
@@ -436,7 +439,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise next status")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void checkExerciseNextStatusTest() {
     // --PREPARED--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -462,7 +465,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @DisplayName("Check an exercise with an inject from finished to scheduled")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void rescheduledExerciseWithInjectTest() throws Exception {
     // --PREPARE--
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();

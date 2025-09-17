@@ -1,16 +1,5 @@
 package io.openbas.rest.custom_dashboard;
 
-import static io.openbas.engine.api.WidgetType.VERTICAL_BAR_CHART;
-import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
-import static io.openbas.utils.fixtures.WidgetFixture.NAME;
-import static io.openbas.utils.fixtures.WidgetFixture.createDefaultWidget;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.Widget;
@@ -22,13 +11,25 @@ import io.openbas.rest.custom_dashboard.form.WidgetInput;
 import io.openbas.utils.CustomDashboardTimeRange;
 import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
 import io.openbas.utils.fixtures.composers.WidgetComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import java.util.ArrayList;
+import io.openbas.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+
+import static io.openbas.engine.api.WidgetType.VERTICAL_BAR_CHART;
+import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
+import static io.openbas.utils.fixtures.WidgetFixture.NAME;
+import static io.openbas.utils.fixtures.WidgetFixture.createDefaultWidget;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
 class CustomDashboardWidgetApiTest extends IntegrationTest {
@@ -47,7 +48,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_valid_widget_input_when_creating_widget_should_return_created_widget()
       throws Exception {
     // -- PREPARE --
@@ -79,7 +80,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_widgets_should_return_all_widgets() throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();
@@ -94,7 +95,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_widget_id_when_fetching_widget_should_return_widget() throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();
@@ -114,7 +115,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_updated_widget_input_when_updating_widget_should_return_updated_widget()
       throws Exception {
     // -- PREPARE --
@@ -142,7 +143,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_widget_id_when_deleting_widget_should_return_no_content() throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();

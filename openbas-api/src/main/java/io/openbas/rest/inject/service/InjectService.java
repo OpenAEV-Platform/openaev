@@ -51,18 +51,11 @@ import io.openbas.utils.mapper.InjectMapper;
 import io.openbas.utils.mapper.InjectStatusMapper;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
-import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
-import java.time.Instant;
-import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -75,6 +68,14 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @RequiredArgsConstructor
 @Service
@@ -1084,11 +1085,14 @@ public class InjectService {
         return cb.conjunction();
       }
 
-      // Check if both are null - automatically granted
-      Path<Object> scenarioPath = root.get("scenario");
-      Path<Object> simulationPath = root.get("exercise");
-      // Check if both are null
-      Predicate bothNull = cb.and(cb.isNull(scenarioPath), cb.isNull(simulationPath));
+      // Ensure distinct results (joins/subqueries can otherwise produce duplicates).
+      query.distinct(true);
+
+      // Use the id expressions for parents (safer than testing the entity path itself)
+      Expression<String> scenarioIdPath = root.get("scenario").get("id");
+      Expression<String> exerciseIdPath = root.get("exercise").get("id");
+      // Check if both are null -> atomic testing case
+      Predicate bothParentsNull = cb.and(cb.isNull(scenarioIdPath), cb.isNull(exerciseIdPath));
 
       // Get allowed grant types
       List<Grant.GRANT_TYPE> allowedGrantTypes = grantType.andHigher();
@@ -1118,26 +1122,36 @@ public class InjectService {
               Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING,
               allowedGrantTypes);
 
-      // Check if inject's scenario ID is accessible (null is OK)
-      Predicate scenarioAccessible =
-          cb.or(cb.isNull(scenarioPath), scenarioPath.get("id").in(accessibleScenarios));
-      // Check if inject's simulation ID is accessible (null is OK)
-      Predicate simulationAccessible =
-          cb.or(cb.isNull(simulationPath), simulationPath.get("id").in(accessibleSimulations));
-      // When both are null, check if user has atomic testing grants
-      // Assuming inject has an ID that should be in the atomic testing grants
-      Predicate atomicTestingAccessible =
-          cb.and(bothNull, root.get("id").in(accessibleAtomicTestings));
+      // Case A: atomic inject (no parents) AND inject.id is in atomic grants
+      Predicate atomicAccessible =
+        cb.and(bothParentsNull, root.get("id").in(accessibleAtomicTestings));
 
-      // Inject is accessible if:
-      // 1. Both are null AND user has atomic testing grant for this inject, OR
-      // 2. User is granted on the non-null scenario/exercise linked to this inject
+      // Case B: inject linked to scenario -> scenario.id must be in scenario grants
+      Predicate scenarioPresentAndAccessible =
+        cb.and(cb.isNotNull(scenarioIdPath), scenarioIdPath.in(accessibleScenarios));
+
+      // Case C: inject linked to exercise/simulation -> exercise.id must be in simulation grants
+      Predicate exercisePresentAndAccessible =
+        cb.and(cb.isNotNull(exerciseIdPath), exerciseIdPath.in(accessibleSimulations));
+
       return cb.or(
-          atomicTestingAccessible,
-          cb.and(
-              cb.not(bothNull), // At least one is not null
-              scenarioAccessible,
-              simulationAccessible));
+        // Case 1: atomic test (no parents, direct grant required)
+        cb.and(
+          cb.isNull(root.get("scenario")),
+          cb.isNull(root.get("exercise")),
+          root.get("id").in(accessibleAtomicTestings)
+        ),
+        // Case 2: linked to a scenario, and user has access
+        cb.and(
+          cb.isNotNull(root.get("scenario")),
+          root.get("scenario").get("id").in(accessibleScenarios)
+        ),
+        // Case 3: linked to a simulation, and user has access
+        cb.and(
+          cb.isNotNull(root.get("exercise")),
+          root.get("exercise").get("id").in(accessibleSimulations)
+        )
+      );
     };
   }
 

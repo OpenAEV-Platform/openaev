@@ -1,8 +1,5 @@
 package io.openbas.rest.inject;
 
-import static io.openbas.config.SessionHelper.currentUser;
-import static io.openbas.helper.StreamHelper.fromIterable;
-
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
 import io.openbas.aop.lock.Lock;
@@ -10,6 +7,7 @@ import io.openbas.aop.lock.LockResourceType;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawDocument;
 import io.openbas.database.repository.ExerciseRepository;
+import io.openbas.database.repository.GrantRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.database.specification.InjectSpecification;
@@ -42,11 +40,6 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +52,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static io.openbas.config.SessionHelper.currentUser;
+import static io.openbas.helper.StreamHelper.fromIterable;
 
 @Slf4j
 @RestController
@@ -81,6 +83,7 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
+  private final GrantRepository grantRepository;
 
   // -- INJECTS --
 
@@ -100,6 +103,11 @@ public class InjectApi extends RestBehavior {
     // Control and format inputs
     List<Inject> injects =
         getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.OBSERVER);
+
+    if (injects.isEmpty()) {
+      throw new ElementNotFoundException("No injects to export");
+    }
+
     runInjectExport(
         injects,
         ExportOptions.mask(
@@ -124,7 +132,7 @@ public class InjectApi extends RestBehavior {
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),
                         currentUser.isAdminOrBypass(),
-                        currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS),
+                      currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                         Grant.GRANT_TYPE.OBSERVER)));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =
@@ -285,7 +293,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping(
       path = INJECT_URI + "/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
+  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECT)
   public void injectsImport(
       @RequestPart("file") MultipartFile file,
       @RequestPart("input") InjectImportInput input,

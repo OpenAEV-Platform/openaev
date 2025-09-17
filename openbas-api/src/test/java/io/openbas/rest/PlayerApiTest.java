@@ -1,14 +1,5 @@
 package io.openbas.rest;
 
-import static io.openbas.config.AppConfig.EMAIL_FORMAT;
-import static io.openbas.rest.user.PlayerApi.PLAYER_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Organization;
@@ -21,10 +12,9 @@ import io.openbas.rest.user.form.player.PlayerInput;
 import io.openbas.utils.fixtures.OrganizationFixture;
 import io.openbas.utils.fixtures.PlayerFixture;
 import io.openbas.utils.fixtures.TagFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.mockUser.WithMockUserFullPermissions;
 import jakarta.servlet.ServletException;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -33,6 +23,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+import static io.openbas.config.AppConfig.EMAIL_FORMAT;
+import static io.openbas.rest.user.PlayerApi.PLAYER_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -49,7 +50,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should create a player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerInput_should_createPlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -74,7 +75,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given invalid email in player input, should throw exceptions")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_invalidEmailInPlayerInput_should_throwExceptions() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = new PlayerInput();
@@ -120,7 +121,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should upsert player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerInput_should_upsertPlayerSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -148,7 +149,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given non-existing player input, should upsert successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_nonExistingPlayerInput_should_upsertSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -171,7 +172,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID and input, should update player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -222,7 +223,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID, should delete player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerId_should_deletePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -246,7 +247,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given no existing player ID, should throw an exception")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_notExistingAssetGroup_should_throwAnException() {
     // -- PREPARE --
     String nonexistentAssetGroupId = "nonexistent-id";

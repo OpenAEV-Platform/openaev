@@ -1,5 +1,38 @@
 package io.openbas.rest.dashboard;
 
+import com.jayway.jsonpath.JsonPath;
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.CustomDashboardParameters;
+import io.openbas.database.model.Endpoint;
+import io.openbas.database.model.Filters;
+import io.openbas.database.model.Widget;
+import io.openbas.database.repository.EndpointRepository;
+import io.openbas.engine.EngineContext;
+import io.openbas.engine.EngineService;
+import io.openbas.engine.EsModel;
+import io.openbas.engine.api.EngineSortField;
+import io.openbas.engine.api.HistogramInterval;
+import io.openbas.engine.api.ListConfiguration;
+import io.openbas.engine.api.SortDirection;
+import io.openbas.utils.CustomDashboardTimeRange;
+import io.openbas.utils.fixtures.*;
+import io.openbas.utils.fixtures.composers.*;
+import io.openbas.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import static io.openbas.database.model.CustomDashboardParameters.CustomDashboardParameterType.timeRange;
 import static io.openbas.rest.dashboard.DashboardApi.DASHBOARD_URI;
 import static io.openbas.utils.CustomDashboardTimeRange.LAST_QUARTER;
@@ -9,35 +42,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.*;
-import io.openbas.database.repository.EndpointRepository;
-import io.openbas.engine.EngineContext;
-import io.openbas.engine.EngineService;
-import io.openbas.engine.EsModel;
-import io.openbas.engine.api.*;
-import io.openbas.utils.CustomDashboardTimeRange;
-import io.openbas.utils.fixtures.*;
-import io.openbas.utils.fixtures.CustomDashboardFixture;
-import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
-import java.io.IOException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Dashboard API tests")
 class DashboardApiTest extends IntegrationTest {

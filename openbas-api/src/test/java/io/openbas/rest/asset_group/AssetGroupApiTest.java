@@ -1,15 +1,5 @@
 package io.openbas.rest.asset_group;
 
-import static io.openbas.rest.asset_group.AssetGroupApi.ASSET_GROUP_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.AssetGroupFixture.*;
-import static io.openbas.utils.fixtures.InjectFixture.getDefaultInject;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
@@ -20,12 +10,9 @@ import io.openbas.rest.asset_group.form.AssetGroupInput;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.utils.fixtures.ExerciseFixture;
 import io.openbas.utils.fixtures.TagFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +24,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+
+import static io.openbas.rest.asset_group.AssetGroupApi.ASSET_GROUP_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.AssetGroupFixture.*;
+import static io.openbas.utils.fixtures.InjectFixture.getDefaultInject;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -54,7 +55,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithoutDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
@@ -107,7 +108,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup with dynamic filter successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
@@ -165,7 +166,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @DisplayName(
       "Create one asset group with Java and one with SQL, compare them to check the both asset_group_dynamic_filter are the same")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void should_createOneAssetGroupWithJavaAndOneWithSQLAndCompareThem() throws Exception {
     // -- PREPARE --
     Tag tag = tagRepository.save(TagFixture.getTag());
@@ -203,7 +204,7 @@ class AssetGroupApiTest extends IntegrationTest {
 
   @DisplayName("Given valid AssetGroupInput, should update assetGroup successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validAssetGroupInput_should_updateAssetGroupSuccessfully() throws Exception {
     // --PREPARE--
     AssetGroup input = createDefaultAssetGroup("Asset group");
@@ -231,7 +232,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @DisplayName(
       "Given valid AssetGroupInput for a nonexistent assetGroup, should return 404 Not Found")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validAssetGroupInputForNonexistentAssetGroup_should_returnNotFound() {
     // --PREPARE--
     AssetGroup input = createDefaultAssetGroup("Asset group");
@@ -251,7 +252,7 @@ class AssetGroupApiTest extends IntegrationTest {
 
   @DisplayName("Given existing assetGroup, should delete assetGroup successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_existingAssetGroup_should_deleteAssetGroupSuccessfully() throws Exception {
     // --PREPARE--
     AssetGroup assetGroup = assetGroupRepository.save(createDefaultAssetGroup("Asset group"));
@@ -269,7 +270,7 @@ class AssetGroupApiTest extends IntegrationTest {
 
   @DisplayName("Given no existing assetGroup, should throw an exception")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_notExistingAssetGroup_should_throwAnException() throws Exception {
     // -- PREPARE --
     String nonexistentAssetGroupId = "nonexistent-id";
@@ -339,7 +340,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByNameTest(
       String searchText, Boolean simulationOrScenarioId, Integer expectedNumberOfResults)
       throws Exception {
@@ -376,7 +377,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByIdTest(Integer numberOfAssetGroupsToProvide, Integer expectedNumberOfResults)
       throws Exception {
     // --PREPARE--

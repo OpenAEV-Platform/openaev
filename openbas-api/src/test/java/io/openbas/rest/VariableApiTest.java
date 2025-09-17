@@ -1,5 +1,20 @@
 package io.openbas.rest;
 
+import com.jayway.jsonpath.JsonPath;
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.Scenario;
+import io.openbas.database.model.Variable;
+import io.openbas.database.repository.ScenarioRepository;
+import io.openbas.database.repository.VariableRepository;
+import io.openbas.service.ScenarioService;
+import io.openbas.utils.mockUser.WithMockUser;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -8,21 +23,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import com.jayway.jsonpath.JsonPath;
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.Scenario;
-import io.openbas.database.model.Variable;
-import io.openbas.database.repository.ScenarioRepository;
-import io.openbas.database.repository.VariableRepository;
-import io.openbas.service.ScenarioService;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,7 +50,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Create variable for scenario succeed")
   @Test
   @Order(1)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = new Scenario();
@@ -95,7 +95,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Retrieve variables for scenario")
   @Test
   @Order(2)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void retrieveVariableForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -115,7 +115,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Update variable for scenario")
   @Test
   @Order(3)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     String response =
@@ -154,7 +154,7 @@ public class VariableApiTest extends IntegrationTest {
   @DisplayName("Delete variable for scenario")
   @Test
   @Order(4)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteVariableForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc

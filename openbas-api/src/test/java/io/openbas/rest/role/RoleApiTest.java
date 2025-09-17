@@ -1,11 +1,5 @@
 package io.openbas.rest.role;
 
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Capability;
@@ -13,14 +7,8 @@ import io.openbas.database.model.Role;
 import io.openbas.database.repository.RoleRepository;
 import io.openbas.rest.role.form.RoleInput;
 import io.openbas.utils.fixtures.RoleFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -28,6 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @TestInstance(PER_CLASS)
@@ -50,7 +47,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_createRole() throws Exception {
     String roleName = "roleName";
     Capability capa1 = Capability.ACCESS_ASSETS;
@@ -82,7 +79,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_findRole() throws Exception {
 
     Role expectedRole = roleRepository.save(RoleFixture.getRole());
@@ -107,7 +104,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_updateRole() throws Exception {
     String updatedRoleName = "roleNameUpdated";
     Role savedRole = roleRepository.save(RoleFixture.getRole());
@@ -137,7 +134,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_deleteRole() throws Exception {
     Role savedRole = roleRepository.save(RoleFixture.getRole());
 
@@ -151,7 +148,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_searchRole() throws Exception {
     Role role1 = roleRepository.save(RoleFixture.getRole());
     Role role2 = roleRepository.save(RoleFixture.getRole());
@@ -178,7 +175,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_getAllRoles() throws Exception {
     Role role1 = roleRepository.save(RoleFixture.getRole());
     Role role2 = roleRepository.save(RoleFixture.getRole());
@@ -209,7 +206,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_updateRole_WITH_nonexistent_id() throws Exception {
 
     RoleInput input = RoleInput.builder().name("test").capabilities(new HashSet<>()).build();
@@ -223,7 +220,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_deleteRole_WITH_nonexistent_id() throws Exception {
 
     mvc.perform(delete(ROLE_URI + "/randomid").accept(MediaType.APPLICATION_JSON))
@@ -231,7 +228,7 @@ public class RoleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_findRole_WITH_nonexistent_id() throws Exception {
 
     mvc.perform(get(ROLE_URI + "/randomid").accept(MediaType.APPLICATION_JSON))

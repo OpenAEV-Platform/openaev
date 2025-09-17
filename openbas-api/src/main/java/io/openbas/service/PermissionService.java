@@ -6,11 +6,12 @@ import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.inject.service.InjectStatusService;
 import io.openbas.rest.injector_contract.InjectorContractService;
 import jakarta.validation.constraints.NotNull;
-import java.util.EnumSet;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.EnumSet;
+import java.util.Set;
 
 @RequiredArgsConstructor
 @Service
@@ -77,10 +78,15 @@ public class PermissionService {
     // for inject/article the permission will be based on the parent's (scenario/simulation/test)
     // permission
     if (RESOURCES_USING_PARENT_PERMISSION.contains(resourceType)) {
-      Target parentTarget = resolveTarget(resourceId, resourceType, action);
-      resourceId = parentTarget.resourceId;
-      resourceType = parentTarget.resourceType;
-      action = parentTarget.action;
+      // Inject import fall back to MANAGE_ASSESSMENT
+      if (resourceType == ResourceType.INJECT && Action.CREATE.equals(action)) {
+        return user.getCapabilities().contains(Capability.MANAGE_ASSESSMENT);
+      } else {
+        Target parentTarget = resolveTarget(resourceId, resourceType, action);
+        resourceId = parentTarget.resourceId;
+        resourceType = parentTarget.resourceType;
+        action = parentTarget.action;
+      }
     }
 
     // if resource is grantable then the search api is open as it will be filtered in the code

@@ -1,5 +1,25 @@
 package io.openbas.rest.exercise;
 
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.*;
+import io.openbas.database.repository.InjectorContractRepository;
+import io.openbas.rest.inject.form.InjectBulkProcessingInput;
+import io.openbas.utils.fixtures.ExerciseFixture;
+import io.openbas.utils.fixtures.InjectFixture;
+import io.openbas.utils.fixtures.InjectTestStatusFixture;
+import io.openbas.utils.fixtures.composers.ExerciseComposer;
+import io.openbas.utils.fixtures.composers.InjectComposer;
+import io.openbas.utils.fixtures.composers.InjectTestStatusComposer;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
+import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
 import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
@@ -9,28 +29,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.Exercise;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.InjectTestStatus;
-import io.openbas.database.model.InjectorContract;
-import io.openbas.database.repository.InjectorContractRepository;
-import io.openbas.rest.inject.form.InjectBulkProcessingInput;
-import io.openbas.utils.fixtures.ExerciseFixture;
-import io.openbas.utils.fixtures.InjectFixture;
-import io.openbas.utils.fixtures.InjectTestStatusFixture;
-import io.openbas.utils.fixtures.composers.ExerciseComposer;
-import io.openbas.utils.fixtures.composers.InjectComposer;
-import io.openbas.utils.fixtures.composers.InjectTestStatusComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.pagination.SearchPaginationInput;
-import java.util.List;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 @TestInstance(PER_CLASS)
+@Transactional
 public class ExerciseInjectTestApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -86,8 +86,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return paginated inject test results when inject tests exist")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser
     void should_return_paginated_results_when_inject_tests_exist() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());
+
       SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
       String response =
           mvc.perform(
@@ -107,15 +109,16 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test status using test id")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser
     void should_return_test_status_by_testId() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());
       mvc.perform(get(EXERCISE_URI + "/injects/test/{testId}", injectTestStatus1.getId()))
           .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("Should return test status when testing a specific inject")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void should_return_test_status_when_testing_specific_inject() throws Exception {
       mvc.perform(
               get(
@@ -128,8 +131,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test statuses when performing bulk test with inject IDs")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser
     void should_return_test_statuses_when_bulk_testing_with_inject_ids() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());
+
       InjectBulkProcessingInput input = new InjectBulkProcessingInput();
       input.setInjectIDsToProcess(List.of(inject1.getId()));
       input.setSimulationOrScenarioId(simulation.getId());
@@ -144,7 +149,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 200 when deleting an inject test status")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void should_return_200_when_fetching_deleting_an_inject_test_status() throws Exception {
       mvc.perform(
               delete(
@@ -155,15 +160,15 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     }
   }
 
-  // FIXME these tests are not applicable anymore and needs to be refactored
-  /*@Nested
+  @Nested
   @DisplayName("As Unauthorized User")
   class UnauthorizedUserAccess {
 
     @Test
     @DisplayName("Should return 200 when search a paginated inject test results")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser
     void should_return_200_when_search_paginated_results() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
       SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
       mvc.perform(
               post(EXERCISE_URI + "/{simulationId}/injects/test/search", simulation.getId())
@@ -174,16 +179,19 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 200 when search by id")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser
     void should_return_200_when_search_by_testId() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
       mvc.perform(get(EXERCISE_URI + "/injects/test/{testId}", injectTestStatus1.getId()))
           .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("Should return 404 when testing a specific inject")
-    @WithMockObserverUser
+    @WithMockUser
     void should_return_404_when_testing_specific_inject() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
+
       mvc.perform(
               get(
                   EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
@@ -194,8 +202,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 404 when performing bulk test with inject IDs")
-    @WithMockObserverUser
+    @WithMockUser
     void should_return_404_when_bulk_testing_with_inject_ids() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
+
       InjectBulkProcessingInput input = new InjectBulkProcessingInput();
       input.setInjectIDsToProcess(List.of(inject1.getId(), inject2.getId()));
       input.setSimulationOrScenarioId(simulation.getId());
@@ -209,8 +219,9 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 404 when fetching a deleted inject test status")
-    @WithMockObserverUser
+    @WithMockUser
     void should_return_404_when_fetching_deleted_inject_test_status() throws Exception {
+      addGrantToCurrentUser(Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
       mvc.perform(
               delete(
                   EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
@@ -218,5 +229,5 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
                   injectTestStatus1.getId()))
           .andExpect(status().isNotFound());
     }
-  }*/
+  }
 }

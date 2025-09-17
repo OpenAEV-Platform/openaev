@@ -1,20 +1,5 @@
 package io.openbas.rest.scenario;
 
-import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
-import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
@@ -31,18 +16,27 @@ import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.composers.InjectorContractComposer;
 import io.openbas.utils.fixtures.composers.PayloadComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import jakarta.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
+import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
@@ -108,7 +102,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Add an inject for scenario")
   @Test
   @Order(1)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void addInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -143,7 +137,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve injects for scenario")
   @Test
   @Order(2)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void retrieveInjectsForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -163,7 +157,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve inject for scenario")
   @Test
   @Order(3)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void retrieveInjectForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -183,7 +177,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Update inject for scenario")
   @Test
   @Order(4)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
@@ -214,7 +208,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Delete inject for scenario")
   @Test
   @Order(5)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteInjectForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     mvc.perform(delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/" + SCENARIO_INJECT_ID))
@@ -225,7 +219,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Inject assistant for scenario")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   class ScenarioInjectsAssistant {
 

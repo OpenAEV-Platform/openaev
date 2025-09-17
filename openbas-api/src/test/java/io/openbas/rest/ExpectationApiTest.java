@@ -29,7 +29,7 @@ import io.openbas.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +39,12 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static io.openbas.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 
 @TestInstance(PER_CLASS)
 class ExpectationApiTest extends IntegrationTest {
@@ -126,7 +132,7 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Update and delete inject expectation results from UI")
   class ResultInjectExpectation {
 
@@ -136,7 +142,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Add results on inject expectation from UI on one agent")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void addResultsOnOneAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -240,7 +246,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Add results on inject expectation from UI on two agents")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void addResultsOnTwoAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -369,7 +375,7 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Fetch and update InjectExpectations from collectors")
   class ProcessInjectExpectationsForCollectors {
 

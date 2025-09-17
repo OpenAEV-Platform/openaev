@@ -1,22 +1,5 @@
 package io.openbas.rest.payload;
 
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
-import static io.openbas.database.specification.InjectorContractSpecification.byPayloadId;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -29,26 +12,35 @@ import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.database.repository.PayloadRepository;
 import io.openbas.ee.Ee;
 import io.openbas.rest.collector.form.CollectorCreateInput;
-import io.openbas.rest.payload.form.DetectionRemediationInput;
-import io.openbas.rest.payload.form.PayloadCreateInput;
-import io.openbas.rest.payload.form.PayloadUpdateInput;
-import io.openbas.rest.payload.form.PayloadUpsertInput;
-import io.openbas.rest.payload.form.PayloadsDeprecateInput;
+import io.openbas.rest.payload.form.*;
 import io.openbas.utils.fixtures.CollectorFixture;
 import io.openbas.utils.fixtures.PayloadFixture;
 import io.openbas.utils.fixtures.PayloadInputFixture;
 import io.openbas.utils.fixtures.composers.CollectorComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.mockUser.WithMockUserFullPermissions;
 import jakarta.annotation.Resource;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openbas.database.specification.InjectorContractSpecification.byPayloadId;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 class PayloadApiTest extends IntegrationTest {
@@ -85,7 +77,7 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Create Payload")
   class CreatePayload {
 
@@ -293,7 +285,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Executable Payload")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateExecutablePayload() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
@@ -333,7 +325,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Updating an Executed Payload with null as arch should fail")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateExecutablePayloadWithoutArch() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
@@ -369,7 +361,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Updating a Payload no Executable without arch should set ALL_ARCHITECTURES")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updatePayloadNoExecutableWithoutArch() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -403,7 +395,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Payload with output parser")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void
       given_payload_update_input_with_output_parsers_should_return_updated_payloadd_with_output_parsers()
           throws Exception {
@@ -449,7 +441,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Update Payload with detection remediations")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void
       given_payload_update_input_with_detection_remediations_should_return_updated_payload_with_detection_remediations()
           throws Exception {
@@ -593,7 +585,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Creating Command Line payload with both set executor and content should succeed")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothSetExecutorAndContent() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -611,7 +603,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with both null cleanup executor and command should succeed")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothNullCleanupExecutorAndCommand() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -629,7 +621,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with both set cleanup executor and command should succeed")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothSetCleanupExecutorAndCommand() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -647,7 +639,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with only set cleanup executor and null command should fail")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithOnlySetCleanupExecutorAndNullCommand() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -665,7 +657,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Creating Command Line payload with only set cleanup command and null executor should fail")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -683,7 +675,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Updating Command Line payload with only set cleanup command and null executor should fail")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
@@ -721,7 +713,7 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Duplicating a Community and Verified Payload should result in a Manual and Unverified Payload")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void duplicateExecutablePayload() throws Exception {
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
@@ -761,7 +753,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Process Deprecated Payloads")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void processDeprecatedPayloads() throws Exception {
     String collectorId = "039eee9b-b95d-4b11-95bb-a9ac233f1738";
     CollectorCreateInput collectorCreateInput = new CollectorCreateInput();

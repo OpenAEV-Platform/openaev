@@ -3,13 +3,14 @@ package io.openbas.database.specification;
 import io.openbas.database.model.*;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotBlank;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiFunction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
 
 public class SpecificationUtils {
 
@@ -68,6 +69,24 @@ public class SpecificationUtils {
       List<Grant.GRANT_TYPE> allowedGrantTypes = grantType.andHigher();
       Grant.GRANT_RESOURCE_TYPE resourceType = GrantableBase.getGrantResourceType(entityClass);
 
+      // If this entity is an Inject (atomic testing), grants can target:
+      //  - the inject itself (atomic testing id)
+      //  - OR the linked scenario id
+      //  - OR the linked exercise/simulation id
+      //
+      // So expand the set of resource types we accept in the grant subquery.
+      List<Grant.GRANT_RESOURCE_TYPE> resourceTypes = new ArrayList<>();
+      if (resourceType == Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING) {
+        // add the atomic-type itself
+        resourceTypes.add(resourceType);
+        // add parent-level resource types that can also grant access
+        // adjust names if your model uses SIMULATION vs EXERCISE naming
+        resourceTypes.add(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+        resourceTypes.add(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
+      } else {
+        resourceTypes.add(resourceType);
+      }
+
       // Add grant filtering
       // Create subquery to find all resource IDs the user can access
       Subquery<String> accessibleResources = query.subquery(String.class);
@@ -83,10 +102,18 @@ public class SpecificationUtils {
       accessibleResources.where(
           cb.and(
               cb.equal(userTable.get("id"), userId),
-              cb.equal(grantTable.get("grantResourceType"), resourceType),
+            grantTable.get("grantResourceType").in(resourceTypes),
               grantTable.get("name").in(allowedGrantTypes)));
-      // Now use this subquery in main query
-      // "Include only scenarios whose ID is in our subquery results"
+
+      // Special handling for Inject: check its own id OR its scenario.id OR its exercise.id
+      if (Inject.class.isAssignableFrom(entityClass)) {
+        Predicate byInjectId = root.get("id").in(accessibleResources);
+        Predicate byScenarioId = root.get("scenario").get("id").in(accessibleResources);
+        Predicate byExerciseId = root.get("exercise").get("id").in(accessibleResources);
+        return cb.or(byInjectId, byScenarioId, byExerciseId);
+      }
+
+      // Default: entity id must be in accessible resources
       return root.get("id").in(accessibleResources);
     };
   }

@@ -1,5 +1,20 @@
 package io.openbas.injector_contract;
 
+import io.openbas.IntegrationTest;
+import io.openbas.utils.fixtures.PaginationFixture;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
+import io.openbas.utils.pagination.SortField;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
 import static io.openbas.database.model.Filters.FilterOperator.contains;
 import static io.openbas.database.model.Filters.FilterOperator.eq;
 import static io.openbas.utils.JsonUtils.asJsonString;
@@ -8,24 +23,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openbas.IntegrationTest;
-import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.pagination.SearchPaginationInput;
-import io.openbas.utils.pagination.SortField;
-import java.util.List;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 @TestInstance(PER_CLASS)
 class InjectorContratApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Fetching contracts")
   class FetchingContracts {
 

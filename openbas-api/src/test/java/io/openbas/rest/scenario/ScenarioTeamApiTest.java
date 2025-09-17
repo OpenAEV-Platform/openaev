@@ -1,18 +1,5 @@
 package io.openbas.rest.scenario;
 
-import static io.openbas.database.specification.TeamSpecification.fromScenario;
-import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static io.openbas.utils.fixtures.ScenarioFixture.getScenario;
-import static io.openbas.utils.fixtures.TeamFixture.TEAM_NAME;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
@@ -29,11 +16,7 @@ import io.openbas.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openbas.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openbas.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openbas.utils.fixtures.UserFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import io.openbas.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -41,6 +24,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static io.openbas.database.specification.TeamSpecification.fromScenario;
+import static io.openbas.helper.StreamHelper.fromIterable;
+import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.ScenarioFixture.getScenario;
+import static io.openbas.utils.fixtures.TeamFixture.TEAM_NAME;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -55,7 +55,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario and team input, should add team to scenario successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validScenarioAndTeamInput_should_replaceTeamToScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Scenario scenario = getScenario();
@@ -111,7 +111,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario with teams, should retrieve teams successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validScenarioWithTeams_should_retrieveTeamsSuccessfully() throws Exception {
     // -- PREPARE --
     Team team = new Team();
@@ -140,7 +140,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario and team, should add player to team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validScenarioAndTeam_should_addPlayerToTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Team team = new Team();
@@ -185,7 +185,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @DisplayName(
       "Given a valid scenario and team with a player, should remove player from team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validScenarioAndTeamWithPlayer_should_removePlayerFromTeamSuccessfully()
       throws Exception {
     // -- PREPARE --
@@ -235,7 +235,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario with a team, should remove team from scenario successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validScenarioWithTeam_should_removeTeamFromScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Team team = new Team();

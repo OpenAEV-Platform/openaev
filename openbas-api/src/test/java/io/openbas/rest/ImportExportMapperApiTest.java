@@ -1,10 +1,5 @@
 package io.openbas.rest;
 
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Endpoint;
 import io.openbas.database.model.Tag;
@@ -13,13 +8,8 @@ import io.openbas.database.repository.TagRepository;
 import io.openbas.helper.StreamHelper;
 import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.EndpointFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -30,6 +20,17 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.util.ResourceUtils;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Optional;
+
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 @TestInstance(PER_CLASS)
 public class ImportExportMapperApiTest extends IntegrationTest {
 
@@ -39,7 +40,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an export csv with endpoints target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testExportCsvWithEndpointsTarget() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
@@ -63,7 +64,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an export csv with unknown target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testExportCsvWithUnknownTarget() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
@@ -82,7 +83,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an import csv with endpoints target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testImportCsvWithEndpointsTarget() throws Exception {
     // -- PREPARE --
     endpointRepository.deleteAll();
@@ -119,7 +120,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an import csv with unknown target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testImportCsvWithUnknownTarget() throws Exception {
     // -- PREPARE --
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");

@@ -1,12 +1,5 @@
 package io.openbas.rest.inject;
 
-import static io.openbas.rest.inject.InjectApi.INJECT_URI;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
@@ -15,18 +8,26 @@ import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
 import io.openbas.utils.mockUser.WithMockUnprivilegedUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import java.util.*;
-import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static io.openbas.rest.inject.InjectApi.INJECT_URI;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
 @TestInstance(PER_CLASS)
@@ -99,7 +100,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("When inject does not exist")
   public class WhenInjectDoesNotExist {
     @Test
@@ -115,7 +116,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("When target type does not exist")
   public class WhenTargetTypeDoesNotExist {
     @Test
@@ -152,7 +153,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("With agent search")
   public class WithAgentSearch {
     private final TargetType targetType = TargetType.AGENT;
@@ -1330,7 +1331,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("With endpoint search")
   public class WithEndpointSearch {
     private final TargetType targetType = TargetType.ASSETS;
@@ -2123,7 +2124,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("With asset groups search")
   public class WithAssetGroupsSearch {
     private final TargetType targetType = TargetType.ASSETS_GROUPS;
@@ -2488,7 +2489,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("With teams search")
   public class WithTeamsSearch {
 
@@ -2938,7 +2939,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("With players search")
   public class WithPlayersSearch {
 

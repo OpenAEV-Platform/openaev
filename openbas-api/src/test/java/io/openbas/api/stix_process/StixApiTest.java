@@ -21,23 +21,24 @@ import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.utils.fixtures.composers.AttackPatternComposer;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import java.io.FileInputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Set;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
+
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @DisplayName("STIX API Integration Tests")
 class StixApiTest extends IntegrationTest {
 

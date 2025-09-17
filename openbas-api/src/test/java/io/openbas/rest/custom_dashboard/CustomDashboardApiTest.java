@@ -1,5 +1,23 @@
 package io.openbas.rest.custom_dashboard;
 
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.CustomDashboard;
+import io.openbas.database.model.Setting;
+import io.openbas.database.repository.CustomDashboardRepository;
+import io.openbas.database.repository.SettingRepository;
+import io.openbas.rest.custom_dashboard.form.CustomDashboardInput;
+import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
+import io.openbas.utils.mockUser.WithMockUser;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
 import static io.openbas.database.model.SettingKeys.*;
 import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
@@ -10,23 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.CustomDashboard;
-import io.openbas.database.model.Setting;
-import io.openbas.database.repository.CustomDashboardRepository;
-import io.openbas.database.repository.SettingRepository;
-import io.openbas.rest.custom_dashboard.form.CustomDashboardInput;
-import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import java.util.Optional;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 class CustomDashboardApiTest extends IntegrationTest {
@@ -43,7 +44,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_valid_dashboard_input_when_creating_dashboard_should_return_created_dashboard()
       throws Exception {
     // -- PREPARE --
@@ -64,7 +65,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_dashboards_should_return_all_dashboards() throws Exception {
     // -- PREPARE --
     createCustomDashboardComposer();
@@ -78,7 +79,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_dashboard_id_when_fetching_dashboard_should_return_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
@@ -91,7 +92,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_updated_dashboard_input_when_updating_dashboard_should_return_updated_dashboard()
       throws Exception {
     // -- PREPARE --
@@ -116,7 +117,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Deleting Custom Dashboard")
   class Delete {
     @Test

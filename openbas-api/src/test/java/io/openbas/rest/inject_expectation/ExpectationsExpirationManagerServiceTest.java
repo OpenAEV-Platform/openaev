@@ -15,13 +15,14 @@ import io.openbas.execution.ExecutableInject;
 import io.openbas.model.Expectation;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import java.util.List;
-import java.util.Map;
+import io.openbas.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
+import java.util.Map;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(MockitoExtension.class)
@@ -90,13 +91,13 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Update injectExpectations with expectationsExpirationManagerService")
   class ComputeExpectationsWithExpectationExpiredManagerService {
 
     @Test
     @DisplayName("All injectExpectations are expired")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void allExpectationAreExpired() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -158,7 +159,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("One injectExpectations is already filled")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void OneExpectationIsAlreadyFilled() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -239,7 +240,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("The agent expectations are already filled")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void agentExpectationsAreAlreadyFilled() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -328,7 +329,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("Asset expectations without agent expectation linked")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void assetExpectationWithoutAgentExpectationsLinked() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents

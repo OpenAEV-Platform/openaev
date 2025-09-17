@@ -22,20 +22,21 @@ import io.openbas.rest.cve.form.CveUpdateInput;
 import io.openbas.utils.fixtures.CollectorFixture;
 import io.openbas.utils.fixtures.composers.CollectorComposer;
 import io.openbas.utils.fixtures.composers.CveComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
-import java.math.BigDecimal;
-import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @DisplayName("CVE API Integration Tests")
 class CveApiTest extends IntegrationTest {
 
@@ -63,7 +64,7 @@ class CveApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("When working with CVEs")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   class WhenWorkingWithCves {
 
     @Test

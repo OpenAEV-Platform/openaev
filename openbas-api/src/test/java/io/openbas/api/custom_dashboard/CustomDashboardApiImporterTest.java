@@ -1,5 +1,23 @@
 package io.openbas.api.custom_dashboard;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.CustomDashboard;
+import io.openbas.jsonapi.JsonApiDocument;
+import io.openbas.jsonapi.ResourceObject;
+import io.openbas.jsonapi.ZipJsonApi;
+import io.openbas.utils.mockUser.WithMockUser;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import static io.openbas.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openbas.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
@@ -9,25 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.CustomDashboard;
-import io.openbas.jsonapi.JsonApiDocument;
-import io.openbas.jsonapi.ResourceObject;
-import io.openbas.jsonapi.ZipJsonApi;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import java.util.HashMap;
-import java.util.Map;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @DisplayName("Custom dashboard api importer tests")
 class CustomDashboardApiImporterTest extends IntegrationTest {
 

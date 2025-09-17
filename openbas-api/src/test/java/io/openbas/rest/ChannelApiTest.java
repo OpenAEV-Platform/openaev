@@ -1,13 +1,5 @@
 package io.openbas.rest;
 
-import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.Channel;
@@ -18,13 +10,21 @@ import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.rest.channel.form.ArticleCreateInput;
 import io.openbas.rest.channel.form.ArticleUpdateInput;
 import io.openbas.service.ScenarioService;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -55,7 +55,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Create article for scenario")
   @Test
   @Order(1)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createArticleForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = new Scenario();
@@ -95,7 +95,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Retrieve articles for scenario")
   @Test
   @Order(2)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void retrieveArticlesForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -115,7 +115,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Update article for scenario")
   @Test
   @Order(3)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateArticleForScenarioTest() throws Exception {
     // -- PREPARE --
     ArticleUpdateInput articleUpdateInput = new ArticleUpdateInput();
@@ -144,7 +144,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Delete article for scenario")
   @Test
   @Order(4)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteArticleForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc

@@ -1,5 +1,21 @@
 package io.openbas.rest.scenario;
 
+import io.openbas.IntegrationTest;
+import io.openbas.database.model.Scenario;
+import io.openbas.database.repository.ScenarioRepository;
+import io.openbas.utils.fixtures.PaginationFixture;
+import io.openbas.utils.fixtures.ScenarioFixture;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
+import io.openbas.utils.pagination.SortField;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import static io.openbas.database.model.Filters.FilterOperator.contains;
 import static io.openbas.database.model.Scenario.SEVERITY.critical;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
@@ -9,21 +25,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import io.openbas.IntegrationTest;
-import io.openbas.database.model.Scenario;
-import io.openbas.database.repository.ScenarioRepository;
-import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.fixtures.ScenarioFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.pagination.SearchPaginationInput;
-import io.openbas.utils.pagination.SortField;
-import java.util.ArrayList;
-import java.util.List;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 public class ScenarioApiSearchTest extends IntegrationTest {
@@ -51,7 +52,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Retrieving scenarios")
   class RetrievingScenarios {
     // -- PREPARE --

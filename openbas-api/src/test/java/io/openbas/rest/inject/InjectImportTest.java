@@ -1,15 +1,5 @@
 package io.openbas.rest.inject;
 
-import static io.openbas.helper.StreamHelper.fromIterable;
-import static io.openbas.rest.inject.InjectApi.INJECT_URI;
-import static io.openbas.utils.fixtures.PayloadFixture.createDetectionRemediation;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openbas.IntegrationTest;
@@ -30,13 +20,9 @@ import io.openbas.service.FileService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.helpers.TagHelper;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
 import io.openbas.utils.mockUser.WithMockUnprivilegedUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -46,6 +32,20 @@ import org.springframework.mock.web.MockPart;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Stream;
+
+import static io.openbas.helper.StreamHelper.fromIterable;
+import static io.openbas.rest.inject.InjectApi.INJECT_URI;
+import static io.openbas.utils.fixtures.PayloadFixture.createDetectionRemediation;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
 @TestInstance(PER_CLASS)
@@ -368,13 +368,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser(withCapabilities = Capability.MANAGE_ASSESSMENT)
   @DisplayName("When passing null target")
   public class WhenPassingNullTarget {
 
     @Test
     @DisplayName("Return UNPROCESSABLE CONTENT")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
     public void returnUNPROCESSABLECONTENT() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
@@ -383,7 +382,7 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("When passing invalid target type")
   public class WhenPassingInvalidTargetType {
 
@@ -403,14 +402,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("When lacking PLANNER permissions on destination exercise")
   public class WhenLackingPLANNERPermissionsOnExercise {
 
     @Test
     @DisplayName("Return NOT FOUND")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
-    @Disabled // FIXME: this test requires a 404 to be thrown, but the backend currently returns 401
     public void returnNOTFOUND() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
@@ -426,13 +423,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser(withCapabilities = Capability.ACCESS_ASSESSMENT)
   @DisplayName("When destination exercise is not found")
   public class WhenDestinationExerciseNotFound {
 
     @Test
     @DisplayName("Return NOT FOUND")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
     public void returnNotFound() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
@@ -444,14 +440,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("When lacking PLANNER permissions on scenario")
   public class WhenLackingPLANNERPermissionsOnScenario {
 
     @Test
     @DisplayName("Return NOT FOUND")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
-    @Disabled // FIXME: this test requires a 404 to be thrown, but the backend currently returns 401
     public void returnNOTFOUND() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
@@ -470,13 +464,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser(withCapabilities = Capability.ACCESS_ASSESSMENT)
   @DisplayName("When destination scenario is not found")
   public class WhenDestinationScenarioNotFound {
 
     @Test
     @DisplayName("Return NOT FOUND")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
     public void returnNotFound() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
@@ -488,13 +481,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("When lacking ADMIN permissions for atomic testings")
   public class WhenLackingADMINPermissionsForAtomicTests {
 
     @Test
     @DisplayName("Return NOT FOUND")
-    @WithMockUnprivilegedUser // FIXME: Temporary workaround for grant issue
     public void returnNOTFOUND() throws Exception {
       byte[] exportData = getExportData(getInjectFromExerciseWrappers(), false, false, false);
 
@@ -506,7 +498,7 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockPlannerUser
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   @DisplayName("When imported objects don't already exist on the destination")
   public class WhenImportedObjectsDontAlreadyExistOnDestination {
 
@@ -528,7 +520,6 @@ class InjectImportTest extends IntegrationTest {
 
     @Nested
     @DisplayName("When targeting an exercise")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
     public class WhenTargetingAnExercise {
 
       private ExerciseComposer.Composer getPersistedExerciseWrapper() {
@@ -925,7 +916,6 @@ class InjectImportTest extends IntegrationTest {
 
     @Nested
     @DisplayName("When targeting a scenario")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
     public class WhenTargetingAScenario {
 
       private ScenarioComposer.Composer getPersistedScenarioWrapper() {
@@ -1331,7 +1321,7 @@ class InjectImportTest extends IntegrationTest {
     }
 
     @Nested
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     @DisplayName("When targeting atomic testing")
     public class WhenTargetingAtomicTesting {
 
@@ -1603,13 +1593,12 @@ class InjectImportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockPlannerUser
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   @DisplayName("When imported objects already exist on the destination")
   public class WhenImportedObjectsAlreadyExistOnDestination {
 
     @Nested
     @DisplayName("When targeting an exercise")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
     public class WhenTargetingAnExercise {
 
       private ExerciseComposer.Composer getPersistedExerciseWrapper() {
@@ -1944,7 +1933,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("All injects were appended to scenario")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void allInjectsWereAppendedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -1983,7 +1971,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Create new articles anyway")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void createNewArticlesAnyway() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2018,7 +2005,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing channels are reused")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingChannelsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2044,7 +2030,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing challenges are reused")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingChallengesAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2069,7 +2054,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing payloads are reused")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingPayloadsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2098,7 +2082,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing platform teams are assigned to scenario")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingPlatformTeamsAreAssignedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2122,7 +2105,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Contextual teams are recreated for scenario")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void contextualTeamsAreRecreatedForScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2153,7 +2135,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing users are assigned to scenario")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingUsersAreAssignedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2179,7 +2160,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing organisations are assigned to scenario")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingOrganisationsAreAssignedToScenario() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2216,7 +2196,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing tags are reused")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingTagsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2243,7 +2222,6 @@ class InjectImportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Existing documents are reused")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void existingDocumentsAreReused() throws Exception {
         byte[] exportData = getExportData(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
@@ -2270,7 +2248,7 @@ class InjectImportTest extends IntegrationTest {
     }
 
     @Nested
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     @DisplayName("When targeting atomic testing")
     public class WhenTargetingAtomicTesting {
 
