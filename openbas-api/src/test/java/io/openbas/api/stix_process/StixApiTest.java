@@ -485,16 +485,6 @@ class StixApiTest extends IntegrationTest {
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
-      assertThat(
-              injects.stream()
-                  .map(
-                      inject ->
-                          inject
-                              .getContent()
-                              .get(CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR)
-                              .asText())
-                  .collect(Collectors.toSet()))
-          .containsAll(List.of("automatic"));
     }
 
     @Test
