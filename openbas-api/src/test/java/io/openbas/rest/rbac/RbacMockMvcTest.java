@@ -1,11 +1,5 @@
 package io.openbas.rest.rbac;
 
-import static io.openbas.service.UserService.buildAuthenticationToken;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-
 import io.openbas.IntegrationTest;
 import io.openbas.aop.RBAC;
 import io.openbas.database.model.*;
@@ -38,6 +32,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+import static io.openbas.service.UserService.buildAuthenticationToken;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 @TestInstance(PER_CLASS)
 @Disabled
