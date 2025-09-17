@@ -17,7 +17,6 @@ import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.user.form.me.UpdateMePasswordInput;
 import io.openbas.rest.user.form.me.UpdateProfileInput;
 import io.openbas.rest.user.form.user.RenewTokenInput;
-import io.openbas.rest.user.form.user.UpdateOnboardingInput;
 import io.openbas.rest.user.form.user.UpdateUserInfoInput;
 import io.openbas.service.UserService;
 import jakarta.annotation.Resource;
@@ -118,13 +117,6 @@ public class MeApi extends RestBehavior {
     } else {
       throw new InputValidationException("user_current_password", "Bad current password");
     }
-  }
-
-  @RBAC(skipRBAC = true)
-  @PutMapping(ME_URI + "/onboarding")
-  public User updateOnboarding(@Valid @RequestBody UpdateOnboardingInput input) {
-    return this.userService.updateOnboarding(
-        input.getOnboardingWidgetEnable(), input.getOnboardingContextualHelpEnable());
   }
 
   @PostMapping("/api/me/token/refresh")

@@ -65,17 +65,6 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.findSettings();
   }
 
-  @GetMapping("/default")
-  @RBAC(skipRBAC = true)
-  @ApiResponses(
-      value = {@ApiResponse(responseCode = "200", description = "The list of default settings")})
-  @Operation(
-      summary = "List default settings",
-      description = "Return the settings with default values")
-  public PlatformSettings defaultSettings() {
-    return platformSettingsService.defaultValues();
-  }
-
   @PutMapping()
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
@@ -131,15 +120,6 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
   public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input) {
     return platformSettingsService.updateSettingsPolicies(input);
-  }
-
-  @PutMapping("/onboarding")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
-  @Operation(summary = "Update onboarding settings", description = "Update the onboarding settings")
-  @RBAC(resourceType = ResourceType.PLATFORM_SETTING, actionPerformed = Action.WRITE)
-  public PlatformSettings updateSettingsOnboarding(
-      @Valid @RequestBody SettingsOnboardingUpdateInput input) {
-    return platformSettingsService.updateSettingsOnboarding(input);
   }
 
   @GetMapping("/home_dashboard")

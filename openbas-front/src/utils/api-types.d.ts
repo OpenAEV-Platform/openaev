@@ -3799,17 +3799,6 @@ export interface ObjectiveInput {
   objective_title?: string;
 }
 
-export interface OnboardingCategoryDTO {
-  category: string;
-  icon: string;
-  items: OnboardingItemDTO[];
-}
-
-export interface OnboardingItemDTO {
-  labelKey: string;
-  videoLink: string;
-}
-
 export interface Option {
   id?: string;
   label?: string;
@@ -4712,10 +4701,6 @@ export interface PlatformSettings {
   platform_light_theme?: ThemeInput;
   /** Name of the platform */
   platform_name: string;
-  /** Platform onboarding contextual help enabled */
-  platform_onboarding_contextual_help_enable?: boolean;
-  /** Platform onboarding widget enabled */
-  platform_onboarding_widget_enable?: boolean;
   /** List of OpenID providers */
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
@@ -5407,13 +5392,6 @@ export interface SettingsEnterpriseEditionUpdateInput {
   platform_enterprise_license?: string;
 }
 
-export interface SettingsOnboardingUpdateInput {
-  /** Platform onboarding contextual help enabled */
-  platform_onboarding_contextual_help_enable?: boolean;
-  /** Platform onboarding widget enabled */
-  platform_onboarding_widget_enable?: boolean;
-}
-
 export interface SettingsPlatformWhitemarkUpdateInput {
   /** The whitemark of the platform */
   platform_whitemark: string;
@@ -5574,10 +5552,6 @@ export interface StatusPayloadOutput {
   /** @uniqueItems true */
   payload_tags?: string[];
   payload_type?: string;
-}
-
-export interface StepsInput {
-  steps: string[];
 }
 
 export interface StructuralHistogramSeries {
@@ -5895,13 +5869,6 @@ export interface UpdateNotificationRuleInput {
   subject: string;
 }
 
-export interface UpdateOnboardingInput {
-  /** User onboarding contextual help enabled */
-  user_onboarding_contextual_help_enable: "DEFAULT" | "ENABLED" | "DISABLED";
-  /** User onboarding widget enabled */
-  user_onboarding_widget_enable: "DEFAULT" | "ENABLED" | "DISABLED";
-}
-
 export interface UpdateProfileInput {
   user_country?: string;
   user_email: string;
@@ -6052,11 +6019,6 @@ export interface User {
   user_lang?: string;
   /** Last name of the user */
   user_lastname?: string;
-  /** User onboarding contextual help enabled */
-  user_onboarding_contextual_help_enable: "DEFAULT" | "ENABLED" | "DISABLED";
-  user_onboarding_progress?: string;
-  /** User onboarding widget enabled */
-  user_onboarding_widget_enable: "DEFAULT" | "ENABLED" | "DISABLED";
   /** Organization ID of the user */
   user_organization?: string;
   /** PGP key of the user */
@@ -6077,22 +6039,6 @@ export interface User {
    * @format date-time
    */
   user_updated_at: string;
-}
-
-export interface UserOnboardingProgress {
-  listened?: boolean;
-  /** @format date-time */
-  onboarding_created_at?: string;
-  onboarding_id: string;
-  /** @format date-time */
-  onboarding_updated_at?: string;
-  progress: UserOnboardingStepStatus[];
-}
-
-export interface UserOnboardingStepStatus {
-  completed?: boolean;
-  skipped?: boolean;
-  step?: string;
 }
 
 export interface UserOutput {

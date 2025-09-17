@@ -1,11 +1,7 @@
-import { Box, Divider, Drawer, MenuList, Toolbar } from '@mui/material';
+import { Divider, Drawer, MenuList, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Fragment, type FunctionComponent, useEffect, useState } from 'react';
+import { Fragment, type FunctionComponent } from 'react';
 
-import eventBus, { OPEN_ONBOARDING_PROGRESS_SIDEBAR } from '../../../../admin/components/onboarding/enventBus';
-import MenuItemOnboarding from '../../../../admin/components/onboarding/MenuItemOnboarding';
-import { shouldDisplayWidget } from '../../../../admin/components/onboarding/onboarding-utils';
-import OnboardingProgressSidebar from '../../../../admin/components/onboarding/OnboardingProgressSidebar';
 import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { hasHref, type LeftMenuEntries } from './leftmenu-model';
@@ -18,30 +14,15 @@ import useLeftMenu from './useLeftMenu';
 const LeftMenu: FunctionComponent<{ entries: LeftMenuEntries[] }> = ({ entries = [] }) => {
   // Standard hooks
   const theme = useTheme();
-  const { me, settings } = useAuth();
+  const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
   const isWhitemarkEnable = settings.platform_whitemark === 'true'
     && settings.platform_license?.license_is_validated === true;
   const { state, helpers } = useLeftMenu(entries);
 
-  const [openSidebar, setOpenSidebar] = useState(false);
-
-  const handleToggleSidebar = () => setOpenSidebar(!openSidebar);
-  const handleCloseSidebar = () => setOpenSidebar(false);
-
   const getWidth = () => {
     return state.navOpen ? 180 : 55;
   };
-
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent) setOpenSidebar(true);
-    };
-
-    eventBus.addEventListener(OPEN_ONBOARDING_PROGRESS_SIDEBAR, handler);
-    return () => eventBus.removeEventListener(OPEN_ONBOARDING_PROGRESS_SIDEBAR, handler);
-  }, []);
 
   return (
     <>
@@ -89,7 +70,6 @@ const LeftMenu: FunctionComponent<{ entries: LeftMenuEntries[] }> = ({ entries =
         </div>
         <div style={{ marginTop: 'auto' }}>
           <MenuList component="nav">
-            {shouldDisplayWidget(me, settings) && <MenuItemOnboarding navOpen={state.navOpen} handleToggleSidebar={handleToggleSidebar} />}
             {!isWhitemarkEnable && (
               <MenuItemLogo
                 navOpen={state.navOpen}
@@ -103,18 +83,6 @@ const LeftMenu: FunctionComponent<{ entries: LeftMenuEntries[] }> = ({ entries =
           </MenuList>
         </div>
       </Drawer>
-      {openSidebar && (
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 0,
-            left: getWidth(),
-            zIndex: 1202,
-          }}
-        >
-          <OnboardingProgressSidebar onCloseSidebar={handleCloseSidebar} />
-        </Box>
-      )}
     </>
   );
 };

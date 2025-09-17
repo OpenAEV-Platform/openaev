@@ -17,9 +17,6 @@ public enum SettingKeys {
   PLATFORM_BANNER("platform_banner", ""),
   PLATFORM_INSTANCE("instance_id", ""),
   PLATFORM_INSTANCE_CREATION("instance_creation_date", ""),
-  PLATFORM_ONBOARDING_WIDGET_ENABLE("platform_onboarding_widget_enable", "true"),
-  PLATFORM_ONBOARDING_CONTEXTUAL_HELP_ENABLE("platform_onboarding_contextual_help_enable", "true"),
-
   XTM_HUB_TOKEN("xtm_hub_token", ""),
   XTM_HUB_REGISTRATION_DATE("xtm_hub_registration_date", ""),
   XTM_HUB_REGISTRATION_STATUS("xtm_hub_registration_status", ""),
