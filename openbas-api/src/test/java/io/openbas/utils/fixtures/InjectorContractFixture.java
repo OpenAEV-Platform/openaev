@@ -149,12 +149,6 @@ public class InjectorContractFixture {
     return createInjectorContract(labels, content);
   }
 
-  // Method to convert ContractElement to JsonNode
-  public JsonNode toJsonNode() {
-    ObjectMapper mapper = new ObjectMapper();
-    return mapper.valueToTree(this); // Converts this object to a JsonNode
-  }
-
   // -- BUILDER --
 
   public static void addField(
