@@ -12,6 +12,7 @@ public class RawPaginationScenario {
 
   private String scenario_id;
   private String scenario_name;
+  private String scenario_description;
   private SEVERITY scenario_severity;
   private String scenario_category;
   private String scenario_recurrence;
@@ -22,6 +23,7 @@ public class RawPaginationScenario {
   public RawPaginationScenario(
       String id,
       String name,
+      String description,
       SEVERITY severity,
       String category,
       String recurrence,
@@ -30,6 +32,7 @@ public class RawPaginationScenario {
       String[] platforms) {
     this.scenario_id = id;
     this.scenario_name = name;
+    this.scenario_description = description;
     this.scenario_severity = severity;
     this.scenario_category = category;
     this.scenario_recurrence = recurrence;
