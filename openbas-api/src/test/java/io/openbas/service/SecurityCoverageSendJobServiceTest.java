@@ -3,10 +3,7 @@ package io.openbas.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openbas.IntegrationTest;
-import io.openbas.database.model.Exercise;
-import io.openbas.database.model.InjectExpectation;
-import io.openbas.database.model.InjectExpectationResult;
-import io.openbas.database.model.SecurityCoverageSendJob;
+import io.openbas.database.model.*;
 import io.openbas.database.repository.SecurityCoverageSendJobRepository;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
@@ -114,9 +111,10 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Adding final result to expectation triggers coverage job")
-  public void addingFinalResultDoesTriggerCoverageJob() {
+  @DisplayName("Adding result to expectation of finished simulation triggers coverage job again")
+  public void addingResultToFinishedSimulationDoesTriggerCoverageJobAgain() {
     ExerciseComposer.Composer exerciseWrapper = createExerciseWrapper();
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     injectExpectationComposer.generatedItems.forEach(
         exp ->

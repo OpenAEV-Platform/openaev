@@ -3,12 +3,16 @@ package io.openbas.rest.injector_contract;
 import static io.openbas.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openbas.service.UserService.buildAuthenticationToken;
 import static io.openbas.utils.JsonUtils.asJsonString;
+import static io.openbas.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -53,6 +57,7 @@ import org.springframework.test.web.servlet.ResultActions;
 @WithMockAdminUser
 @DisplayName("Injector Contract API tests")
 public class InjectorContractApiTest extends IntegrationTest {
+
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager em;
   @Autowired private ObjectMapper mapper;
@@ -94,6 +99,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Nested
     @DisplayName("When injector contract already exists")
     class WhenInjectorContractAlreadyExists {
+
       private void createStaticInjectorContract() {
         injectorContractComposer
             .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
@@ -155,7 +161,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+          cveComposer
+              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .persist();
         }
         em.flush();
         em.clear();
@@ -214,6 +222,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Nested
       @DisplayName("When deleting an injector contract")
       class WhenDeletingAnInjectorContract {
+
         @Test
         @DisplayName("Deleting a non custom contract fails")
         void deleteNonCustomContractFails() {
@@ -264,7 +273,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         CveComposer.Composer vulnWrapper =
-            cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+            cveComposer
+                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
                 .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
@@ -300,6 +311,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Nested
     @DisplayName("When injector contract does not already exists")
     class WhenInjectorContractDoesNotAlreadyExists {
+
       private final String injectorContractInternalId = UUID.randomUUID().toString();
 
       @Test
@@ -325,21 +337,21 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                    {
-                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                      "injector_contract_external_id":null,
-                      "injector_contract_labels":null,"injector_contract_manual":false,
-                      "injector_contract_content":"{\\"fields\\":[]}",
-                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                      "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                      "injector_contract_atomic_testing":true,
-                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                      "injector_contract_injector_type":"openbas_implant",
-                      "injector_contract_injector_type_name":"OpenBAS Implant"
-                    }
-                    """,
+                        {
+                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                          "injector_contract_external_id":null,
+                          "injector_contract_labels":null,"injector_contract_manual":false,
+                          "injector_contract_content":"{\\"fields\\":[]}",
+                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                          "injector_contract_platforms":[],"injector_contract_payload":null,
+                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+                          "injector_contract_atomic_testing":true,
+                          "injector_contract_import_available":false,"injector_contract_arch":null,
+                          "injector_contract_injector_type":"openbas_implant",
+                          "injector_contract_injector_type_name":"OpenBAS Implant"
+                        }
+                        """,
                     injectorContractInternalId));
       }
 
@@ -408,21 +420,21 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                    {
-                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                      "injector_contract_external_id":null,
-                      "injector_contract_labels":null,"injector_contract_manual":false,
-                      "injector_contract_content":"{\\"fields\\":[]}",
-                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                      "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                      "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
-                      "injector_contract_atomic_testing":true,
-                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                      "injector_contract_injector_type":"openbas_implant",
-                      "injector_contract_injector_type_name":"OpenBAS Implant"
-                    }
-                    """,
+                        {
+                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                          "injector_contract_external_id":null,
+                          "injector_contract_labels":null,"injector_contract_manual":false,
+                          "injector_contract_content":"{\\"fields\\":[]}",
+                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                          "injector_contract_platforms":[],"injector_contract_payload":null,
+                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
+                          "injector_contract_atomic_testing":true,
+                          "injector_contract_import_available":false,"injector_contract_arch":null,
+                          "injector_contract_injector_type":"openbas_implant",
+                          "injector_contract_injector_type_name":"OpenBAS Implant"
+                        }
+                        """,
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -466,21 +478,21 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                    {
-                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                      "injector_contract_external_id":null,
-                      "injector_contract_labels":null,"injector_contract_manual":false,
-                      "injector_contract_content":"{\\"fields\\":[]}",
-                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                      "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                      "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
-                      "injector_contract_atomic_testing":true,
-                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                      "injector_contract_injector_type":"openbas_implant",
-                      "injector_contract_injector_type_name":"OpenBAS Implant"
-                    }
-                    """,
+                        {
+                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                          "injector_contract_external_id":null,
+                          "injector_contract_labels":null,"injector_contract_manual":false,
+                          "injector_contract_content":"{\\"fields\\":[]}",
+                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                          "injector_contract_platforms":[],"injector_contract_payload":null,
+                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
+                          "injector_contract_atomic_testing":true,
+                          "injector_contract_import_available":false,"injector_contract_arch":null,
+                          "injector_contract_injector_type":"openbas_implant",
+                          "injector_contract_injector_type_name":"OpenBAS Implant"
+                        }
+                        """,
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -493,7 +505,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities, creating contract succeeds")
       void withExistingVulnerabilitiesCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+          cveComposer
+              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .persist();
         }
         em.flush();
         em.clear();
@@ -516,24 +530,25 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_ARRAY_ORDER)
             .isEqualTo(
                 String.format(
                     """
-                    {
-                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                      "injector_contract_external_id":null,
-                      "injector_contract_labels":null,"injector_contract_manual":false,
-                      "injector_contract_content":"{\\"fields\\":[]}",
-                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                      "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
-                      "injector_contract_atomic_testing":true,
-                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                      "injector_contract_injector_type":"openbas_implant",
-                      "injector_contract_injector_type_name":"OpenBAS Implant"
-                    }
-                    """,
+                        {
+                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                          "injector_contract_external_id":null,
+                          "injector_contract_labels":null,"injector_contract_manual":false,
+                          "injector_contract_content":"{\\"fields\\":[]}",
+                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                          "injector_contract_platforms":[],"injector_contract_payload":null,
+                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
+                          "injector_contract_atomic_testing":true,
+                          "injector_contract_import_available":false,"injector_contract_arch":null,
+                          "injector_contract_injector_type":"openbas_implant",
+                          "injector_contract_injector_type_name":"OpenBAS Implant"
+                        }
+                        """,
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -546,7 +561,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities by external ID, creating contract succeeds")
       void withExistingVulnerabilitiesByExternalIdCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+          cveComposer
+              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .persist();
         }
         em.flush();
         em.clear();
@@ -573,24 +590,25 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_ARRAY_ORDER)
             .isEqualTo(
                 String.format(
                     """
-                    {
-                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                      "injector_contract_external_id":null,
-                      "injector_contract_labels":null,"injector_contract_manual":false,
-                      "injector_contract_content":"{\\"fields\\":[]}",
-                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                      "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
-                      "injector_contract_atomic_testing":true,
-                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                      "injector_contract_injector_type":"openbas_implant",
-                      "injector_contract_injector_type_name":"OpenBAS Implant"
-                    }
-                    """,
+                        {
+                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                          "injector_contract_external_id":null,
+                          "injector_contract_labels":null,"injector_contract_manual":false,
+                          "injector_contract_content":"{\\"fields\\":[]}",
+                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                          "injector_contract_platforms":[],"injector_contract_payload":null,
+                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
+                          "injector_contract_atomic_testing":true,
+                          "injector_contract_import_available":false,"injector_contract_arch":null,
+                          "injector_contract_injector_type":"openbas_implant",
+                          "injector_contract_injector_type_name":"OpenBAS Implant"
+                        }
+                        """,
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -670,6 +688,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Nested
     @DisplayName("When injector contract already exists")
     class WhenInjectorContractAlreadyExists {
+
       private void createStaticInjectorContract() {
         injectorContractComposer
             .forInjectorContract(
@@ -737,7 +756,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+          cveComposer
+              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .persist();
         }
         em.flush();
         em.clear();
@@ -788,6 +809,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Nested
       @DisplayName("When deleting an injector contract")
       class WhenDeletingAnInjectorContract {
+
         @Test
         @DisplayName("Deleting a non custom contract fails")
         void deleteNonCustomContractFails() {
@@ -832,7 +854,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         CveComposer.Composer vulnWrapper =
-            cveComposer.forCve(CveFixture.createDefaultCve()).persist();
+            cveComposer
+                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
                 .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
@@ -866,6 +890,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Nested
     @DisplayName("When injector contract does not already exists")
     class WhenInjectorContractDoesNotAlreadyExists {
+
       @Test
       @DisplayName("Creating contract succeeds")
       void createContractSucceeds() throws Exception {
@@ -891,20 +916,20 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                    {
-                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                      "injector_contract_external_id":"contract external id",
-                      "injector_contract_labels":null,"injector_contract_manual":false,
-                      "injector_contract_content":"{\\"fields\\":[]}",
-                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                      "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                      "injector_contract_atomic_testing":true,
-                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                      "injector_contract_injector_type":"openbas_implant",
-                      "injector_contract_injector_type_name":"OpenBAS Implant"
-                    }""",
+                        {
+                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                          "injector_contract_external_id":"contract external id",
+                          "injector_contract_labels":null,"injector_contract_manual":false,
+                          "injector_contract_content":"{\\"fields\\":[]}",
+                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                          "injector_contract_platforms":[],"injector_contract_payload":null,
+                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+                          "injector_contract_atomic_testing":true,
+                          "injector_contract_import_available":false,"injector_contract_arch":null,
+                          "injector_contract_injector_type":"openbas_implant",
+                          "injector_contract_injector_type_name":"OpenBAS Implant"
+                        }""",
                     newId));
       }
 
@@ -966,6 +991,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Injector Contract search tests")
   class InjectorContractSearchTests {
+
     private void createStaticInjectorContract() {
       injectorContractComposer
           .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
@@ -1048,6 +1074,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Injector Contract search tests with different user types for RBAC")
   class InjectorContractSearchTestsForDifferentUsers {
+
     // Enum for user types to make parameterized tests cleaner
     enum UserType {
       NO_GROUPS,

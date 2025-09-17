@@ -1,7 +1,7 @@
 package io.openbas.api.payload;
 
 import static io.openbas.rest.payload.PayloadApi.PAYLOAD_URI;
-import static io.openbas.utils.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
+import static io.openbas.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;

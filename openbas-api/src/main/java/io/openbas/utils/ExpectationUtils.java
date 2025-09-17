@@ -1,7 +1,7 @@
 package io.openbas.utils;
 
 import static io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE.*;
-import static io.openbas.database.model.InjectExpectationSignature.*;
+import static io.openbas.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
 import static io.openbas.model.expectation.DetectionExpectation.detectionExpectationForAgent;
 import static io.openbas.model.expectation.DetectionExpectation.detectionExpectationForAsset;
 import static io.openbas.model.expectation.ManualExpectation.manualExpectationForAgent;
@@ -10,6 +10,7 @@ import static io.openbas.model.expectation.PreventionExpectation.preventionExpec
 import static io.openbas.model.expectation.PreventionExpectation.preventionExpectationForAsset;
 import static io.openbas.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 import static io.openbas.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
+import static io.openbas.utils.inject_expectation_result.InjectExpectationResultUtils.buildForMediaPressure;
 
 import io.openbas.database.model.*;
 import io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE;
@@ -20,6 +21,7 @@ import io.openbas.model.expectation.VulnerabilityExpectation;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.inject.service.AssetToExecute;
 import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -98,15 +100,7 @@ public class ExpectationUtils {
                     }
 
                     if (isaNewExpectationResult) {
-                      InjectExpectationResult result =
-                          InjectExpectationResult.builder()
-                              .sourceId("media-pressure")
-                              .sourceType("media-pressure")
-                              .sourceName("Media pressure read")
-                              .result(Instant.now().toString())
-                              .date(Instant.now().toString())
-                              .score(process.getExpectedScore())
-                              .build();
+                      InjectExpectationResult result = buildForMediaPressure(process);
                       parentExpectation.getResults().add(result);
                     }
 
@@ -386,7 +380,86 @@ public class ExpectationUtils {
     return signatures;
   }
 
-  // --
+  // -- PLAYER --
+
+  public static List<InjectExpectation> getExpectationsPlayersForTeam(
+      @NotNull final InjectExpectation injectExpectation) {
+    return injectExpectation.getInject().getExpectations().stream()
+        .filter(ExpectationUtils::isPlayerExpectation)
+        .filter(e -> e.getTeam().getId().equals(injectExpectation.getTeam().getId()))
+        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .toList();
+  }
+
+  private static boolean isPlayerExpectation(InjectExpectation e) {
+    return e.getUser() != null;
+  }
+
+  // -- TEAM --
+
+  public static List<InjectExpectation> getExpectationTeams(
+      @NotNull final InjectExpectation injectExpectation) {
+    return injectExpectation.getInject().getExpectations().stream()
+        .filter(ExpectationUtils::isTeamExpectation)
+        .filter(e -> e.getTeam().getId().equals(injectExpectation.getTeam().getId()))
+        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .toList();
+  }
+
+  private static boolean isTeamExpectation(InjectExpectation e) {
+    return e.getTeam() != null && e.getUser() == null;
+  }
+
+  // -- AGENT --
+
+  public static List<InjectExpectation> getExpectationsAgentsForAsset(
+      @NotNull final InjectExpectation injectExpectation) {
+    return injectExpectation.getInject().getExpectations().stream()
+        .filter(ExpectationUtils::isAgentExpectation)
+        .filter(e -> e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
+        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .toList();
+  }
+
+  public static boolean isAgentExpectation(InjectExpectation e) {
+    return e.getAgent() != null;
+  }
+
+  // -- ASSET --
+
+  public static List<InjectExpectation> getExpectationsAssets(
+      @NotNull final InjectExpectation injectExpectation) {
+    return injectExpectation.getInject().getExpectations().stream()
+        .filter(ExpectationUtils::isAssetExpectation)
+        .filter(e -> e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
+        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .toList();
+  }
+
+  public static List<InjectExpectation> getExpectationsAssetsForAssetGroup(
+      @NotNull final InjectExpectation injectExpectation) {
+    return injectExpectation.getInject().getExpectations().stream()
+        .filter(ExpectationUtils::isAssetExpectation)
+        .filter(e -> e.getAssetGroup().getId().equals(injectExpectation.getAssetGroup().getId()))
+        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .toList();
+  }
+
+  public static boolean isAssetExpectation(InjectExpectation e) {
+    return e.getAsset() != null && e.getAgent() == null;
+  }
+
+  // -- ASSET GROUP --
+
+  public static List<InjectExpectation> getExpectationAssetGroups(
+      @NotNull final InjectExpectation injectExpectation) {
+    return injectExpectation.getInject().getExpectations().stream()
+        .filter(ExpectationUtils::isAssetGroupExpectation)
+        .filter(e -> e.getAssetGroup().getId().equals(injectExpectation.getAssetGroup().getId()))
+        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .toList();
+  }
+
   public static boolean isAssetGroupExpectation(InjectExpectation e) {
     return e.getAssetGroup() != null && e.getAsset() == null && e.getAgent() == null;
   }

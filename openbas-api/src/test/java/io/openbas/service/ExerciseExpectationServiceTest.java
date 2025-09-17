@@ -19,8 +19,8 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Transactional
 public class ExerciseExpectationServiceTest extends IntegrationTest {
 
   public static final String EXPECTATION_NAME =

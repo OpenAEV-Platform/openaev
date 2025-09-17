@@ -2,11 +2,9 @@ package io.openbas.rest.asset.endpoint;
 
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
-import static io.openbas.utils.UserOnboardingProgressUtils.ENDPOINT_SETUP;
 
 import io.openbas.aop.LogExecutionTime;
 import io.openbas.aop.RBAC;
-import io.openbas.aop.onboarding.Onboarding;
 import io.openbas.database.model.Action;
 import io.openbas.database.model.Agent;
 import io.openbas.database.model.AssetAgentJob;
@@ -60,7 +58,6 @@ public class EndpointApi extends RestBehavior {
   @PostMapping(ENDPOINT_URI + "/agentless")
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  @Onboarding(step = ENDPOINT_SETUP)
   public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
     return this.endpointService.createEndpoint(input);
   }

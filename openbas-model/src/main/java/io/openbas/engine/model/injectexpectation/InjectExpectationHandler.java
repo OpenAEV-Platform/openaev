@@ -1,7 +1,7 @@
 package io.openbas.engine.model.injectexpectation;
 
 import static io.openbas.engine.EsUtils.buildRestrictions;
-import static io.openbas.helper.InjectExpectationHelper.computeStatusForIndexing;
+import static io.openbas.helper.InjectExpectationHelper.computeStatus;
 import static java.lang.String.valueOf;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
@@ -123,7 +123,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
                 esInjectExpectation.setBase_security_platforms_side(Set.of());
               }
               esInjectExpectation.setInject_expectation_status(
-                  valueOf(computeStatusForIndexing(injectExpectation)));
+                  valueOf(
+                      computeStatus(
+                          injectExpectation.getInject_expectation_score(),
+                          injectExpectation.getInject_expectation_expected_score())));
               esInjectExpectation.setBase_dependencies(dependencies);
               return esInjectExpectation;
             })

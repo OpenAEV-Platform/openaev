@@ -16,6 +16,12 @@ public class StixService {
 
   private final SecurityCoverageService securityCoverageService;
 
+  /**
+   * Generate or update a Scenario from Stix bundle
+   *
+   * @param stixJson
+   * @return Scenario
+   */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
     // Update securityCoverage with the last bundle
@@ -37,8 +43,8 @@ public class StixService {
     if (scenario.getInjects().isEmpty()) {
       summary =
           "The current scenario does not contain injects. "
-              + "This may happen if no Attack-Pattern is defined in the STIX bundle "
-              + "or if the Attack Patterns (TTPs) do not exist in the OAEV platform.";
+              + "This can occur when: (1) no Attack Patterns or vulnerabilities are defined in the STIX bundle, "
+              + "or (2) the specified Attack Patterns and vulnerabilities are not available in the OAEV platform.";
     } else {
       summary = "Scenario with Injects created successfully";
     }

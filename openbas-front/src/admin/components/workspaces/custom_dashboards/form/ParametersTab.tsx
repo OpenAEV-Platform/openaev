@@ -48,42 +48,39 @@ const ParametersTab = () => {
         </IconButton>
       </div>
       {fields
-        .filter(f => items.map(i => i.value).includes(f.custom_dashboards_parameter_type))
         .map((field, index) => (
-          <Box
-            key={field.id}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing(2),
-            }}
-          >
-            {
-              (field.custom_dashboards_parameter_type === 'simulation' || field.custom_dashboards_parameter_type === 'scenario') && (
-                <>
-                  <TextFieldController
-                    name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_name`}
-                    label={t('Parameter Name')}
-                    variant="standard"
-                    required
-                    noHelperText
-                  />
-                  <SelectFieldController
-                    name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_type`}
-                    label={t('Parameter Type')}
-                    items={items}
-                    required
-                  />
-                  <Tooltip title={t('Delete')}>
-                    <IconButton color="error" onClick={() => remove(index)}>
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )
-            }
-          </Box>
-        ))}
+          (field.custom_dashboards_parameter_type === 'simulation' || field.custom_dashboards_parameter_type === 'scenario') && (
+            <Box
+              key={field.id}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing(2),
+              }}
+            >
+              <>
+                <TextFieldController
+                  name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_name`}
+                  label={t('Parameter Name')}
+                  variant="standard"
+                  required
+                  noHelperText
+                />
+                <SelectFieldController
+                  name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_type`}
+                  label={t('Parameter Type')}
+                  items={items}
+                  required
+                />
+                <Tooltip title={t('Delete')}>
+                  <IconButton color="error" onClick={() => remove(index)}>
+                    <DeleteOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+
+            </Box>
+          )))}
     </>
   );
 };

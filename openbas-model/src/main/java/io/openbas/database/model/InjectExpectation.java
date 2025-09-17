@@ -107,7 +107,7 @@ public class InjectExpectation implements Base, Cloneable {
 
   @JsonProperty("inject_expectation_status")
   public EXPECTATION_STATUS getResponse() {
-    return computeStatus(this);
+    return computeStatus(this.getScore(), this.getExpectedScore());
   }
 
   @Setter

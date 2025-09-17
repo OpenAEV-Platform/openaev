@@ -1,5 +1,7 @@
 package io.openbas.rest.collector.service;
 
+import static io.openbas.database.specification.CollectorSpecification.hasSecurityPlatform;
+import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +36,10 @@ public class CollectorService {
     return collectorRepository
         .findById(id)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
+  }
+
+  public List<Collector> securityPlatformCollectors() {
+    return fromIterable(collectorRepository.findAll(hasSecurityPlatform()));
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {

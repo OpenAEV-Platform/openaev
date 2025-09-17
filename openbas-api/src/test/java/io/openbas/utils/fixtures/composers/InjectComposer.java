@@ -116,7 +116,7 @@ public class InjectComposer extends ComposerBase<Inject> {
       injectDependencyId.setInjectParent(injectParent);
       injectDependencyId.setInjectChildren(this.inject);
       injectDependency.setCompositeId(injectDependencyId);
-      this.inject.setDependsOn(List.of(injectDependency));
+      this.inject.setDependsOn(new ArrayList<>(List.of(injectDependency)));
       return this;
     }
 

@@ -45,11 +45,6 @@ export const updateMePassword = (currentPassword, newPassword) => dispatch => pu
   user_plain_password: newPassword,
 })(dispatch);
 
-export const updateMeOnboarding = (onboardingWidgetEnable, onboardingContextualHelpEnable) => dispatch => putReferential(schema.user, ME_URI + '/onboarding', {
-  user_onboarding_widget_enable: onboardingWidgetEnable,
-  user_onboarding_contextual_help_enable: onboardingContextualHelpEnable,
-})(dispatch);
-
 export const updateMeProfile = data => dispatch => putReferential(schema.user, '/api/me/profile', data)(dispatch);
 
 export const updateMeInformation = data => dispatch => putReferential(schema.user, '/api/me/information', data)(dispatch);
