@@ -1,33 +1,33 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { importScenario } from '../../../actions/scenarios/scenario-actions';
 import Loader from '../../../components/Loader';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
+import useAuth from '../../../utils/hooks/useAuth';
+import useXtmHubUserPlatformToken from '../../../utils/hooks/useXtmHubUserPlatformToken';
 
 const DeployScenario: React.FC = () => {
-  // Get token
-  // const { token } = useXtmHubUserPlatformToken();
+  const { token } = useXtmHubUserPlatformToken();
   const navigate = useNavigate();
-  const { serviceInstanceId, fileId } = useParams();
   const dispatch = useAppDispatch();
-
+  const { settings } = useAuth();
+  const { serviceInstanceId, fileId } = useParams();
+  const hasBeenCalled = useRef(false);
   useEffect(() => {
-    // if (!token) {
-    //   return;
-    // }
-
+    if (!token) {
+      return;
+    }
+    hasBeenCalled.current = true;
     const fetchData = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3002/document/get/${serviceInstanceId}/${fileId}`,
+          `${settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : 'https://hub.filigran.io'}/document/get/${serviceInstanceId}/${fileId}`,
           {
             method: 'GET',
             credentials: 'omit',
-            // headers: {
-              // 'XTM-Hub-User-Platform-Token': token,
-            // },
+            headers: { 'XTM-Hub-User-Platform-Token': token },
           },
         );
 
@@ -45,7 +45,7 @@ const DeployScenario: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [serviceInstanceId, fileId, token]);
 
   return (<Loader />);
 };
