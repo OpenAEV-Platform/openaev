@@ -7,7 +7,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsTemplate from '../../components/lessons/CreateLessonsTemplate';
@@ -57,6 +57,8 @@ const Lessons: FunctionComponent<Props> = ({
   const [openEmptyLessons, setOpenEmptyLessons] = useState<boolean>(false);
   const [openAnonymize, setOpenAnonymize] = useState<boolean>(false);
   const [templateValue, setTemplateValue] = useState<string | null>(null);
+  const ability = useContext(AbilityContext);
+
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     setTemplateValue(event.target.value);
   };
@@ -131,7 +133,7 @@ const Lessons: FunctionComponent<Props> = ({
               </Grid>
             )}
 
-            <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
+            {(permissions.canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)) && (
               <Grid size={{ xs: 6 }}>
                 <Typography variant="h3">{t('Template')}</Typography>
                 <Button
@@ -143,7 +145,7 @@ const Lessons: FunctionComponent<Props> = ({
                   {t('Apply')}
                 </Button>
               </Grid>
-            </Can>
+            )}
             <Grid size={{ xs: 6 }}>
               <Typography variant="h3">{t('Check')}</Typography>
               <Button
