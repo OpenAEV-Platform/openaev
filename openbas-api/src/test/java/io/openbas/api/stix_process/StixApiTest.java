@@ -672,7 +672,7 @@ class StixApiTest extends IntegrationTest {
                   .filter(updated -> updated.getId().equals(inject.getId()))
                   .map(updated -> updated.getAssets())
                   .toList())
-          .hasSize(3);
+          .hasSize(1);
     }
 
     @Test
