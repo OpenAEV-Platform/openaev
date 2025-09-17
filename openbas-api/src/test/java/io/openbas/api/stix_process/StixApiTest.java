@@ -150,7 +150,7 @@ class StixApiTest extends IntegrationTest {
 
     tagRuleComposer
         .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-target-properties")))
+        .withTag(tagComposer.forTag(TagFixture.getTagWithText("empty-asset-group")))
         .withAssetGroup(emptyAssetGroup)
         .persist();
 
@@ -515,10 +515,10 @@ class StixApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should I create a scenario with one inject for a vulnerability, knowing that a non-target has been identified")
-    void shouldCreateScenarioWithOneInjectsWhenNoTargetWasIdentified() throws Exception {
+        "Should I create a scenario with one inject for a vulnerability, knowing that asset group is empty")
+    void shouldCreateScenarioWithOneInjectsWhenEmptyAssetGroups() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("opencti", "no-asset-groups");
+          stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-group");
 
       String createdResponse =
           mvc.perform(
@@ -540,11 +540,10 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "Should create scenario with 1 inject when none target property was identified because assets have none target property")
-    void shouldCreateScenarioWithOneInjectWhenNoneTargetPropertyWasIdentified() throws Exception {
+    @DisplayName("Should create scenario with 1 inject when no asset groups")
+    void shouldCreateScenarioWithOneInjectWhenNoAssetGroups() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("opencti", "no-target-properties");
+          stixSecurityCoverageOnlyVulns.replace("opencti", "no-asset-groups");
 
       String createdResponse =
           mvc.perform(
@@ -608,10 +607,11 @@ class StixApiTest extends IntegrationTest {
       assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(1);
+      assertThat(injects.stream().findFirst().get().getAssets()).hasSize(3);
 
       stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("opencti", "no-target-properties");
+          stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -625,14 +625,14 @@ class StixApiTest extends IntegrationTest {
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
+      assertThat(injects.stream().findFirst().get().getAssets()).hasSize(0);
     }
 
     @Test
-    @DisplayName(
-        "Should update injects when more target are added with different target properties")
-    void shouldUpdateInjectsWhenTargetWithMoreTargetPropertiesAreAdded() throws Exception {
+    @DisplayName("Should update injects when more targets are added")
+    void shouldUpdateInjectsWhenTargesAreAdded() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("opencti", "no-target-properties");
+          stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
 
       String createdResponse =
           mvc.perform(
@@ -649,6 +649,9 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
 
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(0);
+
       stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
 
@@ -663,7 +666,13 @@ class StixApiTest extends IntegrationTest {
 
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(1);
+      assertThat(
+              injects.stream()
+                  .filter(updated -> updated.getId().equals(inject.getId()))
+                  .map(updated -> updated.getAssets())
+                  .toList())
+          .hasSize(3);
     }
 
     @Test
