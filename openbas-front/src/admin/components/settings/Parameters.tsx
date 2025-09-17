@@ -1,6 +1,6 @@
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, List, ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformEnterpriseEditionParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
@@ -13,7 +13,7 @@ import { useHelper } from '../../../store';
 import { type PlatformSettings, type SettingsEnterpriseEditionUpdateInput, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { Can } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EnterpriseEditionButton from '../common/entreprise_edition/EnterpriseEditionButton';
 import ParametersForm from './ParametersForm';
@@ -36,6 +36,8 @@ const Parameters = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, fldt } = useFormatter();
+  const ability = useContext(AbilityContext);
+
   const [openEEChanges, setOpenEEChanges] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const isEnterpriseEditionActivated = settings.platform_license?.license_is_enterprise;
@@ -106,14 +108,16 @@ const Parameters = () => {
             )}
             {!isEnterpriseEditionByConfig && isEnterpriseEdition && (
               <>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => setOpenEEChanges(true)}
-                >
-                  {t('Disable Enterprise Edition')}
-                </Button>
+                <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => setOpenEEChanges(true)}
+                  >
+                    {t('Disable Enterprise Edition')}
+                  </Button>
+                </Can>
                 <Dialog
                   slotProps={{ paper: { elevation: 1 } }}
                   open={openEEChanges}
@@ -313,7 +317,7 @@ const Parameters = () => {
             <ListItem divider>
               <ListItemText primary={t('Remove Filigran logos')} />
               <Switch
-                disabled={settings.platform_license?.license_is_validated === false}
+                disabled={settings.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
                 checked={settings.platform_whitemark === 'true'}
                 onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
               />
