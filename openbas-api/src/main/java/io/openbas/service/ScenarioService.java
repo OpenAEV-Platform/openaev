@@ -226,6 +226,7 @@ public class ScenarioService {
     cq.multiselect(
             scenarioRoot.get("id").alias("scenario_id"),
             scenarioRoot.get("name").alias("scenario_name"),
+            scenarioRoot.get("description").alias("scenario_description"),
             scenarioRoot.get("severity").alias("scenario_severity"),
             scenarioRoot.get("category").alias("scenario_category"),
             scenarioRoot.get("recurrence").alias("scenario_recurrence"),
@@ -263,6 +264,7 @@ public class ScenarioService {
                     new RawPaginationScenario(
                         tuple.get("scenario_id", String.class),
                         tuple.get("scenario_name", String.class),
+                        tuple.get("scenario_description", String.class),
                         tuple.get("scenario_severity", Scenario.SEVERITY.class),
                         tuple.get("scenario_category", String.class),
                         tuple.get("scenario_recurrence", String.class),
