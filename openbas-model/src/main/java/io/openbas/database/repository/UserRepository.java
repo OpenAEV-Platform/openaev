@@ -143,6 +143,21 @@ public interface UserRepository
       nativeQuery = true)
   Set<RawUser> rawUserByIds(@Param("ids") Set<String> ids);
 
+  @Query(
+      value =
+          "SELECT users.*\n"
+              + "FROM users\n"
+              + "LEFT JOIN users_groups ON users_groups.user_id = users.user_id\n"
+              + "LEFT JOIN groups ON groups.group_id = users_groups.group_id\n"
+              + "LEFT JOIN groups_roles ON groups_roles.group_id = groups.group_id\n"
+              + "LEFT JOIN roles ON roles.role_id = groups_roles.role_id\n"
+              + "LEFT JOIN roles_capabilities ON roles_capabilities.role_id = roles.role_id\n"
+              + "WHERE capability = :capability\n"
+              + "OR users.user_admin = true\n"
+              + "GROUP BY users.user_id;",
+      nativeQuery = true)
+  List<User> usersHavingCapability(@Param("capability") String capability);
+
   // -- PAGINATION --
 
   @NotNull
