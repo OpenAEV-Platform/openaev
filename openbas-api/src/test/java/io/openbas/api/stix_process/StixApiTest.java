@@ -52,6 +52,8 @@ class StixApiTest extends IntegrationTest {
 
   public static final String T_1531 = "T1531";
   public static final String T_1003 = "T1003";
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGET_PROPERTY_SELECTOR =
+      "target_property_selector";
 
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;

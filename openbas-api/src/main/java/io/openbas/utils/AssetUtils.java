@@ -14,12 +14,12 @@ public class AssetUtils {
   /**
    * Build platform-architecture pairs from every endpoint in the list
    *
-   * @param endpointSet list of attack patterns (TTPs)
+   * @param endpointList list of attack patterns (TTPs)
    * @return set of (Platform × Architecture) combinations
    */
   public static Set<Pair<Endpoint.PLATFORM_TYPE, String>> extractPlatformArchPairs(
-      List<Endpoint> endpointSet) {
-    return endpointSet.stream()
+      List<Endpoint> endpointList) {
+    return endpointList.stream()
         .map(ep -> Pair.of(ep.getPlatform(), ep.getArch().name()))
         .collect(Collectors.toSet());
   }
