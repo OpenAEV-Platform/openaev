@@ -49,4 +49,17 @@ public class XtmHubApi extends RestBehavior {
   public PlatformSettings unregister() {
     return this.xtmHubService.unregister();
   }
+
+  @PostMapping(
+      value = XTMHUB_URI + "/refresh-connectivity",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "Refresh connectivity with XTM Hub",
+      description = "Refresh status in settings and version in XTM Hub")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful refresh")})
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  public PlatformSettings refreshConnectivity() {
+    return this.xtmHubService.refreshConnectivity();
+  }
 }
