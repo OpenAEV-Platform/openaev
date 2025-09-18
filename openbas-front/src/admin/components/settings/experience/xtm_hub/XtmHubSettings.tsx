@@ -1,11 +1,14 @@
 import { Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
+import { refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import type { PlatformSettings } from '../../../../../utils/api-types';
+import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import { Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -17,6 +20,17 @@ const XtmHubSettings: React.FC = () => {
   const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const dispatch = useAppDispatch();
+
+  const hasRun = useRef(false);
+  useEffect(() => {
+    if (!settings.xtm_hub_token || hasRun.current) {
+      return;
+    }
+
+    hasRun.current = true;
+    dispatch(refreshConnectivity());
+  }, []);
 
   const isXTMHubRegistered = settings?.xtm_hub_registration_status === 'registered' || settings?.xtm_hub_registration_status === 'lost_connectivity';
 
