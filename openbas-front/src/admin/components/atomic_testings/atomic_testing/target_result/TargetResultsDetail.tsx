@@ -42,7 +42,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const openIdParams = searchParams.get('open');
+  const openIdParams = searchParams.get('expectation_id');
 
   const [activeTab, setActiveTab] = useState(0);
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {

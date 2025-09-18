@@ -81,7 +81,7 @@ const navigationHandlers: Record<string, NavigationHandler> = {
       ? `${SIMULATION_BASE_URL}/${expectation.base_simulation_side}/injects/${expectation.base_inject_side}`
       : `${ATOMIC_BASE_URL}/${expectation.base_inject_side}`;
     const target = getTargetTypeFromInjectExpectation(expectation);
-    navigate(`${injectUrl}?open=${expectation.base_id}&target=${target.type}`);
+    navigate(`${injectUrl}?expectation_id=${expectation.base_id}&target=${target.type}`);
   },
 
   'finding': (element, navigate) => {

@@ -59,9 +59,10 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
   };
 
   useEffect(() => {
-    if (openIdParams && findings.length > 0) {
-      setSelectedFinding(findings.find(f => f.finding_id == openIdParams) ?? null);
+    if (!openIdParams) {
+      return;
     }
+    setSelectedFinding(findings.find(f => f.finding_id == openIdParams) ?? null);
   }, [openIdParams, findings]);
 
   const headers = [
