@@ -39,7 +39,7 @@ public class DetectionRemediationService {
   public String saveDetectionRemediationRulesByAI(
       DetectionRemediation detectionRemediation, DetectionRemediationCrowdstrikeResponse rules) {
     detectionRemediation.setValues(rules.formateRules());
-    detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.AI);
+    detectionRemediation.setAiRuleCreationDate(new Date().toInstant());
 
     detectionRemediationRepository.save(detectionRemediation);
     return detectionRemediation.getValues();

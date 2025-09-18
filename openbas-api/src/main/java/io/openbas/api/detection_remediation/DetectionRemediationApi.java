@@ -60,7 +60,7 @@ public class DetectionRemediationApi {
         @ApiResponse(responseCode = "500", description = "Enterprise Edition is not available"),
         @ApiResponse(
             responseCode = "503",
-            description = "AI Webservice for FileDrop or Executable File not available"),
+            description = "AI Webservice for FileDrop or Executable File not implemented"),
         @ApiResponse(
             responseCode = "503",
             description = "Web service is not deployed on this instance"),
@@ -69,7 +69,7 @@ public class DetectionRemediationApi {
             description = "AI Webservice for collector type microsoft defender not available"),
         @ApiResponse(
             responseCode = "503",
-            description = "AI Webservice for collector type microsoft defender not available")
+            description = "AI Webservice for collector type microsoft sentinel not available")
       })
   @PostMapping("/rules/crowdstrike")
   @LogExecutionTime
@@ -81,7 +81,7 @@ public class DetectionRemediationApi {
         || input.getType().equals(Executable.EXECUTABLE_TYPE))
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,
-          "AI Webservice for FileDrop or Executable File not available");
+          "AI Webservice for FileDrop or Executable File not implemented");
 
     // GET Detection remediation linked to the payload by collector
     DetectionRemediationInput detectionRemediationInput =

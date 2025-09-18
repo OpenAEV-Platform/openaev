@@ -1,85 +1,93 @@
 package io.openbas.service.detection_remediation;
 
-import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openbas.authorisation.HttpClientFactory;
 import io.openbas.ee.Ee;
-import io.openbas.utils.OkHttpClientUtils;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import org.springframework.core.env.Environment;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.IOException;
+import java.net.ConnectException;
+
+import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DetectionRemediationAIService {
-  private static final String X_OPENAEV_CERTIFICATE = "X-OpenAEV-Certificate";
-  private static final String REMEDIATION_DETECTION_WEBSERVICE_CROWDSTRIKE_URL =
-      "remediation.detection.webservice.crowdstrike";
-  private static final String REMEDIATION_DETECTION_WEBSERVICE_HEALTH_URL =
-      "remediation.detection.webservice.health";
+    private static final String X_OPENAEV_CERTIFICATE = "X-OpenAEV-Certificate";
 
-  private final OkHttpClientUtils okHttpClientUtils = new OkHttpClientUtils();
-  private final Ee ee;
-  private final Environment env;
-  private final Gson json = new Gson();
+    @Value("${remediation.detection.webservice}")
+    String REMEDIATION_DETECTION_WEBSERVICE;
 
-  private final OkHttpClient CLIENT_RULES =
-      new OkHttpClient.Builder()
-          .callTimeout(2, TimeUnit.MINUTES) // Max time connection
-          .readTimeout(2, TimeUnit.MINUTES) // Max time waiting an answer
-          .build();
-
-  private final OkHttpClient CLIENT_HEALTH = new OkHttpClient();
+    private final Ee ee;
+    private final HttpClientFactory httpClientFactory;
+    @Resource protected ObjectMapper mapper;
 
   public DetectionRemediationCrowdstrikeResponse callRemediationDetectionAIWebservice(
       DetectionRemediationRequest payload) {
     // Check if account has EE licence
     String certificate = ee.getEncodedCertificate();
 
-    String url =
-        Objects.requireNonNull(env.getProperty(REMEDIATION_DETECTION_WEBSERVICE_CROWDSTRIKE_URL));
-
-    RequestBody body =
-        RequestBody.create(json.toJson(payload), MediaType.parse(APPLICATION_JSON_VALUE));
-
-    Request request =
-        new Request.Builder()
-            .url(url)
-            .addHeader(X_OPENAEV_CERTIFICATE, certificate)
-            .addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
-            .method("POST", body)
-            .build();
+    String url = REMEDIATION_DETECTION_WEBSERVICE+ "/remediation/crowdstrike";
 
     String errorMessage = "Request to Remediation Detection AI Webservice failed: ";
 
-    return this.okHttpClientUtils.call(
-        CLIENT_RULES, request, errorMessage, json, DetectionRemediationCrowdstrikeResponse.class);
+      try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+
+          HttpPost httpPost = new HttpPost(url);
+
+          httpPost.addHeader(X_OPENAEV_CERTIFICATE, certificate);
+          httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+
+          StringEntity httpBody = new StringEntity(mapper.writeValueAsString(payload));
+          httpPost.setEntity(httpBody);
+
+          String responseBody = httpClient.execute(httpPost, response ->
+                  EntityUtils.toString(response.getEntity()));
+
+          return mapper.readValue(responseBody, DetectionRemediationCrowdstrikeResponse.class);
+
+      } catch (ConnectException ex) {
+          throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
+
+      } catch (IOException e) {
+          throw new RestClientException(errorMessage + e);
+      }
+
   }
 
   public DetectionRemediationHealthResponse checkHealthWebservice() {
-    // Check if account has EE licence
-    ee.getEncodedCertificate();
+      // Check if account has EE licence
+      ee.getEncodedCertificate();
 
-    String url =
-        Objects.requireNonNull(env.getProperty(REMEDIATION_DETECTION_WEBSERVICE_HEALTH_URL));
+      String url = REMEDIATION_DETECTION_WEBSERVICE + "/health";
+      String errorMessage = "Connection to Remediation Detection AI Webservice failed: ";
 
-    Request request = new Request.Builder().url(url).method("GET", null).build();
+      try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+          HttpGet httpGet = new HttpGet(url);
+          String responseBody = httpClient.execute(httpGet, response ->
+                  EntityUtils.toString(response.getEntity()));
 
-    String errorMessage = "Connection to Remediation Detection AI Webservice failed: ";
+          return mapper.readValue(responseBody, DetectionRemediationHealthResponse.class);
 
-    return this.okHttpClientUtils.call(
-        CLIENT_HEALTH, request, errorMessage, json, DetectionRemediationHealthResponse.class);
+      } catch (ConnectException ex) {
+          throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
+
+      } catch (IOException e) {
+          throw new RestClientException(errorMessage + e);
+      }
   }
 }
