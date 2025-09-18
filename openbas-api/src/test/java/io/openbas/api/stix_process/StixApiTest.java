@@ -62,6 +62,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private TagComposer tagComposer;
+
   @Autowired private InjectorFixture injectorFixture;
 
   private String stixSecurityCoverage;
