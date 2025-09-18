@@ -138,6 +138,8 @@ public class InjectorContractFixture {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(UUID.randomUUID().toString());
     injectorContract.setConvertedContent(convertedContent);
+    injectorContract.setContent(convertedContent.toString());
+    injectorContract.setAtomicTesting(false);
     injectorContract.setCreatedAt(Instant.now());
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContract;

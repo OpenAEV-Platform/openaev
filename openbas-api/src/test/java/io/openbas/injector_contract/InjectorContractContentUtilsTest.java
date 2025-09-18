@@ -5,6 +5,7 @@ import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
@@ -130,6 +131,7 @@ public class InjectorContractContentUtilsTest {
     field.put(CONTRACT_ELEMENT_CONTENT_KEY, key);
     field.put(CONTRACT_ELEMENT_CONTENT_TYPE, type);
     field.put(CONTRACT_ELEMENT_CONTENT_CARDINALITY, cardinality);
+    field.put(CONTRACT_ELEMENT_CONTENT_MANDATORY, false);
     return field;
   }
 
