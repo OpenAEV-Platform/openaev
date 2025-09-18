@@ -4,7 +4,6 @@ import io.openbas.database.model.Injector;
 import io.openbas.database.model.InjectorContract;
 import io.openbas.database.model.Payload;
 import io.openbas.database.raw.RawInjectorsContrats;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -66,16 +65,25 @@ public interface InjectorContractRepository
 
   @Query(
       value =
-          "SELECT injcont.* "
-              + "FROM injectors_contracts injcont "
-              + "INNER JOIN injectors_contracts_vulnerabilities injconvuln "
-              + "  ON injcont.injector_contract_id = injconvuln.injector_contract_id "
-              + "INNER JOIN cves cve "
-              + "  ON injconvuln.vulnerability_id = cve.cve_id "
-              + "WHERE LOWER(cve.cve_external_id) = LOWER(:externalId) "
-              + "ORDER BY injcont.injector_contract_updated_at "
-              + "LIMIT :injectsPerVulnerability",
+          """
+        SELECT *
+        FROM (
+            SELECT ic.*,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY cve.cve_external_id
+                       ORDER BY ic.injector_contract_updated_at DESC
+                   ) AS rn
+            FROM injectors_contracts ic
+            JOIN injectors_contracts_vulnerabilities icv
+              ON ic.injector_contract_id = icv.injector_contract_id
+            JOIN cves cve
+              ON icv.vulnerability_id = cve.cve_id
+            WHERE LOWER(cve.cve_external_id) IN (:externalIds)
+        ) ranked
+        WHERE ranked.rn <= :contractsPerVulnerability
+        """,
       nativeQuery = true)
-  Set<InjectorContract> findInjectorContractsByVulnerabilityId(
-      @NotBlank String externalId, @NotNull Integer injectsPerVulnerability);
+  Set<InjectorContract> findInjectorContractsByVulnerabilityIdIn(
+      @Param("externalIds") Set<String> externalIds,
+      @Param("contractsPerVulnerability") Integer contractsPerVulnerability);
 }

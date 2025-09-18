@@ -1,4 +1,4 @@
-package io.openbas.service;
+package io.openbas.service.stix;
 
 import static io.openbas.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
@@ -11,6 +11,7 @@ import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.inject.service.InjectAssistantService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.rest.injector_contract.InjectorContractService;
+import io.openbas.service.AssetGroupService;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -46,15 +47,34 @@ public class SecurityCoverageInjectService {
    */
   public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
       Scenario scenario, SecurityCoverage securityCoverage) {
+    // 1. Remove all inject placeholders
     cleanInjectPlaceholders(scenario.getId());
 
+    // 2. Fetch asset groups via tag rules
+    Set<AssetGroup> assetGroups = assetGroupService.fetchAssetGroupsFromScenarioTagRules(scenario);
+
+    // 3. Get all endpoints per asset group
+    Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
+        assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
+
+    // 4. Fetch InjectorContract to use for inject placeholder
     InjectorContract contractForInjectPlaceholders =
         injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
+    // 5. Build injects from Vulnerabilities
     getInjectsByVulnerabilities(
-        scenario, securityCoverage.getVulnerabilitiesRefs(), contractForInjectPlaceholders);
+        scenario,
+        securityCoverage.getVulnerabilitiesRefs(),
+        assetsFromGroupMap,
+        contractForInjectPlaceholders);
+
+    // 6. Build injects from Attack Patterns
     getInjectsRelatedToAttackPatterns(
-        scenario, securityCoverage.getAttackPatternRefs(), contractForInjectPlaceholders);
+        scenario,
+        securityCoverage.getAttackPatternRefs(),
+        assetsFromGroupMap,
+        contractForInjectPlaceholders);
+
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
@@ -82,6 +102,7 @@ public class SecurityCoverageInjectService {
   private void getInjectsByVulnerabilities(
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       InjectorContract contractForPlaceholder) {
     // 1. Fetch internal Ids for Vulnerabilities
     Set<Cve> vulnerabilities =
@@ -90,9 +111,13 @@ public class SecurityCoverageInjectService {
     // 2. List of injects is cleaned
     injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
 
-    // 3. In other case, Injects are created with injectorContracts related to these vulnerabilities
-    injectAssistantService.generateInjectsByVulnerabilities(
-        scenario, vulnerabilities, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
+    // 3. Now, injects are created with injectorContracts related to these vulnerabilities
+    injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
+        scenario,
+        vulnerabilities,
+        assetGroupListMap,
+        TARGET_NUMBER_OF_INJECTS,
+        contractForPlaceholder);
   }
 
   /**
@@ -115,30 +140,27 @@ public class SecurityCoverageInjectService {
   private void getInjectsRelatedToAttackPatterns(
       Scenario scenario,
       Set<StixRefToExternalRef> attackPatternRefs,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       InjectorContract contractForPlaceholder) {
+
     // 1. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
         attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
 
+    // 2. Remove Inject with contract related to attack patterns if attackPattern is empty
     if (attackPatterns.isEmpty()) {
       injectRepository.deleteAllInjectsWithAttackPatternContractsByScenarioId(scenario.getId());
       return;
     }
 
-    // 2. Fetch asset groups via tag rules
-    List<AssetGroup> assetGroups = assetGroupService.fetchAssetGroupsFromScenarioTagRules(scenario);
-
     // 3. Fetch Inject coverage
     Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap =
         injectService.extractCombinationAttackPatternPlatformArchitecture(scenario);
 
-    // 4. Get all endpoints per asset group
-    Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
-        assetGroupService.assetsFromAssetGroupMap(assetGroups);
-
     // Check if assetgroups are empties because it could reduce the code
     boolean assetGroupsAreEmpties =
-        assetGroups.isEmpty() || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
+        assetsFromGroupMap.isEmpty()
+            || assetsFromGroupMap.values().stream().allMatch(List::isEmpty);
     if (assetGroupsAreEmpties) {
       handleNoAssetGroupsCase(scenario, attackPatterns, injectCoverageMap, contractForPlaceholder);
     } else {
@@ -167,13 +189,13 @@ public class SecurityCoverageInjectService {
             .map(Triple::getLeft)
             .collect(Collectors.toSet());
 
-    // 5. Remove AttackPatterns already covered
+    // 4. Remove AttackPatterns already covered
     Set<String> requiredAttackPatternIds = requiredAttackPatterns.keySet();
 
     Set<String> missingAttackPatterns = new HashSet<>(requiredAttackPatternIds);
     missingAttackPatterns.removeAll(coveredAttackPatterns);
 
-    // 6. Remove injects not in requiredAttackPatterns
+    // 5. Remove injects not in requiredAttackPatterns
     List<Inject> injectsToRemove =
         injectCoverageMap.entrySet().stream()
             .filter(
@@ -189,7 +211,7 @@ public class SecurityCoverageInjectService {
 
     injectRepository.deleteAll(injectsToRemove);
 
-    // 7. Generate missing injects only for missing AttackPatterns and relevant asset groups
+    // 6. Generate missing injects only for missing AttackPatterns and relevant asset groups
     if (!missingAttackPatterns.isEmpty()) {
       Set<AttackPattern> missingAttacks =
           missingAttackPatterns.stream()
@@ -226,32 +248,31 @@ public class SecurityCoverageInjectService {
       Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap,
       InjectorContract contractForPlaceholder) {
 
-    // 5. Compute all (Platform, Arch) configs across all endpoints
-    List<Endpoint> endpoints =
-        assetsFromGroupMap.values().stream().flatMap(List::stream).collect(Collectors.toList());
+    // 4. Compute all (Platform, Arch) configs across all endpoints
+    List<Endpoint> endpoints = assetsFromGroupMap.values().stream().flatMap(List::stream).toList();
     Set<Pair<Endpoint.PLATFORM_TYPE, String>> allPlatformArchs =
         extractPlatformArchPairs(endpoints);
 
-    // 6. Build required (AttackPattern × Platform × Arch) combinations
+    // 5. Build required (AttackPattern × Platform × Arch) combinations
     Set<Triple<String, Endpoint.PLATFORM_TYPE, String>> requiredCombinations =
         buildCombinationAttackPatternPlatformArchitecture(
             attackPatterns.keySet(), allPlatformArchs);
 
-    // 7. Extract covered combinations from existing injects
+    // 6. Extract covered combinations from existing injects
     Set<Triple<String, Endpoint.PLATFORM_TYPE, String>> coveredCombinations =
         injectCoverageMap.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
 
-    // 8. Identify injects to delete: if all their combinations are irrelevant
-    // 9. Delete injects
+    // 7. Identify injects to delete: if all their combinations are irrelevant
+    // 8. Delete injects
     removeInjectsNoLongerNecessary(injectCoverageMap, requiredCombinations);
 
-    // 10. Compute missing combinations
-    // 11. Filter AttackPatterns that are still missing
-    // 12. Filter AssetGroups based on missing (Platform × Arch)
+    // 9. Compute missing combinations
+    // 10. Filter AttackPatterns that are still missing
+    // 11. Filter AssetGroups based on missing (Platform × Arch)
     MissingCombinations missingCombinations =
         getMissingCombinations(requiredCombinations, coveredCombinations, assetsFromGroupMap);
 
-    // 13. Generate missing injects only for missing AttackPatterns and relevant asset groups
+    // 12. Generate missing injects only for missing AttackPatterns and relevant asset groups
     if (!missingCombinations.filteredAttackPatterns().isEmpty()) {
       Set<AttackPattern> missingAttacks =
           missingCombinations.filteredAttackPatterns().stream()

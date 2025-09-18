@@ -1,4 +1,4 @@
-package io.openbas.service;
+package io.openbas.service.stix;
 
 import io.openbas.database.model.Scenario;
 import io.openbas.database.model.SecurityCoverage;
