@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openbas.annotation.Queryable;
 import io.openbas.database.audit.ModelBaseListener;
-import io.openbas.helper.AgentHelper;
 import io.openbas.helper.MonoIdDeserializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -111,7 +110,7 @@ public class Agent implements Base {
 
   @JsonProperty("agent_active")
   public boolean isActive() {
-    return new AgentHelper().isAgentActiveFromLastSeen(this.getLastSeen());
+    return true;
   }
 
   /** Used for Caldera only */
