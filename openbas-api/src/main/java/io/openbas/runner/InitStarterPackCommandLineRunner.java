@@ -7,10 +7,7 @@ import io.openbas.database.repository.SettingRepository;
 import io.openbas.rest.asset.endpoint.form.EndpointInput;
 import io.openbas.rest.tag.TagService;
 import io.openbas.rest.tag.form.TagCreateInput;
-import io.openbas.service.AssetGroupService;
-import io.openbas.service.EndpointService;
-import io.openbas.service.ImportService;
-import io.openbas.service.ZipJsonService;
+import io.openbas.service.*;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +56,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private final TagService tagService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
+  private final TagRuleService tagRuleService;
   private final ImportService importService;
   private final ZipJsonService<CustomDashboard> zipJsonService;
   private final ResourcePatternResolver resolver;
@@ -68,6 +66,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       TagService tagService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
+      TagRuleService tagRuleService,
       ImportService importService,
       ZipJsonService<CustomDashboard> zipJsonService,
       ResourcePatternResolver resolver) {
@@ -75,6 +74,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     this.tagService = tagService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
+    this.tagRuleService = tagRuleService;
     this.importService = importService;
     this.zipJsonService = zipJsonService;
     this.resolver = resolver;
@@ -127,7 +127,15 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     AssetGroup allEndpointsAssetGroup = new AssetGroup();
     allEndpointsAssetGroup.setName(AllEndpointsAssetGroup.NAME);
     allEndpointsAssetGroup.setDynamicFilter(filterGroup);
-    this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
+
+    AssetGroup createdAllEndpointAssetGroup =
+        this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
+
+    Optional<TagRule> openCtiTagRule = this.tagRuleService.findByTagName(Tags.OPENCTI);
+    openCtiTagRule.ifPresent(
+        tagRule ->
+            this.tagRuleService.updateTagRule(
+                tagRule.getId(), Tags.OPENCTI, List.of(createdAllEndpointAssetGroup.getId())));
   }
 
   private void importScenariosFromResources() {
