@@ -86,15 +86,19 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // ensure vulns have IDs
     vulnWrappers.keySet().forEach(CveComposer.Composer::persist);
 
+    List<AttackPattern> attackPatternList =
+        attackPatternWrappers.keySet().stream().map(AttackPatternComposer.Composer::get).toList();
+    List<Cve> vulnerabilities =
+        vulnWrappers.keySet().stream().map(CveComposer.Composer::get).toList();
+
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
             .withSecurityCoverage(
                 securityCoverageComposer.forSecurityCoverage(
-                    SecurityCoverageFixture.createSecurityCoverageWithAttackPatterns(
-                        attackPatternWrappers.keySet().stream()
-                            .map(AttackPatternComposer.Composer::get)
-                            .toList())));
+                    SecurityCoverageFixture.createSecurityCoverageWithDomainObjects(
+                        attackPatternList, vulnerabilities)));
+
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     for (Map.Entry<AttackPatternComposer.Composer, java.lang.Boolean> apw :
@@ -337,6 +341,143 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           new StixString("1.0"),
                           "DETECTION",
                           new StixString("1.0")))));
+      assertThatJson(actualSro.toStix(mapper))
+          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .isEqualTo(expectedSro.toStix(mapper));
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "When all vulnerabilities are covered and all expectations are successful, bundle is correct")
+  public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
+      throws ParsingException, JsonProcessingException {
+    CveComposer.Composer vuln1 =
+        vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+    // some security platforms
+    SecurityPlatformComposer.Composer securityPlatformWrapper =
+        securityPlatformComposer
+            .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+            .persist();
+    // another nameless platform not involved in simulation
+    securityPlatformComposer
+        .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
+        .persist();
+    // create exercise cover all TTPs
+    ExerciseComposer.Composer exerciseWrapper =
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+
+    // set SUCCESS results for all inject expectations
+    injectExpectationComposer.generatedItems.forEach(
+        exp ->
+            exp.setResults(
+                List.of(
+                    InjectExpectationResult.builder()
+                        .score(100.0)
+                        .sourceId(securityPlatformWrapper.get().getId())
+                        .sourceName("Unit Tests")
+                        .sourceType("manual")
+                        .build())));
+
+    scenarioComposer
+        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+        .withSimulation(exerciseWrapper)
+        .persist();
+    entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
+    Optional<SecurityCoverageSendJob> job =
+        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+            exerciseWrapper.get());
+
+    // intermediate assert
+    assertThat(job).isNotEmpty();
+
+    // act
+    Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
+
+    // assert
+    SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
+    List<Inject> generatedInjects = injectComposer.generatedItems;
+    List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
+
+    DomainObject expectedAssessmentWithCoverage =
+        getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
+    List<DomainObject> expectedPlatformIdentities =
+        generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
+
+    // main assessment is completed with coverage
+    assertThatJson(
+            bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
+        .whenIgnoringPaths(CommonProperties.MODIFIED.toString())
+        .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
+
+    // security platforms are present in bundle as Identities
+    for (DomainObject platformSdo : expectedPlatformIdentities) {
+      assertThatJson(bundle.findById(platformSdo.getId()).toStix(mapper))
+          .isEqualTo(platformSdo.toStix(mapper));
+
+      // security platform SROs
+      List<RelationshipObject> actualSros =
+          bundle.findRelationshipsByTargetRef(platformSdo.getId());
+      assertThat(actualSros.size()).isEqualTo(1);
+
+      RelationshipObject actualSro = actualSros.getFirst();
+      RelationshipObject expectedSro =
+          new RelationshipObject(
+              Map.of(
+                  CommonProperties.ID.toString(),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                  CommonProperties.TYPE.toString(),
+                  new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
+                  new StixString("has-assessed"),
+                  RelationshipObject.Properties.SOURCE_REF.toString(),
+                  expectedAssessmentWithCoverage.getId(),
+                  RelationshipObject.Properties.TARGET_REF.toString(),
+                  platformSdo.getId(),
+                  ExtendedProperties.COVERED.toString(),
+                  new io.openbas.stix.types.Boolean(true),
+                  ExtendedProperties.COVERAGE.toString(),
+                  toDictionary(
+                      Map.of(
+                          "VULNERABILITY",
+                          new StixString(
+                              platformSdo
+                                      .getId()
+                                      .getValue()
+                                      .contains(securityPlatformWrapper.get().getId())
+                                  ? "1.0"
+                                  : "0.0")))));
+      assertThatJson(actualSro.toStix(mapper))
+          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .isEqualTo(expectedSro.toStix(mapper));
+    }
+
+    // vulnerabilities SROs
+    for (StixRefToExternalRef stixRef : generatedCoverage.getVulnerabilitiesRefs()) {
+      List<RelationshipObject> actualSros =
+          bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
+      assertThat(actualSros.size()).isEqualTo(1);
+
+      RelationshipObject actualSro = actualSros.getFirst();
+      RelationshipObject expectedSro =
+          new RelationshipObject(
+              Map.of(
+                  CommonProperties.ID.toString(),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                  CommonProperties.TYPE.toString(),
+                  new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
+                  new StixString("has-assessed"),
+                  RelationshipObject.Properties.SOURCE_REF.toString(),
+                  expectedAssessmentWithCoverage.getId(),
+                  RelationshipObject.Properties.TARGET_REF.toString(),
+                  new Identifier(stixRef.getStixRef()),
+                  ExtendedProperties.COVERED.toString(),
+                  new io.openbas.stix.types.Boolean(true),
+                  ExtendedProperties.COVERAGE.toString(),
+                  toDictionary(Map.of("VULNERABILITY", new StixString("1.0")))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));
