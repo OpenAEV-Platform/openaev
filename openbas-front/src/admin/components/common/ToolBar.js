@@ -14,7 +14,7 @@ import {
   Button,
   Drawer,
   FormControl,
-  GridLegacy,
+  Grid,
   IconButton,
   InputLabel,
   MenuItem,
@@ -626,55 +626,61 @@ class ToolBar extends Component {
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title={t('Update')}>
-              <span>
-                <IconButton
-                  aria-label="update"
-                  disabled={
-                    numberOfSelectedElements === 0
-                    || this.state.processing
-                  }
-                  onClick={this.handleOpenUpdate.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <BrushOutlined fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+            {this.props.canManage && (
+              <Tooltip title={t('Update')}>
+                <span>
+                  <IconButton
+                    aria-label="update"
+                    disabled={
+                      numberOfSelectedElements === 0
+                      || this.state.processing
+                    }
+                    onClick={this.handleOpenUpdate.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <BrushOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            {this.props.canManage && (
+              <Tooltip title={t('Test')}>
+                <span>
+                  <IconButton
+                    aria-label="test"
+                    disabled={
+                      numberOfSelectedElements === 0
+                      || this.state.processing
+                    }
+                    onClick={this.handleOpenBulkTest.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <ForwardToInbox fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            {this.props.canManage && (
 
-            <Tooltip title={t('Test')}>
-              <span>
-                <IconButton
-                  aria-label="test"
-                  disabled={
-                    numberOfSelectedElements === 0
-                    || this.state.processing
-                  }
-                  onClick={this.handleOpenBulkTest.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <ForwardToInbox fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={t('Delete')}>
-              <span>
-                <IconButton
-                  aria-label="delete"
-                  disabled={
-                    numberOfSelectedElements === 0
-                    || this.state.processing
-                  }
-                  onClick={this.handleOpenBulkDelete.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <DeleteOutlined fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+              <Tooltip title={t('Delete')}>
+                <span>
+                  <IconButton
+                    aria-label="delete"
+                    disabled={
+                      numberOfSelectedElements === 0
+                      || this.state.processing
+                    }
+                    onClick={this.handleOpenBulkDelete.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <DeleteOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
           </Toolbar>
           <Drawer
             open={this.state.displayUpdate}
@@ -710,8 +716,8 @@ class ToolBar extends Component {
                     >
                       <CancelOutlined fontSize="small" />
                     </IconButton>
-                    <GridLegacy container={true} spacing={3}>
-                      <GridLegacy item={true} xs={3}>
+                    <Grid container={true} spacing={3}>
+                      <Grid size={{ xs: 3 }}>
                         <FormControl className={classes.formControl}>
                           <InputLabel>{t('Action type')}</InputLabel>
                           <Select
@@ -730,17 +736,17 @@ class ToolBar extends Component {
                             <MenuItem value="REMOVE">{t('Remove')}</MenuItem>
                           </Select>
                         </FormControl>
-                      </GridLegacy>
-                      <GridLegacy item={true} xs={3}>
+                      </Grid>
+                      <Grid size={{ xs: 3 }}>
                         <FormControl className={classes.formControl}>
                           <InputLabel>{t('Field')}</InputLabel>
                           {this.renderFieldOptions(i)}
                         </FormControl>
-                      </GridLegacy>
-                      <GridLegacy item={true} xs={6}>
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
                         {this.renderValuesOptions(i)}
-                      </GridLegacy>
-                    </GridLegacy>
+                      </Grid>
+                    </Grid>
                   </div>
                 ))}
               <div className={classes.add}>
