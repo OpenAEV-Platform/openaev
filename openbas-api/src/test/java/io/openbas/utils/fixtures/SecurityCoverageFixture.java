@@ -4,6 +4,8 @@ import io.openbas.cron.ScheduleFrequency;
 import io.openbas.database.model.AttackPattern;
 import io.openbas.database.model.SecurityCoverage;
 import io.openbas.database.model.StixRefToExternalRef;
+
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -17,6 +19,8 @@ public class SecurityCoverageFixture {
     securityCoverage.setContent(
         "{\"type\": \"x-security-assessment\", \"id\": \"%s\"}"
             .formatted(securityCoverage.getExternalId()));
+    securityCoverage.setAttackPatternRefs(new HashSet<>());
+    securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
     return securityCoverage;
   }
 
@@ -30,6 +34,7 @@ public class SecurityCoverageFixture {
                     new StixRefToExternalRef(
                         "attack-pattern--%s".formatted(ap.getId()), ap.getExternalId()))
             .collect(Collectors.toSet()));
+    securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
     return securityCoverage;
   }
 }
