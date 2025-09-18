@@ -3,7 +3,10 @@ import { useState } from 'react';
 import { addInjectForScenario, bulkDeleteInjectsSimple, bulkUpdateInjectSimple, deleteInjectScenario, fetchScenarioInjects, updateInjectActivationForScenario, updateInjectForScenario } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import { importInjects, searchScenarioInjectsSimple } from '../../../../actions/injects/inject-action';
+import {
+  importInjectsForScenario,
+  searchScenarioInjectsSimple,
+} from '../../../../actions/injects/inject-action';
 import { dryImportXlsForScenario, fetchScenario, fetchScenarioTeams, importXlsForScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import { type ImportTestSummary, type Inject, type InjectBulkProcessingInput, type InjectBulkUpdateInputs, type InjectsImportInput, type InjectTestStatusOutput, type Scenario, type SearchPaginationInput } from '../../../../utils/api-types';
@@ -44,12 +47,7 @@ const injectContextForScenario = (scenario: Scenario) => {
       return dispatch(deleteInjectScenario(scenario.scenario_id, injectId));
     },
     onImportInjectFromJson(file: File): Promise<void> {
-      return importInjects(file, {
-        target: {
-          type: 'SCENARIO',
-          id: scenario.scenario_id,
-        },
-      }).then(response => new Promise((resolve, _reject) => {
+      return importInjectsForScenario(scenario.scenario_id, file).then(response => new Promise((resolve, _reject) => {
         dispatch(fetchScenarioInjects(scenario.scenario_id));
         dispatch(fetchScenario(scenario.scenario_id));
         dispatch(fetchScenarioTeams(scenario.scenario_id));

@@ -18,7 +18,7 @@ import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.rest.channel.form.ArticleCreateInput;
 import io.openbas.rest.channel.form.ArticleUpdateInput;
 import io.openbas.service.ScenarioService;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -55,7 +55,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Create article for scenario")
   @Test
   @Order(1)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createArticleForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = new Scenario();
@@ -95,7 +95,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Retrieve articles for scenario")
   @Test
   @Order(2)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void retrieveArticlesForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -115,7 +115,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Update article for scenario")
   @Test
   @Order(3)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateArticleForScenarioTest() throws Exception {
     // -- PREPARE --
     ArticleUpdateInput articleUpdateInput = new ArticleUpdateInput();
@@ -144,7 +144,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Delete article for scenario")
   @Test
   @Order(4)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteArticleForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc

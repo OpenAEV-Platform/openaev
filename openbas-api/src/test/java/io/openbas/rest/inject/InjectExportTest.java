@@ -16,18 +16,13 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.export.Mixins;
-import io.openbas.rest.inject.form.ExportOptionsInput;
-import io.openbas.rest.inject.form.InjectExportFromSearchRequestInput;
-import io.openbas.rest.inject.form.InjectExportRequestInput;
-import io.openbas.rest.inject.form.InjectExportTarget;
-import io.openbas.rest.inject.form.InjectIndividualExportRequestInput;
+import io.openbas.rest.inject.form.*;
 import io.openbas.service.FileService;
 import io.openbas.utils.ZipUtils;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.helpers.GrantHelper;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockUnprivilegedUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
@@ -349,13 +344,11 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUnprivilegedUser
+  @WithMockUser
   @DisplayName("When standard user with staggered privileges")
   public class WhenStandardUserWithStaggeredPrivileges {
     @Test
     @DisplayName("When lacking OBSERVER grant on some scenarios, return NOT FOUND")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
-    @Disabled // FIXME: this test requires a 404 to be thrown, but the backend currently returns 401
     public void whenLackingOBSERVERGrantOnSomeScenariosReturnNOTFOUND() throws Exception {
       List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -400,8 +393,6 @@ public class InjectExportTest extends IntegrationTest {
 
     @Test
     @DisplayName("When lacking OBSERVER grant on some exercises, return NOT FOUND")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
-    @Disabled // FIXME: this test requires a 404 to be thrown, but the backend currently returns 401
     public void whenLackingOBSERVERGrantOnSomeExercisesReturnNOTFOUND() throws Exception {
       List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -411,7 +402,10 @@ public class InjectExportTest extends IntegrationTest {
               .filter(wrapper -> wrapper.get().getScenario() != null)
               .findAny()
               .get();
-      grantHelper.grantScenarioObserver(injectWithScenario.get().getScenario());
+      addGrantToCurrentUser(
+          Grant.GRANT_RESOURCE_TYPE.SCENARIO,
+          Grant.GRANT_TYPE.OBSERVER,
+          injectWithScenario.get().getScenario().getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -541,9 +535,6 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("When lacking OBSERVER grant on exercise, return NOT FOUND")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
-      @Disabled // FIXME: this test requires a 404 to be thrown, but the backend currently returns
-      // 401
       public void whenLackingOBSERVERGrantOnExerciseReturnNotFound() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -578,12 +569,13 @@ public class InjectExportTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        assertThatJson(not_found_response).node("message").isEqualTo("Not Found");
+        assertThatJson(not_found_response)
+            .node("message")
+            .isEqualTo("Element not found: No injects to export");
       }
 
       @Test
       @DisplayName("With OBSERVER grant on exercise, return injects")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void withOBSERVERGrantOnExerciseReturnInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -628,7 +620,6 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("With OBSERVER grant on exercise with exclusion, return correct injects")
-      @WithMockAdminUser // FIXME: Temporary workaround for grant issue
       public void withOBSERVERGrantOnExerciseWithExclusionReturnCorrectInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -680,7 +671,7 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Individual export With admin authorisation")
   public class IndividualExportWithAdminAuthorisation {
     @Test
@@ -734,7 +725,7 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("With admin authorisation")
   public class WithAdminAuthorisation {
 

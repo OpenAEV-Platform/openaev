@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
+import io.openbas.database.model.Capability;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.Tag;
 import io.openbas.database.model.User;
@@ -21,8 +22,7 @@ import io.openbas.rest.user.form.player.PlayerInput;
 import io.openbas.utils.fixtures.OrganizationFixture;
 import io.openbas.utils.fixtures.PlayerFixture;
 import io.openbas.utils.fixtures.TagFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockUserFullPermissions;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +49,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should create a player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerInput_should_createPlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -74,7 +74,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given invalid email in player input, should throw exceptions")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_invalidEmailInPlayerInput_should_throwExceptions() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = new PlayerInput();
@@ -98,7 +98,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given restricted user, should not allow creation of player")
   @Test
-  @WithMockUserFullPermissions
+  @WithMockUser(withCapabilities = Capability.MANAGE_TEAMS_AND_PLAYERS)
   void given_restrictedUser_should_notAllowPlayerCreation() {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -120,7 +120,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should upsert player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerInput_should_upsertPlayerSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -148,7 +148,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given non-existing player input, should upsert successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_nonExistingPlayerInput_should_upsertSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -171,7 +171,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID and input, should update player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -199,7 +199,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given restricted user, should not allow updating a player")
   @Test
-  @WithMockUserFullPermissions
+  @WithMockUser(withCapabilities = Capability.MANAGE_TEAMS_AND_PLAYERS)
   void given_restrictedUser_should_notAllowPlayerUpdate() {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -222,7 +222,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID, should delete player successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validPlayerId_should_deletePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -246,7 +246,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given no existing player ID, should throw an exception")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_notExistingAssetGroup_should_throwAnException() {
     // -- PREPARE --
     String nonexistentAssetGroupId = "nonexistent-id";

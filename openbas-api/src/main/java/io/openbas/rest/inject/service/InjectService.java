@@ -3,9 +3,7 @@ package io.openbas.rest.inject.service;
 import static io.openbas.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openbas.database.model.ExecutionStatus.*;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
-import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
-import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.arm64;
-import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.x86_64;
+import static io.openbas.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openbas.database.specification.InjectSpecification.*;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
@@ -51,7 +49,7 @@ import io.openbas.utils.mapper.InjectMapper;
 import io.openbas.utils.mapper.InjectStatusMapper;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
-import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
@@ -1084,11 +1082,14 @@ public class InjectService {
         return cb.conjunction();
       }
 
-      // Check if both are null - automatically granted
-      Path<Object> scenarioPath = root.get("scenario");
-      Path<Object> simulationPath = root.get("exercise");
-      // Check if both are null
-      Predicate bothNull = cb.and(cb.isNull(scenarioPath), cb.isNull(simulationPath));
+      // Ensure distinct results (joins/subqueries can otherwise produce duplicates).
+      query.distinct(true);
+
+      // Use the id expressions for parents (safer than testing the entity path itself)
+      Expression<String> scenarioIdPath = root.get("scenario").get("id");
+      Expression<String> exerciseIdPath = root.get("exercise").get("id");
+      // Check if both are null -> atomic testing case
+      Predicate bothParentsNull = cb.and(cb.isNull(scenarioIdPath), cb.isNull(exerciseIdPath));
 
       // Get allowed grant types
       List<Grant.GRANT_TYPE> allowedGrantTypes = grantType.andHigher();
@@ -1118,26 +1119,20 @@ public class InjectService {
               Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING,
               allowedGrantTypes);
 
-      // Check if inject's scenario ID is accessible (null is OK)
-      Predicate scenarioAccessible =
-          cb.or(cb.isNull(scenarioPath), scenarioPath.get("id").in(accessibleScenarios));
-      // Check if inject's simulation ID is accessible (null is OK)
-      Predicate simulationAccessible =
-          cb.or(cb.isNull(simulationPath), simulationPath.get("id").in(accessibleSimulations));
-      // When both are null, check if user has atomic testing grants
-      // Assuming inject has an ID that should be in the atomic testing grants
-      Predicate atomicTestingAccessible =
-          cb.and(bothNull, root.get("id").in(accessibleAtomicTestings));
-
-      // Inject is accessible if:
-      // 1. Both are null AND user has atomic testing grant for this inject, OR
-      // 2. User is granted on the non-null scenario/exercise linked to this inject
       return cb.or(
-          atomicTestingAccessible,
+          // Case 1: atomic test (no parents, direct grant required)
           cb.and(
-              cb.not(bothNull), // At least one is not null
-              scenarioAccessible,
-              simulationAccessible));
+              cb.isNull(root.get("scenario")),
+              cb.isNull(root.get("exercise")),
+              root.get("id").in(accessibleAtomicTestings)),
+          // Case 2: linked to a scenario, and user has access
+          cb.and(
+              cb.isNotNull(root.get("scenario")),
+              root.get("scenario").get("id").in(accessibleScenarios)),
+          // Case 3: linked to a simulation, and user has access
+          cb.and(
+              cb.isNotNull(root.get("exercise")),
+              root.get("exercise").get("id").in(accessibleSimulations)));
     };
   }
 

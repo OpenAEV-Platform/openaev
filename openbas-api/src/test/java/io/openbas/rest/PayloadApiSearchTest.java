@@ -20,7 +20,7 @@ import io.openbas.database.repository.DocumentRepository;
 import io.openbas.database.repository.PayloadRepository;
 import io.openbas.utils.fixtures.DocumentFixture;
 import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.openbas.utils.pagination.SortField;
 import java.util.ArrayList;
@@ -62,7 +62,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Retrieving payloads")
   class RetrievingPayloads {
     // -- PREPARE --

@@ -2894,15 +2894,6 @@ export interface InjectExportTarget {
   inject_id?: string;
 }
 
-export interface InjectImportInput {
-  target: InjectImportTargetDefinition;
-}
-
-export interface InjectImportTargetDefinition {
-  id?: string;
-  type: "ATOMIC_TESTING" | "SIMULATION" | "SCENARIO";
-}
-
 export interface InjectImporter {
   /** @format date-time */
   inject_importer_created_at?: string;

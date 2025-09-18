@@ -7,9 +7,7 @@ import static io.openbas.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openbas.utils.fixtures.TeamFixture.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -23,7 +21,7 @@ import io.openbas.database.repository.TeamRepository;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.team.form.TeamCreateInput;
 import io.openbas.utils.fixtures.ExerciseFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +53,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team input, should create a team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validTeamInput_should_createTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -79,7 +77,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing team name input, should throw an exception")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_existingTeamNameInput_should_throwAnException() throws Exception {
     // --PREPARE--
     Team team = new Team();
@@ -108,7 +106,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid contextual team input, should create a contextual team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validContextualTeamInput_should_createContextualTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
@@ -134,7 +132,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing contextual team name input, should throw an exception")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_existingContextualTeamNameInput_should_throwAnException() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
@@ -167,7 +165,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should update team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validTeamIdAndInput_should_updateTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -196,7 +194,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should upsert team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validTeamIdAndInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -227,7 +225,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given non existing and team input, should upsert team successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_nonExistingTeamInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -250,7 +248,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given contextual team input with multiple exercise, should throw an exception")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_contextualTeamWithMultipleExercise_should_throwAnException() {
     // -- PREPARE --
     Exercise exercise1 = ExerciseFixture.getExercise();
@@ -340,7 +338,7 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByNameTest(
       String searchText, Boolean simulationOrScenarioId, Integer expectedNumberOfResults)
       throws Exception {
@@ -377,7 +375,7 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByIdTest(Integer numberOfTeamToProvide, Integer expectedNumberOfResults)
       throws Exception {
     // --PREPARE--

@@ -5,7 +5,6 @@ import {
   type Exercise,
   type InjectExportFromSearchRequestInput,
   type InjectExportRequestInput,
-  type InjectImportInput,
   type InjectIndividualExportRequestInput,
   type Scenario,
   type SearchPaginationInput,
@@ -39,17 +38,6 @@ export const exportInject = (injectId: string, data: InjectIndividualExportReque
   });
 };
 
-export const importInjects = (file: File, input: InjectImportInput) => {
-  const uri = '/api/injects/import';
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('input', new Blob([JSON.stringify(input)], { type: 'application/json' }));
-  return simplePostCall(uri, formData).catch((error) => {
-    MESSAGING$.notifyError('Could not import injects');
-    throw error;
-  });
-};
-
 // -- EXERCISES --
 
 export const fetchExerciseInjectsSimple = (exerciseId: Exercise['exercise_id']) => (dispatch: Dispatch) => {
@@ -62,6 +50,16 @@ export const searchExerciseInjectsSimple = (exerciseId: Exercise['exercise_id'],
   return simplePostCall(uri, input);
 };
 
+export const importInjectsForSimulation = (simulationId: Exercise['exercise_id'], file: File) => {
+  const uri = `/api/exercises/${simulationId}/injects/import`;
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(uri, formData).catch((error) => {
+    MESSAGING$.notifyError('Could not import injects');
+    throw error;
+  });
+};
+
 // -- SCENARIOS --
 
 export const fetchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
@@ -72,6 +70,16 @@ export const fetchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id']) 
 export const searchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id'], input: SearchPaginationInput) => {
   const uri = `/api/scenarios/${scenarioId}/injects/simple`;
   return simplePostCall(uri, input);
+};
+
+export const importInjectsForScenario = (scenarioId: Scenario['scenario_id'], file: File) => {
+  const uri = `/api/scenarios/${scenarioId}/injects/import`;
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(uri, formData).catch((error) => {
+    MESSAGING$.notifyError('Could not import injects');
+    throw error;
+  });
 };
 
 // -- TARGETS --

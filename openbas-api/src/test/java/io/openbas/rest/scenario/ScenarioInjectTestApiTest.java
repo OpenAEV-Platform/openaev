@@ -3,23 +3,26 @@ package io.openbas.rest.scenario;
 import static io.openbas.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openbas.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openbas.utils.JsonUtils.asJsonString;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.InjectorContract;
-import io.openbas.database.model.Variable;
+import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectorContractRepository;
+import io.openbas.rest.inject.form.InjectBulkProcessingInput;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
+import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
@@ -30,6 +33,7 @@ import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,7 +75,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Scenario variable is interpolated")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
     public void scenarioVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -91,10 +95,15 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
       InjectComposer.Composer injectWrapper =
           injectComposer.forInject(injectFixture).withInjectorContract(createEmailContract());
 
-      scenarioWithEmailInjectWrapper
-          .withInject(injectWrapper)
-          .withVariable(variableComposer.forVariable(var))
-          .persist();
+      Scenario testScenario =
+          scenarioWithEmailInjectWrapper
+              .withInject(injectWrapper)
+              .withVariable(variableComposer.forVariable(var))
+              .persist()
+              .get();
+
+      addGrantToCurrentUser(
+          Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.PLANNER, testScenario.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -118,8 +127,9 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("User variable is interpolated in scenario inject test")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
     public void userVariableIsInterpolatedInScenarioInjectTest() throws Exception {
+      User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       ScenarioComposer.Composer scenarioWithEmailInjectWrapper =
           scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario());
@@ -152,12 +162,12 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
               ((MimeMultipart) argument.getAllValues().getFirst().getContent())
                   .getBodyPart(0)
                   .getContent())
-          .isEqualTo("<div>admin@openbas.io</div>"); // FIXME: Temporary workaround for grant issue
+          .isEqualTo("<div>" + testUser.getEmail() + "</div>");
     }
 
     @Test
     @DisplayName("Simulation variable is interpolated")
-    @WithMockAdminUser
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void simulationVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -206,8 +216,9 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("User variable is interpolated in simulation inject test")
-    @WithMockAdminUser
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void userVariableIsInterpolatedInSimulationInjectTest() throws Exception {
+      User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       ExerciseComposer.Composer simulationWithEmailInjectWrapper =
           simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
@@ -243,7 +254,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                   .getContent())
           .isEqualTo(
               "<div style=\"text-align: center; margin-bottom: 10px;\">SIMULATION HEADER</div><div>%s</div>"
-                  .formatted("admin@openbas.io"));
+                  .formatted(testUser.getEmail()));
     }
   }
 
@@ -258,7 +269,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Scenario variable is interpolated")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
     public void scenarioVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -306,8 +317,9 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "When a single user is used in a multi email, user variable is interpolated in scenario inject test")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
     public void userVariableIsInterpolatedInScenarioInjectTest() throws Exception {
+      User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       ScenarioComposer.Composer scenarioWithEmailInjectWrapper =
           scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario());
@@ -340,12 +352,12 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
               ((MimeMultipart) argument.getAllValues().getFirst().getContent())
                   .getBodyPart(0)
                   .getContent())
-          .isEqualTo("<div>admin@openbas.io</div>"); // FIXME: Temporary workaround for grant issue
+          .isEqualTo("<div>" + testUser.getEmail() + "</div>");
     }
 
     @Test
     @DisplayName("Simulation variable is interpolated")
-    @WithMockAdminUser
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void simulationVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -395,8 +407,9 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "When a single user is used in a multi email, user variable is interpolated in simulation inject test")
-    @WithMockAdminUser
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void userVariableIsInterpolatedInSimulationInjectTest() throws Exception {
+      User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       ExerciseComposer.Composer simulationWithEmailInjectWrapper =
           simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
@@ -431,7 +444,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                   .getContent())
           .isEqualTo(
               "<div style=\"text-align: center; margin-bottom: 10px;\">SIMULATION HEADER</div><div>%s</div>"
-                  .formatted("admin@openbas.io"));
+                  .formatted(testUser.getEmail()));
     }
   }
 
@@ -473,128 +486,131 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
               .withInjects(List.of(injectComposer1, injectComposer2));
     }
 
-    // FIXME these tests are not applicable anymore and needs to be refactored
-    /* @Nested
+    @Nested
     @DisplayName("As ScenarioPlanner")
     class ScenarioPlannerAccess {
 
-    @Test
-    @DisplayName("Should return paginated inject test results when inject tests exist")
-    @WithMockPlannerUser
-    void should_return_paginated_results_when_inject_tests_exist() throws Exception {
-      SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
-      String response =
-          mvc.perform(
+      @Test
+      @DisplayName("Should return paginated inject test results when inject tests exist")
+      @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+      void should_return_paginated_results_when_inject_tests_exist() throws Exception {
+        SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
+        String response =
+            mvc.perform(
                     post(
                             SCENARIO_URI + "/{scenarioId}/injects/test/search",
                             scenarioWrapper.persist().get().getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(searchPaginationInput)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
-      assertThatJson(response)
-          .inPath("$.content[*].status_id")
-          .isArray()
+        assertThatJson(response)
+            .inPath("$.content[*].status_id")
+            .isArray()
             .contains(injectTestStatus1Wrapper.get().getId());
       }
 
-
-    @Test
-    @DisplayName("Should return test status using test id")
-    @WithMockPlannerUser
-    void should_return_test_status_by_testId() throws Exception {
-      mvc.perform(get(SCENARIO_URI + "/injects/test/{testId}", injectTestStatus1.getId()))
-          .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("Should return test status when testing a specific inject")
-    @WithMockAdminUser // FIXME: Temporary workaround for grant issue
-    void should_return_test_status_when_testing_specific_inject() throws Exception {
-      mvc.perform(
-              get(
-                  SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
-                    scenarioWrapper.persist().get().getId(),
-                    inject1Wrapper.get().getId()))
-          .andExpect(status().isOk())
-            .andExpect(jsonPath("$.inject_id").value(inject1Wrapper.get().getId()));
-      }
-
-    @Test
-    @DisplayName("Should return test statuses when performing bulk test with inject IDs")
-    @WithMockPlannerUser
-    void should_return_test_statuses_when_bulk_testing_with_inject_ids() throws Exception {
-      InjectBulkProcessingInput input = new InjectBulkProcessingInput();
-      input.setInjectIDsToProcess(List.of(inject1.getId()));
-      input.setSimulationOrScenarioId(scenario.getId());
-
-      mvc.perform(
-              post(SCENARIO_URI + "/{scenarioId}/injects/test", scenario.getId())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$").isArray());
-    }
-
-    @Test
-    @DisplayName("Should return 200 when deleting an inject test status")
-    @WithMockPlannerUser
-    void should_return_200_when_fetching_deleting_an_inject_test_status() throws Exception {
-      mvc.perform(
-              delete(
-                  SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
-                    scenarioWrapper.persist().get().getId(),
-                    injectTestStatus2Wrapper.get().getId()))
-          .andExpect(status().isOk());
-    }
-    }*/
-
-    // FIXME these tests are not applicable anymore and needs to be refactored
-    /*@Nested
-    @DisplayName("As Unauthorized User")
-    class UnauthorizedUserAccess {
-
       @Test
-      @DisplayName("Should return 200 when search a paginated inject test results")
-      @WithMockObserverUser
-      void should_return_200_when_search_paginated_results() throws Exception {
-        SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
+      @DisplayName("Should return test status using test id")
+      @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+      void should_return_test_status_by_testId() throws Exception {
         mvc.perform(
-                post(
-                    SCENARIO_URI + "/{scenarioId}/injects/test/search",
-                    scenarioWrapper.persist().get().getId())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                get(
+                    SCENARIO_URI + "/injects/test/{testId}",
+                    injectTestStatus1Wrapper.get().getId()))
             .andExpect(status().isOk());
       }
 
-    @Test
-    @DisplayName("Should return 200 when search by id")
-    @WithMockObserverUser
-    void should_return_200_when_search_by_testId() throws Exception {
-      mvc.perform(get(SCENARIO_URI + "/injects/test/{testId}", injectTestStatus1.getId()))
-          .andExpect(status().isOk());
-    }
-
       @Test
-      @DisplayName("Should return 404 when testing a specific inject")
-      @WithMockObserverUser
-      void should_return_404_when_testing_specific_inject() throws Exception {
+      @DisplayName("Should return test status when testing a specific inject")
+      @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+      void should_return_test_status_when_testing_specific_inject() throws Exception {
         mvc.perform(
                 get(
                     SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
                     scenarioWrapper.persist().get().getId(),
                     inject1Wrapper.get().getId()))
-            .andExpect(status().isNotFound());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.inject_id").value(inject1Wrapper.get().getId()));
       }
 
       @Test
-      @DisplayName("Should return 404 when performing bulk test with inject IDs")
-      @WithMockObserverUser
-      void should_return_404_when_bulk_testing_with_inject_ids() throws Exception {
+      @DisplayName("Should return test statuses when performing bulk test with inject IDs")
+      @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT})
+      void should_return_test_statuses_when_bulk_testing_with_inject_ids() throws Exception {
+        Inject testInject = inject1Wrapper.persist().get();
+        Scenario testScenario = scenarioWrapper.persist().get();
+        InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+        input.setInjectIDsToProcess(List.of(testInject.getId()));
+        input.setSimulationOrScenarioId(testScenario.getId());
+
+        mvc.perform(
+                post(SCENARIO_URI + "/{scenarioId}/injects/test", testScenario.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray());
+      }
+
+      @Test
+      @DisplayName("Should return 200 when deleting an inject test status")
+      @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+      void should_return_200_when_fetching_deleting_an_inject_test_status() throws Exception {
+        mvc.perform(
+                delete(
+                    SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                    scenarioWrapper.persist().get().getId(),
+                    injectTestStatus2Wrapper.get().getId()))
+            .andExpect(status().isOk());
+      }
+    }
+
+    @Nested
+    @DisplayName("As Unauthorized User")
+    @WithMockUser
+    class UnauthorizedUserAccess {
+
+      @Test
+      @DisplayName("Should return 403 when search a paginated inject test results")
+      void should_return_403_when_search_paginated_results() throws Exception {
+        SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
+        mvc.perform(
+                post(
+                        SCENARIO_URI + "/{scenarioId}/injects/test/search",
+                        scenarioWrapper.persist().get().getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(searchPaginationInput)))
+            .andExpect(status().isForbidden());
+      }
+
+      @Test
+      @DisplayName("Should return 200 when search by id")
+      @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+      void should_return_200_when_search_by_testId() throws Exception {
+        mvc.perform(
+                get(
+                    SCENARIO_URI + "/injects/test/{testId}",
+                    injectTestStatus1Wrapper.get().getId()))
+            .andExpect(status().isOk());
+      }
+
+      @Test
+      @DisplayName("Should return 403 when testing a specific inject")
+      void should_return_403_when_testing_specific_inject() throws Exception {
+        mvc.perform(
+                get(
+                    SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
+                    scenarioWrapper.persist().get().getId(),
+                    inject1Wrapper.get().getId()))
+            .andExpect(status().isForbidden());
+      }
+
+      @Test
+      @DisplayName("Should return 403 when performing bulk test with inject IDs")
+      void should_return_403_when_bulk_testing_with_inject_ids() throws Exception {
         InjectBulkProcessingInput input = new InjectBulkProcessingInput();
         input.setInjectIDsToProcess(
             List.of(inject1Wrapper.get().getId(), inject2Wrapper.get().getId()));
@@ -602,24 +618,12 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
         mvc.perform(
                 post(
-                    SCENARIO_URI + "/{scenarioId}/injects/test",
-                    scenarioWrapper.persist().get().getId())
+                        SCENARIO_URI + "/{scenarioId}/injects/test",
+                        scenarioWrapper.persist().get().getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input)))
-            .andExpect(status().isNotFound());
+            .andExpect(status().isForbidden());
       }
-
-      @Test
-      @DisplayName("Should return 404 when fetching a deleted inject test status")
-      @WithMockObserverUser
-      void should_return_404_when_fetching_deleted_inject_test_status() throws Exception {
-        mvc.perform(
-                delete(
-                    SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
-                    scenarioWrapper.persist().get().getId(),
-                    injectTestStatus1Wrapper.get().getId()))
-            .andExpect(status().isNotFound());
-      }
-    }*/
+    }
   }
 }

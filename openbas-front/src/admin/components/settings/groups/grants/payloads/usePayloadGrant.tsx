@@ -68,7 +68,7 @@ const usePayloadGrant = (groupId: string) => {
       width: '20%',
     },
     {
-      label: t('Manage'),
+      label: t('Manage+Delete'),
       value: (payload) => {
         const { plannerId } = getGrantIds(payload);
         return (
