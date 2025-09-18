@@ -1,8 +1,9 @@
 package io.openbas.service.detection_remediation;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.authorisation.HttpClientFactory;
 import io.openbas.ee.Ee;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -33,8 +34,7 @@ public class DetectionRemediationAIService {
 
     private final Ee ee;
     private final HttpClientFactory httpClientFactory;
-    private final Gson json = new Gson();
-
+    @Resource protected ObjectMapper mapper;
 
   public DetectionRemediationCrowdstrikeResponse callRemediationDetectionAIWebservice(
       DetectionRemediationRequest payload) {
@@ -52,13 +52,13 @@ public class DetectionRemediationAIService {
           httpPost.addHeader(X_OPENAEV_CERTIFICATE, certificate);
           httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
 
-          StringEntity httpBody = new StringEntity(json.toJson(payload));
+          StringEntity httpBody = new StringEntity(mapper.writeValueAsString(payload));
           httpPost.setEntity(httpBody);
 
           String responseBody = httpClient.execute(httpPost, response ->
                   EntityUtils.toString(response.getEntity()));
 
-          return json.fromJson(responseBody, DetectionRemediationCrowdstrikeResponse.class);
+          return mapper.readValue(responseBody, DetectionRemediationCrowdstrikeResponse.class);
 
       } catch (ConnectException ex) {
           throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
@@ -81,7 +81,7 @@ public class DetectionRemediationAIService {
           String responseBody = httpClient.execute(httpGet, response ->
                   EntityUtils.toString(response.getEntity()));
 
-          return json.fromJson(responseBody, DetectionRemediationHealthResponse.class);
+          return mapper.readValue(responseBody, DetectionRemediationHealthResponse.class);
 
       } catch (ConnectException ex) {
           throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
