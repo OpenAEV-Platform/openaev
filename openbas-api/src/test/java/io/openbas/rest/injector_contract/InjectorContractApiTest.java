@@ -352,7 +352,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .node("injector_contract_attack_patterns")
             .isEqualTo(mapper.writeValueAsString(List.of(attackPatternWrapper.get().getId())));
-        // external iDs should override internal IDs as per consistency
+        // external iDs should override internal IDs for consistency
         assertThatJson(response)
             .node("injector_contract_vulnerabilities")
             .isEqualTo(mapper.writeValueAsString(List.of(otherVulnWrapper.get().getId())));
