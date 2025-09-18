@@ -40,7 +40,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  @Operation(summary = "Get a Report from a simulation", description = "TagRule needs to exists")
+  @Operation(summary = "Get a Report from a simulation")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Report returned"),
