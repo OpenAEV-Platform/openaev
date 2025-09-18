@@ -159,6 +159,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     initStarterPackCommandLineRunner.run();
 
     // VERIFY
+    this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
     long scenarioCount = scenarioRepository.count();
@@ -189,6 +190,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     initStarterPackCommandLineRunner.run();
 
     // VERIFY
+    this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
     this.verifyScenarioExist();
@@ -222,6 +224,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     initStarterPackCommandLineRunner.run();
 
     // VERIFY
+    this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
     long scenarioCount = scenarioRepository.count();
@@ -250,6 +253,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     initStarterPackCommandLineRunner.run();
 
     // VERIFY
+    this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
     this.verifyScenarioExist();
@@ -259,16 +263,13 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
   private void verifyTagsExist() {
     long tagCount = tagRepository.count();
-    assertEquals(3, tagCount);
+    assertEquals(2, tagCount);
 
     Optional<Tag> tagVulnerability = tagRepository.findByName("vulnerability");
     assertTrue(tagVulnerability.isPresent());
 
     Optional<Tag> tagCisco = tagRepository.findByName("cisco");
     assertTrue(tagCisco.isPresent());
-
-    Optional<Tag> tagOpenCTI = tagRepository.findByName("opencti");
-    assertTrue(tagOpenCTI.isPresent());
   }
 
   private void verifyEndpointExist() {

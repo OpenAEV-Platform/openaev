@@ -94,9 +94,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
     Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
     Tag tagCisco = this.createTag(Tags.CISCO);
-    Tag tagOpenCTI = this.createTag(Tags.OPENCTI);
     this.createHoneyScanMeAgentlessEndpoint(List.of(tagVulnerability.getId(), tagCisco.getId()));
-    this.createAllEndpointsAssetGroup(Set.of(tagOpenCTI));
+    this.createAllEndpointsAssetGroup();
     this.importScenariosFromResources();
     this.importDashboardsFromResources();
 
@@ -115,7 +114,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     this.endpointService.createEndpoint(endpointInput);
   }
 
-  private void createAllEndpointsAssetGroup(Set<Tag> tags) {
+  private void createAllEndpointsAssetGroup() {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -127,7 +126,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
     AssetGroup allEndpointsAssetGroup = new AssetGroup();
     allEndpointsAssetGroup.setName(AllEndpointsAssetGroup.NAME);
-    allEndpointsAssetGroup.setTags(tags);
     allEndpointsAssetGroup.setDynamicFilter(filterGroup);
     this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
   }
