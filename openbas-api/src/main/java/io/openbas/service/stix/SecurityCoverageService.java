@@ -41,6 +41,7 @@ import io.openbas.utils.ResultUtils;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -274,7 +275,7 @@ public class SecurityCoverageService {
     }
 
     for (StixRefToExternalRef stixRef : exercise.getSecurityCoverage().getVulnerabilitiesRefs()) {
-      BaseType<?> vulnCoverage = getAttackPatternCoverage(stixRef.getExternalRef(), exercise);
+      BaseType<?> vulnCoverage = getVulnerabilityCoverage(stixRef.getExternalRef(), exercise);
       boolean covered = !((Map<String, BaseType<?>>) vulnCoverage.getValue()).isEmpty();
       RelationshipObject sro =
           new RelationshipObject(
@@ -347,48 +348,47 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(exercise.getInjects(), securityPlatform);
   }
 
-  private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {
-    List<AttackPattern> apList =
-        attackPatternService.getAttackPatternsByExternalIds(Set.of(externalRef));
-    Optional<AttackPattern> ap = apList.stream().findFirst();
-    if (ap.isEmpty()) {
-      return uncovered();
-    }
-
-    // get all injects involved in attack pattern
-    List<Inject> injects =
-        exercise.getInjects().stream()
-            .filter(
-                i ->
-                    i.getInjectorContract().isPresent()
-                        && i.getInjectorContract().get().getAttackPatterns().stream()
-                            .anyMatch(
-                                attackPattern -> attackPattern.getId().equals(ap.get().getId())))
-            .toList();
-    if (injects.isEmpty()) {
-      return uncovered();
-    }
-
-    return computeCoverageFromInjects(injects);
+  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise exercise) {
+    return getCoverage(
+        externalRef,
+        exercise,
+        id -> cveService.getVulnerabilitiesByExternalIds(Set.of(id)),
+        InjectorContract::getVulnerabilities,
+        Cve::getId);
   }
 
-  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise exercise) {
-    Set<Cve> vulnList = cveService.getVulnerabilitiesByExternalIds(Set.of(externalRef));
-    Optional<Cve> vuln = vulnList.stream().findFirst();
-    if (vuln.isEmpty()) {
+  private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {
+    return getCoverage(
+        externalRef,
+        exercise,
+        id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
+        InjectorContract::getAttackPatterns,
+        AttackPattern::getId);
+  }
+
+  private <T> BaseType<?> getCoverage(
+      String externalRef,
+      Exercise exercise,
+      Function<String, Collection<T>> entityFetcher,
+      Function<InjectorContract, Collection<T>> contractExtractor,
+      Function<T, String> idExtractor) {
+    // fetch entity
+    Optional<T> entity = entityFetcher.apply(externalRef).stream().findFirst();
+    if (entity.isEmpty()) {
       return uncovered();
     }
 
-    // get all injects involved in vulnerability
+    // find matching injects
     List<Inject> injects =
         exercise.getInjects().stream()
             .filter(
                 i ->
                     i.getInjectorContract().isPresent()
-                        && i.getInjectorContract().get().getVulnerabilities().stream()
+                        && contractExtractor.apply(i.getInjectorContract().get()).stream()
                             .anyMatch(
-                                vulnerability -> vulnerability.getId().equals(vuln.get().getId())))
+                                e -> idExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
             .toList();
+
     if (injects.isEmpty()) {
       return uncovered();
     }
