@@ -1,11 +1,12 @@
 package io.openbas.rest.payload.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openbas.database.model.DetectionRemediation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
+
+import java.time.Instant;
 
 @Builder
 @Data
@@ -29,8 +30,9 @@ public class DetectionRemediationOutput {
   @NotNull
   private String values;
 
-  @JsonProperty("detection_remediation_author_rule")
-  @Schema(description = "Author of rules: Human or AI ")
-  @NotNull
-  private DetectionRemediation.AUTHOR_RULE authorRule;
+  @JsonProperty("detection_remediation_ai_rule_creation_date")
+  @Schema(description = "AI rule creation date. If null, the rule was manually created. " +
+          "If a value is present, it indicates when the AI generated this rule, " +
+          "allowing comparison with the last update date to identify post-generation modifications.")
+  private Instant aiRuleCreationDate;
 }

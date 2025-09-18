@@ -12,13 +12,8 @@ public class V4_26__Modify_detection_remediation extends BaseJavaMigration {
     try (Statement select = context.getConnection().createStatement()) {
       select.execute(
           """
-                    CREATE TYPE author_enum AS ENUM ('HUMAN', 'AI');
-                    """);
-
-      select.execute(
-          """
                             ALTER TABLE detection_remediations
-                              ADD COLUMN author_rule author_enum NOT NULL DEFAULT 'HUMAN' ;
+                              ADD COLUMN detection_remediation_ai_rule_creation_date timestamp DEFAULT NULL ;
                             """);
     }
   }
