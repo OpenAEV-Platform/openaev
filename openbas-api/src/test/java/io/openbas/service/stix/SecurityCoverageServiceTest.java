@@ -48,6 +48,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobComposer securityCoverageSendJobComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private CveComposer vulnerabilityComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
@@ -62,6 +63,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     injectExpectationComposer.reset();
     injectorContractComposer.reset();
     attackPatternComposer.reset();
+    vulnerabilityComposer.reset();
     securityCoverageComposer.reset();
     scenarioComposer.reset();
     securityPlatformComposer.reset();
@@ -75,10 +77,14 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
    * set isCovered to true if there should be an inject covering this attack pattern
    * otherwise, false means the attack pattern will be "uncovered"
    */
-  private ExerciseComposer.Composer createExerciseWrapperWithInjectsForAttackPatterns(
-      Map<AttackPatternComposer.Composer, java.lang.Boolean> attackPatternWrappers) {
+  private ExerciseComposer.Composer createExerciseWrapperWithInjectsForDomainObjects(
+      Map<AttackPatternComposer.Composer, java.lang.Boolean> attackPatternWrappers,
+      Map<CveComposer.Composer, java.lang.Boolean> vulnWrappers) {
+
     // ensure attack patterns have IDs
     attackPatternWrappers.keySet().forEach(AttackPatternComposer.Composer::persist);
+    // ensure vulns have IDs
+    vulnWrappers.keySet().forEach(CveComposer.Composer::persist);
 
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
@@ -116,6 +122,29 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
                                 InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                        .withEndpoint(
+                            endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
+      }
+    }
+
+    for (Map.Entry<CveComposer.Composer, java.lang.Boolean> vulnw :
+        vulnWrappers.entrySet()) {
+      if (vulnw.getValue()) { // this vuln should be covered
+        exerciseWrapper.withInject(
+            injectComposer
+                .forInject(InjectFixture.getDefaultInject())
+                .withInjectorContract(
+                    injectorContractComposer
+                        .forInjectorContract(
+                            InjectorContractFixture.createDefaultInjectorContract())
+                        .withInjector(injectorFixture.getWellKnownObasImplantInjector())
+                        .withVulnerability(vulnw.getKey()))
+                .withExpectation(
+                    injectExpectationComposer
+                        .forExpectation(
+                            InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                                InjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
                                 InjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
@@ -182,7 +211,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true, ap2, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true));
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // set SUCCESS results for all inject expectations
@@ -336,7 +365,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true, ap2, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true));
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // expectation results
@@ -518,7 +547,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true));
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // set SUCCESS results for all inject expectations
@@ -593,7 +622,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true));
 
     // set SUCCESS results for all inject expectations
     Inject successfulInject =
@@ -663,7 +692,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForAttackPatterns(Map.of(ap1, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true));
 
     // set SUCCESS results for all inject expectations
     Inject successfulInject =
