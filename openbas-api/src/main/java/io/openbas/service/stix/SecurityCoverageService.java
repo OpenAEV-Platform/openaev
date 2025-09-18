@@ -41,6 +41,7 @@ import io.openbas.utils.ResultUtils;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -244,64 +245,24 @@ public class SecurityCoverageService {
     Optional<Timestamp> sroStopTime =
         exerciseService.getLatestValidityDate(exercise).map(Timestamp::new);
 
-    for (StixRefToExternalRef stixRef : exercise.getSecurityCoverage().getAttackPatternRefs()) {
-      BaseType<?> attackPatternCoverage =
-          getAttackPatternCoverage(stixRef.getExternalRef(), exercise);
-      boolean covered = !((Map<String, BaseType<?>>) attackPatternCoverage.getValue()).isEmpty();
-      RelationshipObject sro =
-          new RelationshipObject(
-              new HashMap<>(
-                  Map.of(
-                      CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
-                      CommonProperties.TYPE.toString(),
-                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                      new StixString("has-assessed"),
-                      RelationshipObject.Properties.SOURCE_REF.toString(),
-                      coverage.getId(),
-                      RelationshipObject.Properties.TARGET_REF.toString(),
-                      new Identifier(stixRef.getStixRef()),
-                      ExtendedProperties.COVERED.toString(),
-                      new io.openbas.stix.types.Boolean(covered))));
-      sroStartTime.ifPresent(
-          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
-      sroStopTime.ifPresent(
-          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
-      if (covered) {
-        sro.setProperty(ExtendedProperties.COVERAGE.toString(), attackPatternCoverage);
-      }
-      objects.add(sro);
-    }
+    // Process coverage refs by stix object: attack patterns, vulnerabilities
+    processCoverageRefs(
+        exercise.getSecurityCoverage().getAttackPatternRefs(),
+        exercise,
+        this::getAttackPatternCoverage,
+        coverage.getId(),
+        sroStartTime,
+        sroStopTime,
+        objects);
 
-    for (StixRefToExternalRef stixRef : exercise.getSecurityCoverage().getVulnerabilitiesRefs()) {
-      BaseType<?> vulnCoverage = getVulnerabilityCoverage(stixRef.getExternalRef(), exercise);
-      boolean covered = !((Map<String, BaseType<?>>) vulnCoverage.getValue()).isEmpty();
-      RelationshipObject sro =
-          new RelationshipObject(
-              new HashMap<>(
-                  Map.of(
-                      CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
-                      CommonProperties.TYPE.toString(),
-                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                      new StixString("has-assessed"),
-                      RelationshipObject.Properties.SOURCE_REF.toString(),
-                      coverage.getId(),
-                      RelationshipObject.Properties.TARGET_REF.toString(),
-                      new Identifier(stixRef.getStixRef()),
-                      ExtendedProperties.COVERED.toString(),
-                      new io.openbas.stix.types.Boolean(covered))));
-      sroStartTime.ifPresent(
-          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
-      sroStopTime.ifPresent(
-          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
-      if (covered) {
-        sro.setProperty(ExtendedProperties.COVERAGE.toString(), vulnCoverage);
-      }
-      objects.add(sro);
-    }
+    processCoverageRefs(
+        exercise.getSecurityCoverage().getVulnerabilitiesRefs(),
+        exercise,
+        this::getVulnerabilityCoverage,
+        coverage.getId(),
+        sroStartTime,
+        sroStopTime,
+        objects);
 
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
@@ -337,6 +298,47 @@ public class SecurityCoverageService {
     }
 
     return objects;
+  }
+
+  private void processCoverageRefs(
+      Set<StixRefToExternalRef> refs,
+      Exercise exercise,
+      BiFunction<String, Exercise, BaseType<?>> coverageFunction,
+      Identifier coverageId,
+      Optional<Timestamp> sroStartTime,
+      Optional<Timestamp> sroStopTime,
+      List<ObjectBase> objects) {
+    for (StixRefToExternalRef stixRef : refs) {
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), exercise);
+      boolean covered = !((Map<String, BaseType<?>>) coverageResult.getValue()).isEmpty();
+
+      RelationshipObject sro =
+          new RelationshipObject(
+              new HashMap<>(
+                  Map.of(
+                      CommonProperties.ID.toString(),
+                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
+                      CommonProperties.TYPE.toString(),
+                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
+                      new StixString("has-assessed"),
+                      RelationshipObject.Properties.SOURCE_REF.toString(),
+                      coverageId,
+                      RelationshipObject.Properties.TARGET_REF.toString(),
+                      new Identifier(stixRef.getStixRef()),
+                      ExtendedProperties.COVERED.toString(),
+                      new io.openbas.stix.types.Boolean(covered))));
+
+      sroStartTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
+      sroStopTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
+
+      if (covered) {
+        sro.setProperty(ExtendedProperties.COVERAGE.toString(), coverageResult);
+      }
+      objects.add(sro);
+    }
   }
 
   private BaseType<?> getOverallCoverage(Exercise exercise) {
