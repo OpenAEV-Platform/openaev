@@ -15,7 +15,7 @@ import io.openbas.database.repository.RoleRepository;
 import io.openbas.rest.group.form.GroupUpdateRolesInput;
 import io.openbas.utils.fixtures.GroupFixture;
 import io.openbas.utils.fixtures.RoleFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ public class GroupApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_updateGroupRoles() throws Exception {
 
     Group group = groupRepository.save(GroupFixture.createGroup());
@@ -69,7 +69,7 @@ public class GroupApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_updateGroupRoles_WITH_unexisting_role_id() throws Exception {
     Group group = groupRepository.save(GroupFixture.createGroup());
     GroupUpdateRolesInput input =
@@ -84,7 +84,7 @@ public class GroupApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void test_updateGroupRoles_WITH_unexisting_group_id() throws Exception {
     GroupUpdateRolesInput input =
         GroupUpdateRolesInput.builder().roleIds(List.of("randomid")).build();

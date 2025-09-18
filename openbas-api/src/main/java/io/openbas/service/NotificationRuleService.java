@@ -54,7 +54,7 @@ public class NotificationRuleService {
         notificationRule.getNotificationResourceType())) {
       // verify if the scenario exists
       if (scenarioService.scenario(notificationRule.getResourceId()) == null) {
-        new ElementNotFoundException(
+        throw new ElementNotFoundException(
             "Scenario not found with id: " + notificationRule.getResourceId());
       }
     } else {

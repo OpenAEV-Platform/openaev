@@ -4,15 +4,9 @@ import static io.openbas.database.model.User.ROLE_ADMIN;
 
 import io.openbas.config.OpenBASPrincipal;
 import io.openbas.database.model.Exercise;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.Scenario;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.ExerciseRepository;
-import io.openbas.database.repository.InjectRepository;
-import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.UserRepository;
-import io.openbas.rest.exception.ElementNotFoundException;
-import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.security.access.expression.SecurityExpressionRoot;
@@ -26,8 +20,6 @@ public class SecurityExpression extends SecurityExpressionRoot
 
   private final UserRepository userRepository;
   private final ExerciseRepository exerciseRepository;
-  private final ScenarioRepository scenarioRepository;
-  private final InjectRepository injectRepository;
 
   private Object filterObject;
   private Object returnObject;
@@ -36,14 +28,10 @@ public class SecurityExpression extends SecurityExpressionRoot
   public SecurityExpression(
       Authentication authentication,
       final UserRepository userRepository,
-      final ExerciseRepository exerciseRepository,
-      final ScenarioRepository scenarioRepository,
-      final InjectRepository injectRepository) {
+      final ExerciseRepository exerciseRepository) {
     super(authentication);
     this.exerciseRepository = exerciseRepository;
     this.userRepository = userRepository;
-    this.scenarioRepository = scenarioRepository;
-    this.injectRepository = injectRepository;
   }
 
   private OpenBASPrincipal getUser() {
@@ -126,74 +114,6 @@ public class SecurityExpression extends SecurityExpressionRoot
     Optional<User> player =
         players.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
     return player.isPresent();
-  }
-
-  public boolean isInjectObserver(String injectId) {
-    if (isUserHasBypass()) {
-      return true;
-    }
-
-    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-    if (inject.isAtomicTesting()) {
-      return isUserHasBypass();
-    }
-    if (inject.getExercise() != null) {
-      return isExerciseObserver(inject.getExercise().getId());
-    }
-    if (inject.getScenario() != null) {
-      return isScenarioObserver(inject.getScenario().getId());
-    }
-
-    return false;
-  }
-
-  public boolean isInjectPlanner(String injectId) {
-    if (isUserHasBypass()) {
-      return true;
-    }
-
-    Inject inject = injectRepository.findById(injectId).orElseThrow();
-    if (inject.isAtomicTesting()) {
-      return isUserHasBypass();
-    }
-    if (inject.getExercise() != null) {
-      return isExercisePlanner(inject.getExercise().getId());
-    }
-    if (inject.getScenario() != null) {
-      return isScenarioPlanner(inject.getScenario().getId());
-    }
-
-    return false;
-  }
-
-  // All read only or playable access
-  public boolean isExerciseObserverOrPlayer(String exerciseId) {
-    return isExerciseObserver(exerciseId) || isExercisePlayer(exerciseId);
-  }
-
-  // endregion
-
-  // region scenario annotations
-  public boolean isScenarioPlanner(@NotBlank final String scenarioId) {
-    if (isUserHasBypass()) {
-      return true;
-    }
-    Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
-    List<User> planners = scenario.getPlanners();
-    Optional<User> planner =
-        planners.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
-    return planner.isPresent();
-  }
-
-  public boolean isScenarioObserver(@NotBlank final String scenarioId) {
-    if (isUserHasBypass()) {
-      return true;
-    }
-    Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
-    List<User> observers = scenario.getObservers();
-    Optional<User> observer =
-        observers.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
-    return observer.isPresent();
   }
 
   // endregion

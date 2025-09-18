@@ -139,8 +139,7 @@ public class PermissionService {
       return true;
     }
 
-    if (RESOURCES_OPEN.contains(resourceType)
-        && (Action.READ.equals(action) || Action.SEARCH.equals(action))) {
+    if (isOpenResource(resourceType, action)) {
       return true;
     }
 
@@ -180,4 +179,9 @@ public class PermissionService {
 
   /** Used to return Parent resource information */
   private record Target(String resourceId, ResourceType resourceType, Action action) {}
+
+  public static boolean isOpenResource(ResourceType resourceType, Action action) {
+    return RESOURCES_OPEN.contains(resourceType)
+        && (Action.READ.equals(action) || Action.SEARCH.equals(action));
+  }
 }

@@ -3,7 +3,8 @@ package io.openbas.rest.attack_pattern;
 import static io.openbas.rest.attack_pattern.AttackPatternApi.ATTACK_PATTERN_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
 import io.openbas.IntegrationTest;
@@ -11,10 +12,13 @@ import io.openbas.database.model.AttackPattern;
 import io.openbas.database.repository.AttackPatternRepository;
 import io.openbas.ee.Ee;
 import io.openbas.utils.fixtures.files.AttackPatternFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.Objects;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -41,7 +45,7 @@ public class AttackPatternApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Search Attack Patterns with AI Webservice")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   class AttackPatternWithTTPAIWebservice {
 
     @Test

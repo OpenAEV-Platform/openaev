@@ -20,12 +20,14 @@ import io.openbas.rest.exercise.form.*;
 import io.openbas.rest.inject.form.InjectInput;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
-import io.openbas.utils.mockUser.WithMockPlannerUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -75,7 +77,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Create simulation succeed with default dashboard")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
@@ -124,7 +126,7 @@ public class ExerciseApiTest extends IntegrationTest {
   class RetrievingExercises {
     @Test
     @DisplayName("Retrieving players by exercise")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void retrievingPlayersByExercise() throws Exception {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
@@ -162,7 +164,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Get global score for exercises")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void getGlobalScoreForExercises() throws Exception {
       Exercise exercise1 = ExerciseFixture.createDefaultCrisisExercise();
       Exercise exercise1Saved = exerciseRepository.save(exercise1);
@@ -198,7 +200,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get scenario from exercise id")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void givenExerciseId_whenGettingScenarioFromExercise_thenReturnScenario() throws Exception {
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     Scenario scenarioSaved = scenarioRepository.save(scenario);
@@ -222,7 +224,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -259,7 +261,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when no rule is found")
   @Test
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -289,7 +291,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Lock Exercise EE feature")
-  @WithMockPlannerUser
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   class LockExerciseEEFeature {
 
     private Exercise getExercise(@Nullable Executor executor) {
@@ -316,7 +318,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when launch exercise with Crowdstrike")
-    @WithMockAdminUser
+    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
     void given_crowdstrike_should_not_launchExercise() throws Exception {
       Exercise exercise = getExercise(executorFixture.getTaniumExecutor());
       ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
@@ -333,7 +335,6 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when schedule exercise with Tanium")
-    @WithMockAdminUser
     void given_tanium_should_not_scheduleExercise() throws Exception {
       Exercise exercise = getExercise(executorFixture.getTaniumExecutor());
       ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
@@ -349,7 +350,6 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when add Tanium on scheduled scenario")
-    @WithMockAdminUser
     void given_taniumAsset_should_not_beAddedToScheduledExercise() throws Exception {
       Exercise exercise = getExercise(null);
 
@@ -384,7 +384,7 @@ public class ExerciseApiTest extends IntegrationTest {
   @Test
   @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing exercise teams")
-  @WithMockAdminUser
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {
     // -- PREPARE --
     User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));

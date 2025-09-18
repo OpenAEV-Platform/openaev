@@ -5,9 +5,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,7 +18,7 @@ import io.openbas.database.repository.InjectStatusRepository;
 import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -86,7 +84,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Find an atomic testing without status")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void findAnAtomicTestingWithoutStatus() throws Exception {
     String response =
         mvc.perform(
@@ -104,7 +102,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Find an atomic testing with status, command lines and expectation Results from inject content")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void findAnAtomicTestingWithStatusAndCommandLines() throws Exception {
     String url = ATOMIC_TESTINGS_URI + "/" + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
     String expectedInjectId = INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
@@ -141,7 +139,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Duplicate and delete an atomic testing")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void duplicateAndDeleteAtomicTesting() throws Exception {
     // Duplicate
     String response =
@@ -173,7 +171,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Launch an Atomic Testing")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void launchAtomicTesting() throws Exception {
     Inject atomicTesting = getAtomicTestingWrapper(null, null).persist().get();
 
@@ -187,7 +185,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Relaunch an Atomic Testing")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void relaunchAtomicTesting() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
@@ -211,7 +209,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Lock Atomic testing EE feature")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   class LockAtomicTestingEEFeature {
 
     @Test
@@ -243,7 +241,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get the payload of an atomic testing")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void findPayloadOutputByInjectId() throws Exception {
     String response =
         mvc.perform(
@@ -262,7 +260,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Expectation results computation")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   public class ExpectationResultsComputation {
 
     @Nested
