@@ -128,8 +128,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       }
     }
 
-    for (Map.Entry<CveComposer.Composer, java.lang.Boolean> vulnw :
-        vulnWrappers.entrySet()) {
+    for (Map.Entry<CveComposer.Composer, java.lang.Boolean> vulnw : vulnWrappers.entrySet()) {
       if (vulnw.getValue()) { // this vuln should be covered
         exerciseWrapper.withInject(
             injectComposer
@@ -211,7 +210,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true), Map.of());
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // set SUCCESS results for all inject expectations
@@ -365,7 +364,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true), Map.of());
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // expectation results
@@ -547,7 +546,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true), Map.of());
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // set SUCCESS results for all inject expectations
@@ -622,7 +621,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true), Map.of());
 
     // set SUCCESS results for all inject expectations
     Inject successfulInject =
@@ -692,7 +691,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true));
+        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true), Map.of());
 
     // set SUCCESS results for all inject expectations
     Inject successfulInject =
