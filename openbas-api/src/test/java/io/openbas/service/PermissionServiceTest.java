@@ -191,6 +191,40 @@ public class PermissionServiceTest extends IntegrationTest {
     assertFalse(permissionService.hasPermission(user, injectId, ResourceType.INJECT, Action.WRITE));
   }
 
+  @Test
+  public void test_hasPermission_search_user_WHEN_has_no_grant() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.SEARCH));
+  }
+
+  @Test
+  public void test_hasPermission_duplicate_user_WHEN_has_no_grant() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.DUPLICATE));
+  }
+
+  @Test
+  public void test_hasPermission_read_user_WHEN_has_no_grant() {
+    User user = getUser(USER_ID, false);
+    assertFalse(permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.READ));
+  }
+
+  @Test
+  public void test_hasPermission_write_user_WHEN_has_no_grant() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.WRITE));
+  }
+
+  @Test
+  public void test_hasPermission_create_user_WHEN_has_no_grant() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.CREATE));
+  }
+
   private User getUser(final String id, final boolean isAdmin) {
     User user = UserFixture.getUser();
     user.setAdmin(isAdmin);
