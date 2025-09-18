@@ -19,6 +19,7 @@ import { useHelper } from './store';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
+import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
 
 const RootPublic = lazy(() => import('./public/Root'));
@@ -47,11 +48,12 @@ const Root = () => {
     dispatch(fetchPlatformParameters());
   }, []);
 
+  const { isReachable } = useNetworkCheck(settings?.xtm_hub_url);
   if (R.isEmpty(logged)) {
     return <div />;
   }
 
-  if (!logged || !me || !settings) {
+  if (!logged || !me || !settings || isReachable === undefined) {
     return (
       <Suspense fallback={<Loader />}>
         <RootPublic />
@@ -64,6 +66,7 @@ const Root = () => {
         value={{
           me,
           settings,
+          isXTMHubAccessible: isReachable,
         }}
       >
         <StyledEngineProvider injectFirst>
