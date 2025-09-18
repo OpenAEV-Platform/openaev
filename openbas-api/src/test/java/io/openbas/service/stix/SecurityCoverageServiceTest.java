@@ -615,10 +615,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           "PREVENTION",
                           new StixString(stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0"),
                           "DETECTION",
-                          new StixString(stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0"),
-                          "VULNERABILITY",
                           new StixString(
-                              stixRef.getExternalRef().equals("CVE-1234-5678") ? "1.0" : "0.0")))));
+                              stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0")))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));
