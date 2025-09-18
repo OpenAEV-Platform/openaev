@@ -67,7 +67,7 @@ Here are the configuration keys, for both containers (environment variables) and
 
 ### Dependencies
 
-#### XTM Suite
+#### XTM Suite: OpenCTI
 
 | Parameter                           | Environment variable                | Default value | Description                                                                                         |
 |:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------|
@@ -76,6 +76,14 @@ Here are the configuration keys, for both containers (environment variables) and
 | openbas.xtm.opencti.api_url         | OPENBAS_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completly override the OpenCTI URL, otherwise the default url will be `openbas.xtm.opencti.url` + '/graphql'|
 | openbas.xtm.opencti.token           | OPENBAS_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                       |
 | openbas.xtm.opencti.disable-display | OPENBAS_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                           |
+
+#### XTM Suite: XTM Hub
+
+| Parameter                        | Environment variable             | Default value | Description                                                       |
+|:---------------------------------|:---------------------------------|:--------------|:------------------------------------------------------------------|
+| openbas.xtm.hub.enable           | OPENBAS_XTM_HUB_ENABLE           | false         | Enable integration with XTM Hub                                   |
+| openbas.xtm.hub.url              | OPENBAS_XTM_HUB_URL              |               | XTM Hub URL                                                       |
+| openbas.xtm.hub.override-api-url | OPENBAS_XTM_HUB_OVERRIDE_API_URL |               | When specified, override `openbas.xtm.hub.url` during backend calls |
 
 #### PostgreSQL
 
