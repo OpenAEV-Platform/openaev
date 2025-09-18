@@ -13,7 +13,6 @@ import static io.openbas.utils.JsonUtils.asJsonString;
 import static io.openbas.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -41,7 +40,7 @@ import io.openbas.service.ScenarioService;
 import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -157,7 +156,7 @@ class InjectApiTest extends IntegrationTest {
   @DisplayName("Delete list of injects for scenario")
   @Test
   @Order(6)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteInjectsForScenarioTest() throws Exception {
     // -- PREPARE --
     Inject injectForScenario1 = new Inject();
@@ -226,7 +225,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Add an inject for simulation")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void addInjectForSimulationTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -253,7 +252,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Update inject for simulation")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateInjectForSimulationTest() throws Exception {
     // -- PREPARE --
     InjectInput injectInput = new InjectInput();
@@ -288,7 +287,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Execute an email inject for exercise")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void executeEmailInjectForExerciseTest() throws Exception {
     // -- PREPARE --
     InjectorContract injectorContract =
@@ -349,7 +348,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Execute an email inject for exercise with no team")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void executeEmailInjectForExerciseWithNoTeam() throws Exception {
     // -- PREPARE --
     InjectorContract injectorContract =
@@ -388,7 +387,7 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Execute an email inject for exercise with no content")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void executeEmailInjectForExerciseWithNoContentTest() throws Exception {
     // -- PREPARE --
     InjectorContract injectorContract =
@@ -422,7 +421,7 @@ class InjectApiTest extends IntegrationTest {
   @DisplayName("Delete list of inject for exercise")
   @Test
   @Order(8)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteInjectsForExerciseTest() throws Exception {
     // -- PREPARE --
     Inject injectForExercise1 = new Inject();
@@ -532,7 +531,7 @@ class InjectApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   @DisplayName("Retrieving executable payloads injects")
   class RetrievingExecutablePayloadInject {
@@ -780,7 +779,7 @@ class InjectApiTest extends IntegrationTest {
 
   @Nested
   @Transactional
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Inject Execution Callback Handling (simulating a request from an implant)")
   class handleInjectExecutionCallback {
 
@@ -1070,7 +1069,7 @@ class InjectApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Fetch execution traces for inject/atomic overview")
   class ShouldFetchExecutionTracesForInjectOverview {
 
@@ -1292,7 +1291,7 @@ class InjectApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Fetch documents for inject by payload")
   class ShouldFetchDocuments {
 

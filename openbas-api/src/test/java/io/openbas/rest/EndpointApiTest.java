@@ -4,26 +4,27 @@ import static io.openbas.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static io.openbas.utils.fixtures.AgentFixture.createAgent;
 import static io.openbas.utils.fixtures.EndpointFixture.*;
-import static io.openbas.utils.fixtures.InjectFixture.*;
+import static io.openbas.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openbas.utils.fixtures.TagFixture.getTag;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
-import io.openbas.database.repository.*;
+import io.openbas.database.repository.EndpointRepository;
+import io.openbas.database.repository.InjectRepository;
+import io.openbas.database.repository.TagRepository;
 import io.openbas.rest.asset.endpoint.form.EndpointInput;
 import io.openbas.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.service.EndpointService;
 import io.openbas.utils.fixtures.ExerciseFixture;
 import io.openbas.utils.mapper.EndpointMapper;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -55,7 +56,7 @@ class EndpointApiTest extends IntegrationTest {
 
   @DisplayName("Given valid input, should create an endpoint agentless successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validInput_should_createEndpointAgentlessSuccessfully() throws Exception {
     // --PREPARE--
     Endpoint endpointInput = createEndpoint();
@@ -86,7 +87,7 @@ class EndpointApiTest extends IntegrationTest {
 
   @DisplayName("Given wrong input, can't create an endpoint agentless successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_wrongInput_cant_createEndpointAgentlessSuccessfully() throws Exception {
     // --PREPARE--
     Endpoint endpointInput = new Endpoint();
@@ -103,7 +104,7 @@ class EndpointApiTest extends IntegrationTest {
 
   @DisplayName("Given valid endpoint input, should upsert an endpoint successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validEndpointInput_should_upsertEndpointSuccessfully() throws Exception {
     // --PREPARE--
     Tag tag = tagRepository.save(getTag());
@@ -149,7 +150,7 @@ class EndpointApiTest extends IntegrationTest {
   @DisplayName(
       "Given valid input for a non-existing endpoint, should create and upsert successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validInputForNonExistingEndpoint_should_createAndUpsertSuccessfully()
       throws Exception {
     // --PREPARE--
@@ -186,7 +187,7 @@ class EndpointApiTest extends IntegrationTest {
 
   @DisplayName("Given valid input, should update an endpoint successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validInput_should_updateEndpointSuccessfully() throws Exception {
     // --PREPARE--
     Tag tag = tagRepository.save(getTag());
@@ -234,7 +235,7 @@ class EndpointApiTest extends IntegrationTest {
 
   @DisplayName("Given valid input, should delete an endpoint successfully")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_validInput_should_deleteEndpointSuccessfully() throws Exception {
     // --PREPARE--
     Tag tag = tagRepository.save(getTag());
@@ -325,7 +326,7 @@ class EndpointApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByNameTest(
       String searchText, Boolean simulationOrScenarioId, Integer expectedNumberOfResults)
       throws Exception {
@@ -362,7 +363,7 @@ class EndpointApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByIdTest(Integer numberOfAssetToProvide, Integer expectedNumberOfResults)
       throws Exception {
     // --PREPARE--

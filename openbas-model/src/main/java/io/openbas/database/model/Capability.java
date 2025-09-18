@@ -215,7 +215,10 @@ public enum Capability {
       pair(ResourceType.INJECTOR, Action.DELETE),
       pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE),
       pair(ResourceType.ORGANIZATION, Action.DELETE),
+      pair(ResourceType.MAPPER, Action.CREATE),
+      pair(ResourceType.MAPPER, Action.DUPLICATE),
       pair(ResourceType.MAPPER, Action.DELETE),
+      pair(ResourceType.MAPPER, Action.WRITE),
       pair(ResourceType.GROUP_ROLE, Action.DELETE),
       pair(ResourceType.USER_GROUP, Action.DELETE),
       pair(ResourceType.USER, Action.DELETE));

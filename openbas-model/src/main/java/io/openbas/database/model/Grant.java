@@ -27,6 +27,17 @@ public class Grant implements Base {
     ATOMIC_TESTING,
     PAYLOAD,
     UNKNOWN;
+    ;
+
+    public static GRANT_RESOURCE_TYPE fromRbacResourceType(ResourceType resourceType) {
+      return switch (resourceType) {
+        case SCENARIO -> SCENARIO;
+        case SIMULATION -> SIMULATION;
+        case ATOMIC_TESTING -> ATOMIC_TESTING;
+        case PAYLOAD -> PAYLOAD;
+        default -> UNKNOWN;
+      };
+    }
   }
 
   public enum GRANT_TYPE {
@@ -49,6 +60,15 @@ public class Grant implements Base {
       return Arrays.stream(values())
           .filter(gt -> gt.getPriority() >= this.getPriority())
           .collect(Collectors.toList());
+    }
+
+    public static GRANT_TYPE fromRbacAction(Action action) {
+      return switch (action) {
+        case READ, SEARCH -> OBSERVER;
+        case WRITE, DELETE, CREATE, DUPLICATE -> PLANNER;
+        case LAUNCH -> LAUNCHER;
+        default -> throw new IllegalArgumentException("No GRANT_TYPE for action: " + action);
+      };
     }
 
     //  verify that priority is unique

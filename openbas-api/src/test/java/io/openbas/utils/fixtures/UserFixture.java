@@ -51,19 +51,22 @@ public class UserFixture {
     return user;
   }
 
-  public static User getUser(String firstName, String lastName, String email) {
+  public static User getUser(String firstName, String lastName, String email, boolean isAdmin) {
     User user = new User();
     user.setFirstname(firstName);
     user.setLastname(lastName);
     user.setEmail(email);
     user.setPassword(ENCODED_PASSWORD);
+    user.setAdmin(isAdmin);
     return user;
   }
 
+  public static User getUser(String firstName, String lastName, String email) {
+    return getUser(firstName, lastName, email, false);
+  }
+
   public static User getAdminUser(String firstName, String lastName, String email) {
-    User user = getUser(firstName, lastName, email);
-    user.setAdmin(true);
-    return user;
+    return getUser(firstName, lastName, email, true);
   }
 
   public static User getSavedUser() {

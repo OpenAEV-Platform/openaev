@@ -20,7 +20,7 @@ import io.openbas.database.specification.KillChainPhaseSpecification;
 import io.openbas.rest.kill_chain_phase.KillChainPhaseApi;
 import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.fixtures.PaginationFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.openbas.utils.pagination.SortField;
 import java.util.ArrayList;
@@ -81,7 +81,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Fetching a page of kill chain phases")
   class FetchingPageOfKillChainPhases {
 
@@ -111,7 +111,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Searching page of kill chain phases")
   class SearchingPageOfKillChainPhases {
 
@@ -163,7 +163,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Filtering page of kill chain phases")
   class FilteringPageOfKillChainPhases {
 
@@ -201,7 +201,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Sorting page of kill chain phases")
   class SortingPageOfKillCHainPhases {
 

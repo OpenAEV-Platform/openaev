@@ -46,6 +46,19 @@ public class GrantFixture {
     return grant;
   }
 
+  public static Grant getGrant(
+      String resourceId,
+      Grant.GRANT_RESOURCE_TYPE resourceType,
+      Grant.GRANT_TYPE grantType,
+      Group group) {
+    Grant grant = new Grant();
+    grant.setName(grantType);
+    grant.setResourceId(resourceId);
+    grant.setGrantResourceType(resourceType);
+    grant.setGroup(group);
+    return grant;
+  }
+
   public static Grant getGrantForPayload(Payload payload, Grant.GRANT_TYPE grantType) {
     Grant grant = new Grant();
     grant.setName(grantType);
