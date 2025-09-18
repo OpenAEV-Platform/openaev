@@ -9,10 +9,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.model.Tag;
 import io.openbas.database.repository.*;
 import io.openbas.rest.tag.TagService;
-import io.openbas.service.AssetGroupService;
-import io.openbas.service.EndpointService;
-import io.openbas.service.ImportService;
-import io.openbas.service.ZipJsonService;
+import io.openbas.service.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -22,14 +19,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("StarterPack process tests")
+@Transactional
 public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
   @Autowired private TagRepository tagRepository;
-  @Autowired private TagRuleRepository tagRuleRepository;
   @Autowired private AssetRepository assetRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -40,24 +38,13 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Autowired private TagService tagService;
   @Autowired private EndpointService endpointService;
   @Autowired private AssetGroupService assetGroupService;
+  @Autowired private TagRuleService tagRuleService;
   @Autowired private ImportService importService;
   @Autowired private ZipJsonService<CustomDashboard> zipJsonService;
   @Autowired private ResourcePatternResolver resolver;
   @Mock private ImportService mockImportService;
   @Mock private ZipJsonService<CustomDashboard> mockZipJsonService;
   @Mock private ResourcePatternResolver mockResolver;
-
-  @BeforeEach
-  void beforeEach() {
-    settingRepository.deleteAll();
-    customDashboardRepository.deleteAll();
-    scenarioRepository.deleteAll();
-    assetGroupRepository.deleteAll();
-    endpointRepository.deleteAll();
-    assetRepository.deleteAll();
-    tagRuleRepository.deleteAll();
-    tagRepository.deleteAll();
-  }
 
   @Test
   @DisplayName("Should not init StarterPack for disabled feature")
@@ -69,6 +56,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             tagService,
             endpointService,
             assetGroupService,
+            tagRuleService,
             importService,
             zipJsonService,
             resolver);
@@ -79,7 +67,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
     // VERIFY
     long tagCount = tagRepository.count();
-    assertEquals(0, tagCount);
+    assertEquals(1, tagCount); // 1 by default, because OpenCTI tag is created by other process
 
     long assetsCount = assetRepository.count();
     assertEquals(0, assetsCount);
@@ -107,6 +95,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             tagService,
             endpointService,
             assetGroupService,
+            tagRuleService,
             importService,
             zipJsonService,
             resolver);
@@ -121,7 +110,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
     // VERIFY
     long tagCount = tagRepository.count();
-    assertEquals(0, tagCount);
+    assertEquals(1, tagCount); // 1 by default, because OpenCTI tag is created by other process
 
     long assetsCount = assetRepository.count();
     assertEquals(0, assetsCount);
@@ -149,6 +138,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             tagService,
             endpointService,
             assetGroupService,
+            tagRuleService,
             mockImportService,
             zipJsonService,
             resolver);
@@ -178,6 +168,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             tagService,
             endpointService,
             assetGroupService,
+            tagRuleService,
             importService,
             mockZipJsonService,
             resolver);
@@ -209,6 +200,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             tagService,
             endpointService,
             assetGroupService,
+            tagRuleService,
             importService,
             zipJsonService,
             mockResolver);
@@ -244,6 +236,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             tagService,
             endpointService,
             assetGroupService,
+            tagRuleService,
             importService,
             zipJsonService,
             resolver);
@@ -263,13 +256,16 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
   private void verifyTagsExist() {
     long tagCount = tagRepository.count();
-    assertEquals(2, tagCount);
+    assertEquals(3, tagCount);
 
     Optional<Tag> tagVulnerability = tagRepository.findByName("vulnerability");
     assertTrue(tagVulnerability.isPresent());
 
     Optional<Tag> tagCisco = tagRepository.findByName("cisco");
     assertTrue(tagCisco.isPresent());
+
+    Optional<Tag> tagOpenCTI = tagRepository.findByName("opencti");
+    assertTrue(tagOpenCTI.isPresent());
   }
 
   private void verifyEndpointExist() {
