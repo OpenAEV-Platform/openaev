@@ -8,6 +8,7 @@ import io.openbas.engine.EngineService;
 import io.openbas.engine.api.ListConfiguration;
 import io.openbas.engine.api.ListRuntime;
 import io.openbas.engine.api.StructuralHistogramRuntime;
+import io.openbas.engine.api.StructuralHistogramWidget;
 import io.openbas.engine.model.inject.EsInject;
 import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
@@ -46,9 +47,8 @@ public class EsAttackPathService {
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters)
       throws ExecutionException, InterruptedException {
-    //
 
-    String simulationId = extractSimulationIdFromSeriesFilter(runtime);
+    String simulationId = extractSimulationIdFromSeriesFilter(runtime.getWidget());
 
     CompletableFuture<List<EsInject>> simulationEsInjectsFuture =
         CompletableFuture.supplyAsync(
@@ -76,11 +76,11 @@ public class EsAttackPathService {
   /**
    * Extracts the simulation ID from the series filter of the given structural histogram runtime.
    *
-   * @param runtime the structural histogram runtime containing where the simulation ID is
+   * @param widget the structural histogram widget containing where the simulation ID is
    * @return the simulation ID extracted
    */
-  private String extractSimulationIdFromSeriesFilter(StructuralHistogramRuntime runtime) {
-    return runtime.getWidget().getSeries().getFirst().getFilter().getFilters().stream()
+  public String extractSimulationIdFromSeriesFilter(StructuralHistogramWidget widget) {
+    return widget.getSeries().getFirst().getFilter().getFilters().stream()
         .filter(f -> "base_simulation_side".equals(f.getKey()))
         .findFirst()
         .map(f -> f.getValues().getFirst())

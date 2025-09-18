@@ -40,7 +40,8 @@ const AttackPatternBox: FunctionComponent<{
   successRate: number | null;
   total?: number;
   style?: CSSProperties;
-}> = ({ attackPatternName, attackPatternExerternalId, successRate = null, total, style = {} }) => {
+  onClick?: () => void;
+}> = ({ attackPatternName, attackPatternExerternalId, successRate = null, total, style = {}, onClick }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -56,7 +57,8 @@ const AttackPatternBox: FunctionComponent<{
         ...style,
       }}
       className={classes.button}
-      disabled
+      disabled={!onClick}
+      onClick={onClick}
     >
       <div className={classes.container}>
         <Typography sx={{

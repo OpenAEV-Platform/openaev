@@ -33,7 +33,7 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, datas }: Props) => {
 
     openWidgetDataDrawer({
       widgetId,
-      filter_value: dataPoint?.x ?? '',
+      filter_values: [dataPoint?.x ?? ''],
       series_index: config.seriesIndex,
     });
   };

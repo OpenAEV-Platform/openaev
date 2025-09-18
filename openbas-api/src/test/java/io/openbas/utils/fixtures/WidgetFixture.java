@@ -1,9 +1,9 @@
 package io.openbas.utils.fixtures;
 
-import static io.openbas.engine.api.WidgetType.DONUT;
-import static io.openbas.engine.api.WidgetType.VERTICAL_BAR_CHART;
+import static io.openbas.engine.api.WidgetType.*;
 
 import io.openbas.database.model.Filters;
+import io.openbas.database.model.InjectExpectation;
 import io.openbas.database.model.Widget;
 import io.openbas.database.model.WidgetLayout;
 import io.openbas.engine.api.*;
@@ -63,7 +63,70 @@ public class WidgetFixture {
     return widget;
   }
 
-  public static Widget creatStructuralWidgetWithTimeRange(
+  private static Filters.Filter createFilter(
+      String key, Filters.FilterMode mode, Filters.FilterOperator operator, List<String> value) {
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey("base_entity");
+    filter.setMode(Filters.FilterMode.and);
+    filter.setOperator(Filters.FilterOperator.eq);
+    filter.setValues(List.of("expectation-inject"));
+    return filter;
+  }
+
+  private static WidgetConfiguration.Series createSecurityCoverageSerie(
+      InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+    WidgetConfiguration.Series serie = new WidgetConfiguration.Series();
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    Filters.Filter filterBaseEntity =
+        createFilter(
+            "base_entity",
+            Filters.FilterMode.and,
+            Filters.FilterOperator.eq,
+            List.of("expectation-inject"));
+    Filters.Filter filterStatus =
+        createFilter(
+            "inject_expectation_status",
+            Filters.FilterMode.and,
+            Filters.FilterOperator.eq,
+            List.of(status.name()));
+    Filters.Filter filterType =
+        createFilter(
+            "inject_expectation_type",
+            Filters.FilterMode.and,
+            Filters.FilterOperator.eq,
+            List.of(type.name()));
+    filterGroup.setFilters(List.of(filterBaseEntity, filterStatus, filterType));
+    serie.setFilter(filterGroup);
+    return serie;
+  }
+
+  public static Widget createSecurityConverageWidget(
+      CustomDashboardTimeRange timeRange,
+      String dateAttribute,
+      InjectExpectation.EXPECTATION_TYPE type) {
+    Widget widget = new Widget();
+    widget.setType(SECURITY_COVERAGE_CHART);
+    // series
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    WidgetConfiguration.Series successSeries =
+        createSecurityCoverageSerie(type, InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+    WidgetConfiguration.Series failedSeries =
+        createSecurityCoverageSerie(type, InjectExpectation.EXPECTATION_STATUS.FAILED);
+    // basic configuration
+    widgetConfig.setSeries(List.of(successSeries, failedSeries));
+    widgetConfig.setTitle("Security coverage");
+    widgetConfig.setField("base_attack_patterns_side");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    // widgetConfig.se
+    widget.setWidgetConfiguration(widgetConfig);
+    WidgetLayout widgetLayout = new WidgetLayout();
+    widget.setLayout(widgetLayout);
+    return widget;
+  }
+
+  public static Widget createStructuralWidgetWithTimeRange(
       CustomDashboardTimeRange timeRange, String dateAttribute, String field, String entityName) {
     Widget widget = new Widget();
     widget.setType(DONUT);
