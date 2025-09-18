@@ -90,18 +90,13 @@ public class PermissionService {
 
     // check if the user has the capa first
     boolean hasPermission = hasCapaPermission(user, resourceType, action);
-    if (hasCapaPermission(user, resourceType, action)) {
+
+    // check if the user
+    if (hasPermission) {
       return true;
     }
-
     // if the user doesn't have the capa check if the user has a grant
-    if (!hasPermission || RESOURCES_MANAGED_BY_GRANTS.contains(resourceType)) {
-      if (Action.DUPLICATE.equals(action)) {
-        // to duplicate we need the "create" capa but also read on the resource
-        return hasCapaPermission(user, resourceType, action)
-            && hasGrantPermission(user, resourceId, resourceType, Action.READ);
-      }
-
+    if (RESOURCES_MANAGED_BY_GRANTS.contains(resourceType)) {
       return hasGrantPermission(user, resourceId, resourceType, action);
     }
     return false;
