@@ -5,6 +5,7 @@ import io.openbas.database.raw.RawAssetGroup;
 import io.openbas.database.raw.RawAssetGroupDynamicFilter;
 import io.openbas.database.raw.RawAssetGroupIndexing;
 import io.openbas.utils.Constants;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -219,4 +220,6 @@ public interface AssetGroupRepository
               + ";",
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(@Param("from") Instant from);
+
+  Optional<AssetGroup> findByName(@NotBlank final String name);
 }

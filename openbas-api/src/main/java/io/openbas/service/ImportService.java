@@ -71,8 +71,20 @@ public class ImportService {
   @Transactional(rollbackOn = Exception.class)
   public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
+    handleInputStreamImport(file.getInputStream(), exercise, scenario);
+  }
+
+  @Transactional(rollbackOn = Exception.class)
+  public void handleInputStreamFileImport(InputStream is, Exercise exercise, Scenario scenario)
+      throws Exception {
+    handleInputStreamImport(is, exercise, scenario);
+  }
+
+  private void handleInputStreamImport(InputStream is, Exercise exercise, Scenario scenario)
+      throws Exception {
     File tempFile = createTempFile("openbas-import-" + now().getEpochSecond(), ".zip");
-    FileUtils.copyInputStreamToFile(file.getInputStream(), tempFile);
+    FileUtils.copyInputStreamToFile(is, tempFile);
+    is.close();
 
     try (ZipFile parentZip = new ZipFile(tempFile)) { // java.util.zip.ZipFile!
       List<InputStream> dataImports = new ArrayList<>();

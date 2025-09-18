@@ -4,6 +4,7 @@ import io.openbas.database.model.Scenario;
 import io.openbas.database.raw.RawExerciseSimple;
 import io.openbas.database.raw.RawScenario;
 import io.openbas.utils.Constants;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -155,4 +156,6 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
+
+  Optional<Scenario> findByName(@NotBlank final String name);
 }
