@@ -7,7 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  GridLegacy,
+  Grid,
   List,
   ListItemButton,
   ListItemIcon,
@@ -53,6 +53,7 @@ const useStyles = makeStyles()(theme => ({
 
 interface Props {
   handleAddChallenges: (challengeIds: string[]) => void;
+  handleRemoveChallenge: (challengeId: string) => void;
   injectChallengesIds: string[];
   disabled?: boolean;
   error?: string | null;
@@ -60,6 +61,7 @@ interface Props {
 
 const InjectAddChallenges: FunctionComponent<Props> = ({
   handleAddChallenges,
+  handleRemoveChallenge,
   injectChallengesIds,
   disabled = false,
   error,
@@ -112,7 +114,11 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
   };
 
   const removeChallenge = (challengeId: string) => {
-    setChallengesIds(challengesIds.filter(u => u !== challengeId));
+    if (challengesIds.includes(challengeId)) {
+      setChallengesIds(challengesIds.filter(u => u !== challengeId));
+    } else if (injectChallengesIds.includes(challengeId)) {
+      handleRemoveChallenge(challengeId);
+    }
   };
 
   const submitAddChallenges = () => {
@@ -176,24 +182,24 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
       >
         <DialogTitle>{t('Add challenge in this inject')}</DialogTitle>
         <DialogContent>
-          <GridLegacy container spacing={3} style={{ marginTop: -15 }}>
-            <GridLegacy item xs={8}>
-              <GridLegacy container spacing={3}>
-                <GridLegacy item xs={6}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 8 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 6 }}>
                   <SearchFilter
                     onChange={handleSearchChallenges}
                     fullWidth
                   />
-                </GridLegacy>
-                <GridLegacy item xs={6}>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
                   <TagsFilter
                     onAddTag={handleAddTag}
                     onClearTag={handleClearTag}
                     currentTags={tags}
                     fullWidth
                   />
-                </GridLegacy>
-              </GridLegacy>
+                </Grid>
+              </Grid>
               <List>
                 {filteredChallenges.map((challenge: Challenge) => {
                   const disabled = challengesIds.includes(challenge.challenge_id)
@@ -223,10 +229,10 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
                   onCreate={onCreate}
                 />
               </List>
-            </GridLegacy>
-            <GridLegacy item xs={4}>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
               <Box className={classes.box}>
-                {challengesIds.map((challengeId) => {
+                {[...injectChallengesIds, ...challengesIds].map((challengeId) => {
                   const challenge = challengesMap[challengeId];
                   return (
                     <Chip
@@ -239,8 +245,8 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
                   );
                 })}
               </Box>
-            </GridLegacy>
-          </GridLegacy>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>
