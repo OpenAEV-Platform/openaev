@@ -4714,6 +4714,8 @@ export interface PlatformSettings {
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
+  /** True if xtmhub backend is reachable */
+  xtm_hub_reachable?: boolean;
   /** XTM Hub registration date */
   xtm_hub_registration_date?: string;
   /** XTM Hub registration status */

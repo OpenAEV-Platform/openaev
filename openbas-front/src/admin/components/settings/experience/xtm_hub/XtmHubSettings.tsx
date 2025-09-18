@@ -41,7 +41,7 @@ const XtmHubSettings: React.FC = () => {
           {t('XTM Hub')}
         </Typography>
         {
-          isXTMHubAccessible && (
+          isXTMHubAccessible && settings.xtm_hub_reachable && (
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
               <XtmHubTab />
             </Can>
