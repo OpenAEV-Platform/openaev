@@ -4,10 +4,10 @@ import { setSessionStorageItem } from '../sessionStorage';
 
 const XTM_HUB_USER_PLATFORM_TOKEN_KEY = 'XTM_HUB_USER_PLATFORM_TOKEN_KEY';
 
-interface Return { token: string | null }
+interface Return { userPlatformToken: string | null }
 
 const useXtmHubUserPlatformToken = (): Return => {
-  const [token, setToken] = useState<string | null>(null);
+  const [userPlatformToken, setUserPlatformToken] = useState<string | null>(null);
   const hasRequestedToken = useRef(false);
 
   useEffect(() => {
@@ -15,7 +15,7 @@ const useXtmHubUserPlatformToken = (): Return => {
       if (event.source === window.opener) {
         const { action, token: newToken } = event.data;
         if (action === 'set-token') {
-          setToken(newToken);
+          setUserPlatformToken(newToken);
           setSessionStorageItem<string>(XTM_HUB_USER_PLATFORM_TOKEN_KEY, newToken);
         }
       }
@@ -33,6 +33,6 @@ const useXtmHubUserPlatformToken = (): Return => {
     };
   }, []);
 
-  return { token };
+  return { userPlatformToken };
 };
 export default useXtmHubUserPlatformToken;

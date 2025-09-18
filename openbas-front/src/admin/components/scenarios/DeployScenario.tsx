@@ -1,53 +1,52 @@
-import { useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { importScenario } from '../../../actions/scenarios/scenario-actions';
 import Loader from '../../../components/Loader';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
-import useAuth from '../../../utils/hooks/useAuth';
-import useXtmHubUserPlatformToken from '../../../utils/hooks/useXtmHubUserPlatformToken';
+import useXtmHubDownloadDocument from '../../../utils/hooks/useXtmHubDownloadDocument';
+import XtmHubDialogConnectivityLost from '../xtm_hub/dialog/connectivity-lost';
 
-const DeployScenario: React.FC = () => {
-  const { token } = useXtmHubUserPlatformToken();
+const DeployScenario: React.FC = async () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { settings } = useAuth();
   const { serviceInstanceId, fileId } = useParams();
-  const hasBeenCalled = useRef(false);
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-    hasBeenCalled.current = true;
-    const fetchData = async () => {
-      try {
-        const response = await fetch(
-          `${settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : 'https://hub.filigran.io'}/document/get/${serviceInstanceId}/${fileId}`,
-          {
-            method: 'GET',
-            credentials: 'omit',
-            headers: { 'XTM-Hub-User-Platform-Token': token },
-          },
-        );
+  const sendImportToBack = async (importedFile: File) => {
+    const formData = new FormData();
+    formData.append('file', importedFile);
+    await dispatch(importScenario(formData)).then(() => {
+      navigate('/admin/scenarios');
+    });
+  };
+  const onDownloadError = () => {
+    navigate('/admin/scenarios');
+    MESSAGING$.notifyError('An error occurred while importing scenario. You have been redirected to home page.');
+  };
+  const { dialogConnectivityLostStatus } = useXtmHubDownloadDocument({
+    serviceInstanceId,
+    fileId,
+    onSuccess: sendImportToBack,
+    onError: onDownloadError,
+  });
 
-        const blob = await response.blob();
-        const file = new File([blob], 'downloaded.zip', { type: 'application/zip' });
-        const formData = new FormData();
-        formData.append('file', file);
-        await dispatch(importScenario(formData)).then(() => {
-          navigate('/admin/scenarios');
-        });
-      } catch {
-        navigate('/admin');
-        MESSAGING$.notifyError('An error occurred while importing scenario. You have been redirected to home page.');
-      }
-    };
+  const onConfirm = () => {
+    navigate('/admin/settings/experience');
+  };
 
-    fetchData();
-  }, [serviceInstanceId, fileId, token]);
+  const onCancel = () => {
+    navigate('/admin/scenarios');
+  };
 
-  return (<Loader />);
+  return (
+    <>
+      <XtmHubDialogConnectivityLost
+        status={dialogConnectivityLostStatus}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+      <Loader />
+    </>
+  );
 };
 
 export default DeployScenario;
