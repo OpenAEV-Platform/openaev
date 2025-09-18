@@ -211,15 +211,8 @@ public class InjectorContractService {
     }
     injectorContract.setAttackPatterns(aps);
 
-    Set<Cve> vulns = new HashSet<>();
-    if (!input.getVulnerabilityExternalIds().isEmpty()) {
-      vulns =
-          cveService.findAllByExternalIdsOrThrowIfMissing(
-              new HashSet<>(input.getVulnerabilityExternalIds()));
-    } else if (!input.getVulnerabilityIds().isEmpty()) {
-      vulns = cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds()));
-    }
-    injectorContract.setVulnerabilities(vulns);
+    setVulnerabilitiesFromExternalOrInternalIds(
+        input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
     injectorContract.setInjector(
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
@@ -236,10 +229,21 @@ public class InjectorContractService {
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
-    injectorContract.setVulnerabilities(
-        cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));
+    setVulnerabilitiesFromExternalOrInternalIds(
+        input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
+  }
+
+  private void setVulnerabilitiesFromExternalOrInternalIds(
+      List<String> externalIds, List<String> internalIds, InjectorContract injectorContract) {
+    Set<Cve> vulns = new HashSet<>();
+    if (!externalIds.isEmpty()) {
+      vulns = cveService.findAllByExternalIdsOrThrowIfMissing(new HashSet<>(externalIds));
+    } else if (!internalIds.isEmpty()) {
+      vulns = cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(internalIds));
+    }
+    injectorContract.setVulnerabilities(vulns);
   }
 
   public InjectorContract updateAttackPatternMappings(

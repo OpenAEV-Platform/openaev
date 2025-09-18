@@ -3306,6 +3306,7 @@ export interface InjectorContractUpdateInput {
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
+  contract_vulnerability_external_ids?: string[];
   contract_vulnerability_ids?: string[];
   is_atomic_testing?: boolean;
 }

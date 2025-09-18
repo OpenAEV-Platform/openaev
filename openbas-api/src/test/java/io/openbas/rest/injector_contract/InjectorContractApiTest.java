@@ -313,6 +313,50 @@ public class InjectorContractApiTest extends IntegrationTest {
             .node("injector_contract_vulnerabilities")
             .isEqualTo(mapper.writeValueAsString(List.of(vulnWrapper.get().getId())));
       }
+
+      @Test
+      @DisplayName("Updating contract succeeds with external vuln IDs")
+      void updateContractWithExtVulnIdsSucceeds() throws Exception {
+        CveComposer.Composer vulnWrapper =
+            cveComposer
+                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .persist();
+        CveComposer.Composer otherVulnWrapper =
+            cveComposer
+                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .persist();
+        AttackPatternComposer.Composer attackPatternWrapper =
+            attackPatternComposer
+                .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
+                .persist();
+        em.flush();
+
+        InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+        input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
+        input.setVulnerabilityIds(List.of(vulnWrapper.get().getId()));
+        input.setVulnerabilityExternalIds(List.of(otherVulnWrapper.get().getExternalId()));
+        input.setAttackPatternsIds(List.of(attackPatternWrapper.get().getId()));
+
+        String response =
+            mvc.perform(
+                    put(INJECTOR_CONTRACT_URL
+                            + "/"
+                            + injectorContractComposer.generatedItems.getFirst().getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(input)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThatJson(response)
+            .node("injector_contract_attack_patterns")
+            .isEqualTo(mapper.writeValueAsString(List.of(attackPatternWrapper.get().getId())));
+        // external iDs should override internal IDs as per consistency
+        assertThatJson(response)
+            .node("injector_contract_vulnerabilities")
+            .isEqualTo(mapper.writeValueAsString(List.of(otherVulnWrapper.get().getId())));
+      }
     }
 
     @Nested
