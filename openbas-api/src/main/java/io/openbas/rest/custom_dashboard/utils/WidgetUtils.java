@@ -42,25 +42,30 @@ public class WidgetUtils {
   }
 
   public static void setOrAddFilterByKey(
-      Filters.FilterGroup filterGroup, String key, String value) {
+      Filters.FilterGroup filterGroup,
+      String key,
+      List<String> values,
+      Filters.FilterOperator operator) {
     Optional<Filters.Filter> existingFilter =
         filterGroup.getFilters().stream().filter(f -> f.getKey().equals(key)).findFirst();
 
     if (existingFilter.isPresent()) {
-      existingFilter.get().setValues(List.of(value));
+      existingFilter.get().setValues(values);
+      existingFilter.get().setOperator(operator);
+      existingFilter.get().setMode(Filters.FilterMode.or);
     } else {
       Filters.Filter newFilter = new Filters.Filter();
       newFilter.setKey(key);
-      newFilter.setOperator(Filters.FilterOperator.eq);
+      newFilter.setOperator(operator);
       newFilter.setMode(Filters.FilterMode.or);
-      newFilter.setValues(List.of(value));
+      newFilter.setValues(values);
       filterGroup.getFilters().add(newFilter);
     }
   }
 
   public static String calcEndDate(String startDate, HistogramInterval interval) {
     OffsetDateTime date = OffsetDateTime.parse(startDate);
-    OffsetDateTime endDate = null;
+    OffsetDateTime endDate;
 
     switch (interval) {
       case HistogramInterval.day:

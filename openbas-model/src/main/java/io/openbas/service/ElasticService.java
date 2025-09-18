@@ -791,7 +791,7 @@ public class ElasticService implements EngineService {
 
     // Create series
     ListConfiguration.ListPerspective listPerspective = new ListConfiguration.ListPerspective();
-    listPerspective.setName("Attack Paths");
+    listPerspective.setName("");
     listPerspective.setFilter(filterGroup);
 
     // Create list configuration
