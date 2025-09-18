@@ -19,6 +19,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { width } from "@mui/system";
 import { Collector, DetectionRemediation, DetectionRemediationForm } from "../../../../utils/api-types";
 import DetectionRemediationInfo from "./DetectionRemediationInfo";
+import DetectionRemediationUseAriane from "./DetectionRemediationUseAriane";
 
 interface RemediationFormTabProps { payloadId?: string, payload?: string, initialValueRemediation?:any, submitFormByRemediationTab:()=>Promise<boolean>, onUpdate }
 
