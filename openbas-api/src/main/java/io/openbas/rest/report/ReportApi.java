@@ -48,7 +48,7 @@ public class ReportApi extends RestBehavior {
             responseCode = "404",
             description = "Report doesn't exist or not linked to the simulation")
       })
-  public Report reportFromExercise(
+  public Report reportFromSimulationExercise(
       @PathVariable String simulationId, @PathVariable String reportId) {
     return this.reportService.reportFromSimulation(simulationId, UUID.fromString(reportId));
   }
