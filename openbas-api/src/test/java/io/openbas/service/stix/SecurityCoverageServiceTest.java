@@ -504,6 +504,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     AttackPatternComposer.Composer ap2 =
         attackPatternComposer.forAttackPattern(
             AttackPatternFixture.createAttackPatternsWithExternalId("T5678"));
+    CveComposer.Composer vuln1 =
+        vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+
     SecurityPlatformComposer.Composer securityPlatformWrapper =
         securityPlatformComposer
             .forSecurityPlatform(SecurityPlatformFixture.createDefaultEDR())
@@ -514,7 +517,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .persist();
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
-        createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true), Map.of());
+        createExerciseWrapperWithInjectsForDomainObjects(
+            Map.of(ap1, true, ap2, true), Map.of(vuln1, true));
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // expectation results
@@ -639,14 +643,26 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                       .getValue()
                                       .contains(securityPlatformWrapper.get().getId())
                                   ? "0.5"
+                                  : "0.0"),
+                          "VULNERABILITY",
+                          new StixString(
+                              platformSdo
+                                      .getId()
+                                      .getValue()
+                                      .contains(securityPlatformWrapper.get().getId())
+                                  ? "0.5"
                                   : "0.0")))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
 
-    // attack pattern SROs
-    for (StixRefToExternalRef stixRef : generatedCoverage.getAttackPatternRefs()) {
+    // Domain objects SROs
+    Set<StixRefToExternalRef> refs = new HashSet<>();
+    refs.addAll(generatedCoverage.getAttackPatternRefs());
+    refs.addAll(generatedCoverage.getVulnerabilitiesRefs());
+
+    for (StixRefToExternalRef stixRef : refs) {
       List<RelationshipObject> actualSros =
           bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
       assertThat(actualSros.size()).isEqualTo(1);
@@ -673,8 +689,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           "PREVENTION",
                           new StixString(stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0"),
                           "DETECTION",
+                          new StixString(stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0"),
+                          "VULNERABILITY",
                           new StixString(
-                              stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0")))));
+                              stixRef.getExternalRef().equals("CVE-1234-5678") ? "1.0" : "0.0")))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));
