@@ -1,11 +1,11 @@
 import { Button } from '@mui/material';
-import { type FunctionComponent, useEffect } from 'react';
+import { type FunctionComponent, useContext, useEffect } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 
 import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type PolicyInput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {
@@ -22,6 +22,7 @@ const PolicyForm: FunctionComponent<Props> = ({
   },
 }) => {
   const { t } = useFormatter();
+  const ability = useContext(AbilityContext);
 
   const methods = useForm<PolicyInput>({
     mode: 'onTouched',
@@ -48,6 +49,7 @@ const PolicyForm: FunctionComponent<Props> = ({
           askAi={false}
           inInject={false}
           inArticle={false}
+          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
         />
         <MarkDownFieldController
           name="platform_consent_message"
@@ -56,6 +58,7 @@ const PolicyForm: FunctionComponent<Props> = ({
           askAi={false}
           inInject={false}
           inArticle={false}
+          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
         />
         <MarkDownFieldController
           name="platform_consent_confirm_text"
@@ -64,6 +67,7 @@ const PolicyForm: FunctionComponent<Props> = ({
           askAi={false}
           inInject={false}
           inArticle={false}
+          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
         />
         <div style={{ marginTop: 20 }}>
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>

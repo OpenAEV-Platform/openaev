@@ -15,6 +15,7 @@ import { zodImplement } from '../../../utils/Zod';
 interface Props {
   onSubmit: SubmitHandler<ThemeInput>;
   initialValues?: ThemeInput;
+  canNotManage: boolean;
 }
 
 const useStyles = makeStyles()(() => ({ field: { marginBottom: 20 } }));
@@ -32,6 +33,7 @@ const ThemeForm: FunctionComponent<Props> = ({
     primary_color: '',
     secondary_color: '',
   },
+  canNotManage,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -79,6 +81,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         helperText={errors.background_color && errors.background_color?.message}
         control={control}
         name="background_color"
+        disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
@@ -91,6 +94,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         helperText={errors.paper_color && errors.paper_color?.message}
         control={control}
         name="paper_color"
+        disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
@@ -103,6 +107,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         helperText={errors.navigation_color && errors.navigation_color?.message}
         control={control}
         name="navigation_color"
+        disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
@@ -115,6 +120,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         helperText={errors.primary_color && errors.primary_color?.message}
         control={control}
         name="primary_color"
+        disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
@@ -127,6 +133,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         helperText={errors.secondary_color && errors.secondary_color?.message}
         control={control}
         name="secondary_color"
+        disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
@@ -139,6 +146,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         helperText={errors.accent_color && errors.accent_color?.message}
         control={control}
         name="accent_color"
+        disabled={canNotManage}
       />
       <MuiTextField
         className={classes.field}
@@ -150,6 +158,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         error={!!errors.logo_url}
         helperText={errors.logo_url && errors.logo_url?.message}
         inputProps={register('logo_url')}
+        disabled={canNotManage}
       />
       <MuiTextField
         className={classes.field}
@@ -161,6 +170,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         error={!!errors.logo_url_collapsed}
         helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
         inputProps={register('logo_url_collapsed')}
+        disabled={canNotManage}
       />
       <MuiTextField
         variant="standard"
@@ -171,6 +181,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         error={!!errors.logo_login_url}
         helperText={errors.logo_login_url && errors.logo_login_url?.message}
         inputProps={register('logo_login_url')}
+        disabled={canNotManage}
       />
 
       <div style={{ marginTop: 20 }}>
