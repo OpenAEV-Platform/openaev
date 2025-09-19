@@ -104,7 +104,7 @@ const navigationHandlers: Record<string, NavigationHandler> = {
       key: 'atm-findings',
     }, { allowEmptyArrays: true }));
 
-    const baseUrl = (findingElement.base_simulation_side != null || findingElement.base_simulation_side != '')
+    const baseUrl = (findingElement.base_simulation_side != null && findingElement.base_simulation_side != '')
       ? `${SIMULATION_BASE_URL}/${findingElement.base_simulation_side}/injects/${findingElement.base_inject_side}/findings`
       : `${ATOMIC_BASE_URL}/${findingElement.base_inject_side}/findings`;
 
