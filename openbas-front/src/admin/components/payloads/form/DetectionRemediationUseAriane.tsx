@@ -4,6 +4,7 @@ import {
   DetectionRemediationCreationInput,
   DetectionRemediationForm,
   PayloadUpdateInput,
+  PayloadInput,
   PlatformSettings
 } from "../../../../utils/api-types";
 import { Translate } from "../../../../components/i18n";
@@ -18,7 +19,7 @@ import { useHelper } from "../../../../store";
 import { LoggedHelper } from "../../../../actions/helper";
 import { useTheme } from "@mui/material/styles";
 import {
-  postDetectionRemediationAIRulesCrowdstrike, postDetectionRemediationAIRulesCrowdstrikeByIdRemediation
+  postDetectionRemediationAIRules
 } from "../../../../actions/detection-remediation/detectionRemediation";
 import PayloadSubmitFormDialog from "./PayloadSubmitFormDialog";
 import { CircularProgress } from "@mui/material";
@@ -101,7 +102,7 @@ const DetectionRemediationUseAriane = ({
     setLoading(true);
     setOpenConfirmSavedPayloadDialog(false);
     if(isValid) {
-      let payloadInput: PayloadUpdateInput = getPayloadInputFromForm(payloadFormFields);
+      let payloadInput: PayloadInput = getPayloadInputFromForm(payloadFormFields);
       //todo erased content should nor provoque error due to content into rules editor ...
       onSubmitCallAIDetectionRemediation(payloadInput).then(value => {
         setLoading(false);
@@ -110,7 +111,7 @@ const DetectionRemediationUseAriane = ({
     }
   };
 
-  function getPayloadInputFromForm(payload:FieldValue<any>):PayloadUpdateInput{
+  function getPayloadInputFromForm(payload:FieldValue<any>):PayloadInput{
     return {
       ...payload,
       payload_execution_arch:payload.payload_execution_arch,
@@ -129,6 +130,8 @@ const DetectionRemediationUseAriane = ({
           detection_remediation_values: (remediation as DetectionRemediationForm).content,
           detection_remediation_id: (remediation as DetectionRemediationForm).remediationId,
         }))
+        })),
+      payload_collector_type_selected:collectorType
     }
   }
 

@@ -4501,6 +4501,7 @@ export interface PayloadInput {
   payload_attack_patterns?: string[];
   payload_cleanup_command?: string | null;
   payload_cleanup_executor?: string | null;
+  payload_collector_type_selected?: string;
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
