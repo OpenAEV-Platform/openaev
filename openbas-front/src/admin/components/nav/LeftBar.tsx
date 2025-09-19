@@ -208,14 +208,14 @@ const LeftBar = () => {
       ],
     },
     {
-      userRight: true,
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
       items: [
         {
           path: `/admin/settings`,
           icon: () => (<SettingsOutlined />),
           label: 'Settings',
           href: 'settings',
-          userRight: true,
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
           subItems: [
             {
               link: '/admin/settings/parameters',
@@ -235,7 +235,7 @@ const LeftBar = () => {
             {
               link: '/admin/settings/taxonomies',
               label: 'Taxonomies',
-              userRight: true,
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
             },
             {
               link: '/admin/settings/data_ingestion',
