@@ -1,10 +1,7 @@
-import { useContext } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
-import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import Cves from './cves/Cves';
@@ -21,11 +18,10 @@ import Users from './users/Users';
 
 const Index = () => {
   const isHubRegistrationEnabled = isFeatureEnabled('OPENAEV_REGISTRATION');
-  const ability = useContext(AbilityContext);
 
   return (
     <Routes>
-      <Route path="" element={<Navigate to={ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS) ? 'parameters' : 'taxonomies'} replace={true} />} />
+      <Route path="" element={<Navigate to="parameters" replace={true} />} />
       <Route path="parameters" element={errorWrapper(Parameters)()} />
       <Route path="security" element={<Navigate to="roles" replace={true} />} />
       <Route path="security/groups" element={errorWrapper(Groups)()} />
