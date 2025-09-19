@@ -71,7 +71,7 @@ public class DetectionRemediation implements Base {
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @NotNull
-  private AUTHOR_RULE authorRule;
+  private AUTHOR_RULE authorRule = AUTHOR_RULE.HUMAN;
 
   // -- AUDIT --
 
