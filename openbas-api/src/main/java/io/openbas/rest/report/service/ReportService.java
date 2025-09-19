@@ -28,6 +28,21 @@ public class ReportService {
     return this.reportRepository.findById(reportId).orElseThrow(ElementNotFoundException::new);
   }
 
+  /**
+   * Return the report based on the Simulation id, if the report doesn't exist or is not linked to
+   * the simulation, it throws a ElementNotFoundException
+   *
+   * @param simulationId
+   * @param reportId
+   * @return
+   */
+  public Report reportFromSimulation(
+      @NotBlank final String simulationId, @NotNull final UUID reportId) {
+    return this.reportRepository
+        .findByIdAndExercise_Id(reportId, simulationId)
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
   public List<Report> reportsFromExercise(@NotNull final String exerciseId) {
     return this.reportRepository.findAll(ReportSpecification.fromExercise(exerciseId));
   }

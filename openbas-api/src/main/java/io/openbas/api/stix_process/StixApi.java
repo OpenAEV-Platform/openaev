@@ -5,7 +5,7 @@ import io.openbas.database.model.Action;
 import io.openbas.database.model.ResourceType;
 import io.openbas.database.model.Scenario;
 import io.openbas.rest.helper.RestBehavior;
-import io.openbas.service.StixService;
+import io.openbas.service.stix.StixService;
 import io.openbas.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

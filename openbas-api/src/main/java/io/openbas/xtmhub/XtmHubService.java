@@ -7,9 +7,11 @@ import io.openbas.service.UserService;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @AllArgsConstructor
 public class XtmHubService {
   private final PlatformSettingsService platformSettingsService;

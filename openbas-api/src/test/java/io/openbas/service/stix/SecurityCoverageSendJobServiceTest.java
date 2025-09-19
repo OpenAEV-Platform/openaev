@@ -1,10 +1,11 @@
-package io.openbas.service;
+package io.openbas.service.stix;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.SecurityCoverageSendJobRepository;
+import io.openbas.service.SecurityCoverageSendJobService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;

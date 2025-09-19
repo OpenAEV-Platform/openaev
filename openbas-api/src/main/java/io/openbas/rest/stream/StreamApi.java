@@ -23,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -57,6 +58,7 @@ public class StreamApi extends RestBehavior {
     flux.next(message);
   }
 
+  @Async
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
     consumers.entrySet().stream()

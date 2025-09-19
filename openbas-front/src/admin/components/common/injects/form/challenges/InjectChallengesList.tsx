@@ -111,6 +111,7 @@ const InjectChallengesList = ({ readOnly = false, error }: Props) => {
         <InjectAddChallenges
           injectChallengesIds={injectChallengeIds ?? []}
           handleAddChallenges={addChallenge}
+          handleRemoveChallenge={removeChallenge}
           disabled={readOnly}
           error={error}
         />

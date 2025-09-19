@@ -2,7 +2,14 @@ package io.openbas.injector_contract;
 
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_CARDINALITY;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION;
 import static io.openbas.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
 import static io.openbas.rest.injector_contract.InjectorContractContentUtils.FIELDS;
 import static io.openbas.rest.injector_contract.InjectorContractContentUtils.MULTIPLE;
@@ -39,8 +46,11 @@ public class InjectorContractContentUtilsTest {
     predefinedExpectations.add(createExpectation(DETECTION));
 
     ObjectNode content =
-        createContentWithField(
-            CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, MULTIPLE, predefinedExpectations);
+        createContentWithFieldExpectations(
+            CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS,
+            CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION,
+            MULTIPLE,
+            predefinedExpectations);
 
     InjectorContract contract = InjectorContractFixture.createInjectorContract(content);
     ObjectNode result = getDynamicInjectorContractFieldsForInject(contract);
@@ -70,8 +80,11 @@ public class InjectorContractContentUtilsTest {
     ArrayNode emptyExpectations = mapper.createArrayNode(); // empty array
 
     ObjectNode content =
-        createContentWithField(
-            CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, MULTIPLE, emptyExpectations);
+        createContentWithFieldExpectations(
+            CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS,
+            CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION,
+            MULTIPLE,
+            emptyExpectations);
 
     InjectorContract contract = InjectorContractFixture.createInjectorContract(content);
     ObjectNode result = getDynamicInjectorContractFieldsForInject(contract);
@@ -90,13 +103,39 @@ public class InjectorContractContentUtilsTest {
     assertNull(result);
   }
 
-  private ObjectNode createContentWithField(
-      String key, String cardinality, ArrayNode predefinedExpectations) {
+  public static ObjectNode createContentWithFieldAsset() {
+    ObjectNode field =
+        createContentWithField(
+            CONTRACT_ELEMENT_CONTENT_KEY_ASSETS, CONTRACT_ELEMENT_CONTENT_TYPE_ASSET, MULTIPLE);
+    return wrapFieldInContent(field);
+  }
+
+  public static ObjectNode createContentWithFieldAssetGroup() {
+    ObjectNode field =
+        createContentWithField(
+            CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS,
+            CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP,
+            MULTIPLE);
+    return wrapFieldInContent(field);
+  }
+
+  public static ObjectNode createContentWithFieldExpectations(
+      String key, String type, String cardinality, ArrayNode predefinedExpectations) {
+    ObjectNode field = createContentWithField(key, type, cardinality);
+    field.set(PREDEFINED_EXPECTATIONS, predefinedExpectations);
+    return wrapFieldInContent(field);
+  }
+
+  private static ObjectNode createContentWithField(String key, String type, String cardinality) {
     ObjectNode field = mapper.createObjectNode();
     field.put(CONTRACT_ELEMENT_CONTENT_KEY, key);
+    field.put(CONTRACT_ELEMENT_CONTENT_TYPE, type);
     field.put(CONTRACT_ELEMENT_CONTENT_CARDINALITY, cardinality);
-    field.set(PREDEFINED_EXPECTATIONS, predefinedExpectations);
+    field.put(CONTRACT_ELEMENT_CONTENT_MANDATORY, false);
+    return field;
+  }
 
+  private static ObjectNode wrapFieldInContent(ObjectNode field) {
     ArrayNode fieldsArray = mapper.createArrayNode();
     fieldsArray.add(field);
 

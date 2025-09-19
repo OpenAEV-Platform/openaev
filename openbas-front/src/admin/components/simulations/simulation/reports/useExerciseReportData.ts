@@ -12,7 +12,7 @@ import {
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { type UserHelper } from '../../../../../actions/helper';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import { fetchReport } from '../../../../../actions/reports/report-actions';
+import { fetchReportFromSimulation } from '../../../../../actions/reports/report-actions';
 import { type ReportsHelper } from '../../../../../actions/reports/report-helper';
 import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
 import { useHelper } from '../../../../../store';
@@ -86,7 +86,7 @@ const useExerciseReportData = (reportId: Report['report_id'], exerciseId: Exerci
   };
 
   useDataLoader(() => {
-    dispatch(fetchReport(reportId)).then(() => {
+    dispatch(fetchReportFromSimulation(exerciseId, reportId)).then(() => {
       setReloadReportDataCount(prev => prev + 1);
     });
   });

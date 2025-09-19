@@ -138,6 +138,8 @@ public class InjectorContractFixture {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(UUID.randomUUID().toString());
     injectorContract.setConvertedContent(convertedContent);
+    injectorContract.setContent(convertedContent.toString());
+    injectorContract.setAtomicTesting(false);
     injectorContract.setCreatedAt(Instant.now());
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContract;
@@ -147,12 +149,6 @@ public class InjectorContractFixture {
       throws JsonProcessingException {
     String content = "{\"fields\": []}";
     return createInjectorContract(labels, content);
-  }
-
-  // Method to convert ContractElement to JsonNode
-  public JsonNode toJsonNode() {
-    ObjectMapper mapper = new ObjectMapper();
-    return mapper.valueToTree(this); // Converts this object to a JsonNode
   }
 
   // -- BUILDER --

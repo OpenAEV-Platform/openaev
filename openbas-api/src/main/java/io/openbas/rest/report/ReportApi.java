@@ -9,6 +9,9 @@ import io.openbas.rest.report.form.ReportInjectCommentInput;
 import io.openbas.rest.report.form.ReportInput;
 import io.openbas.rest.report.model.Report;
 import io.openbas.rest.report.service.ReportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -30,6 +33,24 @@ public class ReportApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Report report(@PathVariable String reportId) {
     return this.reportService.report(UUID.fromString(reportId));
+  }
+
+  @GetMapping("/api/exercises/{simulationId}/reports/{reportId}")
+  @RBAC(
+      resourceId = "#simulationId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  @Operation(summary = "Get a Report from a simulation")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Report returned"),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Report doesn't exist or not linked to the simulation")
+      })
+  public Report reportFromSimulationExercise(
+      @PathVariable String simulationId, @PathVariable String reportId) {
+    return this.reportService.reportFromSimulation(simulationId, UUID.fromString(reportId));
   }
 
   @GetMapping("/api/exercises/{exerciseId}/reports")

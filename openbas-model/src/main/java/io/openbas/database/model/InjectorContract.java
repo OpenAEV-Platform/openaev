@@ -235,6 +235,7 @@ public class InjectorContract implements Base {
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET = "asset";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP = "asset-group";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_TEAM = "team";
+  public static final String CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION = "expectation";
 
   public static final List<String> CONTRACT_ELEMENT_CONTENT_KEY_NOT_DYNAMIC =
       List.of(

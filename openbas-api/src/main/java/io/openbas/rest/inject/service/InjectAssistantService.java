@@ -1,8 +1,14 @@
 package io.openbas.rest.inject.service;
 
+import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
+import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openbas.database.helper.InjectorContractRepositoryHelper;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -27,8 +33,6 @@ import org.springframework.validation.annotation.Validated;
 public class InjectAssistantService {
 
   public static final int MAX_NUMBER_INJECTS = 5;
-  public static final String NO_PLATFORM = null;
-  public static final String NO_ARCHITECTURE = null;
 
   private final InjectorContractRepositoryHelper injectorContractRepositoryHelper;
   private final AssetGroupService assetGroupService;
@@ -275,19 +279,28 @@ public class InjectAssistantService {
    * @param scenario the scenario to which the injects belong
    * @param vulnerabilities the set of Vulnerabilities (Cves) to generate injects for
    * @param injectsPerVulnerability the number of injects to generate per Vulnerability
-   * @return the list of created and saved injects
+   * @return the set of created and saved injects
    */
-  public Set<Inject> generateInjectsByVulnerabilities(
+  public Set<Inject> generateInjectsWithTargetsByVulnerabilities(
       Scenario scenario,
       Set<Cve> vulnerabilities,
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       int injectsPerVulnerability,
       InjectorContract contractForPlaceholder) {
+
+    Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract =
+        computeMapVulnerabilityInjectorContracts(vulnerabilities, injectsPerVulnerability);
+
     Set<Inject> injects =
         vulnerabilities.stream()
             .flatMap(
                 vulnerability ->
-                    buildInjectsByVulnerability(
-                        vulnerability, injectsPerVulnerability, contractForPlaceholder)
+                    buildInjectsWithTargetsByVulnerability(
+                        vulnerability,
+                        mapVulnerabilityInjectorContract.getOrDefault(
+                            vulnerability.getExternalId().toLowerCase(), Set.of()),
+                        assetGroupListMap,
+                        contractForPlaceholder)
                         .stream())
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
@@ -298,27 +311,102 @@ public class InjectAssistantService {
     return savedInjects;
   }
 
-  private Set<Inject> buildInjectsByVulnerability(
-      Cve vulnerability, Integer injectsPerVulnerability, InjectorContract contractForPlaceholder) {
-    Set<InjectorContract> injectorContracts =
-        this.injectorContractRepository.findInjectorContractsByVulnerabilityId(
-            vulnerability.getExternalId(), injectsPerVulnerability);
+  private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
+      Set<Cve> vulnerabilities, int injectsPerVulnerability) {
+    Set<String> vulnerabilityExternalIds =
+        vulnerabilities.stream()
+            .map(v -> v.getExternalId())
+            .map(String::toLowerCase)
+            .collect(Collectors.toSet());
 
-    if (!injectorContracts.isEmpty()) {
-      return injectorContracts.stream()
-          .map(
-              ic ->
-                  injectService.buildTechnicalInject(
-                      ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName()))
-          .collect(Collectors.toSet());
+    Set<InjectorContract> contracts =
+        injectorContractRepository.findInjectorContractsByVulnerabilityIdIn(
+            vulnerabilityExternalIds, injectsPerVulnerability);
+
+    Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract = new HashMap<>();
+
+    contracts.forEach(
+        contract -> {
+          contract.getVulnerabilities().stream()
+              .map(v -> v.getExternalId().toLowerCase())
+              .filter(vulnExternalId -> vulnerabilityExternalIds.contains(vulnExternalId))
+              .forEach(
+                  vulnId ->
+                      mapVulnerabilityInjectorContract
+                          .computeIfAbsent(vulnId, k -> new HashSet<>())
+                          .add(contract));
+        });
+    return mapVulnerabilityInjectorContract;
+  }
+
+  /**
+   * Builds a set of {@link Inject} objects for a given vulnerability
+   *
+   * @param vulnerability the {@link Cve} vulnerability to generate injects for
+   * @param injectorContracts related to this vulnerability
+   * @param assetGroupListMap
+   * @return a set of generated {@link Inject} objects, never {@code null}
+   */
+  private Set<Inject> buildInjectsWithTargetsByVulnerability(
+      Cve vulnerability,
+      Set<InjectorContract> injectorContracts,
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
+      InjectorContract contractForPlaceholder) {
+
+    if (injectorContracts.isEmpty()) {
+      // No injector contracts found -> return manual inject
+      String NO_PLATFORM = null;
+      String NO_ARCHITECTURE = null;
+
+      return Set.of(
+          buildManualInject(
+              contractForPlaceholder, vulnerability.getExternalId(), NO_PLATFORM, NO_ARCHITECTURE));
     }
 
-    String NO_PLATFORM = null;
-    String NO_ARCHITECTURE = null;
+    Set<Inject> injects = new HashSet<>();
+    for (InjectorContract ic : injectorContracts) {
+      Inject inject =
+          injectService.buildTechnicalInject(
+              ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
+      // Set the targets in the inject based on the field types in the contract's content.fields.
+      // Fields of type "asset-group" take priority, because tag rules are directly associated with
+      // asset groups.
+      // If no "asset-group" fields are present, we flatten the endpoints from the asset groups and
+      // set them as assets in the inject.
+      addTargetsDependingOnContract(assetGroupListMap, ic, inject);
+      injects.add(inject);
+    }
+    return injects;
+  }
 
-    return Set.of(
-        buildManualInject(
-            contractForPlaceholder, vulnerability.getExternalId(), NO_PLATFORM, NO_ARCHITECTURE));
+  private void addTargetsDependingOnContract(
+      Map<AssetGroup, List<Endpoint>> assetGroupListMap, InjectorContract ic, Inject inject) {
+    JsonNode fieldsNode = ic.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
+
+    if (fieldsNode != null && fieldsNode.isArray()) {
+      boolean hasAssetGroup = false;
+      boolean hasAsset = false;
+
+      for (JsonNode field : (ArrayNode) fieldsNode) {
+        String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
+        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(type)) {
+          hasAssetGroup = true;
+          break;
+        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(type)) {
+          hasAsset = true;
+        }
+      }
+
+      if (hasAssetGroup) {
+        // Priority: asset-group exists because We use tag Rules to fetch asset groups
+        inject.setAssetGroups(new ArrayList<>(assetGroupListMap.keySet()));
+      } else if (hasAsset) {
+        // Only compute flattened endpoints if asset exists
+        Set<Endpoint> flatEndpointsFromMap =
+            assetGroupListMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
+        inject.setAssets(new ArrayList<>(flatEndpointsFromMap));
+      }
+    }
   }
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
