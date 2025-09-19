@@ -265,6 +265,10 @@ public class PlatformSettings {
   @Schema(description = "Url of XTM Hub")
   private String xtmHubUrl;
 
+  @JsonProperty("xtm_hub_reachable")
+  @Schema(description = "True if xtmhub backend is reachable")
+  private Boolean xtmHubReachable;
+
   @JsonProperty("xtm_hub_token")
   @Schema(description = "XTM Hub token")
   private String xtmHubToken;

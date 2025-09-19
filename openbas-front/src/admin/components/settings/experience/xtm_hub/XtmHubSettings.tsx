@@ -6,6 +6,7 @@ import type { LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import type { PlatformSettings } from '../../../../../utils/api-types';
+import useAuth from '../../../../../utils/hooks/useAuth';
 import { Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
@@ -14,6 +15,7 @@ import XtmHubUnregisteredSection from './XtmHubUnregisteredSection';
 const XtmHubSettings: React.FC = () => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { isXTMHubAccessible } = useAuth();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
   const isXTMHubRegistered = settings?.xtm_hub_registration_status === 'registered' || settings?.xtm_hub_registration_status === 'lost_connectivity';
@@ -38,9 +40,13 @@ const XtmHubSettings: React.FC = () => {
         >
           {t('XTM Hub')}
         </Typography>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-          <XtmHubTab />
-        </Can>
+        {
+          isXTMHubAccessible && settings.xtm_hub_reachable && (
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+              <XtmHubTab />
+            </Can>
+          )
+        }
       </div>
       <Paper
         style={{

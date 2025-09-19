@@ -29,6 +29,7 @@ import io.openbas.rest.settings.form.*;
 import io.openbas.rest.settings.response.OAuthProvider;
 import io.openbas.rest.settings.response.PlatformSettings;
 import io.openbas.rest.stream.ai.AiConfig;
+import io.openbas.xtmhub.XtmHubConnectivityService;
 import io.openbas.xtmhub.XtmHubRegistrationStatus;
 import io.openbas.xtmhub.config.XTMHubConfig;
 import jakarta.annotation.Resource;
@@ -67,6 +68,7 @@ public class PlatformSettingsService {
   private final CalderaExecutorConfig calderaExecutorConfig;
   private final Ee eeService;
   private final EngineService engineService;
+  private final XtmHubConnectivityService xtmHubConnectivityService;
 
   @Value("${openbas.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -310,6 +312,7 @@ public class PlatformSettingsService {
     // XTM Hub
     platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
     platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
+    platformSettings.setXtmHubReachable(xtmHubConnectivityService.isReachable());
     platformSettings.setXtmHubToken(getValueFromMapOfSettings(dbSettings, XTM_HUB_TOKEN.key()));
     platformSettings.setXtmHubRegistrationStatus(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_STATUS.key()));
