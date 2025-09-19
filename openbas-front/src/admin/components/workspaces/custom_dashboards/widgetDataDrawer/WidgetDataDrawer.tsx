@@ -6,24 +6,20 @@ import { widgetToEntitiesRuntime } from '../../../../../actions/dashboards/dashb
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { type EsBase, type ListConfiguration } from '../../../../../utils/api-types';
+import { type EsBase, type ListConfiguration, type WidgetToEntitiesInput } from '../../../../../utils/api-types';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import ListWidget from '../widgets/viz/list/ListWidget';
 
-export interface WidgetDataDrawerConf {
-  widgetId: string;
-  filter_value: string;
-  series_index: number;
-}
+export type WidgetDataDrawerConf = WidgetToEntitiesInput & { widgetId: string };
 
 const WidgetDataDrawer = () => {
   const { t } = useFormatter();
 
   const { customDashboard, customDashboardParameters, closeWidgetDataDrawer } = useContext(CustomDashboardContext);
   const [searchParams] = useSearchParams();
-  const widgetId = searchParams.get('widget-id');
-  const seriesIndex = searchParams.get('series-index');
-  const filterValue = searchParams.get('filter-value');
+  const widgetId = searchParams.get('widget_id');
+  const seriesIndex = searchParams.get('series_index');
+  const filterValues = searchParams.get('filter_values');
 
   const [open, setOpen] = useState(false);
   const [listDatas, setListDatas] = useState<EsBase[]>([]);
@@ -31,7 +27,7 @@ const WidgetDataDrawer = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!customDashboard || !widgetId || filterValue == null || !seriesIndex) {
+    if (!customDashboard || !widgetId || filterValues == null || !seriesIndex) {
       setOpen(false);
       return;
     }
@@ -42,7 +38,7 @@ const WidgetDataDrawer = () => {
       Object.entries(customDashboardParameters).map(([key, val]) => [key, val.value]),
     );
     widgetToEntitiesRuntime(widgetId, {
-      filter_value: filterValue,
+      filter_values: filterValues.split(','),
       series_index: Number(seriesIndex),
       parameters: params,
     }).then(({ data }) => {
@@ -53,7 +49,7 @@ const WidgetDataDrawer = () => {
       setListConfig(null);
       setLoading(false);
     });
-  }, [widgetId, filterValue, seriesIndex]);
+  }, [widgetId, filterValues, seriesIndex]);
 
   return (
     <Drawer

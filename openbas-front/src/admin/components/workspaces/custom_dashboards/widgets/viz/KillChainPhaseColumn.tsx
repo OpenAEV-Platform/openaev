@@ -1,6 +1,6 @@
 import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import type { FunctionComponent } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
@@ -8,6 +8,7 @@ import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_
 import { useHelper } from '../../../../../../store';
 import type { AttackPattern, KillChainPhase } from '../../../../../../utils/api-types';
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
+import { CustomDashboardContext } from '../../CustomDashboardContext';
 import AttackPatternBox from './AttackPatternBox';
 import { type ResolvedTTPData } from './securityCoverageUtils';
 
@@ -21,14 +22,16 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 const KillChainPhaseColumn: FunctionComponent<{
+  widgetId: string;
   killChainPhase: KillChainPhase;
   showCoveredOnly: boolean;
   resolvedDataSuccess: ResolvedTTPData[];
   resolvedDataFailure: ResolvedTTPData[];
-}> = ({ killChainPhase, showCoveredOnly, resolvedDataSuccess, resolvedDataFailure }) => {
+}> = ({ widgetId, killChainPhase, showCoveredOnly, resolvedDataSuccess, resolvedDataFailure }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
+  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
   // Fetching data
   // eslint-disable-next-line max-len
@@ -41,6 +44,21 @@ const KillChainPhaseColumn: FunctionComponent<{
   if (resolvedDataSuccess.length === 0 && resolvedDataFailure.length === 0 && showCoveredOnly) {
     return (<></>);
   }
+
+  const onAttackPatternBoxClick = (attackPattern: AttackPattern) => {
+    const success = resolvedDataSuccess
+      .filter(data => data.attack_pattern_external_id === attackPattern.attack_pattern_external_id)
+      .map(d => d.key) as string[];
+    const failure = resolvedDataFailure
+      .filter(data => data.attack_pattern_external_id === attackPattern.attack_pattern_external_id)
+      .map(d => d.key) as string[];
+
+    openWidgetDataDrawer({
+      widgetId,
+      filter_values: [attackPattern.attack_pattern_id, ...success, ...failure],
+      series_index: 0,
+    });
+  };
 
   return (
     <div>
@@ -70,6 +88,7 @@ const KillChainPhaseColumn: FunctionComponent<{
                 attackPatternExerternalId={attackPattern.attack_pattern_external_id}
                 successRate={total === 0 ? null : (success / total)}
                 total={total}
+                onClick={() => onAttackPatternBoxClick(attackPattern)}
               />
             );
           })}

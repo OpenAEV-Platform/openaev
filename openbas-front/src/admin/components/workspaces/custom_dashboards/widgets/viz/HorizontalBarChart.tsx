@@ -34,7 +34,7 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
 
     openWidgetDataDrawer({
       widgetId,
-      filter_value: dataPoint?.x ?? '',
+      filter_values: [dataPoint?.x ?? ''],
       series_index: config.seriesIndex,
     });
   };
