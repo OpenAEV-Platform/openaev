@@ -550,17 +550,16 @@ const Injects: FunctionComponent<Props> = ({
             style={{ paddingTop: 0 }}
             secondaryAction={<>&nbsp;</>}
           >
-            { permissions.canManage && (
-              <ListItemIcon style={{ minWidth: 40 }}>
-                <Checkbox
-                  edge="start"
-                  checked={selectAll}
-                  disableRipple
-                  onChange={handleToggleSelectAll}
-                  disabled={typeof handleToggleSelectAll !== 'function'}
-                />
-              </ListItemIcon>
-            )}
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
+                disabled={typeof handleToggleSelectAll !== 'function'}
+              />
+            </ListItemIcon>
+
             <ListItemIcon />
             <ListItemText
               primary={(
@@ -601,25 +600,23 @@ const Injects: FunctionComponent<Props> = ({
                         }
                       }}
                     >
-                      { permissions.canManage
-                        && (
-                          <ListItemIcon
-                            style={{ minWidth: 40 }}
-                            onClick={event => (event.shiftKey
-                              ? onRowShiftClick(index, inject, event)
-                              : onToggleEntity(inject, event))}
-                          >
-                            <Checkbox
-                              edge="start"
-                              checked={
-                                (selectAll && !(inject.inject_id
-                                  in (deSelectedElements || {})))
-                                  || inject.inject_id in (selectedElements || {})
-                              }
-                              disableRipple
-                            />
-                          </ListItemIcon>
-                        )}
+
+                      <ListItemIcon
+                        style={{ minWidth: 40 }}
+                        onClick={event => (event.shiftKey
+                          ? onRowShiftClick(index, inject, event)
+                          : onToggleEntity(inject, event))}
+                      >
+                        <Checkbox
+                          edge="start"
+                          checked={
+                            (selectAll && !(inject.inject_id
+                              in (deSelectedElements || {})))
+                              || inject.inject_id in (selectedElements || {})
+                          }
+                          disableRipple
+                        />
+                      </ListItemIcon>
                       <ListItemIcon style={{ paddingTop: 5 }}>
                         <InjectIcon
                           isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
@@ -672,47 +669,50 @@ const Injects: FunctionComponent<Props> = ({
               uriVariable={uriVariable}
             />
           )}
-        {permissions.canManage && (
-          <>
+        <>
+          {permissions.canManage && (
             <ButtonCreate onClick={() => {
               setOpenCreateDrawer(true);
               setPresetInjectDuration(0);
             }}
             />
-            {
-              numberOfSelectedElements > 0 && (
-                <ToolBar
-                  numberOfSelectedElements={numberOfSelectedElements}
-                  totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-                  selectedElements={selectedElements}
-                  deSelectedElements={deSelectedElements}
-                  selectAll={selectAll}
-                  handleClearSelectedElements={handleClearSelectedElements}
-                  teamsFromExerciseOrScenario={teams}
-                  assetGroups={assetGroups}
-                  id={contextId}
-                  handleUpdate={massUpdateInjects}
-                  handleBulkDelete={bulkDeleteInjects}
-                  handleBulkTest={massTestInjects}
-                  handleExport={handleExport}
-                />
-              )
-            }
-            {openCreateDrawer
-              && (
-                <CreateInject
-                  title={t('Create a new inject')}
-                  open
-                  handleClose={() => setOpenCreateDrawer(false)}
-                  onCreateInject={onCreateInject}
-                  presetInjectDuration={presetInjectDuration}
-                  articlesFromExerciseOrScenario={articles}
-                  uriVariable={uriVariable}
-                  variablesFromExerciseOrScenario={variables}
-                />
-              )}
-          </>
-        )}
+          )}
+
+          {
+            numberOfSelectedElements > 0 && (
+              <ToolBar
+                numberOfSelectedElements={numberOfSelectedElements}
+                totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                selectedElements={selectedElements}
+                deSelectedElements={deSelectedElements}
+                selectAll={selectAll}
+                handleClearSelectedElements={handleClearSelectedElements}
+                teamsFromExerciseOrScenario={teams}
+                assetGroups={assetGroups}
+                id={contextId}
+                handleUpdate={massUpdateInjects}
+                handleBulkDelete={bulkDeleteInjects}
+                handleBulkTest={massTestInjects}
+                handleExport={handleExport}
+                canManage={permissions.canManage}
+              />
+            )
+          }
+          {openCreateDrawer
+            && (
+              <CreateInject
+                title={t('Create a new inject')}
+                open
+                handleClose={() => setOpenCreateDrawer(false)}
+                onCreateInject={onCreateInject}
+                presetInjectDuration={presetInjectDuration}
+                articlesFromExerciseOrScenario={articles}
+                uriVariable={uriVariable}
+                variablesFromExerciseOrScenario={variables}
+              />
+            )}
+        </>
+
       </>
     </>
   );
