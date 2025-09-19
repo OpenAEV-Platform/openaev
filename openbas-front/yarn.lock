@@ -5326,12 +5326,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cronstrue@npm:2.61.0":
-  version: 2.61.0
-  resolution: "cronstrue@npm:2.61.0"
+"cronstrue@npm:3.3.0":
+  version: 3.3.0
+  resolution: "cronstrue@npm:3.3.0"
   bin:
     cronstrue: bin/cli.js
-  checksum: 10c0/4c850b4440da9495359ad14d17e9fec06855f5b9e6871e8527a3ea7206887df944f868784f65bdf3d8ea09b99e69974429d81f88027a6774c1d08c2f5874069b
+  checksum: 10c0/d7da954d72595a905da85a48fa46f147cb3be45b0ddcff5a01d112f4e416673f550fa7469b10aca645386b96848c604f108e653b43214ef924be6f9c0e0d805c
   languageName: node
   linkType: hard
 
@@ -10234,7 +10234,7 @@ __metadata:
     chokidar: "npm:4.0.3"
     ckeditor5: "npm:45.2.2"
     classcat: "npm:5.0.5"
-    cronstrue: "npm:2.61.0"
+    cronstrue: "npm:3.3.0"
     cross-env: "npm:7.0.3"
     d3-hierarchy: "npm:3.1.2"
     date-fns: "npm:4.1.0"
