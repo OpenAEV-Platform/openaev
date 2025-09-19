@@ -17,6 +17,7 @@ import io.openbas.database.model.*;
 import io.openbas.database.repository.ScenarioRepository;
 import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
+import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.exercise.service.ExerciseService;
 import io.openbas.rest.tag.TagService;
 import io.openbas.service.AssetService;
@@ -40,6 +41,8 @@ import io.openbas.utils.ResultUtils;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +68,7 @@ public class SecurityCoverageService {
   private final Parser stixParser;
 
   private final ObjectMapper objectMapper;
+  private final CveService cveService;
 
   /**
    * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
@@ -241,35 +245,24 @@ public class SecurityCoverageService {
     Optional<Timestamp> sroStopTime =
         exerciseService.getLatestValidityDate(exercise).map(Timestamp::new);
 
-    for (StixRefToExternalRef stixRef : exercise.getSecurityCoverage().getAttackPatternRefs()) {
-      BaseType<?> attackPatternCoverage =
-          getAttackPatternCoverage(stixRef.getExternalRef(), exercise);
-      boolean covered = !((Map<String, BaseType<?>>) attackPatternCoverage.getValue()).isEmpty();
-      RelationshipObject sro =
-          new RelationshipObject(
-              new HashMap<>(
-                  Map.of(
-                      CommonProperties.ID.toString(),
-                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
-                      CommonProperties.TYPE.toString(),
-                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                      new StixString("has-assessed"),
-                      RelationshipObject.Properties.SOURCE_REF.toString(),
-                      coverage.getId(),
-                      RelationshipObject.Properties.TARGET_REF.toString(),
-                      new Identifier(stixRef.getStixRef()),
-                      ExtendedProperties.COVERED.toString(),
-                      new io.openbas.stix.types.Boolean(covered))));
-      sroStartTime.ifPresent(
-          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
-      sroStopTime.ifPresent(
-          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
-      if (covered) {
-        sro.setProperty(ExtendedProperties.COVERAGE.toString(), attackPatternCoverage);
-      }
-      objects.add(sro);
-    }
+    // Process coverage refs by stix object: attack patterns, vulnerabilities
+    processCoverageRefs(
+        exercise.getSecurityCoverage().getAttackPatternRefs(),
+        exercise,
+        this::getAttackPatternCoverage,
+        coverage.getId(),
+        sroStartTime,
+        sroStopTime,
+        objects);
+
+    processCoverageRefs(
+        exercise.getSecurityCoverage().getVulnerabilitiesRefs(),
+        exercise,
+        this::getVulnerabilityCoverage,
+        coverage.getId(),
+        sroStartTime,
+        sroStopTime,
+        objects);
 
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
@@ -307,6 +300,47 @@ public class SecurityCoverageService {
     return objects;
   }
 
+  private void processCoverageRefs(
+      Set<StixRefToExternalRef> refs,
+      Exercise exercise,
+      BiFunction<String, Exercise, BaseType<?>> coverageFunction,
+      Identifier coverageId,
+      Optional<Timestamp> sroStartTime,
+      Optional<Timestamp> sroStopTime,
+      List<ObjectBase> objects) {
+    for (StixRefToExternalRef stixRef : refs) {
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), exercise);
+      boolean covered = !((Map<String, BaseType<?>>) coverageResult.getValue()).isEmpty();
+
+      RelationshipObject sro =
+          new RelationshipObject(
+              new HashMap<>(
+                  Map.of(
+                      CommonProperties.ID.toString(),
+                      new Identifier(ObjectTypes.RELATIONSHIP.toString(), exercise.getId()),
+                      CommonProperties.TYPE.toString(),
+                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
+                      new StixString("has-assessed"),
+                      RelationshipObject.Properties.SOURCE_REF.toString(),
+                      coverageId,
+                      RelationshipObject.Properties.TARGET_REF.toString(),
+                      new Identifier(stixRef.getStixRef()),
+                      ExtendedProperties.COVERED.toString(),
+                      new io.openbas.stix.types.Boolean(covered))));
+
+      sroStartTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
+      sroStopTime.ifPresent(
+          instant -> sro.setProperty(RelationshipObject.Properties.STOP_TIME.toString(), instant));
+
+      if (covered) {
+        sro.setProperty(ExtendedProperties.COVERAGE.toString(), coverageResult);
+      }
+      objects.add(sro);
+    }
+  }
+
   private BaseType<?> getOverallCoverage(Exercise exercise) {
     return computeCoverageFromInjects(exercise.getInjects());
   }
@@ -316,24 +350,47 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(exercise.getInjects(), securityPlatform);
   }
 
+  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise exercise) {
+    return getCoverage(
+        externalRef,
+        exercise,
+        id -> cveService.getVulnerabilitiesByExternalIds(Set.of(id)),
+        InjectorContract::getVulnerabilities,
+        Cve::getId);
+  }
+
   private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {
-    List<AttackPattern> apList =
-        attackPatternService.getAttackPatternsByExternalIds(Set.of(externalRef));
-    Optional<AttackPattern> ap = apList.stream().findFirst();
-    if (ap.isEmpty()) {
+    return getCoverage(
+        externalRef,
+        exercise,
+        id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
+        InjectorContract::getAttackPatterns,
+        AttackPattern::getId);
+  }
+
+  private <T> BaseType<?> getCoverage(
+      String externalRef,
+      Exercise exercise,
+      Function<String, Collection<T>> entityFetcher,
+      Function<InjectorContract, Collection<T>> contractExtractor,
+      Function<T, String> idExtractor) {
+    // fetch entity
+    Optional<T> entity = entityFetcher.apply(externalRef).stream().findFirst();
+    if (entity.isEmpty()) {
       return uncovered();
     }
 
-    // get all injects involved in attack pattern
+    // find matching injects
     List<Inject> injects =
         exercise.getInjects().stream()
             .filter(
                 i ->
                     i.getInjectorContract().isPresent()
-                        && i.getInjectorContract().get().getAttackPatterns().stream()
+                        && contractExtractor.apply(i.getInjectorContract().get()).stream()
                             .anyMatch(
-                                attackPattern -> attackPattern.getId().equals(ap.get().getId())))
+                                e -> idExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
             .toList();
+
     if (injects.isEmpty()) {
       return uncovered();
     }
