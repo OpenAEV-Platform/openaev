@@ -15,9 +15,10 @@ interface Props {
   onChange: (value: string) => void;
   required?: boolean;
   scenarioOrSimulationId?: string;
+  disabled?: boolean;
 }
 
-const CustomDashboardAutocompleteField = ({ label, value, onChange, required = false, scenarioOrSimulationId }: Props) => {
+const CustomDashboardAutocompleteField = ({ label, value, onChange, required = false, scenarioOrSimulationId, disabled }: Props) => {
   const ability = useContext(AbilityContext);
   const [options, setOptions] = useState<Option[]>([]);
 
@@ -49,6 +50,7 @@ const CustomDashboardAutocompleteField = ({ label, value, onChange, required = f
       onChange={v => onChange(v ?? '')}
       onInputChange={searchDashboardOptions}
       variant="standard"
+      disabled={disabled}
     />
   );
 };

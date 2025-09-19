@@ -18,11 +18,13 @@ import { langItems, themeItems } from '../utils/OptionItems';
 interface ParametersForms {
   onSubmit: (data: SettingsUpdateInput) => void;
   initialValues: SettingsUpdateInput;
+  canNotManage: boolean;
 }
 
 const ParametersForm: FunctionComponent<ParametersForms> = ({
   onSubmit,
   initialValues,
+  canNotManage,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -59,6 +61,7 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
 
   return (
     <FormProvider {...methods}>
+      <TextFieldController required name="platform_name" label={t('Platform name')} disabled={canNotManage} />
       <form
         id="parametersForm"
         onSubmit={handleSubmitWithoutPropagation}
@@ -69,12 +72,11 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
           gap: theme.spacing(2.5),
         }}
       >
-        <TextFieldController required name="platform_name" label={t('Platform name')} disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)} />
-        <SelectFieldController name="platform_theme" label={t('Default theme')} items={themeItems(t)} disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)} />
-        <SelectFieldController name="platform_lang" label={t('Default language')} items={langItems(t)} disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)} />
-        <CustomDashboardAutocompleteFieldController name="platform_home_dashboard" label={t('Default home dashboard')} />
-        <CustomDashboardAutocompleteFieldController name="platform_scenario_dashboard" label={t('Default scenario dashboard')} />
-        <CustomDashboardAutocompleteFieldController name="platform_simulation_dashboard" label={t('Default simulation dashboard')} />
+        <SelectFieldController name="platform_theme" label={t('Default theme')} items={themeItems(t)} disabled={canNotManage} />
+        <SelectFieldController name="platform_lang" label={t('Default language')} items={langItems(t)} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_home_dashboard" label={t('Default home dashboard')} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_scenario_dashboard" label={t('Default scenario dashboard')} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_simulation_dashboard" label={t('Default simulation dashboard')} disabled={canNotManage} />
         <div>
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
             <Button

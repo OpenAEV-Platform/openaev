@@ -37,6 +37,7 @@ const Parameters = () => {
   const dispatch = useAppDispatch();
   const { t, fldt } = useFormatter();
   const ability = useContext(AbilityContext);
+  const cannotManagePlatformSettings = ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
 
   const [openEEChanges, setOpenEEChanges] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
@@ -263,6 +264,7 @@ const Parameters = () => {
               platform_scenario_dashboard: settings?.platform_scenario_dashboard,
               platform_simulation_dashboard: settings?.platform_simulation_dashboard,
             }}
+            canNotManage={cannotManagePlatformSettings}
           />
         </Paper>
         <Paper variant="outlined" style={{ height: 'auto' }} className={`${classes.paperList} ${classes.marginBottom}`}>

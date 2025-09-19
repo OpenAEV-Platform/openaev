@@ -15,6 +15,7 @@ interface Props {
   error?: boolean;
   className?: string;
   variant?: 'standard' | 'outlined' | 'filled';
+  disabled?: boolean;
 }
 
 const AutocompleteField: FunctionComponent<Props> = ({
@@ -27,6 +28,7 @@ const AutocompleteField: FunctionComponent<Props> = ({
   error = false,
   className = '',
   variant = 'outlined',
+  disabled,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -50,6 +52,7 @@ const AutocompleteField: FunctionComponent<Props> = ({
 
   return (
     <Autocomplete
+      disabled={disabled}
       selectOnFocus
       className={className}
       groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
