@@ -11,6 +11,7 @@ import io.openbas.database.repository.UserRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Slf4j
 public class InitAdminCommandLineRunner implements CommandLineRunner {
 
   @Value("${openbas.admin.email:#{null}}")
@@ -63,14 +65,15 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
 
   private User createUser() {
     if (!hasText(this.adminEmail)) {
-      throw new IllegalArgumentException("Config properties 'openbas.admin.email' cannot be null");
+      log.error("Config properties 'openbas.admin.email' cannot be null");
+      System.exit(1);
     } else if (!EmailValidator.getInstance().isValid(this.adminEmail)) {
-      throw new IllegalArgumentException(
-          "Config properties 'openbas.admin.email' should be a valid email address");
+      log.error("Config properties 'openbas.admin.email' should be a valid email address");
+      System.exit(1);
     }
     if (!hasText(this.adminPassword)) {
-      throw new IllegalArgumentException(
-          "Config properties 'openbas.admin.password' cannot be null");
+      log.error("Config properties 'openbas.admin.password' cannot be null");
+      System.exit(1);
     }
 
     this.userRepository.createAdmin(
@@ -97,13 +100,14 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
 
   private void createToken(@NotNull final User user) {
     if (!hasText(this.adminToken)) {
-      throw new IllegalArgumentException("Config properties 'openbas.admin.token' cannot be null");
+      log.error("Config properties 'openbas.admin.token' cannot be null");
+      System.exit(1);
     }
     try {
       UUID.fromString(this.adminToken);
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(
-          "Config properties 'openbas.admin.token' should be a valid UUID");
+      log.error("Config properties 'openbas.admin.token' should be a valid UUID");
+      System.exit(1);
     }
 
     this.tokenRepository.createToken(

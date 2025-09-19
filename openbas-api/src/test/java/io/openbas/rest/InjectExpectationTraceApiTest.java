@@ -5,9 +5,9 @@ import static io.openbas.utils.JsonUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,12 +22,15 @@ import io.openbas.rest.inject_expectation_trace.form.InjectExpectationTraceInput
 import io.openbas.utils.fixtures.AssetFixture;
 import io.openbas.utils.fixtures.InjectExpectationFixture;
 import io.openbas.utils.fixtures.InjectFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -110,7 +113,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Create an inject expectation trace for a collector")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createInjectExpectationTraceForCollector_Success() throws Exception {
     // --PREPARE--
     InjectExpectationTraceInput input = new InjectExpectationTraceInput();
@@ -143,7 +146,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Get the traces for a collector")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void getInjectExpectationTracesForCollector() throws Exception {
     // --EXECUTE--
     String response =
@@ -179,7 +182,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Count expectation traces for a collector")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void countInjectExpectationTracesForCollector() throws Exception {
     // --EXECUTE--
     String response =
@@ -203,7 +206,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
   @DisplayName(
       "Count expectation traces for other source than a collector, with an ivalid sourceId given")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void countInjectExpectationTracesForOthers_0() throws Exception {
     // --EXECUTE--
     String response =
@@ -227,7 +230,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
   @DisplayName(
       "Count expectation traces for other source than a collector, with a valid sourceId given")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void countInjectExpectationTracesForOthers() throws Exception {
     // --EXECUTE--
     String response =
@@ -250,7 +253,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Bulk insert of 1 inject expectation trace for a collector")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void bulkInsertInjectExpectationTraceForCollector_Success() throws Exception {
     // --PREPARE--
     InjectExpectationTraceInput input = new InjectExpectationTraceInput();
@@ -296,7 +299,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Bulk insert of multiple inject expectation trace for a collector")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void bulkInsertMultipleInjectExpectationTraceForCollector_Success() throws Exception {
     // --PREPARE--
     InjectExpectationTraceInput input = new InjectExpectationTraceInput();
@@ -337,7 +340,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Bulk insert inject expectation traces for a collector with duplicates")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void bulkInsertInjectExpectationTraceForCollector_SuccessWithDuped() throws Exception {
     // --PREPARE--
     InjectExpectationTraceInput input = new InjectExpectationTraceInput();

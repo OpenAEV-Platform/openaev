@@ -130,6 +130,7 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
           articles={allArticles || []}
           injectArticlesIds={injectArticlesIds ?? []}
           handleAddArticles={addArticles}
+          handleRemoveArticle={removeArticle}
           disabled={readOnly}
         />
       </Can>

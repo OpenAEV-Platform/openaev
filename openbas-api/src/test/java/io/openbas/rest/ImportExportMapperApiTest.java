@@ -13,7 +13,7 @@ import io.openbas.database.repository.TagRepository;
 import io.openbas.helper.StreamHelper;
 import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.EndpointFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,7 +39,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an export csv with endpoints target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testExportCsvWithEndpointsTarget() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
@@ -63,7 +63,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an export csv with unknown target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testExportCsvWithUnknownTarget() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
@@ -82,7 +82,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an import csv with endpoints target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testImportCsvWithEndpointsTarget() throws Exception {
     // -- PREPARE --
     endpointRepository.deleteAll();
@@ -119,7 +119,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an import csv with unknown target")
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void testImportCsvWithUnknownTarget() throws Exception {
     // -- PREPARE --
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");

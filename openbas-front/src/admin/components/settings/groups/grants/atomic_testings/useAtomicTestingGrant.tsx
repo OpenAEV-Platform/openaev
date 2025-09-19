@@ -69,7 +69,7 @@ const useAtomicTestingGrant = (groupId: string) => {
       width: '20%',
     },
     {
-      label: t('Manage'),
+      label: t('Manage+Delete'),
       value: (inject) => {
         const { plannerId, launcherId } = getGrantIds(inject);
         return (

@@ -13,9 +13,12 @@ import io.openbas.database.model.Tag;
 import io.openbas.rest.tag.form.TagUpdateInput;
 import io.openbas.utils.fixtures.TagFixture;
 import io.openbas.utils.fixtures.composers.TagComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,7 +39,7 @@ public class TagApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("When tag already exists, update tag changes properties and returns modified tag")
   public void whenTagAlreadyExists_updateTagChangesPropertiesAndReturnsTag() throws Exception {
     Tag tag = tagComposer.forTag(TagFixture.getTagWithText("mock text")).persist().get();

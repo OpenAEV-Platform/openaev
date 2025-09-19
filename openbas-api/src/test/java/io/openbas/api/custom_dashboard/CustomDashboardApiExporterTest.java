@@ -19,7 +19,7 @@ import io.openbas.IntegrationTest;
 import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
 import io.openbas.utils.fixtures.composers.CustomDashboardParameterComposer;
 import io.openbas.utils.fixtures.composers.WidgetComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @DisplayName("Custom dashboard api exporter tests")
 class CustomDashboardApiExporterTest extends IntegrationTest {
 

@@ -10,4 +10,6 @@ public @interface WithMockXTMHubConfig {
   boolean enable() default false;
 
   String url() default "";
+
+  String override_api_url() default "";
 }

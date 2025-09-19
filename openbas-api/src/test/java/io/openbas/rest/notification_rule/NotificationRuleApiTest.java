@@ -1,6 +1,5 @@
 package io.openbas.rest.notification_rule;
 
-import static io.openbas.database.model.User.ADMIN_UUID;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -10,10 +9,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
-import io.openbas.database.repository.*;
+import io.openbas.database.repository.NotificationRuleRepository;
+import io.openbas.database.repository.ScenarioRepository;
+import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.notification_rule.form.CreateNotificationRuleInput;
 import io.openbas.rest.notification_rule.form.UpdateNotificationRuleInput;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
@@ -43,9 +44,10 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void createNotificationRule() throws Exception {
+    User testUser = testUserHolder.get();
 
     Scenario scenario = new Scenario();
     scenario.setDescription("Test scenario");
@@ -77,11 +79,11 @@ public class NotificationRuleApiTest extends IntegrationTest {
     assertEquals(input.getResourceId(), JsonPath.read(response, "$.notification_rule_resource_id"));
     assertEquals(
         input.getResourceType(), JsonPath.read(response, "$.notification_rule_resource_type"));
-    assertEquals(ADMIN_UUID, JsonPath.read(response, "$.notification_rule_owner"));
+    assertEquals(testUser.getId(), JsonPath.read(response, "$.notification_rule_owner"));
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createNotificationRule_unexisting_scenario_id() throws Exception {
 
     CreateNotificationRuleInput input =
@@ -105,10 +107,11 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void updateNotificationRule() throws Exception {
-    NotificationRule notificationRule = createNotificationRuleInDb("resourceid");
+    NotificationRule notificationRule =
+        createNotificationRuleInDb("resourceid", testUserHolder.get());
 
     String updatedSubject = "updated Subject";
     UpdateNotificationRuleInput updatedInput =
@@ -127,7 +130,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void updateNotificationRule_WITH_unexisting_id() throws Exception {
 
@@ -146,10 +149,10 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void deleteNotificationRule() throws Exception {
-    String uuid = createNotificationRuleInDb("resourceid").getId();
+    String uuid = createNotificationRuleInDb("resourceid", testUserHolder.get()).getId();
 
     mvc.perform(
             delete(NOTIFICATION_RULE_URI + "/" + uuid)
@@ -163,7 +166,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void deleteNotificationRule_WITH_unexisting_id() throws Exception {
     mvc.perform(
@@ -177,10 +180,11 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void findNotificationRule() throws Exception {
-    NotificationRule notificationRule = createNotificationRuleInDb("resourceid");
+    NotificationRule notificationRule =
+        createNotificationRuleInDb("resourceid", testUserHolder.get());
 
     String response =
         mvc.perform(
@@ -206,11 +210,12 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void findNotificationRuleByResource() throws Exception {
 
-    NotificationRule notificationRule = createNotificationRuleInDb("resourceid");
+    NotificationRule notificationRule =
+        createNotificationRuleInDb("resourceid", testUserHolder.get());
 
     String response =
         mvc.perform(
@@ -237,13 +242,13 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @Transactional
   void searchTagRule() throws Exception {
-    createNotificationRuleInDb("notificationRule1");
-    createNotificationRuleInDb("notificationRule2");
-    createNotificationRuleInDb("notificationRule3");
-    createNotificationRuleInDb("notificationRule4");
+    createNotificationRuleInDb("notificationRule1", testUserHolder.get());
+    createNotificationRuleInDb("notificationRule2", testUserHolder.get());
+    createNotificationRuleInDb("notificationRule3", testUserHolder.get());
+    createNotificationRuleInDb("notificationRule4", testUserHolder.get());
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setSize(2);
@@ -265,13 +270,13 @@ public class NotificationRuleApiTest extends IntegrationTest {
     assertEquals(Integer.valueOf(4), JsonPath.read(response, "$.totalElements"));
   }
 
-  private NotificationRule createNotificationRuleInDb(String resourceId) {
-    return notificationRuleRepository.save(getNotificationRule(resourceId));
+  private NotificationRule createNotificationRuleInDb(String resourceId, User testUser) {
+    return notificationRuleRepository.save(getNotificationRule(resourceId, testUser));
   }
 
-  private NotificationRule getNotificationRule(String resourceId) {
+  private NotificationRule getNotificationRule(String resourceId, User testUser) {
     NotificationRule notificationRule = new NotificationRule();
-    notificationRule.setOwner(userRepository.findById(ADMIN_UUID).orElse(null));
+    notificationRule.setOwner(userRepository.findById(testUser.getId()).orElse(null));
     notificationRule.setSubject("subject");
     notificationRule.setNotificationResourceType(NotificationRuleResourceType.SCENARIO);
     notificationRule.setTrigger(NotificationRuleTrigger.DIFFERENCE);

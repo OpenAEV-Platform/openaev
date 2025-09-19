@@ -15,7 +15,7 @@ import io.openbas.export.Mixins;
 import io.openbas.utils.ZipUtils;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
@@ -55,7 +55,7 @@ public class ScenarioExportTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("When payloads have tags, scenario export has these tags")
   public void WhenPayloadsHaveTags_ScenarioExportHasTheseTags() throws Exception {
     ObjectMapper objectMapper = mapper.copy();
