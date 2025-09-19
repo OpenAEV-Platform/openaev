@@ -56,7 +56,7 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
   }, [injectTeamIds]);
 
   // -- ACTIONS --
-  const onTeamsChange = async (teamIds: string[]) => setValue('inject_teams', teamIds, { shouldValidate: true });
+  const onTeamsChange = (teamIds: string[]) => setValue('inject_teams', teamIds, { shouldValidate: true });
 
   const onRemoveTeam = (teamId: string) => {
     const updatedTeamIds = injectTeamIds.filter((id: string) => id !== teamId);
