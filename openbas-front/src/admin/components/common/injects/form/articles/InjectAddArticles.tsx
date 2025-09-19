@@ -7,7 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  GridLegacy,
+  Grid,
   List,
   ListItemButton,
   ListItemIcon,
@@ -51,6 +51,7 @@ const useStyles = makeStyles()(theme => ({
 interface Props {
   articles: Article[];
   handleAddArticles: (articleIds: string[]) => void;
+  handleRemoveArticle: (articleId: string) => void;
   injectArticlesIds: string[];
   disabled?: boolean;
 }
@@ -58,6 +59,7 @@ interface Props {
 const InjectAddArticles: FunctionComponent<Props> = ({
   articles,
   handleAddArticles,
+  handleRemoveArticle,
   injectArticlesIds,
   disabled = false,
 }) => {
@@ -94,7 +96,13 @@ const InjectAddArticles: FunctionComponent<Props> = ({
 
   const addArticle = (articleId: string) => setArticleIds(R.append(articleId, articleIds));
 
-  const removeArticle = (articleId: string) => setArticleIds(articleIds.filter(u => u !== articleId));
+  const removeArticle = (articleId: string) => {
+    if (articleIds.includes(articleId)) {
+      setArticleIds(articleIds.filter(u => u !== articleId));
+    } else if (injectArticlesIds.includes(articleId)) {
+      handleRemoveArticle(articleId);
+    }
+  };
 
   const submitAddArticles = () => {
     handleAddArticles(articleIds);
@@ -155,16 +163,16 @@ const InjectAddArticles: FunctionComponent<Props> = ({
       >
         <DialogTitle>{t('Add media pressure in this inject')}</DialogTitle>
         <DialogContent>
-          <GridLegacy container spacing={3} style={{ marginTop: -15 }}>
-            <GridLegacy item xs={8}>
-              <GridLegacy container spacing={3}>
-                <GridLegacy item xs={6}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 8 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 6 }}>
                   <SearchFilter
                     onChange={handleSearchArticles}
                     fullWidth
                   />
-                </GridLegacy>
-              </GridLegacy>
+                </Grid>
+              </Grid>
               <List>
                 {filteredArticles.map((article: FullArticleStore) => {
                   const disabled = articleIds.includes(article.article_id)
@@ -201,10 +209,10 @@ const InjectAddArticles: FunctionComponent<Props> = ({
                     />
                   )}
               </List>
-            </GridLegacy>
-            <GridLegacy item xs={4}>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
               <Box className={classes.box}>
-                {articleIds.map((articleId) => {
+                {[...injectArticlesIds, ...articleIds].map((articleId) => {
                   const article = articlesMap[articleId];
                   const channel = article
                     ? channelsMap[article.article_channel] || {}
@@ -222,8 +230,8 @@ const InjectAddArticles: FunctionComponent<Props> = ({
                   );
                 })}
               </Box>
-            </GridLegacy>
-          </GridLegacy>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>

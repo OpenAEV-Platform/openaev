@@ -27,6 +27,7 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     flexDirection: 'column',
     gap: theme.spacing(2),
+    marginTop: theme.spacing(2),
   },
   injectFormButtonsContainer: {
     display: 'flex',
@@ -128,6 +129,8 @@ const InjectForm = ({
       inject_depends_duration_days: duration.days,
       inject_depends_duration_hours: duration.hours,
       inject_depends_duration_minutes: duration.minutes,
+      inject_all_teams: defaultInject?.inject_all_teams ?? false,
+      inject_teams: defaultInject?.inject_teams ?? [],
     };
 
     // Enrich initialValues with default contract value
@@ -216,7 +219,7 @@ const InjectForm = ({
         }
       });
     })),
-    // defaultValues: defaultValues,
+    defaultValues: defaultValues,
   });
 
   const { handleSubmit, reset, subscribe, getValues, clearErrors, trigger, formState: { isSubmitting } } = methods;
@@ -397,11 +400,29 @@ const InjectForm = ({
     }
   }, [injectorContractContent]);
 
+  // Update mode:
+  // In update mode, we want to initialize the form with the current inject values,
+  // but we do NOT want to reset again if injectorContractContent changes later,
+  // otherwise user edits would be lost.
   useEffect(() => {
-    const initialValues = getInitialValues();
-    reset(initialValues);
-    setDefaultValues(initialValues);
-  }, [injectorContractContent]);
+    if (!isCreation) {
+      const initialValues = getInitialValues();
+      reset(initialValues);
+      setDefaultValues(initialValues);
+    }
+  }, []);
+
+  // Create mode:
+  // In create mode, when the user selects a new contract, we need to reset
+  // the form with the new default values provided by this contract.
+  // This ensures the form is pre-filled according to the selected contract.
+  useEffect(() => {
+    if (isCreation) {
+      const initialValues = getInitialValues();
+      reset(initialValues);
+      setDefaultValues(initialValues);
+    }
+  }, [injectorContractContent, isCreation]);
 
   if (Object.keys(defaultValues).length === 0) {
     return <Loader />;

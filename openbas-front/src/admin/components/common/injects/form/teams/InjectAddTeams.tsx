@@ -46,7 +46,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const { searchTeams } = useContext(TeamContext);
+  const { searchTeams, onReplaceTeam } = useContext(TeamContext);
 
   const [teamValues, setTeamValues] = useState<TeamOutput[]>([]);
   const [selectedTeamValues, setSelectedTeamValues] = useState<TeamOutput[]>([]);
@@ -56,7 +56,6 @@ const InjectAddTeams: FunctionComponent<Props> = ({
 
   const handleClose = () => {
     setOpen(false);
-    setSelectedTeamValues([]);
   };
 
   const submitAddTeams = () => {
@@ -150,6 +149,8 @@ const InjectAddTeams: FunctionComponent<Props> = ({
                     onCreate={(team) => {
                       setTeamValues([...teamValues, team as TeamOutput]);
                       setSelectedTeamValues([...selectedTeamValues, team as TeamOutput]);
+                      // If a team is created, it has to be linked to the simulation/scenario
+                      onReplaceTeam?.([...selectedTeamValues, team as TeamOutput].map(v => v.team_id));
                     }}
                   />
                 </Can>
