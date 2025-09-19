@@ -1,5 +1,6 @@
 package io.openbas.service.detection_remediation;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,9 +23,10 @@ public class DetectionRemediationHealthResponse {
   @Schema(description = "Version of the service", example = "0.1.0")
   String version;
 
+  @JsonProperty("up_time")
   @Schema(
       description =
           "Elapsed time between request initiation and service start. (format HH:MM:SS.ffffff,)",
       example = "2:07:39.269613")
-  String up_time;
+  String upTime;
 }

@@ -13,8 +13,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "detection_remediations")
@@ -24,7 +26,13 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Builder
 public class DetectionRemediation implements Base {
+  public enum AUTHOR_RULE {
+    HUMAN,
+    AI,
+    AI_OUTDATED
+  }
 
   @Id
   @Column(name = "detection_remediation_id")
@@ -57,6 +65,13 @@ public class DetectionRemediation implements Base {
   @JsonProperty("detection_remediation_values")
   @NotNull
   private String values;
+
+  @Column(name = "author_rule")
+  @JsonProperty("author_rule")
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @NotNull
+  private AUTHOR_RULE authorRule = AUTHOR_RULE.HUMAN;
 
   // -- AUDIT --
 
