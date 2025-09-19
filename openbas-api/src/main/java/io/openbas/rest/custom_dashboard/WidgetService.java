@@ -110,6 +110,7 @@ public class WidgetService {
         injectIds,
         Filters.FilterOperator.contains);
     listConfig.setColumns(WidgetUtils.getColumnsFromBaseEntityName("inject"));
+    listConfig.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
 
     return listConfig;
   }
