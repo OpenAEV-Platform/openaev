@@ -15,6 +15,8 @@ import io.openbas.engine.model.EsSearch;
 import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.WidgetService;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openbas.service.EsAttackPathService;
 import io.openbas.utils.mapper.RawUserAuthMapper;
 import java.util.List;
@@ -81,6 +83,19 @@ public class DashboardService {
   }
 
   /**
+   * Executes a list query using the provided widget context and configuration.
+   *
+   * @param widgetContext the context containing widget, user, and parameter information
+   * @param config the list configuration defining query parameters
+   * @return a list of entities retrieved from the engine service
+   */
+  private List<EsBase> executeListQuery(WidgetContext widgetContext, ListConfiguration config) {
+    ListRuntime runtime =
+        new ListRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
+    return engineService.entities(widgetContext.user(), runtime);
+  }
+
+  /**
    * Retrieves a list of entities from Elasticsearch for a widget configured as a list.
    *
    * @param widgetId the id from the {@link Widget} with a list configuration
@@ -90,9 +105,24 @@ public class DashboardService {
   public List<EsBase> entities(String widgetId, Map<String, String> parameters) {
     WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
     ListConfiguration config = (ListConfiguration) widgetContext.widget().getWidgetConfiguration();
-    ListRuntime runtime =
-        new ListRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
-    return engineService.entities(widgetContext.user(), runtime);
+    return executeListQuery(widgetContext, config);
+  }
+
+  /**
+   * Converts a widget to a list configuration and retrieves corresponding entities.
+   *
+   * @param widgetId the unique identifier of the widget
+   * @param input contains parameters, series index, and filter value for the conversion
+   * @return output containing both the generated list configuration and retrieved entities
+   */
+  public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+      String widgetId, WidgetToEntitiesInput input) {
+    WidgetContext widgetContext = getWidgetContext(widgetId, input.getParameters());
+    ListConfiguration config =
+        widgetService.convertWidgetToListConfigurationWithFilterValue(
+            widgetContext.widget, input.getSeriesIndex(), input.getFilterValue());
+    List<EsBase> datas = executeListQuery(widgetContext, config);
+    return WidgetToEntitiesOutput.builder().listConfiguration(config).esEntities(datas).build();
   }
 
   public List<EsAttackPath> attackPaths(String widgetId, Map<String, String> parameters)

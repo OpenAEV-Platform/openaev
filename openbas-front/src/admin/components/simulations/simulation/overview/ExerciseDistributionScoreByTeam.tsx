@@ -60,7 +60,7 @@ const ExerciseDistributionScoreByTeam: FunctionComponent<Props> = ({ exerciseId 
       {teamsTotalScores.length > 0 ? (
         <Chart
           id="exercise_distribution_total_score_by_team"
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={totalScoreByTeamData}
           type="bar"
           width="100%"

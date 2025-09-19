@@ -41,7 +41,7 @@ public class WidgetFixture {
     widget.setType(VERTICAL_BAR_CHART);
     // series
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
-    DateHistogramWidget.DateHistogramSeries series = new DateHistogramWidget.DateHistogramSeries();
+    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();
@@ -69,8 +69,7 @@ public class WidgetFixture {
     widget.setType(DONUT);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
-    StructuralHistogramWidget.StructuralHistogramSeries series =
-        new StructuralHistogramWidget.StructuralHistogramSeries();
+    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();
@@ -96,7 +95,7 @@ public class WidgetFixture {
     Widget widget = new Widget();
     widget.setType(WidgetType.NUMBER);
     // series
-    FlatConfiguration.FlatSeries series = new FlatConfiguration.FlatSeries();
+    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();
@@ -121,7 +120,7 @@ public class WidgetFixture {
     Widget widget = new Widget();
     widget.setType(WidgetType.NUMBER);
     // series
-    FlatConfiguration.FlatSeries series = new FlatConfiguration.FlatSeries();
+    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     List<Filters.Filter> filters = new ArrayList<>();
@@ -154,7 +153,7 @@ public class WidgetFixture {
     Widget widget = new Widget();
     widget.setType(WidgetType.NUMBER);
     // series
-    FlatConfiguration.FlatSeries series = new FlatConfiguration.FlatSeries();
+    WidgetConfiguration.Series series = new WidgetConfiguration.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     Filters.Filter filter = new Filters.Filter();

@@ -1,6 +1,7 @@
 import { Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchTargets } from '../../../../actions/injects/inject-action';
@@ -67,6 +68,10 @@ const AtomicTesting = () => {
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
 
+  // Initial tab open
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetType = searchParams.get('target');
+
   const navigateToTab = (tab: TabConfig | undefined) => {
     setActiveTab(tab);
     setReloadContentCount(reloadContentCount + 1);
@@ -125,7 +130,11 @@ const AtomicTesting = () => {
       navigateToTab(undefined);
     }
 
-    if (activeTab && tabs.map(conf => conf.type).includes(activeTab.type)) {
+    if (targetType != null && tabs.map(conf => conf.type).includes(targetType)) {
+      navigateToTab(tabs.find(tc => targetType === tc.type));
+      searchParams.delete('target');
+      setSearchParams(searchParams, { replace: true });
+    } else if (activeTab && tabs.map(conf => conf.type).includes(activeTab.type)) {
       navigateToTab(tabs.find(tc => activeTab.type === tc.type));
     } else {
       navigateToTab(tabs[0]);

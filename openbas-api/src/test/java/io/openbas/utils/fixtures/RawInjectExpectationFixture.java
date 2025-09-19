@@ -9,6 +9,7 @@ public class RawInjectExpectationFixture {
   private record TestableRawInjectExpectation(
       String injectExpectationId,
       String injectExpectationName,
+      String injectTitle,
       String injectExpectationDescription,
       String expectationType,
       String expectationResults,
@@ -37,6 +38,11 @@ public class RawInjectExpectationFixture {
 
     @Override
     public String getInject_expectation_name() {
+      return injectExpectationName;
+    }
+
+    @Override
+    public String getInject_title() {
       return injectExpectationName;
     }
 
@@ -139,6 +145,7 @@ public class RawInjectExpectationFixture {
   public static RawInjectExpectation createDefaultInjectExpectation(
       String expectationType, Double expectationScore, Double expectationExpectedScore) {
     return new TestableRawInjectExpectation(
+        null,
         null,
         null,
         null,

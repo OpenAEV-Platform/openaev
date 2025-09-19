@@ -1,6 +1,6 @@
 import { HubOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -44,22 +44,26 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
     'finding_assets',
   ];
 
-  const [searchParams] = useSearchParams();
-  const [search] = searchParams.getAll('search');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openIdParams = searchParams.get('open');
+
   const [cvssScore, setCvssScore] = useState<number | null>(null);
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<AggregatedFindingOutput | null>(null);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({
-    sorts: initSorting('finding_created_at', 'DESC'),
-    textSearch: search,
-  }));
-
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({ sorts: initSorting('finding_created_at', 'DESC') }));
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchDistinctFindings(input).finally(() => {
       setLoading(false);
     });
   };
+
+  useEffect(() => {
+    if (!openIdParams) {
+      return;
+    }
+    setSelectedFinding(findings.find(f => f.finding_id == openIdParams) ?? null);
+  }, [openIdParams, findings]);
 
   const headers = [
     {
@@ -95,6 +99,14 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
     finding_assets: { width: '30%' },
     finding_tags: { width: '20%' },
   });
+
+  const handleCloseDrawer = () => {
+    setSelectedFinding(null);
+    setCvssScore(null);
+    // Clean URL without causing refresh
+    searchParams.delete('open');
+    setSearchParams(searchParams, { replace: true });
+  };
 
   return (
     <>
@@ -160,10 +172,7 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
       </List>
       <Drawer
         open={!!selectedFinding}
-        handleClose={() => {
-          setSelectedFinding(null);
-          setCvssScore(null);
-        }}
+        handleClose={handleCloseDrawer}
         title={selectedFinding?.finding_value || ''}
         additionalTitle={cvssScore ? 'CVSS' : undefined}
         additionalChipLabel={cvssScore?.toFixed(1)}

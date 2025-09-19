@@ -88,21 +88,38 @@ const toolbarOptions = {
   },
 };
 
-export const lineChartOptions = (
-  theme: Theme,
+interface LineChartOption {
+  theme: Theme;
+  isTimeSeries: boolean;
+  xFormatter?: (value: string) => string | string[];
+  yFormatter?: (val: number) => (string | string[]);
+  tickAmount?: number | 'dataPoints';
+  distributed?: boolean;
+  dataLabels?: boolean;
+  emptyChartText?: string;
+  onDataPointClick?: onBarClickFunction;
+}
+export const lineChartOptions = ({
+  theme,
   isTimeSeries = false,
-  xFormatter: NonNullable<ApexXAxis['labels']>['formatter'] | null = null,
-  yFormatter: NonNullable<ApexYAxis['labels']>['formatter'] | null = null,
-  tickAmount = undefined,
+  xFormatter,
+  yFormatter,
+  tickAmount,
   distributed = false,
   dataLabels = false,
   emptyChartText = '',
-): ApexOptions => ({
+  onDataPointClick,
+}: LineChartOption): ApexOptions => ({
   chart: {
     type: 'line',
     background: 'transparent',
     toolbar: { show: false },
     foreColor: theme.palette.text?.secondary,
+    events: {
+      markerClick: function (event, _, config) {
+        onDataPointClick?.(event, config);
+      },
+    },
   },
   theme: { mode: theme.palette.mode },
   dataLabels: { enabled: dataLabels },
@@ -262,22 +279,40 @@ function getColors(theme: Theme, isResult: boolean, distributed: boolean) {
  * @param {number} max
  * @param {string} emptyChartText
  * @param {function} customTooltip
+ * @param {function} onBarClick
  */
-export const verticalBarsChartOptions = (
-  theme: Theme,
-  xFormatter: NonNullable<ApexXAxis['labels']>['formatter'] | null = null,
-  yFormatter: NonNullable<ApexYAxis['labels']>['formatter'] | null = null,
-  distributed: boolean = false,
-  isTimeSeries: boolean = false,
-  isStacked: boolean = false,
-  legend: boolean = false,
-  tickAmount: ApexXAxis['tickAmount'] = undefined,
-  isResult: boolean = false,
-  isFakeData: boolean = false,
-  max: ApexYAxis['max'] = undefined,
-  emptyChartText: string = '',
-  customTooltip?: CustomTooltipFunction,
-): ApexOptions => ({
+interface VerticalBarsChartOptions {
+  theme: Theme;
+  xFormatter?: NonNullable<ApexXAxis['labels']>['formatter'] | null;
+  yFormatter?: NonNullable<ApexYAxis['labels']>['formatter'] | null;
+  distributed?: boolean;
+  isTimeSeries?: boolean;
+  isStacked?: boolean;
+  legend?: boolean;
+  tickAmount?: ApexXAxis['tickAmount'];
+  isResult?: boolean;
+  isFakeData?: boolean;
+  max?: ApexYAxis['max'];
+  emptyChartText?: string;
+  customTooltip?: CustomTooltipFunction;
+  onBarClick?: onBarClickFunction;
+}
+export const verticalBarsChartOptions = ({
+  theme,
+  xFormatter = null,
+  yFormatter = null,
+  distributed = false,
+  isTimeSeries = false,
+  isStacked = false,
+  legend = false,
+  tickAmount,
+  isResult = false,
+  isFakeData = false,
+  max,
+  emptyChartText = '',
+  customTooltip,
+  onBarClick,
+}: VerticalBarsChartOptions): ApexOptions => ({
   chart: {
     type: 'bar',
     background: 'transparent',
@@ -288,6 +323,11 @@ export const verticalBarsChartOptions = (
     height: '100%',
     zoom: { enabled: !isFakeData },
     animations: { enabled: !isFakeData },
+    events: {
+      dataPointSelection(event, _, config) {
+        onBarClick?.(event, config);
+      },
+    },
   },
   theme: { mode: theme.palette.mode },
   dataLabels: { enabled: false },
@@ -360,10 +400,10 @@ export const verticalBarsChartOptions = (
   }),
 });
 
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-export type CustomClickBarFunction = (event: any, charContext?: any, config?: any) => void;
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-export type CustomCursorBarFunction = (event: any, charContext?: any, config?: any) => void;
+export type onBarClickFunction = (event: Event, config: {
+  dataPointIndex: number;
+  seriesIndex: number;
+}) => void;
 
 /**
  * @param {Theme} theme
@@ -377,35 +417,40 @@ export type CustomCursorBarFunction = (event: any, charContext?: any, config?: a
  * @param {boolean} legend
  * @param {boolean} isFakeData
  * @param {string} emptyChartText
- * @param {function} customClickBarFunction
- * @param {function} customCursorBarFunction
+ * @param {function} onBarClick
  */
-export const horizontalBarsChartOptions = (
-  theme: Theme,
-  adjustTicks: boolean = false,
-  xFormatter: ((val: number) => string | string[]) | null = null,
-  yFormatter: ((val: string) => string) | null = null,
-  distributed: boolean = false,
-  stacked: boolean = false,
-  total: boolean = false,
-  categories: string[] | string[][] | null = null,
-  legend: boolean = false,
-  isFakeData: boolean = false,
-  emptyChartText: string = '',
-  customClickBarFunction?: CustomClickBarFunction,
-  customCursorBarFunction?: CustomCursorBarFunction,
-): ApexOptions => ({
+interface HorizontalBarsChartOptions {
+  theme: Theme;
+  adjustTicks?: boolean;
+  xFormatter?: ((val: number) => string | string[]) | null;
+  yFormatter?: ((val: string) => string) | null;
+  distributed?: boolean;
+  stacked?: boolean;
+  total?: boolean;
+  categories?: string[] | string[][] | null;
+  legend?: boolean;
+  isFakeData?: boolean;
+  emptyChartText?: string;
+  onBarClick?: onBarClickFunction;
+}
+export const horizontalBarsChartOptions = ({
+  theme,
+  adjustTicks = false,
+  xFormatter = null,
+  yFormatter = null,
+  distributed = false,
+  stacked = false,
+  total = false,
+  categories = null,
+  legend = false,
+  isFakeData = false,
+  emptyChartText = '',
+  onBarClick,
+}: HorizontalBarsChartOptions): ApexOptions => ({
   chart: {
     events: {
-      dataPointSelection(event, charContext?, config?) {
-        if (customClickBarFunction) {
-          customClickBarFunction(event, charContext, config);
-        }
-      },
-      dataPointMouseEnter(event, charContext?, config?) {
-        if (customCursorBarFunction) {
-          customCursorBarFunction(event, charContext, config);
-        }
+      dataPointSelection(event, _, config?) {
+        onBarClick?.(event, config);
       },
     },
     type: 'bar',
@@ -649,6 +694,8 @@ export const polarAreaChartOptions = (
  * @param {number} size
  * @param {boolean} disableAnimation
  * @param {boolean} isFakeData
+ * @param {string} emptyChartText
+ * @param {function} onClick
  */
 interface DonutChartOptions {
   theme: Theme;
@@ -664,6 +711,7 @@ interface DonutChartOptions {
   disableAnimation?: boolean;
   isFakeData?: boolean;
   emptyChartText?: string;
+  onClick?: onBarClickFunction;
 }
 
 export const donutChartOptions = ({
@@ -680,6 +728,7 @@ export const donutChartOptions = ({
   disableAnimation = false,
   isFakeData = false,
   emptyChartText = '',
+  onClick = undefined,
 }: DonutChartOptions): ApexOptions => {
   const temp = theme.palette.mode === 'dark' ? 400 : 600;
   let dataLabelsColors = labels.map(() => theme.palette.text?.primary);
@@ -713,6 +762,11 @@ export const donutChartOptions = ({
       height: '100%',
       zoom: { enabled: !isFakeData },
       animations: { enabled: !isFakeData && !disableAnimation },
+      events: {
+        dataPointSelection(event, _, config?) {
+          onClick?.(event, config);
+        },
+      },
     },
     theme: { mode: theme.palette.mode },
     colors: chartFinalColors,

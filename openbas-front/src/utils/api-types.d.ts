@@ -1253,12 +1253,6 @@ export interface CweOutput {
   cwe_source?: string;
 }
 
-export interface DateHistogramSeries {
-  /** Filter object to search within filterable attributes */
-  filter?: FilterGroup;
-  name?: string;
-}
-
 export type DateHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type"
@@ -1266,7 +1260,6 @@ export type DateHistogramWidget = UtilRequiredKeys<
   display_legend?: boolean;
   interval: "year" | "month" | "week" | "day" | "hour" | "quarter";
   mode: string;
-  series: DateHistogramSeries[];
   stacked?: boolean;
 };
 
@@ -1818,6 +1811,7 @@ export interface EsInjectExpectation {
   inject_expectation_score?: number;
   inject_expectation_status?: string;
   inject_expectation_type?: string;
+  inject_title?: string;
 }
 
 export interface EsScenario {
@@ -2454,15 +2448,7 @@ export interface FlagInput {
 export type FlatConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type"
-> & {
-  series: FlatSeries[];
-};
-
-export interface FlatSeries {
-  /** Filter object to search within filterable attributes */
-  filter?: FilterGroup;
-  name?: string;
-}
+>;
 
 export interface FullTextSearchCountResult {
   clazz: string;
@@ -2543,6 +2529,7 @@ export interface HistogramWidget {
   display_legend?: boolean;
   end?: string;
   mode: string;
+  series: Series[];
   stacked?: boolean;
   start?: string;
   time_range:
@@ -5379,6 +5366,12 @@ export interface SecurityPlatformUpsertInput {
   security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
 }
 
+export interface Series {
+  /** Filter object to search within filterable attributes */
+  filter?: FilterGroup;
+  name?: string;
+}
+
 export interface SettingsEnterpriseEditionUpdateInput {
   /** cert of enterprise edition */
   platform_enterprise_license?: string;
@@ -5546,12 +5539,6 @@ export interface StatusPayloadOutput {
   payload_type?: string;
 }
 
-export interface StructuralHistogramSeries {
-  /** Filter object to search within filterable attributes */
-  filter?: FilterGroup;
-  name?: string;
-}
-
 export type StructuralHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type"
@@ -5564,7 +5551,6 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
    */
   limit?: number;
   mode: string;
-  series: StructuralHistogramSeries[];
   stacked?: boolean;
 };
 
@@ -6180,6 +6166,24 @@ export interface WidgetLayout {
   widget_layout_x: number;
   /** @format int32 */
   widget_layout_y: number;
+}
+
+export interface WidgetToEntitiesInput {
+  /** The value to filter the entities by */
+  filter_value?: string;
+  /** Additional parameters for the widget */
+  parameters?: Record<string, string>;
+  /**
+   * The index of the series to filter by, if applicable, otherwise 0
+   * @format int32
+   */
+  series_index?: number;
+}
+
+export interface WidgetToEntitiesOutput {
+  /** List of entities */
+  es_entities?: EsBase[];
+  list_configuration?: ListConfiguration;
 }
 
 export interface XtmHubRegisterInput {

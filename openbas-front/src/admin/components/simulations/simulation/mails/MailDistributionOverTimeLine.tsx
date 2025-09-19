@@ -59,14 +59,11 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
     <>
       {teamsCommunications.length > 0 ? (
         <Chart
-          options={lineChartOptions(
+          options={lineChartOptions({
             theme,
-            true,
-            nsdt,
-            null,
-            undefined,
-            false,
-          )}
+            isTimeSeries: true,
+            xFormatter: nsdt,
+          })}
           series={teamsCommunications}
           type="line"
           width="100%"

@@ -217,6 +217,7 @@ public interface InjectExpectationRepository
       ie.agent_id,
       ie.asset_id,
       ie.asset_group_id,
+      i.inject_title as inject_title,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
       MAX(se.scenario_id) AS scenario_id,
       array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
@@ -238,7 +239,8 @@ public interface InjectExpectationRepository
     LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
     GROUP BY
       ie.inject_expectation_id,
-      ic.injector_contract_id
+      ic.injector_contract_id,
+      i.inject_title
     )
     SELECT * FROM inject_expectation_data ied
     WHERE ied.inject_expectation_updated_at > :from

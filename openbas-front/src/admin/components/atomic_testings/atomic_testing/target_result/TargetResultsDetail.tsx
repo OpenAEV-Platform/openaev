@@ -1,5 +1,6 @@
 import { Tab, Tabs, Typography } from '@mui/material';
 import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchTargetResultMerged } from '../../../../../actions/atomic_testings/atomic-testing-actions';
@@ -39,6 +40,9 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
   const canShowExecutionTab = target.target_type !== 'ASSETS_GROUPS';
 
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openIdParams = searchParams.get('expectation_id');
 
   const [activeTab, setActiveTab] = useState(0);
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
@@ -83,6 +87,20 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
         setSortedGroupedTargetResults(transformToSortedGroupedResults(result.data ?? []));
       });
   }, [injectResultOverviewOutput, target]);
+
+  useEffect(() => {
+    if (!openIdParams || !sortedGroupedTargetResults) return;
+
+    const activeTabIndex = Object.values(sortedGroupedTargetResults).findIndex(results =>
+      results.some(r => r.inject_expectation_id === openIdParams),
+    );
+
+    if (activeTabIndex === -1) return;
+
+    setActiveTab(activeTabIndex);
+    searchParams.delete('open');
+    setSearchParams(searchParams, { replace: true });
+  }, [openIdParams, sortedGroupedTargetResults]);
 
   return (
     <Paper className={classes.container}>

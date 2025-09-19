@@ -61,14 +61,11 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
       {teamsScores.length > 0 ? (
         <Chart
           id="exercise_distribution_score_over_time_by_team"
-          options={lineChartOptions(
+          options={lineChartOptions({
             theme,
-            true,
-            nsdt,
-            null,
-            undefined,
-            false,
-          )}
+            isTimeSeries: true,
+            xFormatter: nsdt,
+          })}
           series={teamsScores}
           type="line"
           width="100%"

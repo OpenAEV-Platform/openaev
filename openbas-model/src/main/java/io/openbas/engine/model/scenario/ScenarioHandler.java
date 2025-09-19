@@ -33,6 +33,7 @@ public class ScenarioHandler implements Handler<EsScenario> {
               EsScenario esScenario = new EsScenario();
               // Base
               esScenario.setBase_id(scenario.getScenario_id());
+              esScenario.setName(scenario.getScenario_name());
               esScenario.setStatus(
                   scenario.getScenario_recurrence() != null
                       ? Scenario.RECURRENCE_STATUS.SCHEDULED.name()
