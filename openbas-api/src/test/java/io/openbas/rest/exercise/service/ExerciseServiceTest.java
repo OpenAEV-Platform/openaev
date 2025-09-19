@@ -5,6 +5,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -185,7 +186,7 @@ class ExerciseServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
-    when(injectService.canApplyTargetType(any(), TargetType.ASSETS_GROUPS)).thenReturn(true);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
 
     mockedExerciseService.updateExercice(exercise, currentTags, true);
 
@@ -218,7 +219,7 @@ class ExerciseServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
-    when(injectService.canApplyTargetType(any(), TargetType.ASSETS_GROUPS)).thenReturn(false);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(false);
 
     mockedExerciseService.updateExercice(exercise, currentTags, true);
 
