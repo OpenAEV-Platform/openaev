@@ -54,7 +54,7 @@
     "react-color": "2.19.3",
     "react-csv": "2.2.2",
     "react-dom": "19.1.0",
-    "react-final-form": "6.5.9",
+    "react-final-form": "7.0.0",
     "react-final-form-arrays": "3.1.4",
     "react-grid-layout": "1.5.2",
     "react-hook-form": "7.60.0",
