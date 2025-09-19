@@ -1,9 +1,14 @@
 package io.openbas.service.detection_remediation;
 
+import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.authorisation.HttpClientFactory;
 import io.openbas.ee.Ee;
 import jakarta.annotation.Resource;
+import java.io.IOException;
+import java.net.ConnectException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -17,77 +22,70 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
-import java.net.ConnectException;
-
-import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DetectionRemediationAIService {
-    private static final String X_OPENAEV_CERTIFICATE = "X-OpenAEV-Certificate";
+  private static final String X_OPENAEV_CERTIFICATE = "X-OpenAEV-Certificate";
 
-    @Value("${remediation.detection.webservice}")
-    String REMEDIATION_DETECTION_WEBSERVICE;
+  @Value("${remediation.detection.webservice}")
+  String REMEDIATION_DETECTION_WEBSERVICE;
 
-    private final Ee ee;
-    private final HttpClientFactory httpClientFactory;
-    @Resource protected ObjectMapper mapper;
+  private final Ee ee;
+  private final HttpClientFactory httpClientFactory;
+  @Resource protected ObjectMapper mapper;
 
   public DetectionRemediationCrowdstrikeResponse callRemediationDetectionAIWebservice(
       DetectionRemediationRequest payload) {
     // Check if account has EE licence
     String certificate = ee.getEncodedCertificate();
 
-    String url = REMEDIATION_DETECTION_WEBSERVICE+ "/remediation/crowdstrike";
+    String url = REMEDIATION_DETECTION_WEBSERVICE + "/remediation/crowdstrike";
 
     String errorMessage = "Request to Remediation Detection AI Webservice failed: ";
 
-      try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
 
-          HttpPost httpPost = new HttpPost(url);
+      HttpPost httpPost = new HttpPost(url);
 
-          httpPost.addHeader(X_OPENAEV_CERTIFICATE, certificate);
-          httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(X_OPENAEV_CERTIFICATE, certificate);
+      httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
 
-          StringEntity httpBody = new StringEntity(mapper.writeValueAsString(payload));
-          httpPost.setEntity(httpBody);
+      StringEntity httpBody = new StringEntity(mapper.writeValueAsString(payload));
+      httpPost.setEntity(httpBody);
 
-          String responseBody = httpClient.execute(httpPost, response ->
-                  EntityUtils.toString(response.getEntity()));
+      String responseBody =
+          httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
 
-          return mapper.readValue(responseBody, DetectionRemediationCrowdstrikeResponse.class);
+      return mapper.readValue(responseBody, DetectionRemediationCrowdstrikeResponse.class);
 
-      } catch (ConnectException ex) {
-          throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
+    } catch (ConnectException ex) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
 
-      } catch (IOException e) {
-          throw new RestClientException(errorMessage + e);
-      }
-
+    } catch (IOException e) {
+      throw new RestClientException(errorMessage + e);
+    }
   }
 
   public DetectionRemediationHealthResponse checkHealthWebservice() {
-      // Check if account has EE licence
-      ee.getEncodedCertificate();
+    // Check if account has EE licence
+    ee.getEncodedCertificate();
 
-      String url = REMEDIATION_DETECTION_WEBSERVICE + "/health";
-      String errorMessage = "Connection to Remediation Detection AI Webservice failed: ";
+    String url = REMEDIATION_DETECTION_WEBSERVICE + "/health";
+    String errorMessage = "Connection to Remediation Detection AI Webservice failed: ";
 
-      try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-          HttpGet httpGet = new HttpGet(url);
-          String responseBody = httpClient.execute(httpGet, response ->
-                  EntityUtils.toString(response.getEntity()));
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      HttpGet httpGet = new HttpGet(url);
+      String responseBody =
+          httpClient.execute(httpGet, response -> EntityUtils.toString(response.getEntity()));
 
-          return mapper.readValue(responseBody, DetectionRemediationHealthResponse.class);
+      return mapper.readValue(responseBody, DetectionRemediationHealthResponse.class);
 
-      } catch (ConnectException ex) {
-          throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
+    } catch (ConnectException ex) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
 
-      } catch (IOException e) {
-          throw new RestClientException(errorMessage + e);
-      }
+    } catch (IOException e) {
+      throw new RestClientException(errorMessage + e);
+    }
   }
 }

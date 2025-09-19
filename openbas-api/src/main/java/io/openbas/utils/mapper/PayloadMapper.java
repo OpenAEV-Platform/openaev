@@ -250,18 +250,18 @@ public class PayloadMapper {
     }
   }
 
-    private DetectionRemediationOutput toDetectionRemediationOutput(
-            DetectionRemediation detectionRemediation) {
-        DetectionRemediationOutput output =
-                DetectionRemediationOutput.builder()
-                        .id(detectionRemediation.getId())
-                        .payloadId(detectionRemediation.getPayload().getId())
-                        .collectorType(detectionRemediation.getCollector().getType())
-                        .values(detectionRemediation.getValues())
-                        .authorRule(detectionRemediation.getAuthorRule())
-                        .build();
-        return output;
-    }
+  private DetectionRemediationOutput toDetectionRemediationOutput(
+      DetectionRemediation detectionRemediation) {
+    DetectionRemediationOutput output =
+        DetectionRemediationOutput.builder()
+            .id(detectionRemediation.getId())
+            .payloadId(detectionRemediation.getPayload().getId())
+            .collectorType(detectionRemediation.getCollector().getType())
+            .values(detectionRemediation.getValues())
+            .authorRule(detectionRemediation.getAuthorRule())
+            .build();
+    return output;
+  }
 
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(Set<Payload> payloads) {
     return payloads.stream()

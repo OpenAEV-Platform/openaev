@@ -7,8 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.Instant;
-
 @Builder
 @Data
 public class DetectionRemediationOutput {
@@ -31,8 +29,10 @@ public class DetectionRemediationOutput {
   @NotNull
   private String values;
 
-    @JsonProperty("detection_remediation_author_rule")
-    @Schema(description = "Author of rules: Human, AI or AI out of date (for rules generated before payload updated)")
-    @NotNull
-    private DetectionRemediation.AUTHOR_RULE authorRule;
+  @JsonProperty("detection_remediation_author_rule")
+  @Schema(
+      description =
+          "Author of rules: Human, AI or AI out of date (for rules generated before payload updated)")
+  @NotNull
+  private DetectionRemediation.AUTHOR_RULE authorRule;
 }

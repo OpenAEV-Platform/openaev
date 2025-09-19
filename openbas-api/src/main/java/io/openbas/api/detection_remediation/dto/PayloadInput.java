@@ -12,6 +12,6 @@ public class PayloadInput extends PayloadUpdateInput {
   @JsonProperty("payload_type")
   private String type;
 
-    @JsonProperty("payload_collector_type_selected")
-    private String collectorType;
+  @JsonProperty("payload_collector_type_selected")
+  private String collectorType;
 }

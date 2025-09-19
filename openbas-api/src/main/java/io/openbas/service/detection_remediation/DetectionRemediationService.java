@@ -1,10 +1,8 @@
 package io.openbas.service.detection_remediation;
 
+import io.openbas.api.detection_remediation.dto.PayloadInput;
 import io.openbas.database.model.AttackPattern;
-import io.openbas.database.model.DetectionRemediation;
-import io.openbas.database.repository.AttackPatternRepository;
-import io.openbas.database.repository.DetectionRemediationRepository;
-import io.openbas.rest.exception.ElementNotFoundException;
+import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,34 +12,22 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class DetectionRemediationService {
+  private final DetectionRemediationAIService detectionRemediationAIService;
+  private final AttackPatternService attackPatternService;
 
-  private final DetectionRemediationRepository detectionRemediationRepository;
-  private final AttackPatternRepository attackPatternRepository;
+  public String getRulesDetectionRemediationCrowdstrike(PayloadInput input) {
 
-  public DetectionRemediation getAndCheckDetectionRemediation(String idDetectionRemediation) {
-    DetectionRemediation detectionRemediation =
-        detectionRemediationRepository
-            .findById(idDetectionRemediation)
-            .orElseThrow(
-                () -> new ElementNotFoundException("Current detection remediation not found"));
+    List<AttackPattern> attackPatterns =
+        attackPatternService.getAttackPattern(input.getAttackPatternsIds());
 
-    // AI cannot replace existing content
-    if (!detectionRemediation.getValues().isEmpty())
-      throw new IllegalStateException("AI Webservice available only for empty content");
-
-    return detectionRemediation;
+    // GET rules from webservice
+    DetectionRemediationRequest request = new DetectionRemediationRequest(input, attackPatterns);
+    DetectionRemediationCrowdstrikeResponse rules =
+        detectionRemediationAIService.callRemediationDetectionAIWebservice(request);
+    return rules.formateRules();
   }
 
-  public List<AttackPattern> getAttackPattern(List<String> idsAttackPattern) {
-    return attackPatternRepository.findAllByIdIn(idsAttackPattern);
-  }
-
-  public String saveDetectionRemediationRulesByAI(
-      DetectionRemediation detectionRemediation, DetectionRemediationCrowdstrikeResponse rules) {
-    detectionRemediation.setValues(rules.formateRules());
-    detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.AI);
-
-    detectionRemediationRepository.save(detectionRemediation);
-    return detectionRemediation.getValues();
+  public DetectionRemediationHealthResponse checkHealthWebservice() {
+    return detectionRemediationAIService.checkHealthWebservice();
   }
 }

@@ -225,33 +225,29 @@ public class Ee {
     return found;
   }
 
-    /**
-     * Retrieves and encodes the Enterprise Edition license certificate in Base64.
-     *
-     * <p>This method retrieves the Enterprise Edition license PEM certificate
-     * and converts it to a Base64 encoded string. The certificate is first
-     * converted to UTF-8 bytes before encoding.</p>
-     *
-     * @return A string containing the Base64 encoded certificate
-     *
-     * @throws IllegalStateException If the Enterprise Edition certificate is not available
-     *                               (null or empty)
-     *
-     *
-     * @example
-     * <pre>{@code
-     * try {
-     *     String encodedCert = getEncodedCertificate();
-     *     System.out.println("Encoded certificate: " + encodedCert);
-     * } catch (IllegalStateException e) {
-     *     System.err.println("Enterprise license not available");
-     * }
-     * }</pre>
-     *
-     * @see #getEnterpriseEditionLicensePem()
-     * @see java.util.Base64
-     * @see java.nio.charset.StandardCharsets#UTF_8
-     */
+  /**
+   * Retrieves and encodes the Enterprise Edition license certificate in Base64.
+   *
+   * <p>This method retrieves the Enterprise Edition license PEM certificate and converts it to a
+   * Base64 encoded string. The certificate is first converted to UTF-8 bytes before encoding.
+   *
+   * @return A string containing the Base64 encoded certificate
+   * @throws IllegalStateException If the Enterprise Edition certificate is not available (null or
+   *     empty)
+   * @example
+   *     <pre>{@code
+   * try {
+   *     String encodedCert = getEncodedCertificate();
+   *     System.out.println("Encoded certificate: " + encodedCert);
+   * } catch (IllegalStateException e) {
+   *     System.err.println("Enterprise license not available");
+   * }
+   * }</pre>
+   *
+   * @see #getEnterpriseEditionLicensePem()
+   * @see java.util.Base64
+   * @see java.nio.charset.StandardCharsets#UTF_8
+   */
   public String getEncodedCertificate() {
     String certificate = this.getEnterpriseEditionLicensePem();
     if (certificate == null || certificate.isBlank())
