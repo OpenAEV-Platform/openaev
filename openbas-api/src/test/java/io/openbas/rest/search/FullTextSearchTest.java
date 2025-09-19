@@ -3,7 +3,6 @@ package io.openbas.rest.search;
 import static io.openbas.search.FullTextSearchApi.GLOBAL_SEARCH_URI;
 import static io.openbas.service.UserService.buildAuthenticationToken;
 import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -23,14 +22,17 @@ import io.openbas.utils.fixtures.composers.GrantComposer;
 import io.openbas.utils.fixtures.composers.GroupComposer;
 import io.openbas.utils.fixtures.composers.RoleComposer;
 import io.openbas.utils.fixtures.composers.UserComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -100,7 +102,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{2}")
   @MethodSource("countScenarioTestCases")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_user_is_admin_search_input_should_return_count_for_all_scenarios(
       String searchTerm, int expectedCount, String testDisplayName) throws Exception {
     // -- PREPARE --
@@ -137,7 +139,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{3}")
   @MethodSource("searchScenarioTestCases")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_user_is_admin_search_input_should_return_all_scenarios(
       String searchTerm, int expectedCount, List<String> expectedIds, String testDisplayName)
       throws Exception {
@@ -203,6 +205,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{4}")
   @MethodSource("searchScenarioGrantsTestCases")
+  @WithMockUser
   void given_user_with_grants_search_input_should_match_grants(
       String searchTerm,
       int expectedCount,
@@ -214,30 +217,16 @@ public class FullTextSearchTest extends IntegrationTest {
     SearchPaginationInput searchPaginationInput =
         PaginationFixture.getDefault().textSearch(searchTerm).build();
 
-    GroupComposer.Composer groupComposed =
-        groupComposer
-            .forGroup(GroupFixture.createGroup())
-            .withRole(roleComposer.forRole(RoleFixture.getRole()));
-
-    grants.forEach(grant -> groupComposed.withGrant(grantComposer.forGrant(grant)));
-
-    this.testUser =
-        userComposer
-            .forUser(
-                UserFixture.getUser(
-                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
-            .withGroup(groupComposed)
-            .persist()
-            .get();
-
-    Authentication auth = buildAuthenticationToken(this.testUser);
+    grants.forEach(
+        grant ->
+            addGrantToCurrentUser(
+                grant.getGrantResourceType(), grant.getName(), grant.getResourceId()));
 
     // -- EXECUTE --
     mvc.perform(
             post(GLOBAL_SEARCH_URI + "/" + Scenario.class.getName())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(searchPaginationInput))
-                .with(authentication(auth)))
+                .content(asJsonString(searchPaginationInput)))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.content.size()").value(expectedCount))
         .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(expectedIds.toArray())));

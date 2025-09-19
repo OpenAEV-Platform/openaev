@@ -26,7 +26,7 @@ import io.openbas.utils.fixtures.composers.ChallengeComposer;
 import io.openbas.utils.fixtures.composers.DocumentComposer;
 import io.openbas.utils.fixtures.composers.PayloadComposer;
 import io.openbas.utils.fixtures.files.BinaryFile;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.HashMap;
 import java.util.Map;
@@ -91,7 +91,7 @@ class DocumentApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Documents CRUD")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   class CRUD {
 
     @Test

@@ -12,21 +12,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openbas.IntegrationTest;
-import io.openbas.database.model.AssetGroup;
-import io.openbas.database.model.ContractOutputType;
-import io.openbas.database.model.Endpoint;
-import io.openbas.database.model.Exercise;
-import io.openbas.database.model.Filters;
-import io.openbas.database.model.Finding;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.Scenario;
+import io.openbas.database.model.*;
 import io.openbas.database.repository.FindingRepository;
 import io.openbas.database.specification.FindingSpecification;
 import io.openbas.rest.finding.form.RelatedFindingOutput;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
 import io.openbas.utils.mapper.FindingMapper;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import io.openbas.utils.pagination.SortField;
 import jakarta.annotation.Resource;
@@ -46,7 +39,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @DisplayName("Findings search tests")
 class FindingApiTest extends IntegrationTest {
 

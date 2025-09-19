@@ -16,7 +16,7 @@ import io.openbas.database.model.Payload;
 import io.openbas.jsonapi.JsonApiDocument;
 import io.openbas.jsonapi.ResourceObject;
 import io.openbas.jsonapi.ZipJsonApi;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@WithMockAdminUser
+@WithMockUser(isAdmin = true)
 @DisplayName("Payload api importer tests")
 class PayloadApiImporterTest extends IntegrationTest {
 

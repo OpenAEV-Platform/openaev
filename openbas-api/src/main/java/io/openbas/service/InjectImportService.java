@@ -7,13 +7,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openbas.authorisation.AuthorisationService;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.*;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.rest.exception.ElementNotFoundException;
-import io.openbas.rest.inject.form.InjectImportInput;
-import io.openbas.rest.inject.form.InjectImportTargetType;
 import io.openbas.rest.scenario.response.ImportMessage;
 import io.openbas.rest.scenario.response.ImportPostSummary;
 import io.openbas.rest.scenario.response.ImportTestSummary;
@@ -62,7 +59,6 @@ public class InjectImportService {
   private final UserRepository userRepository;
 
   private final ExerciseRepository exerciseRepository;
-  private final AuthorisationService authorisationService;
   private final ScenarioRepository scenarioRepository;
   private final ImportService importService;
 
@@ -1190,24 +1186,21 @@ public class InjectImportService {
                     }));
   }
 
-  public void importInjects(MultipartFile file, InjectImportInput input) throws Exception {
-    Exercise targetExercise = null;
-    Scenario targetScenario = null;
+  public void importInjectsForScenario(MultipartFile file, String scenarioId) throws Exception {
+    Scenario targetScenario =
+        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
 
-    if (input.getTarget().getType().equals(InjectImportTargetType.SIMULATION)) {
-      targetExercise =
-          exerciseRepository
-              .findById(input.getTarget().getId())
-              .orElseThrow(ElementNotFoundException::new);
-    }
+    this.importService.handleFileImport(file, null, targetScenario);
+  }
 
-    if (input.getTarget().getType().equals(InjectImportTargetType.SCENARIO)) {
-      targetScenario =
-          scenarioRepository
-              .findById(input.getTarget().getId())
-              .orElseThrow(ElementNotFoundException::new);
-    }
+  public void importInjectsForSimulation(MultipartFile file, String simulationId) throws Exception {
+    Exercise targetSimulation =
+        exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
 
-    this.importService.handleFileImport(file, targetExercise, targetScenario);
+    this.importService.handleFileImport(file, targetSimulation, null);
+  }
+
+  public void importInjectsForAtomicTestings(MultipartFile file) throws Exception {
+    this.importService.handleFileImport(file, null, null);
   }
 }

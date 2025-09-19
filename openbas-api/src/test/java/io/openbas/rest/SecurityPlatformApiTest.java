@@ -11,7 +11,7 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.SecurityPlatform;
 import io.openbas.database.repository.SecurityPlatformRepository;
 import io.openbas.utils.fixtures.composers.SecurityPlatformComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +74,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByNameTest(String searchText, Integer expectedNumberOfResults) throws Exception {
     // --PREPARE--
     prepareOptionsSecurityPlatformTestData();
@@ -106,7 +106,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void optionsByIdTest(Integer numberOfSecurityPlatformToProvide, Integer expectedNumberOfResults)
       throws Exception {
     List<SecurityPlatformComposer.Composer> securityPlatforms =

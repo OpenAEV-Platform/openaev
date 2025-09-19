@@ -9,6 +9,7 @@ import static io.openbas.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openbas.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static io.openbas.utils.fixtures.ExpectationFixture.*;
+import static io.openbas.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 import static io.openbas.utils.fixtures.InjectExpectationFixture.getInjectExpectationUpdateInput;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +30,7 @@ import io.openbas.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openbas.rest.inject.form.InjectExpectationUpdateInput;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.utils.fixtures.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
@@ -126,7 +127,7 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Update and delete inject expectation results from UI")
   class ResultInjectExpectation {
 
@@ -136,7 +137,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Add results on inject expectation from UI on one agent")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void addResultsOnOneAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -240,7 +241,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Add results on inject expectation from UI on two agents")
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     void addResultsOnTwoAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -369,7 +370,7 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Fetch and update InjectExpectations from collectors")
   class ProcessInjectExpectationsForCollectors {
 
@@ -675,7 +676,7 @@ class ExpectationApiTest extends IntegrationTest {
      * propagation to asset and asset-group levels for each collector.
      */
     @Test
-    @WithMockAdminUser
+    @WithMockUser(isAdmin = true)
     @DisplayName("Add results on inject expectation from two collectors on one agent")
     void updateInjectExpectationFromTwoCollectors() throws Exception {
       // -- PREPARE --

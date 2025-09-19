@@ -21,7 +21,7 @@ import io.openbas.database.repository.ChallengeRepository;
 import io.openbas.database.repository.InjectRepository;
 import io.openbas.database.repository.InjectorContractRepository;
 import io.openbas.service.ScenarioService;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -57,7 +57,7 @@ class ChallengeApiTest extends IntegrationTest {
   @DisplayName("Retrieve challenges for scenario")
   @Test
   @Order(1)
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void retrieveChallengesVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = createDefaultCrisisScenario();

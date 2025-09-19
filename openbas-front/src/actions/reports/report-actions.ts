@@ -14,6 +14,11 @@ export const fetchReport = (reportId: Report['report_id']) => (dispatch: Dispatc
   return getReferential(schema.report, uri)(dispatch);
 };
 
+export const fetchReportFromSimulation = (exerciseId: Exercise['exercise_id'], reportId: Report['report_id']) => (dispatch: Dispatch) => {
+  const uri = `/api/exercises/${exerciseId}/reports/${reportId}`;
+  return getReferential(schema.report, uri)(dispatch);
+};
+
 export const addReportForExercise = (exerciseId: Exercise['exercise_id'], data: ReportInput) => (dispatch: Dispatch) => {
   const uri = `/api/exercises/${exerciseId}/reports`;
   return postReferential(schema.report, uri, data)(dispatch);

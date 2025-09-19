@@ -18,7 +18,7 @@ import io.openbas.database.repository.CustomDashboardRepository;
 import io.openbas.database.repository.SettingRepository;
 import io.openbas.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,7 +43,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_valid_dashboard_input_when_creating_dashboard_should_return_created_dashboard()
       throws Exception {
     // -- PREPARE --
@@ -64,7 +64,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_dashboards_should_return_all_dashboards() throws Exception {
     // -- PREPARE --
     createCustomDashboardComposer();
@@ -78,7 +78,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_dashboard_id_when_fetching_dashboard_should_return_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
@@ -91,7 +91,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_updated_dashboard_input_when_updating_dashboard_should_return_updated_dashboard()
       throws Exception {
     // -- PREPARE --
@@ -116,7 +116,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   @DisplayName("Deleting Custom Dashboard")
   class Delete {
     @Test

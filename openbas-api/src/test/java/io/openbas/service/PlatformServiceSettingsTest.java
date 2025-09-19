@@ -9,7 +9,7 @@ import io.openbas.config.OpenBASConfig;
 import io.openbas.config.RabbitmqConfig;
 import io.openbas.rest.settings.PreviewFeature;
 import io.openbas.rest.settings.response.PlatformSettings;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,7 +39,7 @@ public class PlatformServiceSettingsTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   public void given_config_has_null_flags_enabled_features_is_empty() {
     openbasConfig.setEnabledDevFeatures(null);
 
@@ -49,7 +49,7 @@ public class PlatformServiceSettingsTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   public void given_config_has_invalid_flags_enabled_features_does_not_account_for_these_flags() {
     openbasConfig.setEnabledDevFeatures("non existing feature flag");
 
@@ -59,7 +59,7 @@ public class PlatformServiceSettingsTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   public void given_config_has_valid_flags_enabled_features_accounts_for_these_flags() {
     openbasConfig.setEnabledDevFeatures(PreviewFeature._RESERVED.name());
 
@@ -69,7 +69,7 @@ public class PlatformServiceSettingsTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   public void
       given_config_has_valid_flags_when_same_flag_stated_twice_enabled_features_accounts_for_flag_once() {
     openbasConfig.setEnabledDevFeatures(

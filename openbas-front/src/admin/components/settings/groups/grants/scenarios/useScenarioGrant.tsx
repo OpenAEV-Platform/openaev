@@ -69,7 +69,7 @@ const useScenarioGrant = (groupId: string) => {
       width: '20%',
     },
     {
-      label: t('Manage'),
+      label: t('Manage+Delete'),
       value: (scenario) => {
         const { plannerId, launcherId } = getGrantIds(scenario);
         return (

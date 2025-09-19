@@ -11,10 +11,12 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.AssetGroup;
 import io.openbas.database.model.Tag;
 import io.openbas.database.model.TagRule;
-import io.openbas.database.repository.*;
+import io.openbas.database.repository.AssetGroupRepository;
+import io.openbas.database.repository.TagRepository;
+import io.openbas.database.repository.TagRuleRepository;
 import io.openbas.rest.tag_rule.form.TagRuleInput;
 import io.openbas.utils.fixtures.AssetGroupFixture;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +48,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void findTagRule() throws Exception {
     String assetGroupName = "assetGroupName";
     String tagId = "tagName";
@@ -67,7 +69,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteTagRule() throws Exception {
     String assetGroupName = "assetGroupName";
     String tagId = "tagName";
@@ -82,7 +84,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void deleteTagRule_WITH_unexisting_id() throws Exception {
     mvc.perform(delete(TAG_RULE_URI + "/" + "randomid").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound())
@@ -92,7 +94,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createTagRule_with_nonExistingTag() throws Exception {
 
     String assetGroupId = "assetGroupId";
@@ -108,7 +110,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void createTagRule() throws Exception {
 
     AssetGroup assetGroup = createAssetGroup("assetGroupName");
@@ -138,7 +140,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateTagRule() throws Exception {
 
     String assetGroupName1 = "assetGroupName1";
@@ -171,7 +173,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateTagRule_WITH_non_existing_tag() throws Exception {
 
     String assetGroupName1 = "assetGroupName1";
@@ -195,7 +197,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateTagRule_WITH_non_existing_id() throws Exception {
 
     String assetGroupName1 = "assetGroupName1";
@@ -219,7 +221,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void updateTagRule_WITH_non_existing_asset_group() throws Exception {
 
     String assetName1 = "assetGroupName1";
@@ -238,7 +240,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void findAllTagRules() throws Exception {
     TagRule tagRule1 = createTagRule("tag1", List.of("assetgroup1"));
     TagRule tagRule2 = createTagRule("tag2", List.of("assetgroup2"));
@@ -259,7 +261,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void searchTagRule() throws Exception {
     createTagRule("tag1", List.of("assetgroup1"));
     createTagRule("tag2", List.of("assetgroup2"));

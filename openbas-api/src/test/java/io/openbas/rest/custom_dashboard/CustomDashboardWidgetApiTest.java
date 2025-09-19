@@ -22,7 +22,7 @@ import io.openbas.rest.custom_dashboard.form.WidgetInput;
 import io.openbas.utils.CustomDashboardTimeRange;
 import io.openbas.utils.fixtures.composers.CustomDashboardComposer;
 import io.openbas.utils.fixtures.composers.WidgetComposer;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +47,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_valid_widget_input_when_creating_widget_should_return_created_widget()
       throws Exception {
     // -- PREPARE --
@@ -79,7 +79,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_widgets_should_return_all_widgets() throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();
@@ -94,7 +94,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_widget_id_when_fetching_widget_should_return_widget() throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();
@@ -114,7 +114,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_updated_widget_input_when_updating_widget_should_return_updated_widget()
       throws Exception {
     // -- PREPARE --
@@ -142,7 +142,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void given_widget_id_when_deleting_widget_should_return_no_content() throws Exception {
     // -- PREPARE --
     WidgetComposer.Composer composer = createWidgetComposer();

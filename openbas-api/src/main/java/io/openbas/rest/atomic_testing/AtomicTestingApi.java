@@ -10,9 +10,6 @@ import io.openbas.rest.atomic_testing.form.*;
 import io.openbas.rest.collector.service.CollectorService;
 import io.openbas.rest.exception.UnprocessableContentException;
 import io.openbas.rest.helper.RestBehavior;
-import io.openbas.rest.inject.form.InjectImportInput;
-import io.openbas.rest.inject.form.InjectImportTargetDefinition;
-import io.openbas.rest.inject.form.InjectImportTargetType;
 import io.openbas.service.AtomicTestingService;
 import io.openbas.service.InjectExpectationService;
 import io.openbas.service.InjectImportService;
@@ -201,15 +198,10 @@ public class AtomicTestingApi extends RestBehavior {
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
       @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
-    // find target
-    if (file == null) {
+    if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    InjectImportInput targetInput = new InjectImportInput();
-    targetInput.setTarget(new InjectImportTargetDefinition());
-    targetInput.getTarget().setType(InjectImportTargetType.ATOMIC_TESTING);
-
-    this.injectImportService.importInjects(file, targetInput);
+    this.injectImportService.importInjectsForAtomicTestings(file);
   }
 }

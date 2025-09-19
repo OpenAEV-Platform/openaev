@@ -3,8 +3,7 @@ package io.openbas.rest.scenario;
 import static io.openbas.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
 import static io.openbas.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openbas.utils.JsonUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,13 +20,13 @@ import io.openbas.rest.scenario.form.CheckScenarioRulesInput;
 import io.openbas.rest.scenario.form.ScenarioInput;
 import io.openbas.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openbas.rest.scenario.form.ScenarioUpdateTeamsInput;
+import io.openbas.service.AssetGroupService;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
-import io.openbas.utils.mockUser.WithMockAdminUser;
+import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +37,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
+@Transactional
 public class ScenarioApiTest extends IntegrationTest {
 
   @Autowired private AgentComposer agentComposer;
@@ -59,27 +59,20 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
+  @Autowired private AssetGroupService assetGroupService;
 
-  static String SCENARIO_ID;
-
-  private static final List<String> SCENARIO_IDS = new ArrayList<>();
-  private static final List<String> USER_IDS = new ArrayList<>();
-  private static final List<String> TEAM_IDS = new ArrayList<>();
-
-  @AfterAll
-  void afterAll() {
-    if (SCENARIO_ID != null) {
-      this.scenarioRepository.deleteById(SCENARIO_ID);
-    }
-    this.tagRuleRepository.deleteAll();
-    this.tagRepository.deleteAll();
-    this.assetGroupRepository.deleteAll();
+  @AfterEach
+  void afterEach() {
+    agentComposer.reset();
+    endpointComposer.reset();
+    injectComposer.reset();
+    injectStatusComposer.reset();
+    scenarioComposer.reset();
   }
 
   @DisplayName("Create scenario succeed")
   @Test
-  @Order(1)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void createScenarioTest() throws Exception {
     // -- PREPARE --
     ScenarioInput scenarioInput = new ScenarioInput();
@@ -115,14 +108,13 @@ public class ScenarioApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    SCENARIO_ID = JsonPath.read(response, "$.scenario_id");
+    String scenarioId = JsonPath.read(response, "$.scenario_id");
+    assertFalse(scenarioId.isEmpty());
   }
 
   @DisplayName("Create scenario succeed with default dashboard")
   @Test
-  @Order(1)
-  @WithMockAdminUser
-  @Transactional
+  @WithMockUser(isAdmin = true)
   void given_scenario_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
@@ -168,9 +160,12 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Retrieve scenarios")
   @Test
-  @Order(2)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void retrieveScenariosTest() throws Exception {
+    // -- PREPARE --
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+
     // -- EXECUTE --
     String response =
         this.mvc
@@ -187,12 +182,17 @@ public class ScenarioApiTest extends IntegrationTest {
   @DisplayName("Retrieve scenario")
   @Test
   @Order(3)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void retrieveScenarioTest() throws Exception {
+    // -- PREPARE --
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+
     // -- EXECUTE --
     String response =
         this.mvc
-            .perform(get(SCENARIO_URI + "/" + SCENARIO_ID).accept(MediaType.APPLICATION_JSON))
+            .perform(
+                get(SCENARIO_URI + "/" + testScenario.getId()).accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -204,29 +204,23 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Update scenario")
   @Test
-  @Order(4)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void updateScenarioTest() throws Exception {
     // -- PREPARE --
-    String response =
-        this.mvc
-            .perform(get(SCENARIO_URI + "/" + SCENARIO_ID).accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     ScenarioInput scenarioInput = new ScenarioInput();
     String subtitle = "A subtitle";
-    scenarioInput.setName(JsonPath.read(response, "$.scenario_name"));
-    scenarioInput.setFrom(JsonPath.read(response, "$.scenario_mail_from"));
+    scenarioInput.setName(testScenario.getName());
+    scenarioInput.setFrom(testScenario.getFrom());
     scenarioInput.setSubtitle(subtitle);
 
     // -- EXECUTE --
-    response =
+    String response =
         this.mvc
             .perform(
-                put(SCENARIO_URI + "/" + SCENARIO_ID)
+                put(SCENARIO_URI + "/" + testScenario.getId())
                     .content(asJsonString(scenarioInput))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON))
@@ -242,19 +236,21 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Delete scenario")
   @Test
-  @Order(5)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
   void deleteScenarioTest() throws Exception {
+    // -- PREPARE --
+    Scenario testScenario =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+
     // -- EXECUTE 1 ASSERT --
     this.mvc
-        .perform(delete(SCENARIO_URI + "/" + SCENARIO_ID))
+        .perform(delete(SCENARIO_URI + "/" + testScenario.getId()))
         .andExpect(status().is2xxSuccessful());
   }
 
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
-  @Order(7)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -291,8 +287,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when no rule is found")
   @Test
-  @Order(8)
-  @WithMockAdminUser // FIXME: Temporary workaround for grant issue
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -322,7 +317,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Lock Scenario EE feature")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   class LockScenarioEEFeature {
 
     private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
@@ -404,6 +399,9 @@ public class ScenarioApiTest extends IntegrationTest {
       InjectInput input = new InjectInput();
       input.setTitle(scenario.getInjects().getFirst().getTitle());
       input.setAssetGroups(List.of(dynamicAssetGroupSaved.getId()));
+      // necessary to avoid detach exception in test context since we removed the test order and
+      // added the transactional.
+      assetGroupService.computeDynamicAssets(dynamicAssetGroupSaved);
 
       mvc.perform(
               put(SCENARIO_URI
@@ -422,12 +420,11 @@ public class ScenarioApiTest extends IntegrationTest {
   @Test
   @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing scenario teams")
-  @WithMockAdminUser
+  @WithMockUser(isAdmin = true)
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {
     // -- PREPARE --
     User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
     User userBen = userRepository.save(UserFixture.getUser("Ben", "TEST", "ben-test@fake.email"));
-    USER_IDS.addAll(Arrays.asList(userTom.getId(), userBen.getId()));
 
     Team teamA = TeamFixture.getTeam(userTom, "TeamA", false);
     teamA.setUsers(List.of(userTom));
@@ -436,12 +433,9 @@ public class ScenarioApiTest extends IntegrationTest {
     teamB.setUsers(List.of(userBen));
     teamRepository.save(teamB);
 
-    TEAM_IDS.addAll(Arrays.asList(teamA.getId(), teamB.getId()));
-
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setTeams(Collections.singletonList(teamA));
     Scenario scenarioSaved = scenarioRepository.save(scenario);
-    SCENARIO_IDS.add(scenarioSaved.getId());
 
     // -- ACT --
     List<String> newTeamIds = Arrays.asList(teamA.getId(), teamB.getId());
