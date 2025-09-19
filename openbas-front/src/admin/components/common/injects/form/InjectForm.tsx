@@ -222,11 +222,12 @@ const InjectForm = ({
     defaultValues: defaultValues,
   });
 
-  const { handleSubmit, reset, subscribe, getValues, clearErrors, trigger, formState: { isSubmitting } } = methods;
+  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, formState: { isSubmitting } } = methods;
 
   const onSubmit: SubmitHandler<InjectInputForm> = async (data) => {
     // we cannot save, even in draft, without title
     if (!data.inject_title?.length) {
+      setError('inject_title', { message: t('This field is required.') });
       return;
     }
     if (injectorContractContent) {

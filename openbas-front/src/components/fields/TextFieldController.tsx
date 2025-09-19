@@ -57,14 +57,13 @@ const TextFieldController = ({
           {...field}
           type={type}
           className={classes.root}
-          label={label}
+          label={required ? `${label}*` : label}
           fullWidth
           error={!!error}
           helperText={!noHelperText && error ? error.message : null}
           multiline={multiline}
           rows={rows}
           aria-label={label}
-          required={required}
           disabled={disabled}
           placeholder={placeholder}
           style={style}
