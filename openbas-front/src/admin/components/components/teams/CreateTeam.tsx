@@ -6,6 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { addTeam } from '../../../../actions/teams/team-actions';
 import Dialog from '../../../../components/common/dialog/Dialog';
+import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type Team, type TeamCreateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -86,17 +87,32 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
           <Add />
         </Fab>
       )}
-      <Dialog
-        open={openDialog}
-        handleClose={handleClose}
-        title={t('Create a new team')}
-      >
-        <TeamForm
-          initialValues={{ team_tags: [] }}
+      {inline ? (
+        <Dialog
+          open={openDialog}
           handleClose={handleClose}
-          onSubmit={onSubmit}
-        />
-      </Dialog>
+          title={t('Create a new team')}
+        >
+          <TeamForm
+            initialValues={{ team_tags: [] }}
+            handleClose={handleClose}
+            onSubmit={onSubmit}
+          />
+        </Dialog>
+      ) : (
+        <Drawer
+          open={openDialog}
+          handleClose={handleClose}
+          title={t('Create a new team')}
+        >
+          <TeamForm
+            initialValues={{ team_tags: [] }}
+            handleClose={handleClose}
+            onSubmit={onSubmit}
+          />
+        </Drawer>
+      )}
+
     </div>
   );
 };
