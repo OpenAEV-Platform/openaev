@@ -21,6 +21,12 @@ interface WidgetTemporalVizProps {
   setFullscreen: (fullscreen: boolean) => void;
 }
 
+export type SerieData = {
+  x?: string;
+  y?: string;
+  meta?: string;
+};
+
 const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps) => {
   const { t } = useFormatter();
   const [seriesVizData, setSeriesVizData] = useState<EsSeries[]>([]);

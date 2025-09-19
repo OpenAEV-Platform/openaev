@@ -5,6 +5,7 @@ import Chart from 'react-apexcharts';
 import { useFormatter } from '../../../../../../components/i18n';
 import { lineChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
+import { type SerieData } from '../WidgetViz';
 
 interface Props {
   widgetId: string;
@@ -24,11 +25,8 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
     if (!series) {
       return;
     }
-    const dataPointIndex = series[config.seriesIndex].data[config.dataPointIndex] as {
-      x?: string;
-      y?: number;
-    };
-    if (dataPointIndex.y == 0) {
+    const dataPointIndex = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
+    if (!dataPointIndex || Number(dataPointIndex.y) == 0) {
       return;
     }
 

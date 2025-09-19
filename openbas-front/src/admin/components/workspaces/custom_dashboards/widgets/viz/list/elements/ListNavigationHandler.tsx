@@ -101,10 +101,14 @@ const navigationHandlers: Record<string, NavigationHandler> = {
         },
         textSearch: findingElement.finding_value ?? '',
       }),
-      key: 'findings',
+      key: 'atm-findings',
     }, { allowEmptyArrays: true }));
 
-    navigate(`${FINDING_BASE_URL}?query=${craftedFilter}&open=${findingElement.base_id}`);
+    const baseUrl = (findingElement.base_simulation_side != null || findingElement.base_simulation_side != '')
+      ? `${SIMULATION_BASE_URL}/${findingElement.base_simulation_side}/injects/${findingElement.base_inject_side}/findings`
+      : `${ATOMIC_BASE_URL}/${findingElement.base_inject_side}/findings`;
+
+    navigate(`${baseUrl}?query=${craftedFilter}&open=${findingElement.base_id}`);
   },
 };
 

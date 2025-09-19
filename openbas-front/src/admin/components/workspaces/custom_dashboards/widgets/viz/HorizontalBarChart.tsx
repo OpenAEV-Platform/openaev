@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../../../components/i18n';
 import type { Widget } from '../../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
+import { type SerieData } from '../WidgetViz';
 
 interface Props {
   widgetId: string;
@@ -27,14 +28,11 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
     seriesIndex: number;
     dataPointIndex: number;
   }) => {
-    const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as {
-      x?: string;
-      y?: string;
-    };
+    const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
 
     openWidgetDataDrawer({
       widgetId,
-      filter_value: dataPoint?.x ?? '',
+      filter_value: dataPoint?.meta ?? '',
       series_index: config.seriesIndex,
     });
   };

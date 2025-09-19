@@ -667,7 +667,9 @@ public class ElasticService implements EngineService {
               .map(
                   b ->
                       new EsSeriesData(
-                          b.keyAsString(), Instant.ofEpochMilli(b.key()).toString(), b.docCount()))
+                          Instant.ofEpochMilli(b.key()).toString(),
+                          Instant.ofEpochMilli(b.key()).toString(),
+                          b.docCount()))
               .toList();
       return new EsSeries(config.getName(), data);
     } catch (IOException e) {
