@@ -1,9 +1,10 @@
-import { Tab, Tabs } from '@mui/material';
-import { type SyntheticEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { fetchCveByExternalId } from '../../../actions/cve-actions';
 import type { Page } from '../../../components/common/queryable/Page';
 import { type Header } from '../../../components/common/SortHeadersList';
+import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
+import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type AggregatedFindingOutput, type CveOutput, type RelatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
@@ -40,21 +41,9 @@ const FindingDetail = ({
   } = useEnterpriseEdition();
 
   const isCVE = selectedFinding.finding_type === 'cve';
-  const tabs = isCVE
-    ? ['General', 'Related Injects', 'Remediation']
-    : ['Related Injects'];
 
-  const [activeTab, setActiveTab] = useState(tabs[0]);
   const [cve, setCve] = useState<CveOutput | null>(null);
   const [cveStatus, setCveStatus] = useState<CveStatus>('loading');
-
-  useEffect(() => {
-    if (activeTab === 'Remediation' && !isEE) {
-      setActiveTab('General');
-      setEEFeatureDetectedInfo(t('Remediation'));
-      openEEDialog();
-    }
-  }, [activeTab, isEE]);
 
   useEffect(() => {
     if (!isCVE || !selectedFinding.finding_value) return;
@@ -73,12 +62,25 @@ const FindingDetail = ({
       .catch(() => setCveStatus('notAvailable'));
   }, [selectedFinding, isCVE]);
 
-  const handleTabChange = (_: SyntheticEvent, newTab: string) => {
-    setActiveTab(newTab);
-  };
+  const tabEntries: TabsEntry[] = isCVE
+    ? [{
+        key: 'General',
+        label: t('General'),
+      }, {
+        key: 'Related Injects',
+        label: t('Related Injects'),
+      }, {
+        key: 'Remediation',
+        label: <TabLabelWithEE label={t('Remediation')} />,
+      }]
+    : [{
+        key: 'Related Injects',
+        label: t('Related Injects'),
+      }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   const renderTabPanels = () => {
-    switch (activeTab) {
+    switch (currentTab) {
       case 'General':
         return (
           <CveTabPanel status={cveStatus} cve={cve}>
@@ -108,18 +110,21 @@ const FindingDetail = ({
     }
   };
 
+  useEffect(() => {
+    if (currentTab === 'Remediation' && !isEE) {
+      handleChangeTab('General');
+      setEEFeatureDetectedInfo(t('Remediation'));
+      openEEDialog();
+    }
+  }, [currentTab, isEE]);
+
   return (
     <>
-      <Tabs value={activeTab} onChange={handleTabChange} aria-label="finding detail tabs">
-        {tabs.map(tab => (
-          <Tab
-            key={tab}
-            label={tab === 'Remediation' ? <TabLabelWithEE label={tab} /> : tab}
-            value={tab}
-          />
-        ))}
-      </Tabs>
-
+      <Tabs
+        entries={tabEntries}
+        currentTab={currentTab}
+        onChange={newValue => handleChangeTab(newValue)}
+      />
       {renderTabPanels()}
     </>
   );

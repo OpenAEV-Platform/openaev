@@ -119,9 +119,7 @@ const CapabilitiesTab: FC<CapabilitiesTabProps> = ({ capabilities, capability, d
       >
         <div className={classes.capability_name}>
           <LocalPoliceOutlined sx={{ opacity: capability.checkable ? 1 : 0.5 }} />
-          <>
-            {t(capability.name)}
-          </>
+          {t(capability.name)}
         </div>
         {capability.checkable && capability.value
           && (
