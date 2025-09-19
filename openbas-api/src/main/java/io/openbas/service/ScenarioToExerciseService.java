@@ -318,21 +318,8 @@ public class ScenarioToExerciseService {
         });
 
     // Variables
-    List<Variable> scenarioVariables = this.variableService.variablesFromScenario(scenario.getId());
-    List<Variable> exerciseVariables =
-        scenarioVariables.stream()
-            .map(
-                scenarioVariable -> {
-                  Variable exerciseVariable = new Variable();
-                  exerciseVariable.setKey(scenarioVariable.getKey());
-                  exerciseVariable.setValue(scenarioVariable.getValue());
-                  exerciseVariable.setDescription(scenarioVariable.getDescription());
-                  exerciseVariable.setType(scenarioVariable.getType());
-                  exerciseVariable.setExercise(exerciseSaved);
-                  return exerciseVariable;
-                })
-            .toList();
-    this.variableService.createVariables(exerciseVariables);
+    this.variableService.copyVariableFromScenarioForSimulation(
+        scenario.getId(), exerciseSaved.getId());
 
     return exerciseSaved;
   }
