@@ -177,7 +177,7 @@ export const putReferential = (schema: Schema, uri: string, data: unknown, defau
     });
 };
 
-export const postReferential = (schema: Schema | null, uri: string, data: unknown, config?: AxiosRequestConfig) => (dispatch: Dispatch) => {
+export const postReferential = (schema: Schema | null, uri: string, data: unknown, config?: AxiosRequestConfig, defaultSuccessBehavior: boolean = true) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
   return api(schema)
     .post(buildUri(uri), data, config)
@@ -186,7 +186,9 @@ export const postReferential = (schema: Schema | null, uri: string, data: unknow
         type: Constants.DATA_FETCH_SUCCESS,
         payload: response.data,
       });
-      notifySuccess('The element has been successfully updated');
+      if (defaultSuccessBehavior) {
+        notifySuccess('The element has been successfully updated');
+      }
       return response.data;
     })
     .catch((error) => {
