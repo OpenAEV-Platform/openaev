@@ -1,8 +1,5 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
-import static io.openbas.rest.injector_contract.InjectorContractContentUtils.extractTargetField;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
@@ -159,10 +156,7 @@ public class InjectAssistantService {
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return new HashSet<>(this.injectRepository.saveAll(injects));
   }
 
   /**
@@ -196,10 +190,7 @@ public class InjectAssistantService {
       }
     }
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return new HashSet<>(this.injectRepository.saveAll(injects));
   }
 
   /**
@@ -302,10 +293,7 @@ public class InjectAssistantService {
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return new HashSet<>(this.injectRepository.saveAll(injects));
   }
 
   private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
@@ -370,28 +358,10 @@ public class InjectAssistantService {
       // asset groups.
       // If no "asset-group" fields are present, we flatten the endpoints from the asset groups and
       // set them as assets in the inject.
-      addTargetsDependingOnContract(assetGroupListMap, ic, inject);
+      injectService.assignAssetGroup(inject, assetGroupListMap.keySet().stream().toList());
       injects.add(inject);
     }
     return injects;
-  }
-
-  private void addTargetsDependingOnContract(
-      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
-      InjectorContract injectorContract,
-      Inject inject) {
-
-    String targetField = extractTargetField(injectorContract);
-
-    if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(targetField)) {
-      // Priority: asset-group exists because We use tag rules to fetch asset groups
-      inject.setAssetGroups(new ArrayList<>(assetGroupListMap.keySet()));
-    } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(targetField)) {
-      // Only compute flattened endpoints if asset exists
-      Set<Endpoint> flatEndpointsFromMap =
-          assetGroupListMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
-      inject.setAssets(new ArrayList<>(flatEndpointsFromMap));
-    }
   }
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(

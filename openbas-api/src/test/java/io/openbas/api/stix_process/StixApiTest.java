@@ -687,7 +687,7 @@ class StixApiTest extends IntegrationTest {
       assertThat(
               injects.stream()
                   .filter(updated -> updated.getId().equals(inject.getId()))
-                  .map(updated -> updated.getAssets())
+                  .map(Inject::getAssets)
                   .toList())
           .hasSize(1);
     }

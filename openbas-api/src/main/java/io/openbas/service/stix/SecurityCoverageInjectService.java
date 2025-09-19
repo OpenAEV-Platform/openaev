@@ -1,8 +1,5 @@
 package io.openbas.service.stix;
 
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
-import static io.openbas.rest.injector_contract.InjectorContractContentUtils.extractTargetField;
 import static io.openbas.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 
@@ -179,52 +176,11 @@ public class SecurityCoverageInjectService {
           continue;
         }
 
-        // Contract is present
-        InjectorContract contract = contractOpt.get();
-        String targetField = extractTargetField(contract);
-
-        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(targetField)) {
-          // Priority: asset-group exists because We use tag rules to fetch asset groups
-          syncInjectAssetGroups(inject, requiredAssetGroupMap.keySet());
-        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(targetField)) {
-          // Only compute flattened endpoints if asset exists
-          Set<Endpoint> flatEndpointsFromMap =
-              requiredAssetGroupMap.values().stream()
-                  .flatMap(List::stream)
-                  .collect(Collectors.toSet());
-          syncInjectAssets(inject, flatEndpointsFromMap);
-        }
+        injectService.assignAssetGroup(inject, requiredAssetGroupMap.keySet().stream().toList());
       }
     }
 
     return injectsToRemove;
-  }
-
-  private void syncInjectAssets(Inject inject, Set<Endpoint> requiredAssets) {
-    Set<Endpoint> currentEndpoints =
-        inject.getAssets().stream()
-            .map(a -> (Endpoint) a)
-            .collect(Collectors.toCollection(HashSet::new));
-
-    Set<Endpoint> toAdd = new HashSet<>(requiredAssets);
-    toAdd.removeAll(currentEndpoints);
-
-    Set<Endpoint> toRemove = new HashSet<>(currentEndpoints);
-    toRemove.removeAll(requiredAssets);
-
-    if (!toAdd.isEmpty()) inject.getAssets().addAll(toAdd);
-    if (!toRemove.isEmpty()) inject.getAssets().removeAll(toRemove);
-  }
-
-  private void syncInjectAssetGroups(Inject inject, Set<AssetGroup> requiredGroups) {
-    Set<AssetGroup> toAdd = new HashSet<>(requiredGroups);
-    toAdd.removeAll(inject.getAssetGroups());
-
-    Set<AssetGroup> toRemove = new HashSet<>(inject.getAssetGroups());
-    toRemove.removeAll(requiredGroups);
-
-    if (!toAdd.isEmpty()) inject.getAssetGroups().addAll(toAdd);
-    if (!toRemove.isEmpty()) inject.getAssetGroups().removeAll(toRemove);
   }
 
   // -- INJECTS BY ATTACK PATTERNS --

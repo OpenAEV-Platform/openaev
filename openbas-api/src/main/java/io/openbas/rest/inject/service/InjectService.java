@@ -13,7 +13,6 @@ import static io.openbas.utils.StringUtils.duplicateString;
 import static io.openbas.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -176,7 +175,7 @@ public class InjectService {
     }
 
     // verify if inject is not manual/sms/emails...
-    if (this.canApplyAssetGroupToInject(inject)) {
+    if (this.canApplyTargetType(inject, TargetType.ASSETS_GROUPS)) {
       // add default asset groups
       inject.setAssetGroups(
           this.tagRuleService.applyTagRuleToInjectCreation(
@@ -434,27 +433,24 @@ public class InjectService {
     }
   }
 
-  /**
-   * Check if asset can be applied to a specific inject (will return false for Manual/Email...
-   * injects)
-   *
-   * @param inject
-   * @return
-   */
-  public boolean canApplyAssetGroupToInject(final Inject inject) {
+  public boolean canApplyTargetType(final Inject inject, TargetType targetType) {
+    InjectorContract ic = inject.getInjectorContract().orElseThrow();
+    return injectorContractService.getSupportedTargetTypes(ic).contains(targetType);
+  }
 
-    JsonNode jsonNode = null;
-    try {
-      jsonNode = mapper.readTree(inject.getInjectorContract().orElseThrow().getContent());
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Unable to injector contract", e);
+  public void assignAssetGroup(final Inject inject, List<AssetGroup> assetGroups) {
+    if (this.canApplyTargetType(inject, TargetType.ASSETS_GROUPS)) {
+      inject.setAssetGroups(assetGroups);
+    } else if (this.canApplyTargetType(inject, TargetType.ASSETS)) {
+      inject.setAssets(
+          assetGroupService.assetsFromAssetGroupMap(assetGroups).values().stream()
+              .flatMap(endpoints -> endpoints.stream().map(e -> (Asset) e))
+              .collect(Collectors.toSet())
+              .stream()
+              .toList());
+    } else {
+      log.warn("Injector contract does not support either Asset Groups or Assets.");
     }
-    return !StreamSupport.stream(jsonNode.get("fields").spliterator(), false)
-        .filter(
-            contractElement ->
-                contractElement.get("type").asText().equals(ContractFieldType.AssetGroup.label))
-        .toList()
-        .isEmpty();
   }
 
   private Inject findAndDuplicateInject(String id) {

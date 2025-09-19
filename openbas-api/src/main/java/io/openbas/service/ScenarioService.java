@@ -42,6 +42,7 @@ import io.openbas.rest.scenario.export.ScenarioFileExport;
 import io.openbas.rest.scenario.form.ScenarioSimple;
 import io.openbas.rest.team.output.TeamOutput;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
+import io.openbas.utils.TargetType;
 import io.openbas.utils.mapper.ExerciseMapper;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -351,7 +352,7 @@ public class ScenarioService {
 
       // Add the default asset groups to/from the injects
       scenario.getInjects().stream()
-          .filter(injectService::canApplyAssetGroupToInject)
+          .filter(inject -> this.injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS))
           .forEach(
               inject ->
                   injectService.applyDefaultAssetGroupsToInject(
