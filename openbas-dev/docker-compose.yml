@@ -149,7 +149,7 @@ services:
       - 9301:9300
   openbas-dev-kibana:
     container_name: openbas-dev-kibana
-    image: docker.elastic.co/kibana/kibana:8.18.3
+    image: docker.elastic.co/kibana/kibana:9.1.4
     environment:
       - ELASTICSEARCH_HOSTS=http://openbas-dev-elasticsearch:9200
     restart: unless-stopped
@@ -159,7 +159,7 @@ services:
       - openbas-dev-elasticsearch
   openbas-test-kibana:
     container_name: openbas-test-kibana
-    image: docker.elastic.co/kibana/kibana:8.18.3
+    image: docker.elastic.co/kibana/kibana:9.1.4
     environment:
       - ELASTICSEARCH_HOSTS=http://openbas-test-elasticsearch:9200
     restart: unless-stopped
