@@ -2,14 +2,21 @@ import { faker } from '@faker-js/faker';
 
 import { type Exercise, type Organization, type Scenario, type Tag } from '../../utils/api-types';
 
-export function createTagMap(numberTags: number): { [key: string]: Tag } {
+export function createDefaultTags(numberTags: number): Tag[] {
+  return Array(numberTags).fill(null)
+    .map<Tag>((): Tag => {
+      return {
+        tag_id: faker.string.uuid(),
+        tag_name: faker.lorem.sentence(),
+      };
+    });
+}
+
+export function createTagMap(tags: Tag[]): { [key: string]: Tag } {
   const tagMap: { [key: string]: Tag } = {};
-  for (let i = 0; i < numberTags; i++) {
-    const id = faker.string.uuid();
-    tagMap[id] = {
-      tag_id: faker.string.uuid(),
-      tag_name: faker.lorem.sentence(),
-    };
+  for (const tag of tags) {
+    const id = tag.tag_id;
+    tagMap[id] = tag;
   }
   return tagMap;
 }

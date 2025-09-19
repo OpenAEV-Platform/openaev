@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { exportData } from '../../utils/Environment';
 import {
+  createDefaultTags,
   createExercisesMap,
   createOrganisationsMap,
   createScenarioMap,
@@ -80,7 +81,7 @@ describe('exportData tests', () => {
         objtype,
         keys,
         [obj],
-        createTagMap(3),
+        createTagMap(createDefaultTags(3)),
       );
       const line = result[0];
       it('does not incorporate tags in line', () => {
@@ -90,7 +91,7 @@ describe('exportData tests', () => {
 
     describe('when object has tags', () => {
       const obj = createObjWithDefaultKeys(objtype);
-      const tagMap = createTagMap(3);
+      const tagMap = createTagMap(createDefaultTags(3));
       obj[`${objtype}_tags`] = Object.keys(tagMap);
 
       // the goal is to concatenate tag names in the export
@@ -122,7 +123,7 @@ describe('exportData tests', () => {
 
     describe('when object has unknown tag', () => {
       const obj = createObjWithDefaultKeys(objtype);
-      const tagMap = createTagMap(3);
+      const tagMap = createTagMap(createDefaultTags(3));
       obj[`${objtype}_tags`] = [faker.string.uuid(), faker.string.uuid()]; // not found in tag map
 
       // the goal is to concatenate tag names in the export
