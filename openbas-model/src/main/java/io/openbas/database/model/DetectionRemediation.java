@@ -12,8 +12,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -27,7 +29,11 @@ import java.time.Instant;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 public class DetectionRemediation implements Base {
-
+    public enum AUTHOR_RULE {
+        HUMAN,
+        AI,
+        AI_OUTOFDATE
+    }
   @Id
   @Column(name = "detection_remediation_id")
   @JsonProperty("detection_remediation_id")
@@ -60,12 +66,11 @@ public class DetectionRemediation implements Base {
   @NotNull
   private String values;
 
-  @Schema(description = "AI rule creation date. If null, the rule was manually created. " +
-          "If a value is present, it indicates when the AI generated this rule, " +
-          "allowing comparison with the last update date to identify post-generation modifications.")
-  @Column(name = "detection_remediation_ai_rule_creation_date")
-  @JsonProperty("detection_remediation_ai_rule_creation_date")
-  private Instant aiRuleCreationDate;
+    @Column(name = "author_rule")
+    @JsonProperty("author_rule")
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    private AUTHOR_RULE authorRule;
   // -- AUDIT --
 
   @CreationTimestamp
