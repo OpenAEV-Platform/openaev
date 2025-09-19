@@ -81,7 +81,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
   openbas-dev-elasticsearch:
     container_name: openbas-dev-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.4
     volumes:
       - esdata:/usr/share/elasticsearch/data
       - essnapshots:/usr/share/elasticsearch/snapshots
@@ -128,7 +128,7 @@ services:
       - 9600:9600
   openbas-test-elasticsearch:
     container_name: openbas-test-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.4
     environment:
       - discovery.type=single-node
       - xpack.ml.enabled=false
