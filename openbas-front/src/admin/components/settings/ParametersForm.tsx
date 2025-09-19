@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent, useContext, useEffect } from 'react';
+import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -10,7 +10,7 @@ import SelectFieldController from '../../../components/fields/SelectFieldControl
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import type { SettingsUpdateInput } from '../../../utils/api-types';
-import { AbilityContext, Can } from '../../../utils/permissions/PermissionsProvider';
+import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { zodImplement } from '../../../utils/Zod';
 import { langItems, themeItems } from '../utils/OptionItems';
@@ -28,7 +28,6 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
 
   const methods = useForm<SettingsUpdateInput>({
     mode: 'onTouched',

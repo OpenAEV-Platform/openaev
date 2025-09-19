@@ -336,13 +336,21 @@ const Parameters = () => {
         <div>
           <Typography variant="h4">{t('Dark theme')}</Typography>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
-            <ThemeForm onSubmit={onUpdateDarkParameters} initialValues={initialValuesDark} />
+            <ThemeForm
+              onSubmit={onUpdateDarkParameters}
+              initialValues={initialValuesDark}
+              canNotManage={cannotManagePlatformSettings}
+            />
           </Paper>
         </div>
         <div>
           <Typography variant="h4">{t('Light theme')}</Typography>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
-            <ThemeForm onSubmit={onUpdateLigthParameters} initialValues={initialValuesLight} />
+            <ThemeForm
+              onSubmit={onUpdateLigthParameters}
+              initialValues={initialValuesLight}
+              canNotManage={cannotManagePlatformSettings}
+            />
           </Paper>
         </div>
         <div style={{
