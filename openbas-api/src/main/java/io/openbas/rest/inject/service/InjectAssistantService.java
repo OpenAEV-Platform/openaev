@@ -1,14 +1,8 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openbas.database.helper.InjectorContractRepositoryHelper;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -162,10 +156,7 @@ public class InjectAssistantService {
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return new HashSet<>(this.injectRepository.saveAll(injects));
   }
 
   /**
@@ -199,10 +190,7 @@ public class InjectAssistantService {
       }
     }
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return new HashSet<>(this.injectRepository.saveAll(injects));
   }
 
   /**
@@ -305,10 +293,7 @@ public class InjectAssistantService {
             .peek(inject -> inject.setScenario(scenario))
             .collect(Collectors.toSet());
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return new HashSet<>(this.injectRepository.saveAll(injects));
   }
 
   private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
@@ -373,40 +358,10 @@ public class InjectAssistantService {
       // asset groups.
       // If no "asset-group" fields are present, we flatten the endpoints from the asset groups and
       // set them as assets in the inject.
-      addTargetsDependingOnContract(assetGroupListMap, ic, inject);
+      injectService.assignAssetGroup(inject, assetGroupListMap.keySet().stream().toList());
       injects.add(inject);
     }
     return injects;
-  }
-
-  private void addTargetsDependingOnContract(
-      Map<AssetGroup, List<Endpoint>> assetGroupListMap, InjectorContract ic, Inject inject) {
-    JsonNode fieldsNode = ic.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
-
-    if (fieldsNode != null && fieldsNode.isArray()) {
-      boolean hasAssetGroup = false;
-      boolean hasAsset = false;
-
-      for (JsonNode field : (ArrayNode) fieldsNode) {
-        String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
-        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(type)) {
-          hasAssetGroup = true;
-          break;
-        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(type)) {
-          hasAsset = true;
-        }
-      }
-
-      if (hasAssetGroup) {
-        // Priority: asset-group exists because We use tag Rules to fetch asset groups
-        inject.setAssetGroups(new ArrayList<>(assetGroupListMap.keySet()));
-      } else if (hasAsset) {
-        // Only compute flattened endpoints if asset exists
-        Set<Endpoint> flatEndpointsFromMap =
-            assetGroupListMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
-        inject.setAssets(new ArrayList<>(flatEndpointsFromMap));
-      }
-    }
   }
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
@@ -416,7 +371,7 @@ public class InjectAssistantService {
       Integer injectsPerAttackPattern,
       InjectorContract contractForPlaceholder) {
 
-    // Try best case (all possible platform/arch combos)
+    // Try best case (all possible platform/arch combinations)
     Set<Inject> bestCase =
         buildInjectsForAllPlatformAndArchCombinations(
             endpoints,

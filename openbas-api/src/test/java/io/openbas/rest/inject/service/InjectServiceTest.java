@@ -21,6 +21,7 @@ import io.openbas.service.AssetGroupService;
 import io.openbas.service.AssetService;
 import io.openbas.service.UserService;
 import io.openbas.utils.InjectUtils;
+import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.AssetGroupFixture;
 import io.openbas.utils.mapper.InjectMapper;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -466,26 +467,32 @@ class InjectServiceTest {
 
   @DisplayName("Test canApplyAssetToInject with manual inject")
   @Test
-  void testCanApplyAssetToInject_WITH_no_assetGroup() {
+  void testCanApplyAssetToInject_WITH_no_assetGroup() throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setContent(
         "{\"manual\":true,\"fields\":[{\"key\":\"content\",\"label\":\"Content\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"\",\"richText\":false,\"type\":\"textarea\"}]}");
+    injectorContract.setConvertedContent(
+        (ObjectNode) mapper.readTree(injectorContract.getContent()));
     Inject inject = new Inject();
+    doCallRealMethod().when(injectorContractService).getSupportedTargetTypes(any());
     inject.setInjectorContract(injectorContract);
 
-    assertFalse(injectService.canApplyAssetGroupToInject(inject));
+    assertFalse(injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS));
   }
 
   @DisplayName("Test canApplyAssetToInject with inject with assets")
   @Test
-  void testCanApplyAssetGroupToInject_WITH_assets() {
+  void testCanApplyAssetGroupToInject_WITH_assets() throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setContent(
         "{\"manual\":true,\"fields\":[{\"key\":\"assetgroups\",\"label\":\"Content\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"\",\"richText\":false,\"type\":\"asset-group\"}]}");
+    injectorContract.setConvertedContent(
+        (ObjectNode) mapper.readTree(injectorContract.getContent()));
     Inject inject = new Inject();
+    doCallRealMethod().when(injectorContractService).getSupportedTargetTypes(any());
     inject.setInjectorContract(injectorContract);
 
-    assertTrue(injectService.canApplyAssetGroupToInject(inject));
+    assertTrue(injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS));
   }
 
   @Test

@@ -5,6 +5,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +31,7 @@ import io.openbas.service.cron.CronService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
 import io.openbas.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openbas.utils.ResultUtils;
+import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.ExerciseComposer;
 import io.openbas.utils.fixtures.composers.ScenarioComposer;
@@ -184,7 +186,7 @@ class ExerciseServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
-    when(injectService.canApplyAssetGroupToInject(any())).thenReturn(true);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
 
     mockedExerciseService.updateExercice(exercise, currentTags, true);
 
@@ -217,7 +219,7 @@ class ExerciseServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(exerciseRepository.save(exercise)).thenReturn(exercise);
-    when(injectService.canApplyAssetGroupToInject(any())).thenReturn(false);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(false);
 
     mockedExerciseService.updateExercice(exercise, currentTags, true);
 
