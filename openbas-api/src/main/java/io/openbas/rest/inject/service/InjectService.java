@@ -434,8 +434,11 @@ public class InjectService {
   }
 
   public boolean canApplyTargetType(final Inject inject, TargetType targetType) {
-    InjectorContract ic = inject.getInjectorContract().orElseThrow();
-    return injectorContractService.getSupportedTargetTypes(ic).contains(targetType);
+    Optional<InjectorContract> ic = inject.getInjectorContract();
+    if (ic.isEmpty()) {
+      return false;
+    }
+    return injectorContractService.checkTargetSupport(ic.get(), targetType);
   }
 
   public void assignAssetGroup(final Inject inject, List<AssetGroup> assetGroups) {

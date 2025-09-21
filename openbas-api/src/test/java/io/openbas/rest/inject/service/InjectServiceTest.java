@@ -474,7 +474,7 @@ class InjectServiceTest {
     injectorContract.setConvertedContent(
         (ObjectNode) mapper.readTree(injectorContract.getContent()));
     Inject inject = new Inject();
-    doCallRealMethod().when(injectorContractService).getSupportedTargetTypes(any());
+    doCallRealMethod().when(injectorContractService).checkTargetSupport(any(), any());
     inject.setInjectorContract(injectorContract);
 
     assertFalse(injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS));
@@ -489,7 +489,7 @@ class InjectServiceTest {
     injectorContract.setConvertedContent(
         (ObjectNode) mapper.readTree(injectorContract.getContent()));
     Inject inject = new Inject();
-    doCallRealMethod().when(injectorContractService).getSupportedTargetTypes(any());
+    doCallRealMethod().when(injectorContractService).checkTargetSupport(any(), any());
     inject.setInjectorContract(injectorContract);
 
     assertTrue(injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS));

@@ -277,7 +277,7 @@ public class InjectorContractService {
     }
   }
 
-  public Set<TargetType> getSupportedTargetTypes(InjectorContract injectorContract) {
+  public boolean checkTargetSupport(InjectorContract injectorContract, TargetType targetType) {
     JsonNode fieldsNode = injectorContract.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
     Set<TargetType> supportedTargetTypes = new HashSet<>();
     for (JsonNode field : fieldsNode) {
@@ -290,7 +290,7 @@ public class InjectorContractService {
       }
     }
 
-    return supportedTargetTypes;
+    return supportedTargetTypes.contains(targetType);
   }
 
   // -- CRITERIA BUILDER --
