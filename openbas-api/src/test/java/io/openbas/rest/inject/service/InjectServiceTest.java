@@ -465,7 +465,7 @@ class InjectServiceTest {
     verify(injectRepository, never()).deleteAllById(any());
   }
 
-  @DisplayName("Test canApplyAssetToInject with manual inject")
+  @DisplayName("Test canApplyTargetType with manual inject")
   @Test
   void testCanApplyAssetToInject_WITH_no_assetGroup() throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
@@ -480,7 +480,7 @@ class InjectServiceTest {
     assertFalse(injectService.canApplyTargetType(inject, TargetType.ASSETS_GROUPS));
   }
 
-  @DisplayName("Test canApplyAssetToInject with inject with assets")
+  @DisplayName("Test canApplyTargetType with inject with asset group")
   @Test
   void testCanApplyAssetGroupToInject_WITH_assets() throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
