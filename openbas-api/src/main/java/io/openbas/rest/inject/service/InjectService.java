@@ -260,13 +260,15 @@ public class InjectService {
   /**
    * Save all injects given as params
    *
-   * @param injects the injects to delete
+   * @param injects the injects to save
    */
   @Transactional(rollbackOn = Exception.class)
-  public void saveAll(List<Inject> injects) {
+  public List<Inject> saveAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
-      injectRepository.saveAll(injects);
+      return injectRepository.saveAll(injects);
     }
+    // empty collection
+    return injects;
   }
 
   // -- SPECIFIC GETTER --

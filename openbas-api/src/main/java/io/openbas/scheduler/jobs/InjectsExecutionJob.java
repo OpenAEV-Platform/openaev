@@ -399,7 +399,7 @@ public class InjectsExecutionJob implements Job {
         }
       }
     }
-    if (!fulfilled.isEmpty()) injectService.saveAll(fulfilled);
+    injectService.saveAll(fulfilled);
   }
 
   /**
