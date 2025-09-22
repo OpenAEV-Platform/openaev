@@ -28,10 +28,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -370,67 +367,118 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       }
     }
 
-    @Test
-    @DisplayName(
-        "When all vulnerabilities are covered and all expectations are successful, bundle is correct")
-    public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
-        throws ParsingException, JsonProcessingException {
-      CveComposer.Composer vuln1 =
-          vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
-      // create exercise cover all TTPs
-      ExerciseComposer.Composer exerciseWrapper =
-          createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
-      exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+    @Nested
+    @DisplayName("With enabled preview feature: STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES")
+    @Disabled(
+        "Disabled as long as needing preview feature STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES")
+    public class withEnabledPreviewFeature {
+      @Test
+      @DisplayName(
+          "When all vulnerabilities are covered and all expectations are successful, bundle is correct")
+      public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
+          throws ParsingException, JsonProcessingException {
+        CveComposer.Composer vuln1 =
+            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+        // create exercise cover all TTPs
+        ExerciseComposer.Composer exerciseWrapper =
+            createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
+        exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
-      persistScenario(exerciseWrapper);
+        persistScenario(exerciseWrapper);
 
-      Optional<SecurityCoverageSendJob> job =
-          securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
-              exerciseWrapper.get());
+        Optional<SecurityCoverageSendJob> job =
+            securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+                exerciseWrapper.get());
 
-      // intermediate assert
-      assertThat(job).isNotEmpty();
+        // intermediate assert
+        assertThat(job).isNotEmpty();
 
-      // act
-      Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
+        // act
+        Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
 
-      // assert
-      SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
-      SecurityCoverage coverage = securityCoverageComposer.generatedItems.getFirst();
-      DomainObject expectedAssessmentWithCoverage =
-          getExpectedMainSecurityCoverage(coverage, injectComposer.generatedItems);
+        // assert
+        SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
+        SecurityCoverage coverage = securityCoverageComposer.generatedItems.getFirst();
+        DomainObject expectedAssessmentWithCoverage =
+            getExpectedMainSecurityCoverage(coverage, injectComposer.generatedItems);
 
-      // main assessment is completed with coverage
-      assertMainAssessment(bundle, generatedCoverage, expectedAssessmentWithCoverage);
+        // main assessment is completed with coverage
+        assertMainAssessment(bundle, generatedCoverage, expectedAssessmentWithCoverage);
 
-      // vulnerabilities SROs
-      for (StixRefToExternalRef stixRef : generatedCoverage.getVulnerabilitiesRefs()) {
-        List<RelationshipObject> actualSros =
-            bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
-        assertThat(actualSros.size()).isEqualTo(1);
+        // vulnerabilities SROs
+        for (StixRefToExternalRef stixRef : generatedCoverage.getVulnerabilitiesRefs()) {
+          List<RelationshipObject> actualSros =
+              bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
+          assertThat(actualSros.size()).isEqualTo(1);
 
-        RelationshipObject actualSro = actualSros.getFirst();
-        RelationshipObject expectedSro =
-            new RelationshipObject(
-                Map.of(
-                    CommonProperties.ID.toString(),
-                    new Identifier(
-                        ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
-                    CommonProperties.TYPE.toString(),
-                    new StixString(ObjectTypes.RELATIONSHIP.toString()),
-                    RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                    new StixString("has-assessed"),
-                    RelationshipObject.Properties.SOURCE_REF.toString(),
-                    expectedAssessmentWithCoverage.getId(),
-                    RelationshipObject.Properties.TARGET_REF.toString(),
-                    new Identifier(stixRef.getStixRef()),
-                    ExtendedProperties.COVERED.toString(),
-                    new io.openbas.stix.types.Boolean(true),
-                    ExtendedProperties.COVERAGE.toString(),
-                    toDictionary(Map.of("VULNERABILITY", new StixString("1.0")))));
-        assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
-            .isEqualTo(expectedSro.toStix(mapper));
+          RelationshipObject actualSro = actualSros.getFirst();
+          RelationshipObject expectedSro =
+              new RelationshipObject(
+                  Map.of(
+                      CommonProperties.ID.toString(),
+                      new Identifier(
+                          ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                      CommonProperties.TYPE.toString(),
+                      new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                      RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
+                      new StixString("has-assessed"),
+                      RelationshipObject.Properties.SOURCE_REF.toString(),
+                      expectedAssessmentWithCoverage.getId(),
+                      RelationshipObject.Properties.TARGET_REF.toString(),
+                      new Identifier(stixRef.getStixRef()),
+                      ExtendedProperties.COVERED.toString(),
+                      new io.openbas.stix.types.Boolean(true),
+                      ExtendedProperties.COVERAGE.toString(),
+                      toDictionary(Map.of("VULNERABILITY", new StixString("1.0")))));
+          assertThatJson(actualSro.toStix(mapper))
+              .whenIgnoringPaths(CommonProperties.ID.toString())
+              .isEqualTo(expectedSro.toStix(mapper));
+        }
+      }
+    }
+
+    @Nested
+    @DisplayName("Without preview feature: STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES")
+    public class WithoutPreviewFeature {
+      @Test
+      @DisplayName(
+          "When all vulnerabilities are covered and all expectations are successful, bundle is correct")
+      public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
+          throws ParsingException, JsonProcessingException {
+        CveComposer.Composer vuln1 =
+            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+        // create exercise cover all TTPs
+        ExerciseComposer.Composer exerciseWrapper =
+            createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
+        exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+
+        persistScenario(exerciseWrapper);
+
+        Optional<SecurityCoverageSendJob> job =
+            securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+                exerciseWrapper.get());
+
+        // intermediate assert
+        assertThat(job).isNotEmpty();
+
+        // act
+        Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
+
+        // assert
+        SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
+        SecurityCoverage coverage = securityCoverageComposer.generatedItems.getFirst();
+        DomainObject expectedAssessmentWithCoverage =
+            getExpectedMainSecurityCoverage(coverage, injectComposer.generatedItems);
+
+        // main assessment is completed with coverage
+        assertMainAssessment(bundle, generatedCoverage, expectedAssessmentWithCoverage);
+
+        // vulnerabilities SROs
+        for (StixRefToExternalRef stixRef : generatedCoverage.getVulnerabilitiesRefs()) {
+          List<RelationshipObject> actualSros =
+              bundle.findRelationshipsByTargetRef(new Identifier(stixRef.getStixRef()));
+          assertThat(actualSros.size()).isEqualTo(0);
+        }
       }
     }
   }

@@ -19,8 +19,10 @@ import io.openbas.database.repository.SecurityCoverageRepository;
 import io.openbas.rest.attack_pattern.service.AttackPatternService;
 import io.openbas.rest.cve.service.CveService;
 import io.openbas.rest.exercise.service.ExerciseService;
+import io.openbas.rest.settings.PreviewFeature;
 import io.openbas.rest.tag.TagService;
 import io.openbas.service.AssetService;
+import io.openbas.service.PreviewFeatureService;
 import io.openbas.service.ScenarioService;
 import io.openbas.service.cron.CronService;
 import io.openbas.stix.objects.Bundle;
@@ -46,6 +48,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -69,6 +72,8 @@ public class SecurityCoverageService {
 
   private final ObjectMapper objectMapper;
   private final CveService cveService;
+
+  private final PreviewFeatureService previewFeatureService;
 
   /**
    * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
@@ -245,7 +250,7 @@ public class SecurityCoverageService {
     Optional<Timestamp> sroStopTime =
         exerciseService.getLatestValidityDate(exercise).map(Timestamp::new);
 
-    // Process coverage refs by stix object: attack patterns, vulnerabilities
+    // Process coverage refs by stix object: attack patterns
     processCoverageRefs(
         exercise.getSecurityCoverage().getAttackPatternRefs(),
         exercise,
@@ -255,14 +260,18 @@ public class SecurityCoverageService {
         sroStopTime,
         objects);
 
-    processCoverageRefs(
-        exercise.getSecurityCoverage().getVulnerabilitiesRefs(),
-        exercise,
-        this::getVulnerabilityCoverage,
-        coverage.getId(),
-        sroStartTime,
-        sroStopTime,
-        objects);
+    if (previewFeatureService.isFeatureEnabled(
+        PreviewFeature.STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES)) {
+      // Process coverage refs by stix object: vulnerabilities
+      processCoverageRefs(
+          exercise.getSecurityCoverage().getVulnerabilitiesRefs(),
+          exercise,
+          this::getVulnerabilityCoverage,
+          coverage.getId(),
+          sroStartTime,
+          sroStopTime,
+          objects);
+    }
 
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
@@ -404,12 +413,7 @@ public class SecurityCoverageService {
         resultUtils.computeGlobalExpectationResultsForPlatform(
             injects.stream().map(Inject::getId).collect(Collectors.toSet()), securityPlatform);
 
-    Map<String, BaseType<?>> coverageValues = new HashMap<>();
-    for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
-      coverageValues.put(
-          result.type().name(), new StixString(String.valueOf(result.getSuccessRate())));
-    }
-    return new io.openbas.stix.types.Dictionary(coverageValues);
+    return computeCoverage(coverageResults);
   }
 
   private BaseType<?> computeCoverageFromInjects(List<Inject> injects) {
@@ -417,6 +421,12 @@ public class SecurityCoverageService {
         resultUtils.computeGlobalExpectationResults(
             injects.stream().map(Inject::getId).collect(Collectors.toSet()));
 
+    return computeCoverage(coverageResults);
+  }
+
+  @NotNull
+  private BaseType<?> computeCoverage(
+      List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults) {
     Map<String, BaseType<?>> coverageValues = new HashMap<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
       coverageValues.put(

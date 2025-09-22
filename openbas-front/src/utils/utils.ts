@@ -117,7 +117,7 @@ export const debounce = <T>(func: (...param: T[]) => void, timeout = 500) => {
 // the argument type here is an exported enum type from Java; it's supposed to be a union of enum strings
 // see api-types.d.ts
 // currently we copy/paste the generated enum types here since they don't exist as a standalone type in TS
-export const isFeatureEnabled = (feature: '_RESERVED' | 'OPENAEV_REGISTRATION') => {
+export const isFeatureEnabled = (feature: '_RESERVED' | 'OPENAEV_REGISTRATION' | 'STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES') => {
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });
