@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_33__Add_getting_started_property_to_scenario extends BaseJavaMigration {
+public class V4_34__Add_getting_started_property_to_scenario extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
