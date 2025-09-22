@@ -4,7 +4,7 @@ import { type NavigateFunction } from 'react-router';
 import { buildSearchPagination } from '../../../../../../../../components/common/queryable/QueryableUtils';
 import {
   ATOMIC_BASE_URL,
-  ENDPOINT_BASE_URL, FINDING_BASE_URL,
+  ENDPOINT_BASE_URL,
   SCENARIO_BASE_URL,
   SIMULATION_BASE_URL,
 } from '../../../../../../../../constants/BaseUrls';
