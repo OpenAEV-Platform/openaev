@@ -60,15 +60,15 @@ const CustomDashboardWrapper = ({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const handleOpenWidgetDataDrawer = (conf: WidgetDataDrawerConf) => {
-    searchParams.set('widget-id', conf.widgetId);
-    searchParams.set('series-index', conf.series_index.toString());
-    searchParams.set('filter-value', conf.filter_value);
+    searchParams.set('widget_id', conf.widgetId);
+    searchParams.set('series_index', (conf.series_index ?? '').toString());
+    searchParams.set('filter_values', (conf.filter_values ?? []).join(','));
     setSearchParams(searchParams, { replace: true });
   };
   const handleCloseWidgetDataDrawer = () => {
-    searchParams.delete('widget-id');
-    searchParams.delete('series-index');
-    searchParams.delete('filter-value');
+    searchParams.delete('widget_id');
+    searchParams.delete('series_index');
+    searchParams.delete('filter_values');
     setSearchParams(searchParams, { replace: true });
   };
 

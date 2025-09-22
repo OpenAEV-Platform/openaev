@@ -6169,8 +6169,8 @@ export interface WidgetLayout {
 }
 
 export interface WidgetToEntitiesInput {
-  /** The value to filter the entities by */
-  filter_value?: string;
+  /** The values to filter the entities by */
+  filter_values?: string[];
   /** Additional parameters for the widget */
   parameters?: Record<string, string>;
   /**

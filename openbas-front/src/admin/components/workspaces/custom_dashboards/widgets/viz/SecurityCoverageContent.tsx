@@ -90,6 +90,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
                 showCoveredOnly={showCoveredOnly}
                 resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
                 resolvedDataFailure={resolvedDataFailureByKillChainPhase}
+                widgetId={widgetId}
               />
             );
           })}

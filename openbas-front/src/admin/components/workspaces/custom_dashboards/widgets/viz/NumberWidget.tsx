@@ -28,7 +28,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
   const onClick = () => {
     openWidgetDataDrawer({
       widgetId,
-      filter_value: '',
+      filter_values: [],
       series_index: 0,
     });
   };
