@@ -32,7 +32,7 @@ public class XtmHubEmailService {
     List<User> administrators = findUsersAbleToManageSettings();
     if (administrators.isEmpty()) {
       log.error("No administrators found to send XTM Hub lost connectivity email");
-      return;
+      throw new RuntimeException("No administrators found to send lost connectivity email");
     }
 
     try {
