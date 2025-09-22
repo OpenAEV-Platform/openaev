@@ -13,6 +13,7 @@ import io.openbas.service.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -269,11 +270,12 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   }
 
   private void verifyEndpointExist() {
-    long assetsCount = assetRepository.count();
-    assertEquals(1, assetsCount);
+    List<Asset> assets =
+        StreamSupport.stream(assetRepository.findAll().spliterator(), false).toList();
+    assertEquals(1, assets.size());
 
-    Optional<Asset> assetHoneyScanMe = assetRepository.findByName("honey.scanme.sh");
-    assertTrue(assetHoneyScanMe.isPresent());
+    Asset assetHoneyScanMe = assets.getFirst();
+    assertEquals("honey.scanme.sh", assetHoneyScanMe.getName());
 
     List<Endpoint> endpoints =
         endpointRepository.findByHostnameAndAtleastOneIp(
@@ -289,14 +291,15 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   }
 
   private void verifyAssetGroupExist() {
-    long assetGroupCount = assetGroupRepository.count();
-    assertEquals(1, assetGroupCount);
+    List<AssetGroup> assetGroups =
+        StreamSupport.stream(assetGroupRepository.findAll().spliterator(), false).toList();
+    assertEquals(1, assetGroups.size());
 
-    Optional<AssetGroup> assetGroupAllEndpoints = assetGroupRepository.findByName("All endpoints");
-    assertTrue(assetGroupAllEndpoints.isPresent());
-    assertNotNull(assetGroupAllEndpoints.get().getDynamicFilter());
+    AssetGroup assetGroupAllEndpoints = assetGroups.getFirst();
+    assertEquals("All endpoints", assetGroupAllEndpoints.getName());
+    assertNotNull(assetGroupAllEndpoints.getDynamicFilter());
 
-    Filters.FilterGroup filterGroup = assetGroupAllEndpoints.get().getDynamicFilter();
+    Filters.FilterGroup filterGroup = assetGroupAllEndpoints.getDynamicFilter();
     assertEquals(Filters.FilterMode.or, filterGroup.getMode());
     assertNotNull(filterGroup.getFilters());
     assertEquals(1, filterGroup.getFilters().size());
@@ -308,11 +311,11 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   }
 
   private void verifyScenarioExist() {
-    long scenarioCount = scenarioRepository.count();
-    assertEquals(1, scenarioCount);
+    List<Scenario> scenarios = scenarioRepository.findAll();
+    assertEquals(1, scenarios.size());
 
-    Optional<Scenario> scenario = scenarioRepository.findByName("starterpack (Import)");
-    assertTrue(scenario.isPresent());
+    Scenario scenario = scenarios.getFirst();
+    assertEquals("starterpack (Import)", scenario.getName());
   }
 
   private void verifyDashboardExist() {

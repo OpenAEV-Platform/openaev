@@ -9,6 +9,7 @@ import io.openbas.rest.tag.TagService;
 import io.openbas.rest.tag.form.TagCreateInput;
 import io.openbas.service.*;
 import java.util.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @Transactional()
+@RequiredArgsConstructor
 public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
   private static final class Config {
@@ -41,6 +43,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     static final String[] IPS = new String[] {"67.205.158.113"};
     static final Endpoint.PLATFORM_ARCH ARCH = Endpoint.PLATFORM_ARCH.x86_64;
     static final Endpoint.PLATFORM_TYPE PLATFORM = Endpoint.PLATFORM_TYPE.Generic;
+    static final boolean END_OF_LIFE = true;
   }
 
   private static final class AllEndpointsAssetGroup {
@@ -60,25 +63,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private final ImportService importService;
   private final ZipJsonService<CustomDashboard> zipJsonService;
   private final ResourcePatternResolver resolver;
-
-  public InitStarterPackCommandLineRunner(
-      SettingRepository settingRepository,
-      TagService tagService,
-      EndpointService endpointService,
-      AssetGroupService assetGroupService,
-      TagRuleService tagRuleService,
-      ImportService importService,
-      ZipJsonService<CustomDashboard> zipJsonService,
-      ResourcePatternResolver resolver) {
-    this.settingRepository = settingRepository;
-    this.tagService = tagService;
-    this.endpointService = endpointService;
-    this.assetGroupService = assetGroupService;
-    this.tagRuleService = tagRuleService;
-    this.importService = importService;
-    this.zipJsonService = zipJsonService;
-    this.resolver = resolver;
-  }
 
   @Override
   public void run(String... args) {
@@ -109,7 +93,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     endpointInput.setIps(HoneyScanMeEndpoint.IPS);
     endpointInput.setArch(HoneyScanMeEndpoint.ARCH);
     endpointInput.setPlatform(HoneyScanMeEndpoint.PLATFORM);
-    endpointInput.setEol(true);
+    endpointInput.setEol(HoneyScanMeEndpoint.END_OF_LIFE);
     endpointInput.setTagIds(tags);
     this.endpointService.createEndpoint(endpointInput);
   }

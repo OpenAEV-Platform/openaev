@@ -220,6 +220,4 @@ public interface AssetGroupRepository
               + ";",
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(@Param("from") Instant from);
-
-  Optional<AssetGroup> findByName(@NotBlank final String name);
 }

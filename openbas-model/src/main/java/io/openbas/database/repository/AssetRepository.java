@@ -19,8 +19,6 @@ public interface AssetRepository
   @Query("select a from Asset a where a.type IN :types")
   List<Asset> findByType(@Param("types") final List<String> types);
 
-  Optional<Asset> findByName(@NotBlank final String name);
-
   /**
    * Returns the raw assets having the ids passed in parameter
    *
