@@ -1,8 +1,5 @@
 package io.openbas.service.stix;
 
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
-import static io.openbas.rest.injector_contract.InjectorContractContentUtils.extractTargetField;
 import static io.openbas.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openbas.utils.SecurityCoverageUtils.getExternalIds;
 
