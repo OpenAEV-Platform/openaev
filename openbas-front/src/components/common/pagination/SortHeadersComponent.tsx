@@ -20,6 +20,7 @@ const useStyles = makeStyles()(() => ({
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    fontWeight: '700',
   },
 }));
 

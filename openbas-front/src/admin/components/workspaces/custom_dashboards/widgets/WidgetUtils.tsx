@@ -6,8 +6,7 @@ import {
   type Exercise,
   type Filter,
   type FilterGroup,
-  type InjectExpectation,
-  type StructuralHistogramSeries,
+  type InjectExpectation, type Series,
 } from '../../../../../utils/api-types';
 import {
   type HistogramWidget,
@@ -204,7 +203,7 @@ const simulationFilter: (simulationId: Exercise['exercise_id']) => Filter = simu
   values: [simulationId],
 });
 
-const getSuccessSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => StructuralHistogramSeries = (injectExpectationType, simulationId) => {
+const getSuccessSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series = (injectExpectationType, simulationId) => {
   return {
     filter: {
       mode: 'and',
@@ -219,7 +218,7 @@ const getSuccessSeries: (injectExpectationType: InjectExpectation['inject_expect
   };
 };
 
-const getFailedSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => StructuralHistogramSeries = (injectExpectationType, simulationId) => {
+const getFailedSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series = (injectExpectationType, simulationId) => {
   return {
     filter: {
       mode: 'and',
@@ -234,11 +233,11 @@ const getFailedSeries: (injectExpectationType: InjectExpectation['inject_expecta
   };
 };
 
-export const getSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => StructuralHistogramSeries[] = (injectExpectationType, simulationId) => {
+export const getSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series[] = (injectExpectationType, simulationId) => {
   return [getSuccessSeries(injectExpectationType, simulationId), getFailedSeries(injectExpectationType, simulationId)];
 };
 
-export const updateSimulationFilterOnSeries = (series: StructuralHistogramSeries[], simulationId?: Exercise['exercise_id']) => {
+export const updateSimulationFilterOnSeries = (series: Series[], simulationId?: Exercise['exercise_id']) => {
   if (!simulationId) {
     return series;
   }

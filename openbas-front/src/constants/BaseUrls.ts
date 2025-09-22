@@ -19,6 +19,7 @@ export const CHANNEL_BASE_URL = '/admin/components/channels';
 export const CHALLENGE_BASE_URL = '/admin/components/challenges';
 
 export const PAYLOAD_BASE_URL = '/admin/payloads';
+export const FINDING_BASE_URL = '/admin/findings';
 
 // Integrations
 export const COLLECTOR_BASE_URL = '/admin/integrations/collectors';

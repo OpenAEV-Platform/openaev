@@ -7,6 +7,7 @@ import { CustomDashboardContext } from './CustomDashboardContext';
 import CustomDashboardParameters from './CustomDashboardParameters';
 import CustomDashboardReactLayout from './CustomDashboardReactLayout';
 import SelectDashboardButton from './SelectDashboardButton';
+import WidgetDataDrawer from './widgetDataDrawer/WidgetDataDrawer';
 
 interface Props {
   readOnly?: boolean;
@@ -51,6 +52,7 @@ const CustomDashboardComponent = ({ noDashboardSlot, readOnly = true }: Props) =
         />
       )}
       <CustomDashboardReactLayout style={{ gridColumn: 'span 2' }} readOnly={readOnly} />
+      <WidgetDataDrawer />
     </div>
   );
 };

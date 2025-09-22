@@ -604,8 +604,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should update injects when some target is removed")
-    void shouldUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
+    @DisplayName("Should not update existing injects when some target is removed")
+    void shouldNotUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
 
@@ -642,12 +642,12 @@ class StixApiTest extends IntegrationTest {
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
-      assertThat(injects.stream().findFirst().get().getAssets()).hasSize(0);
+      assertThat(injects.stream().findFirst().get().getAssets()).hasSize(3);
     }
 
     @Test
-    @DisplayName("Should update injects when more targets are added")
-    void shouldUpdateInjectsWhenTargetsAreAdded() throws Exception {
+    @DisplayName("Should not update existing injects when more targets are added")
+    void shouldNotUpdateInjectsWhenTargetsAreAdded() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
 
@@ -687,9 +687,9 @@ class StixApiTest extends IntegrationTest {
       assertThat(
               injects.stream()
                   .filter(updated -> updated.getId().equals(inject.getId()))
-                  .map(updated -> updated.getAssets())
+                  .flatMap(i -> i.getAssets().stream())
                   .toList())
-          .hasSize(1);
+          .hasSize(0);
     }
 
     @Test

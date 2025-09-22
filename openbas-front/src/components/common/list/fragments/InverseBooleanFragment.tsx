@@ -6,20 +6,13 @@ import LabelChip from '../../chips/LabelChip';
  */
 type Props = { bool?: boolean };
 
-const InverseBooleanFragment = (props: Props) => {
-  return props.bool
-    ? (
-        <LabelChip
-          label="Yes"
-          color={LabelColorDict.Red}
-        />
-      )
-    : (
-        <LabelChip
-          label="No"
-          color={LabelColorDict.Green}
-        />
-      );
+const InverseBooleanFragment = ({ bool }: Props) => {
+  return (
+    <LabelChip
+      label={bool ? 'Yes' : 'No'}
+      color={bool ? LabelColorDict.Red : LabelColorDict.Green}
+    />
+  );
 };
 
 export default InverseBooleanFragment;

@@ -1,7 +1,7 @@
 import { OpenInFullOutlined } from '@mui/icons-material';
 import { Box, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useEffect, useState } from 'react';
 import RGL, { type Layout, WidthProvider } from 'react-grid-layout';
 
 import { updateCustomDashboardWidgetLayout } from '../../../../actions/custom_dashboards/customdashboardwidget-action';
@@ -178,6 +178,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
                   minHeight={0}
                   padding={theme.spacing(1, 2, 2)}
                   overflow={'number' === widget.widget_type ? 'hidden' : 'auto'}
+                  onMouseDown={(e: SyntheticEvent) => e.stopPropagation()}
+                  onTouchStart={(e: SyntheticEvent) => e.stopPropagation()}
                 >
                   <WidgetViz
                     widget={widget}

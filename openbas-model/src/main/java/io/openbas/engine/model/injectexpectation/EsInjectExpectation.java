@@ -28,6 +28,9 @@ public class EsInjectExpectation extends EsBase {
   @Queryable(label = "inject expectation name")
   private String inject_expectation_name;
 
+  @Queryable(label = "inject title of the inject expectation")
+  private String inject_title;
+
   @Queryable(label = "inject expectation description")
   private String inject_expectation_description;
 

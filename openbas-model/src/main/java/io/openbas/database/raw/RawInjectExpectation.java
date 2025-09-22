@@ -9,6 +9,8 @@ public interface RawInjectExpectation {
 
   String getInject_expectation_name();
 
+  String getInject_title();
+
   String getInject_expectation_description();
 
   String getInject_expectation_type();

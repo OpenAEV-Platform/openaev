@@ -50,7 +50,7 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
     <>
       {sortedTeamsByExpectedScore.length > 0 ? (
         <Chart
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={expectedScoreByTeamData}
           type="bar"
           width="100%"

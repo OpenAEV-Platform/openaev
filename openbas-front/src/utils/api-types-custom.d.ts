@@ -27,10 +27,10 @@ export type DateHistogramWidget = BaseWidgetConfiguration & {
   mode: 'temporal';
   date_attribute: string;
   interval: 'year' | 'month' | 'week' | 'day' | 'hour' | 'quarter';
-  series: ApiTypes.DateHistogramSeries[];
+  series: ApiTypes.Series[];
 };
 export type FlatConfiguration = BaseWidgetConfiguration & {
-  series: ApiTypes.FlatSeries[];
+  series: ApiTypes.Series[];
   widget_configuration_type: 'flat';
   date_attribute: string;
 };
@@ -49,7 +49,7 @@ export type StructuralHistogramWidget = BaseWidgetConfiguration & {
   mode: 'structural';
   field: string;
   date_attribute: string;
-  series: ApiTypes.StructuralHistogramSeries[];
+  series: ApiTypes.Series[];
   limit?: number;
 };
 export type HistogramWidget = ApiTypes.BaseWidgetConfiguration &

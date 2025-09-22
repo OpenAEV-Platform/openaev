@@ -66,14 +66,14 @@ public class SecurityCoverageInjectService {
         injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
     // 5. Build injects from Vulnerabilities
-    getInjectsByVulnerabilities(
+    createInjectsByVulnerabilities(
         scenario,
         securityCoverage.getVulnerabilitiesRefs(),
         requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
     // 6. Build injects from Attack Patterns
-    getInjectsByAttackPatterns(
+    createInjectsByAttackPatterns(
         scenario,
         securityCoverage.getAttackPatternRefs(),
         requiredAssetGroupMap,
@@ -103,9 +103,8 @@ public class SecurityCoverageInjectService {
    *
    * @param scenario the scenario for which injects are managed
    * @param vulnerabilityRefs the related security coverage providing AttackPattern references
-   * @return list injects related to this scenario
    */
-  private void getInjectsByVulnerabilities(
+  private void createInjectsByVulnerabilities(
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
       Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap,
@@ -116,30 +115,30 @@ public class SecurityCoverageInjectService {
         vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
 
     // 2. Fetch covered vulnerabilities and endpoints
-    Map<Cve, Set<Inject>> coveredCveInjectsMap = buildCoveredCveInjectsMap(scenario.getInjects());
+    Map<Cve, Set<Inject>> currentlyCoveredCveInjectsMap =
+        buildCoveredCveInjectsMap(scenario.getInjects());
 
-    // 3. Sync covered injects and remove obsolete ones
-    List<Inject> injectsToRemove =
-        syncCoveredInjectsWithRequired(
-            coveredCveInjectsMap, requiredVulnerabilities, requiredAssetGroupMap);
-    injectRepository.deleteAll(injectsToRemove);
+    // 3. remove obsolete injects
+    injectService.deleteAll(
+        findObsoleteInjects(currentlyCoveredCveInjectsMap, requiredVulnerabilities));
 
     // 4. Identify missing injects
     Set<Cve> missingVulns = new HashSet<>();
     for (Cve key : requiredVulnerabilities) {
-      if (!coveredCveInjectsMap.containsKey(key)) {
+      if (!currentlyCoveredCveInjectsMap.containsKey(key)) {
         missingVulns.add(key);
       }
     }
 
     // 5. Generate injects for missing vulnerabilities
     if (!missingVulns.isEmpty()) {
-      injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
-          scenario,
-          missingVulns,
-          requiredAssetGroupMap,
-          TARGET_NUMBER_OF_INJECTS,
-          contractForPlaceholder);
+      injectService.saveAll(
+          injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
+              scenario,
+              missingVulns,
+              requiredAssetGroupMap,
+              TARGET_NUMBER_OF_INJECTS,
+              contractForPlaceholder));
     }
   }
 
@@ -148,7 +147,7 @@ public class SecurityCoverageInjectService {
         // Keep only injects that have a contract and vulnerabilities
         .filter(
             inject ->
-                inject.getInjectorContract() != null
+                inject.getInjectorContract().isPresent()
                     && inject.getInjectorContract().get().getVulnerabilities() != null)
         .flatMap(
             inject ->
@@ -159,16 +158,13 @@ public class SecurityCoverageInjectService {
                 Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toSet())));
   }
 
-  private List<Inject> syncCoveredInjectsWithRequired(
-      Map<Cve, Set<Inject>> coveredCveEndpointsMap,
-      Set<Cve> requiredVulnerabilities,
-      Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap) {
-
+  private List<Inject> findObsoleteInjects(
+      Map<Cve, Set<Inject>> coveredCveEndpointsMap, Set<Cve> requiredVulnerabilities) {
     List<Inject> injectsToRemove = new ArrayList<>();
 
     for (Map.Entry<Cve, Set<Inject>> entry : coveredCveEndpointsMap.entrySet()) {
       Cve coveredVuln = entry.getKey();
-      Set<Inject> injects = coveredCveEndpointsMap.get(coveredVuln);
+      Set<Inject> injects = entry.getValue();
 
       for (Inject inject : injects) {
         Optional<InjectorContract> contractOpt = inject.getInjectorContract();
@@ -176,55 +172,11 @@ public class SecurityCoverageInjectService {
         // Remove inject if vulnerability is not required or contract is missing
         if (!requiredVulnerabilities.contains(coveredVuln) || contractOpt.isEmpty()) {
           injectsToRemove.add(inject);
-          continue;
-        }
-
-        // Contract is present
-        InjectorContract contract = contractOpt.get();
-        String targetField = extractTargetField(contract);
-
-        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(targetField)) {
-          // Priority: asset-group exists because We use tag rules to fetch asset groups
-          syncInjectAssetGroups(inject, requiredAssetGroupMap.keySet());
-        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(targetField)) {
-          // Only compute flattened endpoints if asset exists
-          Set<Endpoint> flatEndpointsFromMap =
-              requiredAssetGroupMap.values().stream()
-                  .flatMap(List::stream)
-                  .collect(Collectors.toSet());
-          syncInjectAssets(inject, flatEndpointsFromMap);
         }
       }
     }
 
     return injectsToRemove;
-  }
-
-  private void syncInjectAssets(Inject inject, Set<Endpoint> requiredAssets) {
-    Set<Endpoint> currentEndpoints =
-        inject.getAssets().stream()
-            .map(a -> (Endpoint) a)
-            .collect(Collectors.toCollection(HashSet::new));
-
-    Set<Endpoint> toAdd = new HashSet<>(requiredAssets);
-    toAdd.removeAll(currentEndpoints);
-
-    Set<Endpoint> toRemove = new HashSet<>(currentEndpoints);
-    toRemove.removeAll(requiredAssets);
-
-    if (!toAdd.isEmpty()) inject.getAssets().addAll(toAdd);
-    if (!toRemove.isEmpty()) inject.getAssets().removeAll(toRemove);
-  }
-
-  private void syncInjectAssetGroups(Inject inject, Set<AssetGroup> requiredGroups) {
-    Set<AssetGroup> toAdd = new HashSet<>(requiredGroups);
-    toAdd.removeAll(inject.getAssetGroups());
-
-    Set<AssetGroup> toRemove = new HashSet<>(inject.getAssetGroups());
-    toRemove.removeAll(requiredGroups);
-
-    if (!toAdd.isEmpty()) inject.getAssetGroups().addAll(toAdd);
-    if (!toRemove.isEmpty()) inject.getAssetGroups().removeAll(toRemove);
   }
 
   // -- INJECTS BY ATTACK PATTERNS --
@@ -243,9 +195,8 @@ public class SecurityCoverageInjectService {
    *
    * @param scenario the scenario for which injects are managed
    * @param attackPatternRefs the related security coverage providing AttackPattern references
-   * @return list injects related to this scenario
    */
-  private void getInjectsByAttackPatterns(
+  private void createInjectsByAttackPatterns(
       Scenario scenario,
       Set<StixRefToExternalRef> attackPatternRefs,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -329,8 +280,9 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
-          scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
+      injectService.saveAll(
+          injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
+              scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder));
     }
   }
 
@@ -390,12 +342,16 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
-          scenario,
-          missingAttacks,
-          TARGET_NUMBER_OF_INJECTS,
-          missingCombinations.filteredAssetsFromGroupMap(),
-          contractForPlaceholder);
+      injectService.saveAll(
+          injectAssistantService
+              .generateInjectsByAttackPatternsWithAssetGroups(
+                  scenario,
+                  missingAttacks,
+                  TARGET_NUMBER_OF_INJECTS,
+                  missingCombinations.filteredAssetsFromGroupMap(),
+                  contractForPlaceholder)
+              .stream()
+              .toList());
     }
   }
 

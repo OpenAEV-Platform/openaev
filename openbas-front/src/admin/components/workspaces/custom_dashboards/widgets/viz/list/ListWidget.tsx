@@ -1,33 +1,30 @@
-import { List as MuiList, ListItem as MuiListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
+import {
+  List as MuiList,
+  ListItem as MuiListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+} from '@mui/material';
+import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import type { AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
+import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
-import { type Header } from '../../../../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
-import {
-  type AttackPattern,
-  type EsBase,
-  type EsEndpoint,
-  type EsInject, type EsScenario,
-  type EsSimulation,
-  type EsVulnerableEndpoint,
-} from '../../../../../../../utils/api-types';
-import { type ListConfiguration, type Widget } from '../../../../../../../utils/api-types-custom';
+import { type EsBase } from '../../../../../../../utils/api-types';
+import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
 import buildStyles from './elements/ColumnStyles';
-import DefaultElementStyles from './elements/default/DefaultElementStyles';
-import DefaultListElement from './elements/default/DefaultListElement';
-import EndpointElementSecondaryAction from './elements/endpoint/EndpointElementSecondaryAction';
-import EndpointElementStyles from './elements/endpoint/EndpointElementStyles';
-import EndpointListElement from './elements/endpoint/EndpointListElement';
-import InjectListElement from './elements/inject/InjectListElement';
-import VulnerableEndpointElementSecondaryAction
-  from './elements/vulnerableendpoint/VulnerableEndpointElementSecondaryAction';
-import VulnerableEndpointListElement from './elements/vulnerableendpoint/VulnerableEndpointListElement';
+import DefaultElementStyles from './elements/DefaultElementStyles';
+import EndpointElementStyles from './elements/EndpointElementStyles';
+import listConfigRenderer from './elements/ListColumnConfig';
+import navigationHandlers from './elements/ListNavigationHandler';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -35,80 +32,74 @@ const useStyles = makeStyles()(() => ({
 }));
 
 type Props = {
-  config: Widget['widget_config'];
+  widgetConfig: ListConfiguration;
   elements: EsBase[];
 };
 
-const ListWidget = (props: Props) => {
+const ListWidget = ({ widgetConfig, elements }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const bodyItemsStyles = useBodyItemsStyles();
+  const navigate = useNavigate();
 
-  const { attackPatterns }: { attackPatterns: AttackPattern[] } = useHelper((helper: AttackPatternHelper) => {
-    return { attackPatterns: helper.getAttackPatterns() };
-  });
+  const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
 
-  // FIXME: we will always use ListConfiguration in this component
-  const config = (): ListConfiguration => {
-    return props.config as ListConfiguration;
-  };
-
-  const headersFromColumns = (columns: string[]): Header[] => {
-    return columns.map((col) => {
-      return {
-        field: col,
-        label: col,
-        isSortable: false,
-      };
-    });
-  };
+  const headersFromColumns = (widgetConfig.columns ?? []).map(col => ({
+    field: col,
+    label: col,
+    isSortable: false,
+  }));
 
   const stylesFromEntityType = (elements: EsBase[]) => {
-    const defaultStyles = buildStyles(config().columns, DefaultElementStyles);
+    const defaultStyles = buildStyles(widgetConfig.columns, DefaultElementStyles);
     if (elements === undefined || elements.length === 0) {
       return defaultStyles;
     }
     const entityType = elements[0].base_entity;
     switch (entityType) {
       case 'endpoint':
-        return buildStyles(config().columns, EndpointElementStyles);
+        return buildStyles(widgetConfig.columns, EndpointElementStyles);
       default:
         return defaultStyles;
     }
   };
 
-  const { queryableHelpers } = useQueryableWithLocalStorage('asset', buildSearchPagination({ sorts: initSorting('asset_name') }));
+  const { queryableHelpers } = useQueryableWithLocalStorage('list-widget', buildSearchPagination({ sorts: initSorting('') }));
 
-  const getTypedUiElement = (element: EsBase, columns: string[]) => {
-    switch (element.base_entity) {
-      case 'endpoint': return (<EndpointListElement element={element as EsEndpoint} columns={columns} />);
-      case 'vulnerable-endpoint': return (<VulnerableEndpointListElement element={element as EsVulnerableEndpoint} columns={columns} />);
-      case 'inject':
-      case 'simulation':
-      case 'scenario':
-        return (<InjectListElement attackPatterns={attackPatterns} columns={columns} element={element as EsInject | EsSimulation | EsScenario} />);
-      default: return (<DefaultListElement columns={columns} element={element} />);
-    }
+  const getSecondaryActionByBaseEntity = (element: EsBase) => {
+    return navigationHandlers[element.base_entity] ? <KeyboardArrowRight color="action" /> : <>&nbsp;</>;
   };
 
-  const getTypedSecondaryAction = (element: EsBase) => {
-    switch (element.base_entity) {
-      case 'endpoint': return (<EndpointElementSecondaryAction element={element as EsEndpoint} />);
-      case 'vulnerable-endpoint': return (<VulnerableEndpointElementSecondaryAction element={element as EsVulnerableEndpoint} />);
-        // TODO #3524
-      /* case 'inject':
-      case 'simulation':
-      case 'scenario':
-        return (<InjectElementSecondaryAction element={element as EsInject | EsSimulation | EsScenario} />); */
-      default: return (<>&nbsp;</>);
+  const elementsFromColumn = (
+    column: string,
+    element: EsBase,
+  ) => {
+    const renderer = listConfigRenderer[column];
+    const value = element[column as keyof typeof element] as string | boolean | string[] | boolean[];
+
+    if (renderer) {
+      return renderer(value, {
+        element,
+        attackPatterns,
+      });
     }
+
+    const text = value?.toString() ?? '';
+    return (
+      <Tooltip title={text} placement="bottom-start">
+        <span>{text}</span>
+      </Tooltip>
+    );
   };
 
-  const columns = (widget_config: Widget['widget_config']) => {
-    if (widget_config.widget_configuration_type === 'list') {
-      return widget_config.columns;
-    }
-    throw 'Bad configuration: must be configuration of type list';
+  const onListItemClick = (element: EsBase): void => {
+    const handler = navigationHandlers[element.base_entity];
+    handler?.(element, navigate);
   };
+
+  if (!widgetConfig || !widgetConfig.columns || widgetConfig.columns.length === 0) {
+    return <div>{t('No columns configured for this list.')}</div>;
+  }
 
   return (
     <MuiList>
@@ -121,16 +112,45 @@ const ListWidget = (props: Props) => {
         <ListItemText
           primary={(
             <SortHeadersComponentV2
-              headers={headersFromColumns(columns(props.config))}
-              inlineStylesHeaders={stylesFromEntityType(props.elements)}
+              headers={headersFromColumns}
+              inlineStylesHeaders={stylesFromEntityType(elements)}
               sortHelpers={queryableHelpers.sortHelpers}
             />
           )}
         />
       </MuiListItem>
-      {props.elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
-      {props.elements.map(e =>
-        <MuiListItem key={e.base_id} divider disablePadding secondaryAction={getTypedSecondaryAction(e)}>{getTypedUiElement(e, columns(props.config))}</MuiListItem>,
+      {elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
+      {elements.map(e => (
+        <MuiListItem key={e.base_id} divider disablePadding secondaryAction={getSecondaryActionByBaseEntity(e)}>
+          <ListItemButton
+            key={e.base_id}
+            onClick={() => onListItemClick(e)}
+            classes={{ root: classes.item }}
+            className="noDrag"
+          >
+            <ListItemIcon>
+              <DevicesOtherOutlined color="primary" />
+            </ListItemIcon>
+            <ListItemText
+              primary={(
+                <div style={bodyItemsStyles.bodyItems}>
+                  {widgetConfig.columns.map(col => (
+                    <div
+                      key={col}
+                      style={{
+                        ...bodyItemsStyles.bodyItem,
+                        ...stylesFromEntityType(elements)[col],
+                      }}
+                    >
+                      {elementsFromColumn(col, e)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            />
+          </ListItemButton>
+        </MuiListItem>
+      ),
       )}
     </MuiList>
   );

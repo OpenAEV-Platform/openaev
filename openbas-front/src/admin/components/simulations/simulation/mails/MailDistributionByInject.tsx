@@ -45,7 +45,7 @@ const MailDistributionByInject: FunctionComponent<Props> = ({ exerciseId }) => {
     <>
       {sortedInjectsByCommunicationNumber.length > 0 ? (
         <Chart
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={totalMailsByInjectData}
           type="bar"
           width="100%"

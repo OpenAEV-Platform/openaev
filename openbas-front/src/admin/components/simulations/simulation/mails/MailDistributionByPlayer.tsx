@@ -68,7 +68,7 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
     <>
       {communicationsUsers.length > 0 ? (
         <Chart
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={totalMailsByUserData}
           type="bar"
           width="100%"

@@ -19,6 +19,7 @@ import io.openbas.rest.dashboard.DashboardService;
 import io.openbas.rest.inject.service.InjectDuplicateService;
 import io.openbas.rest.inject.service.InjectService;
 import io.openbas.telemetry.metric_collectors.ActionMetricCollector;
+import io.openbas.utils.TargetType;
 import io.openbas.utils.fixtures.AssetGroupFixture;
 import io.openbas.utils.fixtures.ScenarioFixture;
 import io.openbas.utils.fixtures.TagFixture;
@@ -241,7 +242,7 @@ class ScenarioServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyAssetGroupToInject(any())).thenReturn(true);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
 
     scenarioService.updateScenario(scenario, currentTags, true);
 
@@ -274,7 +275,7 @@ class ScenarioServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyAssetGroupToInject(any())).thenReturn(false);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(false);
 
     scenarioService.updateScenario(scenario, currentTags, true);
 
@@ -302,7 +303,7 @@ class ScenarioServiceTest extends IntegrationTest {
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
     when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyAssetGroupToInject(any())).thenReturn(true);
+    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
 
     scenarioService.updateScenario(scenario, currentTags, false);
 

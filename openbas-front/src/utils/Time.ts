@@ -25,6 +25,22 @@ export const splitDuration = (duration = 0) => {
 
 export const minutesInFuture = (minutes: number) => moment().utc().add(minutes, 'minutes');
 
+export const calcEndDate = (startDate: string, interval: string) => {
+  let endDate = null;
+  if (interval === 'day') {
+    endDate = moment(startDate).add(1, 'days');
+  } else if (interval === 'week') {
+    endDate = moment(startDate).add(7, 'days');
+  } else if (interval === 'month') {
+    endDate = moment(startDate).add(1, 'months');
+  } else if (interval === 'quarter') {
+    endDate = moment(startDate).add(3, 'months');
+  } else if (interval === 'year') {
+    endDate = moment(startDate).add(12, 'months');
+  }
+  return endDate;
+};
+
 export const secondsFromToNow = (date: Date) => {
   if (!date) {
     return 0;

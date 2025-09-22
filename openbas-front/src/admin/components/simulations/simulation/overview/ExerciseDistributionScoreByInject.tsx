@@ -54,13 +54,10 @@ const ExerciseDistributionScoreByInject: FunctionComponent<Props> = ({ exerciseI
       {sortedInjectsByTotalScore.length > 0 ? (
         <Chart
           id="exercise_distribution_total_score_by_inject"
-          options={horizontalBarsChartOptions(
+          options={horizontalBarsChartOptions({
             theme,
-            false,
-            undefined,
-            undefined,
-            true,
-          )}
+            distributed: true,
+          })}
           series={totalScoreByInjectData}
           type="bar"
           width="100%"

@@ -70,7 +70,7 @@ const ExerciseDistributionScoreByOrganization: FunctionComponent<Props> = ({ exe
       {organizationsTotalScores.length > 0 ? (
         <Chart
           id="exercise_distribution_total_score_by_organization"
-          options={horizontalBarsChartOptions(theme)}
+          options={horizontalBarsChartOptions({ theme })}
           series={totalScoreByOrganizationData}
           type="bar"
           width="100%"

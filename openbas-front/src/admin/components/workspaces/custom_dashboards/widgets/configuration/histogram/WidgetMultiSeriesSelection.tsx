@@ -5,15 +5,15 @@ import { type FunctionComponent, useState } from 'react';
 
 import { emptyFilterGroup } from '../../../../../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../../../../../components/i18n';
-import { type DateHistogramSeries, type StructuralHistogramSeries } from '../../../../../../../utils/api-types';
+import { type Series } from '../../../../../../../utils/api-types';
 import { type Widget } from '../../../../../../../utils/api-types-custom';
 import { getCurrentSeriesLimit } from '../../WidgetUtils';
 import WidgetSeriesSelection from '../WidgetSeriesSelection';
 
 const WidgetMultiSeriesSelection: FunctionComponent<{
   widgetType: Widget['widget_type'];
-  currentSeries: DateHistogramSeries[] | StructuralHistogramSeries[];
-  onChange: (series: DateHistogramSeries[] | StructuralHistogramSeries[]) => void;
+  currentSeries: Series[];
+  onChange: (series: Series[]) => void;
   onSubmit: () => void;
 }> = ({ widgetType, currentSeries = [], onChange, onSubmit }) => {
   // Standard hooks
@@ -21,7 +21,7 @@ const WidgetMultiSeriesSelection: FunctionComponent<{
   const theme = useTheme();
   const [error, setError] = useState<boolean>(false);
 
-  const onChangeSeries = (index: number, series: DateHistogramSeries | StructuralHistogramSeries) => {
+  const onChangeSeries = (index: number, series: Series) => {
     const newDatas = currentSeries.map((data, n) => {
       if (n === index) {
         return series;

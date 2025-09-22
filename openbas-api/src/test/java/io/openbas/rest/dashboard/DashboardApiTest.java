@@ -2,6 +2,7 @@ package io.openbas.rest.dashboard;
 
 import static io.openbas.database.model.CustomDashboardParameters.CustomDashboardParameterType.timeRange;
 import static io.openbas.rest.dashboard.DashboardApi.DASHBOARD_URI;
+import static io.openbas.utils.CustomDashboardTimeRange.ALL_TIME;
 import static io.openbas.utils.CustomDashboardTimeRange.LAST_QUARTER;
 import static io.openbas.utils.JsonUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -11,21 +12,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
+import io.openbas.database.model.*;
 import io.openbas.database.model.CustomDashboardParameters;
 import io.openbas.database.model.Endpoint;
 import io.openbas.database.model.Filters;
 import io.openbas.database.model.Widget;
+import io.openbas.database.repository.AttackPatternRepository;
 import io.openbas.database.repository.EndpointRepository;
 import io.openbas.engine.EngineContext;
 import io.openbas.engine.EngineService;
 import io.openbas.engine.EsModel;
+import io.openbas.engine.api.*;
 import io.openbas.engine.api.EngineSortField;
 import io.openbas.engine.api.HistogramInterval;
 import io.openbas.engine.api.ListConfiguration;
 import io.openbas.engine.api.SortDirection;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
 import io.openbas.utils.CustomDashboardTimeRange;
 import io.openbas.utils.fixtures.*;
 import io.openbas.utils.fixtures.composers.*;
+import io.openbas.utils.fixtures.files.AttackPatternFixture;
 import io.openbas.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -55,9 +61,13 @@ class DashboardApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private FindingComposer findingComposer;
   @Autowired private CustomDashboardParameterComposer customDashboardParameterComposer;
+  @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private EndpointRepository endpointRepository;
 
   @BeforeEach
@@ -625,7 +635,7 @@ class DashboardApiTest extends IntegrationTest {
       Widget widget =
           widgetComposer
               .forWidget(
-                  WidgetFixture.creatStructuralWidgetWithTimeRange(
+                  WidgetFixture.createStructuralWidgetWithTimeRange(
                       LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
@@ -660,6 +670,170 @@ class DashboardApiTest extends IntegrationTest {
 
       assertThatJson(response).node("[0].data").isArray().size().isEqualTo(3);
       assertThatJson(response).node("[0].data[0].value").isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Create List widget in runtime")
+  class CreateListWidgetInRuntime {
+    private void createEndpoint(String name, Endpoint.PLATFORM_TYPE platform) {
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpointWithPlatform(name, platform))
+          .persist();
+    }
+
+    @Test
+    @DisplayName(
+        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows endpoint")
+    void given_structuralEndpointHistogram_should_returnListOfWindowsEndpoint() throws Exception {
+      createEndpoint("Endpoint A", Endpoint.PLATFORM_TYPE.Windows);
+      createEndpoint("Endpoint B", Endpoint.PLATFORM_TYPE.Windows);
+      createEndpoint("Endpoint C", Endpoint.PLATFORM_TYPE.Linux);
+      createEndpoint("Endpoint D", Endpoint.PLATFORM_TYPE.MacOS);
+      Widget widget =
+          widgetComposer
+              .forWidget(
+                  WidgetFixture.createStructuralWidgetWithTimeRange(
+                      LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"))
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+      // force persistence
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+
+      List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
+      String timeRangeParameterId =
+          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+      Map<String, String> parameterInput = new HashMap<>();
+      parameterInput.put(timeRangeParameterId, String.valueOf(ALL_TIME));
+
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setFilterValues(List.of(Endpoint.PLATFORM_TYPE.Windows.name()));
+      input.setSeriesIndex(0);
+      input.setParameters(parameterInput);
+
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response)
+          .node("list_configuration.perspective.filter.filters")
+          .isArray()
+          .hasSize(2);
+      assertThatJson(response)
+          .node("list_configuration.perspective.filter.filters")
+          .isArray()
+          .anySatisfy(
+              filter -> {
+                assertThatJson(filter).node("key").isEqualTo("base_entity");
+                assertThatJson(filter).node("values").isArray().containsExactly("endpoint");
+              })
+          .anySatisfy(
+              filter -> {
+                assertThatJson(filter).node("key").isEqualTo("endpoint_platform");
+                assertThatJson(filter).node("values").isArray().containsExactly("Windows");
+              });
+      assertThatJson(response).node("es_entities").isArray().size().isEqualTo(2);
+    }
+
+    private Inject createInjectWithDetectionExpectation(AttackPattern attackPattern) {
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      InjectExpectation detection1 =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              InjectExpectation.EXPECTATION_TYPE.DETECTION,
+              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      InjectExpectation detection2 =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              InjectExpectation.EXPECTATION_TYPE.DETECTION,
+              InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      return injectComposer
+          .forInject(InjectFixture.getDefaultInject())
+          .withEndpoint(endpointWrapper)
+          .withInjectorContract(
+              injectorContractComposer
+                  .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern)))
+          .withExpectation(
+              injectExpectationComposer.forExpectation(detection1).withEndpoint(endpointWrapper))
+          .withExpectation(
+              injectExpectationComposer.forExpectation(detection2).withEndpoint(endpointWrapper))
+          .persist()
+          .get();
+    }
+
+    @Test
+    @DisplayName("Given security coverage widget should return list of inject")
+    void given_securityCoverageWidget_should_returnListOfInject() throws Exception {
+      AttackPattern attackPattern1 =
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+      AttackPattern attackPattern2 =
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+      AttackPattern attackPattern3 =
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+      Inject inject1 = createInjectWithDetectionExpectation(attackPattern1);
+      Inject inject2 = createInjectWithDetectionExpectation(attackPattern1);
+      Inject inject3 = createInjectWithDetectionExpectation(attackPattern2);
+      createInjectWithDetectionExpectation(attackPattern3);
+      Widget widget =
+          widgetComposer
+              .forWidget(
+                  WidgetFixture.createSecurityConverageWidget(
+                      ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION))
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+
+      // force persistence
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setFilterValues(List.of(attackPattern1.getId(), attackPattern2.getId()));
+      input.setSeriesIndex(0);
+      input.setParameters(new HashMap<>());
+
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response)
+          .node("list_configuration.perspective.filter.filters")
+          .isArray()
+          .anySatisfy(
+              filter -> {
+                assertThatJson(filter).node("key").isEqualTo("base_entity");
+                assertThatJson(filter).node("values").isArray().containsExactly("inject");
+              });
+      assertThatJson(response)
+          .node("es_entities")
+          .isArray()
+          .hasSize(3)
+          .extracting("base_id")
+          .containsExactlyInAnyOrder(inject1.getId(), inject2.getId(), inject3.getId());
     }
   }
 }

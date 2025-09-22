@@ -8,7 +8,7 @@ import { SIMULATIONS } from '../../../../../../../components/common/queryable/fi
 import SimulationField from '../../../../../../../components/fields/SimulationField';
 import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
-import type { DateHistogramSeries, InjectExpectation, StructuralHistogramSeries } from '../../../../../../../utils/api-types';
+import { type InjectExpectation, type Series } from '../../../../../../../utils/api-types';
 import type { GroupOption } from '../../../../../../../utils/Option';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import { extractGroupOptionsFromCustomDashboardParameters, getSeries, updateSimulationFilterOnSeries } from '../../WidgetUtils';
@@ -46,8 +46,8 @@ const perspectives: {
 }];
 
 interface Props {
-  value: DateHistogramSeries[] | StructuralHistogramSeries[];
-  onChange: (series: DateHistogramSeries[] | StructuralHistogramSeries[]) => void;
+  value: Series[];
+  onChange: (series: Series[]) => void;
   onSubmit: () => void;
   isSimulationFilterMandatory?: boolean;
 }
@@ -73,7 +73,7 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
     setLoader(false);
   }, []);
 
-  const onChangeSeries = (series: DateHistogramSeries[] | StructuralHistogramSeries[]) => {
+  const onChangeSeries = (series: Series[]) => {
     onChange(series);
     if (isSimulationFilterMandatory && !simulationId) {
       setShowSimulationError(true);
