@@ -13,11 +13,13 @@ const useStyles = makeStyles()(() => ({
     display: 'flex',
     cursor: 'pointer',
     alignItems: 'center',
+    fontWeight: '700',
   },
   headerItemText: {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    fontWeight: '700',
   },
 }));
 
