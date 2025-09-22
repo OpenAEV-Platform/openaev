@@ -39,7 +39,7 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
     const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
     openWidgetDataDrawer({
       widgetId,
-      filter_value: dataPoint?.meta ?? '',
+      filter_values: [dataPoint?.meta ?? ''],
       series_index: config.seriesIndex,
     });
   };

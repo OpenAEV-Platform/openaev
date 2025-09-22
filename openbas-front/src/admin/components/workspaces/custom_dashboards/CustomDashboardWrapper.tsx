@@ -9,7 +9,6 @@ import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
 import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
 import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
-import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
 
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];
