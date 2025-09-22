@@ -53,7 +53,7 @@ class XtmHubServiceTest {
     verifyNoInteractions(xtmHubClient);
     verifyNoInteractions(xtmHubEmailService);
     verify(platformSettingsService, never())
-        .updateXTMHubRegistration(any(), any(), any(), any(), any(), any(), any());
+        .updateXTMHubRegistration(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -102,8 +102,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.REGISTERED),
-            eq(userId),
-            eq(userName),
+            eq(new XtmHubRegistererRecord(userId, userName)),
             any(LocalDateTime.class),
             eq(true)))
         .thenReturn(updatedSettings);
@@ -119,8 +118,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.REGISTERED),
-            eq(userId),
-            eq(userName),
+            eq(new XtmHubRegistererRecord(userId, userName)),
             any(LocalDateTime.class),
             eq(true));
     verifyNoInteractions(xtmHubEmailService);
@@ -148,8 +146,7 @@ class XtmHubServiceTest {
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
     when(xtmHubClient.refreshRegistrationStatus(anyString(), anyString(), anyString()))
         .thenReturn(XtmHubConnectivityStatus.INACTIVE);
-    when(platformSettingsService.updateXTMHubRegistration(
-            any(), any(), any(), any(), any(), any(), any()))
+    when(platformSettingsService.updateXTMHubRegistration(any(), any(), any(), any(), any(), any()))
         .thenReturn(updatedSettings);
 
     // When
@@ -162,8 +159,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.LOST_CONNECTIVITY),
-            eq("user-123"),
-            eq("John Doe"),
+            eq(new XtmHubRegistererRecord("user-123", "John Doe")),
             eq(lastCheck),
             eq(true));
     verifyNoInteractions(xtmHubEmailService);
@@ -191,8 +187,7 @@ class XtmHubServiceTest {
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
     when(xtmHubClient.refreshRegistrationStatus(anyString(), anyString(), anyString()))
         .thenReturn(XtmHubConnectivityStatus.INACTIVE);
-    when(platformSettingsService.updateXTMHubRegistration(
-            any(), any(), any(), any(), any(), any(), any()))
+    when(platformSettingsService.updateXTMHubRegistration(any(), any(), any(), any(), any(), any()))
         .thenReturn(updatedSettings);
 
     // When
@@ -206,8 +201,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.LOST_CONNECTIVITY),
-            eq("user-123"),
-            eq("John Doe"),
+            eq(new XtmHubRegistererRecord("user-123", "John Doe")),
             eq(lastCheck),
             eq(false));
   }
@@ -233,8 +227,7 @@ class XtmHubServiceTest {
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
     when(xtmHubClient.refreshRegistrationStatus(anyString(), anyString(), anyString()))
         .thenReturn(XtmHubConnectivityStatus.INACTIVE);
-    when(platformSettingsService.updateXTMHubRegistration(
-            any(), any(), any(), any(), any(), any(), any()))
+    when(platformSettingsService.updateXTMHubRegistration(any(), any(), any(), any(), any(), any()))
         .thenReturn(updatedSettings);
 
     // When
@@ -248,8 +241,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.LOST_CONNECTIVITY),
-            eq("user-123"),
-            eq("John Doe"),
+            eq(new XtmHubRegistererRecord("user-123", "John Doe")),
             eq(lastCheck),
             eq(true));
   }
@@ -274,8 +266,7 @@ class XtmHubServiceTest {
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
     when(xtmHubClient.refreshRegistrationStatus(anyString(), anyString(), anyString()))
         .thenReturn(XtmHubConnectivityStatus.INACTIVE);
-    when(platformSettingsService.updateXTMHubRegistration(
-            any(), any(), any(), any(), any(), any(), any()))
+    when(platformSettingsService.updateXTMHubRegistration(any(), any(), any(), any(), any(), any()))
         .thenReturn(updatedSettings);
 
     // When
@@ -290,8 +281,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.LOST_CONNECTIVITY),
-            eq("user-123"),
-            eq("John Doe"),
+            eq(new XtmHubRegistererRecord("user-123", "John Doe")),
             any(LocalDateTime.class),
             eq(true));
   }
@@ -317,8 +307,7 @@ class XtmHubServiceTest {
     when(platformSettingsService.findSettings()).thenReturn(mockSettings);
     when(xtmHubClient.refreshRegistrationStatus(anyString(), anyString(), anyString()))
         .thenReturn(XtmHubConnectivityStatus.INACTIVE);
-    when(platformSettingsService.updateXTMHubRegistration(
-            any(), any(), any(), any(), any(), any(), any()))
+    when(platformSettingsService.updateXTMHubRegistration(any(), any(), any(), any(), any(), any()))
         .thenReturn(updatedSettings);
 
     // When
@@ -332,8 +321,7 @@ class XtmHubServiceTest {
             eq(token),
             eq(registrationDate),
             eq(XtmHubRegistrationStatus.LOST_CONNECTIVITY),
-            eq("user-123"),
-            eq("John Doe"),
+            eq(new XtmHubRegistererRecord("user-123", "John Doe")),
             eq(lastCheck),
             eq(false));
   }

@@ -3,7 +3,7 @@ package io.openbas.xtmhub;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import io.openbas.authorisation.HttpClientFactory;
-import io.openbas.xtmhub.config.XTMHubConfig;
+import io.openbas.xtmhub.config.XtmHubConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class XtmHubClient {
-  private final XTMHubConfig config;
+  private final XtmHubConfig config;
   private final HttpClientFactory httpClientFactory;
 
   public XtmHubConnectivityStatus refreshRegistrationStatus(
@@ -32,10 +32,9 @@ public class XtmHubClient {
 
       StringEntity httpBody = buildMutationBody(platformId, platformVersion, token);
       httpPost.setEntity(httpBody);
-      return httpClient.execute(
-          httpPost, classicHttpResponse -> parseResponseAsConnectivityStatus(classicHttpResponse));
+      return httpClient.execute(httpPost, this::parseResponseAsConnectivityStatus);
     } catch (Exception e) {
-      log.warn("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
+      log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
 
       return XtmHubConnectivityStatus.INACTIVE;
     }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "openbas.xtm.hub")
 @Data
-public class XTMHubConfig {
+public class XtmHubConfig {
 
   @NotNull private Boolean enable;
 

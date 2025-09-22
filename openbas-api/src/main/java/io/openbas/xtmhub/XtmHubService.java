@@ -28,15 +28,14 @@ public class XtmHubService {
         token,
         LocalDateTime.now(),
         XtmHubRegistrationStatus.REGISTERED,
-        currentUser.getId(),
-        currentUser.getName(),
+        new XtmHubRegistererRecord(currentUser.getId(), currentUser.getName()),
         LocalDateTime.now(),
         true);
   }
 
   public PlatformSettings unregister() {
     return this.platformSettingsService.updateXTMHubRegistration(
-        null, null, XtmHubRegistrationStatus.UNREGISTERED, null, null, null, null);
+        null, null, XtmHubRegistrationStatus.UNREGISTERED, null, null, null);
   }
 
   public PlatformSettings refreshConnectivity() {
@@ -114,8 +113,8 @@ public class XtmHubService {
         settings.getXtmHubToken(),
         parseRegistrationDate(settings),
         newStatus,
-        settings.getXtmHubRegistrationUserId(),
-        settings.getXtmHubRegistrationUserName(),
+        new XtmHubRegistererRecord(
+            settings.getXtmHubRegistrationUserId(), settings.getXtmHubRegistrationUserName()),
         updatedLastCheck,
         shouldKeepEmailNotificationEnabled);
   }
