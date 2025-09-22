@@ -4933,6 +4933,7 @@ export interface RawPaginationImportMapper {
 
 export interface RawPaginationScenario {
   scenario_category?: string;
+  scenario_description?: string;
   scenario_id?: string;
   scenario_name?: string;
   /** @uniqueItems true */
@@ -5194,6 +5195,7 @@ export interface RuleAttributeUpdateInput {
 }
 
 export interface Scenario {
+  from_starter_pack?: boolean;
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
