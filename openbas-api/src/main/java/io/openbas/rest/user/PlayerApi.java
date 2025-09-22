@@ -150,7 +150,9 @@ public class PlayerApi extends RestBehavior {
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     playerService.checkUserAccess(userId);
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    if (!currentUser().isAdmin() && user.isManager() && !currentUser().getId().equals(userId)) {
+    if (!userService.currentUser().isAdminOrBypass()
+        && user.isManager()
+        && !currentUser().getId().equals(userId)) {
       throw new UnsupportedOperationException("You dont have the right to update this user");
     }
     user.setUpdateAttributes(input);
@@ -165,7 +167,7 @@ public class PlayerApi extends RestBehavior {
   public void deletePlayer(@PathVariable String userId) {
     playerService.checkUserAccess(userId);
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    if (!currentUser().isAdmin() && user.isManager()) {
+    if (!userService.currentUser().isAdminOrBypass() && user.isManager()) {
       throw new UnsupportedOperationException("You dont have the right to delete this user");
     }
     sessionManager.invalidateUserSession(userId);

@@ -9,6 +9,12 @@ public interface OpenBASPrincipal {
 
   Collection<? extends GrantedAuthority> getAuthorities();
 
+  /**
+   * @deprecated since 1.19.0, forRemoval = false
+   *     <p>This should not be used anymore. Instead, prefer using
+   *     userService.currentUser().isAdminOrByPass()
+   */
+  @Deprecated(since = "1.19.0")
   boolean isAdmin();
 
   String getLang();
