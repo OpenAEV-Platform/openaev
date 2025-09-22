@@ -5,11 +5,15 @@ import { updateExercise } from '../../../../../actions/Exercise';
 import {
   attackPathsBySimulation,
   countBySimulation,
-  entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation,
+  entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation, widgetToEntitiesBySimulation,
 } from '../../../../../actions/exercises/exercise-action';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { useHelper } from '../../../../../store';
-import { type CustomDashboard, type Exercise } from '../../../../../utils/api-types';
+import {
+  type CustomDashboard,
+  type Exercise,
+  type WidgetToEntitiesInput,
+} from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -70,6 +74,7 @@ const SimulationAnalysis = () => {
     fetchCustomDashboard: () => fetchCustomDashboardFromSimulation(exerciseId),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countBySimulation(exerciseId, widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesBySimulation(exerciseId, widgetId, params),
+    fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesBySimulation(exerciseId, widgetId, params),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
   };

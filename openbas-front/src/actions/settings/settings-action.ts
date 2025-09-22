@@ -1,4 +1,5 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
+import type { WidgetToEntitiesInput } from '../../utils/api-types';
 
 export const SETTINGS_URI = '/api/settings';
 export const fetchHomeDashboard = () => {
@@ -17,6 +18,9 @@ export const homeDashboardEntities = (widgetId: string, parameters: Record<strin
   return simplePostCall(`${SETTINGS_URI}/home_dashboard/entities/${widgetId}`, parameters);
 };
 
+export const homeWidgetToEntitiesRuntime = (widgetId: string, input: WidgetToEntitiesInput) => {
+  return simplePostCall(`${SETTINGS_URI}/home_dashboard/entities-runtime/${widgetId}`, input);
+};
 export const homeDashboardAttackPaths = (widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${SETTINGS_URI}/home_dashboard/attack-paths/${widgetId}`, parameters);
 };

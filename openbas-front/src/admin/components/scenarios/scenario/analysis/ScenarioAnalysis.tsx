@@ -7,12 +7,12 @@ import {
   entitiesByScenario,
   fetchCustomDashboardFromScenario,
   seriesByScenario,
-  updateScenario,
+  updateScenario, widgetToEntitiesByByScenario,
 } from '../../../../../actions/scenarios/scenario-actions';
 import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable/filter/constants';
 import { useHelper } from '../../../../../store';
-import { type CustomDashboard, type Scenario } from '../../../../../utils/api-types';
+import { type CustomDashboard, type Scenario, type WidgetToEntitiesInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -75,6 +75,7 @@ const ScenarioAnalysis = () => {
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countByScenario(scenarioId, widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesByScenario(scenarioId, widgetId, params),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesByScenario(scenarioId, widgetId, params),
+    fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesByByScenario(scenarioId, widgetId, input),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsByScenario(scenarioId, widgetId, params),
   };
 

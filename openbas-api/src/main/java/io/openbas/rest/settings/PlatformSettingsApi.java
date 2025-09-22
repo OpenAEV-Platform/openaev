@@ -9,6 +9,8 @@ import io.openbas.engine.model.EsBase;
 import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.CustomDashboardService;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.settings.form.*;
 import io.openbas.rest.settings.response.PlatformSettings;
@@ -150,6 +152,13 @@ public class PlatformSettingsApi extends RestBehavior {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return customDashboardService.homeDashboardEntities(widgetId, parameters);
+  }
+
+  @PostMapping("/home_dashboard/entities-runtime/{widgetId}")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
+      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
+    return customDashboardService.homeWidgetToEntitiesRuntimeOnResourceId(widgetId, input);
   }
 
   @PostMapping("/home_dashboard/attack-paths/{widgetId}")

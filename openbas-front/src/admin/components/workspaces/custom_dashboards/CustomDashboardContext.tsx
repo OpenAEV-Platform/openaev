@@ -1,9 +1,21 @@
 import { type AxiosResponse } from 'axios';
 import { createContext } from 'react';
 
-import { attackPaths, count, entities, series } from '../../../../actions/dashboards/dashboard-action';
+import {
+  attackPaths,
+  count,
+  entities,
+  series,
+  widgetToEntitiesRuntime,
+} from '../../../../actions/dashboards/dashboard-action';
 import { type SearchOptionsConfig } from '../../../../components/common/queryable/filter/useSearchOptions';
-import { type CustomDashboard, type EsAttackPath, type EsBase, type EsSeries } from '../../../../utils/api-types';
+import {
+  type CustomDashboard,
+  type EsAttackPath,
+  type EsBase,
+  type EsSeries,
+  type WidgetToEntitiesInput, type WidgetToEntitiesOutput,
+} from '../../../../utils/api-types';
 import { type WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
 
 export interface ParameterOption {
@@ -20,6 +32,7 @@ export interface CustomDashboardContextType {
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<number>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
+  fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;
   fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
   contextId?: string;
   canChooseDashboard?: boolean;
@@ -38,6 +51,7 @@ export const CustomDashboardContext = createContext<CustomDashboardContextType>(
   fetchCount: count,
   fetchSeries: series,
   fetchEntities: entities,
+  fetchEntitiesRuntime: widgetToEntitiesRuntime,
   fetchAttackPaths: attackPaths,
   contextId: undefined, // Simulation or scenario id
   canChooseDashboard: false,

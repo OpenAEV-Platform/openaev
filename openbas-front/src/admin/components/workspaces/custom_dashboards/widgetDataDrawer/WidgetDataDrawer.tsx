@@ -2,11 +2,14 @@ import { Typography } from '@mui/material';
 import { useContext, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
-import { widgetToEntitiesRuntime } from '../../../../../actions/dashboards/dashboard-action';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { type EsBase, type ListConfiguration, type WidgetToEntitiesInput } from '../../../../../utils/api-types';
+import {
+  type EsBase,
+  type ListConfiguration,
+  type WidgetToEntitiesInput,
+} from '../../../../../utils/api-types';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import ListWidget from '../widgets/viz/list/ListWidget';
 
@@ -15,7 +18,7 @@ export type WidgetDataDrawerConf = WidgetToEntitiesInput & { widgetId: string };
 const WidgetDataDrawer = () => {
   const { t } = useFormatter();
 
-  const { customDashboard, customDashboardParameters, closeWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { customDashboard, customDashboardParameters, fetchEntitiesRuntime, closeWidgetDataDrawer } = useContext(CustomDashboardContext);
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('widget_id');
   const seriesIndex = searchParams.get('series_index');
@@ -37,12 +40,12 @@ const WidgetDataDrawer = () => {
     const params: Record<string, string> = Object.fromEntries(
       Object.entries(customDashboardParameters).map(([key, val]) => [key, val.value]),
     );
-    widgetToEntitiesRuntime(widgetId, {
+    fetchEntitiesRuntime(widgetId, {
       filter_values: filterValues.split(','),
       series_index: Number(seriesIndex),
       parameters: params,
     }).then(({ data }) => {
-      setListDatas(data.es_entities);
+      setListDatas(data.es_entities ?? []);
       setListConfig(data.list_configuration);
       setLoading(false);
     }).catch(() => {
