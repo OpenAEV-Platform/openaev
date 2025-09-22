@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { setSessionStorageItem } from '../sessionStorage';
-
 const XTM_HUB_USER_PLATFORM_TOKEN_KEY = 'XTM_HUB_USER_PLATFORM_TOKEN_KEY';
 
 interface Return { userPlatformToken: string | null }
@@ -16,7 +14,7 @@ const useXtmHubUserPlatformToken = (): Return => {
         const { action, token: newToken } = event.data;
         if (action === 'set-token') {
           setUserPlatformToken(newToken);
-          setSessionStorageItem<string>(XTM_HUB_USER_PLATFORM_TOKEN_KEY, newToken);
+          sessionStorage.setItem(XTM_HUB_USER_PLATFORM_TOKEN_KEY, JSON.stringify(newToken));
         }
       }
     };
