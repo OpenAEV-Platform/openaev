@@ -6,7 +6,7 @@ import { fetchCustomDashboard } from '../../../../actions/custom_dashboards/cust
 import { attackPaths, count, entities, series } from '../../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../../components/i18n';
 import type { CustomDashboard } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardEditHeader from './CustomDashboardEditHeader';
 import CustomDashboardWrapper from './CustomDashboardWrapper';
@@ -31,7 +31,7 @@ const CustomDashboard = () => {
     <CustomDashboardWrapper
       configuration={configuration}
       topSlot={<CustomDashboardEditHeader />}
-      bottomSlot={<WidgetCreation />}
+      bottomSlot={<Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}><WidgetCreation /></Can>}
       readOnly={ability.cannot(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS)}
       noDashboardSlot={(
         <Alert severity="warning">
