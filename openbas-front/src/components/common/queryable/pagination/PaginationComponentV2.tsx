@@ -84,12 +84,6 @@ const PaginationComponentV2 = <T extends object>({
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [options, setOptions] = useState<OptionPropertySchema[]>([]);
 
-  const setParentLoading = (loading: boolean) => {
-    if (typeof setLoading === 'function') {
-      setLoading(loading);
-    }
-  };
-
   useEffect(() => {
     if (entityPrefix) {
       useFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
@@ -115,7 +109,7 @@ const PaginationComponentV2 = <T extends object>({
     }
 
     // Fetch datas
-    setParentLoading(true);
+    setLoading?.(true);
     fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
       const { data } = result;
       setContent(data.content);
@@ -123,7 +117,7 @@ const PaginationComponentV2 = <T extends object>({
       if (data.totalPages <= data.pageable.pageNumber) {
         queryableHelpers.paginationHelpers.handleChangePage(0);
       }
-      setParentLoading(false);
+      setLoading?.(true);
     });
   }, [searchPaginationInput, reloadContentCount]);
 
