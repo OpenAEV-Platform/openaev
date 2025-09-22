@@ -8,11 +8,13 @@ import org.springframework.stereotype.Component;
 
 @Setter
 @Component
+@Getter
 @ConfigurationProperties(prefix = "openbas.xtm.hub.collector")
 public class XtmHubCollectorConfig {
-  @Getter private boolean enable;
+  private boolean enable;
 
-  @Getter @NotBlank private String id;
+  @NotBlank private String id;
 
-  @Getter @NotBlank private Integer connectivityCheckInterval = 60 * 60 * 1000;
+  // period between two connectivity checks, default to 1 hour in milliseconds.
+  @NotBlank private Integer connectivityCheckInterval = 60 * 60 * 1000;
 }

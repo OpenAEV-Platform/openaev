@@ -31,9 +31,9 @@ public class XtmHubEmailService {
   private final ResourceLoader resourceLoader;
 
   public void sendLostConnectivityEmail() {
-    List<User> administrators = findPlatformAdministrators();
+    List<User> administrators = findUsersAbleToManageSettings();
     if (administrators.isEmpty()) {
-      log.warn("No administrators found to send XTM Hub lost connectivity email");
+      log.error("No administrators found to send XTM Hub lost connectivity email");
       return;
     }
 
@@ -42,7 +42,7 @@ public class XtmHubEmailService {
       mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
       log.info("XTM Hub lost connectivity email sent to {} administrators", administrators.size());
     } catch (Exception e) {
-      log.error("Failed to send lost connectivity email", e);
+      log.error("Failed to send lost connectivity email: {}", e.getMessage(), e);
       throw new RuntimeException(e);
     }
   }
@@ -75,8 +75,10 @@ public class XtmHubEmailService {
         baseUrl);
   }
 
-  private List<User> findPlatformAdministrators() {
-    return userRepository.usersHavingCapability(Capability.MANAGE_PLATFORM_SETTINGS.toString());
+  private List<User> findUsersAbleToManageSettings() {
+    List<String> capabilities =
+        Arrays.asList(Capability.MANAGE_PLATFORM_SETTINGS.toString(), Capability.BYPASS.toString());
+    return userRepository.adminsOrUsersHavingCapabilities(capabilities);
   }
 
   private String getTemplate() {
@@ -84,6 +86,11 @@ public class XtmHubEmailService {
     try (InputStream inputStream = resourceLoader.getResource(templatePath).getInputStream()) {
       return new String(inputStream.readAllBytes());
     } catch (IOException e) {
+      log.error(
+          "Failed to read template for XTM Hub email with path {}: {}",
+          templatePath,
+          e.getMessage(),
+          e);
       throw new RuntimeException("Failed to read template", e);
     }
   }

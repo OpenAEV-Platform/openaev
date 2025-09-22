@@ -6,7 +6,6 @@ import io.openbas.service.PlatformSettingsService;
 import io.openbas.service.UserService;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -90,8 +89,7 @@ public class XtmHubService {
   }
 
   private boolean hasConnectivityBeenLostForTooLong(LocalDateTime lastCheck) {
-    long hoursSinceLastCheck = ChronoUnit.HOURS.between(lastCheck, LocalDateTime.now());
-    return hoursSinceLastCheck >= CONNECTIVITY_EMAIL_THRESHOLD_HOURS;
+    return lastCheck.isBefore(LocalDateTime.now().minusHours(CONNECTIVITY_EMAIL_THRESHOLD_HOURS));
   }
 
   private boolean isEmailNotificationEnabled(PlatformSettings settings) {

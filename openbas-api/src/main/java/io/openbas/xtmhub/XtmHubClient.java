@@ -4,12 +4,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import io.openbas.authorisation.HttpClientFactory;
 import io.openbas.xtmhub.config.XTMHubConfig;
-import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -28,27 +30,19 @@ public class XtmHubClient {
       httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
       httpPost.addHeader("Accept", "application/json");
 
-      StringEntity httpBody = buildMutationBody(platformId, token, platformVersion);
+      StringEntity httpBody = buildMutationBody(platformId, platformVersion, token);
       httpPost.setEntity(httpBody);
       return httpClient.execute(
-          httpPost,
-          classicHttpResponse -> {
-            if (classicHttpResponse.getCode() == HttpStatus.SC_OK) {
-              return XtmHubConnectivityStatus.ACTIVE;
-            } else {
-              return XtmHubConnectivityStatus.INACTIVE;
-            }
-          });
-    } catch (IOException e) {
-      log.warn("XTM Hub is unreachable on {}", config.getApiUrl(), e);
+          httpPost, classicHttpResponse -> parseResponseAsConnectivityStatus(classicHttpResponse));
+    } catch (Exception e) {
+      log.warn("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
 
       return XtmHubConnectivityStatus.INACTIVE;
     }
   }
 
   @NotNull
-  private static StringEntity buildMutationBody(
-      String platformId, String platformVersion, String token) {
+  private StringEntity buildMutationBody(String platformId, String platformVersion, String token) {
     String mutationBody =
         String.format(
             """
@@ -73,5 +67,35 @@ public class XtmHubClient {
 
     JsonElement element = JsonParser.parseString(mutationBody);
     return new StringEntity(element.toString());
+  }
+
+  private XtmHubConnectivityStatus parseResponseAsConnectivityStatus(ClassicHttpResponse response) {
+    if (response.getCode() != HttpStatus.SC_OK) {
+      return XtmHubConnectivityStatus.INACTIVE;
+    }
+
+    try {
+      HttpEntity entity = response.getEntity();
+      String responseString = EntityUtils.toString(entity, "UTF-8");
+      JsonElement jsonResponse = JsonParser.parseString(responseString);
+      String status =
+          jsonResponse
+              .getAsJsonObject()
+              .get("data")
+              .getAsJsonObject()
+              .get("refreshPlatformRegistrationConnectivityStatus")
+              .getAsJsonObject()
+              .get("status")
+              .getAsString();
+      if (status.equals(XtmHubConnectivityStatus.ACTIVE.label)) {
+        return XtmHubConnectivityStatus.ACTIVE;
+      }
+
+      return XtmHubConnectivityStatus.INACTIVE;
+    } catch (Exception e) {
+      log.warn("Error occurred while parsing XTM Hub connectivity response: {}", e.getMessage(), e);
+
+      return XtmHubConnectivityStatus.INACTIVE;
+    }
   }
 }
