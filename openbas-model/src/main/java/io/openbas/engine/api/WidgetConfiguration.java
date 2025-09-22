@@ -75,8 +75,7 @@ public abstract class WidgetConfiguration {
   @JsonProperty("date_attribute")
   private String dateAttribute = "base_created_at";
 
-  @NotNull
-  List<Series> series = new ArrayList<>();
+  @NotNull List<Series> series = new ArrayList<>();
 
   @Data
   public static class Series {
