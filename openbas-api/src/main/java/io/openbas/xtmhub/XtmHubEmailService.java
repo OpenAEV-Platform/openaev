@@ -1,11 +1,9 @@
 package io.openbas.xtmhub;
 
-import static io.openbas.helper.TemplateHelper.buildContextualContent;
-
 import io.openbas.database.model.Capability;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.UserRepository;
-import io.openbas.execution.ExecutionContext;
+import io.openbas.helper.TemplateHelper;
 import io.openbas.rest.settings.response.PlatformSettings;
 import io.openbas.service.MailingService;
 import io.openbas.service.PlatformSettingsService;
@@ -38,7 +36,7 @@ public class XtmHubEmailService {
     }
 
     try {
-      String emailBody = buildEmailBody(administrators.getFirst());
+      String emailBody = buildEmailBody();
       mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
       log.info("XTM Hub lost connectivity email sent to {} administrators", administrators.size());
     } catch (Exception e) {
@@ -47,14 +45,14 @@ public class XtmHubEmailService {
     }
   }
 
-  private String buildEmailBody(User user) throws Exception {
+  private String buildEmailBody() throws Exception {
     PlatformSettings settings = platformSettingsService.findSettings();
     String body = createBodyContent(settings.getPlatformBaseUrl());
     String template = getTemplate();
-    ExecutionContext executionContext = new ExecutionContext(user, null);
-    executionContext.put("body", body);
-    executionContext.put("platformTitle", settings.getPlatformName());
-    return buildContextualContent(template, executionContext);
+    HashMap<String, Object> dataMap = new HashMap<>();
+    dataMap.put("body", body);
+    dataMap.put("platformTitle", settings.getPlatformName());
+    return TemplateHelper.buildContentWithDataMap(template, dataMap);
   }
 
   private String createBodyContent(String baseUrl) {
