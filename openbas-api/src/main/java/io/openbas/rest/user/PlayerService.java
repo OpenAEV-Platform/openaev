@@ -102,4 +102,25 @@ public class PlayerService {
 
     return new PageImpl<>(players, pageable, total);
   }
+
+  public void checkUserAccess(String userId) {
+    User askedUser = userRepository.findById(userId).orElseThrow();
+    if (askedUser.getOrganization() != null) {
+      User currentUser = userService.currentUser();
+      if (!currentUser.isAdminOrBypass()) {
+        User local =
+            userRepository
+                .findById(currentUser.getId())
+                .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+        List<String> localOrganizationIds =
+            local.getGroups().stream()
+                .flatMap(group -> group.getOrganizations().stream())
+                .map(Organization::getId)
+                .toList();
+        if (!localOrganizationIds.contains(askedUser.getOrganization().getId())) {
+          throw new UnsupportedOperationException("User is restricted");
+        }
+      }
+    }
+  }
 }

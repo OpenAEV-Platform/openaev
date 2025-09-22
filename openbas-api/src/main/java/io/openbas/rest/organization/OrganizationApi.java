@@ -81,7 +81,7 @@ public class OrganizationApi extends RestBehavior {
       resourceType = ResourceType.ORGANIZATION)
   public Organization updateOrganization(
       @PathVariable String organizationId, @Valid @RequestBody OrganizationUpdateInput input) {
-    checkOrganizationAccess(userRepository, organizationId);
+    organizationService.checkOrganizationAccess(organizationId);
     Organization organization =
         organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
     organization.setUpdateAttributes(input);
@@ -96,7 +96,7 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
   public void deleteOrganization(@PathVariable String organizationId) {
-    checkOrganizationAccess(userRepository, organizationId);
+    organizationService.checkOrganizationAccess(organizationId);
     organizationRepository.deleteById(organizationId);
   }
 

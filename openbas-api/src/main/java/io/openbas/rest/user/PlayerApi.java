@@ -17,6 +17,7 @@ import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.user.form.player.PlayerInput;
 import io.openbas.rest.user.form.player.PlayerOutput;
 import io.openbas.service.UserService;
+import io.openbas.service.organization.OrganizationService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -44,6 +46,7 @@ public class PlayerApi extends RestBehavior {
   private final UserService userService;
   private final TeamRepository teamRepository;
   private final PlayerService playerService;
+  @Autowired private OrganizationService organizationService;
 
   @GetMapping(PLAYER_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
@@ -79,7 +82,7 @@ public class PlayerApi extends RestBehavior {
   @GetMapping("/api/player/{userId}/communications")
   @RBAC(resourceId = "#userId", actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
   public Iterable<Communication> playerCommunications(@PathVariable String userId) {
-    checkUserAccess(userRepository, userId);
+    playerService.checkUserAccess(userId);
     return communicationRepository.findByUser(userId);
   }
 
@@ -87,7 +90,7 @@ public class PlayerApi extends RestBehavior {
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
-    checkOrganizationAccess(userRepository, input.getOrganizationId());
+    organizationService.checkOrganizationAccess(input.getOrganizationId());
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -102,7 +105,7 @@ public class PlayerApi extends RestBehavior {
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
-    checkOrganizationAccess(userRepository, input.getOrganizationId());
+    organizationService.checkOrganizationAccess(input.getOrganizationId());
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       User existingUser = user.get();
@@ -145,7 +148,7 @@ public class PlayerApi extends RestBehavior {
   @PutMapping(PLAYER_URI + "/{userId}")
   @RBAC(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
-    checkUserAccess(userRepository, userId);
+    playerService.checkUserAccess(userId);
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     if (!currentUser().isAdmin() && user.isManager() && !currentUser().getId().equals(userId)) {
       throw new UnsupportedOperationException("You dont have the right to update this user");
@@ -160,7 +163,7 @@ public class PlayerApi extends RestBehavior {
   @DeleteMapping(PLAYER_URI + "/{userId}")
   @RBAC(resourceId = "#userId", actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
-    checkUserAccess(userRepository, userId);
+    playerService.checkUserAccess(userId);
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     if (!currentUser().isAdmin() && user.isManager()) {
       throw new UnsupportedOperationException("You dont have the right to delete this user");

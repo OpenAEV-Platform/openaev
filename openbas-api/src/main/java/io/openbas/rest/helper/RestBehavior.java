@@ -8,11 +8,10 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openbas.aop.lock.LockAcquisitionException;
-import io.openbas.config.OpenBASPrincipal;
-import io.openbas.database.model.Organization;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.*;
+import io.openbas.service.UserService;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -24,6 +23,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +41,7 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 public class RestBehavior {
 
   @Resource protected ObjectMapper mapper;
+  @Autowired private UserService userService;
 
   // Build the mapping between json specific name and the actual database field name
   private Map<String, String> buildJsonMappingFields(MethodArgumentNotValidException ex) {
@@ -260,47 +261,6 @@ public class RestBehavior {
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-  }
-
-  public void checkUserAccess(UserRepository userRepository, String userId) {
-    User askedUser = userRepository.findById(userId).orElseThrow();
-    if (askedUser.getOrganization() != null) {
-      OpenBASPrincipal currentUser = currentUser();
-      if (!currentUser.isAdmin()) {
-        User local =
-            userRepository
-                .findById(currentUser.getId())
-                .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-        List<String> localOrganizationIds =
-            local.getGroups().stream()
-                .flatMap(group -> group.getOrganizations().stream())
-                .map(Organization::getId)
-                .toList();
-        if (!localOrganizationIds.contains(askedUser.getOrganization().getId())) {
-          throw new UnsupportedOperationException("User is restricted");
-        }
-      }
-    }
-  }
-
-  public void checkOrganizationAccess(UserRepository userRepository, String organizationId) {
-    if (organizationId != null) {
-      OpenBASPrincipal currentUser = currentUser();
-      if (!currentUser.isAdmin()) {
-        User local =
-            userRepository
-                .findById(currentUser.getId())
-                .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-        List<String> localOrganizationIds =
-            local.getGroups().stream()
-                .flatMap(group -> group.getOrganizations().stream())
-                .map(Organization::getId)
-                .toList();
-        if (!localOrganizationIds.contains(organizationId)) {
-          throw new UnsupportedOperationException("User is restricted");
-        }
-      }
-    }
   }
 
   protected void validateUUID(final String id) throws InputValidationException {
