@@ -60,49 +60,49 @@ const SelectList = <T extends object, V extends object = T>({
       {paginationComponent}
       <Grid container spacing={3}>
         <Grid size={{ xs: 8 }}>
-            {isLoadingValues ? <Skeleton height={40} /> : (
-              <List>
-                {values.map((value) => {
-                  const id = getId(value);
-                  const disabled = selectedIds.includes(id);
-                  return (
-                    <ListItemButton
-                      key={id}
-                      disabled={disabled}
-                      divider
-                      onClick={() => onSelect(id, value)}
-                    >
-                      <ListItemIcon>
-                        {elements.icon.value()}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={(
-                          <Box sx={{ display: 'flex' }}>
-                            {elements.headers.map(header => (
-                              <Box
-                                key={header.field}
-                                sx={{
-                                  height: 20,
-                                  fontSize: 13,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  paddingRight: 1,
-                                  width: `${header.width}%`,
-                                }}
-                              >
-                                {header.value(value)}
-                              </Box>
-                            ))}
+          {isLoadingValues ? <Skeleton height={40} /> : (
+            <List>
+              {values.map((value) => {
+                const id = getId(value);
+                const disabled = selectedIds.includes(id);
+                return (
+                  <ListItemButton
+                    key={id}
+                    disabled={disabled}
+                    divider
+                    onClick={() => onSelect(id, value)}
+                  >
+                    <ListItemIcon>
+                      {elements.icon.value()}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={(
+                        <Box sx={{ display: 'flex' }}>
+                          {elements.headers.map(header => (
+                            <Box
+                              key={header.field}
+                              sx={{
+                                height: 20,
+                                fontSize: 13,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                paddingRight: 1,
+                                width: `${header.width}%`,
+                              }}
+                            >
+                              {header.value(value)}
+                            </Box>
+                          ))}
                         </Box>
-                        )}
-                      />
-                    </ListItemButton>
-                  );
-                })}
-                {buttonComponent}
-              </List>
-            )}
+                      )}
+                    />
+                  </ListItemButton>
+                );
+              })}
+              {buttonComponent}
+            </List>
+          )}
         </Grid>
         <Grid size={{ xs: 4 }}>
           <Box
