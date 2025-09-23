@@ -108,6 +108,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
           size="small"
         />
       )}
+      loading
       renderOption={(props, option) => {
         const checked = filter.values?.includes(option.id);
         return (
