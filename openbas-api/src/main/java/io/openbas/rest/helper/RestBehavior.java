@@ -11,7 +11,6 @@ import io.openbas.aop.lock.LockAcquisitionException;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.*;
-import io.openbas.service.UserService;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +39,6 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 public class RestBehavior {
 
   @Resource protected ObjectMapper mapper;
-  @Autowired private UserService userService;
 
   // Build the mapping between json specific name and the actual database field name
   private Map<String, String> buildJsonMappingFields(MethodArgumentNotValidException ex) {

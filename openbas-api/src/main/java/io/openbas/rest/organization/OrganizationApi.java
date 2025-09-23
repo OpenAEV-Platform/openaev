@@ -1,6 +1,5 @@
 package io.openbas.rest.organization;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.OrganizationSpecification.byName;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
@@ -14,7 +13,6 @@ import io.openbas.database.model.User;
 import io.openbas.database.raw.RawOrganization;
 import io.openbas.database.repository.OrganizationRepository;
 import io.openbas.database.repository.TagRepository;
-import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.organization.form.OrganizationCreateInput;
@@ -39,7 +37,6 @@ public class OrganizationApi extends RestBehavior {
 
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
-  private final UserRepository userRepository;
   private final OrganizationService organizationService;
 
   private final UserService userService;
@@ -81,7 +78,6 @@ public class OrganizationApi extends RestBehavior {
       resourceType = ResourceType.ORGANIZATION)
   public Organization updateOrganization(
       @PathVariable String organizationId, @Valid @RequestBody OrganizationUpdateInput input) {
-    organizationService.checkOrganizationAccess(organizationId);
     Organization organization =
         organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
     organization.setUpdateAttributes(input);
@@ -96,7 +92,6 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
   public void deleteOrganization(@PathVariable String organizationId) {
-    organizationService.checkOrganizationAccess(organizationId);
     organizationRepository.deleteById(organizationId);
   }
 

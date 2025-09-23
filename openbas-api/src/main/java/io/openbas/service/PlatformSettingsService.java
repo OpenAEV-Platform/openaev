@@ -1,5 +1,6 @@
 package io.openbas.service;
 
+import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.model.SettingKeys.*;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
@@ -7,9 +8,13 @@ import static java.util.Optional.ofNullable;
 
 import io.openbas.config.EngineConfig;
 import io.openbas.config.OpenBASConfig;
+import io.openbas.config.OpenBASPrincipal;
 import io.openbas.config.RabbitmqConfig;
 import io.openbas.config.cache.LicenseCacheManager;
-import io.openbas.database.model.*;
+import io.openbas.database.model.BannerMessage;
+import io.openbas.database.model.Setting;
+import io.openbas.database.model.SettingKeys;
+import io.openbas.database.model.Theme;
 import io.openbas.database.repository.SettingRepository;
 import io.openbas.ee.Ee;
 import io.openbas.ee.License;
@@ -76,7 +81,6 @@ public class PlatformSettingsService {
   @Resource private RabbitmqConfig rabbitmqConfig;
   @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
-  @Autowired private UserService userService;
 
   // -- PROVIDERS --
   private List<OAuthProvider> buildOpenIdProviders() {
@@ -196,7 +200,7 @@ public class PlatformSettingsService {
     }
 
     // Build authenticated user settings
-    User user = userService.currentUser();
+    OpenBASPrincipal user = currentUser();
     if (user != null) {
       platformSettings.setPlatformWhitemark(
           ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
