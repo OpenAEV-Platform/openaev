@@ -4,6 +4,8 @@ import static io.openbas.utils.StringUtils.generateRandomColor;
 
 import io.openbas.database.model.*;
 import io.openbas.database.repository.SettingRepository;
+import io.openbas.jsonapi.JsonApiDocument;
+import io.openbas.jsonapi.ResourceObject;
 import io.openbas.rest.asset.endpoint.form.EndpointInput;
 import io.openbas.rest.tag.TagService;
 import io.openbas.rest.tag.form.TagCreateInput;
@@ -30,7 +32,16 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";
     static final String DASHBOARDS_FOLDER_NAME = "dashboards";
+    static final String DEFAULT_FILE_DASHBOARD_HOME = "default_home";
+    static final String DEFAULT_FILE_DASHBOARD_SCENARIO = "default_scenario";
+    static final String DEFAULT_FILE_DASHBOARD_SIMULATION = "default_simulation";
   }
+
+  private static final Map<String, String> DASHBOARD_PREFIX_TO_SETTING_KEY =
+      Map.of(
+          Config.DEFAULT_FILE_DASHBOARD_HOME, SettingKeys.DEFAULT_HOME_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
 
   private static final class Tags {
     static final String VULNERABILITY = "vulnerability";
@@ -146,8 +157,10 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
         .forEach(
             resourceToAdd -> {
               try {
-                this.zipJsonService.handleImport(
-                    resourceToAdd.getContentAsByteArray(), "custom_dashboard_name", null);
+                JsonApiDocument<ResourceObject> dashboard =
+                    this.zipJsonService.handleImport(
+                        resourceToAdd.getContentAsByteArray(), "custom_dashboard_name", null);
+                this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
@@ -172,6 +185,22 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           Config.STARTERPACK_KEY + "/" + folderName,
           e.getMessage());
       return Collections.emptyList();
+    }
+  }
+
+  private void setDefaultDashboard(String filename, String dashboardId) {
+    String settingKey =
+        DASHBOARD_PREFIX_TO_SETTING_KEY.entrySet().stream()
+            .filter(entry -> filename.startsWith(entry.getKey()))
+            .map(Map.Entry::getValue)
+            .findFirst()
+            .orElse(null);
+
+    if (settingKey != null) {
+      Setting defaultDashboardSetting =
+          settingRepository.findByKey(settingKey).orElse(new Setting(settingKey, null));
+      defaultDashboardSetting.setValue(dashboardId);
+      settingRepository.save(defaultDashboardSetting);
     }
   }
 

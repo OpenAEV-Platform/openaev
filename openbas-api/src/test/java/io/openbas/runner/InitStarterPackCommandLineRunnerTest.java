@@ -157,6 +157,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     assertEquals(0, scenarioCount);
     this.verifyDashboardExist();
     this.verifyParameterExist();
+    this.verifyDefaultHomeDashboardParameterExist();
+    this.verifyDefaultScenarioDashboardParameterExist();
+    this.verifyDefaultSimulationDashboardParameterExist();
   }
 
   @Test
@@ -253,6 +256,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyScenarioExist();
     this.verifyDashboardExist();
     this.verifyParameterExist();
+    this.verifyDefaultHomeDashboardParameterExist();
+    this.verifyDefaultScenarioDashboardParameterExist();
+    this.verifyDefaultSimulationDashboardParameterExist();
   }
 
   private void verifyTagsExist() {
@@ -320,14 +326,55 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
   private void verifyDashboardExist() {
     long dashboardCount = customDashboardRepository.count();
-    assertEquals(1, dashboardCount);
+    assertEquals(3, dashboardCount);
 
-    Optional<CustomDashboard> dashboard = customDashboardRepository.findByName("test (Import)");
-    assertTrue(dashboard.isPresent());
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByName("Test 1 (Import)");
+    assertTrue(dashboardTest.isPresent());
+
+    Optional<CustomDashboard> dashboardTest2 =
+        customDashboardRepository.findByName("Test 2 (Import)");
+    assertTrue(dashboardTest2.isPresent());
+
+    Optional<CustomDashboard> dashboardTest3 =
+        customDashboardRepository.findByName("Test 3 (Import)");
+    assertTrue(dashboardTest3.isPresent());
   }
 
   private void verifyParameterExist() {
     Optional<Setting> staticsParameters = settingRepository.findByKey("starterpack");
     assertTrue(staticsParameters.isPresent());
+  }
+
+  private void verifyDefaultHomeDashboardParameterExist() {
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByName("Test 1 (Import)");
+    assertTrue(dashboardTest.isPresent());
+
+    Optional<Setting> staticsParameters = settingRepository.findByKey("platform_home_dashboard");
+    assertTrue(staticsParameters.isPresent());
+    assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
+  }
+
+  private void verifyDefaultScenarioDashboardParameterExist() {
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByName("Test 2 (Import)");
+    assertTrue(dashboardTest.isPresent());
+
+    Optional<Setting> staticsParameters =
+        settingRepository.findByKey("platform_scenario_dashboard");
+    assertTrue(staticsParameters.isPresent());
+    assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
+  }
+
+  private void verifyDefaultSimulationDashboardParameterExist() {
+    Optional<CustomDashboard> dashboardTest =
+        customDashboardRepository.findByName("Test 3 (Import)");
+    assertTrue(dashboardTest.isPresent());
+
+    Optional<Setting> staticsParameters =
+        settingRepository.findByKey("platform_simulation_dashboard");
+    assertTrue(staticsParameters.isPresent());
+    assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
 }
