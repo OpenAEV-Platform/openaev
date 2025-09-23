@@ -70,31 +70,29 @@ const LeftMenu: FunctionComponent<{
           );
         })}
       </div>
-      <div style={{ marginTop: 'auto' }}>
-        <MenuList component="nav">
-          {bottomEntries.filter(entry => entry.userRight).map((entry, idxList) => {
-            return (
-              <Fragment key={idxList}>
-                {entry.items.filter(entry => entry.userRight).map((item) => {
-                  return (
-                    <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
-                  );
-                })}
-              </Fragment>
-            );
-          })}
-          {!isWhitemarkEnable && (
-            <MenuItemLogo
-              navOpen={state.navOpen}
-              onClick={() => window.open('https://filigran.io/', '_blank')}
-            />
-          )}
-          <MenuItemToggle
+      <MenuList component="nav" style={{ marginTop: 'auto' }}>
+        {bottomEntries.filter(entry => entry.userRight).map((entry, idxList) => {
+          return (
+            <Fragment key={idxList}>
+              {entry.items.filter(entry => entry.userRight).map((item) => {
+                return (
+                  <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+                );
+              })}
+            </Fragment>
+          );
+        })}
+        {!isWhitemarkEnable && (
+          <MenuItemLogo
             navOpen={state.navOpen}
-            onClick={helpers.handleToggleDrawer}
+            onClick={() => window.open('https://filigran.io/', '_blank')}
           />
-        </MenuList>
-      </div>
+        )}
+        <MenuItemToggle
+          navOpen={state.navOpen}
+          onClick={helpers.handleToggleDrawer}
+        />
+      </MenuList>
     </Drawer>
   );
 };
