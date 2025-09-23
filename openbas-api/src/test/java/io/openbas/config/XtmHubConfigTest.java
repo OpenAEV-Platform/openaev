@@ -3,7 +3,7 @@ package io.openbas.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openbas.IntegrationTest;
-import io.openbas.utils.mockConfig.WithMockXTMHubConfig;
+import io.openbas.utils.mockConfig.WithMockXtmHubConfig;
 import io.openbas.xtmhub.config.XtmHubConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,11 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-@DisplayName("XTMHubConfig tests")
+@DisplayName("XtmHubConfig tests")
 public class XtmHubConfigTest extends IntegrationTest {
 
   @Nested
-  @WithMockXTMHubConfig(enable = true, url = "https://hub.filigran.io")
+  @WithMockXtmHubConfig(enable = true, url = "https://hub.filigran.io")
   @DisplayName("When XTM Hub is enabled with URL")
   public class withEnabledXTMHub {
 
@@ -32,7 +32,7 @@ public class XtmHubConfigTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockXTMHubConfig(url = "https://hub.filigran.io", override_api_url = "http://localhost:4002")
+  @WithMockXtmHubConfig(url = "https://hub.filigran.io", override_api_url = "http://localhost:4002")
   @DisplayName("When XTM Hub API URL is overridden")
   public class withOverrideApiUrl {
 
