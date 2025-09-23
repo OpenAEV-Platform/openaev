@@ -176,7 +176,7 @@ nav:
       - Parameters: administration/parameters.md
       - Security:
         - Policies: administration/policies.md
-        - Users and RBAC: administration/users.md
+        - Users and RBAC: administration/users_and_rbac.md
       - Taxonomies: administration/taxonomies.md
   - Reference:
       - APIs:
