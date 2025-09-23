@@ -81,18 +81,6 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
     formState: { isSubmitting, isDirty },
   } = methods;
 
-  const handleSubmitWithErrors: SubmitErrorHandler<CustomDashboardFormType> = (errors) => {
-    const errorKeys = Object.keys(errors) as (keyof CustomDashboardFormType)[];
-    tabs.forEach((tab) => {
-      errorKeys.forEach((name) => {
-        if (validationSchema.shape[name].description === tab.key) {
-          setActiveTab(tab.key);
-          return;
-        }
-      });
-    });
-  };
-
   const tabEntries: TabsEntry[] = [{
     key: 'General',
     label: t('General'),
@@ -101,6 +89,18 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
     label: t('Parameters'),
   }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+
+  const handleSubmitWithErrors: SubmitErrorHandler<CustomDashboardFormType> = (errors) => {
+    const errorKeys = Object.keys(errors) as (keyof CustomDashboardFormType)[];
+    tabEntries.forEach((tab) => {
+      errorKeys.forEach((name) => {
+        if (validationSchema.shape[name].description === tab.key) {
+          handleChangeTab(tab.key);
+          return;
+        }
+      });
+    });
+  };
 
   return (
     <FormProvider {...methods}>
