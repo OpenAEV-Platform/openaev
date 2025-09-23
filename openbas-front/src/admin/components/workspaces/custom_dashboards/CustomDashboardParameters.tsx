@@ -10,7 +10,7 @@ import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRang
 
 const CustomDashboardParameters: FunctionComponent = () => {
   const theme = useTheme();
-  const { customDashboard, customDashboardParameters, setCustomDashboardParameters } = useContext(CustomDashboardContext);
+  const { customDashboard, customDashboardParameters, setCustomDashboardParameters, contextId } = useContext(CustomDashboardContext);
 
   const getParameter = (parameterId: string | undefined) => {
     if (!customDashboard) return undefined;
@@ -87,14 +87,19 @@ const CustomDashboardParameters: FunctionComponent = () => {
       gap: theme.spacing(2),
     }}
     >
-      <TimeRangeFilters
-        timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
-        handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
-        startDateValue={getParameter(dateParameters.get('startDate'))?.value}
-        handleStartDate={data => handleParametersValue(dateParameters.get('startDate'), data)}
-        endDateValue={getParameter(dateParameters.get('endDate'))?.value}
-        handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
-      />
+      {
+        !contextId && (
+          <TimeRangeFilters
+            timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
+            handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
+            startDateValue={getParameter(dateParameters.get('startDate'))?.value}
+            handleStartDate={data => handleParametersValue(dateParameters.get('startDate'), data)}
+            endDateValue={getParameter(dateParameters.get('endDate'))?.value}
+            handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
+          />
+        )
+      }
+
       {paramsFields.length > 0 && (
         <div
           style={{

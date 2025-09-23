@@ -157,6 +157,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
         <Controller
           control={control}
           name="widget_config.limit"
+          defaultValue={10}
           render={({ field, fieldState }) => (
             <TextField
               {...field}
@@ -165,7 +166,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
               type="number"
               label={t('Number of results')}
               sx={{ mt: 2 }}
-              value={field.value ?? 10}
+              value={field.value}
               onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
