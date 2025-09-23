@@ -23,6 +23,7 @@ import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type FilterGroup, type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
+import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ImportFromHubButton from '../common/ImportFromHubButton';
@@ -52,6 +53,7 @@ const Scenarios = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
+  const { isXTMHubAccessible } = useAuth();
 
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -192,9 +194,13 @@ const Scenarios = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Box display="flex" gap={1}>
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <ImportFromHubButton serviceIdentifier="openaev_scenarios" />
-            </Can>
+            {
+              isXTMHubAccessible && (
+                <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+                  <ImportFromHubButton serviceIdentifier="openaev_scenarios" />
+                </Can>
+              )
+            }
             <ToggleButtonGroup value="fake" exclusive>
               <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>

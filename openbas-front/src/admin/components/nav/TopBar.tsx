@@ -1,7 +1,7 @@
 import { AccountCircleOutlined, AppsOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
 import { AppBar, Badge, Box, Grid, IconButton, Menu, MenuItem, Popover, Toolbar, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -19,6 +19,9 @@ import xtmhubLight from '../../../static/images/xtm/xtm_hub_light.png';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
+import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -96,6 +99,8 @@ const TopBar: FunctionComponent = () => {
   const { t } = useFormatter();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
+  const ability = useContext(AbilityContext);
+  const isHubRegistrationEnabled = isFeatureEnabled('OPENAEV_REGISTRATION');
 
   const [xtmOpen, setXtmOpen] = useState<{
     open: boolean;
@@ -166,6 +171,21 @@ const TopBar: FunctionComponent = () => {
 
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
+
+  const xtmhubBadgeImg = (
+    <img
+      style={{
+        width: '100%',
+        paddingRight: theme.spacing(2),
+        paddingLeft: theme.spacing(2),
+      }}
+      src={theme.palette.mode === 'dark' ? xtmhubDark : xtmhubLight}
+      alt="XTM Hub"
+    />
+  );
+  const shouldXtmHubRedirectToSite = !isHubRegistrationEnabled
+    || settings.xtm_hub_registration_status === 'registered'
+    || !ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
 
   return (
     <AppBar
@@ -244,25 +264,25 @@ const TopBar: FunctionComponent = () => {
                 <Grid container spacing={3}>
                   <Grid size={12}>
                     <Tooltip title="XTM Hub">
-                      <a
-                        className={classes.xtmItem}
-                        href={settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : 'https://hub.filigran.io'}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={handleCloseXtm}
-                      >
-                        <Badge variant="dot" color="success">
-                          <img
-                            style={{
-                              width: '100%',
-                              paddingRight: theme.spacing(2),
-                              paddingLeft: theme.spacing(2),
-                            }}
-                            src={theme.palette.mode === 'dark' ? xtmhubDark : xtmhubLight}
-                            alt="XTM Hub"
-                          />
-                        </Badge>
-                      </a>
+                      { shouldXtmHubRedirectToSite ? (
+                        <a
+                          className={classes.xtmItem}
+                          href={settings.xtm_hub_enable && settings.xtm_hub_url ? settings.xtm_hub_url : 'https://hub.filigran.io'}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={handleCloseXtm}
+                        >
+                          <Badge variant="dot" color={!isHubRegistrationEnabled || settings.xtm_hub_registration_status === 'registered' ? 'success' : 'warning'}>
+                            {xtmhubBadgeImg}
+                          </Badge>
+                        </a>
+                      ) : (
+                        <Link className={classes.xtmItem} to="/admin/settings/experience" onClick={handleCloseXtm}>
+                          <Badge variant="dot" color="warning">
+                            {xtmhubBadgeImg}
+                          </Badge>
+                        </Link>
+                      )}
                     </Tooltip>
                   </Grid>
                   <Grid size={6}>

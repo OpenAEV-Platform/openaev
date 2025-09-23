@@ -1,11 +1,13 @@
 package io.openbas.rest.injector_contract;
 
 import static io.openbas.database.criteria.GenericCriteria.countQuery;
+import static io.openbas.database.model.InjectorContract.*;
 import static io.openbas.helper.DatabaseHelper.updateRelation;
 import static io.openbas.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openbas.utils.JpaUtils.createLeftJoin;
 import static io.openbas.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawInjectorsContrats;
 import io.openbas.database.repository.InjectorContractRepository;
@@ -22,6 +24,7 @@ import io.openbas.rest.injector_contract.form.InjectorContractUpdateMappingInput
 import io.openbas.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openbas.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openbas.service.UserService;
+import io.openbas.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
@@ -276,6 +279,22 @@ public class InjectorContractService {
     } else {
       this.injectorContractRepository.deleteById(injectorContract.getId());
     }
+  }
+
+  public boolean checkTargetSupport(InjectorContract injectorContract, TargetType targetType) {
+    JsonNode fieldsNode = injectorContract.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
+    Set<TargetType> supportedTargetTypes = new HashSet<>();
+    for (JsonNode field : fieldsNode) {
+      String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
+      switch (type) {
+        case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP ->
+            supportedTargetTypes.add(TargetType.ASSETS_GROUPS);
+        case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET -> supportedTargetTypes.add(TargetType.ASSETS);
+        case CONTRACT_ELEMENT_CONTENT_TYPE_TEAM -> supportedTargetTypes.add(TargetType.TEAMS);
+      }
+    }
+
+    return supportedTargetTypes.contains(targetType);
   }
 
   // -- CRITERIA BUILDER --

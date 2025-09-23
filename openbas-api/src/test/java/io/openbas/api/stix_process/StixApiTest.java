@@ -71,6 +71,7 @@ class StixApiTest extends IntegrationTest {
   private String stixSecurityCoverageWithoutObjects;
   private String stixSecurityCoverageOnlyVulns;
   private AssetGroupComposer.Composer completeAssetGroup;
+  private AssetGroupComposer.Composer emptyAssetGroup;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -120,6 +121,12 @@ class StixApiTest extends IntegrationTest {
             .persist()
             .get();
 
+    emptyAssetGroup =
+        assetGroupComposer
+            .forAssetGroup(
+                AssetGroupFixture.createAssetGroupWithAssets("no assets", new ArrayList<>()))
+            .persist();
+
     completeAssetGroup =
         assetGroupComposer
             .forAssetGroup(
@@ -141,6 +148,23 @@ class StixApiTest extends IntegrationTest {
         .withInjector(injectorFixture.getWellKnownObasImplantInjector())
         .withVulnerability(
             vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56786")))
+        .persist();
+
+    tagRuleComposer
+        .forTagRule(new TagRule())
+        .withTag(tagComposer.forTag(TagFixture.getTagWithText("empty-asset-group")))
+        .withAssetGroup(emptyAssetGroup)
+        .persist();
+
+    tagRuleComposer
+        .forTagRule(new TagRule())
+        .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
+        .withAssetGroup(completeAssetGroup)
+        .persist();
+
+    tagRuleComposer
+        .forTagRule(new TagRule())
+        .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
         .persist();
   }
 
@@ -468,17 +492,14 @@ class StixApiTest extends IntegrationTest {
         "Should create scenario with 1 injects with 3 assets when contract has no field asset group but asset")
     void shouldCreateScenarioWithOneInjectWithThreeEndpointsWhenContractHasNotAssetGroupField()
         throws Exception {
-      tagRuleComposer
-          .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-          .withAssetGroup(completeAssetGroup)
-          .persist();
+      String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
 
       String createdResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulns))
+                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -501,14 +522,10 @@ class StixApiTest extends IntegrationTest {
         "Should create scenario with 1 injects with 1 asset group when contract has field asset group")
     void shouldCreateScenarioWithOneInjectWithOneAssetGroupWhenContractHasAssetGroupField()
         throws Exception {
-      tagRuleComposer
-          .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-          .withAssetGroup(completeAssetGroup)
-          .persist();
-
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
-          stixSecurityCoverageOnlyVulns.replace("CVE-2025-56785", "CVE-2025-56786");
+          stixSecurityCoverageOnlyVulns
+              .replace("opencti", "empty-asset-group")
+              .replace("CVE-2025-56785", "CVE-2025-56786");
 
       String createdResponse =
           mvc.perform(
@@ -536,11 +553,34 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should create scenario with 1 inject for vulnerability when no asset group is present")
     void shouldCreateScenarioWithOneInjectWhenNoAssetGroupsExist() throws Exception {
-      tagRuleComposer
-          .forTagRule(new TagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
-          .persist();
+      String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "no-asset-groups");
 
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(1);
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(0);
+      assertThat(inject.getAssetGroups()).hasSize(0);
+    }
+
+    @Test
+    @DisplayName("Should create scenario with 1 inject when labels are no defined")
+    void shouldCreateScenarioWithOneInjectWhenLabelsAreNotDefined() throws Exception {
       String createdResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
@@ -561,6 +601,95 @@ class StixApiTest extends IntegrationTest {
       Inject inject = injects.stream().findFirst().get();
       assertThat(inject.getAssets()).hasSize(0);
       assertThat(inject.getAssetGroups()).hasSize(0);
+    }
+
+    @Test
+    @DisplayName("Should not update existing injects when some target is removed")
+    void shouldNotUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
+      String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
+
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
+      assertThat(injects).hasSize(1);
+      assertThat(injects.stream().findFirst().get().getAssets()).hasSize(3);
+
+      stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
+
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+
+      scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      injects = injectRepository.findByScenarioId(scenario.getId());
+      assertThat(injects).hasSize(1);
+      assertThat(injects.stream().findFirst().get().getAssets()).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("Should not update existing injects when more targets are added")
+    void shouldNotUpdateInjectsWhenTargetsAreAdded() throws Exception {
+      String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
+
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
+      assertThat(injects).hasSize(1);
+
+      Inject inject = injects.stream().findFirst().get();
+      assertThat(inject.getAssets()).hasSize(0);
+
+      stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
+          stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
+
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+
+      scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      injects = injectRepository.findByScenarioId(scenario.getId());
+      assertThat(injects).hasSize(1);
+      assertThat(
+              injects.stream()
+                  .filter(updated -> updated.getId().equals(inject.getId()))
+                  .flatMap(i -> i.getAssets().stream())
+                  .toList())
+          .hasSize(0);
     }
 
     @Test

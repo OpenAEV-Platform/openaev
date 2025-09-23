@@ -20,6 +20,7 @@ import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
+import DeployScenario from './components/scenarios/DeployScenario';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
 
 const Home = lazy(() => import('./components/Home'));
@@ -160,6 +161,7 @@ const Index = () => {
               )}
             />
             <Route path="scenarios" element={errorWrapper(Scenarios)()} />
+            <Route path="deploy-scenario/:serviceInstanceId/:fileId" element={errorWrapper(DeployScenario)()} />
             <Route
               path="scenarios/:scenarioId/*"
               element={(

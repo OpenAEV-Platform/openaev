@@ -47,6 +47,7 @@ public class SecurityCoverageInjectService {
    */
   public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
       Scenario scenario, SecurityCoverage securityCoverage) {
+
     // 1. Remove all inject placeholders
     cleanInjectPlaceholders(scenario.getId());
 
@@ -54,7 +55,7 @@ public class SecurityCoverageInjectService {
     Set<AssetGroup> assetGroups = assetGroupService.fetchAssetGroupsFromScenarioTagRules(scenario);
 
     // 3. Get all endpoints per asset group
-    Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
+    Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap =
         assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
 
     // 4. Fetch InjectorContract to use for inject placeholder
@@ -62,17 +63,17 @@ public class SecurityCoverageInjectService {
         injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
     // 5. Build injects from Vulnerabilities
-    getInjectsByVulnerabilities(
+    createInjectsByVulnerabilities(
         scenario,
         securityCoverage.getVulnerabilitiesRefs(),
-        assetsFromGroupMap,
+        requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
     // 6. Build injects from Attack Patterns
-    getInjectsRelatedToAttackPatterns(
+    createInjectsByAttackPatterns(
         scenario,
         securityCoverage.getAttackPatternRefs(),
-        assetsFromGroupMap,
+        requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
     return injectRepository.findByScenarioId(scenario.getId());
@@ -82,6 +83,8 @@ public class SecurityCoverageInjectService {
     injectRepository.deleteAllByScenarioIdAndInjectorContract(
         ManualContract.MANUAL_DEFAULT, scenarioId);
   }
+
+  // -- INJECTS BY VULNERABILITIES --
 
   /**
    * Create injects for the given scenario based on the associated security coverage and
@@ -97,29 +100,83 @@ public class SecurityCoverageInjectService {
    *
    * @param scenario the scenario for which injects are managed
    * @param vulnerabilityRefs the related security coverage providing AttackPattern references
-   * @return list injects related to this scenario
    */
-  private void getInjectsByVulnerabilities(
+  private void createInjectsByVulnerabilities(
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
-      Map<AssetGroup, List<Endpoint>> assetGroupListMap,
+      Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap,
       InjectorContract contractForPlaceholder) {
+
     // 1. Fetch internal Ids for Vulnerabilities
-    Set<Cve> vulnerabilities =
+    Set<Cve> requiredVulnerabilities =
         vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
 
-    // 2. List of injects is cleaned
-    injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
+    // 2. Fetch covered vulnerabilities and endpoints
+    Map<Cve, Set<Inject>> currentlyCoveredCveInjectsMap =
+        buildCoveredCveInjectsMap(scenario.getInjects());
 
-    // 3. Now, injects are created with injectorContracts related to these vulnerabilities
-    injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
-        scenario,
-        vulnerabilities,
-        assetGroupListMap,
-        TARGET_NUMBER_OF_INJECTS,
-        contractForPlaceholder);
+    // 3. remove obsolete injects
+    injectService.deleteAll(
+        findObsoleteInjects(currentlyCoveredCveInjectsMap, requiredVulnerabilities));
+
+    // 4. Identify missing injects
+    Set<Cve> missingVulns = new HashSet<>();
+    for (Cve key : requiredVulnerabilities) {
+      if (!currentlyCoveredCveInjectsMap.containsKey(key)) {
+        missingVulns.add(key);
+      }
+    }
+
+    // 5. Generate injects for missing vulnerabilities
+    if (!missingVulns.isEmpty()) {
+      injectService.saveAll(
+          injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
+              scenario,
+              missingVulns,
+              requiredAssetGroupMap,
+              TARGET_NUMBER_OF_INJECTS,
+              contractForPlaceholder));
+    }
   }
 
+  private Map<Cve, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
+    return coveredInjects.stream()
+        // Keep only injects that have a contract and vulnerabilities
+        .filter(
+            inject ->
+                inject.getInjectorContract().isPresent()
+                    && inject.getInjectorContract().get().getVulnerabilities() != null)
+        .flatMap(
+            inject ->
+                inject.getInjectorContract().get().getVulnerabilities().stream()
+                    .map(vuln -> Map.entry(vuln, inject)))
+        .collect(
+            Collectors.groupingBy(
+                Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toSet())));
+  }
+
+  private List<Inject> findObsoleteInjects(
+      Map<Cve, Set<Inject>> coveredCveEndpointsMap, Set<Cve> requiredVulnerabilities) {
+    List<Inject> injectsToRemove = new ArrayList<>();
+
+    for (Map.Entry<Cve, Set<Inject>> entry : coveredCveEndpointsMap.entrySet()) {
+      Cve coveredVuln = entry.getKey();
+      Set<Inject> injects = entry.getValue();
+
+      for (Inject inject : injects) {
+        Optional<InjectorContract> contractOpt = inject.getInjectorContract();
+
+        // Remove inject if vulnerability is not required or contract is missing
+        if (!requiredVulnerabilities.contains(coveredVuln) || contractOpt.isEmpty()) {
+          injectsToRemove.add(inject);
+        }
+      }
+    }
+
+    return injectsToRemove;
+  }
+
+  // -- INJECTS BY ATTACK PATTERNS --
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
    *
@@ -135,9 +192,8 @@ public class SecurityCoverageInjectService {
    *
    * @param scenario the scenario for which injects are managed
    * @param attackPatternRefs the related security coverage providing AttackPattern references
-   * @return list injects related to this scenario
    */
-  private void getInjectsRelatedToAttackPatterns(
+  private void createInjectsByAttackPatterns(
       Scenario scenario,
       Set<StixRefToExternalRef> attackPatternRefs,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -168,6 +224,8 @@ public class SecurityCoverageInjectService {
           scenario, assetsFromGroupMap, attackPatterns, injectCoverageMap, contractForPlaceholder);
     }
   }
+
+  // --- Helper methods ---
 
   /**
    * Handles inject deletion and generation when no asset groups are defined or available.
@@ -219,8 +277,9 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
-          scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
+      injectService.saveAll(
+          injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
+              scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder));
     }
   }
 
@@ -280,12 +339,16 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectAssistantService.generateInjectsByAttackPatternsWithAssetGroups(
-          scenario,
-          missingAttacks,
-          TARGET_NUMBER_OF_INJECTS,
-          missingCombinations.filteredAssetsFromGroupMap(),
-          contractForPlaceholder);
+      injectService.saveAll(
+          injectAssistantService
+              .generateInjectsByAttackPatternsWithAssetGroups(
+                  scenario,
+                  missingAttacks,
+                  TARGET_NUMBER_OF_INJECTS,
+                  missingCombinations.filteredAssetsFromGroupMap(),
+                  contractForPlaceholder)
+              .stream()
+              .toList());
     }
   }
 

@@ -1,5 +1,6 @@
 import { type FunctionComponent, useCallback, useContext, useState } from 'react';
 
+import { updatePlatformParameters } from '../../../../actions/Application';
 import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import type { LoggedHelper } from '../../../../actions/helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -7,11 +8,13 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type CustomDashboard, type CustomDashboardInput, type PlatformSettings } from '../../../../utils/api-types';
+import { type CustomDashboard, type PlatformSettings } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
-import CustomDashboardForm from './CustomDashboardForm';
+import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
+import { updateDefaultDashboardsInParameters } from './customDashboardUtils';
 
 interface Props {
   customDashboard: CustomDashboard;
@@ -23,6 +26,7 @@ interface Props {
 const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onUpdate, onDelete, inList = false }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
@@ -37,10 +41,11 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
   const toggleModal = (type: 'edit' | 'delete' | null) => setModal(type);
 
   const onSubmitEdit = useCallback(
-    async (data: CustomDashboardInput) => {
+    async (data: CustomDashboardFormType) => {
       try {
         const response = await updateCustomDashboard(customDashboard.custom_dashboard_id, data);
         if (response.data) {
+          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
           onUpdate?.(response.data);
         }
       } finally {

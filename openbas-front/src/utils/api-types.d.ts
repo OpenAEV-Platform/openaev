@@ -4604,7 +4604,11 @@ export interface PlatformSettings {
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
   /** List of enabled dev features */
-  enabled_dev_features?: ("_RESERVED" | "OPENAEV_REGISTRATION")[];
+  enabled_dev_features?: (
+    | "_RESERVED"
+    | "OPENAEV_REGISTRATION"
+    | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+  )[];
   /** True if the Caldera Executor is enabled */
   executor_caldera_enable?: boolean;
   /** Url of the Caldera Executor */
@@ -4702,6 +4706,8 @@ export interface PlatformSettings {
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
+  /** True if xtmhub backend is reachable */
+  xtm_hub_reachable?: boolean;
   /** XTM Hub registration date */
   xtm_hub_registration_date?: string;
   /** XTM Hub registration status */

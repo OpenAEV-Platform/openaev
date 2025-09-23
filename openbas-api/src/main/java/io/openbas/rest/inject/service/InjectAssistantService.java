@@ -1,14 +1,8 @@
 package io.openbas.rest.inject.service;
 
-import static io.openbas.database.model.InjectorContract.CONTRACT_CONTENT_FIELDS;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
-import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openbas.utils.AssetUtils.mapEndpointsByPlatformArch;
 import static java.util.Collections.emptyList;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openbas.database.helper.InjectorContractRepositoryHelper;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.InjectRepository;
@@ -54,7 +48,7 @@ public class InjectAssistantService {
    *     asset IDs, asset group IDs, and the number of injects per AttackPattern
    * @return a list of generated injects
    */
-  public Set<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
+  public List<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
     if (input.getInjectByTTPNumber() > MAX_NUMBER_INJECTS) {
       throw new UnsupportedOperationException(
           "Number of inject by Attack Pattern must be less than or equal to 5");
@@ -69,7 +63,7 @@ public class InjectAssistantService {
         injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
 
     // Process injects generation for each attack pattern
-    Set<Inject> injects = new HashSet<>();
+    List<Inject> injects = new ArrayList<>();
     input
         .getAttackPatternIds()
         .forEach(
@@ -92,10 +86,7 @@ public class InjectAssistantService {
       inject.setScenario(scenario);
     }
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return injects;
   }
 
   /**
@@ -106,7 +97,7 @@ public class InjectAssistantService {
    * @param endpoints the list of endpoints to consider for the injects
    * @param assetsFromGroupMap the list of asset groups to consider for the injects
    * @param injectsPerAttackPattern the maximum number of injects to create for each AttackPattern
-   * @return a list of generated injects
+   * @return a set of generated injects
    */
   private Set<Inject> generateInjectsByAttackPatternId(
       String attackPatternId,
@@ -147,25 +138,19 @@ public class InjectAssistantService {
    * @param injectsPerAttackPattern the number of injects to generate per AttackPattern
    * @return the list of created and saved injects
    */
-  public Set<Inject> generateInjectsByAttackPatternsWithoutAssetGroups(
+  public List<Inject> generateInjectsByAttackPatternsWithoutAssetGroups(
       Scenario scenario,
       Set<AttackPattern> attackPatterns,
       Integer injectsPerAttackPattern,
       InjectorContract contractForPlaceholder) {
-    Set<Inject> injects =
-        attackPatterns.stream()
-            .flatMap(
-                attackPattern ->
-                    buildInjectsForAnyPlatformAndArchitecture(
-                        injectsPerAttackPattern, attackPattern, contractForPlaceholder)
-                        .stream())
-            .peek(inject -> inject.setScenario(scenario))
-            .collect(Collectors.toSet());
-
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return attackPatterns.stream()
+        .flatMap(
+            attackPattern ->
+                buildInjectsForAnyPlatformAndArchitecture(
+                    injectsPerAttackPattern, attackPattern, contractForPlaceholder)
+                    .stream())
+        .peek(inject -> inject.setScenario(scenario))
+        .toList();
   }
 
   /**
@@ -176,7 +161,7 @@ public class InjectAssistantService {
    * @param attackPatterns the set of attack patterns (AttackPatterns) to generate injects for
    * @param injectsPerAttackPattern the number of injects to generate per AttackPattern
    * @param assetsFromGroupMap a mapping of asset groups to their associated endpoints
-   * @return the list of created and saved injects
+   * @return the set of created and saved injects
    * @throws UnsupportedOperationException if inject creation fails due to unprocessable content
    */
   public Set<Inject> generateInjectsByAttackPatternsWithAssetGroups(
@@ -199,10 +184,7 @@ public class InjectAssistantService {
       }
     }
 
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return injects;
   }
 
   /**
@@ -216,7 +198,7 @@ public class InjectAssistantService {
    * @param attackPattern the attack pattern to generate injects for
    * @param assetsFromGroupMap a mapping of asset groups to their associated endpoints
    * @param injectsPerAttackPattern the number of injects to generate
-   * @return the list of injects generated for the given attack pattern
+   * @return the set of injects generated for the given attack pattern
    * @throws UnprocessableContentException if no valid inject configuration can be found
    */
   private Set<Inject> generateInjectsForSingleAttackPatternWithAssetGroups(
@@ -277,11 +259,13 @@ public class InjectAssistantService {
    * Generates injects for the given scenario and vulnerabilities
    *
    * @param scenario the scenario to which the injects belong
-   * @param vulnerabilities the set of Vulnerabilities (Cves) to generate injects for
+   * @param vulnerabilities the set of Vulnerabilities (CVEs) to generate injects for
+   * @param assetGroupListMap assets and associated endpoints involved in the automatic assignment
    * @param injectsPerVulnerability the number of injects to generate per Vulnerability
-   * @return the set of created and saved injects
+   * @param contractForPlaceholder contract to use for placeholder injects
+   * @return the list of injects to create
    */
-  public Set<Inject> generateInjectsWithTargetsByVulnerabilities(
+  public List<Inject> generateInjectsWithTargetsByVulnerabilities(
       Scenario scenario,
       Set<Cve> vulnerabilities,
       Map<AssetGroup, List<Endpoint>> assetGroupListMap,
@@ -291,31 +275,25 @@ public class InjectAssistantService {
     Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract =
         computeMapVulnerabilityInjectorContracts(vulnerabilities, injectsPerVulnerability);
 
-    Set<Inject> injects =
-        vulnerabilities.stream()
-            .flatMap(
-                vulnerability ->
-                    buildInjectsWithTargetsByVulnerability(
-                        vulnerability,
-                        mapVulnerabilityInjectorContract.getOrDefault(
-                            vulnerability.getExternalId().toLowerCase(), Set.of()),
-                        assetGroupListMap,
-                        contractForPlaceholder)
-                        .stream())
-            .peek(inject -> inject.setScenario(scenario))
-            .collect(Collectors.toSet());
-
-    Set<Inject> savedInjects = new HashSet<>();
-    this.injectRepository.saveAll(injects).forEach(savedInjects::add);
-
-    return savedInjects;
+    return vulnerabilities.stream()
+        .flatMap(
+            vulnerability ->
+                buildInjectsWithTargetsByVulnerability(
+                    vulnerability,
+                    mapVulnerabilityInjectorContract.getOrDefault(
+                        vulnerability.getExternalId().toLowerCase(), Set.of()),
+                    assetGroupListMap,
+                    contractForPlaceholder)
+                    .stream())
+        .peek(inject -> inject.setScenario(scenario))
+        .toList();
   }
 
   private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
       Set<Cve> vulnerabilities, int injectsPerVulnerability) {
     Set<String> vulnerabilityExternalIds =
         vulnerabilities.stream()
-            .map(v -> v.getExternalId())
+            .map(Cve::getExternalId)
             .map(String::toLowerCase)
             .collect(Collectors.toSet());
 
@@ -329,7 +307,7 @@ public class InjectAssistantService {
         contract -> {
           contract.getVulnerabilities().stream()
               .map(v -> v.getExternalId().toLowerCase())
-              .filter(vulnExternalId -> vulnerabilityExternalIds.contains(vulnExternalId))
+              .filter(vulnerabilityExternalIds::contains)
               .forEach(
                   vulnId ->
                       mapVulnerabilityInjectorContract
@@ -344,7 +322,8 @@ public class InjectAssistantService {
    *
    * @param vulnerability the {@link Cve} vulnerability to generate injects for
    * @param injectorContracts related to this vulnerability
-   * @param assetGroupListMap
+   * @param assetGroupListMap assets and associated endpoints involved in the automatic assignment
+   * @param contractForPlaceholder contract to use for placeholder injects
    * @return a set of generated {@link Inject} objects, never {@code null}
    */
   private Set<Inject> buildInjectsWithTargetsByVulnerability(
@@ -354,13 +333,8 @@ public class InjectAssistantService {
       InjectorContract contractForPlaceholder) {
 
     if (injectorContracts.isEmpty()) {
-      // No injector contracts found -> return manual inject
-      String NO_PLATFORM = null;
-      String NO_ARCHITECTURE = null;
-
       return Set.of(
-          buildManualInject(
-              contractForPlaceholder, vulnerability.getExternalId(), NO_PLATFORM, NO_ARCHITECTURE));
+          buildManualInject(contractForPlaceholder, vulnerability.getExternalId(), null, null));
     }
 
     Set<Inject> injects = new HashSet<>();
@@ -373,40 +347,10 @@ public class InjectAssistantService {
       // asset groups.
       // If no "asset-group" fields are present, we flatten the endpoints from the asset groups and
       // set them as assets in the inject.
-      addTargetsDependingOnContract(assetGroupListMap, ic, inject);
+      injectService.assignAssetGroup(inject, assetGroupListMap.keySet().stream().toList());
       injects.add(inject);
     }
     return injects;
-  }
-
-  private void addTargetsDependingOnContract(
-      Map<AssetGroup, List<Endpoint>> assetGroupListMap, InjectorContract ic, Inject inject) {
-    JsonNode fieldsNode = ic.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
-
-    if (fieldsNode != null && fieldsNode.isArray()) {
-      boolean hasAssetGroup = false;
-      boolean hasAsset = false;
-
-      for (JsonNode field : (ArrayNode) fieldsNode) {
-        String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
-        if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP.equals(type)) {
-          hasAssetGroup = true;
-          break;
-        } else if (CONTRACT_ELEMENT_CONTENT_TYPE_ASSET.equals(type)) {
-          hasAsset = true;
-        }
-      }
-
-      if (hasAssetGroup) {
-        // Priority: asset-group exists because We use tag Rules to fetch asset groups
-        inject.setAssetGroups(new ArrayList<>(assetGroupListMap.keySet()));
-      } else if (hasAsset) {
-        // Only compute flattened endpoints if asset exists
-        Set<Endpoint> flatEndpointsFromMap =
-            assetGroupListMap.values().stream().flatMap(List::stream).collect(Collectors.toSet());
-        inject.setAssets(new ArrayList<>(flatEndpointsFromMap));
-      }
-    }
   }
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
@@ -416,7 +360,7 @@ public class InjectAssistantService {
       Integer injectsPerAttackPattern,
       InjectorContract contractForPlaceholder) {
 
-    // Try best case (all possible platform/arch combos)
+    // Try best case (all possible platform/arch combinations)
     Set<Inject> bestCase =
         buildInjectsForAllPlatformAndArchCombinations(
             endpoints,
@@ -470,7 +414,7 @@ public class InjectAssistantService {
    * @param assetGroups the list of asset groups to assign to each inject
    * @param injectsPerAttackPattern the number of injects to generate
    * @param attackPattern the attack pattern to generate injects for
-   * @return the list of injects, or an empty list if no contracts matched
+   * @return the set of injects, or an empty list if no contracts matched
    */
   private Set<Inject> buildInjectsForAllPlatformAndArchCombinations(
       List<Endpoint> endpoints,

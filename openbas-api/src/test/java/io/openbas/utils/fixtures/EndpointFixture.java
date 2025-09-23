@@ -93,6 +93,7 @@ public class EndpointFixture {
     Endpoint endpoint = baseEndpoint("Hostname", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
     endpoint.setHostname("Linux Hostname");
+    endpoint.setSeenIp(Strings.EMPTY);
     return endpoint;
   }
 
@@ -100,6 +101,7 @@ public class EndpointFixture {
     Endpoint endpoint = baseEndpoint("LocalIP", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(EndpointMapper.setIps(IPS));
     endpoint.setHostname(Strings.EMPTY);
+    endpoint.setSeenIp(Strings.EMPTY);
     return endpoint;
   }
 
@@ -114,6 +116,8 @@ public class EndpointFixture {
   public static Endpoint createEndpointNotTargetProperty() {
     Endpoint endpoint = baseEndpoint("No target Property", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
+    endpoint.setHostname(Strings.EMPTY);
+    endpoint.setSeenIp(Strings.EMPTY);
     return endpoint;
   }
 }

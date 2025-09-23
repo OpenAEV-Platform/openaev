@@ -12,7 +12,8 @@ package io.openbas.rest.settings;
 public enum PreviewFeature {
   // Reserved for internal use.
   _RESERVED,
-  OPENAEV_REGISTRATION;
+  OPENAEV_REGISTRATION,
+  STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES;
 
   public static PreviewFeature fromStringIgnoreCase(String str) {
     for (PreviewFeature feature : PreviewFeature.values()) {

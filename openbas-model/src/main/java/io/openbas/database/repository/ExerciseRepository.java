@@ -87,6 +87,7 @@ public interface ExerciseRepository
     SELECT e FROM Exercise e, Scenario s
     WHERE e.scenario.id = s.id AND s.id = :#{#exercise.scenario.id}
       AND e.launchOrder > :#{#exercise.launchOrder}
+      AND e.id != :#{#exercise.id}
     ORDER BY e.launchOrder ASC LIMIT 1
     """)
   Optional<Exercise> following(@Param("exercise") Exercise exercise);
