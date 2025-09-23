@@ -69,11 +69,7 @@ const WidgetColumnsCustomizationInput: FunctionComponent<WidgetConfigColumnsCust
       defaultExpanded
     >
       <AccordionSummary>
-        <Typography>
-          {' '}
-          {t('Customize columns')}
-          {' '}
-        </Typography>
+        <Typography>{t('Customize columns')}</Typography>
       </AccordionSummary>
 
       <AccordionDetails sx={{

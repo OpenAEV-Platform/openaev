@@ -17,7 +17,8 @@ public class EsScenario extends EsBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 
-  @Queryable(label = "scenario name")
+  @Queryable(label = "scenario name", filterable = true)
+  @EsQueryable(keyword = true)
   private String name;
 
   @Queryable(
