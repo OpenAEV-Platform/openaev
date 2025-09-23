@@ -1,6 +1,7 @@
 package io.openbas.rest.inject.service;
 
 import static io.openbas.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
+import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -228,37 +229,39 @@ public class ExecutableInjectService {
             .toList();
 
     // prerequisite
-    List<PayloadPrerequisite> prerequisiteList = new ArrayList<>();
-    contract
-        .getPayload()
-        .getPrerequisites()
-        .forEach(
-            prerequisite -> {
-              PayloadPrerequisite payload = new PayloadPrerequisite();
-              payload.setExecutor(prerequisite.getExecutor());
-              if (hasText(prerequisite.getCheckCommand())) {
-                payload.setCheckCommand(
-                    processAndEncodeCommand(
-                        prerequisite.getCheckCommand(),
-                        prerequisite.getExecutor(),
-                        contract.getPayload().getArguments(),
-                        inject.getContent(),
-                        injectorContractFields,
-                        obfuscator));
-              }
-              if (hasText(prerequisite.getGetCommand())) {
-                payload.setGetCommand(
-                    processAndEncodeCommand(
-                        prerequisite.getGetCommand(),
-                        prerequisite.getExecutor(),
-                        contract.getPayload().getArguments(),
-                        inject.getContent(),
-                        injectorContractFields,
-                        obfuscator));
-              }
-              prerequisiteList.add(payload);
-            });
-    payloadToExecute.setPrerequisites(prerequisiteList);
+    if (!isEmpty(contract.getPayload().getPrerequisites())) {
+      List<PayloadPrerequisite> prerequisiteList = new ArrayList<>();
+      contract
+          .getPayload()
+          .getPrerequisites()
+          .forEach(
+              prerequisite -> {
+                PayloadPrerequisite payload = new PayloadPrerequisite();
+                payload.setExecutor(prerequisite.getExecutor());
+                if (hasText(prerequisite.getCheckCommand())) {
+                  payload.setCheckCommand(
+                      processAndEncodeCommand(
+                          prerequisite.getCheckCommand(),
+                          prerequisite.getExecutor(),
+                          contract.getPayload().getArguments(),
+                          inject.getContent(),
+                          injectorContractFields,
+                          obfuscator));
+                }
+                if (hasText(prerequisite.getGetCommand())) {
+                  payload.setGetCommand(
+                      processAndEncodeCommand(
+                          prerequisite.getGetCommand(),
+                          prerequisite.getExecutor(),
+                          contract.getPayload().getArguments(),
+                          inject.getContent(),
+                          injectorContractFields,
+                          obfuscator));
+                }
+                prerequisiteList.add(payload);
+              });
+      payloadToExecute.setPrerequisites(prerequisiteList);
+    }
 
     // cleanup
     if (contract.getPayload().getCleanupCommand() != null) {
