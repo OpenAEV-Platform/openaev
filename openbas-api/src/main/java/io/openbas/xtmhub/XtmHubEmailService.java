@@ -60,7 +60,7 @@ public class XtmHubEmailService {
         """
       <p>We wanted to inform you that the connectivity between OpenAEV and the XTM Hub has been lost.
       As a result, the integration is currently inactive.</p>
-      <p>To restore functionality, please navigate to the <strong>Settings</strong> section and
+      <p>To restore the functionality, please navigate to the <strong>Settings</strong> section and
       re-initiate the registration process for the OpenAEV platform. This will re-establish the
       connection and allow continued use of the integrated features.</p>
       <p>If you need assistance during the process, don't hesitate to reach out.</p>
