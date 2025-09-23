@@ -34,7 +34,7 @@ public class Widget implements Base {
   @NotBlank
   private String id;
 
-  @Column(name = "widget_type", updatable = false, nullable = false)
+  @Column(name = "widget_type", nullable = false)
   @Enumerated(EnumType.STRING)
   @JsonProperty("widget_type")
   @NotNull
