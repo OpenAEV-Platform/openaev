@@ -261,10 +261,12 @@ public class ElasticService implements EngineService {
       Map<String, CustomDashboardParameters> definitionParameters) {
     BoolQuery.Builder mainQuery = new BoolQuery.Builder();
     List<Query> mainMust = new ArrayList<>();
-    Query restrictionQuery = buildQueryRestrictions(user);
+    // TODO removing user specific restrictions -> issue/3768 will refactor this logic to have
+    // restriction based on markings
+    /*Query restrictionQuery = buildQueryRestrictions(user);
     if (restrictionQuery != null) {
       mainMust.add(restrictionQuery);
-    }
+    }*/
     BoolQuery.Builder dataQueryBuilder = new BoolQuery.Builder();
     List<Query> shouldList = new ArrayList<>();
     if (search != null) {
