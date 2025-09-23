@@ -18,6 +18,7 @@ public class EsScenario extends EsBase {
   /* Except relationships, they should have same name on every model! */
 
   @Queryable(label = "scenario name", filterable = true)
+  @EsQueryable(keyword = true)
   private String name;
 
   @Queryable(
