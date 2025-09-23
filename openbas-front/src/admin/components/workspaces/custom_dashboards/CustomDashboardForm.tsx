@@ -1,17 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button, Tab, Tabs } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent, useMemo, useState } from 'react';
+import { type FunctionComponent, useMemo } from 'react';
 import { FormProvider, type SubmitErrorHandler, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import type { LoggedHelper } from '../../../../actions/helper';
+import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import {
-  type CustomDashboardInput,
-  type PlatformSettings,
-} from '../../../../utils/api-types';
+import { type CustomDashboardInput, type PlatformSettings } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import GeneralFormTab from './form/GeneralFormTab';
 import ParametersTab from './form/ParametersTab';
@@ -46,18 +45,6 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
   const theme = useTheme();
 
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-
-  const tabs = [{
-    key: 'General',
-    label: 'General',
-  }, {
-    key: 'Parameters',
-    label: 'Parameters',
-  }];
-  const [activeTab, setActiveTab] = useState(tabs[0].key);
-  const handleActiveTabChange = (_: SyntheticEvent, newValue: string) => {
-    setActiveTab(newValue);
-  };
 
   const parametersSchema = z.object({
     custom_dashboards_parameter_id: z.string().optional(),
@@ -94,12 +81,21 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
     formState: { isSubmitting, isDirty },
   } = methods;
 
+  const tabEntries: TabsEntry[] = [{
+    key: 'General',
+    label: t('General'),
+  }, {
+    key: 'Parameters',
+    label: t('Parameters'),
+  }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+
   const handleSubmitWithErrors: SubmitErrorHandler<CustomDashboardFormType> = (errors) => {
     const errorKeys = Object.keys(errors) as (keyof CustomDashboardFormType)[];
-    tabs.forEach((tab) => {
+    tabEntries.forEach((tab) => {
       errorKeys.forEach((name) => {
         if (validationSchema.shape[name].description === tab.key) {
-          setActiveTab(tab.key);
+          handleChangeTab(tab.key);
           return;
         }
       });
@@ -118,18 +114,11 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
         onSubmit={handleSubmit(onSubmit, handleSubmitWithErrors)}
       >
         <Tabs
-          value={activeTab}
-          onChange={handleActiveTabChange}
-          aria-label="tabs for payload form"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          {tabs.map(tab => <Tab key={tab.key} label={tab.label} value={tab.key} />)}
-        </Tabs>
-
-        {activeTab === 'General' && (
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={idx => handleChangeTab(idx)}
+        />
+        {currentTab === 'General' && (
           <GeneralFormTab
             initialDefaultDashboardIds={
               {
@@ -141,7 +130,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
           />
         )}
 
-        {activeTab === 'Parameters' && <ParametersTab />}
+        {currentTab === 'Parameters' && <ParametersTab />}
 
         <Box sx={{
           display: 'flex',

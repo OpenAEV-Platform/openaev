@@ -832,6 +832,7 @@
   "Injects results": "Résultats des stimulis",
   "Injects successfully generated.": "Les injections ont été générées avec succès.",
   "Injects will be paused, do you want to continue?": "Les stimulis seront interrompues. Voulez-vous continuer ?",
+  "Related Injects": "Injections connexes",
   "Input (describe what you want)": "Entrée (décrivez ce que vous voulez)",
   "Install": "Installer",
   "Install {platform} agent": "Installer agent {platform}",
