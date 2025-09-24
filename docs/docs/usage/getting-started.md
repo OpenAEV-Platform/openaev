@@ -24,6 +24,31 @@ Here are some examples of use cases:
 The welcome page provides every OpenBAS platform visitor with a snapshot of the platform activity as well as an overview
 of your global security posture. You can find more information in [this section](evaluate/overview.md).
 
+## Starter Pack
+Enabled by default, and in order to understand the value of OpenAEV, the Starter Pack will create and provide for you a set of items for a ready to use platform.
+
+Will be created :
+
+- Three types of [scenarios](scenarios_and_simulations.md) available :
+    - [Tabletop](https://filigran.io/build-your-table-top-scenario-with-openbas/)
+    - Technical - Agentless
+    - [Technical - Agent-based](https://filigran.io/deploy-openbas-agents-and-validate-your-security-posture/)
+- Four [dashboards](dashboards/custom-dashboards/custom-dashboards.md) (Technical Home and Scenario, Technical Simulation, TTX Home and Scenario, TTX Simulation)
+    - Produces a summary of the different scenarios and simulations played on the platform
+- Ready to use [Injectors](injectors.md) ([NMAP](https://github.com/OpenAEV-Platform/injectors/tree/main/nmap) and [Nuclei](https://github.com/OpenAEV-Platform/injectors/tree/main/nuclei))
+    - Will provide the possibility to create agentless attacks
+- All Filigran [Collectors](collectors.md)
+    - Atomic Red Team : Will provide to you a set of payloads ([more info](https://www.atomicredteam.io/atomic-red-team))
+    - Mitre Attack : Will provide payloads and kill chain ([more info](https://docs.openbas.io/latest/administration/taxonomies/)) 
+    - OpenAEV : Will provide payloads validated by Filigran ([more info](https://github.com/OpenAEV-Platform/payloads))
+    - CVE by NVD Nist : Provide all known CVE ([more info](https://docs.openbas.io/latest/administration/taxonomies/))
+- One [Agentless Endpoint](assets.md) 
+    - Prepared agentless endpoint to be used by previous items 
+- One [Asset Group](assets.md) "All endpoint"
+    - Prepared assets group to get all endpoints
+
+You can find configuration to disable it in [this section](../deployment/configuration.md).
+
 ## Your first Breach and Attack Simulation
 
 ### Creating or Importing players and assets to play with

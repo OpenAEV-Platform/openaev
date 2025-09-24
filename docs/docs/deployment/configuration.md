@@ -39,6 +39,8 @@ Here are the configuration keys, for both containers (environment variables) and
 | openbas.admin.token            | OPENBAS_ADMIN_TOKEN                | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                   |
 | openbas.healthcheck.key        | OPENBAS_HEALTHCHECK_KEY            | ChangeMe              |  The key to use in the health check endpoint (/api/health)                                                                              |
 | inject.execution.threshold.minutes    | INJECT_EXECUTION_THRESHOLD_MINUTES | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status. |
+| openbas.starterpack.enabled | OPENBAS_STARTERPACK_ENABLED | true          | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards |
+
 
 #### Network and security
 
