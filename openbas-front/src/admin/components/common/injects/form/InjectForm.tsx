@@ -198,6 +198,18 @@ const InjectForm = ({
       ...mandatoryKeys.shape,
     }).check(({ value, issues }) => {
       if (isCreation) return;
+
+      const parsedTeamError = z.object({ inject_teams: z.array(z.string()).min(1, { message: t('Required') }).default([]) }).safeParse(value);
+      const injectTeamsError = parsedTeamError?.error?.issues.find(i => i.path.includes('inject_teams'));
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      if (injectTeamsError && !value.inject_all_teams) {
+        issues.push({
+          ...injectTeamsError,
+          message: t('At least one of these fields is required.'),
+        });
+      }
+
       const parsed = mandatoryGroupKeys.safeParse(value);
       if (!parsed?.error?.issues) return;
       injectorContractContent?.fields.forEach((field) => {
@@ -256,6 +268,9 @@ const InjectForm = ({
   useEffect(() => {
     const fieldsToSubscribe: (keyof InjectInputForm)[] = [];
     injectorContractContent?.fields.forEach((field) => {
+      if (field.key == 'teams') {
+        fieldsToSubscribe.push('inject_all_teams');
+      }
       if (field.mandatoryConditionFields?.length) {
         field.mandatoryConditionFields.forEach((mandatoryConditionField) => {
           const mandatoryConditionFieldType = injectorContractContent?.fields.find(f => f.key === mandatoryConditionField)?.type;
@@ -305,9 +320,18 @@ const InjectForm = ({
             }, ''),
             settings: { required: isRequired },
           };
-
           newEnhancedFields.push(enhancedField);
           newEnhancedFieldsMapByType.set(field.type, enhancedField);
+
+          if (field.key === 'teams') {
+            clearErrors(`inject_teams` as (keyof InjectInputForm));
+            manda = z.object({
+              ...manda.shape,
+              inject_all_teams: z.boolean(),
+              inject_teams: z.string().array().optional(),
+            });
+            return;
+          }
 
           if (!isCreation) {
             if (isRequired) {
