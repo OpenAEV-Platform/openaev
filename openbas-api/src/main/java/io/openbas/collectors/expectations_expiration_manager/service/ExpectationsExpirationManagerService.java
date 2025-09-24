@@ -33,6 +33,7 @@ public class ExpectationsExpirationManagerService {
   @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
+    // Get all the expectations we will update (max of 10k)
     Page<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
     // We're making a loop on 10 calls max to avoid staying in an infinite loop
     for (int i = 1; i < 10 && expectations.getTotalElements() > 0; i++) {
@@ -40,7 +41,10 @@ public class ExpectationsExpirationManagerService {
       this.processAgentExpectations(expectations.toList(), collector);
       this.processRemainingExpectations(expectations.toList(), collector, updated);
 
+      // Updating all the expectations following the process
       this.injectExpectationService.updateAll(updated);
+
+      // Get the next expectations that need to be processed (still max of 10k)
       expectations = this.injectExpectationService.expectationsNotFill();
     }
   }
