@@ -178,9 +178,7 @@ const CustomDashboards = () => {
         }
       </List>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-        <CustomDashboardCreation
-          onCreate={(result: CustomDashboard) => setCustomDashboards([result, ...customDashboards])}
-        />
+        <CustomDashboardCreation />
       </Can>
     </>
   );

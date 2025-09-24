@@ -2,6 +2,8 @@
 
 export const ADMIN_BASE_URL = '/admin';
 
+export const DASHBOARD_BASE_URL = '/admin/workspaces/custom_dashboards';
+
 export const SCENARIO_BASE_URL = '/admin/scenarios';
 export const SIMULATION_BASE_URL = '/admin/simulations';
 export const ATOMIC_BASE_URL = '/admin/atomic_testings';
