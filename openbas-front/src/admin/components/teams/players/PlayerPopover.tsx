@@ -37,13 +37,14 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { organizationsMap, tagsMap } = useHelper(
+  const { organizationsMap, tagsMap, currentUser } = useHelper(
     (
       helper: UserHelper & OrganizationHelper & TagHelper,
     ) => {
       return {
         organizationsMap: helper.getOrganizationsMap(),
         tagsMap: helper.getTagsMap(),
+        currentUser: helper.getMe(),
       };
     },
   );
@@ -124,7 +125,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
 
   // Button Popover
   const entries = [];
-  if (onUpdate) entries.push({
+  entries.push({
     label: t('Update'),
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
@@ -134,7 +135,9 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
     action: () => handleOpenRemove(),
     userRight: true,
   });
-  entries.push({
+
+  // It's not possible to delete your own player
+  if (user.user_id !== currentUser.user_id) entries.push({
     label: t('Delete'),
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),
