@@ -16,6 +16,8 @@ import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.form.CustomDashboardOutput;
 import io.openbas.rest.dashboard.DashboardService;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openbas.rest.exception.BadRequestException;
 import io.openbas.service.PlatformSettingsService;
 import io.openbas.utils.FilterUtilsJpa;
@@ -266,6 +268,17 @@ public class CustomDashboardService {
     return this.dashboardService.entities(widgetId, parameters);
   }
 
+  public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(
+      @NotBlank final String resourceId,
+      @NotBlank final String widgetId,
+      @NotBlank WidgetToEntitiesInput input) {
+    // verify that the widget is in the resource dashboard
+    if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
+      throw new AccessDeniedException("Access denied");
+    }
+    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
+  }
+
   public List<EsAttackPath> dashboardAttackPathsOnResourceId(
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
@@ -304,6 +317,15 @@ public class CustomDashboardService {
       throw new AccessDeniedException("Access denied");
     }
     return dashboardService.entities(widgetId, parameters);
+  }
+
+  public WidgetToEntitiesOutput homeWidgetToEntitiesRuntimeOnResourceId(
+      @NotBlank final String widgetId, @NotBlank WidgetToEntitiesInput input) {
+    // verify that the widget is in the resource dashboard
+    if (!isWidgetInHomeDashboard(widgetId)) {
+      throw new AccessDeniedException("Access denied");
+    }
+    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
   }
 
   public List<EsAttackPath> homeDashboardAttackPaths(

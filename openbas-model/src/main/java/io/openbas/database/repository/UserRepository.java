@@ -143,6 +143,16 @@ public interface UserRepository
       nativeQuery = true)
   Set<RawUser> rawUserByIds(@Param("ids") Set<String> ids);
 
+  @Query(
+      "SELECT DISTINCT u "
+          + "FROM User u "
+          + "LEFT JOIN u.groups g "
+          + "LEFT JOIN g.roles r "
+          + "LEFT JOIN r.capabilities c "
+          + "WHERE c IN :capabilities "
+          + "OR u.admin = true")
+  List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
+
   // -- PAGINATION --
 
   @NotNull

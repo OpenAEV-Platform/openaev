@@ -1,6 +1,6 @@
 package io.openbas.xtmhub;
 
-import io.openbas.xtmhub.config.XTMHubConfig;
+import io.openbas.xtmhub.config.XtmHubConfig;
 import jakarta.annotation.PostConstruct;
 import java.net.*;
 import lombok.Getter;
@@ -11,19 +11,19 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class XtmHubConnectivityService {
-  private final XTMHubConfig xtmHubConfig;
+  private final XtmHubConfig XtmHubConfig;
 
   @Getter private boolean isReachable;
 
   @PostConstruct
   void init() {
-    this.isReachable = xtmHubConfig.getEnable() && checkIsReachable();
+    this.isReachable = XtmHubConfig.getEnable() && checkIsReachable();
   }
 
   boolean checkIsReachable() {
     HttpURLConnection connection = null;
     try {
-      URI uri = new URI(xtmHubConfig.getApiUrl());
+      URI uri = new URI(XtmHubConfig.getApiUrl());
       connection = (HttpURLConnection) uri.toURL().openConnection();
       connection.setRequestMethod("HEAD");
       connection.setConnectTimeout(5000);

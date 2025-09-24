@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
-import io.openbas.xtmhub.config.XTMHubConfig;
+import io.openbas.xtmhub.config.XtmHubConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -12,7 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class XtmHubConnectivityServiceTest {
-  @Mock private XTMHubConfig xtmHubConfig;
+  @Mock private XtmHubConfig xtmHubConfig;
 
   private XtmHubConnectivityService createServiceWithMockedHttp() {
     return mock(

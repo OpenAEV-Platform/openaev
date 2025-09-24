@@ -6,7 +6,7 @@ import org.springframework.boot.test.autoconfigure.properties.PropertyMapping;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PropertyMapping("openbas.xtm.hub")
-public @interface WithMockXTMHubConfig {
+public @interface WithMockXtmHubConfig {
   boolean enable() default false;
 
   String url() default "";

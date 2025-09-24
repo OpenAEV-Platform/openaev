@@ -4706,6 +4706,8 @@ export interface PlatformSettings {
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
+  /** XTM Hub last connectivity check */
+  xtm_hub_last_connectivity_check?: string;
   /** True if xtmhub backend is reachable */
   xtm_hub_reachable?: boolean;
   /** XTM Hub registration date */
@@ -4716,6 +4718,8 @@ export interface PlatformSettings {
   xtm_hub_registration_user_id?: string;
   /** XTM Hub registration user name */
   xtm_hub_registration_user_name?: string;
+  /** XTM Hub should send connectivity email */
+  xtm_hub_should_send_connectivity_email?: string;
   /** XTM Hub token */
   xtm_hub_token?: string;
   /** Url of XTM Hub */

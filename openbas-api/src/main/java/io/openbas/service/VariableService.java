@@ -46,4 +46,9 @@ public class VariableService {
   public void deleteVariable(@NotBlank final String variableId) {
     this.variableRepository.deleteById(variableId);
   }
+
+  public void copyVariableFromScenarioForSimulation(
+      @NotBlank final String scenarioId, @NotBlank final String exerciseId) {
+    this.variableRepository.copyVariableFromScenarioForSimulation(scenarioId, exerciseId);
+  }
 }

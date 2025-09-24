@@ -8,6 +8,7 @@ import {
   homeDashboardCount,
   homeDashboardEntities,
   homeDashboardSeries,
+  homeWidgetToEntitiesRuntime,
 } from '../../actions/settings/settings-action';
 import { useFormatter } from '../../components/i18n';
 import { useHelper } from '../../store';
@@ -36,11 +37,12 @@ const Home = () => {
   const configuration = {
     customDashboardId: settings.platform_home_dashboard,
     paramLocalStorageKey: 'custom-dashboard-home',
-    fetchCustomDashboard: () => fetchHomeDashboard(),
-    fetchCount: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardCount(widgetId, params),
-    fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardSeries(widgetId, params),
-    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardEntities(widgetId, params),
-    fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => homeDashboardAttackPaths(widgetId, params),
+    fetchCustomDashboard: fetchHomeDashboard,
+    fetchCount: homeDashboardCount,
+    fetchSeries: homeDashboardSeries,
+    fetchEntities: homeDashboardEntities,
+    fetchEntitiesRuntime: homeWidgetToEntitiesRuntime,
+    fetchAttackPaths: homeDashboardAttackPaths,
   };
 
   return (

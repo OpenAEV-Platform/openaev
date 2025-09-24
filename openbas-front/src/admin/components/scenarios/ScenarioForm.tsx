@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Box, Button, Checkbox, Chip, FormControlLabel, MenuItem, Tab, Tabs, TextField as MuiTextField } from '@mui/material';
+import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
+import useTabs from '../../../components/common/tabs/useTabs';
 import SelectField from '../../../components/fields/SelectField';
 import TagField from '../../../components/fields/TagField';
 import TextField from '../../../components/fields/TextField';
@@ -34,12 +36,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
   const theme = useTheme();
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
-  const [currentTab, setCurrentTab] = useState(0);
   const [isScenarioAssistantChecked, setIsScenarioAssistantChecked] = useState(false);
-
-  const handleChangeTab = (_: SyntheticEvent, newValue: number) => {
-    setCurrentTab(newValue);
-  };
 
   const {
     register,
@@ -70,18 +67,22 @@ const ScenarioForm: FunctionComponent<Props> = ({
     defaultValues: initialValues,
   });
 
+  const tabEntries: TabsEntry[] = [{
+    key: 'General',
+    label: t('General'),
+  }, {
+    key: 'Emails and SMS',
+    label: t('Emails and SMS'),
+  }];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+
   return (
     <>
-      <Box sx={{
-        borderBottom: 1,
-        borderColor: 'divider',
-      }}
-      >
-        <Tabs value={currentTab} onChange={handleChangeTab} aria-label="basic tabs example">
-          <Tab label={t('General')} />
-          <Tab label={t('Emails and SMS')} />
-        </Tabs>
-      </Box>
+      <Tabs
+        entries={tabEntries}
+        currentTab={currentTab}
+        onChange={newValue => handleChangeTab(newValue)}
+      />
       <form
         style={{
           display: 'flex',
@@ -92,7 +93,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
         id="scenarioForm"
         onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, isScenarioAssistantChecked))}
       >
-        {currentTab === 0 && (
+        {currentTab === 'General' && (
           <>
             <TextField
               variant="standard"
@@ -216,7 +217,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
             )}
           </>
         )}
-        {currentTab === 1 && (
+        {currentTab === 'Emails and SMS' && (
           <>
             <MuiTextField
               variant="standard"
@@ -226,7 +227,13 @@ const ScenarioForm: FunctionComponent<Props> = ({
               helperText={
                 errors.scenario_mail_from
                   ? errors.scenario_mail_from?.message
-                  : <span style={{ color: theme.palette.warning.main }}>{t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}</span>
+                  : (
+                      <span
+                        style={{ color: theme.palette.warning.main }}
+                      >
+                        {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
+                      </span>
+                    )
               }
               inputProps={register('scenario_mail_from')}
               disabled={disabled}
@@ -328,6 +335,8 @@ const ScenarioForm: FunctionComponent<Props> = ({
       </form>
     </>
   );
-};
+}
+;
 
 export default ScenarioForm;
+;

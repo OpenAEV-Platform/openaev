@@ -13,6 +13,7 @@ import {
   type LessonsQuestionUpdateInput,
   type LessonsSendInput,
   type SearchPaginationInput,
+  type WidgetToEntitiesInput,
 } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import { scenario } from '../scenarios/scenario-schema';
@@ -218,6 +219,10 @@ export const seriesBySimulation = (simulationId: string, widgetId: string, param
 
 export const entitiesBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/entities/${widgetId}`, parameters);
+};
+
+export const widgetToEntitiesBySimulation = (simulationId: string, widgetId: string, input: WidgetToEntitiesInput) => {
+  return simplePostCall(`${EXERCISE_URI}/${simulationId}/dashboard/entities-runtime/${widgetId}`, input);
 };
 
 export const attackPathsBySimulation = (simulationId: string, widgetId: string, parameters: Record<string, string | undefined>) => {

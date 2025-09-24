@@ -4,7 +4,14 @@ import { useSearchParams } from 'react-router';
 import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 
 import Loader from '../../../../components/Loader';
-import type { CustomDashboard, EsAttackPath, EsBase, EsSeries } from '../../../../utils/api-types';
+import type {
+  CustomDashboard,
+  EsAttackPath,
+  EsBase,
+  EsSeries,
+  WidgetToEntitiesInput,
+  WidgetToEntitiesOutput,
+} from '../../../../utils/api-types';
 import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
 import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
@@ -21,6 +28,7 @@ interface CustomDashboardConfiguration {
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<number>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
+  fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;
   fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsAttackPath[]>>;
 }
 
@@ -50,6 +58,7 @@ const CustomDashboardWrapper = ({
     fetchCount,
     fetchSeries,
     fetchEntities,
+    fetchEntitiesRuntime,
     fetchAttackPaths,
   } = configuration || {};
   const [customDashboard, setCustomDashboard] = useState<CustomDashboard>();
@@ -121,6 +130,7 @@ const CustomDashboardWrapper = ({
     canChooseDashboard,
     handleSelectNewDashboard,
     fetchEntities,
+    fetchEntitiesRuntime,
     fetchCount,
     fetchSeries,
     fetchAttackPaths,

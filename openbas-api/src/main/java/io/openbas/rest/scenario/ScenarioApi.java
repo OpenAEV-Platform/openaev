@@ -13,9 +13,6 @@ import io.openbas.aop.RBAC;
 import io.openbas.database.model.*;
 import io.openbas.database.raw.RawPaginationScenario;
 import io.openbas.database.repository.*;
-import io.openbas.engine.model.EsBase;
-import io.openbas.engine.query.EsAttackPath;
-import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.CustomDashboardService;
 import io.openbas.rest.document.DocumentService;
 import io.openbas.rest.exception.ElementNotFoundException;
@@ -37,15 +34,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -438,73 +432,5 @@ public class ScenarioApi extends RestBehavior {
     return this.documentService.documentsForScenario(scenarioId);
   }
 
-  @Operation(summary = "Find the dashboard linked to a Scenario")
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "The dashboard"),
-        @ApiResponse(responseCode = "404", description = "The Scenario doesn't exist")
-      })
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/dashboard")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public ResponseEntity<CustomDashboard> dashboard(@PathVariable final String scenarioId) {
-    return ResponseEntity.ok(
-        this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
-  }
-
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public long dashboardCount(
-      @PathVariable final String scenarioId,
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
-  }
-
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public List<EsSeries> dashboardSeries(
-      @PathVariable final String scenarioId,
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardSeriesOnResourceId(
-        scenarioId, widgetId, parameters);
-  }
-
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public List<EsBase> dashboardEntities(
-      @PathVariable final String scenarioId,
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(
-        scenarioId, widgetId, parameters);
-  }
-
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  @Operation(summary = "Search TagRules")
-  public List<EsAttackPath> dashboardAttackPaths(
-      @PathVariable final String scenarioId,
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters)
-      throws ExecutionException, InterruptedException {
-    return this.customDashboardService.dashboardAttackPathsOnResourceId(
-        scenarioId, widgetId, parameters);
-  }
   // end region
 }

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,20 +33,20 @@ public class ExpectationsExpirationManagerService {
   @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
-    List<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
+    // Get all the expectations we will update (max of 10k)
+    Page<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
+    // We're making a loop on 10 calls max to avoid staying in an infinite loop
+    for (int i = 1; i < 10 && expectations.getTotalElements() > 0; i++) {
+      List<InjectExpectation> updated = new ArrayList<>();
+      this.processAgentExpectations(expectations.toList(), collector);
+      this.processRemainingExpectations(expectations.toList(), collector, updated);
 
-    if (expectations.isEmpty()) {
-      return;
+      // Updating all the expectations following the process
+      this.injectExpectationService.updateAll(updated);
+
+      // Get the next expectations that need to be processed (still max of 10k)
+      expectations = this.injectExpectationService.expectationsNotFill();
     }
-
-    List<InjectExpectation> updated = new ArrayList<>();
-    this.processAgentExpectations(expectations, collector);
-    this.processRemainingExpectations(expectations, collector, updated);
-
-    if (updated.isEmpty()) {
-      return;
-    }
-    this.injectExpectationService.updateAll(updated);
   }
 
   // -- PRIVATE --

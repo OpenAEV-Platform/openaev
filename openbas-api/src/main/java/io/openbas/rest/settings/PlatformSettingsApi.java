@@ -9,6 +9,8 @@ import io.openbas.engine.model.EsBase;
 import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.CustomDashboardService;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
+import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.settings.form.*;
 import io.openbas.rest.settings.response.PlatformSettings;
@@ -122,13 +124,13 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsPolicies(input);
   }
 
-  @GetMapping("/home_dashboard")
+  @GetMapping("/home-dashboard")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public ResponseEntity<CustomDashboard> homeDashboard() {
     return ResponseEntity.ok(customDashboardService.findHomeDashboard().orElse(null));
   }
 
-  @PostMapping("/home_dashboard/count/{widgetId}")
+  @PostMapping("/home-dashboard/count/{widgetId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public long homeDashboardCount(
       @PathVariable final String widgetId,
@@ -136,7 +138,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return customDashboardService.homeDashboardCount(widgetId, parameters);
   }
 
-  @PostMapping("/home_dashboard/series/{widgetId}")
+  @PostMapping("/home-dashboard/series/{widgetId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public List<EsSeries> homeDashboardSeries(
       @PathVariable final String widgetId,
@@ -144,7 +146,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return customDashboardService.homeDashboardSeries(widgetId, parameters);
   }
 
-  @PostMapping("/home_dashboard/entities/{widgetId}")
+  @PostMapping("/home-dashboard/entities/{widgetId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public List<EsBase> homeDashboardEntities(
       @PathVariable final String widgetId,
@@ -152,7 +154,14 @@ public class PlatformSettingsApi extends RestBehavior {
     return customDashboardService.homeDashboardEntities(widgetId, parameters);
   }
 
-  @PostMapping("/home_dashboard/attack-paths/{widgetId}")
+  @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
+      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
+    return customDashboardService.homeWidgetToEntitiesRuntimeOnResourceId(widgetId, input);
+  }
+
+  @PostMapping("/home-dashboard/attack-paths/{widgetId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   public List<EsAttackPath> homeDashboardAttackPaths(
       @PathVariable final String widgetId,

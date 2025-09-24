@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { putReferential } from '../../utils/Action';
+import { postReferential, putReferential } from '../../utils/Action';
 import * as schema from '../Schema';
 
 const XTM_HUB_URI = '/api/xtmhub';
@@ -21,6 +21,17 @@ export const unregisterPlatform = () => (dispatch: Dispatch) => {
     schema.platformParameters,
     uri,
     {},
+    false,
+  )(dispatch);
+};
+
+export const refreshConnectivity = () => (dispatch: Dispatch) => {
+  const uri = `${XTM_HUB_URI}/refresh-connectivity`;
+  return postReferential(
+    schema.platformParameters,
+    uri,
+    {},
+    undefined,
     false,
   )(dispatch);
 };

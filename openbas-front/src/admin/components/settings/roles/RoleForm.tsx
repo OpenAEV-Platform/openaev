@@ -1,10 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Tab, Tabs } from '@mui/material';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FC, type FormEvent, type SyntheticEvent, useState } from 'react';
+import { type FC, type FormEvent } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import type { TabsEntry } from '../../../../components/common/tabs/Tabs';
+import Tabs from '../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../components/common/tabs/useTabs';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import capabilities from './capabilities.json';
@@ -32,18 +35,6 @@ const RoleForm: FC<RoleFormProps> = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const tabs = [
-    {
-      key: 'Overview',
-      label: 'Overview',
-    },
-    {
-      key: 'Capabilities',
-      label: 'Capabilities',
-    },
-  ];
-  const [activeTab, setActiveTab] = useState(tabs[0].key);
-
   /* ---------- Zod schema ---------- */
   const schema = z.object({
     role_name: z.string().min(1, { message: t('Should not be empty') }).describe('Overview-tab'),
@@ -70,7 +61,17 @@ const RoleForm: FC<RoleFormProps> = ({
   const getTabForField = (field: string) =>
     (schema.shape as Record<string, z.ZodTypeAny>)[field]?.description?.replace('-tab', '');
 
-  const handleTabChange = (_: SyntheticEvent, newValue: string) => setActiveTab(newValue);
+  const tabEntries: TabsEntry[] = [
+    {
+      key: 'Overview',
+      label: 'Overview',
+    },
+    {
+      key: 'Capabilities',
+      label: 'Capabilities',
+    },
+  ];
+  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   const handleSubmitWithTab = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -78,7 +79,7 @@ const RoleForm: FC<RoleFormProps> = ({
     if (!isValid) {
       const firstErrorField = Object.keys(errors)[0];
       const tabName = getTabForField(firstErrorField);
-      if (tabName) setActiveTab(tabName);
+      if (tabName) handleChangeTab(tabName);
     } else {
       handleSubmit(onSubmit)(e);
     }
@@ -86,20 +87,22 @@ const RoleForm: FC<RoleFormProps> = ({
 
   return (
     <FormProvider {...methods}>
+      <Tabs
+        entries={tabEntries}
+        currentTab={currentTab}
+        onChange={newValue => handleChangeTab(newValue)}
+      />
       <form
         onSubmit={handleSubmitWithTab}
         noValidate
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: activeTab === 'Overview' ? theme.spacing(2) : 0,
+          marginTop: currentTab === 'Overview' ? theme.spacing(2) : 0,
+          gap: currentTab === 'Overview' ? theme.spacing(2) : 0,
         }}
       >
-        <Tabs value={activeTab} onChange={handleTabChange}>
-          {tabs.map(t => <Tab key={t.key} label={t.label} value={t.key} />)}
-        </Tabs>
-
-        {activeTab === 'Overview' && (
+        {currentTab === 'Overview' && (
           <>
             <TextFieldController name="role_name" label={t('Name')} required />
             <TextFieldController name="role_description" label={t('Description')} multiline={true} rows={3} />
@@ -107,7 +110,7 @@ const RoleForm: FC<RoleFormProps> = ({
 
         )}
 
-        {activeTab === 'Capabilities' && (
+        {currentTab === 'Capabilities' && (
           <>
             {capabilities.map(cap => (
               <CapabilitiesTab capability={cap} key={cap.name} capabilities={capabilities} />

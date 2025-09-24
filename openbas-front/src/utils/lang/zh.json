@@ -832,6 +832,7 @@
   "Injects results": "注入结果",
   "Injects successfully generated.": " 注入已成功生成。",
   "Injects will be paused, do you want to continue?": "注入将会暂停. 你想要继续么?",
+  "Related Injects": "相关注射",
   "Input (describe what you want)": "输入（描述您想要什么）",
   "Install": "安装",
   "Install {platform} agent": "安装 {platform} 代理",
