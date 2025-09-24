@@ -4606,7 +4606,6 @@ export interface PlatformSettings {
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
-    | "OPENAEV_REGISTRATION"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
   )[];
   /** True if the Caldera Executor is enabled */

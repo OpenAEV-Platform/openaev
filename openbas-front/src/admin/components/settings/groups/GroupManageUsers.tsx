@@ -31,6 +31,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
 
   const [userValues, setUserValues] = useState<UserOutput[]>([]);
   const [selectedUserValues, setSelectedUserValues] = useState<UserOutput[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   useEffect(() => {
     if (open) {
       findUsers(initialState).then(result => setSelectedUserValues(result.data));
@@ -69,6 +70,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
       fetch={input => searchUsers(input)}
       searchPaginationInput={searchPaginationInput}
       setContent={setUserValues}
+      setLoading={setIsLoading}
       entityPrefix="user"
       availableFilterNames={['user_tags']}
       queryableHelpers={queryableHelpers}
@@ -95,6 +97,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
         <SelectList
           values={userValues}
           selectedValues={selectedUserValues}
+          isLoadingValues={isLoading}
           elements={elements}
           onSelect={addUser}
           onDelete={removeUser}
@@ -110,9 +113,11 @@ const GroupManageUsers: FunctionComponent<Props> = ({
           <Button variant="contained" style={{ marginRight: 10 }} onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="secondary" onClick={handleSubmit}>
-            {t('Update')}
-          </Button>
+          {!isLoading && (
+            <Button variant="contained" color="secondary" onClick={handleSubmit}>
+              {t('Update')}
+            </Button>
+          )}
         </div>
       </Box>
     </Drawer>

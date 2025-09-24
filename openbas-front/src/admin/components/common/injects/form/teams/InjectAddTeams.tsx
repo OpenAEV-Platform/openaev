@@ -1,5 +1,15 @@
 import { ControlPointOutlined, GroupsOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -50,10 +60,10 @@ const InjectAddTeams: FunctionComponent<Props> = ({
 
   const [teamValues, setTeamValues] = useState<TeamOutput[]>([]);
   const [selectedTeamValues, setSelectedTeamValues] = useState<TeamOutput[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Dialog
   const [open, setOpen] = useState(false);
-
   const handleClose = () => {
     setOpen(false);
   };
@@ -96,6 +106,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
       fetch={input => searchTeams(input, true)}
       searchPaginationInput={searchPaginationInput}
       setContent={setTeamValues}
+      setLoading={setIsLoading}
       entityPrefix="team"
       availableFilterNames={['team_tags']}
       queryableHelpers={queryableHelpers}
@@ -138,6 +149,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
             <SelectList
               values={teamValues}
               selectedValues={selectedTeamValues}
+              isLoadingValues={isLoading}
               elements={elements}
               onSelect={addTeam}
               onDelete={removeTeam}
@@ -162,9 +174,11 @@ const InjectAddTeams: FunctionComponent<Props> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitAddTeams}>
-            {t('Update')}
-          </Button>
+          {!isLoading && (
+            <Button color="secondary" onClick={submitAddTeams}>
+              {t('Update')}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </div>

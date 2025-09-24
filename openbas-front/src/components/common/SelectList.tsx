@@ -1,4 +1,13 @@
-import { Box, Chip, Grid, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import {
+  Box,
+  Chip,
+  Grid,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Skeleton,
+} from '@mui/material';
 import { type ReactElement, useMemo } from 'react';
 
 import { truncate } from '../../utils/String';
@@ -26,6 +35,7 @@ interface Props<T, V> {
   buttonComponent?: ReactElement;
   getId: (element: T | V) => string;
   getName: (element: T | V) => string;
+  isLoadingValues: boolean;
 }
 
 const SelectList = <T extends object, V extends object = T>({
@@ -38,6 +48,7 @@ const SelectList = <T extends object, V extends object = T>({
   buttonComponent,
   getId,
   getName,
+  isLoadingValues,
 }: Props<T, V>) => {
   const selectedIds = useMemo(
     () => selectedValues.map(v => getId(v)),
@@ -49,47 +60,49 @@ const SelectList = <T extends object, V extends object = T>({
       {paginationComponent}
       <Grid container spacing={3}>
         <Grid size={{ xs: 8 }}>
-          <List>
-            {values.map((value) => {
-              const id = getId(value);
-              const disabled = selectedIds.includes(id);
-              return (
-                <ListItemButton
-                  key={id}
-                  disabled={disabled}
-                  divider
-                  onClick={() => onSelect(id, value)}
-                >
-                  <ListItemIcon>
-                    {elements.icon.value()}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <Box sx={{ display: 'flex' }}>
-                        {elements.headers.map(header => (
-                          <Box
-                            key={header.field}
-                            sx={{
-                              height: 20,
-                              fontSize: 13,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              paddingRight: 1,
-                              width: `${header.width}%`,
-                            }}
-                          >
-                            {header.value(value)}
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-                  />
-                </ListItemButton>
-              );
-            })}
-            {buttonComponent}
-          </List>
+          {isLoadingValues ? <Skeleton height={40} /> : (
+            <List>
+              {values.map((value) => {
+                const id = getId(value);
+                const disabled = selectedIds.includes(id);
+                return (
+                  <ListItemButton
+                    key={id}
+                    disabled={disabled}
+                    divider
+                    onClick={() => onSelect(id, value)}
+                  >
+                    <ListItemIcon>
+                      {elements.icon.value()}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={(
+                        <Box sx={{ display: 'flex' }}>
+                          {elements.headers.map(header => (
+                            <Box
+                              key={header.field}
+                              sx={{
+                                height: 20,
+                                fontSize: 13,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                paddingRight: 1,
+                                width: `${header.width}%`,
+                              }}
+                            >
+                              {header.value(value)}
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    />
+                  </ListItemButton>
+                );
+              })}
+              {buttonComponent}
+            </List>
+          )}
         </Grid>
         <Grid size={{ xs: 4 }}>
           <Box
