@@ -22,11 +22,9 @@ import { useContext } from 'react';
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
-  const isHubRegistrationEnabled = isFeatureEnabled('OPENAEV_REGISTRATION');
   const entries = [
     {
       userRight: true,
@@ -242,13 +240,11 @@ const LeftBar = () => {
               label: 'Data ingestion',
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
             },
-            ...isHubRegistrationEnabled
-              ? [{
-                  link: '/admin/settings/experience',
-                  label: 'Filigran Experience',
-                  userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-                }]
-              : [],
+            {
+              link: '/admin/settings/experience',
+              label: 'Filigran Experience',
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+            },
           ],
         },
       ],
