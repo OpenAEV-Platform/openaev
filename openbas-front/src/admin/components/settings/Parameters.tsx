@@ -1,21 +1,20 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, List, ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
+import { List, ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useState } from 'react';
+import { useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformEnterpriseEditionParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
+import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import ItemCopy from '../../../components/ItemCopy';
 import { useHelper } from '../../../store';
-import { type PlatformSettings, type SettingsEnterpriseEditionUpdateInput, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
+import { type PlatformSettings, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../utils/permissions/PermissionsProvider';
+import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import EnterpriseEditionButton from '../common/entreprise_edition/EnterpriseEditionButton';
 import ParametersForm from './ParametersForm';
 import ThemeForm from './ThemeForm';
 
@@ -35,16 +34,12 @@ const Parameters = () => {
   const { classes } = useStyles();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
   const ability = useContext(AbilityContext);
   const cannotManagePlatformSettings = ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
 
-  const [openEEChanges, setOpenEEChanges] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-  const isEnterpriseEditionActivated = settings.platform_license?.license_is_enterprise;
-  const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
   const isEnterpriseEditionValid = settings.platform_license?.license_is_validated;
-  const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
   });
@@ -76,7 +71,6 @@ const Parameters = () => {
   const onUpdate = (data: SettingsUpdateInput) => dispatch(updatePlatformParameters(data));
   const onUpdateLigthParameters = (data: ThemeInput) => dispatch(updatePlatformLightParameters(data));
   const onUpdateDarkParameters = (data: ThemeInput) => dispatch(updatePlatformDarkParameters(data));
-  const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
   const updatePlatformWhitemark = (data: SettingsPlatformWhitemarkUpdateInput) => dispatch(updatePlatformWhitemarkParameters(data));
   return (
     <>
@@ -93,158 +87,7 @@ const Parameters = () => {
             current: true,
           }]}
         />
-
-        {!isEnterpriseEditionActivated && (
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-            <EnterpriseEditionButton />
-          </Can>
-        )}
-
-        {isEnterpriseEditionActivated && (
-          <div>
-            {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-                <EnterpriseEditionButton />
-              </Can>
-            )}
-            {!isEnterpriseEditionByConfig && isEnterpriseEdition && (
-              <>
-                <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => setOpenEEChanges(true)}
-                  >
-                    {t('Disable Enterprise Edition')}
-                  </Button>
-                </Can>
-                <Dialog
-                  slotProps={{ paper: { elevation: 1 } }}
-                  open={openEEChanges}
-                  keepMounted
-                  onClose={() => setOpenEEChanges(false)}
-                >
-                  <DialogTitle>{t('Disable Enterprise Edition')}</DialogTitle>
-                  <DialogContent>
-                    <DialogContentText>
-                      <Alert
-                        severity="warning"
-                        variant="outlined"
-                        color="error"
-                      >
-                        {t('You are about to disable the "Enterprise Edition" mode. Please note that this action will disable access to certain advanced features.')}
-                        <br />
-                        <br />
-                        <strong>{t('However, your existing data will remain intact and will not be lost.')}</strong>
-                      </Alert>
-                    </DialogContentText>
-                  </DialogContent>
-                  <DialogActions>
-                    <Button
-                      onClick={() => {
-                        setOpenEEChanges(false);
-                      }}
-                    >
-                      {t('Cancel')}
-                    </Button>
-                    <Button
-                      color="secondary"
-                      onClick={() => {
-                        setOpenEEChanges(false);
-                        updateEnterpriseEdition({ platform_enterprise_license: '' });
-                      }}
-                    >
-                      {t('Validate')}
-                    </Button>
-                  </DialogActions>
-                </Dialog>
-              </>
-            )}
-          </div>
-        )}
       </div>
-      {isEnterpriseEditionActivated && (
-        <div style={{
-          display: 'grid',
-          gap: `0px ${theme.spacing(3)}`,
-          gridTemplateColumns: '1fr 1fr',
-        }}
-        >
-          <Typography variant="h4">{t('Enterprise Edition')}</Typography>
-          <Typography variant="h4">{t('License')}</Typography>
-          <Paper className={`${classes.paperList} ${classes.marginBottom}`} variant="outlined">
-            <List style={{ padding: 0 }}>
-              <ListItem divider>
-                <ListItemText primary={t('Organization')} />
-                <ItemBoolean
-                  variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_customer}
-                  status={null}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Creator')} />
-                <ItemBoolean
-                  variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_creator}
-                  status={null}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Scope')} />
-                <ItemBoolean
-                  variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
-                  status={null}
-                />
-              </ListItem>
-            </List>
-          </Paper>
-          <Paper className={`${classes.paperList} ${classes.marginBottom}`} variant="outlined">
-            <List style={{ padding: 0 }}>
-              {!settings.platform_license?.license_is_expired && settings.platform_license?.license_is_prevention && (
-                <ListItem divider={false}>
-                  <Alert severity="warning" variant="outlined" style={{ width: '100%' }}>
-                    {t('Your Enterprise Edition license will expire in less than 3 months.')}
-                  </Alert>
-                </ListItem>
-              )}
-              {!settings.platform_license?.license_is_validated && settings.platform_license?.license_is_valid_cert && (
-                <ListItem divider={false}>
-                  <Alert severity="error" variant="outlined" style={{ width: '100%' }}>
-                    {t('Your Enterprise Edition license is expired. Please contact your Filigran representative.')}
-                  </Alert>
-                </ListItem>
-              )}
-              <ListItem divider>
-                <ListItemText primary={t('Start date')} />
-                <ItemBoolean
-                  variant="xlarge"
-                  label={fldt(settings.platform_license?.license_start_date)}
-                  status={!settings.platform_license?.license_is_expired}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Expiration date')} />
-                <ItemBoolean
-                  variant="xlarge"
-                  label={fldt(settings.platform_license?.license_expiration_date)}
-                  status={!settings.platform_license?.license_is_expired}
-                />
-              </ListItem>
-              <ListItem divider={!settings.platform_license?.license_is_prevention}>
-                <ListItemText primary={t('License type')} />
-                <ItemBoolean
-                  variant="large"
-                  neutralLabel={settings.platform_license?.license_type}
-                  status={null}
-                />
-              </ListItem>
-            </List>
-          </Paper>
-        </div>
-      )}
       <div style={{
         display: 'grid',
         gap: `0px ${theme.spacing(3)}`,
