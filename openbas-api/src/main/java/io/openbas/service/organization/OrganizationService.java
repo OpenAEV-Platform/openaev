@@ -1,6 +1,5 @@
 package io.openbas.service.organization;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.OrganizationSpecification.findGrantedFor;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -8,7 +7,6 @@ import io.openbas.database.model.Capability;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.OrganizationRepository;
-import io.openbas.database.repository.UserRepository;
 import io.openbas.service.UserService;
 import io.openbas.utils.pagination.SearchPaginationInput;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +23,6 @@ public class OrganizationService {
   private final OrganizationRepository organizationRepository;
 
   private final UserService userService;
-  private final UserRepository userRepository;
 
   public Page<Organization> organizationPagination(
       @NotNull SearchPaginationInput searchPaginationInput) {

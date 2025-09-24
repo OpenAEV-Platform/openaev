@@ -93,28 +93,22 @@ class PlayerApiTest extends IntegrationTest {
     // -- ASSERT --
     assertTrue(response.contains(EMAIL_FORMAT));
   }
-//
-//  @DisplayName("Given restricted user, should not allow creation of player")
-//  @Test
-//  @WithMockUser(withCapabilities = Capability.MANAGE_TEAMS_AND_PLAYERS)
-//  void given_restrictedUser_should_notAllowPlayerCreation() {
-//    // -- PREPARE --
-//    PlayerInput playerInput = buildPlayerInput();
-//
-//    // --EXECUTE--
-//    Exception exception =
-//        assertThrows(
-//            ServletException.class,
-//            () ->
-//                mvc.perform(
-//                    post(PLAYER_URI)
-//                        .content(asJsonString(playerInput))
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .accept(MediaType.APPLICATION_JSON)));
-//
-//    // --ASSERT--
-//    assertTrue(exception.getMessage().contains("User is restricted"));
-//  }
+
+  @DisplayName("Given restricted user, should not allow creation of player")
+  @Test
+  @WithMockUser
+  void given_restrictedUser_should_notAllowPlayerCreation() throws Exception {
+    // -- PREPARE --
+    PlayerInput playerInput = buildPlayerInput();
+
+    // --EXECUTE--
+    mvc.perform(
+            post(PLAYER_URI)
+                .content(asJsonString(playerInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isForbidden());
+  }
 
   @DisplayName("Given valid player input, should upsert player successfully")
   @Test
@@ -195,22 +189,22 @@ class PlayerApiTest extends IntegrationTest {
     assertEquals("updatedFirstname", JsonPath.read(response, "$.user_firstname"));
   }
 
-  //  @DisplayName("Given restricted user, should not allow updating a player")
-  //  @Test
-  //  @WithMockUser(withCapabilities = Capability.MANAGE_TEAMS_AND_PLAYERS)
-  //  void given_restrictedUser_should_notAllowPlayerUpdate() throws Exception {
-  //    // -- PREPARE --
-  //    PlayerInput playerInput = buildPlayerInput();
-  //    User user = userRepository.findByEmailIgnoreCase(adminEmail).orElseThrow();
-  //
-  //    // -- EXECUTE --
-  //    mvc.perform(
-  //            put(PLAYER_URI + "/" + user.getId())
-  //                .content(asJsonString(playerInput))
-  //                .contentType(MediaType.APPLICATION_JSON)
-  //                .accept(MediaType.APPLICATION_JSON))
-  //        .andExpect(status().isForbidden());
-  //  }
+  @DisplayName("Given restricted user, should not allow updating a player")
+  @Test
+  @WithMockUser
+  void given_restrictedUser_should_notAllowPlayerUpdate() throws Exception {
+    // -- PREPARE --
+    PlayerInput playerInput = buildPlayerInput();
+    User user = userRepository.findByEmailIgnoreCase(adminEmail).orElseThrow();
+
+    // -- EXECUTE --
+    mvc.perform(
+            put(PLAYER_URI + "/" + user.getId())
+                .content(asJsonString(playerInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isForbidden());
+  }
 
   @DisplayName("Given valid player ID, should delete player successfully")
   @Test
