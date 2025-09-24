@@ -38,7 +38,11 @@ const CustomDashboardParameters: FunctionComponent = () => {
   const dateParameters: Map<CustomDashboardParametersType['custom_dashboards_parameter_type'], string> = new Map();
   customDashboard?.custom_dashboard_parameters?.forEach((p) => {
     if (['timeRange', 'startDate', 'endDate'].includes(p.custom_dashboards_parameter_type)) {
-      dateParameters.set(p.custom_dashboards_parameter_type, p.custom_dashboards_parameter_id);
+      if (contextId && !customDashboardParameters[p.custom_dashboards_parameter_id].hidden) {
+        dateParameters.set(p.custom_dashboards_parameter_type, p.custom_dashboards_parameter_id);
+      } else if (!contextId) {
+        dateParameters.set(p.custom_dashboards_parameter_type, p.custom_dashboards_parameter_id);
+      }
     }
   });
 
@@ -87,18 +91,16 @@ const CustomDashboardParameters: FunctionComponent = () => {
       gap: theme.spacing(2),
     }}
     >
-      {
-        !contextId && (
-          <TimeRangeFilters
-            timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
-            handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
-            startDateValue={getParameter(dateParameters.get('startDate'))?.value}
-            handleStartDate={data => handleParametersValue(dateParameters.get('startDate'), data)}
-            endDateValue={getParameter(dateParameters.get('endDate'))?.value}
-            handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
-          />
-        )
-      }
+      {dateParameters.size > 0 && (
+        <TimeRangeFilters
+          timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
+          handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
+          startDateValue={getParameter(dateParameters.get('startDate'))?.value}
+          handleStartDate={data => handleParametersValue(dateParameters.get('startDate'), data)}
+          endDateValue={getParameter(dateParameters.get('endDate'))?.value}
+          handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
+        />
+      )}
 
       {paramsFields.length > 0 && (
         <div
