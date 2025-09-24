@@ -6,10 +6,7 @@ import static io.openbas.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
 import io.openbas.aop.RBAC;
-import io.openbas.database.model.Action;
-import io.openbas.database.model.Organization;
-import io.openbas.database.model.ResourceType;
-import io.openbas.database.model.User;
+import io.openbas.database.model.*;
 import io.openbas.database.raw.RawOrganization;
 import io.openbas.database.repository.OrganizationRepository;
 import io.openbas.database.repository.TagRepository;
@@ -46,7 +43,8 @@ public class OrganizationApi extends RestBehavior {
   public Iterable<RawOrganization> organizations() {
     User currentUser = userService.currentUser();
     List<RawOrganization> organizations;
-    if (currentUser.isAdminOrBypass()) {
+    if (currentUser.isAdminOrBypass()
+        || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
       organizations = fromIterable(organizationRepository.rawAll());
     } else {
       organizations = fromIterable(organizationRepository.rawByUser(currentUser.getId()));

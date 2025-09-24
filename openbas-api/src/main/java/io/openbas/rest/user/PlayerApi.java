@@ -143,11 +143,6 @@ public class PlayerApi extends RestBehavior {
   @RBAC(resourceId = "#userId", actionPerformed = Action.WRITE, resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    if (!userService.currentUser().isAdminOrBypass()
-        && user.isManager()
-        && !currentUser().getId().equals(userId)) {
-      throw new UnsupportedOperationException("You dont have the right to update this user");
-    }
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
@@ -158,10 +153,6 @@ public class PlayerApi extends RestBehavior {
   @DeleteMapping(PLAYER_URI + "/{userId}")
   @RBAC(resourceId = "#userId", actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    if (!userService.currentUser().isAdminOrBypass() && user.isManager()) {
-      throw new UnsupportedOperationException("You dont have the right to delete this user");
-    }
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteById(userId);
   }

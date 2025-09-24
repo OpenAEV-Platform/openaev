@@ -4,6 +4,7 @@ import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.OrganizationSpecification.findGrantedFor;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openbas.database.model.Capability;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.OrganizationRepository;
@@ -29,7 +30,8 @@ public class OrganizationService {
   public Page<Organization> organizationPagination(
       @NotNull SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()) {
+    if (currentUser.isAdminOrBypass()
+        || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
       return buildPaginationJPA(
           this.organizationRepository::findAll, searchPaginationInput, Organization.class);
     } else {
