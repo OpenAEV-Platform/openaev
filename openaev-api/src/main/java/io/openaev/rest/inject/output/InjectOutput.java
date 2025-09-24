@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectDependency;
 import io.openaev.database.model.InjectorContract;
+import io.openbas.healthcheck.dto.HealthCheck;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
@@ -66,6 +67,9 @@ public class InjectOutput {
 
   @JsonProperty("inject_content")
   private ObjectNode content;
+
+  @JsonProperty("inject_healthchecks")
+  private List<HealthCheck> healthchecks;
 
   @JsonProperty("inject_testable")
   public boolean canBeTested() {

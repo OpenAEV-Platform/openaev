@@ -40,6 +40,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioSimple;
+import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
@@ -887,5 +888,23 @@ public class ScenarioService {
       duplicatedObjectives.add(duplicatedObjective);
     }
     scenario.setObjectives(duplicatedObjectives);
+  }
+
+  /**
+   * Verify all healthcheck for a given scenario
+   * @param scenario to verify
+   * @return converted scenario to ScenarioOutput with healthcheck attribute
+   */
+  public ScenarioOutput runChecks(Scenario scenario) {
+    if (scenario == null) {
+      return null;
+    }
+
+    ScenarioOutput scenarioOutput = new ScenarioOutput(scenario);
+    scenarioOutput.setHealthchecks(new ArrayList<>());
+    scenarioOutput.setInjects(new ArrayList<>());
+    scenario.getInjects().forEach(inject -> scenarioOutput.getInjects().add(injectService.runChecks(inject)));
+
+    return scenarioOutput;
   }
 }

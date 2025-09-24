@@ -3,10 +3,12 @@ package io.openaev.rest.scenario.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.model.*;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.helper.*;
 import io.openaev.rest.inject.output.InjectOutput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Setter;
 
@@ -82,7 +84,6 @@ public class ScenarioOutput {
     private CustomDashboard customDashboard;
 
     @JsonProperty("scenario_injects")
-    @JsonSerialize(using = MultiIdListDeserializer.class)
     private List<InjectOutput> injects;
 
     @JsonSerialize(using = MultiIdListDeserializer.class)
@@ -151,6 +152,9 @@ public class ScenarioOutput {
     @Setter(NONE)
     private List<KillChainPhase> killChainPhases;
 
+    @JsonProperty("scenario_healthchecks")
+    private List<HealthCheck> healthchecks;
+
     public ScenarioOutput(Scenario scenario) {
         this.id = scenario.getId();
         this.name = scenario.getName();
@@ -171,7 +175,6 @@ public class ScenarioOutput {
         this.createdAt = scenario.getCreatedAt();
         this.updatedAt = scenario.getUpdatedAt();
         this.customDashboard = scenario.getCustomDashboard();
-        this.injects = scenario.getInjects().stream().map(InjectOutput::new).toList();
         this.teams = scenario.getTeams();
         this.teamUsers = scenario.getTeamUsers();
         this.tags = scenario.getTags();
@@ -190,5 +193,4 @@ public class ScenarioOutput {
         this.platforms = scenario.getPlatforms();
         this.killChainPhases = scenario.getKillChainPhases();
     }
-
 }

@@ -23,6 +23,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.Ee;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -34,6 +35,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.security.SecurityExpression;
@@ -1236,5 +1238,21 @@ public class InjectService {
         .orElseThrow(
             () ->
                 new ElementNotFoundException("payload not found on inject with id : " + injectId));
+  }
+
+  /**
+   * Verify all healthcheck for a given inject
+   * @param inject to verify
+   * @return converted inject to InjectOutput with healthcheck values
+   */
+  public InjectOutput runChecks(Inject inject) {
+      if (inject == null) {
+          return null;
+      }
+
+      InjectOutput injectOutput = new InjectOutput(inject);
+      injectOutput.setHealthchecks(new ArrayList<>());
+
+      return injectOutput;
   }
 }

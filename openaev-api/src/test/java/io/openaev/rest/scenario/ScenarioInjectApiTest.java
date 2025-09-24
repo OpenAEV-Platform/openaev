@@ -130,7 +130,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$.scenario_injects[0]"));
+    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$.scenario_injects[0].inject_id"));
   }
 
   @DisplayName("Retrieve injects for scenario")
