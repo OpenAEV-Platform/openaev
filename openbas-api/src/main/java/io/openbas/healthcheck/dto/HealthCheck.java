@@ -17,9 +17,6 @@ public class HealthCheck {
     }
 
     public enum Detail {
-        MISSING_MANDATORY_PARAMETER,
-        MISSING_EXECUTOR,
-        MISSING_SECURITY_SYSTEM_COLLECTOR,
         SERVICE_UNAVAILABLE,
         NOT_READY,
         EMPTY,

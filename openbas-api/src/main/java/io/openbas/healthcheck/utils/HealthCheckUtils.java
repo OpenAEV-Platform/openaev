@@ -47,7 +47,7 @@ public class HealthCheckUtils {
         Injector injector = injectorContract != null ? injectorContract.getInjector() : null;
 
         if (injector != null && ArrayUtils.contains(injector.getDependencies(), ExternalServiceDependency.IMAP) && !isImapServiceAvailable) {
-            result.add(HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
+            result.add(HealthCheckUtils.createWarningHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
         }
 
         return result;
@@ -133,7 +133,24 @@ public class HealthCheckUtils {
         boolean atLeastOneInjectIsNotReady = scenarioOutput.getInjects().stream().anyMatch(inject -> !inject.isReady());
 
         if (atLeastOneInjectIsNotReady) {
-            result.add(createErrorHealthCheck(HealthCheck.Type.INJECT, HealthCheck.Detail.NOT_READY));
+            result.add(createWarningHealthCheck(HealthCheck.Type.INJECT, HealthCheck.Detail.NOT_READY));
+        }
+
+        return result;
+    }
+
+    /**
+     * Run all teams checks for one scenario
+     * @param scenarioOutput to test
+     * @return all found teams issues
+     */
+    public static List<HealthCheck> runTeamsChecks(ScenarioOutput scenarioOutput) {
+        List<HealthCheck> result = new ArrayList<>();
+        boolean isMissingTeams = scenarioOutput.getTeams().isEmpty() ||
+                scenarioOutput.getTeams().stream().allMatch(team -> team.getUsers().isEmpty());
+
+        if (isMissingTeams) {
+            result.add(createWarningHealthCheck(HealthCheck.Type.TEAMS, HealthCheck.Detail.EMPTY));
         }
 
         return result;
@@ -165,7 +182,7 @@ public class HealthCheckUtils {
         List<HealthCheck> result = new ArrayList<>();
 
         if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, HealthCheck.Type.IMAP)) {
-            result.add(createErrorHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
+            result.add(createWarningHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
         }
 
         return result;
@@ -177,7 +194,7 @@ public class HealthCheckUtils {
      * @param detail of the healthcheck
      * @return healthcheck in error
      */
-    public static HealthCheck createErrorHealthCheck(HealthCheck.Type type, HealthCheck.Detail detail) {
+    private static HealthCheck createErrorHealthCheck(HealthCheck.Type type, HealthCheck.Detail detail) {
         return new HealthCheck(
                 type,
                 detail,
@@ -185,6 +202,23 @@ public class HealthCheckUtils {
                 new Date()
         );
     }
+
+    /**
+     * Create an Healthcheck in warning state
+     * @param type of the healthcheck
+     * @param detail of the healthcheck
+     * @return healthcheck in warning
+     */
+    private static HealthCheck createWarningHealthCheck(HealthCheck.Type type, HealthCheck.Detail detail) {
+        return new HealthCheck(
+                type,
+                detail,
+                HealthCheck.Status.WARNING,
+                new Date()
+        );
+    }
+
+
 
     /**
      * Verify if an healthcheck type is found in a list of healthchecks

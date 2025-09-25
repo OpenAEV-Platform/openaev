@@ -922,6 +922,8 @@ public class ScenarioService {
             HealthCheckUtils.runCollectorChecks(scenarioOutput));
     scenarioOutput.getHealthchecks().addAll(
             HealthCheckUtils.runMissingContentChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(
+            HealthCheckUtils.runTeamsChecks(scenarioOutput));
 
     return scenarioOutput;
   }
