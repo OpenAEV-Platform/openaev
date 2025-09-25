@@ -65,7 +65,7 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
       rule = z.boolean();
       break;
     case 'tags':
-      rule = z.array(z.string()).min(1, { message: t('Required') }).default([]); ;
+      rule = z.array(z.string()).min(1, { message: t('Required') }).default([]);
       break;
 
     case 'text':

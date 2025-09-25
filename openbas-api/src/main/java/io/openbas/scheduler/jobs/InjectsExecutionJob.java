@@ -7,6 +7,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openbas.aop.LogExecutionTime;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.ExerciseRepository;
 import io.openbas.database.repository.InjectDependenciesRepository;
@@ -308,6 +309,7 @@ public class InjectsExecutionJob implements Job {
   }
 
   @Override
+  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       // Handle starting exercises if needed.

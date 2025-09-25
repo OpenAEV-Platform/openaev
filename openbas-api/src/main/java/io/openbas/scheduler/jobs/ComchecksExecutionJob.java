@@ -9,6 +9,7 @@ import static java.util.stream.Collectors.groupingBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openbas.aop.LogExecutionTime;
 import io.openbas.config.OpenBASConfig;
 import io.openbas.database.model.*;
 import io.openbas.database.repository.ComcheckRepository;
@@ -101,6 +102,7 @@ public class ComchecksExecutionJob implements Job {
 
   @Override
   @Transactional
+  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     Instant now = now();
     try {

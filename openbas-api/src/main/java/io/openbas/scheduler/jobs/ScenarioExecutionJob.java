@@ -2,6 +2,7 @@ package io.openbas.scheduler.jobs;
 
 import static io.openbas.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
+import io.openbas.aop.LogExecutionTime;
 import io.openbas.database.model.Exercise;
 import io.openbas.database.model.Scenario;
 import io.openbas.database.repository.ExerciseRepository;
@@ -35,6 +36,7 @@ public class ScenarioExecutionJob implements Job {
 
   @Override
   @Transactional(rollbackFor = Exception.class)
+  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
