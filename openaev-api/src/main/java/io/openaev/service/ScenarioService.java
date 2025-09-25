@@ -920,6 +920,8 @@ public class ScenarioService {
             HealthCheckUtils.runExecutorChecks(scenarioOutput));
     scenarioOutput.getHealthchecks().addAll(
             HealthCheckUtils.runCollectorChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(
+            HealthCheckUtils.runMissingContentChecks(scenarioOutput));
 
     return scenarioOutput;
   }

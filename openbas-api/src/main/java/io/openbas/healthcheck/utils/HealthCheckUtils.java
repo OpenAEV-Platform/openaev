@@ -124,6 +124,22 @@ public class HealthCheckUtils {
     }
 
     /**
+     * Run all missing content checks for one scenario
+     * @param scenarioOutput to test
+     * @return all found missing content issues
+     */
+    public static List<HealthCheck> runMissingContentChecks(ScenarioOutput scenarioOutput) {
+        List<HealthCheck> result = new ArrayList<>();
+        boolean atLeastOneInjectIsNotReady = scenarioOutput.getInjects().stream().anyMatch(inject -> !inject.isReady());
+
+        if (atLeastOneInjectIsNotReady) {
+            result.add(createErrorHealthCheck(HealthCheck.Type.INJECT, HealthCheck.Detail.NOT_READY));
+        }
+
+        return result;
+    }
+
+    /**
      * Run all SMTP checks for one scenario
      * @param scenarioOutput to test
      * @return all found smtp healthchecks issues
