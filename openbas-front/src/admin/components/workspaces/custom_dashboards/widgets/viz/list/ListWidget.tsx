@@ -1,5 +1,6 @@
 import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import {
+  Chip,
   List as MuiList,
   ListItem as MuiListItem,
   ListItemButton,
@@ -20,6 +21,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
 import { type EsBase } from '../../../../../../../utils/api-types';
 import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
+import { computeStatusStyle } from '../../../../../../../utils/statusColors';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -29,6 +31,15 @@ import navigationHandlers from './elements/ListNavigationHandler';
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
+  chipStatus: {
+    fontSize: 12,
+    lineHeight: '12px',
+    height: 20,
+    float: 'left',
+    textTransform: 'uppercase',
+    borderRadius: 4,
+    width: 120,
+  },
 }));
 
 type Props = {
@@ -76,7 +87,6 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
   ) => {
     const renderer = listConfigRenderer[column];
     const value = element[column as keyof typeof element] as string | boolean | string[] | boolean[];
-
     if (renderer) {
       return renderer(value, {
         element,
@@ -85,6 +95,20 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
     }
 
     const text = value?.toString() ?? '';
+
+    if (column.toLowerCase().includes('status')) {
+      const style = computeStatusStyle(text);
+      return (
+        <Tooltip title={text} placement="bottom-start">
+          <Chip
+            classes={{ root: classes.chipStatus }}
+            style={{ ...style }}
+            label={text}
+          />
+        </Tooltip>
+      );
+    }
+
     return (
       <Tooltip title={text} placement="bottom-start">
         <span>{text}</span>

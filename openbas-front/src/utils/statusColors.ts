@@ -3,26 +3,27 @@ import { type Theme } from '@mui/material';
 import colorStyles from '../components/Color';
 
 export const computeStatusStyle = (status: string | undefined | null) => {
-  switch ((status ?? '').toUpperCase()) {
-    case 'ERROR':
-    case 'ASSET_INACTIVE':
-      return colorStyles.red;
-    case 'MAYBE_PREVENTED':
-      return colorStyles.purple;
-    case 'MAYBE_PARTIAL_PREVENTED':
-      return colorStyles.lightPurple;
-    case 'PARTIAL':
-      return colorStyles.orange;
-    case 'QUEUING':
-      return colorStyles.yellow;
-    case 'EXECUTING':
-    case 'PENDING':
-      return colorStyles.blue;
-    case 'SUCCESS':
-      return colorStyles.green;
-    default:
-      return colorStyles.blueGrey;
-  }
+  const normalized = (status ?? '').toUpperCase();
+
+  const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
+    ERROR: colorStyles.red,
+    ASSET_INACTIVE: colorStyles.red,
+    MAYBE_PREVENTED: colorStyles.purple,
+    MAYBE_PARTIAL_PREVENTED: colorStyles.lightPurple,
+    PARTIAL: colorStyles.orange,
+    QUEUING: colorStyles.yellow,
+    EXECUTING: colorStyles.blue,
+    PENDING: colorStyles.blue,
+    SUCCESS: colorStyles.green,
+    CANCELED: colorStyles.white,
+    FINISHED: colorStyles.grey,
+    SCHEDULED: colorStyles.blue,
+    RUNNING: colorStyles.green,
+    PAUSED: colorStyles.orange,
+    NOT_PLANNED: colorStyles.grey,
+  };
+
+  return statusMap[normalized] ?? colorStyles.blueGrey;
 };
 
 // Compute color for status - Manual expectations
