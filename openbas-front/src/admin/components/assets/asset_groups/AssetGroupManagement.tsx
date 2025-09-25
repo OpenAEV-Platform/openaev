@@ -1,5 +1,5 @@
 import { CloseRounded } from '@mui/icons-material';
-import { IconButton, Typography } from '@mui/material';
+import { IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -118,9 +118,16 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
         >
           <CloseRounded fontSize="small" color="primary" />
         </IconButton>
-        <Typography variant="h6" classes={{ root: classes.title }}>
-          {assetGroup?.asset_group_name}
-        </Typography>
+        <Tooltip title={assetGroup?.asset_group_name ?? ''}>
+          <Typography
+            variant="h6"
+            classes={{ root: classes.title }}
+            noWrap
+            sx={{ maxWidth: '100%' }}
+          >
+            {assetGroup?.asset_group_name}
+          </Typography>
+        </Tooltip>
         <div className="clearfix" />
       </div>
       <div style={{ padding: theme.spacing(1) }}>
