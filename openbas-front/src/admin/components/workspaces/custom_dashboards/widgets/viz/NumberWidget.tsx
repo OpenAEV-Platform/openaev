@@ -2,6 +2,8 @@ import { Button } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import ItemNumberDifference from '../../../../../../components/ItemNumberDifference';
+import { type EsCountInterval } from '../../../../../../utils/api-types';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 
 const useStyles = makeStyles()(theme => ({
@@ -11,12 +13,15 @@ const useStyles = makeStyles()(theme => ({
     fontWeight: 500,
     padding: 0,
     color: theme.palette.text.primary,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }));
 
 interface Props {
   widgetId: string;
-  data: number;
+  data: EsCountInterval;
 }
 
 const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
@@ -36,7 +41,11 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
   return (
     <div>
       <Button onClick={onClick} className={classes.number} variant="text">
-        {data ?? '-'}
+        {data.interval_count ?? '-'}
+
+        <ItemNumberDifference
+          difference={data.difference_count}
+        />
       </Button>
     </div>
   );

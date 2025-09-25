@@ -8,6 +8,7 @@ import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.ResourceType;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.query.EsAttackPath;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.CustomDashboardService;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
@@ -50,7 +51,7 @@ public class ExerciseDashboardApi {
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public long dashboardCount(
+  public EsCountInterval dashboardCount(
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {

@@ -24,6 +24,7 @@ import io.openbas.engine.api.*;
 import io.openbas.engine.api.WidgetConfiguration.Series;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.engine.query.EsSeriesData;
 import io.openbas.exception.AnalyticsEngineException;
@@ -33,6 +34,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -506,7 +508,7 @@ public class OpenSearchService implements EngineService {
 
   // region query
 
-  public long count(RawUserAuth user, CountRuntime runtime) {
+  public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
@@ -522,26 +524,53 @@ public class OpenSearchService implements EngineService {
                   .getFilter(), // 1 count = 1 serie limit = 1 filter group
               runtime.getParameters(),
               runtime.getDefinitionParameters());
-      Query query;
       if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
-        query = queryBuilder.must(countQuery).build().toQuery();
+        Query query = queryBuilder.must(countQuery).build().toQuery();
+        long allTimeCount =
+            openSearchClient
+                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
+                .count();
+        return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
-        Instant finalStart =
+        Instant currentIntervalStart =
             calcStartDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
-        Instant finalEnd =
+        Instant currentIntervalEnd =
             calcEndDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
-        Query dateRangeQuery =
-            buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
-        query = queryBuilder.must(dateRangeQuery, countQuery).build().toQuery();
+        Query currentIntervalDateRangeQuery =
+            buildDateRangeQuery(
+                widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
+        Query currentIntervalQuery =
+            queryBuilder.must(currentIntervalDateRangeQuery, countQuery).build().toQuery();
+        long currentIntervalCount =
+            openSearchClient
+                .count(
+                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count();
+
+        // In our case, to avoid any gap, currentIntervalStart = previousIntervalEnd
+        Duration intervalDuration = Duration.between(currentIntervalStart, currentIntervalEnd);
+        Instant previousIntervalStart = currentIntervalStart.minus(intervalDuration);
+
+        Query previousIntervalDateRangeQuery =
+            buildDateRangeQuery(
+                widgetConfig.getDateAttribute(), previousIntervalStart, currentIntervalStart);
+        Query previousIntervalQuery =
+            queryBuilder.must(previousIntervalDateRangeQuery, countQuery).build().toQuery();
+        long previousIntervalCount =
+            openSearchClient
+                .count(
+                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count();
+
+        return new EsCountInterval(
+            currentIntervalCount,
+            previousIntervalCount,
+            currentIntervalCount - previousIntervalCount);
       }
-      Query finalQuery = query;
-      return openSearchClient
-          .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(finalQuery))
-          .count();
     } catch (IOException e) {
       log.error(String.format("count exception: %s", e.getMessage()), e);
     }
-    return 0;
+    return new EsCountInterval(0L, 0L, 0L);
   }
 
   public EsSeries termHistogram(

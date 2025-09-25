@@ -12,7 +12,7 @@ import { type SearchOptionsConfig } from '../../../../components/common/queryabl
 import {
   type CustomDashboard,
   type EsAttackPath,
-  type EsBase,
+  type EsBase, type EsCountInterval,
   type EsSeries,
   type WidgetToEntitiesInput, type WidgetToEntitiesOutput,
 } from '../../../../utils/api-types';
@@ -29,7 +29,7 @@ export interface CustomDashboardContextType {
   setCustomDashboard: React.Dispatch<React.SetStateAction<CustomDashboard | undefined>>;
   customDashboardParameters: Record<string, ParameterOption>;
   setCustomDashboardParameters: React.Dispatch<React.SetStateAction<Record<string, ParameterOption>>>;
-  fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<number>>;
+  fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
   fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;

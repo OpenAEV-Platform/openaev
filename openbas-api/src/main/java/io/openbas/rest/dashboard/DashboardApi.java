@@ -1,10 +1,12 @@
 package io.openbas.rest.dashboard;
 
 import io.openbas.aop.RBAC;
-import io.openbas.database.model.*;
+import io.openbas.database.model.Action;
+import io.openbas.database.model.ResourceType;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
 import io.openbas.engine.query.EsAttackPath;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
@@ -29,7 +31,7 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public long count(
+  public EsCountInterval count(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.count(widgetId, parameters);

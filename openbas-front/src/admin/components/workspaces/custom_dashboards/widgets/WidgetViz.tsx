@@ -2,7 +2,13 @@ import { memo, useContext, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { type EsAttackPath, type EsBase, type EsSeries, type ListConfiguration } from '../../../../../utils/api-types';
+import {
+  type EsAttackPath,
+  type EsBase,
+  type EsCountInterval,
+  type EsSeries,
+  type ListConfiguration,
+} from '../../../../../utils/api-types';
 import { type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types-custom';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
@@ -32,12 +38,17 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
   const [seriesVizData, setSeriesVizData] = useState<EsSeries[]>([]);
   const [entitiesVizData, setEntitiesVizData] = useState<EsBase[]>([]);
   const [attackPathsVizData, setAttackPathsVizData] = useState<EsAttackPath[]>([]);
-  const [numberVizData, setNumberVizData] = useState<number>(0);
+  const [numberVizData, setNumberVizData] = useState<EsCountInterval>({
+    interval_count: 0,
+    previous_interval_count: 0,
+    difference_count: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
-  const fetchData = <T extends EsSeries[] | EsBase[] | EsAttackPath[] | number>(
+
+  const fetchData = <T extends EsSeries[] | EsBase[] | EsAttackPath[] | EsCountInterval>(
     fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: T }>,
     setData: React.Dispatch<React.SetStateAction<T>>,
   ) => {
@@ -45,7 +56,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
       Object.entries(customDashboardParameters).map(([key, val]) => [key, val.value]),
     );
     fetchFunction(widget.widget_id, params).then((response) => {
-      if (response.data || typeof response.data === 'number') {
+      if (response.data) {
         setData(response.data);
       }
     }).catch((error) => {

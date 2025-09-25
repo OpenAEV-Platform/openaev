@@ -13,6 +13,7 @@ import io.openbas.database.raw.RawCustomDashboard;
 import io.openbas.database.repository.CustomDashboardRepository;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.query.EsAttackPath;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.form.CustomDashboardOutput;
 import io.openbas.rest.dashboard.DashboardService;
@@ -235,7 +236,7 @@ public class CustomDashboardService {
         .orElse(false);
   }
 
-  public long dashboardCountOnResourceId(
+  public EsCountInterval dashboardCountOnResourceId(
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -291,7 +292,7 @@ public class CustomDashboardService {
     return this.dashboardService.attackPaths(widgetId, parameters);
   }
 
-  public long homeDashboardCount(
+  public EsCountInterval homeDashboardCount(
       @NotBlank final String widgetId, final Map<String, String> parameters) {
 
     // verify that the widget is in the home  dashboard

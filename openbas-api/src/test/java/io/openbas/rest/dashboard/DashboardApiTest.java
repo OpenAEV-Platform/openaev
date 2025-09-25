@@ -13,16 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
 import io.openbas.database.model.*;
-import io.openbas.database.model.CustomDashboardParameters;
-import io.openbas.database.model.Endpoint;
-import io.openbas.database.model.Filters;
-import io.openbas.database.model.Widget;
 import io.openbas.database.repository.AttackPatternRepository;
 import io.openbas.database.repository.EndpointRepository;
 import io.openbas.engine.EngineContext;
 import io.openbas.engine.EngineService;
 import io.openbas.engine.EsModel;
-import io.openbas.engine.api.*;
 import io.openbas.engine.api.EngineSortField;
 import io.openbas.engine.api.HistogramInterval;
 import io.openbas.engine.api.ListConfiguration;
@@ -325,7 +320,9 @@ class DashboardApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).isEqualTo(3);
+      assertThatJson(response).node("interval_count").isEqualTo(3);
+      assertThatJson(response).node("previous_interval_count").isEqualTo(0);
+      assertThatJson(response).node("difference_count").isEqualTo(3);
     }
 
     @Test
@@ -365,7 +362,9 @@ class DashboardApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).isEqualTo(0);
+      assertThatJson(response).node("interval_count").isEqualTo(0);
+      assertThatJson(response).node("previous_interval_count").isEqualTo(0);
+      assertThatJson(response).node("difference_count").isEqualTo(0);
     }
 
     @Test
@@ -413,7 +412,9 @@ class DashboardApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).isEqualTo(1);
+      assertThatJson(response).node("interval_count").isEqualTo(1);
+      assertThatJson(response).node("previous_interval_count").isEqualTo(0);
+      assertThatJson(response).node("difference_count").isEqualTo(1);
     }
 
     @Test
@@ -489,7 +490,9 @@ class DashboardApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).isEqualTo(1);
+      assertThatJson(response).node("interval_count").isEqualTo(1);
+      assertThatJson(response).node("previous_interval_count").isEqualTo(0);
+      assertThatJson(response).node("difference_count").isEqualTo(1);
     }
   }
 
