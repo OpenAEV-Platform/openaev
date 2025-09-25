@@ -11,6 +11,7 @@ import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-hel
 import LoaderDialog from '../../../../components/common/loader/LoaderDialog';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
   type Exercise,
@@ -248,7 +249,7 @@ const ScenarioHeader = ({
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              navigate(`/admin/simulations/${exercise.exercise_id}`);
+              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
               MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
             }}
           >
