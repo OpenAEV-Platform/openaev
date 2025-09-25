@@ -4,6 +4,7 @@ import static io.openbas.helper.StreamHelper.fromIterable;
 
 import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.Filters;
+import io.openbas.database.model.InjectExpectation;
 import io.openbas.database.model.Widget;
 import io.openbas.database.repository.CustomDashboardRepository;
 import io.openbas.database.repository.WidgetRepository;
@@ -167,5 +168,28 @@ public class WidgetService {
 
     listConfig.setPerspective(perspectives);
     return listConfig;
+  }
+
+  /**
+   * Converts a security coverage widget configuration to a list configuration
+   *
+   * @param widget the source widget containing the configuration to convert
+   * @param attackPatternIds attackPatternIds list of attack pattern IDs to filter by
+   * @return a ListConfiguration object configured based on the widget settings
+   */
+  public ListConfiguration convertSecurityCoverageWidgetToListConfiguration(
+      Widget widget, List<String> attackPatternIds) {
+    ListConfiguration listInjectExpectationsConfig =
+        this.convertWidgetToListConfiguration(widget, 0, attackPatternIds);
+    List<String> statusFilters =
+        List.of(
+            InjectExpectation.EXPECTATION_STATUS.FAILED.name(),
+            InjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
+    WidgetUtils.setOrAddFilterByKey(
+        listInjectExpectationsConfig.getPerspective().getFilter(),
+        "inject_expectation_status",
+        statusFilters,
+        Filters.FilterOperator.contains);
+    return listInjectExpectationsConfig;
   }
 }

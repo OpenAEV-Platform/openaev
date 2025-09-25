@@ -73,8 +73,8 @@ const KillChainPhaseColumn: FunctionComponent<{
           .map((attackPattern) => {
             const resolvedDataSuccessForTTP = resolvedDataSuccess.filter(d => d.attack_pattern_external_id === attackPattern.attack_pattern_external_id);
             const resolvedDataFailureForTTP = resolvedDataFailure.filter(d => d.attack_pattern_external_id === attackPattern.attack_pattern_external_id);
-            const success = resolvedDataSuccessForTTP.length;
-            const failure = resolvedDataFailureForTTP.length;
+            const success = resolvedDataSuccessForTTP.reduce((accumulator, currentData) => accumulator + (currentData?.value ?? 0), 0);
+            const failure = resolvedDataFailureForTTP.reduce((accumulator, currentData) => accumulator + (currentData?.value ?? 0), 0);
             const total = success + failure;
 
             if (showCoveredOnly && total == 0) {

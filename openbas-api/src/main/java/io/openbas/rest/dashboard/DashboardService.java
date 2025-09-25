@@ -10,11 +10,9 @@ import io.openbas.engine.EngineService;
 import io.openbas.engine.api.*;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
-import io.openbas.engine.model.injectexpectation.EsInjectExpectation;
 import io.openbas.engine.query.EsAttackPath;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.WidgetService;
-import io.openbas.rest.custom_dashboard.utils.WidgetUtils;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openbas.service.EsAttackPathService;
@@ -119,31 +117,6 @@ public class DashboardService {
   }
 
   /**
-   * Retrieves inject expectations list by attackPatterns ids
-   *
-   * @param widgetContext the widget context containing user and widget information
-   * @param attackPatternIds list of attack pattern IDs to filter by
-   * @return list of inject expectations with SUCCESS or FAILED status
-   */
-  private List<EsInjectExpectation> getSecurityCoverageWidgetResultsByTTPs(
-      WidgetContext widgetContext, List<String> attackPatternIds) {
-    ListConfiguration listInjectExpectationsConfig =
-        widgetService.convertWidgetToListConfiguration(widgetContext.widget, 0, attackPatternIds);
-    List<String> statusFilters =
-        List.of(
-            InjectExpectation.EXPECTATION_STATUS.FAILED.name(),
-            InjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
-    WidgetUtils.setOrAddFilterByKey(
-        listInjectExpectationsConfig.getPerspective().getFilter(),
-        "inject_expectation_status",
-        statusFilters,
-        Filters.FilterOperator.contains);
-    return executeListQuery(widgetContext, listInjectExpectationsConfig).stream()
-        .map(EsInjectExpectation.class::cast)
-        .toList();
-  }
-
-  /**
    * Converts a widget to a list configuration and retrieves corresponding entities. Handles special
    * case for Security Coverage widgets which require a two-step process.
    *
@@ -158,17 +131,16 @@ public class DashboardService {
     List<EsBase> datas;
 
     if (isSecurityCoverageWidget(widgetContext.widget)) {
-      List<EsInjectExpectation> results =
-          getSecurityCoverageWidgetResultsByTTPs(widgetContext, input.getFilterValues());
-      listConfig = widgetService.convertSecurityCoverageResultsToInjectListConfig(results);
-      datas = results.isEmpty() ? List.of() : executeListQuery(widgetContext, listConfig);
+      listConfig =
+          widgetService.convertSecurityCoverageWidgetToListConfiguration(
+              widgetContext.widget, input.getFilterValues());
     } else {
       listConfig =
           widgetService.convertWidgetToListConfiguration(
               widgetContext.widget, input.getSeriesIndex(), input.getFilterValues());
-      datas = executeListQuery(widgetContext, listConfig);
     }
 
+    datas = executeListQuery(widgetContext, listConfig);
     return WidgetToEntitiesOutput.builder().listConfiguration(listConfig).esEntities(datas).build();
   }
 
