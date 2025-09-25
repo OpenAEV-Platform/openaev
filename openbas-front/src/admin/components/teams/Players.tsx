@@ -1,5 +1,5 @@
 import { HelpOutlineOutlined, PersonOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -176,6 +176,14 @@ const Players = () => {
                 key={player.user_id}
                 classes={{ root: classes.item }}
                 divider
+                secondaryAction={(
+                  <PlayerPopover
+                    user={player}
+                    openEditOnInit={player.user_id === searchId}
+                    onUpdate={result => setPlayers(players.map(p => (p.user_id !== result.user_id ? p : result)))}
+                    onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
+                  />
+                )}
               >
                 <ListItemIcon>
                   <PersonOutlined color="primary" />
@@ -197,14 +205,6 @@ const Players = () => {
                     </div>
                   )}
                 />
-                <ListItemSecondaryAction>
-                  <PlayerPopover
-                    user={player}
-                    openEditOnInit={player.user_id === searchId}
-                    onUpdate={result => setPlayers(players.map(p => (p.user_id !== result.user_id ? p : result)))}
-                    onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
-                  />
-                </ListItemSecondaryAction>
               </ListItem>
             ))}
       </List>

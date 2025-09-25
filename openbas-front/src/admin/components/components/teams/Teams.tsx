@@ -177,6 +177,15 @@ const Teams = () => {
                 key={team.team_id}
                 classes={{ root: classes.item }}
                 divider
+                secondaryAction={(
+                  <TeamPopover
+                    team={team}
+                    managePlayers={() => setSelectedTeam(team.team_id)}
+                    onUpdate={result => onTeamUpdated(result)}
+                    onDelete={result => setTeams(teams.filter(v => (v.team_id !== result)))}
+                    openEditOnInit={team.team_id === searchId}
+                  />
+                )}
               >
                 <ListItemIcon>
                   <GroupsOutlined color="primary" />
@@ -222,15 +231,6 @@ const Teams = () => {
                     </div>
                   )}
                 />
-                <ListItemSecondaryAction>
-                  <TeamPopover
-                    team={team}
-                    managePlayers={() => setSelectedTeam(team.team_id)}
-                    onUpdate={result => onTeamUpdated(result)}
-                    onDelete={result => setTeams(teams.filter(v => (v.team_id !== result)))}
-                    openEditOnInit={team.team_id === searchId}
-                  />
-                </ListItemSecondaryAction>
               </ListItem>
             ))}
       </List>
