@@ -1,5 +1,3 @@
-import colorStyles from '../components/Color.js';
-
 export const stringToColour = (str, reversed = false) => {
   if (!str) {
     return '#5d4037';
