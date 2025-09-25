@@ -1,12 +1,10 @@
 package io.openbas.healthcheck.utils;
 
-import io.openbas.database.model.Agent;
-import io.openbas.database.model.Inject;
-import io.openbas.database.model.Injector;
-import io.openbas.database.model.InjectorContract;
+import io.openbas.database.model.*;
 import io.openbas.executors.utils.ExecutorUtils;
 import io.openbas.healthcheck.dto.HealthCheck;
 import io.openbas.healthcheck.enums.ExternalServiceDependency;
+import io.openbas.helper.InjectModelHelper;
 import io.openbas.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openbas.rest.inject.output.InjectOutput;
 import io.openbas.rest.scenario.response.ScenarioOutput;
@@ -16,9 +14,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import static io.openbas.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 
 public class HealthCheckUtils {
 
@@ -80,6 +75,23 @@ public class HealthCheckUtils {
     }
 
     /**
+     * Run all Collectors checks for one inject
+     * @param inject to test
+     * @param collectors all available collectors
+     * @return all found collectors healthchecks issues
+     */
+    public static List<HealthCheck> runCollectorChecks(Inject inject, List<Collector> collectors) {
+        List<HealthCheck> result = new ArrayList<>();
+        boolean isDetectionOrPrenvention = InjectModelHelper.isDetectionOrPrevention(inject.getContent());
+
+        if (isDetectionOrPrenvention && collectors.isEmpty()) {
+            result.add(HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, HealthCheck.Detail.EMPTY));
+        }
+
+        return result;
+    }
+
+    /**
      * Run all Agents or Executors checks for one scenario
      * @param scenarioOutput to test
      * @return all found agent or executor issues
@@ -90,6 +102,22 @@ public class HealthCheckUtils {
 
         if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, HealthCheck.Type.AGENT_OR_EXECUTOR)) {
             result.add(createErrorHealthCheck(HealthCheck.Type.AGENT_OR_EXECUTOR, HealthCheck.Detail.EMPTY));
+        }
+
+        return result;
+    }
+
+    /**
+     * Run all Security System Collector checks for one scenario
+     * @param scenarioOutput to test
+     * @return all found security system collector issues
+     */
+    public static List<HealthCheck> runCollectorChecks(ScenarioOutput scenarioOutput) {
+        List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
+        List<HealthCheck> result = new ArrayList<>();
+
+        if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR)) {
+            result.add(createErrorHealthCheck(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, HealthCheck.Detail.EMPTY));
         }
 
         return result;

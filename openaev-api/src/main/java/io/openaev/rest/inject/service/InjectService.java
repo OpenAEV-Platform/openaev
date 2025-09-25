@@ -33,6 +33,7 @@ import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -107,7 +108,6 @@ public class InjectService {
   private final PayloadRepository payloadRepository;
   private final SmtpService smtpService;
   private final ImapService imapService;
-  private final AgentService agentService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1253,7 +1253,7 @@ public class InjectService {
    * @param inject to verify
    * @return converted inject to InjectOutput with healthcheck values
    */
-  public InjectOutput runChecks(Inject inject) {
+  public InjectOutput runChecks(Inject inject, List<Collector> collectors) {
       if (inject == null) {
           return null;
       }
@@ -1265,6 +1265,8 @@ public class InjectService {
               HealthCheckUtils.runImapChecks(inject, imapService.isServiceAvailable()));
       injectOutput.getHealthchecks().addAll(
               HealthCheckUtils.runExecutorChecks(inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+      injectOutput.getHealthchecks().addAll(
+              HealthCheckUtils.runCollectorChecks(inject, collectors));
       return injectOutput;
   }
 }

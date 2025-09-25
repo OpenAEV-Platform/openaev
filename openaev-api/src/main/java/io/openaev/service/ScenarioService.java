@@ -33,6 +33,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
@@ -120,7 +121,7 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
-  private final DashboardService dashboardService;
+  private final CollectorService collectorService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -904,8 +905,12 @@ public class ScenarioService {
       return null;
     }
 
+    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+
     ScenarioOutput scenarioOutput = new ScenarioOutput(scenario);
-    scenarioOutput.setInjects(scenario.getInjects().stream().map(injectService::runChecks).toList());
+    scenarioOutput.setInjects(scenario.getInjects().stream()
+            .map(inject -> injectService.runChecks(inject, collectors))
+            .toList());
 
     scenarioOutput.getHealthchecks().addAll(
             HealthCheckUtils.runSmtpChecks(scenarioOutput));
@@ -913,7 +918,10 @@ public class ScenarioService {
             HealthCheckUtils.runImapChecks(scenarioOutput));
     scenarioOutput.getHealthchecks().addAll(
             HealthCheckUtils.runExecutorChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(
+            HealthCheckUtils.runCollectorChecks(scenarioOutput));
 
     return scenarioOutput;
   }
+
 }
