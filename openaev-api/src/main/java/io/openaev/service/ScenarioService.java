@@ -911,6 +911,8 @@ public class ScenarioService {
             HealthCheckUtils.runSmtpChecks(scenarioOutput));
     scenarioOutput.getHealthchecks().addAll(
             HealthCheckUtils.runImapChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(
+            HealthCheckUtils.runExecutorChecks(scenarioOutput));
 
     return scenarioOutput;
   }

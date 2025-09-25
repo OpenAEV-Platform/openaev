@@ -7,6 +7,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -42,16 +43,11 @@ public class ExecutionExecutorService {
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
     // Filter each list to do something for each specific case and then remove the specific agents
     // from the main "agents" list to execute payloads at the end for the remaining "normal" agents
-    Set<Agent> inactiveAgents =
-        agents.stream().filter(agent -> !agent.isActive()).collect(Collectors.toSet());
+    Set<Agent> inactiveAgents = ExecutorUtils.foundInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
-    Set<Agent> agentsWithoutExecutor =
-        agents.stream().filter(agent -> agent.getExecutor() == null).collect(Collectors.toSet());
+    Set<Agent> agentsWithoutExecutor = ExecutorUtils.foundAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
-    Set<Agent> crowdstrikeAgents =
-        agents.stream()
-            .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
-            .collect(Collectors.toSet());
+    Set<Agent> crowdstrikeAgents = ExecutorUtils.foundCrowdstrikeAgents(agents);
     agents.removeAll(crowdstrikeAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);

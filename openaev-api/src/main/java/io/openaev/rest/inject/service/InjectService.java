@@ -107,6 +107,7 @@ public class InjectService {
   private final PayloadRepository payloadRepository;
   private final SmtpService smtpService;
   private final ImapService imapService;
+  private final AgentService agentService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1262,6 +1263,8 @@ public class InjectService {
               HealthCheckUtils.runSmtpChecks(inject, smtpService.isServiceAvailable()));
       injectOutput.getHealthchecks().addAll(
               HealthCheckUtils.runImapChecks(inject, imapService.isServiceAvailable()));
+      injectOutput.getHealthchecks().addAll(
+              HealthCheckUtils.runExecutorChecks(inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
       return injectOutput;
   }
 }

@@ -1,10 +1,13 @@
 package io.openbas.healthcheck.utils;
 
+import io.openbas.database.model.Agent;
 import io.openbas.database.model.Inject;
 import io.openbas.database.model.Injector;
 import io.openbas.database.model.InjectorContract;
+import io.openbas.executors.utils.ExecutorUtils;
 import io.openbas.healthcheck.dto.HealthCheck;
 import io.openbas.healthcheck.enums.ExternalServiceDependency;
+import io.openbas.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openbas.rest.inject.output.InjectOutput;
 import io.openbas.rest.scenario.response.ScenarioOutput;
 import org.apache.commons.lang3.ArrayUtils;
@@ -12,6 +15,10 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static io.openbas.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 
 public class HealthCheckUtils {
 
@@ -52,6 +59,43 @@ public class HealthCheckUtils {
     }
 
     /**
+     * Run all Executors checks for one inject
+     * @param inject to test
+     * @param agentsAndAssetsAgentless data to verify if there is at least one agent up
+     * @return all found executors healthchecks issues
+     */
+    public static List<HealthCheck> runExecutorChecks(Inject inject, AgentsAndAssetsAgentless agentsAndAssetsAgentless) {
+        List<HealthCheck> result = new ArrayList<>();
+        InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+        Set<Agent> agents = agentsAndAssetsAgentless.agents();
+        agents = ExecutorUtils.removeInactiveAgentsFromAgents(agents);
+        agents = ExecutorUtils.removeAgentsWithoutExecutorFromagents(agents);
+        agents = ExecutorUtils.removeCrowdstrikeAgentsFromagents(agents);
+
+        if (injectorContract != null && injectorContract.getNeedsExecutor() && agents.isEmpty()) {
+            result.add(HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.AGENT_OR_EXECUTOR, HealthCheck.Detail.EMPTY));
+        }
+
+        return result;
+    }
+
+    /**
+     * Run all Agents or Executors checks for one scenario
+     * @param scenarioOutput to test
+     * @return all found agent or executor issues
+     */
+    public static List<HealthCheck> runExecutorChecks(ScenarioOutput scenarioOutput) {
+        List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
+        List<HealthCheck> result = new ArrayList<>();
+
+        if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, HealthCheck.Type.AGENT_OR_EXECUTOR)) {
+            result.add(createErrorHealthCheck(HealthCheck.Type.AGENT_OR_EXECUTOR, HealthCheck.Detail.EMPTY));
+        }
+
+        return result;
+    }
+
+    /**
      * Run all SMTP checks for one scenario
      * @param scenarioOutput to test
      * @return all found smtp healthchecks issues
@@ -60,12 +104,8 @@ public class HealthCheckUtils {
         List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
         List<HealthCheck> result = new ArrayList<>();
 
-        if (!allInjectsHealthChecks.isEmpty()) {
-            if (HealthCheckUtils.anyMatch(allInjectsHealthChecks, HealthCheck.Type.SMTP)) {
-                result.add(
-                    HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.SMTP, HealthCheck.Detail.SERVICE_UNAVAILABLE)
-                );
-            }
+        if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, HealthCheck.Type.SMTP)) {
+            result.add(createErrorHealthCheck(HealthCheck.Type.SMTP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
         }
 
         return result;
@@ -80,12 +120,8 @@ public class HealthCheckUtils {
         List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
         List<HealthCheck> result = new ArrayList<>();
 
-        if (!allInjectsHealthChecks.isEmpty()) {
-            if (HealthCheckUtils.anyMatch(allInjectsHealthChecks, HealthCheck.Type.IMAP)) {
-                result.add(
-                    HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE)
-                );
-            }
+        if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, HealthCheck.Type.IMAP)) {
+            result.add(createErrorHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
         }
 
         return result;
