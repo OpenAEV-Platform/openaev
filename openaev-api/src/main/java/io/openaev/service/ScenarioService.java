@@ -29,6 +29,9 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.Ee;
 import io.openaev.export.Mixins;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -36,6 +39,7 @@ import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
@@ -901,9 +905,12 @@ public class ScenarioService {
     }
 
     ScenarioOutput scenarioOutput = new ScenarioOutput(scenario);
-    scenarioOutput.setHealthchecks(new ArrayList<>());
-    scenarioOutput.setInjects(new ArrayList<>());
-    scenario.getInjects().forEach(inject -> scenarioOutput.getInjects().add(injectService.runChecks(inject)));
+    scenarioOutput.setInjects(scenario.getInjects().stream().map(injectService::runChecks).toList());
+
+    scenarioOutput.getHealthchecks().addAll(
+            HealthCheckUtils.runSmtpChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(
+            HealthCheckUtils.runImapChecks(scenarioOutput));
 
     return scenarioOutput;
   }

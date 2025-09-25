@@ -4,8 +4,11 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -73,6 +76,12 @@ public class Injector implements Base {
   @JsonProperty("injector_updated_at")
   @NotNull
   private Instant updatedAt = now();
+
+  @Queryable(filterable = true, searchable = true)
+  @Type(StringArrayType.class)
+  @Column(name = "injector_dependencies", columnDefinition = "text[]")
+  @JsonProperty("injector_dependencies")
+  private ExternalServiceDependency[] dependencies;
 
   @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
   @JsonIgnore

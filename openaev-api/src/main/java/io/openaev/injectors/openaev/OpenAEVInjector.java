@@ -4,6 +4,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
 import io.openaev.integrations.InjectorService;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,7 +156,8 @@ public class OpenAEVInjector {
           "simulation-implant",
           executorCommands,
           executorClearCommands,
-          true);
+          true,
+          List.of());
     } catch (Exception e) {
       log.error(String.format("Error creating OpenAEV implant injector (%s)", e.getMessage()), e);
     }

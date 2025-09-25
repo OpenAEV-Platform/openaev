@@ -4,6 +4,8 @@ import io.openaev.integrations.InjectorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class ManualInjector {
 
@@ -14,7 +16,15 @@ public class ManualInjector {
   public ManualInjector(InjectorService injectorService, ManualContract contract) {
     try {
       injectorService.register(
-          MANUAL_INJECTOR_ID, MANUAL_INJECTOR_NAME, contract, true, "generic", null, null, false);
+          MANUAL_INJECTOR_ID,
+          MANUAL_INJECTOR_NAME,
+          contract,
+          true,
+          "generic",
+          null,
+          null,
+          false,
+          List.of());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

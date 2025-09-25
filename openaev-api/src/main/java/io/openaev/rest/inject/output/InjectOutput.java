@@ -69,7 +69,7 @@ public class InjectOutput {
   private ObjectNode content;
 
   @JsonProperty("inject_healthchecks")
-  private List<HealthCheck> healthchecks;
+  private List<HealthCheck> healthchecks = new ArrayList<>();
 
   @JsonProperty("inject_testable")
   public boolean canBeTested() {

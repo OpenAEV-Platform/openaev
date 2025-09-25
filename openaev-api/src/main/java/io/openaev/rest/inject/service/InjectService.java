@@ -24,8 +24,12 @@ import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.Ee;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.ContractFieldType;
+import io.openaev.injectors.email.service.ImapService;
+import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
@@ -64,6 +68,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
@@ -100,6 +105,8 @@ public class InjectService {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final PayloadRepository payloadRepository;
+  private final SmtpService smtpService;
+  private final ImapService imapService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1251,8 +1258,10 @@ public class InjectService {
       }
 
       InjectOutput injectOutput = new InjectOutput(inject);
-      injectOutput.setHealthchecks(new ArrayList<>());
-
+      injectOutput.getHealthchecks().addAll(
+              HealthCheckUtils.runSmtpChecks(inject, smtpService.isServiceAvailable()));
+      injectOutput.getHealthchecks().addAll(
+              HealthCheckUtils.runImapChecks(inject, imapService.isServiceAvailable()));
       return injectOutput;
   }
 }

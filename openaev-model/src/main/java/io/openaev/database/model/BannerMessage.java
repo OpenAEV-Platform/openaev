@@ -3,10 +3,6 @@ package io.openaev.database.model;
 public class BannerMessage {
 
   public enum BANNER_KEYS {
-    IMAP_UNAVAILABLE(
-        "imap_unavailable",
-        BANNER_LEVEL.ERROR,
-        "IMAP service is not responding, your injectors may be impacted."),
     CALDERA_UNAVAILABLE(
         "caldera_unavailable",
         BANNER_LEVEL.ERROR,

@@ -153,7 +153,7 @@ public class ScenarioOutput {
     private List<KillChainPhase> killChainPhases;
 
     @JsonProperty("scenario_healthchecks")
-    private List<HealthCheck> healthchecks;
+    private List<HealthCheck> healthchecks = new ArrayList<>();
 
     public ScenarioOutput(Scenario scenario) {
         this.id = scenario.getId();

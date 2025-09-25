@@ -5,6 +5,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.injectors.caldera.config.CalderaInjectorConfig;
 import io.openaev.integrations.InjectorService;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,7 +74,8 @@ public class CalderaInjector {
           "simulation-implant",
           executorCommands,
           executorClearCommands,
-          false);
+          false,
+          List.of());
     } catch (Exception e) {
       log.error(String.format("Error creating Caldera injector (%s)", e.getMessage()), e);
     }

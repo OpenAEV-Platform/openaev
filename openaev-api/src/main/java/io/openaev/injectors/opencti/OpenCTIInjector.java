@@ -4,6 +4,8 @@ import io.openaev.integrations.InjectorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class OpenCTIInjector {
 
@@ -21,7 +23,8 @@ public class OpenCTIInjector {
           "incident-response",
           null,
           null,
-          false);
+          false,
+          List.of());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

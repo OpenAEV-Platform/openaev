@@ -9,7 +9,6 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.FileService;
-import io.openaev.service.PlatformSettingsService;
 import jakarta.activation.DataSource;
 import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
@@ -34,6 +33,7 @@ public class ImapService {
 
   private static final Pattern INJECT_ID_PATTERN = Pattern.compile("\\[inject_id=(.*)\\]");
   private static final String PROVIDER = "imap";
+  private static final String IMAP_SETTINGS_KEY = "imap_service_available";
 
   private Store imapStore;
 
@@ -58,32 +58,30 @@ public class ImapService {
   @Value("${openaev.mail.imap.sent}")
   private String sentFolder;
 
+  private boolean isServiceAvailable;
+
   private UserRepository userRepository;
   private InjectRepository injectRepository;
   private CommunicationRepository communicationRepository;
-  private SettingRepository settingRepository;
   private FileService fileService;
-  private final PlatformSettingsService platformSettingsService;
+  private final SettingRepository settingRepository;
 
-  public ImapService(Environment env, @Autowired PlatformSettingsService platformSettingsService) {
-    this.platformSettingsService = platformSettingsService;
+  public ImapService(Environment env, @Autowired SettingRepository settingRepository) {
+    this.settingRepository = settingRepository;
+    this.saveServiceState(false);
+
     try {
       initStore(env);
-      this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.IMAP_UNAVAILABLE);
+      this.saveServiceState(true);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
-      this.platformSettingsService.errorMessage(BannerMessage.BANNER_KEYS.IMAP_UNAVAILABLE);
+      this.saveServiceState(false);
     }
   }
 
   @Autowired
   public void setFileService(FileService fileService) {
     this.fileService = fileService;
-  }
-
-  @Autowired
-  public void setSettingRepository(SettingRepository settingRepository) {
-    this.settingRepository = settingRepository;
   }
 
   @Autowired
@@ -354,10 +352,10 @@ public class ImapService {
       if (!imapStore.isConnected()) {
         try {
           imapStore.connect(host, port, username, password);
-          this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.IMAP_UNAVAILABLE);
+          this.saveServiceState(true);
         } catch (MessagingException e) {
           log.error(e.getMessage(), e);
-          this.platformSettingsService.errorMessage(BannerMessage.BANNER_KEYS.IMAP_UNAVAILABLE);
+          this.saveServiceState(false);
         }
       }
       syncFolders();
@@ -372,5 +370,17 @@ public class ImapService {
         folder.appendMessages(new Message[] {message});
       }
     }
+  }
+
+  public boolean isServiceAvailable() {
+    return this.isServiceAvailable;
+  }
+
+  private void saveServiceState(boolean state) {
+    Setting imapSetting = this.settingRepository.findByKey(IMAP_SETTINGS_KEY)
+        .orElse(new Setting(IMAP_SETTINGS_KEY, null));
+    imapSetting.setValue(String.valueOf(state));
+    this.settingRepository.save(imapSetting);
+    this.isServiceAvailable = state;
   }
 }

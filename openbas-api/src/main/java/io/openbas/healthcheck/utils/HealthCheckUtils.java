@@ -1,0 +1,130 @@
+package io.openbas.healthcheck.utils;
+
+import io.openbas.database.model.Inject;
+import io.openbas.database.model.Injector;
+import io.openbas.database.model.InjectorContract;
+import io.openbas.healthcheck.dto.HealthCheck;
+import io.openbas.healthcheck.enums.ExternalServiceDependency;
+import io.openbas.rest.inject.output.InjectOutput;
+import io.openbas.rest.scenario.response.ScenarioOutput;
+import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+public class HealthCheckUtils {
+
+    /**
+     * Run all SMTP checks for one inject
+     * @param inject to test
+     * @param isSmtpServiceAvailable represent the status of the service, true if available, false if not
+     * @return all found smtp healthchecks issues
+     */
+    public static List<HealthCheck> runSmtpChecks(Inject inject, boolean isSmtpServiceAvailable) {
+        List<HealthCheck> result = new ArrayList<>();
+        InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+        Injector injector = injectorContract != null ? injectorContract.getInjector() : null;
+
+        if (injector != null && ArrayUtils.contains(injector.getDependencies(), ExternalServiceDependency.SMTP) && !isSmtpServiceAvailable) {
+            result.add(HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.SMTP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
+        }
+
+        return result;
+    }
+
+    /**
+     * Run all IMAP checks for one inject
+     * @param inject to test
+     * @param isImapServiceAvailable represent the status of the service, true if available, false if not
+     * @return all found smtp healthchecks issues
+     */
+    public static List<HealthCheck> runImapChecks(Inject inject, boolean isImapServiceAvailable) {
+        List<HealthCheck> result = new ArrayList<>();
+        InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+        Injector injector = injectorContract != null ? injectorContract.getInjector() : null;
+
+        if (injector != null && ArrayUtils.contains(injector.getDependencies(), ExternalServiceDependency.IMAP) && !isImapServiceAvailable) {
+            result.add(HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE));
+        }
+
+        return result;
+    }
+
+    /**
+     * Run all SMTP checks for one scenario
+     * @param scenarioOutput to test
+     * @return all found smtp healthchecks issues
+     */
+    public static List<HealthCheck> runSmtpChecks(ScenarioOutput scenarioOutput) {
+        List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
+        List<HealthCheck> result = new ArrayList<>();
+
+        if (!allInjectsHealthChecks.isEmpty()) {
+            if (HealthCheckUtils.anyMatch(allInjectsHealthChecks, HealthCheck.Type.SMTP)) {
+                result.add(
+                    HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.SMTP, HealthCheck.Detail.SERVICE_UNAVAILABLE)
+                );
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Run all IMAP checks for one scenario
+     * @param scenarioOutput to test
+     * @return all found smtp healthchecks issues
+     */
+    public static List<HealthCheck> runImapChecks(ScenarioOutput scenarioOutput) {
+        List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
+        List<HealthCheck> result = new ArrayList<>();
+
+        if (!allInjectsHealthChecks.isEmpty()) {
+            if (HealthCheckUtils.anyMatch(allInjectsHealthChecks, HealthCheck.Type.IMAP)) {
+                result.add(
+                    HealthCheckUtils.createErrorHealthCheck(HealthCheck.Type.IMAP, HealthCheck.Detail.SERVICE_UNAVAILABLE)
+                );
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Create an Healthcheck in error state
+     * @param type of the healthcheck
+     * @param detail of the healthcheck
+     * @return healthcheck in error
+     */
+    public static HealthCheck createErrorHealthCheck(HealthCheck.Type type, HealthCheck.Detail detail) {
+        return new HealthCheck(
+                type,
+                detail,
+                HealthCheck.Status.ERROR,
+                new Date()
+        );
+    }
+
+    /**
+     * Verify if an healthcheck type is found in a list of healthchecks
+     * @param healthChecks to test
+     * @param type to found
+     * @return true if type is found, false if not
+     */
+    public static boolean anyMatch(List<HealthCheck> healthChecks, HealthCheck.Type type) {
+        return healthChecks.stream().anyMatch(healthCheck -> type.equals(healthCheck.getType()));
+    }
+
+    /**
+     * Return all Healthchecks of all the inject on a scenario
+     * @param scenarioOutput to get all injects healthchecks
+     * @return a list of all the founded healthchecks
+     */
+    public static List<HealthCheck> getAllInjectHealthChecks(ScenarioOutput scenarioOutput) {
+        return scenarioOutput.getInjects().stream()
+                .map(InjectOutput::getHealthchecks)
+                .flatMap(List::stream)
+                .toList();
+    }
+}

@@ -1,14 +1,14 @@
 package io.openbas.healthcheck.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.Date;
 
 @Getter
 @Setter
-@NoArgsConstructor
+@AllArgsConstructor
 public class HealthCheck {
 
     public enum Status {
@@ -18,9 +18,9 @@ public class HealthCheck {
 
     public enum Detail {
         MISSING_MANDATORY_PARAMETER,
-        MISSING_CONNECTION,
         MISSING_EXECUTOR,
         MISSING_SECURITY_SYSTEM_COLLECTOR,
+        SERVICE_UNAVAILABLE,
         NOT_READY,
         EMPTY,
     }
@@ -40,5 +40,5 @@ public class HealthCheck {
 
     private Status status;
 
-    private Date creationDate = new Date();
+    private Date creationDate;
 }

@@ -28,7 +28,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmailService {
 
-  private JavaMailSender emailSender;
   private EmailPgp emailPgp;
 
   @Value("${openaev.mail.imap.enabled}")
@@ -36,14 +35,16 @@ public class EmailService {
 
   private ImapService imapService;
 
+  private SmtpService smtpService;
+
   @Autowired
   public void setImapService(ImapService imapService) {
     this.imapService = imapService;
   }
 
   @Autowired
-  public void setEmailSender(JavaMailSender emailSender) {
-    this.emailSender = emailSender;
+  public void setSmtpService(SmtpService smtpService) {
+    this.smtpService = smtpService;
   }
 
   @Autowired
@@ -173,7 +174,7 @@ public class EmailService {
       String body,
       List<DataAttachment> attachments)
       throws Exception {
-    MimeMessage mimeMessage = emailSender.createMimeMessage();
+    MimeMessage mimeMessage = this.smtpService.createMimeMessage();
     mimeMessage.setFrom(from);
     mimeMessage.setReplyTo(
         replyTos.stream().map(this::getInternetAddress).toArray(InternetAddress[]::new));
@@ -212,7 +213,7 @@ public class EmailService {
       throws IOException, MessagingException {
     PGPPublicKey userPgpKey = emailPgp.getUserPgpKey(userContext.getUser());
     // Need to create another email that will wrap everything.
-    MimeMessage encMessage = emailSender.createMimeMessage();
+    MimeMessage encMessage = this.smtpService.createMimeMessage();
     encMessage.setFrom(from);
     encMessage.setReplyTo(
         replyTos.stream().map(this::getInternetAddress).toArray(InternetAddress[]::new));
@@ -248,7 +249,7 @@ public class EmailService {
       throws InterruptedException {
     for (int i = 0; i < 3; i++) {
       try {
-        emailSender.send(mimeMessage);
+        this.smtpService.send(mimeMessage);
         return;
       } catch (Exception e) {
         execution.addTrace(
