@@ -17,6 +17,7 @@ import EEChip from '../../../common/entreprise_edition/EEChip';
 import AssetStatus from '../../AssetStatus';
 import AgentDeploymentMode from '../AgentDeploymentMode';
 import AgentPrivilege from '../AgentPrivilege';
+import AgentLastSeen from './AgentLastSeen';
 
 const useStyles = makeStyles()(() => ({
   itemHead: {
@@ -51,7 +52,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
   const theme = useTheme();
   const bodyItemsStyles = useBodyItemsStyles();
   const dispatch = useAppDispatch();
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
   // Fetching data
   const { settings, executorsMap } = useHelper((helper: ExecutorHelper & LoggedHelper) => ({
     settings: helper.getPlatformSettings(),
@@ -142,7 +143,9 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
       field: 'agent_last_seen',
       label: 'Last Seen',
       isSortable: false,
-      value: (agent: AgentOutput) => fldt(agent.agent_last_seen),
+      value: (agent: AgentOutput) => agent.agent_last_seen
+        ? <AgentLastSeen timestamp={agent.agent_last_seen} />
+        : '-',
     },
   ];
 
