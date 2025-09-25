@@ -2,6 +2,7 @@ package io.openbas.scheduler.jobs;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openbas.aop.LogExecutionTime;
 import io.openbas.database.model.SecurityCoverageSendJob;
 import io.openbas.service.SecurityCoverageSendJobService;
 import io.openbas.service.stix.SecurityCoverageService;
@@ -29,6 +30,7 @@ public class SecurityCoverageJob implements Job {
 
   @Override
   @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<SecurityCoverageSendJob> jobs =
         securityCoverageSendJobService.getPendingSecurityCoverageSendJobs();

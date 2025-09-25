@@ -1,5 +1,6 @@
 package io.openbas.scheduler.jobs;
 
+import io.openbas.aop.LogExecutionTime;
 import io.openbas.engine.EngineContext;
 import io.openbas.engine.EngineService;
 import io.openbas.engine.EsModel;
@@ -25,6 +26,7 @@ public class EngineSyncExecutionJob implements Job {
 
   @Override
   @Transactional(rollbackFor = Exception.class)
+  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<EsModel<EsBase>> models = engineContext.getModels();
     log.info("Executing bulk parallel processing for {} models", models.size());
