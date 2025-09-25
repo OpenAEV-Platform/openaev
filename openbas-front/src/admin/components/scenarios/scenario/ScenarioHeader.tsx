@@ -2,7 +2,7 @@ import { PlayArrowOutlined, Stop } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { playInjectsAssistantForScenario } from '../../../../actions/Inject';
@@ -248,7 +248,8 @@ const ScenarioHeader = ({
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              MESSAGING$.notifySuccess(t('New simulation successfully created and started. Click {here} to view the simulation.', { here: <Link to={`/admin/simulations/${exercise.exercise_id}`}>{t('here')}</Link> }));
+              navigate(`/admin/simulations/${exercise.exercise_id}`);
+              MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
             }}
           >
             {t('Confirm')}
