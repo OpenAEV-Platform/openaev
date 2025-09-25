@@ -24,7 +24,6 @@ const CustomDashboardReactLayout: FunctionComponent<{
   const { t } = useFormatter();
   const [fullscreenWidgets, setFullscreenWidgets] = useState<Record<Widget['widget_id'], boolean | never>>({});
   const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
-
   const [idToResize, setIdToResize] = useState<string | null>(null);
   const handleResize = (updatedWidget: string | null) => setIdToResize(updatedWidget);
 

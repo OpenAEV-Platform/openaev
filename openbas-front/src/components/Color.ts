@@ -32,6 +32,14 @@ const colorStyles = {
     color: '#607d8b',
     fontStyle: 'italic',
   },
+  grey: {
+    backgroundColor: 'rgba(96, 125, 139, 0.08)',
+    color: '#607d8b',
+  },
+  white: {
+    backgroundColor: 'rgb(231, 133, 109, 0.08)',
+    color: '#8d4e41',
+  },
 };
 
 export default colorStyles;

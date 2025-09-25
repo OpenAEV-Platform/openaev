@@ -2,9 +2,9 @@ import { Chip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type Scenario } from '../../../../utils/api-types';
-import { inlineStylesColors } from '../../../../utils/Colors';
 
 const useStyles = makeStyles()(() => ({
   chip: {
@@ -47,7 +47,7 @@ const scenarioStatus: FunctionComponent<Props> = ({
     return (
       <Chip
         classes={{ root: style }}
-        style={inlineStylesColors.green}
+        style={colorStyles.green}
         label={t(SCENARIO_SCHEDULED_STATUS)}
       />
     );
@@ -55,7 +55,7 @@ const scenarioStatus: FunctionComponent<Props> = ({
   return (
     <Chip
       classes={{ root: style }}
-      style={inlineStylesColors.grey}
+      style={colorStyles.grey}
       label={t(SCENARIO_NOT_SCHEDULED_STATUS)}
     />
   );

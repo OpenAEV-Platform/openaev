@@ -37,7 +37,6 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
-
   const fetchData = <T extends EsSeries[] | EsBase[] | EsAttackPath[] | number>(
     fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: T }>,
     setData: React.Dispatch<React.SetStateAction<T>>,
@@ -136,6 +135,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
       return (
         <DonutChart
           widgetId={widget.widget_id}
+          widgetConfig={widget.widget_config}
           datas={data}
         />
       );
