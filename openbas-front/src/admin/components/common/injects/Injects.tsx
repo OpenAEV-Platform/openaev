@@ -10,7 +10,6 @@ import { type InjectOutputType, type InjectStore } from '../../../../actions/inj
 import { exportInjectSearch } from '../../../../actions/injects/inject-action';
 import ChainedTimeline from '../../../../components/ChainedTimeline';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
-import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -22,16 +21,7 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import {
-  type Article, type AssetGroup,
-  type FilterGroup,
-  type Inject,
-  type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput,
-  type InjectInput,
-  type InjectTestStatusOutput, type SearchPaginationInput,
-  type Team,
-  type Variable,
-} from '../../../../utils/api-types';
+import { type Article, type AssetGroup, type Inject, type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput, type InjectInput, type InjectTestStatusOutput, type SearchPaginationInput, type Team, type Variable } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
@@ -222,18 +212,8 @@ const Injects: FunctionComponent<Props> = ({
     'inject_tags',
   ];
 
-  const quickFilter: FilterGroup = {
-    mode: 'and',
-    filters: [
-      buildEmptyFilter('inject_platforms', 'contains'),
-      buildEmptyFilter('inject_kill_chain_phases', 'contains'),
-      buildEmptyFilter('inject_injector_contract', 'contains'),
-    ],
-  };
-
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
     sorts: initSorting('inject_depends_duration', 'ASC'),
-    filterGroup: quickFilter,
     size: 20,
   }));
 

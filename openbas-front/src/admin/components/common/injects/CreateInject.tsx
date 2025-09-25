@@ -1,9 +1,5 @@
 import { HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import {
-  Avatar,
-  Chip, IconButton,
-  List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip,
-} from '@mui/material';
+import { Avatar, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -13,7 +9,6 @@ import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
-import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -22,15 +17,7 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
-import {
-  type Article,
-  type AtomicTestingInput,
-  type AttackPattern,
-  type FilterGroup,
-  type InjectInput, type InjectorContract,
-  type InjectorContractFullOutput,
-  type KillChainPhase, type Variable,
-} from '../../../../utils/api-types';
+import { type Article, type AtomicTestingInput, type AttackPattern, type FilterGroup, type InjectInput, type InjectorContract, type InjectorContractFullOutput, type KillChainPhase, type Variable } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
@@ -154,31 +141,22 @@ const CreateInject: FunctionComponent<Props> = ({
   ], []);
 
   // Filters
-  const quickFilter: FilterGroup = {
-    mode: 'and',
-    filters: [
-      buildEmptyFilter('injector_contract_kill_chain_phases', 'contains'),
-      buildEmptyFilter('injector_contract_injector', 'contains'),
-      buildEmptyFilter('injector_contract_platforms', 'contains'),
-    ],
-  };
-
-  const addAtomicFilter = (filterGroup: FilterGroup) => {
-    const filters = filterGroup.filters ?? [];
-    if (filters.map(f => f.key).includes('injector_contract_atomic_testing')) {
+  const addAtomicFilter = () => {
+    const filterGroup: FilterGroup = {
+      mode: 'and',
+      filters: [],
+    };
+    if (filterGroup.filters?.map(f => f.key).includes('injector_contract_atomic_testing')) {
       return filterGroup;
     }
 
-    filters.push({
+    filterGroup.filters?.push({
       key: 'injector_contract_atomic_testing',
       operator: 'eq',
       values: ['true'],
     });
 
-    return {
-      ...filterGroup,
-      filters,
-    };
+    return filterGroup;
   };
 
   const availableFilterNames = [
@@ -196,7 +174,7 @@ const CreateInject: FunctionComponent<Props> = ({
   const initSearchPaginationInput = () => {
     return ({
       sorts: initSorting('injector_contract_labels'),
-      filterGroup: isAtomic ? addAtomicFilter(quickFilter) : quickFilter,
+      filterGroup: isAtomic ? addAtomicFilter() : {} as FilterGroup,
       size: 100,
       page: 0,
     });
