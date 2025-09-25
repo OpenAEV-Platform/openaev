@@ -4606,7 +4606,6 @@ export interface PlatformSettings {
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
-    | "OPENAEV_REGISTRATION"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
   )[];
   /** True if the Caldera Executor is enabled */
@@ -4934,6 +4933,7 @@ export interface RawPaginationImportMapper {
 
 export interface RawPaginationScenario {
   scenario_category?: string;
+  scenario_description?: string;
   scenario_id?: string;
   scenario_name?: string;
   /** @uniqueItems true */
@@ -5195,6 +5195,7 @@ export interface RuleAttributeUpdateInput {
 }
 
 export interface Scenario {
+  from_starter_pack?: boolean;
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;

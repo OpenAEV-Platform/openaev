@@ -35,6 +35,10 @@ public class TagRuleService {
     return tagRuleRepository.findById(id);
   }
 
+  public Optional<TagRule> findByTagName(String name) {
+    return tagRuleRepository.findTagRuleByTagName(name);
+  }
+
   public List<TagRule> findAll() {
     return StreamSupport.stream(tagRuleRepository.findAll().spliterator(), false)
         .collect(Collectors.toList());

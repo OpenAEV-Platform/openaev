@@ -15,7 +15,7 @@ import io.openbas.IntegrationTest;
 import io.openbas.database.model.CustomDashboard;
 import io.openbas.jsonapi.JsonApiDocument;
 import io.openbas.jsonapi.ResourceObject;
-import io.openbas.jsonapi.ZipJsonApi;
+import io.openbas.service.ZipJsonService;
 import io.openbas.utils.mockUser.WithMockUser;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 class CustomDashboardApiImporterTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
-  @Autowired private ZipJsonApi<CustomDashboard> zipJsonApi;
+  @Autowired private ZipJsonService<CustomDashboard> zipJsonService;
 
   @Test
   @DisplayName("Import a custom dashboard returns complete entity")
@@ -45,7 +45,7 @@ class CustomDashboardApiImporterTest extends IntegrationTest {
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
             new ResourceObject(null, "custom_dashboards", attributes, emptyMap()), emptyList());
-    byte[] zip = zipJsonApi.writeZip(document, emptyMap());
+    byte[] zip = zipJsonService.writeZip(document, emptyMap());
     MockMultipartFile zipFile =
         new MockMultipartFile("file", "custom_dashboard.zip", "application/zip", zip);
 

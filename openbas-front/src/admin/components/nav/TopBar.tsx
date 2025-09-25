@@ -21,7 +21,6 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -100,7 +99,6 @@ const TopBar: FunctionComponent = () => {
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
   const ability = useContext(AbilityContext);
-  const isHubRegistrationEnabled = isFeatureEnabled('OPENAEV_REGISTRATION');
 
   const [xtmOpen, setXtmOpen] = useState<{
     open: boolean;
@@ -183,8 +181,7 @@ const TopBar: FunctionComponent = () => {
       alt="XTM Hub"
     />
   );
-  const shouldXtmHubRedirectToSite = !isHubRegistrationEnabled
-    || settings.xtm_hub_registration_status === 'registered'
+  const shouldXtmHubRedirectToSite = settings.xtm_hub_registration_status === 'registered'
     || !ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
 
   return (
@@ -272,7 +269,7 @@ const TopBar: FunctionComponent = () => {
                           rel="noreferrer"
                           onClick={handleCloseXtm}
                         >
-                          <Badge variant="dot" color={!isHubRegistrationEnabled || settings.xtm_hub_registration_status === 'registered' ? 'success' : 'warning'}>
+                          <Badge variant="dot" color={settings.xtm_hub_registration_status === 'registered' ? 'success' : 'warning'}>
                             {xtmhubBadgeImg}
                           </Badge>
                         </a>

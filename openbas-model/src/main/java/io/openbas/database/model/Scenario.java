@@ -157,6 +157,11 @@ public class Scenario implements GrantableBase {
   @JsonProperty("scenario_mails_reply_to")
   private List<String> replyTos = new ArrayList<>();
 
+  @Column(name = "from_starter_pack", nullable = false)
+  @JsonProperty("from_starter_pack")
+  @Queryable(filterable = true)
+  private boolean fromStarterPack = false;
+
   // -- AUDIT --
 
   @Column(name = "scenario_created_at")

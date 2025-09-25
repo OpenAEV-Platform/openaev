@@ -1,32 +1,14 @@
-import {
-  DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, DomainOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined,
-  OnlinePredictionOutlined,
-  PersonOutlined,
-  RowingOutlined,
-  SchoolOutlined,
-  SettingsOutlined,
-  SmartButtonOutlined,
-  SubscriptionsOutlined,
-  TerminalOutlined,
-} from '@mui/icons-material';
-import {
-  Binoculars,
-  NewspaperVariantMultipleOutline,
-  PostOutline,
-  SecurityNetwork,
-  SelectGroup,
-  Target,
-} from 'mdi-material-ui';
+import { DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, DomainOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined, OnlinePredictionOutlined, PersonOutlined, RocketLaunchOutlined, RowingOutlined, SchoolOutlined, SettingsOutlined, SmartButtonOutlined, SubscriptionsOutlined, TerminalOutlined } from '@mui/icons-material';
+import { Binoculars, NewspaperVariantMultipleOutline, PostOutline, SecurityNetwork, SelectGroup, Target } from 'mdi-material-ui';
 import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
-  const isHubRegistrationEnabled = isFeatureEnabled('OPENAEV_REGISTRATION');
   const entries = [
     {
       userRight: true,
@@ -242,20 +224,31 @@ const LeftBar = () => {
               label: 'Data ingestion',
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
             },
-            ...isHubRegistrationEnabled
-              ? [{
-                  link: '/admin/settings/experience',
-                  label: 'Filigran Experience',
-                  userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-                }]
-              : [],
+            {
+              link: '/admin/settings/experience',
+              label: 'Filigran Experience',
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+            },
           ],
         },
       ],
     },
   ];
+  const bottomEntries = [
+    {
+      userRight: true,
+      items: [
+        {
+          path: `/admin/${GETTING_STARTED_URI}`,
+          icon: () => (<RocketLaunchOutlined />),
+          label: 'Getting Started',
+          userRight: true,
+        },
+      ],
+    },
+  ];
   return (
-    <LeftMenu entries={entries} />
+    <LeftMenu entries={entries} bottomEntries={bottomEntries} />
   );
 };
 

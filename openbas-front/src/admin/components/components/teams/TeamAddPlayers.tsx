@@ -26,7 +26,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { type Organization, type Team } from '../../../../utils/api-types';
+import { type Organization, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
@@ -204,7 +204,10 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
                 <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
                   <CreatePlayer
                     inline
-                    onCreate={user => setUsersIds([...usersIds, user.user_id])}
+                    onCreate={(user: User) => {
+                      setUsersIds([...usersIds, user.user_id]);
+                      dispatch(fetchPlayers());
+                    }}
                   />
                 </Can>
               </List>
@@ -220,7 +223,7 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
                       onDelete={() => {
                         setUsersIds(usersIds.filter(id => id !== userId));
                       }}
-                      label={truncate(resolveUserName(user), 22)}
+                      label={user && truncate(resolveUserName(user), 22)}
                       avatar={(
                         <Avatar
                           src={userGravatar}

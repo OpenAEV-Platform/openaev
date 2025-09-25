@@ -134,6 +134,7 @@ public class WidgetService {
 
     ListConfiguration listConfig = new ListConfiguration();
     listConfig.setTimeRange(widgetConfig.getTimeRange());
+    listConfig.setDateAttribute(widgetConfig.getDateAttribute());
     listConfig.setColumns(WidgetUtils.getColumnsFromBaseEntityName(baseEntity));
     listConfig.setSorts(createDefaultSort(widgetConfig.getDateAttribute()));
 

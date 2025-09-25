@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
-import { isFeatureEnabled } from '../../../utils/utils';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import Cves from './cves/Cves';
 import XlsMappers from './data_ingestion/XlsMappers';
@@ -17,8 +16,6 @@ import Tags from './tags/Tags';
 import Users from './users/Users';
 
 const Index = () => {
-  const isHubRegistrationEnabled = isFeatureEnabled('OPENAEV_REGISTRATION');
-
   return (
     <Routes>
       <Route path="" element={<Navigate to="parameters" replace={true} />} />
@@ -37,7 +34,6 @@ const Index = () => {
       <Route path="data_ingestion/xls_mappers" element={errorWrapper(XlsMappers)()} />
       <Route path="asset_rules" element={errorWrapper(TagRules)()} />
       <Route path="experience" element={errorWrapper(Experience)()} />
-      {isHubRegistrationEnabled && <Route path="experience" element={errorWrapper(Experience)()} />}
 
       {/* Not found */}
       <Route path="*" element={<NotFound />} />

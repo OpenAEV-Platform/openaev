@@ -1,5 +1,5 @@
 import { CancelOutlined } from '@mui/icons-material';
-import { Box, IconButton, TextField } from '@mui/material';
+import { Box, IconButton, Skeleton, TextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -107,10 +107,12 @@ const WidgetSeriesSelection: FunctionComponent<{
 
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<OptionPropertySchema[]>([]);
+  const [propertyOptionsLoading, setPropertyOptionsLoading] = useState<boolean>(false);
   const [defaultValues, setDefaultValues] = useState<Map<string, GroupOption[]>>(new Map());
   const [pristine, setPristine] = useState(true);
   useEffect(() => {
     if (entity) {
+      setPropertyOptionsLoading(true);
       engineSchemas([entity]).then((response: { data: PropertySchemaDTO[] }) => {
         const available = getAuthorizedPerspectives().get(entity) ?? [];
         const newOptions = response.data.filter(property => property.schema_property_name !== MITRE_FILTER_KEY)
@@ -125,6 +127,7 @@ const WidgetSeriesSelection: FunctionComponent<{
           .sort((a, b) => a.label.localeCompare(b.label));
         setPropertyOptions(newOptions);
         setProperties(response.data);
+        setPropertyOptionsLoading(false);
       });
     }
     (customDashboard?.custom_dashboard_parameters ?? []).forEach((p) => {
@@ -173,22 +176,29 @@ const WidgetSeriesSelection: FunctionComponent<{
         <div style={{ marginTop: theme.spacing(2) }}>
           <FilterFieldBaseEntity error={error} value={entity} onChange={onChangeEntity} />
         </div>
-        <div style={{ marginTop: theme.spacing(2) }}>
-          <FilterAutocomplete
-            filterGroup={searchPaginationInput.filterGroup}
-            helpers={queryableHelpers.filterHelpers}
-            options={propertyOptions}
-            setPristine={setPristine}
-          />
-          <FilterContext.Provider value={{ defaultValues: defaultValues }}>
-            <FilterChips
-              propertySchemas={properties}
-              filterGroup={searchPaginationInput.filterGroup}
-              helpers={queryableHelpers.filterHelpers}
-              pristine={pristine}
-            />
-          </FilterContext.Provider>
-        </div>
+        {entity
+          && (
+            <div style={{ marginTop: theme.spacing(2) }}>
+              {propertyOptionsLoading ? <Skeleton height={35} /> : (
+                <>
+                  <FilterAutocomplete
+                    filterGroup={searchPaginationInput.filterGroup}
+                    helpers={queryableHelpers.filterHelpers}
+                    options={propertyOptions}
+                    setPristine={setPristine}
+                  />
+                  <FilterContext.Provider value={{ defaultValues: defaultValues }}>
+                    <FilterChips
+                      propertySchemas={properties}
+                      filterGroup={searchPaginationInput.filterGroup}
+                      helpers={queryableHelpers.filterHelpers}
+                      pristine={pristine}
+                    />
+                  </FilterContext.Provider>
+                </>
+              )}
+            </div>
+          )}
       </Box>
     </div>
   );

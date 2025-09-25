@@ -11,7 +11,10 @@ import MenuItemSingle from './MenuItemSingle';
 import MenuItemToggle from './MenuItemToggle';
 import useLeftMenu from './useLeftMenu';
 
-const LeftMenu: FunctionComponent<{ entries: LeftMenuEntries[] }> = ({ entries = [] }) => {
+const LeftMenu: FunctionComponent<{
+  entries: LeftMenuEntries[];
+  bottomEntries: LeftMenuEntries[];
+}> = ({ entries = [], bottomEntries = [] }) => {
   // Standard hooks
   const theme = useTheme();
   const { settings } = useAuth();
@@ -25,65 +28,72 @@ const LeftMenu: FunctionComponent<{ entries: LeftMenuEntries[] }> = ({ entries =
   };
 
   return (
-    <>
-      <Drawer
-        variant="permanent"
-        sx={{
-          'width': getWidth(),
-          'transition': theme.transitions.create('width', {
-            easing: theme.transitions.easing.easeInOut,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-          '& .MuiDrawer-paper': {
-            width: getWidth(),
-            minHeight: '100vh',
-            overflowX: 'hidden',
-          },
-        }}
-      >
-        <Toolbar />
-        <div style={{ marginTop: bannerHeightNumber }}>
-          {entries.filter(entry => entry.userRight).map((entry, idxList) => {
-            return (
-              <Fragment key={idxList}>
-                {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider />}
-                <MenuList component="nav">
-                  {entry.items.filter(entry => entry.userRight).map((item) => {
-                    if (hasHref(item)) {
-                      return (
-                        <MenuItemGroup
-                          key={item.label}
-                          item={item}
-                          state={state}
-                          helpers={helpers}
-                        />
-                      );
-                    }
+    <Drawer
+      variant="permanent"
+      sx={{
+        'width': getWidth(),
+        'transition': theme.transitions.create('width', {
+          easing: theme.transitions.easing.easeInOut,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
+        '& .MuiDrawer-paper': {
+          width: getWidth(),
+          minHeight: '100vh',
+          overflowX: 'hidden',
+        },
+      }}
+    >
+      <Toolbar />
+      <div style={{ marginTop: bannerHeightNumber }}>
+        {entries.filter(entry => entry.userRight).map((entry, idxList) => {
+          return (
+            <Fragment key={idxList}>
+              {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider />}
+              <MenuList component="nav">
+                {entry.items.filter(entry => entry.userRight).map((item) => {
+                  if (hasHref(item)) {
                     return (
-                      <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+                      <MenuItemGroup
+                        key={item.label}
+                        item={item}
+                        state={state}
+                        helpers={helpers}
+                      />
                     );
-                  })}
-                </MenuList>
-              </Fragment>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 'auto' }}>
-          <MenuList component="nav">
-            {!isWhitemarkEnable && (
-              <MenuItemLogo
-                navOpen={state.navOpen}
-                onClick={() => window.open('https://filigran.io/', '_blank')}
-              />
-            )}
-            <MenuItemToggle
-              navOpen={state.navOpen}
-              onClick={helpers.handleToggleDrawer}
-            />
-          </MenuList>
-        </div>
-      </Drawer>
-    </>
+                  }
+                  return (
+                    <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+                  );
+                })}
+              </MenuList>
+            </Fragment>
+          );
+        })}
+      </div>
+      <MenuList component="nav" style={{ marginTop: 'auto' }}>
+        {bottomEntries.filter(entry => entry.userRight).map((entry, idxList) => {
+          return (
+            <Fragment key={idxList}>
+              {entry.items.filter(entry => entry.userRight).map((item) => {
+                return (
+                  <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+                );
+              })}
+            </Fragment>
+          );
+        })}
+        {!isWhitemarkEnable && (
+          <MenuItemLogo
+            navOpen={state.navOpen}
+            onClick={() => window.open('https://filigran.io/', '_blank')}
+          />
+        )}
+        <MenuItemToggle
+          navOpen={state.navOpen}
+          onClick={helpers.handleToggleDrawer}
+        />
+      </MenuList>
+    </Drawer>
   );
 };
 

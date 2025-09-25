@@ -53,6 +53,8 @@ const SimulationAnalysis = () => {
       } else if ('timeRange' === p.custom_dashboards_parameter_type) {
         value = ALL_TIME_TIME_RANGE;
         hidden = true;
+      } else if (['startDate', 'endDate'].includes(p.custom_dashboards_parameter_type)) {
+        hidden = true;
       } else {
         value = p.custom_dashboards_parameter_id;
       }

@@ -46,6 +46,7 @@ interface Props<T> {
   fetch: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
   searchPaginationInput: SearchPaginationInput;
   setContent: (data: T[]) => void;
+  setLoading?: (loading: boolean) => void;
   searchEnable?: boolean;
   disablePagination?: boolean;
   disableFilters?: boolean;
@@ -63,6 +64,7 @@ const PaginationComponentV2 = <T extends object>({
   fetch,
   searchPaginationInput,
   setContent,
+  setLoading,
   searchEnable = true,
   disablePagination,
   disableFilters,
@@ -107,6 +109,7 @@ const PaginationComponentV2 = <T extends object>({
     }
 
     // Fetch datas
+    setLoading?.(true);
     fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
       const { data } = result;
       setContent(data.content);
@@ -114,6 +117,7 @@ const PaginationComponentV2 = <T extends object>({
       if (data.totalPages <= data.pageable.pageNumber) {
         queryableHelpers.paginationHelpers.handleChangePage(0);
       }
+      setLoading?.(false);
     });
   }, [searchPaginationInput, reloadContentCount]);
 
