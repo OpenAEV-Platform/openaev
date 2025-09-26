@@ -124,3 +124,8 @@ export const isFeatureEnabled = (feature: '_RESERVED' | 'STIX_SECURITY_COVERAGE_
 
   return (settings.enabled_dev_features ?? []).includes(feature);
 };
+
+export const getUrl = (url: string, base: string): string => {
+  const urlToReturn = new URL(url, base);
+  return urlToReturn.toString();
+};
