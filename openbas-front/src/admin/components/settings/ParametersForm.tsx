@@ -73,7 +73,7 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
       >
         <SelectFieldController name="platform_theme" label={t('Default theme')} items={themeItems(t)} disabled={canNotManage} />
         <SelectFieldController name="platform_lang" label={t('Default language')} items={langItems(t)} disabled={canNotManage} />
-        <CustomDashboardAutocompleteFieldController name="platform_home_dashboard" label={t('Default home dashboard')} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_home_dashboard" label={t('Home dashboard')} disabled={canNotManage} />
         <CustomDashboardAutocompleteFieldController name="platform_scenario_dashboard" label={t('Default scenario dashboard')} disabled={canNotManage} />
         <CustomDashboardAutocompleteFieldController name="platform_simulation_dashboard" label={t('Default simulation dashboard')} disabled={canNotManage} />
         <div>
