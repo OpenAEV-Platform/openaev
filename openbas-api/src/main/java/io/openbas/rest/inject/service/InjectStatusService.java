@@ -164,7 +164,6 @@ public class InjectStatusService {
     // compute
     if (agent != null
         && executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
-        && executionTrace.getStatus() != null
         && ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
       ExecutionTraceStatus traceStatus =
           convertExecutionStatus(
