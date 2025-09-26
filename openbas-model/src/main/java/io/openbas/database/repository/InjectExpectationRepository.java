@@ -243,7 +243,7 @@ public interface InjectExpectationRepository
       i.inject_title
     )
     SELECT * FROM inject_expectation_data ied
-    WHERE ied.inject_expectation_updated_at > :from
+    WHERE ied.inject_expectation_updated_at > :from AND ied.agent_id IS NULL
     ORDER BY ied.inject_expectation_updated_at ASC
     LIMIT 500
     """,

@@ -93,12 +93,6 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               } else {
                 esInjectExpectation.setBase_team_side(null);
               }
-              if (hasText(injectExpectation.getAgent_id())) {
-                dependencies.add(injectExpectation.getAgent_id());
-                esInjectExpectation.setBase_agent_side(injectExpectation.getAgent_id());
-              } else {
-                esInjectExpectation.setBase_agent_side(null);
-              }
               if (hasText(injectExpectation.getAsset_id())) {
                 dependencies.add(injectExpectation.getAsset_id());
                 esInjectExpectation.setBase_asset_side(injectExpectation.getAsset_id());

@@ -79,13 +79,6 @@ public class EsInjectExpectation extends EsBase {
   private String base_team_side; // Must finish by _side
 
   @Queryable(
-      label = "agent",
-      filterable = true,
-      overrideOperators = {Filters.FilterOperator.empty, Filters.FilterOperator.not_empty})
-  @EsQueryable(keyword = true)
-  private String base_agent_side; // Must finish by _side
-
-  @Queryable(
       label = "asset",
       filterable = true,
       overrideOperators = {Filters.FilterOperator.empty, Filters.FilterOperator.not_empty})
