@@ -198,13 +198,13 @@ public class PlatformSettingsService {
       platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
     }
     platformSettings.setSmtpServiceAvailable(
-            ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
-                    .map(Setting::getValue)
-                    .orElse(SMTP_SERVICE_AVAILABLE.defaultValue()));
+        ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
+            .map(Setting::getValue)
+            .orElse(SMTP_SERVICE_AVAILABLE.defaultValue()));
     platformSettings.setImapServiceAvailable(
-            ofNullable(dbSettings.get(IMAP_SERVICE_AVAILABLE.key()))
-                    .map(Setting::getValue)
-                    .orElse(IMAP_SERVICE_AVAILABLE.defaultValue()));
+        ofNullable(dbSettings.get(IMAP_SERVICE_AVAILABLE.key()))
+            .map(Setting::getValue)
+            .orElse(IMAP_SERVICE_AVAILABLE.defaultValue()));
 
     // Build authenticated user settings
     OpenAEVPrincipal user = currentUser();
