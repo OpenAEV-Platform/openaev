@@ -52,7 +52,8 @@ operating system.
 Docker helpers are available in the [Docker GitHub repository](https://github.com/OpenBAS-Platform/docker).
 
 ```bash
-mkdir -p /path/to/your/app && cd /path/to/your/app
+mkdir -p /path_to_your_app
+cd /path_to_your_app
 git clone https://github.com/OpenBAS-Platform/docker.git
 cd docker
 ```
