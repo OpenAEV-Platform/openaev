@@ -91,6 +91,19 @@ const CustomDashboardParameters: FunctionComponent = () => {
       width: '100%',
     }}
     >
+      {paramsFields.length > 0 && (
+        <div style={{ width: '40%' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 330px))',
+              gap: theme.spacing(2),
+            }}
+          >
+            {paramsFields}
+          </div>
+        </div>
+      )}
       {dateParameters.size > 0 && (
         <div style={{ width: '60%' }}>
           <TimeRangeFilters
@@ -105,19 +118,6 @@ const CustomDashboardParameters: FunctionComponent = () => {
 
       )}
 
-      {paramsFields.length > 0 && (
-        <div style={{ width: '40%' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 300px))',
-              gap: theme.spacing(2),
-            }}
-          >
-            {paramsFields}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
