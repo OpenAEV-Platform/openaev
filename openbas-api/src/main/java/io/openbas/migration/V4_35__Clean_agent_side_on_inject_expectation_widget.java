@@ -45,6 +45,7 @@ public class V4_35__Clean_agent_side_on_inject_expectation_widget extends BaseJa
       }
 
       boolean changeMade = false;
+      // Remove base_agent_side filter if expectation-inject is present
       for (JsonNode serie : series) {
         ArrayNode filters = (ArrayNode) serie.get("filter").get("filters");
         boolean hasExpectationInject = false;
@@ -65,9 +66,22 @@ public class V4_35__Clean_agent_side_on_inject_expectation_widget extends BaseJa
           changeMade = true;
         }
       }
+      // Change base_agent_side to base_asset_side in field if exists
       if (config.has("field") && "base_agent_side".equals(config.get("field").asText())) {
         config.put("field", "base_asset_side");
         changeMade = true;
+      }
+      // remove base_agent_side sort if exists
+      if (config.has("sorts")) {
+        ArrayNode sorts = (ArrayNode) config.get("sorts");
+        for (JsonNode node : sorts) {
+          ObjectNode sortNode = (ObjectNode) node;
+          String fieldName = sortNode.get("fieldName").asText();
+          if("base_agent_side".equals(fieldName)) {
+            sortNode.put("fieldName", "base_asset_side");
+            changeMade = true;
+          }
+        }
       }
 
       if (changeMade) {
