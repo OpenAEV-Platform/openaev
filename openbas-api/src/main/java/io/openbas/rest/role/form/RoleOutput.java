@@ -21,6 +21,9 @@ public class RoleOutput {
   @NotBlank
   private String name;
 
+  @JsonProperty("role_description")
+  private String description;
+
   @JsonProperty("role_capabilities")
   private Set<String> capabilities;
 

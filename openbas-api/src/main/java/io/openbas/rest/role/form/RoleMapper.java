@@ -12,6 +12,7 @@ public class RoleMapper {
     return RoleOutput.builder()
         .id(role.getId())
         .name(role.getName())
+        .description(role.getDescription())
         .updatedAt(role.getUpdatedAt().toString())
         .createdAt(role.getCreatedAt().toString())
         .capabilities(

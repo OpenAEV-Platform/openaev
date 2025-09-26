@@ -36,9 +36,12 @@ public class RoleService {
   }
 
   public Role createRole(
-      @NotBlank final String roleName, @NotNull final Set<Capability> capabilities) {
+      @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
+      @NotNull final Set<Capability> capabilities) {
     Role role = new Role();
     role.setName(roleName);
+    role.setDescription(roleDescription);
     role.setCapabilities(getCapabilitiesWithParents(capabilities));
     return roleRepository.save(role);
   }
@@ -46,6 +49,7 @@ public class RoleService {
   public Role updateRole(
       @NotBlank final String roleId,
       @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
 
     // verify that the role exists
@@ -56,6 +60,7 @@ public class RoleService {
 
     role.setUpdatedAt(Instant.now());
     role.setName(roleName);
+    role.setDescription(roleDescription);
     role.setCapabilities(getCapabilitiesWithParents(capabilities));
 
     return roleRepository.save(role);

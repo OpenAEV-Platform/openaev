@@ -96,7 +96,7 @@ public class RoleApi {
       })
   public RoleOutput createRole(@Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
-        roleService.createRole(input.getName(), input.getCapabilities()));
+        roleService.createRole(input.getName(), input.getDescription(), input.getCapabilities()));
   }
 
   @LogExecutionTime
@@ -116,7 +116,8 @@ public class RoleApi {
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
-        roleService.updateRole(roleId, input.getName(), input.getCapabilities()));
+        roleService.updateRole(
+            roleId, input.getName(), input.getDescription(), input.getCapabilities()));
   }
 
   @LogExecutionTime
