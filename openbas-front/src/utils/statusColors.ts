@@ -49,26 +49,29 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'detected': theme.palette.success.main,
     'not vulnerable': theme.palette.success.main,
     'successful': theme.palette.success.main,
-    'finished': theme.palette.success.main,
+    'finished': theme.palette.grey['500'],
     'success': theme.palette.success.main,
     '100': theme.palette.success.main,
-    'success,success': theme.palette.success.main,
+    'ok': theme.palette.success.main,
 
     // Partial
-    'partial': theme.palette.warning.main,
+    'partial': colorStyles.orange.color,
     'partially prevented': theme.palette.warning.main,
     'partially detected': theme.palette.warning.main,
-    'update': theme.palette.warning.main,
+    'update': colorStyles.orange.color,
     'paused': theme.palette.warning.main,
     'maybe_prevented': colorStyles.purple.color,
     'maybe_partial_prevented': colorStyles.lightPurple.color,
-    'maybe_prevented,maybe_prevented': colorStyles.purple.color,
 
     // Pending
     'pending': theme.palette.grey['500'],
-    'scheduled': theme.palette.info.main,
+    'scheduled': colorStyles.blue.color,
     'queuing': colorStyles.yellow.color,
     'executing': colorStyles.blue.color,
+    'draft': theme.palette.grey['500'],
+    'on-going': theme.palette.success.main,
+    'running': theme.palette.success.main,
+    'not_planned': theme.palette.grey['500'],
 
     // Failed
     'failed': theme.palette.error.main,
@@ -77,8 +80,9 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'vulnerable': theme.palette.error.main,
     '0': theme.palette.error.main,
     'replace': theme.palette.error.main,
-    'canceled': theme.palette.grey['400'],
-    'error,error': theme.palette.error.main,
+    'canceled': colorStyles.white.color,
+    'error': theme.palette.error.main,
+
   };
 
   return colorMap[normalized] ?? theme.palette.error.main;

@@ -43,7 +43,7 @@ public interface InjectRepository
               + "array_agg(idp.inject_children_id) FILTER ( WHERE idp.inject_children_id IS NOT NULL ) as inject_children, "
               + "array_agg(idp.inject_children_id) FILTER ( WHERE idp.inject_children_id IS NOT NULL ) as attack_pattern_children, "
               + "array_agg(icap_children.attack_pattern_id) FILTER (WHERE icap_children.attack_pattern_id IS NOT NULL) AS attack_patterns_children,"
-              + "coalesce(array_agg(ins.status_name) FILTER ( WHERE ins.status_name IS NOT NULL ), '{}') as inject_status_name,"
+              + "MAX(ins.status_name) as inject_status_name, "
               + "array_agg(it.tag_id) FILTER ( WHERE it.tag_id IS NOT NULL ) as inject_tags, "
               + "array_agg(ia.asset_id) FILTER ( WHERE ia.asset_id IS NOT NULL ) as inject_assets, "
               + "array_agg(iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as inject_asset_groups, "

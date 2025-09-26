@@ -4,22 +4,14 @@ import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import {
-  type DateHistogramWidget,
-  type FlatConfiguration,
-  type ListConfiguration,
-  type StructuralHistogramWidget,
-} from '../../../../../../utils/api-types';
+import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { donutChartOptions } from '../../../../../../utils/Charts';
 import { getStatusColor } from '../../../../../../utils/statusColors';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 
 interface Props {
   widgetId: string;
-  widgetConfig: | DateHistogramWidget
-    | FlatConfiguration
-    | ListConfiguration
-    | StructuralHistogramWidget;
+  widgetConfig: StructuralHistogramWidget;
   datas: {
     x: string | undefined;
     y: number | undefined;
@@ -52,7 +44,7 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
   const labels = datas.map(s => s?.x ?? t('-'));
   // Apply custom color mapping only when the widget field represents a status breakdown
   const isStatusBreakdown
-      = 'field' in widgetConfig && widgetConfig.field.toLowerCase().includes('status');
+      = 'field' in widgetConfig && (widgetConfig.field.toLowerCase().includes('status') || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
   const chartColors = isStatusBreakdown
     ? labels.map(label => getStatusColor(theme, label))
     : [];

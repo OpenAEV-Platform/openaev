@@ -1,6 +1,5 @@
 import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import {
-  Chip,
   List as MuiList,
   ListItem as MuiListItem,
   ListItemButton,
@@ -18,10 +17,10 @@ import SortHeadersComponentV2 from '../../../../../../../components/common/query
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
+import ItemStatus from '../../../../../../../components/ItemStatus';
 import { useHelper } from '../../../../../../../store';
 import { type EsBase } from '../../../../../../../utils/api-types';
 import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
-import { computeStatusStyle } from '../../../../../../../utils/statusColors';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -97,15 +96,8 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
     const text = value?.toString() ?? '';
 
     if (column.toLowerCase().includes('status')) {
-      const style = computeStatusStyle(text);
       return (
-        <Tooltip title={text} placement="bottom-start">
-          <Chip
-            classes={{ root: classes.chipStatus }}
-            style={{ ...style }}
-            label={text}
-          />
-        </Tooltip>
+        <ItemStatus label={text} variant="inList" />
       );
     }
 
