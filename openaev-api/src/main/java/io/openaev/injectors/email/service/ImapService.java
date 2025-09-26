@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.util.MimeMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class ImapService {
   @Value("${openaev.mail.imap.sent}")
   private String sentFolder;
 
-  private boolean isServiceAvailable;
+  @Getter private boolean serviceAvailable;
 
   private UserRepository userRepository;
   private InjectRepository injectRepository;
@@ -354,7 +355,7 @@ public class ImapService {
           imapStore.connect(host, port, username, password);
           this.saveServiceState(true);
         } catch (MessagingException e) {
-          log.error(e.getMessage(), e);
+          log.warn(e.getMessage());
           this.saveServiceState(false);
         }
       }
@@ -372,15 +373,13 @@ public class ImapService {
     }
   }
 
-  public boolean isServiceAvailable() {
-    return this.isServiceAvailable;
-  }
-
   private void saveServiceState(boolean state) {
-    Setting imapSetting = this.settingRepository.findByKey(IMAP_SETTINGS_KEY)
-        .orElse(new Setting(IMAP_SETTINGS_KEY, null));
+    Setting imapSetting =
+        this.settingRepository
+            .findByKey(IMAP_SETTINGS_KEY)
+            .orElse(new Setting(IMAP_SETTINGS_KEY, null));
     imapSetting.setValue(String.valueOf(state));
     this.settingRepository.save(imapSetting);
-    this.isServiceAvailable = state;
+    this.serviceAvailable = state;
   }
 }

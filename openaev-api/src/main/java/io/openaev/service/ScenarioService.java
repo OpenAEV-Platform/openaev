@@ -29,18 +29,14 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.Ee;
 import io.openaev.export.Mixins;
-import io.openaev.healthcheck.dto.HealthCheck;
-import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
@@ -897,6 +893,7 @@ public class ScenarioService {
 
   /**
    * Verify all healthcheck for a given scenario
+   *
    * @param scenario to verify
    * @return converted scenario to ScenarioOutput with healthcheck attribute
    */
@@ -908,24 +905,20 @@ public class ScenarioService {
     List<Collector> collectors = this.collectorService.securityPlatformCollectors();
 
     ScenarioOutput scenarioOutput = new ScenarioOutput(scenario);
-    scenarioOutput.setInjects(scenario.getInjects().stream()
+    scenarioOutput.setInjects(
+        scenario.getInjects().stream()
             .map(inject -> injectService.runChecks(inject, collectors))
             .toList());
 
-    scenarioOutput.getHealthchecks().addAll(
-            HealthCheckUtils.runSmtpChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(
-            HealthCheckUtils.runImapChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(
-            HealthCheckUtils.runExecutorChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(
-            HealthCheckUtils.runCollectorChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(
-            HealthCheckUtils.runMissingContentChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(
-            HealthCheckUtils.runTeamsChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runSmtpChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runImapChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runExecutorChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runCollectorChecks(scenarioOutput));
+    scenarioOutput
+        .getHealthchecks()
+        .addAll(HealthCheckUtils.runMissingContentChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runTeamsChecks(scenarioOutput));
 
     return scenarioOutput;
   }
-
 }

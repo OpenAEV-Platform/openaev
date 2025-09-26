@@ -63,15 +63,15 @@ public class InjectorService {
 
   @Transactional
   public void register(
-          String id,
-          String name,
-          Contractor contractor,
-          Boolean isCustomizable,
-          String category,
-          Map<String, String> executorCommands,
-          Map<String, String> executorClearCommands,
-          Boolean isPayloads,
-          List<ExternalServiceDependency> dependencies)
+      String id,
+      String name,
+      Contractor contractor,
+      Boolean isCustomizable,
+      String category,
+      Map<String, String> executorCommands,
+      Map<String, String> executorClearCommands,
+      Boolean isPayloads,
+      List<ExternalServiceDependency> dependencies)
       throws Exception {
     if (!contractor.isExpose()) {
       Injector injector = injectorRepository.findById(id).orElse(null);

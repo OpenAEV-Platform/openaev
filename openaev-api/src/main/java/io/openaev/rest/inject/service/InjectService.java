@@ -23,8 +23,6 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.Ee;
-import io.openaev.healthcheck.dto.HealthCheck;
-import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.ContractFieldType;
@@ -33,7 +31,6 @@ import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -69,7 +66,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
@@ -1250,23 +1246,28 @@ public class InjectService {
 
   /**
    * Verify all healthcheck for a given inject
+   *
    * @param inject to verify
    * @return converted inject to InjectOutput with healthcheck values
    */
   public InjectOutput runChecks(Inject inject, List<Collector> collectors) {
-      if (inject == null) {
-          return null;
-      }
+    if (inject == null) {
+      return null;
+    }
 
-      InjectOutput injectOutput = new InjectOutput(inject);
-      injectOutput.getHealthchecks().addAll(
-              HealthCheckUtils.runSmtpChecks(inject, smtpService.isServiceAvailable()));
-      injectOutput.getHealthchecks().addAll(
-              HealthCheckUtils.runImapChecks(inject, imapService.isServiceAvailable()));
-      injectOutput.getHealthchecks().addAll(
-              HealthCheckUtils.runExecutorChecks(inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
-      injectOutput.getHealthchecks().addAll(
-              HealthCheckUtils.runCollectorChecks(inject, collectors));
-      return injectOutput;
+    InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput
+        .getHealthchecks()
+        .addAll(HealthCheckUtils.runSmtpChecks(inject, smtpService.isServiceAvailable()));
+    injectOutput
+        .getHealthchecks()
+        .addAll(HealthCheckUtils.runImapChecks(inject, imapService.isServiceAvailable()));
+    injectOutput
+        .getHealthchecks()
+        .addAll(
+            HealthCheckUtils.runExecutorChecks(
+                inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+    injectOutput.getHealthchecks().addAll(HealthCheckUtils.runCollectorChecks(inject, collectors));
+    return injectOutput;
   }
 }

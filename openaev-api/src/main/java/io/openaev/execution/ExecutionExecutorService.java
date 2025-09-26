@@ -1,7 +1,6 @@
 package io.openaev.execution;
 
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
@@ -14,7 +13,6 @@ import io.openaev.rest.inject.service.InjectService;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;

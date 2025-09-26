@@ -15,7 +15,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
@@ -60,6 +59,10 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
+
+  private ScenarioComposer.Composer scenarioWrapper;
+
+  static String SCENARIO_ID;
   @Autowired private AssetGroupService assetGroupService;
 
   @AfterEach
@@ -201,8 +204,6 @@ public class ScenarioApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    List<HealthCheck> healthChecks = JsonPath.read(response, "$.scenario_healthchecks");
-    assertEquals(0, healthChecks.size());
   }
 
   @DisplayName("Update scenario")

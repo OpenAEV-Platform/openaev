@@ -13,7 +13,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Stream;
-
 import lombok.Data;
 
 @Data
@@ -127,22 +126,42 @@ public class InjectOutput {
     this.scenario = Optional.ofNullable(inject.getScenario()).map(Scenario::getId).orElse(null);
     this.dependsDuration = inject.getDependsDuration();
     this.injectorContract = inject.getInjectorContract().orElse(null);
-    this.tags = inject.getTags() != null ? new HashSet<>(inject.getTags().stream().map(Tag::getId).toList()) : new HashSet<>();
-    this.teams = inject.getTeams() != null ? inject.getTeams().stream().map(Team::getId).toList() : new ArrayList<>();
-    this.assets = inject.getAssets() != null ? inject.getAssets().stream().map(Asset::getId).toList() : new ArrayList<>();
-    this.assetGroups = inject.getAssetGroups() != null ? new ArrayList<>(inject.getAssetGroups().stream().map(AssetGroup::getId).toList()) : new ArrayList<>();
+    this.tags =
+        inject.getTags() != null
+            ? new HashSet<>(inject.getTags().stream().map(Tag::getId).toList())
+            : new HashSet<>();
+    this.teams =
+        inject.getTeams() != null
+            ? inject.getTeams().stream().map(Team::getId).toList()
+            : new ArrayList<>();
+    this.assets =
+        inject.getAssets() != null
+            ? inject.getAssets().stream().map(Asset::getId).toList()
+            : new ArrayList<>();
+    this.assetGroups =
+        inject.getAssetGroups() != null
+            ? new ArrayList<>(inject.getAssetGroups().stream().map(AssetGroup::getId).toList())
+            : new ArrayList<>();
     this.content = inject.getContent();
     this.isReady =
-            InjectModelHelper.isReady(
-                    injectorContract, content, inject.isAllTeams(), this.teams, this.assets, this.assetGroups);
-    this.injectType = inject
+        InjectModelHelper.isReady(
+            injectorContract,
+            content,
+            inject.isAllTeams(),
+            this.teams,
+            this.assets,
+            this.assetGroups);
+    this.injectType =
+        inject
             .getInjectorContract()
             .map(InjectorContract::getInjector)
             .map(Injector::getType)
             .orElse(null);
-    this.dependsOn = Optional.ofNullable(inject.getDependsOn())
+    this.dependsOn =
+        Optional.ofNullable(inject.getDependsOn())
             .map(List::stream)
             .flatMap(Stream::findAny)
-            .stream().toList();
+            .stream()
+            .toList();
   }
 }

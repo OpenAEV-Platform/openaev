@@ -1,78 +1,69 @@
 package io.openbas.executors.utils;
 
-import io.openbas.database.model.Agent;
+import static io.openbas.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 
+import io.openbas.database.model.Agent;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.openbas.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
-
 public class ExecutorUtils {
 
-    /**
-     * Remove all Inactive agents from given agent list
-     * @param agents to filter
-     * @return filtered list
-     */
-    public static Set<Agent> removeInactiveAgentsFromAgents(Set<Agent> agents) {
-        Set<Agent> agentsToFilter = new HashSet<>(agents);
-        Set<Agent> inactiveAgents = foundInactiveAgents(agents);
-        agentsToFilter.removeAll(inactiveAgents);
-        return agentsToFilter;
-    }
+  /**
+   * Remove all Inactive agents from given agent list
+   *
+   * @param agents to filter
+   * @return filtered list
+   */
+  public static Set<Agent> removeInactiveAgentsFromAgents(Set<Agent> agents) {
+    Set<Agent> agentsToFilter = new HashSet<>(agents);
+    Set<Agent> inactiveAgents = foundInactiveAgents(agents);
+    agentsToFilter.removeAll(inactiveAgents);
+    return agentsToFilter;
+  }
 
-    /**
-     * Remove all agents without executor from given agent list
-     * @param agents to filter
-     * @return filtered list
-     */
-    public static Set<Agent> removeAgentsWithoutExecutorFromagents(Set<Agent> agents) {
-        Set<Agent> agentsToFilter = new HashSet<>(agents);
-        Set<Agent> inactiveAgents = foundAgentsWithoutExecutor(agents);
-        agentsToFilter.removeAll(inactiveAgents);
-        return agentsToFilter;
-    }
+  /**
+   * Remove all agents without executor from given agent list
+   *
+   * @param agents to filter
+   * @return filtered list
+   */
+  public static Set<Agent> removeAgentsWithoutExecutorFromAgents(Set<Agent> agents) {
+    Set<Agent> agentsToFilter = new HashSet<>(agents);
+    Set<Agent> inactiveAgents = foundAgentsWithoutExecutor(agents);
+    agentsToFilter.removeAll(inactiveAgents);
+    return agentsToFilter;
+  }
 
-    /**
-     * Remove all CrowdStrike agents from given agent list
-     * @param agents to filter
-     * @return filtered list
-     */
-    public static Set<Agent> removeCrowdstrikeAgentsFromagents(Set<Agent> agents) {
-        Set<Agent> agentsToFilter = new HashSet<>(agents);
-        Set<Agent> inactiveAgents = foundCrowdstrikeAgents(agents);
-        agentsToFilter.removeAll(inactiveAgents);
-        return agentsToFilter;
-    }
+  /**
+   * Found all inactive agents from a list of agents
+   *
+   * @param agents to filter
+   * @return inactives agents
+   */
+  public static Set<Agent> foundInactiveAgents(Set<Agent> agents) {
+    return agents.stream().filter(agent -> !agent.isActive()).collect(Collectors.toSet());
+  }
 
-    /**
-     * Found all inactive agents from a list of agents
-     * @param agents to filter
-     * @return inactives agents
-     */
-    public static Set<Agent> foundInactiveAgents(Set<Agent> agents) {
-        return agents.stream().filter(agent -> !agent.isActive()).collect(Collectors.toSet());
-    }
+  /**
+   * Found all agents whitout executor from a list of agents
+   *
+   * @param agents to filter
+   * @return agents without executor
+   */
+  public static Set<Agent> foundAgentsWithoutExecutor(Set<Agent> agents) {
+    return agents.stream().filter(agent -> agent.getExecutor() == null).collect(Collectors.toSet());
+  }
 
-    /**
-     * Found all agents whitout executor from a list of agents
-     * @param agents to filter
-     * @return agents without executor
-     */
-    public static Set<Agent> foundAgentsWithoutExecutor(Set<Agent> agents) {
-        return agents.stream().filter(agent -> agent.getExecutor() == null).collect(Collectors.toSet());
-    }
-
-    /**
-     * Found all CrowdStrike agents from a list of agents
-     * @param agents to filter
-     * @return founded crowdstrike agents
-     */
-    public static Set<Agent> foundCrowdstrikeAgents(Set<Agent> agents) {
-        return agents.stream()
-                .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
-                .collect(Collectors.toSet());
-    }
-
+  /**
+   * Found all CrowdStrike agents from a list of agents
+   *
+   * @param agents to filter
+   * @return founded crowdstrike agents
+   */
+  public static Set<Agent> foundCrowdstrikeAgents(Set<Agent> agents) {
+    return agents.stream()
+        .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
+        .collect(Collectors.toSet());
+  }
 }

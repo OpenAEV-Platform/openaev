@@ -2572,6 +2572,20 @@ export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
 
+export interface HealthCheck {
+  /** @format date-time */
+  creationDate?: string;
+  detail?: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY";
+  status?: "ERROR" | "WARNING";
+  type?:
+    | "SMTP"
+    | "IMAP"
+    | "AGENT_OR_EXECUTOR"
+    | "SECURITY_SYSTEM_COLLECTOR"
+    | "INJECT"
+    | "TEAMS";
+}
+
 export interface HistogramWidget {
   date_attribute: string;
   display_legend?: boolean;
@@ -2989,6 +3003,7 @@ export interface InjectOutput {
   inject_depends_on?: InjectDependency[];
   inject_enabled?: boolean;
   inject_exercise?: string;
+  inject_healthchecks?: HealthCheck[];
   inject_id: string;
   inject_injector_contract?: InjectorContract;
   inject_ready?: boolean;
@@ -3154,6 +3169,7 @@ export interface Injector {
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
+  injector_dependencies?: ("SMTP" | "IMAP")[];
   injector_executor_clear_commands?: Record<string, string>;
   injector_executor_commands?: Record<string, string>;
   injector_external?: boolean;
@@ -4738,6 +4754,8 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_vulnerability_expiration_time: number;
+  /** IMAP Service availability */
+  imap_service_available?: string;
   /** Current version of Java */
   java_version?: string;
   /** URL of the server containing the map tile with dark theme */
@@ -4790,6 +4808,8 @@ export interface PlatformSettings {
   postgre_version?: string;
   /** Current version of RabbitMQ */
   rabbitmq_version?: string;
+  /** SMTP Service availability */
+  smtp_service_available?: string;
   /** True if telemetry manager enable */
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
@@ -5348,6 +5368,64 @@ export interface ScenarioInput {
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
+}
+
+export interface ScenarioOutput {
+  /** @format int64 */
+  scenario_all_users_number?: number;
+  scenario_articles?: Article[];
+  scenario_category?: string;
+  /** @format int64 */
+  scenario_communications_number?: number;
+  /** @format date-time */
+  scenario_created_at: string;
+  scenario_custom_dashboard?: CustomDashboard;
+  scenario_description?: string;
+  scenario_documents?: Document[];
+  scenario_exercises?: Exercise[];
+  scenario_external_reference?: string;
+  scenario_external_url?: string;
+  scenario_healthchecks?: HealthCheck[];
+  scenario_id: string;
+  scenario_injects?: InjectOutput[];
+  scenario_injects_statistics?: Record<string, number>;
+  scenario_kill_chain_phases?: KillChainPhase[];
+  scenario_lessons_anonymized?: boolean;
+  scenario_lessons_categories?: LessonsCategory[];
+  scenario_mail_from: string;
+  scenario_mails_reply_to?: string[];
+  scenario_main_focus?: string;
+  scenario_message_footer?: string;
+  scenario_message_header?: string;
+  scenario_name: string;
+  scenario_observers?: User[];
+  scenario_planners?: User[];
+  scenario_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  scenario_recurrence?: string;
+  /** @format date-time */
+  scenario_recurrence_end?: string;
+  /** @format date-time */
+  scenario_recurrence_start?: string;
+  scenario_severity?: "low" | "medium" | "high" | "critical";
+  scenario_subtitle?: string;
+  /** @uniqueItems true */
+  scenario_tags?: Tag[];
+  scenario_teams?: Team[];
+  scenario_teams_users?: ScenarioTeamUser[];
+  /** @format date-time */
+  scenario_updated_at: string;
+  scenario_users?: User[];
+  /** @format int64 */
+  scenario_users_number?: number;
 }
 
 export interface ScenarioRecurrenceInput {

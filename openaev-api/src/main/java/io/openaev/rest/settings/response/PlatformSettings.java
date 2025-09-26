@@ -296,4 +296,12 @@ public class PlatformSettings {
   @JsonProperty("xtm_hub_should_send_connectivity_email")
   @Schema(description = "XTM Hub should send connectivity email")
   private String xtmHubShouldSendConnectivityEmail;
+
+  @JsonProperty("smtp_service_available")
+  @Schema(description = "SMTP Service availability")
+  private String smtpServiceAvailable;
+
+  @JsonProperty("imap_service_available")
+  @Schema(description = "IMAP Service availability")
+  private String imapServiceAvailable;
 }

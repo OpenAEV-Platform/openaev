@@ -1,5 +1,12 @@
 import { PlayArrowOutlined } from '@mui/icons-material';
-import { Avatar, Button, Chip, GridLegacy, Paper, Typography } from '@mui/material';
+import {
+  Avatar,
+  Button,
+  Chip,
+  GridLegacy,
+  Paper,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useContext, useState } from 'react';
@@ -23,10 +30,16 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
-import { type ExerciseSimple, type KillChainPhase, type Scenario as ScenarioType, type SearchPaginationInput } from '../../../../utils/api-types';
+import {
+  type ExerciseSimple,
+  type KillChainPhase,
+  type Scenario as ScenarioType,
+  type SearchPaginationInput,
+} from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField } from '../../../../utils/utils';
+import Healthchecks from '../../common/healthchecks/Healthchecks';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
@@ -43,6 +56,15 @@ const useStyles = makeStyles()(theme => ({
     width: 180,
   },
   paper: { padding: theme.spacing(2) },
+  informationPaper: {
+    borderBottomLeftRadius: 0,
+    borderTopLeftRadius: 0,
+    display: 'flex',
+    flex: 1,
+    gap: `0px ${theme.spacing(1)}`,
+    padding: theme.spacing(2),
+    width: '100%',
+  },
 }));
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
@@ -80,8 +102,13 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       inList
     />
   );
+
   return (
     <div style={{ paddingBottom: theme.spacing(5) }}>
+      <Healthchecks
+        healthchecks={scenario.scenario_healthchecks}
+        scenarioId={scenario.scenario_id}
+      />
       <div style={{
         display: 'grid',
         gap: `0px ${theme.spacing(3)}`,
@@ -162,7 +189,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Main Focus')}
               </Typography>
-              <ItemMainFocus mainFocus={scenario.scenario_main_focus} label={t(scenario.scenario_main_focus ?? 'Unknown')} />
+              <ItemMainFocus
+                mainFocus={scenario.scenario_main_focus}
+                label={t(scenario.scenario_main_focus ?? 'Unknown')}
+              />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
@@ -185,7 +215,15 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               {(scenario.scenario_platforms ?? []).length === 0 ? (
                 <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
               ) : scenario.scenario_platforms.map(
-                (platform: string) => <PlatformIcon key={platform} platform={platform} tooltip width={25} marginRight={theme.spacing(2)} />,
+                (platform: string) => (
+                  <PlatformIcon
+                    key={platform}
+                    platform={platform}
+                    tooltip
+                    width={25}
+                    marginRight={theme.spacing(2)}
+                  />
+                ),
               )}
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>

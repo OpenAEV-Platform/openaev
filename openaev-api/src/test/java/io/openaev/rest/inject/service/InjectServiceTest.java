@@ -8,12 +8,18 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.injectors.email.service.ImapService;
+import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
@@ -23,6 +29,9 @@ import io.openaev.service.UserService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
@@ -68,6 +77,10 @@ class InjectServiceTest {
   @Mock private UserService userService;
 
   @Mock private TagService tagService;
+
+  @Mock private SmtpService smtpService;
+
+  @Mock private ImapService imapService;
 
   ObjectMapper mapper;
 
@@ -565,5 +578,147 @@ class InjectServiceTest {
 
     assertEquals("defaultValue1", capturedInject.getContent().get("value1").asText());
     assertEquals("defaultValue2", capturedInject.getContent().get("value2").asText());
+  }
+
+  @Test
+  public void testRunChecksWhenInjectIsNull() {
+    // RUN
+    InjectOutput injectOutput = injectService.runChecks(null, List.of());
+
+    // VERIFY
+    assertNull(injectOutput);
+  }
+
+  @Test
+  public void testRunChecksForSmtpIssue() throws JsonProcessingException {
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.SMTP});
+
+    // MOCK
+    when(smtpService.isServiceAvailable()).thenReturn(false);
+
+    // RUN
+    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+
+    // VERIFY
+    assertNotNull(injectOutput);
+    assertFalse(injectOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        injectOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.SMTP, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForImapIssue() throws JsonProcessingException {
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.IMAP});
+
+    // MOCK
+    when(imapService.isServiceAvailable()).thenReturn(false);
+
+    // RUN
+    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+
+    // VERIFY
+    assertNotNull(injectOutput);
+    assertFalse(injectOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        injectOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.IMAP, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForExecutorIssue() throws JsonProcessingException {
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.getInjectorContract().get().setNeedsExecutor(true);
+
+    // RUN
+    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+
+    // VERIFY
+    assertNotNull(injectOutput);
+    assertFalse(injectOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        injectOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForCollectorIssue() throws JsonProcessingException {
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    ObjectNode expectationDetection = mapper.createObjectNode();
+    expectationDetection.put(
+        "expectation_type", InjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
+
+    ObjectNode expectationPrevention = mapper.createObjectNode();
+    expectationPrevention.put(
+        "expectation_type", InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
+
+    ArrayNode expectationsArray = mapper.createArrayNode();
+    expectationsArray.add(expectationDetection);
+    expectationsArray.add(expectationPrevention);
+
+    ObjectNode content = mapper.createObjectNode();
+    content.put("expectations", expectationsArray);
+    inject.setContent(content);
+
+    // RUN
+    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+
+    // VERIFY
+    assertNotNull(injectOutput);
+    assertFalse(injectOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        injectOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
   }
 }

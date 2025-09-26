@@ -23,7 +23,9 @@ public enum SettingKeys {
   XTM_HUB_REGISTRATION_USER_ID("xtm_hub_registration_user_id", ""),
   XTM_HUB_REGISTRATION_USER_NAME("xtm_hub_registration_user_name", ""),
   XTM_HUB_LAST_CONNECTIVITY_CHECK("xtm_hub_last_connectivity_check", ""),
-  XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL("xtm_hub_should_send_connectivity_email", "true");
+  XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL("xtm_hub_should_send_connectivity_email", "true"),
+  SMTP_SERVICE_AVAILABLE("smtp_service_available", "false"),
+  IMAP_SERVICE_AVAILABLE("imap_service_available", "false");
 
   private final String key;
   private final String defaultValue;

@@ -15,7 +15,9 @@ import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
-import io.openaev.rest.dashboard.DashboardService;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -60,7 +62,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
-  @Mock private DashboardService dashboardService;
+  @Mock private CollectorService collectorService;
   @InjectMocks private ScenarioService scenarioService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -93,7 +95,7 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            dashboardService,
+            collectorService,
             injectRepository,
             lessonsCategoryRepository);
   }
@@ -119,7 +121,7 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            dashboardService,
+            collectorService,
             injectRepository,
             lessonsCategoryRepository);
   }
@@ -308,6 +310,227 @@ class ScenarioServiceTest extends IntegrationTest {
     scenarioService.updateScenario(scenario, currentTags, false);
 
     verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
+  }
+
+  @Test
+  public void testRunChecksWhenScenarioIsNull() {
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(null);
+
+    assertNull(scenarioOutput);
+  }
+
+  @Test
+  public void testRunChecksForSmtpIssue() {
+    // PREPARE
+    Inject inject = new Inject();
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+
+    HealthCheck healthCheck =
+        new HealthCheck(
+            HealthCheck.Type.SMTP,
+            HealthCheck.Detail.SERVICE_UNAVAILABLE,
+            HealthCheck.Status.ERROR,
+            new Date());
+    InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput.setHealthchecks(List.of(healthCheck));
+
+    // MOCK
+    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
+    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+
+    // RUN
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+
+    // VERIFY
+    assertNotNull(scenarioOutput);
+    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        scenarioOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.SMTP, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForImapIssue() {
+    // PREPARE
+    Inject inject = new Inject();
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+
+    HealthCheck healthCheck =
+        new HealthCheck(
+            HealthCheck.Type.IMAP,
+            HealthCheck.Detail.SERVICE_UNAVAILABLE,
+            HealthCheck.Status.WARNING,
+            new Date());
+    InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput.setHealthchecks(List.of(healthCheck));
+
+    // MOCK
+    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
+    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+
+    // RUN
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+
+    // VERIFY
+    assertNotNull(scenarioOutput);
+    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        scenarioOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.IMAP, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForExecutorIssue() {
+    // PREPARE
+    Inject inject = new Inject();
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+
+    HealthCheck healthCheck =
+        new HealthCheck(
+            HealthCheck.Type.AGENT_OR_EXECUTOR,
+            HealthCheck.Detail.EMPTY,
+            HealthCheck.Status.ERROR,
+            new Date());
+    InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput.setHealthchecks(List.of(healthCheck));
+
+    // MOCK
+    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
+    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+
+    // RUN
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+
+    // VERIFY
+    assertNotNull(scenarioOutput);
+    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        scenarioOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForCollectorIssue() {
+    // PREPARE
+    Inject inject = new Inject();
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+
+    HealthCheck healthCheck =
+        new HealthCheck(
+            HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
+            HealthCheck.Detail.EMPTY,
+            HealthCheck.Status.ERROR,
+            new Date());
+    InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput.setHealthchecks(List.of(healthCheck));
+
+    // MOCK
+    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
+    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+
+    // RUN
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+
+    // VERIFY
+    assertNotNull(scenarioOutput);
+    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        scenarioOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForMissingContentIssue() {
+    // PREPARE
+    Inject inject = new Inject();
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+
+    HealthCheck healthCheck =
+        new HealthCheck(
+            HealthCheck.Type.INJECT,
+            HealthCheck.Detail.NOT_READY,
+            HealthCheck.Status.WARNING,
+            new Date());
+    InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput.setHealthchecks(List.of(healthCheck));
+
+    // MOCK
+    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
+    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+
+    // RUN
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+
+    // VERIFY
+    assertNotNull(scenarioOutput);
+    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        scenarioOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.INJECT.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.INJECT, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.NOT_READY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void testRunChecksForTeamsIssue() {
+    // PREPARE
+    Inject inject = new Inject();
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+    InjectOutput injectOutput = new InjectOutput(inject);
+
+    // MOCK
+    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
+    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+
+    // RUN
+    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+
+    // VERIFY
+    assertNotNull(scenarioOutput);
+    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+
+    HealthCheck healthCheckToVerify =
+        scenarioOutput.getHealthchecks().stream()
+            .filter(hc -> HealthCheck.Type.TEAMS.equals(hc.getType()))
+            .findFirst()
+            .orElse(new HealthCheck(null, null, null, null));
+    assertEquals(HealthCheck.Type.TEAMS, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
   }
 
   private AssetGroup getAssetGroup(String name) {
