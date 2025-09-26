@@ -89,34 +89,6 @@ public class WidgetService {
   }
 
   /**
-   * Converts security coverage inject expectations results to an inject list configuration.
-   * Extracts inject IDs from the expectations and creates a filtered inject list configuration.
-   *
-   * @param injectExpectations list of ES inject expectations
-   * @return for inject entities filtered by the expectation's inject IDs
-   */
-  public ListConfiguration convertSecurityCoverageResultsToInjectListConfig(
-      List<EsInjectExpectation> injectExpectations) {
-    List<String> injectIds =
-        injectExpectations.stream()
-            .map(EsInjectExpectation::getBase_inject_side)
-            .distinct()
-            .toList();
-
-    // Creates a filtered inject list configuration
-    ListConfiguration listConfig = esService.createListConfiguration("inject", new HashMap<>());
-    WidgetUtils.setOrAddFilterByKey(
-        listConfig.getPerspective().getFilter(),
-        "base_id",
-        injectIds,
-        Filters.FilterOperator.contains);
-    listConfig.setColumns(WidgetUtils.getColumnsFromBaseEntityName("inject"));
-    listConfig.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
-
-    return listConfig;
-  }
-
-  /**
    * Converts a widget configuration to a list configuration for data display. Applies
    * series-specific filters and handles different widget types (temporal/structural histograms).
    *
