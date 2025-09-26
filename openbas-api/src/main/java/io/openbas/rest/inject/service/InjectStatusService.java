@@ -160,8 +160,7 @@ public class InjectStatusService {
   protected void computeExecutionTraceStatusIfNeeded(
       InjectStatus injectStatus, ExecutionTrace executionTrace, Agent agent) {
 
-    // if the execution trace is COMPLETED with a status different than INFO we need don't to
-    // compute
+    // if the execution trace is COMPLETED with a status different than INFO -> no compute
     if (agent != null
         && executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
         && ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
