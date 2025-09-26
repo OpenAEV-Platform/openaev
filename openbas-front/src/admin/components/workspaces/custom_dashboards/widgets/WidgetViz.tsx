@@ -1,3 +1,5 @@
+import { ArrowDownwardOutlined, ArrowForwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
 import { memo, useContext, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -11,6 +13,7 @@ import {
 } from '../../../../../utils/api-types';
 import { type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types-custom';
 import { CustomDashboardContext } from '../CustomDashboardContext';
+import { getTimeRangeFromDashboard, getTimeRangeItem } from './configuration/common/TimeRangeUtils';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
 import DonutChart from './viz/DonutChart';
 import HorizontalBarChart from './viz/HorizontalBarChart';
@@ -25,6 +28,7 @@ interface WidgetTemporalVizProps {
   widget: Widget;
   fullscreen: boolean;
   setFullscreen: (fullscreen: boolean) => void;
+  setTooltipMessage: (tooltipMessage: React.ReactNode) => void;
 }
 
 export type SerieData = {
@@ -33,7 +37,7 @@ export type SerieData = {
   meta?: string;
 };
 
-const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps) => {
+const WidgetViz = ({ widget, fullscreen, setFullscreen, setTooltipMessage }: WidgetTemporalVizProps) => {
   const { t } = useFormatter();
   const [seriesVizData, setSeriesVizData] = useState<EsSeries[]>([]);
   const [entitiesVizData, setEntitiesVizData] = useState<EsBase[]>([]);
@@ -46,7 +50,76 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
+  const { customDashboardParameters, customDashboard, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
+
+  const createNumberTooltipContent = () => {
+    const { difference_count, previous_interval_count } = numberVizData;
+    // extract serie's name (only 1 serie for number widget)
+    let resourceName;
+    if ('series' in widget.widget_config) {
+      const seriesItem = widget.widget_config.series[0];
+      if (seriesItem) {
+        const entityName = seriesItem.filter?.filters
+          ?.find(f => f.key === 'base_entity')
+          ?.values?.[0];
+
+        resourceName = seriesItem.name
+          ?? (entityName ? t(`${entityName}-plural`) : '');
+      }
+    }
+    // Compute the widget time range to get the correct sentence
+    let widgetTimeRange;
+    if (widget.widget_config.time_range == 'DEFAULT') {
+      widgetTimeRange = getTimeRangeFromDashboard(customDashboard, customDashboardParameters);
+    } else {
+      widgetTimeRange = widget.widget_config.time_range;
+    }
+    const formattedDiff
+        = !difference_count || difference_count > 0 ? `+${difference_count}` : `${difference_count}`;
+    // Pick icon & color based on difference_count
+    let Icon = ArrowForwardOutlined;
+    let color = 'grey.400';
+    if (difference_count && difference_count > 0) {
+      Icon = ArrowUpwardOutlined;
+      color = 'success.main';
+    } else if (difference_count && difference_count < 0) {
+      Icon = ArrowDownwardOutlined;
+      color = 'error.main';
+    }
+    const labelKey = `${getTimeRangeItem(widgetTimeRange, t)?.label_key}_progression`;
+    return (
+      <Box display="flex" alignItems="center">
+        <Icon sx={{ color }} fontSize="small" />
+        <Box
+          display="flex"
+          alignItems="center"
+        >
+          <Typography
+            variant="body2"
+            component="span"
+            sx={{
+              color,
+              fontWeight: 600,
+            }}
+          >
+            {formattedDiff}
+            &nbsp;
+          </Typography>
+          <strong>
+            {resourceName}
+            &nbsp;
+          </strong>
+          <span>
+            {t(labelKey)}
+            &nbsp;
+          </span>
+          <strong>
+            {t('was previously', { previous_number: previous_interval_count })}
+          </strong>
+        </Box>
+      </Box>
+    );
+  };
 
   const fetchData = <T extends EsSeries[] | EsBase[] | EsAttackPath[] | EsCountInterval>(
     fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: T }>,
@@ -70,9 +143,10 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
         fetchData(fetchAttackPaths, setAttackPathsVizData);
         break;
       }
-      case 'number':
+      case 'number': {
         fetchData(fetchCount, setNumberVizData);
         break;
+      }
       case 'list':
         fetchData(fetchEntities, setEntitiesVizData);
         break;
@@ -80,6 +154,10 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen }: WidgetTemporalVizProps
         fetchData(fetchSeries, setSeriesVizData);
     }
   }, [widget, customDashboardParameters]);
+
+  useEffect(() => {
+    setTooltipMessage(createNumberTooltipContent());
+  }, [numberVizData]);
 
   if (loading) {
     return <Loader variant="inElement" />;

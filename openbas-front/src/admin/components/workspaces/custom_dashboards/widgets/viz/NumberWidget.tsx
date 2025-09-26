@@ -13,9 +13,11 @@ const useStyles = makeStyles()(theme => ({
     fontWeight: 500,
     padding: 0,
     color: theme.palette.text.primary,
+  },
+  numberContainer: {
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
+    gap: theme.spacing(1),
   },
 }));
 
@@ -39,14 +41,14 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
   };
 
   return (
-    <div>
+    <div className={classes.numberContainer}>
       <Button onClick={onClick} className={classes.number} variant="text">
         {data.interval_count ?? '-'}
 
-        <ItemNumberDifference
-          difference={data.difference_count}
-        />
       </Button>
+      <ItemNumberDifference
+        difference={data.difference_count}
+      />
     </div>
   );
 };
