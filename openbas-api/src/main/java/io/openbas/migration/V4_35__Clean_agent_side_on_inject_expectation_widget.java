@@ -77,7 +77,7 @@ public class V4_35__Clean_agent_side_on_inject_expectation_widget extends BaseJa
         for (JsonNode node : sorts) {
           ObjectNode sortNode = (ObjectNode) node;
           String fieldName = sortNode.get("fieldName").asText();
-          if("base_agent_side".equals(fieldName)) {
+          if ("base_agent_side".equals(fieldName)) {
             sortNode.put("fieldName", "base_asset_side");
             changeMade = true;
           }
