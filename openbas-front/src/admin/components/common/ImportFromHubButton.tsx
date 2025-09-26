@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
-import { isNotEmptyField } from '../../../utils/utils';
+import { getUrl, isNotEmptyField } from '../../../utils/utils';
 import GradientButton from './GradientButton';
 
 interface ImportFromHubButtonProps extends ButtonProps { serviceIdentifier: string }
@@ -17,7 +17,7 @@ const ImportFromHubButton = ({ serviceIdentifier }: ImportFromHubButtonProps) =>
   }
 
   const importFromHubUrl = isNotEmptyField(settings?.xtm_hub_url)
-    ? `${settings?.xtm_hub_url}/redirect/${serviceIdentifier}?obas_instance_id=${settings.platform_id}`
+    ? getUrl(`/redirect/${serviceIdentifier}?obas_instance_id=${settings.platform_id}`, settings?.xtm_hub_url)
     : '';
 
   return (
