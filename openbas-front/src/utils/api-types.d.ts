@@ -1778,7 +1778,6 @@ export interface EsInject {
 }
 
 export interface EsInjectExpectation {
-  base_agent_side?: string;
   base_asset_group_side?: string;
   base_asset_side?: string;
   /** @uniqueItems true */
