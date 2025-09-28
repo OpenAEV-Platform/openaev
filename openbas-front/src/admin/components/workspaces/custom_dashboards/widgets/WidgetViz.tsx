@@ -13,7 +13,7 @@ import {
 } from '../../../../../utils/api-types';
 import { type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types-custom';
 import { CustomDashboardContext } from '../CustomDashboardContext';
-import { getTimeRangeFromDashboard, getTimeRangeItem } from './configuration/common/TimeRangeUtils';
+import { ALL_TIME_TIME_RANGE, getTimeRangeFromDashboard, getTimeRangeItem } from './configuration/common/TimeRangeUtils';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
 import DonutChart from './viz/DonutChart';
 import HorizontalBarChart from './viz/HorizontalBarChart';
@@ -55,7 +55,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, setTooltipMessage }: Wid
   const createNumberTooltipContent = () => {
     const { difference_count, previous_interval_count } = numberVizData;
     // extract serie's name (only 1 serie for number widget)
-    let resourceName;
+    let resourceName = '';
     if ('series' in widget.widget_config) {
       const seriesItem = widget.widget_config.series[0];
       if (seriesItem) {
@@ -63,8 +63,9 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, setTooltipMessage }: Wid
           ?.find(f => f.key === 'base_entity')
           ?.values?.[0];
 
-        resourceName = seriesItem.name
-          ?? (entityName ? t(`${entityName}-plural`) : '');
+        resourceName = difference_count <= 1 && difference_count >= -1
+          ? t(`${entityName}-singular`)
+          : t(`${entityName}-plural`);
       }
     }
     // Compute the widget time range to get the correct sentence
@@ -97,25 +98,28 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, setTooltipMessage }: Wid
           <Typography
             variant="body2"
             component="span"
-            sx={{
-              color,
-              fontWeight: 600,
-            }}
           >
-            {formattedDiff}
-            &nbsp;
+            <Box
+              component="strong"
+              sx={{ color }}
+            >
+              {formattedDiff}
+            </Box>
+            {' '}
+            <strong>
+              {resourceName}
+            </strong>
+            {' '}
+            <span>
+              {t(labelKey)}
+              {' '}
+            </span>
+            {widgetTimeRange !== ALL_TIME_TIME_RANGE && (
+              <strong>
+                {t('was previously', { previous_number: previous_interval_count })}
+              </strong>
+            )}
           </Typography>
-          <strong>
-            {resourceName}
-            &nbsp;
-          </strong>
-          <span>
-            {t(labelKey)}
-            &nbsp;
-          </span>
-          <strong>
-            {t('was previously', { previous_number: previous_interval_count })}
-          </strong>
         </Box>
       </Box>
     );

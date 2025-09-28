@@ -1691,11 +1691,11 @@ export type EsBase = BaseEsBase &
 
 export interface EsCountInterval {
   /** @format int64 */
-  difference_count?: number;
+  difference_count: number;
   /** @format int64 */
-  interval_count?: number;
+  interval_count: number;
   /** @format int64 */
-  previous_interval_count?: number;
+  previous_interval_count: number;
 }
 
 export interface EsEndpoint {
