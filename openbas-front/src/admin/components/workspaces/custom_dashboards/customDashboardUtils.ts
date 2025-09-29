@@ -47,7 +47,6 @@ const updateDefaultDashboardsInParameters = (
   });
 
   if (defaultDashboardsChanged) {
-    console.log('--- updatePlatformParameters');
     updatePlatformParameters({
       ...settings,
       ...updatedSettings,
