@@ -10,7 +10,7 @@ import { useHelper } from '../../../../store';
 import type { CustomDashboard, PlatformSettings } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
-import { updateDefaultDashboardsInParameters } from './customDashboardUtils';
+import updateDefaultDashboardsInParameters from './customDashboardUtils';
 
 interface Props { onCreate: (result: CustomDashboard) => void }
 
