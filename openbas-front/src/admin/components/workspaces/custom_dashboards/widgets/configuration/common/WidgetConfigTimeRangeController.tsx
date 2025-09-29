@@ -15,7 +15,7 @@ const WidgetConfigTimeRangeController = () => {
     name: 'widget_config.time_range',
   });
 
-  const timeRangeItems = getTimeRangeItemsWithDefault(t);
+  const timeRangeItems = getTimeRangeItemsWithDefault();
 
   return (
     <>
@@ -37,7 +37,7 @@ const WidgetConfigTimeRangeController = () => {
             helperText={fieldState.error?.message}
             required
           >
-            {timeRangeItems.map(timeRange => <MenuItem key={timeRange.value} value={timeRange.value}>{t(timeRange.label)}</MenuItem>)}
+            {timeRangeItems.map(timeRange => <MenuItem key={timeRange.value} value={timeRange.value}>{t(timeRange.label_key)}</MenuItem>)}
           </TextField>
         )}
       />

@@ -20,7 +20,7 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const timeRangeItems = getTimeRangeItems(t);
+  const timeRangeItems = getTimeRangeItems();
 
   return (
     <div style={{
@@ -46,7 +46,7 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
         >
           {timeRangeItems.map(item => (
             <MenuItem key={item.value} value={item.value}>
-              {item.label}
+              {t(item.label_key)}
             </MenuItem>
           ))}
         </Select>

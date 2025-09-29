@@ -87,40 +87,35 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, setTooltipMessage }: Wid
       Icon = ArrowDownwardOutlined;
       color = 'error.main';
     }
-    const labelKey = `${getTimeRangeItem(widgetTimeRange, t)?.label_key}_progression`;
+    const labelKey = `${getTimeRangeItem(widgetTimeRange)?.label_key}_progression`;
     return (
       <Box display="flex" alignItems="center">
         <Icon sx={{ color }} fontSize="small" />
-        <Box
-          display="flex"
-          alignItems="center"
+        <Typography
+          variant="body2"
+          component="span"
         >
-          <Typography
-            variant="body2"
-            component="span"
+          <Box
+            component="strong"
+            sx={{ color }}
           >
-            <Box
-              component="strong"
-              sx={{ color }}
-            >
-              {formattedDiff}
-            </Box>
+            {formattedDiff}
+          </Box>
+          {' '}
+          <strong>
+            {resourceName}
+          </strong>
+          {' '}
+          <span>
+            {t(labelKey)}
             {' '}
+          </span>
+          {widgetTimeRange !== ALL_TIME_TIME_RANGE && (
             <strong>
-              {resourceName}
+              {t('was previously', { previous_number: previous_interval_count })}
             </strong>
-            {' '}
-            <span>
-              {t(labelKey)}
-              {' '}
-            </span>
-            {widgetTimeRange !== ALL_TIME_TIME_RANGE && (
-              <strong>
-                {t('was previously', { previous_number: previous_interval_count })}
-              </strong>
-            )}
-          </Typography>
-        </Box>
+          )}
+        </Typography>
       </Box>
     );
   };
