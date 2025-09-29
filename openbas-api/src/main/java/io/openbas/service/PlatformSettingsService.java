@@ -536,23 +536,31 @@ public class PlatformSettingsService {
 
     Map<SettingKeys, String> xtmhubSettingsMap = new HashMap<>();
     xtmhubSettingsMap.put(XTM_HUB_TOKEN, token);
-    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_DATE, registrationDate != null ? registrationDate.toString() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_REGISTRATION_DATE, registrationDate != null ? registrationDate.toString() : null);
     xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_STATUS, registrationStatus.label);
-    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_USER_ID, registerer != null ? registerer.id() : null);
-    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_USER_NAME, registerer != null ? registerer.name() : null);
-    xtmhubSettingsMap.put(XTM_HUB_LAST_CONNECTIVITY_CHECK, lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null);
-    xtmhubSettingsMap.put(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL, shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_REGISTRATION_USER_ID, registerer != null ? registerer.id() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_REGISTRATION_USER_NAME, registerer != null ? registerer.name() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_LAST_CONNECTIVITY_CHECK,
+        lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL,
+        shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
 
     List<Setting> settingsToSave = new ArrayList<>();
     List<String> settingsIdsToDelete = new ArrayList<>();
 
-    xtmhubSettingsMap.forEach((settingKey, value) -> {
-      if (value != null) {
-        settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
-      } else if (dbSettings.get(settingKey.key()) != null) {
-        settingsIdsToDelete.add(dbSettings.get(settingKey.key()).getId());
-      }
-    });
+    xtmhubSettingsMap.forEach(
+        (settingKey, value) -> {
+          if (value != null) {
+            settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
+          } else if (dbSettings.get(settingKey.key()) != null) {
+            settingsIdsToDelete.add(dbSettings.get(settingKey.key()).getId());
+          }
+        });
 
     settingRepository.deleteAllById(settingsIdsToDelete);
     settingRepository.saveAll(settingsToSave);
