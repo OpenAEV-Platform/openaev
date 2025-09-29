@@ -1,5 +1,5 @@
 import { Close } from '@mui/icons-material';
-import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Typography } from '@mui/material';
+import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -33,13 +33,12 @@ const useStyles = makeStyles()(theme => ({
   header: {
     backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
     padding: '10px 0',
-    display: 'inline-flex',
+    display: 'flex',
     alignItems: 'center',
   },
   headerFull: {
     backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
     borderBottom: `1px solid ${theme.palette.divider}`,
-    padding: '10px 0',
     display: 'inline-flex',
     alignItems: 'center',
   },
@@ -112,12 +111,18 @@ const Drawer: FunctionComponent<DrawerProps> = ({
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          width: '100%',
+          flex: 1,
+          minWidth: 0,
         }}
         >
-          <Typography variant="subtitle2">
-            {title}
-          </Typography>
+          <Tooltip title={title}>
+            <Typography
+              variant="subtitle2"
+              noWrap
+            >
+              {title}
+            </Typography>
+          </Tooltip>
           {(additionalTitle || additionalChipLabel) && (
             <div style={{
               display: 'flex',

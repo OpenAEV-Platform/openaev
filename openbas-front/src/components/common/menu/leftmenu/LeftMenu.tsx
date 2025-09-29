@@ -71,15 +71,13 @@ const LeftMenu: FunctionComponent<{
         })}
       </div>
       <MenuList component="nav" style={{ marginTop: 'auto' }}>
-        {bottomEntries.filter(entry => entry.userRight).map((entry, idxList) => {
+        {bottomEntries.filter(entry => entry.userRight).map((entry) => {
           return (
-            <Fragment key={idxList}>
-              {entry.items.filter(entry => entry.userRight).map((item) => {
-                return (
-                  <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
-                );
-              })}
-            </Fragment>
+            entry.items.filter(entry => entry.userRight).map((item) => {
+              return (
+                <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+              );
+            })
           );
         })}
         {!isWhitemarkEnable && (
