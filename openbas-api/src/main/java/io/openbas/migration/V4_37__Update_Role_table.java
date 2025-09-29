@@ -16,7 +16,7 @@ public class V4_37__Update_Role_table extends BaseJavaMigration {
     stmt.execute(
         """
               ALTER TABLE roles
-                ADD COLUMN role_description text,
+                ADD COLUMN role_description text;
               """);
   }
 }
