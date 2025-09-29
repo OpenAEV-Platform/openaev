@@ -10,7 +10,12 @@ import { type Grant, type GroupGrantInput, type Scenario } from '../../../../../
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import { type TableConfig } from '../ui/TableData';
 
-const useScenarioGrant = (groupId: string) => {
+interface ScenarioGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
@@ -22,6 +27,10 @@ const useScenarioGrant = (groupId: string) => {
   if (!group) {
     return { configs: [] };
   }
+
+  useEffect(() => {
+    onGrantChange();
+  }, [group]);
 
   const handleGrant = (scenarioId: string, grantId: string | null, grantName: GroupGrantInput['grant_name'], checked: boolean) => {
     if (checked) {

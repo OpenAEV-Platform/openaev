@@ -10,7 +10,11 @@ import { type Grant, type GroupGrantInput, type InjectResultOutput } from '../..
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import { type TableConfig } from '../ui/TableData';
 
-const useAtomicTestingGrant = (groupId: string) => {
+interface AtomicTestingGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+const useAtomicTestingGrant = ({ groupId, onGrantChange }: AtomicTestingGrantsProps) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
@@ -22,6 +26,10 @@ const useAtomicTestingGrant = (groupId: string) => {
   if (!group) {
     return { configs: [] };
   }
+
+  useEffect(() => {
+    onGrantChange();
+  }, [group]);
 
   const handleGrant = (injectId: string, grantId: string | null, grantName: GroupGrantInput['grant_name'], checked: boolean) => {
     if (checked) {

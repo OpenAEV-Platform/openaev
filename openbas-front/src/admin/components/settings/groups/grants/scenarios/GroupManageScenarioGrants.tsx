@@ -9,8 +9,16 @@ import type { Scenario, SearchPaginationInput } from '../../../../../../utils/ap
 import TableData from '../ui/TableData';
 import useScenarioGrant from './useScenarioGrant';
 
-const GroupManageScenarioGrants = ({ groupId }: { groupId: string }) => {
-  const { configs } = useScenarioGrant(groupId);
+interface GroupManageScenarioGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const GroupManageScenarioGrants = ({ groupId, onGrantChange }: GroupManageScenarioGrantsProps) => {
+  const { configs } = useScenarioGrant({
+    groupId,
+    onGrantChange,
+  });
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 

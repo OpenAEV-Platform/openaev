@@ -9,8 +9,16 @@ import type { InjectResultOutput, SearchPaginationInput } from '../../../../../.
 import TableData from '../ui/TableData';
 import useAtomicTestingGrant from './useAtomicTestingGrant';
 
-const GroupManageAtomicTestingGrants = ({ groupId }: { groupId: string }) => {
-  const { configs } = useAtomicTestingGrant(groupId);
+interface GroupManageAtomicTestingGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const GroupManageAtomicTestingGrants = ({ groupId, onGrantChange }: GroupManageAtomicTestingGrantsProps) => {
+  const { configs } = useAtomicTestingGrant({
+    groupId,
+    onGrantChange,
+  });
   const [injects, setInjects] = useState<InjectResultOutput[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
