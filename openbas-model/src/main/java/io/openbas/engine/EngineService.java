@@ -45,8 +45,8 @@ public interface EngineService {
    *
    * @param user the user to use
    * @param runtime the count runtime to use
-   * @return a count object, including the previous interval count and the difference between the
-   *     two
+   * @return a count object, including the current and previous interval count and the difference
+   *     between the two
    */
   EsCountInterval count(RawUserAuth user, CountRuntime runtime);
 

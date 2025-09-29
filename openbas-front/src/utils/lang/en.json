@@ -362,6 +362,7 @@
   "Custom dashboard is currently unavailable or you do not have sufficient permissions to access it.": "Custom dashboard is currently unavailable or you do not have sufficient permissions to access it.",
   "Custom dashboards": "Custom dashboards",
   "Custom range": "Custom range",
+  "Custom range_progression": "over the previous range",
   "Custom variables": "Custom variables",
   "custom_dashboard_name": "Name",
   "custom_dashboard_name_attack-path": "Attack Paths",

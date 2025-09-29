@@ -40,8 +40,8 @@ public class DashboardService {
    *
    * @param widgetId the id from the {@link Widget} defining the type and configuration
    * @param parameters parameters passed at runtime (e.g. filters, date ranges)
-   * @return EsCountInterval a count object, including the previous interval count and the
-   *     difference between the two
+   * @return EsCountInterval a count object, including the current and previous interval count and
+   *     the difference between the two
    */
   public EsCountInterval count(String widgetId, Map<String, String> parameters) {
     WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
