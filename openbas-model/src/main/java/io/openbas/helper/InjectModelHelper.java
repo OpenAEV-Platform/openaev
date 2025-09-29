@@ -181,7 +181,7 @@ public class InjectModelHelper {
       for (JsonNode contractField : injectContractFields) {
         if (key.equals(contractField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText())) {
           JsonNode defaultValue = contractField.get(DEFAULT_VALUE_FIELD);
-          if (defaultValue == null || defaultValue.isNull()) {
+          if (defaultValue == null || defaultValue.isNull() || defaultValue.isEmpty()) {
             return false;
           }
         }
