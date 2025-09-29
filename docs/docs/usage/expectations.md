@@ -10,28 +10,47 @@ Expectations can be categorized as either Manual or Automatic, depending on how 
 
 ### Manual expectations
 
-Manual expectations require manual validation by the animation team, with the validation process and scoring managed
-manually. They are simple, customizable expectations to be manually validated.
+Manual expectations require validation by the **exercise organizer** (animation team).  
+They are simple, customizable, and **user-controlled**.
+
+Examples:
+
+- **Team response validation**  
+  Check whether the **incident response team** correctly acknowledges and escalates a phishing inject during the exercise.
+
+- **Player task validation**  
+  Ensure that an **analyst player** correctly follows the playbook and reports an incident in the ticketing system.
+
 ### Automatic expectations
 
-Automatic expectations are validated automatically under specific conditions. Currently available automatic expectations
-include:
+Automatic expectations are validated automatically under specific conditions.
 
-- `Prevention`: automatically validated by security integration with
-  compatible Collectors if the inject's action generates a prevention alert, such as quarantine.
-- `Detection`: automatically validated by security integration with
-  compatible Collectors if the inject's action generates a detection alert, such as an incident.
-- `Vulnerability`: automatically validated depending on the presence of CVEs
-- `Expect targets to read the article(s)`: Automatically validated when the article of a Media pressure inject
-  has been read by targets.
+- `Prevention`: automatically validated by security integrations (e.g., quarantine event).
+- `Detection`: automatically validated by security integrations (e.g., incident alert).
+- `Vulnerability`: automatically validated based on the presence of CVEs.
+- `Expect targets to read the article(s)`: automatically validated once targets have read the injected article.
 
 ## Validation Mode
 
 There are two modes for validating an expectation :
 
-- `All targets (per group) must validate the expectation` : in this case, the result depends on every group member's performance. If one target fails, the entire team fails. The score is calculated as the average of all targets' scores.
+### All targets (per group) must validate the expectation
 
-- `At least one target (per group) must validate the expectation` : here, the success of the group depends on at least one target succeeding. If one target succeeds, the group is considered successful. The score is an average of all successful targets' scores.
+- The result depends on **every member's performance**.
+- If one target fails, the entire group fails.
+- Final score = **100** if all succeed, otherwise **0**.
+
+Example: 3 players succeed, 1 fails → Group score = **0 (Failed)**.  
+Example: 4 players succeed → Group score = **100 (Success)**.
+
+### At least one target (per group) must validate the expectation
+
+- Success depends on **at least one target succeeding**.
+- The group is considered successful if one target validates.
+- Final score = **100** if ≥1 succeeds, otherwise **0**.
+
+Example: 3 players fail, 1 succeeds → Group score = **100 (Success)**.  
+Example: 4 players fail → Group score = **0 (Failed)**.
 
 ![Validation mode](assets/validation_mode.png)
 
@@ -39,8 +58,9 @@ There are two modes for validating an expectation :
 
 ### Add an expectation to an Inject
 
-To add expectations to an inject, navigate to the inject's content and click on "Add expectations". From there, select
-the type of expectation you want to add and set a score for it.
+1. Navigate to the inject's content and click **Add expectations**.
+2. Select the type of expectation you want to add.
+3. Define its score and validation mode.
 
 You can add multiple expectations to a single inject.
 
@@ -48,13 +68,11 @@ You can add multiple expectations to a single inject.
 
 ### Validate a manual expectation
 
-If you have configured manual expectations in your scenario, you will have the opportunity to handle manual validations
-during each simulation. During a Simulation, navigate to the Animation tab, under the Validation screen. Here, you'll
-find a list of expectations that require manual validation.
+- During a simulation, go to the **Animation tab → Validation screen** to manually validate expectations.
 
 ![Validate a manual expectation from the animation tab](assets/manual_expectation_validation_animation_tab.png)
 
-If you have created an atomic testing with a manual inject, you will validate it in the overview tab.
+- For atomic testing with manual injects, validation can be done directly in the **Overview tab**.
 
 ![Add the validation of a manual expectation in atomic testing](assets/add_manual_validation_atomic_testing.png)
 
@@ -62,32 +80,43 @@ If you have created an atomic testing with a manual inject, you will validate it
 
 ### Validate technical injects
 
-Users can manually add detection/prevention results for their custom security platforms.
+- Users can manually add detection/prevention results for their custom security platforms.
+- Automatic validation will also occur when connected to compatible collectors.
 
 ![Add the validation of a technical expectation in atomic testing](assets/add_technical_expectation_validation.png)
 
 ![Add the validation of a technical expectation in atomic testing](assets/technical_expectation_validation.png)
 
+### Update Rules
+
+Expectation statuses propagate between entities as follows:
+
+| Action             | Behavior                                                               |
+|--------------------|------------------------------------------------------------------------|
+| Update Agent       | Update its status (0 = fail, 100 = success).                           |
+| Update Asset       | Asset becomes **valid (100)** only if **all its agents are valid**.    |
+| Update Asset Group | Compute status depending on validation mode:                           |
+|                    | - **All assets must validate** → 100 only if all assets succeed.       |
+|                    | - **At least one asset must validate** → 100 if at least one succeeds. |
+| Update Player      | Compute status for the team depending on validation mode.              |
+| Update Team        | Propagate status to players.                                           |
+
 ### Customize expectations
 
 #### Default score
 
-Expectations have a default score at creation. Depending on the expectation's type, there is a default
-score value set in the system.
+Each expectation has a **default score value** at creation, configurable via environment variables:
 
-- In the Docker .env file thanks to these variables
-
-| Parameter                                      | Environment variable                           | Default value | Description                                                         |
-|:-----------------------------------------------|:-----------------------------------------------|:--------------|:--------------------------------------------------------------------|
-| openbas.expectation.manual.default-score-value | OPENBAS_EXPECTATION_MANUAL_DEFAULT-SCORE-VALUE | 50            | Default score value for manual expectation                     |
-
+| Parameter                                      | Environment variable                           | Default value | Description                                |
+|:-----------------------------------------------|:-----------------------------------------------|:--------------|:-------------------------------------------|
+| openbas.expectation.manual.default-score-value | OPENBAS_EXPECTATION_MANUAL_DEFAULT-SCORE-VALUE | 50            | Default score value for manual expectation |
 
 #### Expiration time
 
-Expectations results must be validated within a time limit. Depending on the expectation's type, there is a default
-expiration time set in the system. You have two ways to modify that expiration time:
+Expectations must be validated within a time limit. Defaults are set in the system but can be overridden:
 
-- In the Docker .env file thanks to these variables
+- Manual Response: By default if not manual expectations are set the expiration will done after 24 hours
+- Detection/Prevention: By default if no expectations are set the expiration will done after 6 hour
 
 | Parameter                                      | Environment variable                           | Default value | Description                                                         |
 |:-----------------------------------------------|:-----------------------------------------------|:--------------|:--------------------------------------------------------------------|
@@ -111,3 +140,10 @@ decide to override it.
 
 Once the expiration time will be reached, the Expectation Expiration Manager will fail the expectation and will show the
 result as `Not Detected` or `Not Prevented` depending on the expectation's type.
+
+## When is a Simulation Finished?
+
+A simulation is considered **finished** once all defined expectations are resolved:
+
+- **Technical expectations** → validated through **Detection, Prevention, Vulnerability checks**.
+- **Human expectations** → validated manually by the organizer.  
