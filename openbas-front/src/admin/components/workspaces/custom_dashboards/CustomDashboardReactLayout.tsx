@@ -152,24 +152,26 @@ const CustomDashboardReactLayout: FunctionComponent<{
                 >
                   {getWidgetTitle(widget.widget_config.title, widget.widget_type, t)}
                 </Typography>
-                <Tooltip
-                  title={tooltipMessage}
-                  placement="right"
-                  slotProps={{
-                    tooltip: {
-                      sx: {
-                        bgcolor: darkerInfoStyle,
-                        color: theme.palette.getContrastText(darkerInfoStyle),
-                        boxShadow: theme.shadows[1],
+                {'number' === widget.widget_type && (
+                  <Tooltip
+                    title={tooltipMessage}
+                    placement="right"
+                    slotProps={{
+                      tooltip: {
+                        sx: {
+                          bgcolor: darkerInfoStyle,
+                          color: theme.palette.getContrastText(darkerInfoStyle),
+                          boxShadow: theme.shadows[1],
+                        },
                       },
-                    },
-                  }}
-                >
-                  <InfoOutlined
-                    fontSize="small"
-                    color="primary"
-                  />
-                </Tooltip>
+                    }}
+                  >
+                    <InfoOutlined
+                      fontSize="small"
+                      color="primary"
+                    />
+                  </Tooltip>
+                )}
               </Box>
               <Box
                 display="flex"
