@@ -39,7 +39,6 @@ const useStyles = makeStyles()(theme => ({
   headerFull: {
     backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
     borderBottom: `1px solid ${theme.palette.divider}`,
-    // padding: '10px 0',
     display: 'inline-flex',
     alignItems: 'center',
   },
