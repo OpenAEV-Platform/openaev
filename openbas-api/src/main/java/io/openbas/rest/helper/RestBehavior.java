@@ -8,8 +8,6 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openbas.aop.lock.LockAcquisitionException;
-import io.openbas.config.OpenBASPrincipal;
-import io.openbas.database.model.Organization;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.*;
@@ -260,47 +258,6 @@ public class RestBehavior {
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-  }
-
-  public void checkUserAccess(UserRepository userRepository, String userId) {
-    User askedUser = userRepository.findById(userId).orElseThrow();
-    if (askedUser.getOrganization() != null) {
-      OpenBASPrincipal currentUser = currentUser();
-      if (!currentUser.isAdmin()) {
-        User local =
-            userRepository
-                .findById(currentUser.getId())
-                .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-        List<String> localOrganizationIds =
-            local.getGroups().stream()
-                .flatMap(group -> group.getOrganizations().stream())
-                .map(Organization::getId)
-                .toList();
-        if (!localOrganizationIds.contains(askedUser.getOrganization().getId())) {
-          throw new UnsupportedOperationException("User is restricted");
-        }
-      }
-    }
-  }
-
-  public void checkOrganizationAccess(UserRepository userRepository, String organizationId) {
-    if (organizationId != null) {
-      OpenBASPrincipal currentUser = currentUser();
-      if (!currentUser.isAdmin()) {
-        User local =
-            userRepository
-                .findById(currentUser.getId())
-                .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-        List<String> localOrganizationIds =
-            local.getGroups().stream()
-                .flatMap(group -> group.getOrganizations().stream())
-                .map(Organization::getId)
-                .toList();
-        if (!localOrganizationIds.contains(organizationId)) {
-          throw new UnsupportedOperationException("User is restricted");
-        }
-      }
-    }
   }
 
   protected void validateUUID(final String id) throws InputValidationException {

@@ -17,6 +17,7 @@ import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openbas.rest.statistic.response.PlatformStatistic;
 import io.openbas.rest.statistic.response.StatisticElement;
+import io.openbas.service.UserService;
 import io.openbas.utils.InjectExpectationResultUtils;
 import io.openbas.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +53,7 @@ public class StatisticApi extends RestBehavior {
   private final EndpointRepository endpointRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final InjectRepository injectRepository;
+  private final UserService userService;
 
   @LogExecutionTime
   @GetMapping("/api/statistics")
@@ -70,7 +72,7 @@ public class StatisticApi extends RestBehavior {
   public PlatformStatistic platformStatistic() {
     Instant now = Instant.now();
     PlatformStatistic statistic = new PlatformStatistic();
-    if (currentUser().isAdmin()) {
+    if (userService.currentUser().isAdminOrBypass()) {
       statistic.setScenariosCount(computeGlobalStat(now, scenarioRepository));
       statistic.setExercisesCount(computeGlobalStat(now, exerciseRepository));
       statistic.setUsersCount(computeGlobalStat(now, userRepository));

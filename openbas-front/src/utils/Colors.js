@@ -1,5 +1,3 @@
-import colorStyles from '../components/Color.js';
-
 export const stringToColour = (str, reversed = false) => {
   if (!str) {
     return '#5d4037';
@@ -35,47 +33,6 @@ export const hexToRGB = (hex, transp = 0.1) => {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgb(${r}, ${g}, ${b}, ${transp})`;
-};
-
-export const inlineStylesColors = {
-  white: {
-    backgroundColor: 'rgb(231, 133, 109, 0.08)',
-    color: '#8d4e41',
-  },
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
-  },
-  red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
-  },
-  orange: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
-  },
-  grey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
-  },
-};
-
-// compute color for status
-export const computeColorStyle = (status) => {
-  if (status === 'PENDING') {
-    return colorStyles.blueGrey;
-  }
-  if (status === 'SUCCESS') {
-    return colorStyles.green;
-  }
-  if (status === 'PARTIAL') {
-    return colorStyles.orange;
-  }
-  return colorStyles.red;
 };
 
 // CVSS

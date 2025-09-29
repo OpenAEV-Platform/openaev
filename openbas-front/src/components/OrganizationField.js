@@ -84,7 +84,7 @@ class OrganizationField extends Component {
           label={t('Organization')}
           options={organizationsOptions}
           style={{ marginTop: 20 }}
-          openCreate={this.handleOpenOrganizationCreation.bind(this)}
+          openCreate={this.props.userRight && this.handleOpenOrganizationCreation.bind(this)}
           renderOption={(props, option) => (
             <Box component="li" {...props} key={option.id}>
               <div className={classes.icon}>

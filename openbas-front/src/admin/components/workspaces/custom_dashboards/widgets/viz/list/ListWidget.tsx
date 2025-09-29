@@ -17,6 +17,7 @@ import SortHeadersComponentV2 from '../../../../../../../components/common/query
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
+import ItemStatus from '../../../../../../../components/ItemStatus';
 import { useHelper } from '../../../../../../../store';
 import { type EsBase } from '../../../../../../../utils/api-types';
 import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
@@ -76,7 +77,6 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
   ) => {
     const renderer = listConfigRenderer[column];
     const value = element[column as keyof typeof element] as string | boolean | string[] | boolean[];
-
     if (renderer) {
       return renderer(value, {
         element,
@@ -85,6 +85,13 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
     }
 
     const text = value?.toString() ?? '';
+
+    if (column.toLowerCase().includes('status')) {
+      return (
+        <ItemStatus label={text} variant="inList" />
+      );
+    }
+
     return (
       <Tooltip title={text} placement="bottom-start">
         <span>{text}</span>

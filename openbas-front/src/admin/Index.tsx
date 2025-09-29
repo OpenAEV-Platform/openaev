@@ -221,7 +221,15 @@ const Index = () => {
             {GettingStartedRoutes}
             <Route
               path="settings/*"
-              element={errorWrapper(IndexSettings)()}
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.PLATFORM_SETTINGS,
+                  }]}
+                  Component={errorWrapper(IndexSettings)()}
+                />
+              )}
             />
             {/* Not found */}
             <Route path="*" element={<NotFound />} />

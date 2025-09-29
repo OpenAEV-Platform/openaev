@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openbas.IntegrationTest;
-import io.openbas.database.model.Capability;
 import io.openbas.database.model.Organization;
 import io.openbas.database.model.Tag;
 import io.openbas.database.model.User;
@@ -23,7 +22,6 @@ import io.openbas.utils.fixtures.OrganizationFixture;
 import io.openbas.utils.fixtures.PlayerFixture;
 import io.openbas.utils.fixtures.TagFixture;
 import io.openbas.utils.mockUser.WithMockUser;
-import jakarta.servlet.ServletException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -98,24 +96,18 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given restricted user, should not allow creation of player")
   @Test
-  @WithMockUser(withCapabilities = Capability.MANAGE_TEAMS_AND_PLAYERS)
-  void given_restrictedUser_should_notAllowPlayerCreation() {
+  @WithMockUser
+  void given_restrictedUser_should_notAllowPlayerCreation() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
 
     // --EXECUTE--
-    Exception exception =
-        assertThrows(
-            ServletException.class,
-            () ->
-                mvc.perform(
-                    post(PLAYER_URI)
-                        .content(asJsonString(playerInput))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)));
-
-    // --ASSERT--
-    assertTrue(exception.getMessage().contains("User is restricted"));
+    mvc.perform(
+            post(PLAYER_URI)
+                .content(asJsonString(playerInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isForbidden());
   }
 
   @DisplayName("Given valid player input, should upsert player successfully")
@@ -199,25 +191,19 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given restricted user, should not allow updating a player")
   @Test
-  @WithMockUser(withCapabilities = Capability.MANAGE_TEAMS_AND_PLAYERS)
-  void given_restrictedUser_should_notAllowPlayerUpdate() {
+  @WithMockUser
+  void given_restrictedUser_should_notAllowPlayerUpdate() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = userRepository.findByEmailIgnoreCase(adminEmail).orElseThrow();
 
     // -- EXECUTE --
-    Exception exception =
-        assertThrows(
-            ServletException.class,
-            () ->
-                mvc.perform(
-                    put(PLAYER_URI + "/" + user.getId())
-                        .content(asJsonString(playerInput))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)));
-
-    // --ASSERT--
-    assertTrue(exception.getMessage().contains("You dont have the right to update this user"));
+    mvc.perform(
+            put(PLAYER_URI + "/" + user.getId())
+                .content(asJsonString(playerInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isForbidden());
   }
 
   @DisplayName("Given valid player ID, should delete player successfully")
@@ -247,18 +233,15 @@ class PlayerApiTest extends IntegrationTest {
   @DisplayName("Given no existing player ID, should throw an exception")
   @Test
   @WithMockUser(isAdmin = true)
-  void given_notExistingAssetGroup_should_throwAnException() {
+  void given_notExistingAssetGroup_should_throwAnException() throws Exception {
     // -- PREPARE --
     String nonexistentAssetGroupId = "nonexistent-id";
 
     // --EXECUTE--
-    assertThrows(
-        ServletException.class,
-        () ->
-            mvc.perform(
-                delete(PLAYER_URI + "/" + nonexistentAssetGroupId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)));
+    mvc.perform(
+        delete(PLAYER_URI + "/" + nonexistentAssetGroupId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON));
   }
 
   // -- PRIVATE --

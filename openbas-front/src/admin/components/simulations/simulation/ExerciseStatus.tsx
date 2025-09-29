@@ -2,9 +2,9 @@ import { Chip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type Exercise } from '../../../../utils/api-types';
-import { inlineStylesColors } from '../../../../utils/Colors';
 
 const useStyles = makeStyles()(() => ({
   chip: {
@@ -46,7 +46,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={inlineStylesColors.blue}
+          style={colorStyles.blue}
           label={exerciseStartDate ? t('Scheduled') : t('Draft')}
         />
       );
@@ -54,7 +54,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={inlineStylesColors.green}
+          style={colorStyles.green}
           label={t('Running')}
         />
       );
@@ -62,7 +62,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={inlineStylesColors.orange}
+          style={colorStyles.orange}
           label={t('Paused')}
         />
       );
@@ -70,7 +70,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={inlineStylesColors.white}
+          style={colorStyles.white}
           label={t('Canceled')}
         />
       );
@@ -78,7 +78,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={inlineStylesColors.grey}
+          style={colorStyles.grey}
           label={t('Finished')}
         />
       );
@@ -86,7 +86,7 @@ const ExerciseStatus: FunctionComponent<Props> = ({
       return (
         <Chip
           classes={{ root: style }}
-          style={inlineStylesColors.blue}
+          style={colorStyles.blue}
           label={t('Scheduled')}
         />
       );

@@ -230,7 +230,6 @@ public interface InjectExpectationRepository
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
     LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id
-    LEFT JOIN agents agent ON agent.agent_id = ie.agent_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id
     LEFT JOIN asset_groups ag ON ag.asset_group_id = ie.asset_group_id
     LEFT JOIN scenarios_exercises se ON se.exercise_id = ie.exercise_id
@@ -243,7 +242,7 @@ public interface InjectExpectationRepository
       i.inject_title
     )
     SELECT * FROM inject_expectation_data ied
-    WHERE ied.inject_expectation_updated_at > :from
+    WHERE ied.inject_expectation_updated_at > :from AND ied.agent_id IS NULL
     ORDER BY ied.inject_expectation_updated_at ASC
     LIMIT 500
     """,

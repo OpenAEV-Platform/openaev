@@ -1,5 +1,5 @@
 import { BugReportOutlined, InfoOutlined, SensorOccupiedOutlined, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Button, type Theme } from '@mui/material';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
 import Chart from 'react-apexcharts';
@@ -8,6 +8,7 @@ import { Link } from 'react-router';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type ResultDistribution } from '../../../../utils/api-types';
 import { donutChartOptions } from '../../../../utils/Charts';
+import { getStatusColor } from '../../../../utils/statusColors';
 import { expectationResultTypes } from './expectations/Expectation';
 
 interface Props {
@@ -20,19 +21,6 @@ interface Props {
 
 const getTotal = (distribution: ResultDistribution[]) => {
   return distribution.reduce((sum, item) => sum + (item.value!), 0)!;
-};
-const getColor = (theme: Theme, result: string | undefined): string => {
-  const colorMap: Record<string, string> = {
-    'Prevented': theme.palette.success.main ?? '',
-    'Detected': theme.palette.success.main ?? '',
-    'Not vulnerable': theme.palette.success.main ?? '',
-    'Successful': theme.palette.success.main ?? '',
-    'Partial': theme.palette.warning.main ?? '',
-    'Partially Prevented': theme.palette.warning.main ?? '',
-    'Partially Detected': theme.palette.warning.main ?? '',
-    'Pending': theme.palette.grey?.['500'] ?? '',
-  };
-  return colorMap[result ?? ''] ?? theme.palette.error.main ?? '';
 };
 
 const ResponsePie: FunctionComponent<Props> = ({
@@ -88,7 +76,7 @@ const ResponsePie: FunctionComponent<Props> = ({
     const labels = hasDistribution
       ? expectationResultsByType.distribution.map(e => `${t(e.label)} (${(((e.value!) / getTotal(expectationResultsByType.distribution!)) * 100).toFixed(1)}%)`)
       : [`${t('No expectation for')} ${title}`];
-    const colors = hasDistribution ? expectationResultsByType.distribution.map(e => getColor(theme, e.label)) : ['rgba(202, 203, 206, 0.18)'];
+    const colors = hasDistribution ? expectationResultsByType.distribution.map(e => getStatusColor(theme, e.label)) : ['rgba(202, 203, 206, 0.18)'];
     const data = useMemo(() => (hasDistribution ? expectationResultsByType.distribution.map(e => e.value) : [1]), [expectationResultsByType]);
 
     return (

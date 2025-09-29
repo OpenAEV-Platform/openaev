@@ -4,11 +4,14 @@ import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
+import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { donutChartOptions } from '../../../../../../utils/Charts';
+import { getStatusColor } from '../../../../../../utils/statusColors';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 
 interface Props {
   widgetId: string;
+  widgetConfig: StructuralHistogramWidget;
   datas: {
     x: string | undefined;
     y: number | undefined;
@@ -18,7 +21,7 @@ interface Props {
 
 const useStyles = makeStyles()(() => ({ chartContainer: { '& .apexcharts-pie-area': { cursor: 'pointer' } } }));
 
-const DonutChart: FunctionComponent<Props> = ({ widgetId, datas }: Props) => {
+const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }: Props) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -37,11 +40,21 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, datas }: Props) => {
       series_index: config.seriesIndex,
     });
   };
+
+  const labels = datas.map(s => s?.x ?? t('-'));
+  // Apply custom color mapping only when the widget field represents a status breakdown
+  const isStatusBreakdown
+      = 'field' in widgetConfig && (widgetConfig.field.toLowerCase().includes('status') || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
+  const chartColors = isStatusBreakdown
+    ? labels.map(label => getStatusColor(theme, label))
+    : [];
+
   return (
     <Chart
       options={donutChartOptions({
         theme,
-        labels: datas.map(s => s?.x ?? t('-')),
+        labels,
+        chartColors,
         onClick,
       })}
       series={datas.map(s => s?.y ?? 0)}

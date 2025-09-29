@@ -1,20 +1,15 @@
 package io.openbas.rest.organization;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.OrganizationSpecification.byName;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
 import io.openbas.aop.RBAC;
-import io.openbas.database.model.Action;
-import io.openbas.database.model.Organization;
-import io.openbas.database.model.ResourceType;
-import io.openbas.database.model.User;
+import io.openbas.database.model.*;
 import io.openbas.database.raw.RawOrganization;
 import io.openbas.database.repository.OrganizationRepository;
 import io.openbas.database.repository.TagRepository;
-import io.openbas.database.repository.UserRepository;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.organization.form.OrganizationCreateInput;
@@ -39,7 +34,6 @@ public class OrganizationApi extends RestBehavior {
 
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
-  private final UserRepository userRepository;
   private final OrganizationService organizationService;
 
   private final UserService userService;
@@ -49,7 +43,8 @@ public class OrganizationApi extends RestBehavior {
   public Iterable<RawOrganization> organizations() {
     User currentUser = userService.currentUser();
     List<RawOrganization> organizations;
-    if (currentUser.isAdminOrBypass()) {
+    if (currentUser.isAdminOrBypass()
+        || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
       organizations = fromIterable(organizationRepository.rawAll());
     } else {
       organizations = fromIterable(organizationRepository.rawByUser(currentUser.getId()));
@@ -81,7 +76,6 @@ public class OrganizationApi extends RestBehavior {
       resourceType = ResourceType.ORGANIZATION)
   public Organization updateOrganization(
       @PathVariable String organizationId, @Valid @RequestBody OrganizationUpdateInput input) {
-    checkOrganizationAccess(userRepository, organizationId);
     Organization organization =
         organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
     organization.setUpdateAttributes(input);
@@ -96,7 +90,6 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
   public void deleteOrganization(@PathVariable String organizationId) {
-    checkOrganizationAccess(userRepository, organizationId);
     organizationRepository.deleteById(organizationId);
   }
 

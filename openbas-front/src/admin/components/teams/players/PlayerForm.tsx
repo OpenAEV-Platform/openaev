@@ -1,6 +1,6 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Button, InputAdornment, Tooltip } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
 
@@ -9,6 +9,8 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { schemaValidator } from '../../../../utils/Zod';
 import { type PlayerInputForm } from './Player';
 
@@ -27,6 +29,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const ability = useContext(AbilityContext);
 
   const playerFormSchemaValidation = z.object({
     user_email: z.string().email(t('Should be a valid email address')),
@@ -86,6 +89,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             name="user_organization"
             values={values}
             setFieldValue={form.mutators.setValue}
+            userRight={ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)}
           />
           <CountryField
             name="user_country"

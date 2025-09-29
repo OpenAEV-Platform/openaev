@@ -31,6 +31,8 @@ import io.openbas.xtmhub.XtmHubRegistererRecord;
 import io.openbas.xtmhub.XtmHubRegistrationStatus;
 import io.openbas.xtmhub.config.XtmHubConfig;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -55,6 +57,7 @@ public class PlatformSettingsService {
   public static final String THEME_TYPE_LIGHT = "light";
   public static final String THEME_TYPE_DARK = "dark";
 
+  @PersistenceContext private EntityManager entityManager;
   private final ApplicationContext context;
   private final Environment env;
   private final SettingRepository settingRepository;
@@ -575,7 +578,12 @@ public class PlatformSettingsService {
         });
 
     settingRepository.deleteAllById(delete);
+    entityManager.flush();
+
     settingRepository.saveAll(update);
+    entityManager.flush();
+
+    entityManager.clear();
 
     return findSettings();
   }
