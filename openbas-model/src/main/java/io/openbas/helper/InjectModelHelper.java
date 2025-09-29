@@ -181,7 +181,7 @@ public class InjectModelHelper {
       for (JsonNode contractField : injectContractFields) {
         if (key.equals(contractField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText())) {
           JsonNode defaultValue = contractField.get(DEFAULT_VALUE_FIELD);
-          if (defaultValue == null || defaultValue.isNull() || defaultValue.isEmpty()) {
+          if (defaultValue == null || defaultValue.isNull() || defaultValue.textValue().isEmpty()) {
             return false;
           }
         }
@@ -264,7 +264,7 @@ public class InjectModelHelper {
     return null;
   }
 
-  public static boolean isFieldSet(
+  private static boolean isFieldSet(
       final boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,

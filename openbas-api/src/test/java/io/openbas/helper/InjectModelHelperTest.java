@@ -2,6 +2,7 @@ package io.openbas.helper;
 
 import static io.openbas.helper.InjectModelHelper.isReady;
 import static io.openbas.helper.ObjectMapperHelper.openBASJsonMapper;
+import static io.openbas.injector_contract.fields.ContractText.textField;
 import static io.openbas.utils.fixtures.InjectorContractFixture.*;
 import static io.openbas.utils.fixtures.InjectorFixture.createDefaultPayloadInjector;
 import static io.openbas.utils.fixtures.PayloadFixture.createCommand;
@@ -395,6 +396,62 @@ class InjectModelHelperTest {
 
       // -- ASSERT --
       assertTrue(isReady);
+    }
+  }
+
+  @Nested
+  class DefaultValueTests {
+
+    @Test
+    void given_text_field_with_default_value_and_no_content_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, List.of(textField("title", "title", "Default title")));
+
+      boolean allTeams = false;
+      List<String> teams = new ArrayList<>();
+      List<String> assets = new ArrayList<>();
+      List<String> assetGroups = new ArrayList<>();
+
+      // -- EXECUTE --
+      boolean isReady =
+          isReady(
+              injectorContract,
+              injectorContract.getConvertedContent(),
+              allTeams,
+              teams,
+              assets,
+              assetGroups);
+
+      // -- ASSERT --
+      assertTrue(isReady);
+    }
+
+    @Test
+    void given_text_field_without_default_value_and_no_content_should_not_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, List.of(textField("title", "title")));
+
+      boolean allTeams = false;
+      List<String> teams = new ArrayList<>();
+      List<String> assets = new ArrayList<>();
+      List<String> assetGroups = new ArrayList<>();
+
+      // -- EXECUTE --
+      boolean isReady =
+          isReady(
+              injectorContract,
+              injectorContract.getConvertedContent(),
+              allTeams,
+              teams,
+              assets,
+              assetGroups);
+
+      // -- ASSERT --
+      assertFalse(isReady);
     }
   }
 }
