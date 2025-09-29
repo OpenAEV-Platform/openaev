@@ -842,7 +842,7 @@
   "inject_status": "Status",
   "inject_tags": "Tags",
   "inject_teams": "Teams",
-  "inject_title": "Title",
+  "inject_title": "Inject title",
   "inject_type": "Type",
   "inject_updated_at": "Updated at",
   "InjectExpectation": "Inject expectations",

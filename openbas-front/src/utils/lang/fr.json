@@ -842,7 +842,7 @@
   "inject_status": "Statut",
   "inject_tags": "Tags",
   "inject_teams": "Équipes",
-  "inject_title": "Titre",
+  "inject_title": "Titre du stimuli",
   "inject_type": "Type",
   "inject_updated_at": "Mis à jour à",
   "InjectExpectation": "Injecter des attentes",

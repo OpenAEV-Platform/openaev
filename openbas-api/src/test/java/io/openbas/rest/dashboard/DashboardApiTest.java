@@ -38,10 +38,7 @@ import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -775,8 +772,8 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given security coverage widget should return list of inject")
-    void given_securityCoverageWidget_should_returnListOfInject() throws Exception {
+    @DisplayName("Given security coverage widget should return list of inject expectations")
+    void given_securityCoverageWidget_should_returnListOfInjectExpectations() throws Exception {
       AttackPattern attackPattern1 =
           attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
       AttackPattern attackPattern2 =
@@ -826,14 +823,17 @@ class DashboardApiTest extends IntegrationTest {
           .anySatisfy(
               filter -> {
                 assertThatJson(filter).node("key").isEqualTo("base_entity");
-                assertThatJson(filter).node("values").isArray().containsExactly("inject");
+                assertThatJson(filter)
+                    .node("values")
+                    .isArray()
+                    .containsExactly("expectation-inject");
               });
       assertThatJson(response)
           .node("es_entities")
           .isArray()
-          .hasSize(3)
-          .extracting("base_id")
-          .containsExactlyInAnyOrder(inject1.getId(), inject2.getId(), inject3.getId());
+          .hasSize(6)
+          .extracting("base_inject_side")
+          .containsOnly(inject1.getId(), inject2.getId(), inject3.getId());
     }
   }
 }

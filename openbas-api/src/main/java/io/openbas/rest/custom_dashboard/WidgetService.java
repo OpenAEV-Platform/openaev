@@ -4,17 +4,16 @@ import static io.openbas.helper.StreamHelper.fromIterable;
 
 import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.Filters;
+import io.openbas.database.model.InjectExpectation;
 import io.openbas.database.model.Widget;
 import io.openbas.database.repository.CustomDashboardRepository;
 import io.openbas.database.repository.WidgetRepository;
 import io.openbas.engine.EngineService;
 import io.openbas.engine.api.*;
-import io.openbas.engine.model.injectexpectation.EsInjectExpectation;
 import io.openbas.rest.custom_dashboard.utils.WidgetUtils;
 import io.openbas.utils.CustomDashboardTimeRange;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
-import java.util.HashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -88,34 +87,6 @@ public class WidgetService {
   }
 
   /**
-   * Converts security coverage inject expectations results to an inject list configuration.
-   * Extracts inject IDs from the expectations and creates a filtered inject list configuration.
-   *
-   * @param injectExpectations list of ES inject expectations
-   * @return for inject entities filtered by the expectation's inject IDs
-   */
-  public ListConfiguration convertSecurityCoverageResultsToInjectListConfig(
-      List<EsInjectExpectation> injectExpectations) {
-    List<String> injectIds =
-        injectExpectations.stream()
-            .map(EsInjectExpectation::getBase_inject_side)
-            .distinct()
-            .toList();
-
-    // Creates a filtered inject list configuration
-    ListConfiguration listConfig = esService.createListConfiguration("inject", new HashMap<>());
-    WidgetUtils.setOrAddFilterByKey(
-        listConfig.getPerspective().getFilter(),
-        "base_id",
-        injectIds,
-        Filters.FilterOperator.contains);
-    listConfig.setColumns(WidgetUtils.getColumnsFromBaseEntityName("inject"));
-    listConfig.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
-
-    return listConfig;
-  }
-
-  /**
    * Converts a widget configuration to a list configuration for data display. Applies
    * series-specific filters and handles different widget types (temporal/structural histograms).
    *
@@ -167,5 +138,28 @@ public class WidgetService {
 
     listConfig.setPerspective(perspectives);
     return listConfig;
+  }
+
+  /**
+   * Converts a security coverage widget configuration to a list configuration
+   *
+   * @param widget the source widget containing the configuration to convert
+   * @param attackPatternIds attackPatternIds list of attack pattern IDs to filter by
+   * @return a ListConfiguration object configured based on the widget settings
+   */
+  public ListConfiguration convertSecurityCoverageWidgetToListConfiguration(
+      Widget widget, List<String> attackPatternIds) {
+    ListConfiguration listInjectExpectationsConfig =
+        this.convertWidgetToListConfiguration(widget, 0, attackPatternIds);
+    List<String> statusFilters =
+        List.of(
+            InjectExpectation.EXPECTATION_STATUS.FAILED.name(),
+            InjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
+    WidgetUtils.setOrAddFilterByKey(
+        listInjectExpectationsConfig.getPerspective().getFilter(),
+        "inject_expectation_status",
+        statusFilters,
+        Filters.FilterOperator.contains);
+    return listInjectExpectationsConfig;
   }
 }
