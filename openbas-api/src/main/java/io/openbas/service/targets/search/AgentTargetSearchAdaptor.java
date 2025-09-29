@@ -104,7 +104,7 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
         () ->
             new AgentTarget(
                 agent.getId(),
-                agent.getTargetDisplayName(),
+                agent.getExecutedByUser(),
                 Set.of(),
                 agent.getAsset().getId(),
                 agent.getExecutor().getType()),
