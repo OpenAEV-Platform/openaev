@@ -5153,6 +5153,7 @@ export interface RoleInput {
     | "ACCESS_PLATFORM_SETTINGS"
     | "MANAGE_PLATFORM_SETTINGS"
   )[];
+  role_description?: string;
   role_name: string;
 }
 
@@ -5160,6 +5161,7 @@ export interface RoleOutput {
   /** @uniqueItems true */
   role_capabilities?: string[];
   role_created_at?: string;
+  role_description?: string;
   role_id: string;
   role_name: string;
   role_updated_at?: string;
