@@ -30,15 +30,6 @@ import navigationHandlers from './elements/ListNavigationHandler';
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
-  chipStatus: {
-    fontSize: 12,
-    lineHeight: '12px',
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 120,
-  },
 }));
 
 type Props = {
