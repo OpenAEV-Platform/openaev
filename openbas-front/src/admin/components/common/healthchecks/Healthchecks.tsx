@@ -49,7 +49,7 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         break;
       }
       case 'AGENT_OR_EXECUTOR': {
-        navigate('/admin/agents'); // -> Sur cette page ouvrir la modale de OpenBAS, au lieu de la page
+        navigate('/admin/agents');
         break;
       }
       case 'SECURITY_SYSTEM_COLLECTOR': {

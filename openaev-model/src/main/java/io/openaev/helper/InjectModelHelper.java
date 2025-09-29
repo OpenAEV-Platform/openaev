@@ -321,7 +321,6 @@ public class InjectModelHelper {
 
     List<InjectExpectation.EXPECTATION_TYPE> values = new ArrayList<>();
     if (valueNode.isArray()) {
-
       for (JsonNode node : valueNode) {
         if (!node.isNull() && !node.get("expectation_type").isNull()) {
           values.add(

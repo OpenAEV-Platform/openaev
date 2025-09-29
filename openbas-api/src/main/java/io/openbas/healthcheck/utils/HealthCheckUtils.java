@@ -254,7 +254,7 @@ public class HealthCheckUtils {
    * @param type to found
    * @return true if type is found, false if not
    */
-  public static boolean anyMatch(List<HealthCheck> healthChecks, HealthCheck.Type type) {
+  private static boolean anyMatch(List<HealthCheck> healthChecks, HealthCheck.Type type) {
     return healthChecks.stream().anyMatch(healthCheck -> type.equals(healthCheck.getType()));
   }
 
@@ -264,7 +264,7 @@ public class HealthCheckUtils {
    * @param scenarioOutput to get all injects healthchecks
    * @return a list of all the founded healthchecks
    */
-  public static List<HealthCheck> getAllInjectHealthChecks(ScenarioOutput scenarioOutput) {
+  private static List<HealthCheck> getAllInjectHealthChecks(ScenarioOutput scenarioOutput) {
     return scenarioOutput.getInjects().stream()
         .map(InjectOutput::getHealthchecks)
         .flatMap(List::stream)
