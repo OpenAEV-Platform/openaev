@@ -271,3 +271,15 @@ supports it (the OpenBAS Implant does).
 
 ![Payload creation dns](assets/payload-creation-dns.png)
 ![Payload to inject](assets/payload-to-inject.png)
+
+## Import / Export Payloads
+
+### Overview
+
+OpenAEV supports importing and exporting payloads using the [JSON:API](https://jsonapi.org/) specification. This enables
+seamless sharing of payloads across instances or within the community.
+
+### Use Cases
+
+* Share complex payloads with teammates or the community.
+* Use payloads across dev, test, and production environment.
