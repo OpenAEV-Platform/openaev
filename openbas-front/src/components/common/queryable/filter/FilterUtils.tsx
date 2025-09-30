@@ -5,7 +5,7 @@ import { type Filter, type FilterGroup, type PropertySchemaDTO, type RelatedEnti
 import { buildSearchPagination } from '../QueryableUtils';
 
 export const emptyFilterGroup: FilterGroup = {
-  mode: 'or',
+  mode: 'and',
   filters: [],
 };
 
