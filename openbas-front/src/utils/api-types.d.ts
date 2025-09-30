@@ -2500,7 +2500,6 @@ export interface Group {
   group_grants?: Grant[];
   group_id: string;
   group_name: string;
-  group_organizations?: string[];
   group_roles?: string[];
   group_users?: string[];
   listened?: boolean;
@@ -3810,10 +3809,6 @@ export interface OrganizationCreateInput {
   organization_description?: string;
   organization_name: string;
   organization_tags?: string[];
-}
-
-export interface OrganizationGrantInput {
-  organization_id: string;
 }
 
 export interface OrganizationUpdateInput {
