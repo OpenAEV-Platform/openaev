@@ -24,7 +24,7 @@ const TaxonomiesMenuComponent: FunctionComponent = () => {
     {
       path: '/admin/settings/taxonomies/cves',
       icon: () => (<ReportProblemOutlined />),
-      label: 'CVEs',
+      label: 'Vulnerabilities',
     },
   ];
 

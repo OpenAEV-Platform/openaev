@@ -44,7 +44,7 @@ const CvePopover: FunctionComponent<Props> = ({ onDelete, onUpdate, cve }) => {
         onDelete?.(cve.cve_id);
       })
       .catch(() => {
-        MESSAGING$.notifyError(t('Failed to delete CVE.'));
+        MESSAGING$.notifyError(t('Failed to delete vulnerability.'));
       })
       .finally(() => {
         handleCloseDelete();
@@ -57,7 +57,7 @@ const CvePopover: FunctionComponent<Props> = ({ onDelete, onUpdate, cve }) => {
         onUpdate?.(response.data);
       })
       .catch(() => {
-        MESSAGING$.notifyError(t('Failed to update CVE.'));
+        MESSAGING$.notifyError(t('Failed to update vulnerability.'));
       })
       .finally(() => {
         handleCloseEdit();
@@ -113,13 +113,13 @@ const CvePopover: FunctionComponent<Props> = ({ onDelete, onUpdate, cve }) => {
         open={openDelete}
         handleClose={handleCloseDelete}
         handleSubmit={handleDelete}
-        text={`${t('Do you want to delete this CVE:')} ${cve.cve_external_id}?`}
+        text={`${t('Do you want to delete this vulnerability:')} ${cve.cve_external_id}?`}
       />
 
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={t('Update the CVE')}
+        title={t('Update the vulnerability')}
       >
         {loading || !fullCve ? (
           <Loader />

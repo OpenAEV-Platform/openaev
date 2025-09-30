@@ -90,7 +90,7 @@ const Cves = () => {
         <Breadcrumbs
           variant="list"
           elements={[{ label: t('Settings') }, { label: t('Taxonomies') }, {
-            label: t('CVEs'),
+            label: t('Vulnerabilities'),
             current: true,
           }]}
         />
