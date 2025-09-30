@@ -71,8 +71,7 @@ public class TeamService {
       @NotNull SearchPaginationInput searchPaginationInput,
       @NotNull final Specification<Team> teamSpecification) {
     TriFunction<Specification<Team>, Specification<Team>, Pageable, Page<TeamOutput>> teamsFunction;
-    User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()) {
+
       teamsFunction =
           (Specification<Team> specification,
               Specification<Team> specificationCount,
@@ -81,29 +80,7 @@ public class TeamService {
                   teamSpecification.and(specification),
                   teamSpecification.and(specificationCount),
                   pageable);
-    } else {
-      User user =
-          this.userRepository
-              .findById(currentUser.getId())
-              .orElseThrow(ElementNotFoundException::new);
-      List<String> organizationIds =
-          user.getGroups().stream()
-              .flatMap(group -> group.getOrganizations().stream())
-              .map(Organization::getId)
-              .toList();
-      teamsFunction =
-          (Specification<Team> specification,
-              Specification<Team> specificationCount,
-              Pageable pageable) ->
-              this.paginate(
-                  teamSpecification
-                      .and(teamsAccessibleFromOrganizations(organizationIds))
-                      .and(specification),
-                  teamSpecification
-                      .and(teamsAccessibleFromOrganizations(organizationIds))
-                      .and(specificationCount),
-                  pageable);
-    }
+
     return buildPaginationCriteriaBuilder(teamsFunction, searchPaginationInput, Team.class);
   }
 

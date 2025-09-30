@@ -14,6 +14,7 @@ import Roles from './roles/Roles';
 import TagRules from './tag_rules/TagRules';
 import Tags from './tags/Tags';
 import Users from './users/Users';
+import Organizations from "../teams/Organizations";
 
 const Index = () => {
   return (
@@ -24,6 +25,7 @@ const Index = () => {
       <Route path="security/groups" element={errorWrapper(Groups)()} />
       <Route path="security/users" element={errorWrapper(Users)()} />
       <Route path="security/roles" element={errorWrapper(Roles)()} />
+      <Route path="security/organizations" element={errorWrapper(Organizations)()} />
       <Route path="security/policies" element={errorWrapper(Policies)()} />
       <Route path="taxonomies" element={<Navigate to="tags" replace={true} />} />
       <Route path="taxonomies/tags" element={errorWrapper(Tags)()} />

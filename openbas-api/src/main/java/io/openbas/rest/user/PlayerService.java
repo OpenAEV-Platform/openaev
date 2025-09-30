@@ -43,23 +43,7 @@ public class PlayerService {
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()) {
       playersFunction = this::paginate;
-    } else {
-      User local =
-          userRepository.findById(currentUser.getId()).orElseThrow(ElementNotFoundException::new);
-      List<String> organizationIds =
-          local.getGroups().stream()
-              .flatMap(group -> group.getOrganizations().stream())
-              .map(Organization::getId)
-              .toList();
-      playersFunction =
-          (specification, specificationCount, pageable) ->
-              this.paginate(
-                  accessibleFromOrganizations(organizationIds).and(specification),
-                  accessibleFromOrganizations(organizationIds).and(specificationCount),
-                  pageable);
-    }
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 

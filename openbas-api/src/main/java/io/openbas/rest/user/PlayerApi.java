@@ -51,20 +51,7 @@ public class PlayerApi extends RestBehavior {
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()) {
       players = fromIterable(userRepository.rawAllPlayers());
-    } else {
-      User local =
-          userRepository
-              .findById(currentUser.getId())
-              .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-      List<String> organizationIds =
-          local.getGroups().stream()
-              .flatMap(group -> group.getOrganizations().stream())
-              .map(Organization::getId)
-              .toList();
-      players = userRepository.rawPlayersAccessibleFromOrganizations(organizationIds);
-    }
     return players;
   }
 
