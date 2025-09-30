@@ -7,14 +7,13 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { buildEmptyFilter } from '../../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type ExpectationResultsByType, type FilterGroup, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
+import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
 import ResponsePie from '../../../common/injects/ResponsePie';
 import MitreMatrix from '../../../common/matrix/MitreMatrix';
@@ -63,18 +62,7 @@ const SimulationComponent = () => {
     );
   }
 
-  const quickFilter: FilterGroup = {
-    mode: 'and',
-    filters: [
-      buildEmptyFilter('inject_kill_chain_phases', 'contains'),
-      buildEmptyFilter('inject_tags', 'contains'),
-    ],
-  };
-
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulation-injects-results', buildSearchPagination({
-    sorts: initSorting('inject_updated_at', 'DESC'),
-    filterGroup: quickFilter,
-  }));
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulation-injects-results', buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }));
 
   useEffect(() => {
     if (scrolledToAnchor) {

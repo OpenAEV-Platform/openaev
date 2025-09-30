@@ -1,4 +1,5 @@
 import { type FunctionComponent, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { updatePlatformParameters } from '../../../../actions/Application';
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -6,17 +7,17 @@ import type { LoggedHelper } from '../../../../actions/helper';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
+import { DASHBOARD_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import type { CustomDashboard, PlatformSettings } from '../../../../utils/api-types';
+import type { PlatformSettings } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
 import updateDefaultDashboardsInParameters from './customDashboardUtils';
 
-interface Props { onCreate: (result: CustomDashboard) => void }
-
-const CustomDashboardCreation: FunctionComponent<Props> = ({ onCreate }) => {
+const CustomDashboardCreation: FunctionComponent = () => {
   // Standard hooks
   const { t } = useFormatter();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
@@ -30,13 +31,13 @@ const CustomDashboardCreation: FunctionComponent<Props> = ({ onCreate }) => {
         const response = await createCustomDashboard(data);
         if (response.data) {
           updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
-          onCreate(response.data);
+          navigate(`${DASHBOARD_BASE_URL}/${response.data.custom_dashboard_id}`);
         }
       } finally {
         setOpen(false);
       }
     },
-    [onCreate],
+    [],
   );
 
   return (

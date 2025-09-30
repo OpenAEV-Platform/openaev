@@ -9,7 +9,6 @@ import Breadcrumbs from '../../../components/Breadcrumbs';
 import Drawer from '../../../components/common/Drawer';
 import ExportButton from '../../../components/common/ExportButton';
 import ImportUploaderJsonApiComponent from '../../../components/common/import/ImportUploaderJsonApiComponent';
-import { buildEmptyFilter, buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -199,17 +198,7 @@ const Payloads = () => {
     'payload_execution_arch',
   ];
   const [payloads, setPayloads] = useState<Payload[]>([]);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('payloads', buildSearchPagination({
-    sorts: initSorting('payload_name'),
-    filterGroup: {
-      mode: 'and',
-      filters: [
-        buildEmptyFilter('payload_attack_patterns', 'contains'),
-        buildEmptyFilter('payload_platforms', 'contains'),
-        buildFilter('payload_status', ['Deprecated'], 'not_eq'),
-      ],
-    },
-  }));
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('payloads', buildSearchPagination({ sorts: initSorting('payload_name') }));
 
   // Export
   const exportProps = {

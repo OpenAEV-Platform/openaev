@@ -10,6 +10,7 @@ import io.openbas.rest.asset.endpoint.form.EndpointInput;
 import io.openbas.rest.tag.TagService;
 import io.openbas.rest.tag.form.TagCreateInput;
 import io.openbas.service.*;
+import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
   private static final class Config {
-    static final String STARTERPACK_KEY = "starterpack";
+    static final String STARTER_PACK_KEY = "starterpack";
     static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";
     static final String DASHBOARDS_FOLDER_NAME = "dashboards";
@@ -75,6 +76,9 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private final ZipJsonService<CustomDashboard> zipJsonService;
   private final ResourcePatternResolver resolver;
 
+  private boolean hasError = false;
+  private String errorMessage = null;
+
   @Override
   public void run(String... args) {
     if (!isStarterPackEnabled) {
@@ -82,17 +86,21 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       return;
     }
 
-    if (this.settingRepository.findByKey(Config.STARTERPACK_KEY).isPresent()) {
+    if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
       log.info("Starter pack already initialized");
       return;
     }
 
-    Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
-    Tag tagCisco = this.createTag(Tags.CISCO);
-    this.createHoneyScanMeAgentlessEndpoint(List.of(tagVulnerability.getId(), tagCisco.getId()));
-    this.createAllEndpointsAssetGroup();
-    this.importScenariosFromResources();
-    this.importDashboardsFromResources();
+    try {
+      Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
+      Tag tagCisco = this.createTag(Tags.CISCO);
+      this.createHoneyScanMeAgentlessEndpoint(List.of(tagVulnerability.getId(), tagCisco.getId()));
+      this.createAllEndpointsAssetGroup();
+      this.importScenariosFromResources();
+      this.importDashboardsFromResources();
+    } catch (Exception e) {
+      recordError("Unexpected error during StarterPack initialization; cause " + e.getMessage());
+    }
 
     this.createSetting();
   }
@@ -144,10 +152,11 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                log.error(
-                    "Failed to import StarterPack scenario file : {}; cause {}",
-                    resourceToAdd.getFilename(),
-                    e.getMessage());
+                recordError(
+                    "Failed to import StarterPack scenario file : "
+                        + resourceToAdd.getFilename()
+                        + "; cause "
+                        + e.getMessage());
               }
             });
   }
@@ -165,10 +174,11 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                log.error(
-                    "Failed to import StarterPack dashboard file : {}; cause {}",
-                    resourceToAdd.getFilename(),
-                    e.getMessage());
+                recordError(
+                    "Failed to import StarterPack dashboard file : "
+                        + resourceToAdd.getFilename()
+                        + "; cause "
+                        + e.getMessage());
               }
             });
   }
@@ -177,15 +187,24 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     try {
       return Arrays.stream(
               this.resolver.getResources(
-                  "classpath:" + Config.STARTERPACK_KEY + "/" + folderName + "/*"))
+                  "classpath:" + Config.STARTER_PACK_KEY + "/" + folderName + "/*.zip"))
           .toList();
     } catch (Exception e) {
-      log.error(
-          "Failed to import StarterPack files from resource folder {}; cause {}",
-          Config.STARTERPACK_KEY + "/" + folderName,
-          e.getMessage());
+      recordError(
+          "Failed to import StarterPack files from resource folder "
+              + Config.STARTER_PACK_KEY
+              + "/"
+              + folderName
+              + "; cause "
+              + e.getMessage());
       return Collections.emptyList();
     }
+  }
+
+  private void recordError(@NotBlank final String message) {
+    this.hasError = true;
+    this.errorMessage = message;
+    log.error(message);
   }
 
   private void setDefaultDashboard(String filename, String dashboardId) {
@@ -213,9 +232,12 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
   private void createSetting() {
     Setting setting = new Setting();
-    setting.setKey(Config.STARTERPACK_KEY);
-    setting.setValue(Config.STARTER_PACK_SETTING_VALUE);
-
+    setting.setKey(Config.STARTER_PACK_KEY);
+    if (hasError) {
+      setting.setValue(this.errorMessage);
+    } else {
+      setting.setValue(Config.STARTER_PACK_SETTING_VALUE);
+    }
     this.settingRepository.save(setting);
   }
 }

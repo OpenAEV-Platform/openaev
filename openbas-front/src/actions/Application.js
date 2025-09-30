@@ -128,7 +128,3 @@ export const logout = () => (dispatch) => {
   const ref = simpleCall('/logout');
   return ref.then(() => dispatch({ type: Constants.IDENTITY_LOGOUT_SUCCESS }));
 };
-
-export const fetchStatistics = () => (dispatch) => {
-  return getReferential(schema.statistics, '/api/statistics')(dispatch);
-};
