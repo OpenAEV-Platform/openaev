@@ -179,7 +179,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockZipJsonService)
-        .handleImport(any(), eq("custom_dashboard_name"), isNull());
+        .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull());
 
     // EXECUTE
     initStarterPackCommandLineRunner.run();
