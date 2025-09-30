@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -34,7 +33,6 @@ public class XtmHubApi extends RestBehavior {
       description = "Save registration data into settings from XTM Hub registration")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
-  @Transactional(rollbackFor = Exception.class)
   public PlatformSettings register(@Valid @RequestBody XtmHubRegisterInput input) {
     return this.xtmHubService.register(input.getToken());
   }
@@ -48,7 +46,6 @@ public class XtmHubApi extends RestBehavior {
       description = "Delete XTM Hub registration data from Settings.")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful unregistration")})
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
-  @Transactional(rollbackFor = Exception.class)
   public PlatformSettings unregister() {
     return this.xtmHubService.unregister();
   }
@@ -62,7 +59,6 @@ public class XtmHubApi extends RestBehavior {
       description = "Refresh status in settings and version in XTM Hub")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
-  @Transactional(rollbackFor = Exception.class)
   public PlatformSettings refreshConnectivity() {
     return this.xtmHubService.refreshConnectivity();
   }

@@ -47,6 +47,7 @@ import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyPr
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -68,6 +69,8 @@ public class PlatformSettingsService {
   private final Ee eeService;
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
+
+  @Autowired private TransactionTemplate transactionTemplate;
 
   @Value("${openbas.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -534,39 +537,60 @@ public class PlatformSettingsService {
       Boolean shouldSendConnectivityEmail) {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
 
-    Map<SettingKeys, String> xtmhubSettingsMap = new HashMap<>();
-    xtmhubSettingsMap.put(XTM_HUB_TOKEN, token);
+    Map<String, String> xtmhubSettingsMap = new HashMap<>();
+    xtmhubSettingsMap.put(XTM_HUB_TOKEN.key(), token);
     xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_DATE, registrationDate != null ? registrationDate.toString() : null);
-    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_STATUS, registrationStatus.label);
+        XTM_HUB_REGISTRATION_DATE.key(),
+        registrationDate != null ? registrationDate.toString() : null);
+    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_STATUS.key(), registrationStatus.label);
     xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_USER_ID, registerer != null ? registerer.id() : null);
+        XTM_HUB_REGISTRATION_USER_ID.key(), registerer != null ? registerer.id() : null);
     xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_USER_NAME, registerer != null ? registerer.name() : null);
+        XTM_HUB_REGISTRATION_USER_NAME.key(), registerer != null ? registerer.name() : null);
     xtmhubSettingsMap.put(
-        XTM_HUB_LAST_CONNECTIVITY_CHECK,
+        XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
         lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null);
     xtmhubSettingsMap.put(
-        XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL,
+        XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
         shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
 
-    List<Setting> settingsToSave = new ArrayList<>();
-    List<String> settingsIdsToDelete = new ArrayList<>();
+    // Transaction 1: Perform modifications
+    transactionTemplate.execute(
+        status -> {
+          List<Setting> allEntities = fromIterable(this.settingRepository.findAll());
+          List<Setting> toDelete =
+              allEntities.stream()
+                  .filter(
+                      s ->
+                          xtmhubSettingsMap.containsKey(s.getKey())
+                              && xtmhubSettingsMap.get(s.getKey()) == null)
+                  .collect(Collectors.toList());
+          List<Setting> toUpdate =
+              allEntities.stream()
+                  .filter(
+                      s ->
+                          xtmhubSettingsMap.containsKey(s.getKey())
+                              && xtmhubSettingsMap.get(s.getKey()) != null)
+                  .peek(s -> s.setValue(xtmhubSettingsMap.get(s.getKey())))
+                  .collect(Collectors.toList());
 
-    xtmhubSettingsMap.forEach(
-        (settingKey, value) -> {
-          if (value != null) {
-            settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
-          } else if (dbSettings.get(settingKey.key()) != null) {
-            entityManager.detach(dbSettings.get(settingKey.key()));
-            settingsIdsToDelete.add(dbSettings.get(settingKey.key()).getId());
-          }
+          // Extract existing keys from toUpdate list
+          Set<String> existingToUpdateKeys =
+              toUpdate.stream().map(Setting::getKey).collect(Collectors.toSet());
+
+          xtmhubSettingsMap.forEach(
+              (key, value) -> {
+                if (value != null && !existingToUpdateKeys.contains(key)) {
+                  toUpdate.add(new Setting(key, value));
+                }
+              });
+          this.settingRepository.deleteAll(toDelete);
+          this.settingRepository.saveAll(toUpdate);
+          return null;
         });
 
-    settingRepository.deleteAllById(settingsIdsToDelete);
-    settingRepository.saveAll(settingsToSave);
-
-    return findSettings();
+    // Transaction 2: Fetch fresh data
+    return transactionTemplate.execute(status -> findSettings());
   }
 
   // -- PLATFORM MESSAGE --
