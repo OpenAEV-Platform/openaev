@@ -159,7 +159,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
               try {
                 JsonApiDocument<ResourceObject> dashboard =
                     this.zipJsonService.handleImport(
-                        resourceToAdd.getContentAsByteArray(), "custom_dashboard_name", null);
+                        resourceToAdd.getContentAsByteArray(), "custom_dashboard_name", null, null);
                 this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",

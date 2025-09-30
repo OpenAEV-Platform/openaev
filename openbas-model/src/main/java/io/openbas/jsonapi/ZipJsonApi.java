@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.function.Function;
 import lombok.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -58,13 +59,17 @@ public class ZipJsonApi<T extends Base> {
 
   public ResponseEntity<JsonApiDocument<ResourceObject>> handleImport(
       MultipartFile file, String nameAttributeKey) throws IOException {
-    return handleImport(file, nameAttributeKey, null);
+    return handleImport(file, nameAttributeKey, null, null);
   }
 
   public ResponseEntity<JsonApiDocument<ResourceObject>> handleImport(
-      MultipartFile file, String nameAttributeKey, IncludeOptions includeOptions)
+      MultipartFile file,
+      String nameAttributeKey,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck)
       throws IOException {
     return ResponseEntity.ok(
-        this.zipJsonService.handleImport(file.getBytes(), nameAttributeKey, includeOptions));
+        this.zipJsonService.handleImport(
+            file.getBytes(), nameAttributeKey, includeOptions, sanityCheck));
   }
 }

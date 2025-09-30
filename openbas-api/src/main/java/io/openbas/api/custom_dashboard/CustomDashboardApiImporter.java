@@ -8,6 +8,7 @@ import io.openbas.jsonapi.JsonApiDocument;
 import io.openbas.jsonapi.ResourceObject;
 import io.openbas.jsonapi.ZipJsonApi;
 import io.openbas.rest.custom_dashboard.CustomDashboardApi;
+import io.openbas.rest.custom_dashboard.CustomDashboardService;
 import io.openbas.rest.helper.RestBehavior;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
@@ -40,6 +41,7 @@ public class CustomDashboardApiImporter extends RestBehavior {
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws IOException {
-    return zipJsonApi.handleImport(file, "custom_dashboard_name");
+    return zipJsonApi.handleImport(
+        file, "custom_dashboard_name", null, CustomDashboardService::sanityCheck);
   }
 }

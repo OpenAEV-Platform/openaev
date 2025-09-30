@@ -25,6 +25,7 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.tuple.Pair;
@@ -41,7 +42,10 @@ public class GenericJsonApiImporter<T extends Base> {
   private final FileService fileService;
 
   @Transactional
-  public T handleImportEntity(JsonApiDocument<ResourceObject> doc, IncludeOptions includeOptions) {
+  public T handleImportEntity(
+      JsonApiDocument<ResourceObject> doc,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck) {
     if (doc == null || doc.data() == null) {
       throw new IllegalArgumentException("Data is required to import document");
     }
@@ -70,7 +74,12 @@ public class GenericJsonApiImporter<T extends Base> {
     entityManager.flush();
 
     // Persist root entity
-    return entityManager.merge(entity);
+    if (sanityCheck != null) {
+      T sanitized = sanityCheck.apply(entity);
+      return entityManager.merge(sanitized);
+    } else {
+      return entityManager.merge(entity);
+    }
   }
 
   public void handleImportDocument(
@@ -171,11 +180,6 @@ public class GenericJsonApiImporter<T extends Base> {
     // Create new instance if not found.
     if (entity == null) {
       entity = instantiate(clazz);
-      // For @InnerRelationship, set ID to preserve reference
-      // (example: widget config linked to custom dashboard parameters)
-      if (clazz.isAnnotationPresent(InnerRelationship.class)) {
-        entity.setId(id);
-      }
     }
     if (!rootEntity) {
       entityCache.put(id, Pair.of(entity, clazz.isAnnotationPresent(InnerRelationship.class)));

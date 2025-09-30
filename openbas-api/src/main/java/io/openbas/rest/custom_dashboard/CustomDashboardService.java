@@ -67,6 +67,20 @@ public class CustomDashboardService {
     return this.customDashboardRepository.save(customDashboardWithDefaultParams);
   }
 
+  public static CustomDashboard sanityCheck(@NotNull final CustomDashboard customDashboard) {
+    CustomDashboard customDashboardWithDefaultParams = customDashboard;
+    if (customDashboard.getParameters().stream().noneMatch(p -> p.getType().equals(timeRange))) {
+      customDashboardWithDefaultParams = customDashboard.addParameter("Time range", timeRange);
+    }
+    if (customDashboard.getParameters().stream().noneMatch(p -> p.getType().equals(startDate))) {
+      customDashboardWithDefaultParams = customDashboard.addParameter("Start date", startDate);
+    }
+    if (customDashboard.getParameters().stream().noneMatch(p -> p.getType().equals(endDate))) {
+      customDashboardWithDefaultParams = customDashboard.addParameter("End date", endDate);
+    }
+    return customDashboardWithDefaultParams;
+  }
+
   /**
    * Retrieves all {@link CustomDashboard} entities from the database and converts them into {@link
    * CustomDashboardOutput} DTOs.

@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -75,7 +76,11 @@ public class ZipJsonService<T extends Base> {
   }
 
   public JsonApiDocument<ResourceObject> handleImport(
-      byte[] fileBytes, String nameAttributeKey, IncludeOptions includeOptions) throws IOException {
+      byte[] fileBytes,
+      String nameAttributeKey,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck)
+      throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
 
@@ -87,7 +92,7 @@ public class ZipJsonService<T extends Base> {
     }
 
     importer.handleImportDocument(doc, parsed.extras);
-    T persisted = importer.handleImportEntity(doc, includeOptions);
+    T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck);
 
     return exporter.handleExport(persisted, includeOptions);
   }
