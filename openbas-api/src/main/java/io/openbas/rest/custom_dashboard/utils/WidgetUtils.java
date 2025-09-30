@@ -19,11 +19,11 @@ public class WidgetUtils {
               "vulnerable_endpoint_findings_summary");
       case "expectation-inject" ->
           List.of(
+              "inject_title",
               "inject_expectation_type",
               "inject_expectation_status",
-              "inject_title",
               "inject_expectation_source");
-      case "finding" -> List.of("finding_type", "base_updated_at", "finding_value");
+      case "finding" -> List.of("finding_value", "finding_type", "base_updated_at");
       case "inject" ->
           List.of("inject_title", "base_attack_patterns_side", "inject_execution_date");
       case "simulation" -> List.of("name", "base_updated_at", "base_tags_side");
