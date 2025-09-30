@@ -81,7 +81,7 @@ const RoleForm: FC<RoleFormProps> = ({
       const tabName = getTabForField(firstErrorField);
       if (tabName) handleChangeTab(tabName);
     } else {
-      handleSubmit(onSubmit)(e);
+      await handleSubmit(onSubmit)(e);
     }
   };
 

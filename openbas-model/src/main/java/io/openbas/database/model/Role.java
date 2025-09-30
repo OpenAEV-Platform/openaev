@@ -38,6 +38,11 @@ public class Role implements Base {
   @NotBlank
   private String name;
 
+  @Column(name = "role_description")
+  @JsonProperty("role_description")
+  @Queryable(searchable = true)
+  private String description;
+
   @ElementCollection(targetClass = Capability.class, fetch = FetchType.EAGER)
   @JoinTable(name = "roles_capabilities", joinColumns = @JoinColumn(name = "role_id"))
   @Enumerated(EnumType.STRING)
