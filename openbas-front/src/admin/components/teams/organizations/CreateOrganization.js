@@ -62,7 +62,7 @@ class CreateOrganization extends Component {
         <Drawer
           open={this.state.open}
           handleClose={this.handleClose.bind(this)}
-          title={t('Update the organization')}
+          title={t('Create an organization')}
         >
           <OrganizationForm
             onSubmit={this.onSubmit.bind(this)}
