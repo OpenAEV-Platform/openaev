@@ -29,6 +29,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.Ee;
 import io.openaev.export.Mixins;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.collector.service.CollectorService;
@@ -892,18 +893,20 @@ public class ScenarioService {
   }
 
   /**
-   * Verify all healthcheck for a given scenario
+   * Verify all healthcheck for a given scenario id
    *
-   * @param scenario to verify
-   * @return converted scenario to ScenarioOutput with healthcheck attribute
+   * @param scenarioId to verify
+   * @return founded healthcheck list
    */
-  public ScenarioOutput runChecks(Scenario scenario) {
-    if (scenario == null) {
+  @Transactional(readOnly = true)
+  public List<HealthCheck> runChecks(String scenarioId) {
+    if (scenarioId == null) {
       return null;
     }
 
     List<Collector> collectors = this.collectorService.securityPlatformCollectors();
 
+    Scenario scenario = this.scenario(scenarioId);
     ScenarioOutput scenarioOutput = new ScenarioOutput(scenario);
     scenarioOutput.setInjects(
         scenario.getInjects().stream()
@@ -919,6 +922,6 @@ public class ScenarioService {
         .addAll(HealthCheckUtils.runMissingContentChecks(scenarioOutput));
     scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runTeamsChecks(scenarioOutput));
 
-    return scenarioOutput;
+    return scenarioOutput.getHealthchecks();
   }
 }

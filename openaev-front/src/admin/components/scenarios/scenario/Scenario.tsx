@@ -9,12 +9,20 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useContext, useState } from 'react';
+import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { fetchPlatformParameters } from '../../../../actions/Application';
+import type { EndpointHelper } from '../../../../actions/assets/asset-helper';
+import { fetchEndpoints } from '../../../../actions/assets/endpoint-actions';
+import { fetchCollectors } from '../../../../actions/Collector';
+import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import { searchScenarioExercises } from '../../../../actions/scenarios/scenario-actions';
+import type { LoggedHelper } from '../../../../actions/helper';
+import { fetchScenarioInjects } from '../../../../actions/Inject';
+import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -31,11 +39,13 @@ import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
 import {
-  type ExerciseSimple,
+  type ExerciseSimple, type HealthCheck,
   type KillChainPhase,
   type Scenario as ScenarioType,
   type SearchPaginationInput,
 } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField } from '../../../../utils/utils';
@@ -56,15 +66,6 @@ const useStyles = makeStyles()(theme => ({
     width: 180,
   },
   paper: { padding: theme.spacing(2) },
-  informationPaper: {
-    borderBottomLeftRadius: 0,
-    borderTopLeftRadius: 0,
-    display: 'flex',
-    flex: 1,
-    gap: `0px ${theme.spacing(1)}`,
-    padding: theme.spacing(2),
-    width: '100%',
-  },
 }));
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
@@ -74,11 +75,38 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
   const ability = useContext(AbilityContext);
+  const dispatch = useAppDispatch();
 
   // Fetching data
   const { scenario } = useHelper((helper: ScenariosHelper & ExercisesHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
   const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
+
+  // Fetch all data if not already loaded to spy on modifications to reload healthchecks
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const { settings, injects, collectors, endpoints } = useHelper((helper: LoggedHelper & InjectHelper & CollectorHelper & EndpointHelper) => ({
+    settings: helper.getPlatformSettings(),
+    injects: helper.getScenarioInjects(scenarioId),
+    collectors: helper.getCollectors(),
+    endpoints: helper.getEndpoints(),
+  }));
+  useDataLoader(() => {
+    if (!settings) {
+      dispatch(fetchPlatformParameters());
+    }
+    if (!collectors || !collectors.length) {
+      dispatch(fetchCollectors());
+    }
+    if (!endpoints || !endpoints.length) {
+      dispatch(fetchEndpoints());
+    }
+    if (!injects || !injects.length) {
+      dispatch(fetchScenarioInjects(scenarioId));
+    }
+  });
+  useEffect(() => {
+    searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+  }, [settings.smtp_service_available, settings.imap_service_available, endpoints, collectors, scenario, injects]);
 
   // Exercises
   const [loadingExercises, setLoadingExercises] = useState(true);
@@ -106,8 +134,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   return (
     <div style={{ paddingBottom: theme.spacing(5) }}>
       <Healthchecks
-        healthchecks={scenario.scenario_healthchecks}
-        scenarioId={scenario.scenario_id}
+        healthchecks={healthchecks}
+        scenarioId={scenarioId}
       />
       <div style={{
         display: 'grid',

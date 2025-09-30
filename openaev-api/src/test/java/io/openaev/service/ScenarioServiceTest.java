@@ -314,17 +314,19 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @Test
   public void testRunChecksWhenScenarioIsNull() {
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(null);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(null);
 
-    assertNull(scenarioOutput);
+    assertNull(healthchecks);
   }
 
   @Test
+  @Transactional
   public void testRunChecksForSmtpIssue() {
     // PREPARE
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -340,14 +342,13 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
 
     // RUN
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // VERIFY
-    assertNotNull(scenarioOutput);
-    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+    assertFalse(healthchecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        scenarioOutput.getHealthchecks().stream()
+        healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -357,11 +358,13 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional
   public void testRunChecksForImapIssue() {
     // PREPARE
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -377,14 +380,13 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
 
     // RUN
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // VERIFY
-    assertNotNull(scenarioOutput);
-    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+    assertFalse(healthchecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        scenarioOutput.getHealthchecks().stream()
+        healthchecks.stream()
             .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -394,11 +396,13 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional
   public void testRunChecksForExecutorIssue() {
     // PREPARE
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -414,14 +418,13 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
 
     // RUN
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // VERIFY
-    assertNotNull(scenarioOutput);
-    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+    assertFalse(healthchecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        scenarioOutput.getHealthchecks().stream()
+        healthchecks.stream()
             .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -431,11 +434,13 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional
   public void testRunChecksForCollectorIssue() {
     // PREPARE
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -451,14 +456,13 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
 
     // RUN
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // VERIFY
-    assertNotNull(scenarioOutput);
-    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+    assertFalse(healthchecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        scenarioOutput.getHealthchecks().stream()
+        healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -468,11 +472,13 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional
   public void testRunChecksForMissingContentIssue() {
     // PREPARE
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -488,14 +494,13 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
 
     // RUN
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // VERIFY
-    assertNotNull(scenarioOutput);
-    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+    assertFalse(healthchecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        scenarioOutput.getHealthchecks().stream()
+        healthchecks.stream()
             .filter(hc -> HealthCheck.Type.INJECT.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -505,26 +510,27 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     InjectOutput injectOutput = new InjectOutput(inject);
+    this.scenarioRepository.save(scenario);
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
 
     // RUN
-    ScenarioOutput scenarioOutput = scenarioService.runChecks(scenario);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // VERIFY
-    assertNotNull(scenarioOutput);
-    assertFalse(scenarioOutput.getHealthchecks().isEmpty());
+    assertFalse(healthchecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        scenarioOutput.getHealthchecks().stream()
+        healthchecks.stream()
             .filter(hc -> HealthCheck.Type.TEAMS.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));

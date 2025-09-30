@@ -80,7 +80,16 @@ const referential = (state: any = Map({}), action: any = {}) => {
   switch (action.type) {
     case Constants.DATA_UPDATE_SUCCESS:
     case Constants.DATA_FETCH_SUCCESS: {
-      return mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
+      if (action.payload.entities.settings) {
+        const firstKey = Object.keys(action.payload.entities.settings)[0];
+        const firstValue = action.payload.entities.settings[firstKey];
+        return state.setIn(
+          ['entities', 'platformParameters', 'parameters', firstValue['setting_key']],
+          firstValue['setting_value'],
+        );
+      } else {
+        return mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
+      }
     }
     case Constants.DATA_DELETE_SUCCESS: {
       const toDeleteIn = state.getIn(['entities', action.payload.type]);

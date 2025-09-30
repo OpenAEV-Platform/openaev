@@ -81,6 +81,7 @@ public class ScenarioOutput {
   @JsonProperty("scenario_custom_dashboard")
   private CustomDashboard customDashboard;
 
+  @JsonSerialize(using = MonoIdDeserializer.class)
   @JsonProperty("scenario_injects")
   private List<InjectOutput> injects;
 

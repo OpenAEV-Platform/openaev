@@ -1,6 +1,13 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simplePostCall,
+} from '../../utils/Action';
 import {
   type InjectsImportInput,
   type LessonsCategoryCreateInput,
@@ -114,6 +121,13 @@ export const searchScenarioExercises = (scenarioId: Scenario['scenario_id'], pag
   const data = paginationInput;
   const uri = `/api/scenarios/${scenarioId}/exercises/search`;
   return simplePostCall(uri, data);
+};
+
+// -- HEALTHCHEKS --
+
+export const searchScenarioHealthcheks = (scenarioId: Scenario['scenario_id']) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/healthchecks`;
+  return simpleCall(uri);
 };
 
 // -- RECURRENCE --
