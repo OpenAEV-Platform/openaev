@@ -1,21 +1,17 @@
 package io.openbas.service;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.criteria.GenericCriteria.countQuery;
-import static io.openbas.database.specification.TeamSpecification.teamsAccessibleFromOrganizations;
 import static io.openbas.rest.team.TeamQueryHelper.execution;
 import static io.openbas.rest.team.TeamQueryHelper.select;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openbas.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
-import io.openbas.database.model.Organization;
 import io.openbas.database.model.Tag;
 import io.openbas.database.model.Team;
 import io.openbas.database.model.User;
 import io.openbas.database.raw.RawTeam;
 import io.openbas.database.repository.TeamRepository;
 import io.openbas.database.repository.UserRepository;
-import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.team.output.TeamOutput;
 import io.openbas.utils.CopyObjectListUtils;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -71,39 +67,16 @@ public class TeamService {
       @NotNull SearchPaginationInput searchPaginationInput,
       @NotNull final Specification<Team> teamSpecification) {
     TriFunction<Specification<Team>, Specification<Team>, Pageable, Page<TeamOutput>> teamsFunction;
-    User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()) {
-      teamsFunction =
-          (Specification<Team> specification,
-              Specification<Team> specificationCount,
-              Pageable pageable) ->
-              this.paginate(
-                  teamSpecification.and(specification),
-                  teamSpecification.and(specificationCount),
-                  pageable);
-    } else {
-      User user =
-          this.userRepository
-              .findById(currentUser.getId())
-              .orElseThrow(ElementNotFoundException::new);
-      List<String> organizationIds =
-          user.getGroups().stream()
-              .flatMap(group -> group.getOrganizations().stream())
-              .map(Organization::getId)
-              .toList();
-      teamsFunction =
-          (Specification<Team> specification,
-              Specification<Team> specificationCount,
-              Pageable pageable) ->
-              this.paginate(
-                  teamSpecification
-                      .and(teamsAccessibleFromOrganizations(organizationIds))
-                      .and(specification),
-                  teamSpecification
-                      .and(teamsAccessibleFromOrganizations(organizationIds))
-                      .and(specificationCount),
-                  pageable);
-    }
+
+    teamsFunction =
+        (Specification<Team> specification,
+            Specification<Team> specificationCount,
+            Pageable pageable) ->
+            this.paginate(
+                teamSpecification.and(specification),
+                teamSpecification.and(specificationCount),
+                pageable);
+
     return buildPaginationCriteriaBuilder(teamsFunction, searchPaginationInput, Team.class);
   }
 

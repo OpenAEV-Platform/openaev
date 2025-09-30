@@ -1,6 +1,5 @@
 package io.openbas.rest.team;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.TeamSpecification.*;
 import static io.openbas.helper.DatabaseHelper.updateRelation;
 import static io.openbas.helper.StreamHelper.fromIterable;
@@ -80,23 +79,8 @@ public class TeamApi extends RestBehavior {
   @Operation(summary = "List teams", description = "Return the teams")
   public Iterable<TeamSimple> getTeams() {
     List<RawTeam> teams;
-    User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()) {
-      // We get all the teams as raw
-      teams = fromIterable(teamRepository.rawTeams());
-    } else {
-      // We get the teams that are linked to the organizations we are part of
-      User local =
-          userRepository
-              .findById(currentUser.getId())
-              .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-      List<String> organizationIds =
-          local.getGroups().stream()
-              .flatMap(group -> group.getOrganizations().stream())
-              .map(Organization::getId)
-              .toList();
-      teams = teamRepository.rawTeamsAccessibleFromOrganization(organizationIds);
-    }
+    // We get all the teams as raw
+    teams = fromIterable(teamRepository.rawTeams());
 
     return TeamHelper.rawAllTeamToSimplerAllTeam(teams);
   }

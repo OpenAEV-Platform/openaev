@@ -4,7 +4,6 @@ import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Group } from '../../../../../utils/api-types';
 import GroupManageAtomicTestingGrants from './atomic_testings/GroupManageAtomicTestingGrants';
-import GroupManageOrganizationGrants from './organizations/GroupManageOrganizationGrants';
 import GroupManagePayloadGrants from './payloads/GroupManagePayloadGrants';
 import GroupManageScenarioGrants from './scenarios/GroupManageScenarioGrants';
 import GroupManageSimulationGrants from './simulations/GroupManageSimulationGrants';
@@ -46,11 +45,6 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
             component: (
               <GroupManageSimulationGrants groupId={group.group_id} onGrantChange={fetchAndUpdateGroup} />
             ),
-          },
-          {
-            key: 'Organizations',
-            label: t('Organizations'),
-            component: <GroupManageOrganizationGrants groupId={group.group_id} onGrantChange={fetchAndUpdateGroup} />,
           },
           {
             key: 'Atomic testings',

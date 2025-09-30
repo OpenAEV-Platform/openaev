@@ -55,6 +55,9 @@ const MenuItemSub: FunctionComponent<Props> = ({
               paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
               fontWeight: theme.typography.h4.fontWeight,
               fontSize: theme.typography.h4.fontSize,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             },
           }}
         />

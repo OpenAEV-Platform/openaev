@@ -42,43 +42,13 @@ public interface ExerciseRepository
   long globalCount(@Param("creationDate") Instant creationDate);
 
   @Query(
-      "select COALESCE(e.category, 'Unknown'), count(distinct e) "
-          + "from Exercise e where e.createdAt > :creationDate and e.start is not null "
-          + "group by e.category ")
-  List<Object[]> globalCountGroupByCategory(@Param("creationDate") Instant creationDate);
-
-  @Query(
-      "select COALESCE(e.category, 'Unknown'), count(distinct e) from Exercise e "
-          + "join e.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId and e.createdAt > :creationDate and e.start is not null "
-          + "group by e.category ")
-  List<Object[]> userCountGroupByCategory(
-      @Param("userId") String userId, @Param("creationDate") Instant creationDate);
-
-  @Query(
-      "select DATE_TRUNC('week', e.start), count(distinct e) from Exercise e "
-          + "where e.createdAt > :creationDate and e.start is not null "
-          + "group by DATE_TRUNC('week', e.start) order by DATE_TRUNC('week', e.start)")
-  List<Object[]> globalCountGroupByWeek(@Param("creationDate") Instant creationDate);
-
-  @Query(
-      "select DATE_TRUNC('week', e.start), count(distinct e) from Exercise e "
-          + "join e.grants as grant "
-          + "join grant.group.users as user "
-          + "where user.id = :userId and e.createdAt > :creationDate and e.start is not null "
-          + "group by DATE_TRUNC('week', e.start) order by DATE_TRUNC('week', e.start)")
-  List<Object[]> userCountGroupByWeek(
-      @Param("userId") String userId, @Param("creationDate") Instant creationDate);
-
-  @Query(
       value =
           "select e.*, se.scenario_id from exercises e "
               + "left join injects as inject on e.exercise_id = inject.inject_exercise and inject.inject_enabled = 'true' "
-              + "left join injects_statuses as status on inject.inject_id = status.status_inject and status.status_name not in ('PENDING', 'QUEUING', 'EXECUTING') "
+              + "left join injects_statuses as status on inject.inject_id = status.status_inject and status.status_name not in ('PENDING', 'QUEUING', 'EXECUTING')"
               + "left join scenarios_exercises as se on e.exercise_id = se.exercise_id "
               + "where e.exercise_status = 'RUNNING' group by e.exercise_id, se.scenario_id having count(status) = count(inject) "
-              + "and count(inject) filter (where inject.inject_collect_status = 'COMPLETED' or status.status_name <> 'ERROR') = count(inject);",
+              + "and count(inject) filter (where inject.inject_collect_status = 'COMPLETED' or status.status_name <> 'ERROR') = count(inject) filter (where status.status_name <> 'ERROR');",
       nativeQuery = true)
   List<Exercise> thatMustBeFinished();
 
@@ -91,90 +61,6 @@ public interface ExerciseRepository
     ORDER BY e.launchOrder ASC LIMIT 1
     """)
   Optional<Exercise> following(@Param("exercise") Exercise exercise);
-
-  /**
-   * Get all the expectations created from a date
-   *
-   * @param from the date of creation
-   * @return the list of expectations
-   */
-  @Query(
-      value =
-          "SELECT "
-              + "ie.inject_expectation_type, ie.inject_expectation_group, ie.inject_expectation_score, ie.inject_expectation_expected_score "
-              + "FROM injects_expectations ie "
-              + "INNER JOIN injects ON ie.inject_id = injects.inject_id "
-              + "INNER JOIN exercises ON injects.inject_exercise = exercises.exercise_id "
-              + "WHERE exercises.exercise_created_at > :from and exercises.exercise_start_date is not null ;",
-      nativeQuery = true)
-  List<RawInjectExpectation> allInjectExpectationsFromDate(@Param("from") Instant from);
-
-  /**
-   * Get all the expectations a user can see that were created from a date
-   *
-   * @param from the date of creation
-   * @param userId the id of the user
-   * @return the list of expectations
-   */
-  @Query(
-      value =
-          "SELECT ie.inject_expectation_type, ie.inject_expectation_group, ie.inject_expectation_score, ie.inject_expectation_expected_score "
-              + "FROM injects_expectations ie "
-              + "INNER JOIN injects ON ie.inject_id = injects.inject_id "
-              + "INNER JOIN exercises e ON injects.inject_exercise = e.exercise_id "
-              + "INNER JOIN grants ON grants.grant_resource = e.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
-              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
-              + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
-              + "WHERE e.exercise_created_at > :from and e.exercise_start_date is not null "
-              + "AND users_groups.user_id = :userId ;",
-      nativeQuery = true)
-  List<RawInjectExpectation> allGrantedInjectExpectationsFromDate(
-      @Param("from") Instant from, @Param("userId") String userId);
-
-  /**
-   * Returns the global expectations that were created from a date
-   *
-   * @param from the date of creation
-   * @return a list of expectations
-   */
-  @Query(
-      value =
-          "SELECT ie.inject_expectation_type, ie.inject_expectation_score, ie.inject_expectation_expected_score, "
-              + "injects.inject_id, injects.inject_title, icap.attack_pattern_id "
-              + "FROM exercises "
-              + "INNER JOIN injects ON exercises.exercise_id = injects.inject_exercise "
-              + "JOIN injects_expectations ie ON injects.inject_id = ie.inject_id "
-              + "INNER JOIN injectors_contracts ic ON injects.inject_injector_contract = ic.injector_contract_id "
-              + "INNER JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
-              + "WHERE exercises.exercise_created_at > :from and exercises.exercise_start_date is not null ;",
-      nativeQuery = true)
-  Iterable<RawGlobalInjectExpectation> rawGlobalInjectExpectationResultsFromDate(
-      @Param("from") Instant from);
-
-  /**
-   * Returns the global expectations that were created from a date and that a user can see
-   *
-   * @param from the date of creation
-   * @param userId the id of the user
-   * @return the list of global expectations
-   */
-  @Query(
-      value =
-          "SELECT ie.inject_expectation_type, ie.inject_expectation_score, ie.inject_expectation_expected_score, "
-              + "injects.inject_id, injects.inject_title, icap.attack_pattern_id "
-              + "FROM exercises "
-              + "INNER JOIN injects ON exercises.exercise_id = injects.inject_exercise "
-              + "LEFT JOIN injects_expectations ie ON exercises.exercise_id = ie.exercise_id "
-              + "INNER JOIN injectors_contracts ic ON injects.inject_injector_contract = ic.injector_contract_id "
-              + "INNER JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
-              + "INNER JOIN grants ON grants.grant_resource = exercises.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
-              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
-              + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
-              + "WHERE exercises.exercise_created_at > :from and exercises.exercise_start_date is not null "
-              + "AND users_groups.user_id = :userId ;",
-      nativeQuery = true)
-  Iterable<RawGlobalInjectExpectation> rawGrantedInjectExpectationResultsFromDate(
-      @Param("from") Instant from, @Param("userId") String userId);
 
   /**
    * Get the raw version of the exercises

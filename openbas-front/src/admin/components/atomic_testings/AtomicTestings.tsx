@@ -5,12 +5,11 @@ import { useNavigate } from 'react-router';
 import { createAtomicTesting, searchAtomicTestings } from '../../../actions/atomic_testings/atomic-testing-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ButtonCreate from '../../../components/common/ButtonCreate';
-import { buildEmptyFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
-import { type AtomicTestingInput, type FilterGroup, type InjectResultOverviewOutput } from '../../../utils/api-types';
+import { type AtomicTestingInput, type InjectResultOverviewOutput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { TeamContext } from '../common/Context';
@@ -42,17 +41,7 @@ const AtomicTestings = () => {
     });
   };
 
-  const quickFilter: FilterGroup = {
-    mode: 'and',
-    filters: [
-      buildEmptyFilter('inject_kill_chain_phases', 'contains'),
-      buildEmptyFilter('inject_tags', 'contains'),
-    ],
-  };
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('atomic-testing', buildSearchPagination({
-    sorts: initSorting('inject_updated_at', 'DESC'),
-    filterGroup: quickFilter,
-  }));
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('atomic-testing', buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }));
 
   return (
     <>

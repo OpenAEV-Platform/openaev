@@ -166,38 +166,6 @@ public class GroupApi extends RestBehavior {
     return this.groupRepository.save(group);
   }
 
-  @PostMapping("/api/groups/{groupId}/organizations")
-  @RBAC(
-      resourceId = "#groupId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER_GROUP)
-  @Transactional(rollbackOn = Exception.class)
-  public Group groupOrganization(
-      @PathVariable String groupId, @Valid @RequestBody OrganizationGrantInput input) {
-    // Resolve dependencies
-    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
-    Organization organization =
-        organizationRepository
-            .findById(input.getOrganizationId())
-            .orElseThrow(ElementNotFoundException::new);
-    group.getOrganizations().add(organization);
-    return groupRepository.save(group);
-  }
-
-  @DeleteMapping("/api/groups/{groupId}/organizations/{organizationId}")
-  @RBAC(
-      resourceId = "#groupId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER_GROUP)
-  public Group deleteGroupOrganization(
-      @PathVariable String groupId, @PathVariable String organizationId) {
-    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
-    Organization organization =
-        organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
-    group.getOrganizations().remove(organization);
-    return groupRepository.save(group);
-  }
-
   @DeleteMapping("/api/groups/{groupId}")
   @RBAC(
       resourceId = "#groupId",

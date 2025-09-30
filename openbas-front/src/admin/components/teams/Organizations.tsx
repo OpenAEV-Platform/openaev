@@ -22,6 +22,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import useSearchAnFilter from '../../../utils/SortingFiltering';
 import { truncate } from '../../../utils/String';
 import TagsFilter from '../common/filters/TagsFilter';
+import SecurityMenu from '../settings/SecurityMenu';
 import CreateOrganization from './organizations/CreateOrganization';
 import OrganizationPopover from './organizations/OrganizationPopover';
 
@@ -115,150 +116,153 @@ const Organizations = () => {
   const sortedOrganizations: Organization[] = filtering.filterAndSort(organizations);
 
   return (
-    <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Teams') }, {
-          label: t('Organizations'),
-          current: true,
-        }]}
-      />
-      <div className={classes.parameters}>
-        <div className={classes.filters}>
-          <SearchFilter
-            variant="small"
-            onChange={filtering.handleSearch}
-            keyword={filtering.keyword}
-          />
-          <TagsFilter
-            onAddTag={filtering.handleAddTag}
-            onRemoveTag={filtering.handleRemoveTag}
-            currentTags={filtering.tags}
-            tagsFetched
-          />
-        </div>
-        <div className={classes.downloadButton}>
-          {sortedOrganizations.length > 0 ? (
-            <CSVLink
-              data={exportData(
-                'organization',
-                [
-                  'organization_name',
-                  'organization_description',
-                  'organization_tags',
-                ],
-                sortedOrganizations,
-                tagsMap,
-              )}
-              filename={`${t('Organizations')}.csv`}
-            >
-              <Tooltip title={t('Export this list')}>
-                <IconButton size="large">
-                  <FileDownloadOutlined color="primary" />
-                </IconButton>
-              </Tooltip>
-            </CSVLink>
-          ) : (
-            <IconButton size="large" disabled>
-              <FileDownloadOutlined />
-            </IconButton>
-          )}
-        </div>
-      </div>
-      <div className="clearfix" />
-      <List>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          divider={false}
-          style={{ paddingTop: 0 }}
-        >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {filtering.buildHeader(
-                  'organization_name',
-                  'Name',
-                  true,
-                  inlineStylesHeaders,
+    <div style={{ display: 'flex' }}>
+      <div style={{ flexGrow: 1 }}>
+        <Breadcrumbs
+          variant="list"
+          elements={[{ label: t('Settings') }, { label: t('Security') }, {
+            label: t('Organizations'),
+            current: true,
+          }]}
+        />
+        <div className={classes.parameters}>
+          <div className={classes.filters}>
+            <SearchFilter
+              variant="small"
+              onChange={filtering.handleSearch}
+              keyword={filtering.keyword}
+            />
+            <TagsFilter
+              onAddTag={filtering.handleAddTag}
+              onRemoveTag={filtering.handleRemoveTag}
+              currentTags={filtering.tags}
+              tagsFetched
+            />
+          </div>
+          <div className={classes.downloadButton}>
+            {sortedOrganizations.length > 0 ? (
+              <CSVLink
+                data={exportData(
+                  'organization',
+                  [
+                    'organization_name',
+                    'organization_description',
+                    'organization_tags',
+                  ],
+                  sortedOrganizations,
+                  tagsMap,
                 )}
-                {filtering.buildHeader(
-                  'organization_description',
-                  'Description',
-                  true,
-                  inlineStylesHeaders,
-                )}
-                {filtering.buildHeader(
-                  'organization_tags',
-                  'Tags',
-                  true,
-                  inlineStylesHeaders,
-                )}
-              </div>
+                filename={`${t('Organizations')}.csv`}
+              >
+                <Tooltip title={t('Export this list')}>
+                  <IconButton size="large">
+                    <FileDownloadOutlined color="primary" />
+                  </IconButton>
+                </Tooltip>
+              </CSVLink>
+            ) : (
+              <IconButton size="large" disabled>
+                <FileDownloadOutlined />
+              </IconButton>
             )}
-          />
-          <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
-        </ListItem>
-        {sortedOrganizations.map(organization => (
+          </div>
+        </div>
+        <div className="clearfix" />
+        <List>
           <ListItem
-            key={organization.organization_id}
-            classes={{ root: classes.item }}
-            divider
+            classes={{ root: classes.itemHead }}
+            divider={false}
+            style={{ paddingTop: 0 }}
+            secondaryAction={<>&nbsp;</>}
           >
-            <ListItemIcon>
-              <DomainOutlined color="primary" />
-            </ListItemIcon>
+            <ListItemIcon />
             <ListItemText
               primary={(
                 <div style={bodyItemsStyles.bodyItems}>
-                  <div
-                    style={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...inlineStyles.organization_name,
-                    }}
-                  >
-                    {organization.organization_name}
-                  </div>
-                  <div
-                    style={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...inlineStyles.organization_description,
-                    }}
-                  >
-                    {truncate(
-                      organization.organization_description || '-',
-                      50,
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...inlineStyles.organization_tags,
-                    }}
-                  >
-                    <ItemTags
-                      variant="list"
-                      tags={organization.organization_tags}
-                    />
-                  </div>
+                  {filtering.buildHeader(
+                    'organization_name',
+                    'Name',
+                    true,
+                    inlineStylesHeaders,
+                  )}
+                  {filtering.buildHeader(
+                    'organization_description',
+                    'Description',
+                    true,
+                    inlineStylesHeaders,
+                  )}
+                  {filtering.buildHeader(
+                    'organization_tags',
+                    'Tags',
+                    true,
+                    inlineStylesHeaders,
+                  )}
                 </div>
               )}
             />
-            <ListItemSecondaryAction>
-              <OrganizationPopover
-                organization={organization}
-                tagsMap={tagsMap}
-                openEditOnInit={organization.organization_id === searchId}
-              />
-            </ListItemSecondaryAction>
+            <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
           </ListItem>
-        ))}
-      </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-        <CreateOrganization />
-      </Can>
-
-    </>
+          {sortedOrganizations.map(organization => (
+            <ListItem
+              key={organization.organization_id}
+              classes={{ root: classes.item }}
+              secondaryAction={(
+                <OrganizationPopover
+                  organization={organization}
+                  tagsMap={tagsMap}
+                  openEditOnInit={organization.organization_id === searchId}
+                />
+              )}
+              divider
+            >
+              <ListItemIcon>
+                <DomainOutlined color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <div style={bodyItemsStyles.bodyItems}>
+                    <div
+                      style={{
+                        ...bodyItemsStyles.bodyItem,
+                        ...inlineStyles.organization_name,
+                      }}
+                    >
+                      {organization.organization_name}
+                    </div>
+                    <div
+                      style={{
+                        ...bodyItemsStyles.bodyItem,
+                        ...inlineStyles.organization_description,
+                      }}
+                    >
+                      {truncate(
+                        organization.organization_description || '-',
+                        50,
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        ...bodyItemsStyles.bodyItem,
+                        ...inlineStyles.organization_tags,
+                      }}
+                    >
+                      <ItemTags
+                        variant="list"
+                        tags={organization.organization_tags}
+                      />
+                    </div>
+                  </div>
+                )}
+              />
+            </ListItem>
+          ))}
+        </List>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+          <CreateOrganization />
+        </Can>
+      </div>
+      <SecurityMenu />
+    </div>
   );
 };
 

@@ -14,7 +14,6 @@ import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.helper.RestBehavior;
 import io.openbas.rest.organization.form.OrganizationCreateInput;
 import io.openbas.rest.organization.form.OrganizationUpdateInput;
-import io.openbas.service.UserService;
 import io.openbas.service.organization.OrganizationService;
 import io.openbas.utils.FilterUtilsJpa;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -36,19 +35,11 @@ public class OrganizationApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final OrganizationService organizationService;
 
-  private final UserService userService;
-
   @GetMapping(ORGANIZATION_URI)
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations() {
-    User currentUser = userService.currentUser();
     List<RawOrganization> organizations;
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
-      organizations = fromIterable(organizationRepository.rawAll());
-    } else {
-      organizations = fromIterable(organizationRepository.rawByUser(currentUser.getId()));
-    }
+    organizations = fromIterable(organizationRepository.rawAll());
     return organizations;
   }
 

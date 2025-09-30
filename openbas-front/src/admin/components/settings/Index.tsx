@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
+import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import Cves from './cves/Cves';
 import XlsMappers from './data_ingestion/XlsMappers';
@@ -24,6 +25,7 @@ const Index = () => {
       <Route path="security/groups" element={errorWrapper(Groups)()} />
       <Route path="security/users" element={errorWrapper(Users)()} />
       <Route path="security/roles" element={errorWrapper(Roles)()} />
+      <Route path="security/organizations" element={errorWrapper(Organizations)()} />
       <Route path="security/policies" element={errorWrapper(Policies)()} />
       <Route path="taxonomies" element={<Navigate to="tags" replace={true} />} />
       <Route path="taxonomies/tags" element={errorWrapper(Tags)()} />

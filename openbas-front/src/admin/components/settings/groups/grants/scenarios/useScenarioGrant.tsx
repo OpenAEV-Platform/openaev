@@ -24,13 +24,14 @@ const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
     dispatch(fetchGroup(groupId));
   }, [dispatch]);
 
+  useEffect(() => {
+    if (!group) return;
+    onGrantChange();
+  }, [group]);
+
   if (!group) {
     return { configs: [] };
   }
-
-  useEffect(() => {
-    onGrantChange();
-  }, [group]);
 
   const handleGrant = (scenarioId: string, grantId: string | null, grantName: GroupGrantInput['grant_name'], checked: boolean) => {
     if (checked) {
