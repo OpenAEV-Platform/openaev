@@ -5370,64 +5370,6 @@ export interface ScenarioInput {
   scenario_tags?: string[];
 }
 
-export interface ScenarioOutput {
-  /** @format int64 */
-  scenario_all_users_number?: number;
-  scenario_articles?: Article[];
-  scenario_category?: string;
-  /** @format int64 */
-  scenario_communications_number?: number;
-  /** @format date-time */
-  scenario_created_at: string;
-  scenario_custom_dashboard?: CustomDashboard;
-  scenario_description?: string;
-  scenario_documents?: Document[];
-  scenario_exercises?: Exercise[];
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
-  scenario_healthchecks?: HealthCheck[];
-  scenario_id: string;
-  scenario_injects?: InjectOutput[];
-  scenario_injects_statistics?: Record<string, number>;
-  scenario_kill_chain_phases?: KillChainPhase[];
-  scenario_lessons_anonymized?: boolean;
-  scenario_lessons_categories?: LessonsCategory[];
-  scenario_mail_from: string;
-  scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
-  scenario_message_footer?: string;
-  scenario_message_header?: string;
-  scenario_name: string;
-  scenario_observers?: User[];
-  scenario_planners?: User[];
-  scenario_platforms?: (
-    | "Linux"
-    | "Windows"
-    | "MacOS"
-    | "Container"
-    | "Service"
-    | "Generic"
-    | "Internal"
-    | "Unknown"
-  )[];
-  scenario_recurrence?: string;
-  /** @format date-time */
-  scenario_recurrence_end?: string;
-  /** @format date-time */
-  scenario_recurrence_start?: string;
-  scenario_severity?: "low" | "medium" | "high" | "critical";
-  scenario_subtitle?: string;
-  /** @uniqueItems true */
-  scenario_tags?: Tag[];
-  scenario_teams?: Team[];
-  scenario_teams_users?: ScenarioTeamUser[];
-  /** @format date-time */
-  scenario_updated_at: string;
-  scenario_users?: User[];
-  /** @format int64 */
-  scenario_users_number?: number;
-}
-
 export interface ScenarioRecurrenceInput {
   scenario_recurrence?: string;
   /** @format date-time */
