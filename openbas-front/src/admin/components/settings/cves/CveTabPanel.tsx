@@ -23,7 +23,7 @@ const CveTabPanel = ({ status, cve, children }: CveTabPanelProps) => {
       return (
         <Box padding={theme.spacing(2, 1, 0, 0)}>
           <Typography variant="body2" gutterBottom>
-            {t('There is no information about this CVE yet.')}
+            {t('There is no information about this vulnerability yet.')}
           </Typography>
         </Box>
       );
