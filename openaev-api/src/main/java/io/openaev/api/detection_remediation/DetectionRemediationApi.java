@@ -105,23 +105,7 @@ public class DetectionRemediationApi {
       if (!currentDetectionRemediation.get().getValues().isEmpty())
         throw new IllegalStateException("AI Webservice available only for empty content");
     }
-
-    return switch (collectorType) {
-      case CollectorsUtils.CROWDSTRIKE ->
-          detectionRemediationService.getRulesDetectionRemediationCrowdstrike(input);
-
-      case CollectorsUtils.MICROSOFT_DEFENDER ->
-          throw new ResponseStatusException(
-              HttpStatus.NOT_IMPLEMENTED,
-              "AI Webservice for collector type microsoft defender not implemented");
-
-      case CollectorsUtils.MICROSOFT_SENTINEL ->
-          throw new ResponseStatusException(
-              HttpStatus.NOT_IMPLEMENTED,
-              "AI Webservice for collector type microsoft sentinel not implemented");
-      default ->
-          throw new IllegalStateException("Collector :\"" + collectorType + "\" unsupported");
-    };
+    return detectionRemediationService.getRulesDetectionRemediationAI(input, collectorType);
   }
 
   @Operation(summary = "Get detection and remediation rule by inject using AI")

@@ -76,6 +76,9 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
                     value={activeTab}
                     onChange={handleActiveTabChange}
                     aria-label="tabs for payload form"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
                   >
                     {tabs.map((tab, index) => (
                       <Tab

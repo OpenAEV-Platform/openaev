@@ -6,7 +6,11 @@ const typeChar = (
   onComplete: (value: string) => void,
 ) => {
   return new Promise((resolve) => {
-    const lines = submittedText.split(/\n/);
+    const chunkSize = 40;
+    const lines: string[] = [];
+    for (let i = 0; i < submittedText.length; i += chunkSize) {
+      lines.push(submittedText.slice(i, i + chunkSize));
+    }
     let index = 0;
     let buffer = '';
 

@@ -12,9 +12,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @Service
@@ -26,15 +24,16 @@ public class DetectionRemediationService {
   private final DetectionRemediationRepository detectionRemediationRepository;
   private final CollectorService collectorService;
 
-  public String getRulesDetectionRemediationCrowdstrike(PayloadInput input) {
+  public String getRulesDetectionRemediationAI(PayloadInput input, String collector) {
 
     List<AttackPattern> attackPatterns =
         attackPatternService.getAttackPattern(input.getAttackPatternsIds());
 
     // GET rules from webservice
     DetectionRemediationRequest request = new DetectionRemediationRequest(input, attackPatterns);
-    DetectionRemediationCrowdstrikeResponse rules =
-        detectionRemediationAIService.callRemediationDetectionAIWebservice(request);
+    DetectionRemediationAIResponse rules =
+        detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collector);
+
     return rules.formateRules();
   }
 
@@ -48,7 +47,7 @@ public class DetectionRemediationService {
   }
 
   public DetectionRemediation saveDetectionRemediationRulesByAI(
-      DetectionRemediation detectionRemediation, DetectionRemediationCrowdstrikeResponse rules) {
+      DetectionRemediation detectionRemediation, DetectionRemediationAIResponse rules) {
     detectionRemediation.setValues(rules.formateRules());
     detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.AI);
 
@@ -57,33 +56,17 @@ public class DetectionRemediationService {
 
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
       List<DetectionRemediation> detectionRemediations, Payload payload, String collectorType) {
-
-    return switch (collectorType) {
-      case CollectorsUtils.CROWDSTRIKE -> {
         // GET or Create Detection remediation linked to selected payload and EDR/SIEM
         DetectionRemediation detectionRemediation =
             this.getOrCreateDetectionRemediationByCollector(
-                CollectorsUtils.CROWDSTRIKE, detectionRemediations, payload);
+            collectorType, detectionRemediations, payload);
 
         // GET AI rules from webservice
         DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
-        DetectionRemediationCrowdstrikeResponse rules =
-            detectionRemediationAIService.callRemediationDetectionAIWebservice(request);
+    DetectionRemediationAIResponse rules =
+        detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collectorType);
 
-        yield this.saveDetectionRemediationRulesByAI(detectionRemediation, rules);
-      }
-      case CollectorsUtils.MICROSOFT_DEFENDER ->
-          throw new ResponseStatusException(
-              HttpStatus.NOT_IMPLEMENTED,
-              "AI Webservice for collector type microsoft defender not implemented");
-
-      case CollectorsUtils.MICROSOFT_SENTINEL ->
-          throw new ResponseStatusException(
-              HttpStatus.NOT_IMPLEMENTED,
-              "AI Webservice for collector type microsoft sentinel not implemented");
-      default ->
-          throw new IllegalStateException("Collector :\"" + collectorType + "\" unsupported");
-    };
+    return this.saveDetectionRemediationRulesByAI(detectionRemediation, rules);
   }
 
   private DetectionRemediation getOrCreateDetectionRemediationByCollector(
