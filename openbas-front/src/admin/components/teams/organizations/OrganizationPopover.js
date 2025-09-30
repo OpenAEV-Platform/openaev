@@ -1,11 +1,15 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem, Slide } from '@mui/material';
+import {
+  Button, Dialog, DialogActions, DialogContent, DialogContentText,
+  IconButton, Menu, MenuItem, Slide,
+} from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component, forwardRef } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteOrganization, updateOrganization } from '../../../../actions/Organization';
+import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import { tagOptions } from '../../../../utils/Option';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
@@ -126,24 +130,18 @@ class OrganizationPopover extends Component {
             </Button>
           </DialogActions>
         </Dialog>
-        <Dialog
-          TransitionComponent={Transition}
+        <Drawer
           open={this.state.openEdit}
-          onClose={this.handleCloseEdit.bind(this)}
-          fullWidth={true}
-          maxWidth="md"
-          PaperProps={{ elevation: 1 }}
+          handleClose={this.handleCloseEdit.bind(this)}
+          title={t('Update the organization')}
         >
-          <DialogTitle>{t('Update the organization')}</DialogTitle>
-          <DialogContent>
-            <OrganizationForm
-              initialValues={initialValues}
-              editing={true}
-              onSubmit={this.onSubmitEdit.bind(this)}
-              handleClose={this.handleCloseEdit.bind(this)}
-            />
-          </DialogContent>
-        </Dialog>
+          <OrganizationForm
+            initialValues={initialValues}
+            editing={true}
+            onSubmit={this.onSubmitEdit.bind(this)}
+            handleClose={this.handleCloseEdit.bind(this)}
+          />
+        </Drawer>
       </div>
     );
   }
