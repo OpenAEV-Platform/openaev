@@ -1,6 +1,5 @@
 package io.openbas.rest.team;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.specification.TeamSpecification.*;
 import static io.openbas.helper.DatabaseHelper.updateRelation;
 import static io.openbas.helper.StreamHelper.fromIterable;
@@ -80,8 +79,8 @@ public class TeamApi extends RestBehavior {
   @Operation(summary = "List teams", description = "Return the teams")
   public Iterable<TeamSimple> getTeams() {
     List<RawTeam> teams;
-      // We get all the teams as raw
-      teams = fromIterable(teamRepository.rawTeams());
+    // We get all the teams as raw
+    teams = fromIterable(teamRepository.rawTeams());
 
     return TeamHelper.rawAllTeamToSimplerAllTeam(teams);
   }

@@ -25,11 +25,11 @@ const SecurityMenuComponent: FunctionComponent = () => {
       icon: () => (<LocalPoliceOutlined />),
       label: 'Policies',
     },
-      {
-          path: '/admin/settings/security/organizations',
-          icon: () => (<LocalPoliceOutlined />),
-          label: 'Organizations',
-      },
+    {
+      path: '/admin/settings/security/organizations',
+      icon: () => (<LocalPoliceOutlined />),
+      label: 'Organizations',
+    },
   ];
   return (
     <RightMenu entries={entries} />

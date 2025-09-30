@@ -1,17 +1,13 @@
 package io.openbas.rest.user;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.database.criteria.GenericCriteria.countQuery;
-import static io.openbas.database.specification.UserSpecification.accessibleFromOrganizations;
 import static io.openbas.rest.user.PlayerQueryHelper.execution;
 import static io.openbas.rest.user.PlayerQueryHelper.select;
 import static io.openbas.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openbas.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
-import io.openbas.database.model.Organization;
 import io.openbas.database.model.User;
 import io.openbas.database.repository.UserRepository;
-import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.user.form.player.PlayerOutput;
 import io.openbas.service.UserService;
 import io.openbas.utils.pagination.SearchPaginationInput;
@@ -43,7 +39,7 @@ public class PlayerService {
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
     User currentUser = userService.currentUser();
-      playersFunction = this::paginate;
+    playersFunction = this::paginate;
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 

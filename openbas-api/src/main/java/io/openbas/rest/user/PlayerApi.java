@@ -1,6 +1,5 @@
 package io.openbas.rest.user;
 
-import static io.openbas.config.SessionHelper.currentUser;
 import static io.openbas.helper.DatabaseHelper.updateRelation;
 import static io.openbas.helper.StreamHelper.fromIterable;
 import static io.openbas.helper.StreamHelper.iterableToSet;
@@ -51,7 +50,7 @@ public class PlayerApi extends RestBehavior {
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
     User currentUser = userService.currentUser();
-      players = fromIterable(userRepository.rawAllPlayers());
+    players = fromIterable(userRepository.rawAllPlayers());
     return players;
   }
 

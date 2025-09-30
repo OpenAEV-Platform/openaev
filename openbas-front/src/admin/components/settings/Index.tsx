@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
+import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import Cves from './cves/Cves';
 import XlsMappers from './data_ingestion/XlsMappers';
@@ -14,7 +15,6 @@ import Roles from './roles/Roles';
 import TagRules from './tag_rules/TagRules';
 import Tags from './tags/Tags';
 import Users from './users/Users';
-import Organizations from "../teams/Organizations";
 
 const Index = () => {
   return (
