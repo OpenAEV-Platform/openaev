@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { searchExercises } from '../../../actions/Exercise';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
-import { buildEmptyFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
-import { type ExerciseSimple, type FilterGroup, type SearchPaginationInput } from '../../../utils/api-types';
+import { type ExerciseSimple, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ImportUploaderExercise from './ImportUploaderExercise';
@@ -36,18 +35,7 @@ const Simulations = () => {
     'exercise_updated_at',
   ];
 
-  const quickFilter: FilterGroup = {
-    mode: 'and',
-    filters: [
-      buildEmptyFilter('exercise_kill_chain_phases', 'contains'),
-      buildEmptyFilter('exercise_scenario', 'contains'),
-      buildEmptyFilter('exercise_tags', 'contains'),
-    ],
-  };
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulations', buildSearchPagination({
-    sorts: initSorting('exercise_updated_at', 'DESC'),
-    filterGroup: quickFilter,
-  }));
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulations', buildSearchPagination({ sorts: initSorting('exercise_updated_at', 'DESC') }));
 
   // Export
   const exportProps = {

@@ -1,4 +1,4 @@
-import { List, Paper, Typography } from '@mui/material';
+import { List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -127,14 +127,27 @@ const Endpoint = () => {
           <div style={{
             maxHeight: theme.spacing(20),
             overflowY: 'auto',
+            overflowX: 'hidden',
             marginRight: theme.spacing(1.5),
           }}
           >
             <Typography variant="body2" gutterBottom>
-              {endpoint.endpoint_ips?.map((ip: string, index: number) => (
-                <div key={index}>
-                  {formatIp(ip)}
-                </div>
+              {endpoint.endpoint_ips?.map((ip: string) => (
+                <ListItem key={ip} disableGutters sx={{ py: 0 }}>
+                  <Tooltip title={ip}>
+                    <Typography
+                      variant="body2"
+                      noWrap
+                      sx={{
+                        maxWidth: '100%',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {formatIp(ip)}
+                    </Typography>
+                  </Tooltip>
+                </ListItem>
               ))}
             </Typography>
           </div>
@@ -148,10 +161,22 @@ const Endpoint = () => {
           }}
           >
             <Typography variant="body2" gutterBottom>
-              {endpoint.endpoint_mac_addresses?.map((mac: string, index: number) => (
-                <div key={index}>
-                  {formatMacAddress(mac)}
-                </div>
+              {endpoint.endpoint_mac_addresses?.map((mac: string) => (
+                <ListItem key={mac} disableGutters sx={{ py: 0 }}>
+                  <Tooltip title={mac}>
+                    <Typography
+                      variant="body2"
+                      noWrap
+                      sx={{
+                        maxWidth: '100%',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {formatMacAddress(mac)}
+                    </Typography>
+                  </Tooltip>
+                </ListItem>
               ))}
             </Typography>
           </div>

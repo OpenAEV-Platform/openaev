@@ -5,11 +5,9 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchStatistics } from '../../../actions/Application';
 import { searchScenarios } from '../../../actions/scenarios/scenario-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
-import { buildEmptyFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -22,7 +20,7 @@ import ItemSeverity from '../../../components/ItemSeverity';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { type FilterGroup, type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
+import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -141,19 +139,7 @@ const Scenarios = () => {
     'scenario_updated_at',
   ];
 
-  const quickFilter: FilterGroup = {
-    mode: 'and',
-    filters: [
-      buildEmptyFilter('scenario_category', 'contains'),
-      buildEmptyFilter('scenario_kill_chain_phases', 'contains'),
-      buildEmptyFilter('scenario_tags', 'contains'),
-    ],
-  };
-
-  const { queryableHelpers, searchPaginationInput, setSearchPaginationInput } = useQueryableWithLocalStorage('scenarios', buildSearchPagination({
-    sorts: initSorting('scenario_updated_at', 'DESC'),
-    filterGroup: quickFilter,
-  }));
+  const { queryableHelpers, searchPaginationInput, setSearchPaginationInput } = useQueryableWithLocalStorage('scenarios', buildSearchPagination({ sorts: initSorting('scenario_updated_at', 'DESC') }));
 
   // Export
   const exportProps = {
@@ -283,12 +269,7 @@ const Scenarios = () => {
         }
       </List>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <ScenarioCreation
-          onCreate={(result: Scenario) => {
-            setScenarios([result, ...scenarios]);
-            fetchStatistics();
-          }}
-        />
+        <ScenarioCreation />
       </Can>
     </>
   );

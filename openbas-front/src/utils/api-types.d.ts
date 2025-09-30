@@ -4737,22 +4737,6 @@ export interface PlatformSettings {
   xtm_opencti_url?: string;
 }
 
-export interface PlatformStatistic {
-  asset_groups_count?: StatisticElement;
-  assets_count?: StatisticElement;
-  exercises_count?: StatisticElement;
-  exercises_count_by_category?: Record<string, number>;
-  exercises_count_by_week?: Record<string, number>;
-  expectation_results?: ExpectationResultsByType[];
-  inject_expectation_results?: InjectExpectationResultsByAttackPattern[];
-  injects_count?: StatisticElement;
-  injects_count_by_attack_pattern?: Record<string, number>;
-  platform_id?: string;
-  scenarios_count?: StatisticElement;
-  teams_count?: StatisticElement;
-  users_count?: StatisticElement;
-}
-
 export interface PlayerInput {
   /** @pattern ^\+[\d\s\-.()]+$ */
   user_phone2?: string;
@@ -5493,13 +5477,6 @@ export interface SortObject {
   ignoreCase?: boolean;
   nullHandling?: string;
   property?: string;
-}
-
-export interface StatisticElement {
-  /** @format int64 */
-  global_count?: number;
-  /** @format int64 */
-  progression_count?: number;
 }
 
 export interface StatusPayload {
