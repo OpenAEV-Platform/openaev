@@ -21,6 +21,7 @@ import ItemStatus from '../../../../../../../components/ItemStatus';
 import { useHelper } from '../../../../../../../store';
 import { type EsBase } from '../../../../../../../utils/api-types';
 import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
+import { computeInjectExpectationLabel } from '../../../../../../../utils/statusUtils';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -83,8 +84,17 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
         attackPatterns,
       });
     }
+    let text;
 
-    const text = value?.toString() ?? '';
+    if (element.base_entity === 'expectation-inject' && column === 'inject_expectation_status') {
+      const expectation = element as Extract<EsBase, { base_entity: 'expectation-inject' }>;
+      const expectation_status = expectation.inject_expectation_status;
+      const expectation_type = expectation.inject_expectation_type;
+
+      text = computeInjectExpectationLabel(expectation_status, expectation_type) ?? '';
+    } else {
+      text = value?.toString() ?? '';
+    }
 
     if (column.toLowerCase().includes('status')) {
       return (

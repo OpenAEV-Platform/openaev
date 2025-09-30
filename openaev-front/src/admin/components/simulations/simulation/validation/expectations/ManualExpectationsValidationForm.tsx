@@ -25,7 +25,7 @@ import { useHelper } from '../../../../../../store';
 import { type Team, type User } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { computeColorStyle } from '../../../../../../utils/statusColors';
+import { computeStatusStyle } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
@@ -116,7 +116,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
         {withSummary && (
           <Chip
             classes={{ root: classes.chipInList }}
-            style={computeColorStyle(expectation.inject_expectation_status)}
+            style={computeStatusStyle(expectation.inject_expectation_status)}
             label={t(computeLabel(expectation.inject_expectation_status))}
           />
         )}

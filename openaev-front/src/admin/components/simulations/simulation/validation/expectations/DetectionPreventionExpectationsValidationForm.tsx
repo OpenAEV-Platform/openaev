@@ -11,7 +11,7 @@ import { updateInjectExpectation } from '../../../../../../actions/Exercise';
 import ExpandableText from '../../../../../../components/common/ExpendableText';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
 import { useFormatter } from '../../../../../../components/i18n';
-import ItemResult from '../../../../../../components/ItemResult';
+import ItemStatus from '../../../../../../components/ItemStatus';
 import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
@@ -92,7 +92,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
     <form id="expectationForm" onSubmit={handleSubmit(onSubmit)}>
       {result && (
         <div style={{ float: 'right' }}>
-          <ItemResult label={result?.result} status={result?.result} />
+          <ItemStatus label={result?.result} status={result?.result} />
         </div>
       )}
       <Typography variant="h3">{t('Name')}</Typography>

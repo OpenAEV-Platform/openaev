@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { donutChartOptions } from '../../../../../../utils/Charts';
-import { getStatusColor } from '../../../../../../utils/statusColors';
+import { getStatusColor } from '../../../../../../utils/statusUtils';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 
 interface Props {

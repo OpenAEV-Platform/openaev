@@ -8,15 +8,16 @@ import { deleteInjectExpectationResult } from '../../../../../actions/Exercise';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
-import ItemResult from '../../../../../components/ItemResult';
+import ItemStatus from '../../../../../components/ItemStatus';
 import type { InjectExpectationResult, InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
+import { computeInjectExpectationLabel } from '../../../../../utils/statusUtils';
 import { emptyFilled } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
-import { HUMAN_EXPECTATION, isManualExpectation, isTechnicalExpectation } from '../../../common/injects/expectations/ExpectationUtils';
+import { isManualExpectation, isTechnicalExpectation } from '../../../common/injects/expectations/ExpectationUtils';
 import { isAgentExpectation, isAssetExpectation, isAssetGroupExpectation, isPlayerExpectation, useIsManuallyUpdatable } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
 import ExpirationChip from '../ExpirationChip';
 import TargetResultsSecurityPlatform from '../TargetResultsSecurityPlatform';
@@ -57,28 +58,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
   const [openDeleteResult, setOpenDeleteResult] = useState<boolean>(false);
   const [openSecurityPlatform, setOpenSecurityPlatform] = useState<boolean>(false);
 
-  let statusResult;
-  if (injectExpectation.inject_expectation_status === 'SUCCESS' && injectExpectation.inject_expectation_type === 'PREVENTION') {
-    statusResult = 'Prevented';
-  } else if (injectExpectation.inject_expectation_status === 'SUCCESS' && injectExpectation.inject_expectation_type === 'DETECTION') {
-    statusResult = 'Detected';
-  } else if (injectExpectation.inject_expectation_status === 'SUCCESS' && injectExpectation.inject_expectation_type === 'VULNERABILITY') {
-    statusResult = 'Not vulnerable';
-  } else if (injectExpectation.inject_expectation_status === 'FAILED' && injectExpectation.inject_expectation_type === 'PREVENTION') {
-    statusResult = 'Not Prevented';
-  } else if (injectExpectation.inject_expectation_status === 'FAILED' && injectExpectation.inject_expectation_type === 'DETECTION') {
-    statusResult = 'Not Detected';
-  } else if (injectExpectation.inject_expectation_status === 'FAILED' && injectExpectation.inject_expectation_type === 'VULNERABILITY') {
-    statusResult = 'Vulnerable';
-  } else if (injectExpectation.inject_expectation_status === 'PARTIAL' && injectExpectation.inject_expectation_type === 'DETECTION') {
-    statusResult = 'Partially Detected';
-  } else if (injectExpectation.inject_expectation_status === 'PARTIAL' && injectExpectation.inject_expectation_type === 'PREVENTION') {
-    statusResult = 'Partially Prevented';
-  } else if (injectExpectation.inject_expectation_status === 'PARTIAL' && injectExpectation.inject_expectation_type === 'VULNERABILITY') {
-    statusResult = 'Partially vulnerable';
-  } else if (injectExpectation.inject_expectation_status && HUMAN_EXPECTATION.includes(injectExpectation.inject_expectation_type)) {
-    statusResult = injectExpectation.inject_expectation_status;
-  }
+  const statusResult = computeInjectExpectationLabel(injectExpectation.inject_expectation_status, injectExpectation.inject_expectation_type);
 
   const onCloseEditResultMenu = () => {
     setAnchorEditButton(null);
@@ -171,7 +151,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
           <Typography style={{ marginRight: 'auto' }} variant="h5">{injectExpectation.inject_expectation_name}</Typography>
           {injectExpectation.inject_expectation_score !== null && (
             <>
-              <ItemResult label={t(`${statusResult}`)} status={injectExpectation.inject_expectation_status} />
+              <ItemStatus label={t(`${statusResult}`)} status={injectExpectation.inject_expectation_status} />
               <Tooltip title={t('Score')}>
                 <Chip
                   classes={{ root: classes.score }}

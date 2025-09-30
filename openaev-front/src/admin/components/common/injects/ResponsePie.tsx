@@ -8,7 +8,7 @@ import { Link } from 'react-router';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type ResultDistribution } from '../../../../utils/api-types';
 import { donutChartOptions } from '../../../../utils/Charts';
-import { getStatusColor } from '../../../../utils/statusColors';
+import { getStatusColor } from '../../../../utils/statusUtils';
 import { expectationResultTypes } from './expectations/Expectation';
 
 interface Props {

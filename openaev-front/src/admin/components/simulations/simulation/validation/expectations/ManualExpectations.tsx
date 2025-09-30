@@ -15,7 +15,7 @@ import { useHelper } from '../../../../../../store';
 import { type Inject, type User } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { computeColorStyle } from '../../../../../../utils/statusColors';
+import { computeStatusStyle } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { PermissionsContext } from '../../../../common/Context';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
@@ -278,7 +278,7 @@ const ManualExpectations: FunctionComponent<Props> = ({
                         <Chip label={e.inject_expectation_score ?? 0} style={{ marginRight: 8 }} />
                         <Chip
                           classes={{ root: classes.chipStatusAcc }}
-                          style={computeColorStyle(e.inject_expectation_status)}
+                          style={computeStatusStyle(e.inject_expectation_status)}
                           label={t(computeLabel(e.inject_expectation_status))}
                         />
                       </div>

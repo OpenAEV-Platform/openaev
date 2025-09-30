@@ -2,7 +2,7 @@ import { Chip, Tooltip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { computeStatusStyle } from '../utils/statusColors';
+import { computeStatusStyle } from '../utils/statusUtils';
 import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(() => ({

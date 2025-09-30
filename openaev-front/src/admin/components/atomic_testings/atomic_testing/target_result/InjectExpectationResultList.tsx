@@ -14,7 +14,7 @@ import { useTheme } from '@mui/material/styles';
 import { type MouseEvent as ReactMouseEvent, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import ItemResult from '../../../../../components/ItemResult';
+import ItemStatus from '../../../../../components/ItemStatus';
 import {
   type Inject,
   type InjectExpectation,
@@ -151,7 +151,12 @@ const InjectExpectationResultList = ({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {expectationResult.result && <ItemResult label={t(expectationResult.result)} status={expectationResult.result} />}
+                  {expectationResult.result && (
+                    <ItemStatus
+                      label={t(expectationResult.result)}
+                      status={expectationResult.result}
+                    />
+                  )}
                 </TableCell>
                 <TableCell>
                   {(expectationResult.result === 'Prevented' || expectationResult.result === 'Detected' || expectationResult.result === 'SUCCESS')
