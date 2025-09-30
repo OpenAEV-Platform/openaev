@@ -120,7 +120,7 @@ const Organizations = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Teams') }, {
+          elements={[{ label: t('Settings') }, { label: t('Security') }, {
             label: t('Organizations'),
             current: true,
           }]}
