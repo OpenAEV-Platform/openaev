@@ -115,6 +115,7 @@ const styles = theme => ({
     display: 'flex',
   },
   formControl: { width: '100%' },
+  formControlPanel: { width: '100%' },
   stepType: {
     margin: 0,
     paddingRight: 20,
@@ -716,7 +717,7 @@ class ToolBar extends Component {
                     >
                       <CancelOutlined fontSize="small" />
                     </IconButton>
-                    <Grid container={true} spacing={3}>
+                    <Grid container={true} spacing={3} className={classes.formControlPanel}>
                       <Grid size={{ xs: 3 }}>
                         <FormControl className={classes.formControl}>
                           <InputLabel>{t('Action type')}</InputLabel>
