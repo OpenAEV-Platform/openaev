@@ -259,7 +259,6 @@ const Organizations = () => {
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
           <CreateOrganization />
         </Can>
-        <SecurityMenu />
       </div>
       <SecurityMenu />
     </div>
