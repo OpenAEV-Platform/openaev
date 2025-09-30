@@ -9,8 +9,16 @@ import type { Organization, SearchPaginationInput } from '../../../../../../util
 import TableData from '../ui/TableData';
 import useOrganizationGrant from './useOrganizationGrant';
 
-const GroupManageOrganizationGrants = ({ groupId }: { groupId: string }) => {
-  const { configs } = useOrganizationGrant(groupId);
+interface GroupManageOrganizationGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const GroupManageOrganizationGrants = ({ groupId, onGrantChange }: GroupManageOrganizationGrantsProps) => {
+  const { configs } = useOrganizationGrant({
+    groupId,
+    onGrantChange,
+  });
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 

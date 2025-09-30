@@ -10,7 +10,12 @@ import { type Grant, type GroupGrantInput, type Payload } from '../../../../../.
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import { type TableConfig } from '../ui/TableData';
 
-const usePayloadGrant = (groupId: string) => {
+interface PayloadGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const usePayloadGrant = ({ groupId, onGrantChange }: PayloadGrantsProps) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
@@ -22,6 +27,10 @@ const usePayloadGrant = (groupId: string) => {
   if (!group) {
     return { configs: [] };
   }
+
+  useEffect(() => {
+    onGrantChange();
+  }, [group]);
 
   const handleGrant = (payloadId: string, grantId: string | null, grantName: GroupGrantInput['grant_name'], checked: boolean) => {
     if (checked) {

@@ -9,8 +9,16 @@ import type { Payload, SearchPaginationInput } from '../../../../../../utils/api
 import TableData from '../ui/TableData';
 import usePayloadGrant from './usePayloadGrant';
 
-const GroupManagePayloadGrants = ({ groupId }: { groupId: string }) => {
-  const { configs } = usePayloadGrant(groupId);
+interface GroupManagePayloadGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const GroupManagePayloadGrants = ({ groupId, onGrantChange }: GroupManagePayloadGrantsProps) => {
+  const { configs } = usePayloadGrant({
+    groupId,
+    onGrantChange,
+  });
   const [payloads, setPayloads] = useState<Payload[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 

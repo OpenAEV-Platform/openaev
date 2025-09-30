@@ -14,7 +14,7 @@ import { AbilityContext } from '../../../../utils/permissions/PermissionsProvide
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
-import { updateDefaultDashboardsInParameters } from './customDashboardUtils';
+import updateDefaultDashboardsInParameters from './customDashboardUtils';
 
 interface Props {
   customDashboard: CustomDashboard;
@@ -52,7 +52,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
         toggleModal(null);
       }
     },
-    [customDashboard.custom_dashboard_id, onUpdate],
+    [customDashboard.custom_dashboard_id, onUpdate, settings],
   );
 
   const submitExport = async () => {

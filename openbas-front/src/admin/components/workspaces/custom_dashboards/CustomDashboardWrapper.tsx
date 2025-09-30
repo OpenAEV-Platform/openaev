@@ -7,7 +7,7 @@ import Loader from '../../../../components/Loader';
 import type {
   CustomDashboard,
   EsAttackPath,
-  EsBase,
+  EsBase, EsCountInterval,
   EsSeries,
   WidgetToEntitiesInput,
   WidgetToEntitiesOutput,
@@ -25,7 +25,7 @@ interface CustomDashboardConfiguration {
   canChooseDashboard?: boolean;
   handleSelectNewDashboard?: (dashboardId: string) => void; // ==onCustomDashboardIdChange
   fetchCustomDashboard: () => Promise<AxiosResponse<CustomDashboard>>;
-  fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<number>>;
+  fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
   fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsBase[]>>;
   fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => Promise<AxiosResponse<WidgetToEntitiesOutput>>;

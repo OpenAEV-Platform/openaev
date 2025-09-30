@@ -10,7 +10,12 @@ import { type Exercise, type Grant, type GroupGrantInput } from '../../../../../
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import type { TableConfig } from '../ui/TableData';
 
-const useSimulationGrant = (groupId: string) => {
+interface SimulationGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const useSimulationGrant = ({ groupId, onGrantChange }: SimulationGrantsProps) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
@@ -22,6 +27,10 @@ const useSimulationGrant = (groupId: string) => {
   if (!group) {
     return { configs: [] };
   }
+
+  useEffect(() => {
+    onGrantChange();
+  }, [group]);
 
   const handleGrant = (exerciseId: string, grantId: string | null, grantName: GroupGrantInput['grant_name'], checked: boolean) => {
     if (checked) {

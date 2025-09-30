@@ -10,7 +10,12 @@ import { type Organization } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import { type TableConfig } from '../ui/TableData';
 
-const useOrganizationGrant = (groupId: string) => {
+interface OrganizationGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const useOrganizationGrant = ({ groupId, onGrantChange }: OrganizationGrantsProps) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
@@ -22,6 +27,10 @@ const useOrganizationGrant = (groupId: string) => {
   if (!group) {
     return { configs: [] };
   }
+
+  useEffect(() => {
+    onGrantChange();
+  }, [group]);
 
   const handleGrant = (organizationId: string, checked: boolean) => {
     if (checked) {

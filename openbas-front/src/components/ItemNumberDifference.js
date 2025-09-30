@@ -8,20 +8,19 @@ import inject18n from './i18n';
 
 const styles = theme => ({
   diff: {
-    float: 'left',
-    margin: '23px 0 0 10px',
-    padding: '2px 5px 2px 5px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: theme.spacing(0, 1, 0, 1),
     fontSize: 12,
   },
   diffDescription: {
-    margin: '2px 0 0 10px',
     float: 'left',
     fontSize: 9,
     color: theme.palette.text.primary,
   },
   diffIcon: {
     float: 'left',
-    margin: '1px 5px 0 0',
+    margin: theme.spacing(1, 1, 1, 0),
     fontSize: 13,
   },
   diffNumber: { float: 'left' },

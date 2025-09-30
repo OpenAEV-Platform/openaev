@@ -9,8 +9,16 @@ import type { Exercise, SearchPaginationInput } from '../../../../../../utils/ap
 import TableData from '../ui/TableData';
 import useSimulationGrant from './useSimulationGrant';
 
-const GroupManageSimulationGrants = ({ groupId }: { groupId: string }) => {
-  const { configs } = useSimulationGrant(groupId);
+interface GGroupManageSimulationGrantsProps {
+  groupId: string;
+  onGrantChange: () => void;
+}
+
+const GroupManageSimulationGrants = ({ groupId, onGrantChange }: GGroupManageSimulationGrantsProps) => {
+  const { configs } = useSimulationGrant({
+    groupId,
+    onGrantChange,
+  });
   const [simulations, setSimulations] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 

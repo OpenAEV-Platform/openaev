@@ -6,6 +6,7 @@ import io.openbas.database.raw.RawUserAuth;
 import io.openbas.engine.api.*;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import java.io.IOException;
 import java.util.List;
@@ -44,9 +45,10 @@ public interface EngineService {
    *
    * @param user the user to use
    * @param runtime the count runtime to use
-   * @return a count
+   * @return a count object, including the current and previous interval count and the difference
+   *     between the two
    */
-  long count(RawUserAuth user, CountRuntime runtime);
+  EsCountInterval count(RawUserAuth user, CountRuntime runtime);
 
   /**
    * Get the series in a Histogram model

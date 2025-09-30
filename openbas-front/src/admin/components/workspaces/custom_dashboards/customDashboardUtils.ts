@@ -8,28 +8,50 @@ const updateDefaultDashboardsInParameters = (
   updatePlatformParameters: (data: PlatformSettings) => void,
 ) => {
   let defaultDashboardsChanged = false;
-  const defaultDashboards = {
-    platform_home_dashboard: settings.platform_home_dashboard,
-    platform_scenario_dashboard: settings.platform_scenario_dashboard,
-    platform_simulation_dashboard: settings.platform_simulation_dashboard,
+  let updatedSettings = {} as Partial<PlatformSettings>;
+
+  const getDefaultDashboardId = (isChecked: boolean, currentDefault = '') => {
+    if (isChecked) return customDashboardId;
+    return currentDefault === customDashboardId ? '' : currentDefault;
   };
-  ([
-    ['is_default_home_dashboard', 'platform_home_dashboard'],
-    ['is_default_scenario_dashboard', 'platform_scenario_dashboard'],
-    ['is_default_simulation_dashboard', 'platform_simulation_dashboard'],
-  ] as [keyof CustomDashboardFormType, keyof typeof defaultDashboards][]).forEach((a) => {
-    if (data[a[0]]) {
-      defaultDashboards[a[1]] = customDashboardId;
+
+  const dashboardConfigs = [
+    {
+      settingsKey: 'platform_home_dashboard',
+      formKey: 'is_default_home_dashboard',
+    },
+    {
+      settingsKey: 'platform_scenario_dashboard',
+      formKey: 'is_default_scenario_dashboard',
+    },
+    {
+      settingsKey: 'platform_simulation_dashboard',
+      formKey: 'is_default_simulation_dashboard',
+    },
+  ] as {
+    settingsKey: keyof PlatformSettings;
+    formKey: keyof CustomDashboardFormType;
+  }[];
+
+  dashboardConfigs.forEach(({ settingsKey, formKey }) => {
+    const currentDefault = settings[settingsKey] as string;
+    const newDefault = getDefaultDashboardId(data[formKey] as boolean, currentDefault);
+
+    if (currentDefault !== newDefault) {
       defaultDashboardsChanged = true;
+      updatedSettings = {
+        ...updatedSettings,
+        [settingsKey]: newDefault,
+      };
     }
   });
+
   if (defaultDashboardsChanged) {
     updatePlatformParameters({
       ...settings,
-      ...defaultDashboards,
+      ...updatedSettings,
     });
   }
 };
 
-// eslint-disable-next-line import/prefer-default-export
-export { updateDefaultDashboardsInParameters };
+export default updateDefaultDashboardsInParameters;

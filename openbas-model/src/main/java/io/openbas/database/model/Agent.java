@@ -73,7 +73,7 @@ public class Agent implements Base {
   @NotNull
   private DEPLOYMENT_MODE deploymentMode;
 
-  @Queryable(sortable = true, filterable = true)
+  @Queryable(sortable = true, filterable = true, searchable = true)
   @Column(name = "agent_executed_by_user")
   @JsonProperty("agent_executed_by_user")
   @NotBlank
@@ -143,12 +143,6 @@ public class Agent implements Base {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.AGENT;
-
-  @JsonIgnore
-  @Transient
-  public String getTargetDisplayName() {
-    return getExecutedByUser() + " (" + getAsset().getName() + ")";
-  }
 
   @Override
   public int hashCode() {

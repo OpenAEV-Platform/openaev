@@ -534,56 +534,37 @@ public class PlatformSettingsService {
       Boolean shouldSendConnectivityEmail) {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
 
+    Map<SettingKeys, String> xtmhubSettingsMap = new HashMap<>();
+    xtmhubSettingsMap.put(XTM_HUB_TOKEN, token);
+    xtmhubSettingsMap.put(
+        XTM_HUB_REGISTRATION_DATE, registrationDate != null ? registrationDate.toString() : null);
+    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_STATUS, registrationStatus.label);
+    xtmhubSettingsMap.put(
+        XTM_HUB_REGISTRATION_USER_ID, registerer != null ? registerer.id() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_REGISTRATION_USER_NAME, registerer != null ? registerer.name() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_LAST_CONNECTIVITY_CHECK,
+        lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null);
+    xtmhubSettingsMap.put(
+        XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL,
+        shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
+
     List<Setting> settingsToSave = new ArrayList<>();
+    List<String> settingsIdsToDelete = new ArrayList<>();
 
-    settingsToSave.add(resolveFromMap(dbSettings, XTM_HUB_TOKEN.key(), token));
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            XTM_HUB_REGISTRATION_DATE.key(),
-            registrationDate != null ? registrationDate.toString() : null));
-    settingsToSave.add(
-        resolveFromMap(dbSettings, XTM_HUB_REGISTRATION_STATUS.key(), registrationStatus.label));
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            XTM_HUB_REGISTRATION_USER_ID.key(),
-            registerer != null ? registerer.id() : null));
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            XTM_HUB_REGISTRATION_USER_NAME.key(),
-            registerer != null ? registerer.name() : null));
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
-            lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null));
-    settingsToSave.add(
-        resolveFromMap(
-            dbSettings,
-            XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
-            shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null));
-
-    List<Setting> update = new ArrayList<>();
-    List<String> delete = new ArrayList<>();
-
-    settingsToSave.forEach(
-        setting -> {
-          if (StringUtils.hasText(setting.getValue())) {
-            update.add(setting);
-          } else if (StringUtils.hasText(setting.getId())) {
-            delete.add(setting.getId());
+    xtmhubSettingsMap.forEach(
+        (settingKey, value) -> {
+          if (value != null) {
+            settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
+          } else if (dbSettings.get(settingKey.key()) != null) {
+            entityManager.detach(dbSettings.get(settingKey.key()));
+            settingsIdsToDelete.add(dbSettings.get(settingKey.key()).getId());
           }
         });
 
-    settingRepository.deleteAllById(delete);
-    entityManager.flush();
-
-    settingRepository.saveAll(update);
-    entityManager.flush();
-
-    entityManager.clear();
+    settingRepository.deleteAllById(settingsIdsToDelete);
+    settingRepository.saveAll(settingsToSave);
 
     return findSettings();
   }

@@ -1,5 +1,5 @@
-import { OpenInFullOutlined } from '@mui/icons-material';
-import { Box, IconButton, Paper, Typography } from '@mui/material';
+import { InfoOutlined, OpenInFullOutlined } from '@mui/icons-material';
+import { Box, darken, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useEffect, useState } from 'react';
 import RGL, { type Layout, WidthProvider } from 'react-grid-layout';
@@ -24,6 +24,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
   const { t } = useFormatter();
   const [fullscreenWidgets, setFullscreenWidgets] = useState<Record<Widget['widget_id'], boolean | never>>({});
   const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
+  const [tooltipMessage, setTooltipMessage] = useState<React.ReactNode>('');
+
   const [idToResize, setIdToResize] = useState<string | null>(null);
   const handleResize = (updatedWidget: string | null) => setIdToResize(updatedWidget);
 
@@ -115,6 +117,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
           ...fullscreenWidgets,
           [widget.widget_id]: fullscreen,
         });
+        // Make the theme.info.main color a bit darker
+        const darkerInfoStyle = darken(theme.palette.info.main, 0.7);
         return (
           <Paper
             key={widget.widget_id}
@@ -129,23 +133,50 @@ const CustomDashboardReactLayout: FunctionComponent<{
             <Box
               display="flex"
               flexDirection="row"
-              justifyContent="space-between"
               alignItems="center"
             >
-              <Typography
-                variant="h4"
-                sx={{
-                  margin: 0,
-                  paddingLeft: theme.spacing(2),
-                  paddingTop: theme.spacing(2.5),
-                  textTransform: 'uppercase',
-                }}
-              >
-                {getWidgetTitle(widget.widget_config.title, widget.widget_type, t)}
-              </Typography>
               <Box
                 display="flex"
                 flexDirection="row"
+                alignItems="center"
+                paddingTop={theme.spacing(2.5)}
+              >
+                <Typography
+                  variant="h4"
+                  sx={{
+                    margin: 0,
+                    paddingLeft: theme.spacing(2),
+                    paddingRight: theme.spacing(1),
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {getWidgetTitle(widget.widget_config.title, widget.widget_type, t)}
+                </Typography>
+                {'number' === widget.widget_type && (
+                  <Tooltip
+                    title={tooltipMessage}
+                    placement="right"
+                    slotProps={{
+                      tooltip: {
+                        sx: {
+                          bgcolor: darkerInfoStyle,
+                          color: theme.palette.getContrastText(darkerInfoStyle),
+                          boxShadow: theme.shadows[1],
+                        },
+                      },
+                    }}
+                  >
+                    <InfoOutlined
+                      fontSize="small"
+                      color="primary"
+                    />
+                  </Tooltip>
+                )}
+              </Box>
+              <Box
+                display="flex"
+                flexDirection="row"
+                marginLeft="auto"
               >
                 {widget.widget_type === 'security-coverage' && (
                   <IconButton
@@ -184,6 +215,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
                     widget={widget}
                     fullscreen={fullscreenWidgets[widget.widget_id]}
                     setFullscreen={setFullscreen}
+                    setTooltipMessage={setTooltipMessage}
                   />
                 </Box>
               )}
