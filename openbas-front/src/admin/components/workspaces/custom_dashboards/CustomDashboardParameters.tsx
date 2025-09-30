@@ -87,38 +87,27 @@ const CustomDashboardParameters: FunctionComponent = () => {
 
   return (
     <div style={{
-      display: 'flex',
-      width: '100%',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 330px))',
+      gap: theme.spacing(2),
     }}
     >
       {paramsFields.length > 0 && (
-        <div style={{ width: '40%' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 330px))',
-              gap: theme.spacing(2),
-            }}
-          >
-            {paramsFields}
-          </div>
-        </div>
+        <>{paramsFields}</>
       )}
       {dateParameters.size > 0 && (
-        <div style={{ width: '60%' }}>
-          <TimeRangeFilters
-            timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
-            handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
-            startDateValue={getParameter(dateParameters.get('startDate'))?.value}
-            handleStartDate={data => handleParametersValue(dateParameters.get('startDate'), data)}
-            endDateValue={getParameter(dateParameters.get('endDate'))?.value}
-            handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
-          />
-        </div>
+        <TimeRangeFilters
+          timeRangeValue={getParameter(dateParameters.get('timeRange'))?.value ?? LAST_QUARTER_TIME_RANGE}
+          handleTimeRange={data => handleParametersValue(dateParameters.get('timeRange'), data)}
+          startDateValue={getParameter(dateParameters.get('startDate'))?.value}
+          handleStartDate={data => handleParametersValue(dateParameters.get('startDate'), data)}
+          endDateValue={getParameter(dateParameters.get('endDate'))?.value}
+          handleEndDate={data => handleParametersValue(dateParameters.get('endDate'), data)}
+        />
 
       )}
-
     </div>
+
   );
 };
 
