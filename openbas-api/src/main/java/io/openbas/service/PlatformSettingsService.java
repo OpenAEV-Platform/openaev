@@ -553,7 +553,7 @@ public class PlatformSettingsService {
     xtmhubSettingsMap.put(
         XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
         shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
-    
+
     // Transaction 1: Perform modifications
     transactionTemplate.execute(
         status -> {
