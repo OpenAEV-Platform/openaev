@@ -558,13 +558,16 @@ public class PlatformSettingsService {
           if (value != null) {
             settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
           } else if (dbSettings.get(settingKey.key()) != null) {
-            entityManager.detach(dbSettings.get(settingKey.key()));
+            entityManager.refresh(dbSettings.get(settingKey.key()));
             settingsIdsToDelete.add(dbSettings.get(settingKey.key()).getId());
           }
         });
 
     settingRepository.deleteAllById(settingsIdsToDelete);
     settingRepository.saveAll(settingsToSave);
+
+    entityManager.flush();
+    entityManager.clear();
 
     return findSettings();
   }
