@@ -24,6 +24,7 @@ import { truncate } from '../../../utils/String';
 import TagsFilter from '../common/filters/TagsFilter';
 import CreateOrganization from './organizations/CreateOrganization';
 import OrganizationPopover from './organizations/OrganizationPopover';
+import SecurityMenu from "../settings/SecurityMenu";
 
 const useStyles = makeStyles()(() => ({
   parameters: {
@@ -115,7 +116,8 @@ const Organizations = () => {
   const sortedOrganizations: Organization[] = filtering.filterAndSort(organizations);
 
   return (
-    <>
+      <div style={{ display: 'flex' }}>
+          <div style={{ flexGrow: 1 }}>
       <Breadcrumbs
         variant="list"
         elements={[{ label: t('Teams') }, {
@@ -257,8 +259,10 @@ const Organizations = () => {
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
         <CreateOrganization />
       </Can>
-
-    </>
+        <SecurityMenu />
+          </div>
+          <SecurityMenu />
+      </div>
   );
 };
 
