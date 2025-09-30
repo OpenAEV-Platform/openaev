@@ -1,9 +1,9 @@
 import {
-    DomainOutlined,
-    GroupsOutlined,
-    LocalPoliceOutlined,
-    PermIdentityOutlined,
-    SecurityOutlined
+  DomainOutlined,
+  GroupsOutlined,
+  LocalPoliceOutlined,
+  PermIdentityOutlined,
+  SecurityOutlined,
 } from '@mui/icons-material';
 import { type FunctionComponent, memo } from 'react';
 
