@@ -7,6 +7,7 @@ import io.openbas.database.model.CustomDashboard;
 import io.openbas.database.model.ResourceType;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.query.EsAttackPath;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.CustomDashboardService;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
@@ -26,13 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/settings")
 @RestController
@@ -132,7 +127,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PostMapping("/home-dashboard/count/{widgetId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public long homeDashboardCount(
+  public EsCountInterval homeDashboardCount(
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return customDashboardService.homeDashboardCount(widgetId, parameters);

@@ -2,7 +2,6 @@ package io.openbas.service;
 
 import static io.openbas.utils.CustomDashboardQueryUtils.*;
 import static io.openbas.utils.ElasticUtils.*;
-import static io.openbas.utils.ElasticUtils.buildDateRangeQuery;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
@@ -31,6 +30,7 @@ import io.openbas.engine.api.*;
 import io.openbas.engine.api.WidgetConfiguration.Series;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.engine.query.EsSeriesData;
 import io.openbas.exception.AnalyticsEngineException;
@@ -40,6 +40,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -440,10 +441,8 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region query
-  public long count(RawUserAuth user, CountRuntime runtime) {
+  public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
-
-    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
 
     try {
       Query countQuery =
@@ -457,26 +456,58 @@ public class ElasticService implements EngineService {
                   .getFilter(), // 1 count = 1 serie limit = 1 filter group
               runtime.getParameters(),
               runtime.getDefinitionParameters());
-      Query query;
       if (isAllTime(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters())) {
-        query = queryBuilder.must(countQuery).build()._toQuery();
+        BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+        Query query = queryBuilder.must(countQuery).build()._toQuery();
+        long allTimeCount =
+            elasticClient
+                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
+                .count();
+        return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
-        Instant finalStart =
+        // Compute the current interval count
+        BoolQuery.Builder currentBuilder = new BoolQuery.Builder();
+        Instant currentIntervalStart =
             calcStartDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
-        Instant finalEnd =
+        Instant currentIntervalEnd =
             calcEndDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
-        Query dateRangeQuery =
-            buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
-        query = queryBuilder.must(dateRangeQuery, countQuery).build()._toQuery();
+        Query currentIntervalDateRangeQuery =
+            buildDateRangeQuery(
+                widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
+        Query currentIntervalQuery =
+            currentBuilder.must(currentIntervalDateRangeQuery, countQuery).build()._toQuery();
+        long currentIntervalCount =
+            elasticClient
+                .count(
+                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count();
+
+        // Compute the previous interval
+        BoolQuery.Builder previousBuilder = new BoolQuery.Builder();
+        // In our case, to avoid any gap, currentIntervalStart = previousIntervalEnd
+        Duration intervalDuration = Duration.between(currentIntervalStart, currentIntervalEnd);
+        Instant previousIntervalStart = currentIntervalStart.minus(intervalDuration);
+
+        Query previousIntervalDateRangeQuery =
+            buildDateRangeQuery(
+                widgetConfig.getDateAttribute(), previousIntervalStart, currentIntervalStart);
+        Query previousIntervalQuery =
+            previousBuilder.must(previousIntervalDateRangeQuery, countQuery).build()._toQuery();
+        long previousIntervalCount =
+            elasticClient
+                .count(
+                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count();
+
+        return new EsCountInterval(
+            currentIntervalCount,
+            previousIntervalCount,
+            currentIntervalCount - previousIntervalCount);
       }
-      Query finalQuery = query;
-      return elasticClient
-          .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(finalQuery))
-          .count();
     } catch (IOException e) {
       log.error(String.format("count exception: %s", e.getMessage()), e);
     }
-    return 0;
+    return new EsCountInterval(0L, 0L, 0L);
   }
 
   public EsSeries termHistogram(

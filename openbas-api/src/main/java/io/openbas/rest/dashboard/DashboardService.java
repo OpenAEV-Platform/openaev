@@ -11,6 +11,7 @@ import io.openbas.engine.api.*;
 import io.openbas.engine.model.EsBase;
 import io.openbas.engine.model.EsSearch;
 import io.openbas.engine.query.EsAttackPath;
+import io.openbas.engine.query.EsCountInterval;
 import io.openbas.engine.query.EsSeries;
 import io.openbas.rest.custom_dashboard.WidgetService;
 import io.openbas.rest.dashboard.model.WidgetToEntitiesInput;
@@ -39,9 +40,10 @@ public class DashboardService {
    *
    * @param widgetId the id from the {@link Widget} defining the type and configuration
    * @param parameters parameters passed at runtime (e.g. filters, date ranges)
-   * @return long representing the count result
+   * @return EsCountInterval a count object, including the current and previous interval count and
+   *     the difference between the two
    */
-  public long count(String widgetId, Map<String, String> parameters) {
+  public EsCountInterval count(String widgetId, Map<String, String> parameters) {
     WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
     FlatConfiguration config = (FlatConfiguration) widgetContext.widget().getWidgetConfiguration();
     CountRuntime runtime =

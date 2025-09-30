@@ -1689,6 +1689,15 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
   );
 
+export interface EsCountInterval {
+  /** @format int64 */
+  difference_count: number;
+  /** @format int64 */
+  interval_count: number;
+  /** @format int64 */
+  previous_interval_count: number;
+}
+
 export interface EsEndpoint {
   /** @format date-time */
   base_created_at?: string;

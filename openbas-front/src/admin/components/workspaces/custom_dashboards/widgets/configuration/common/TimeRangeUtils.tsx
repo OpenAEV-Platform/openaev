@@ -1,46 +1,68 @@
+import type { CustomDashboard } from '../../../../../../../utils/api-types';
+import { type ParameterOption } from '../../../CustomDashboardContext';
+
 export const ALL_TIME_TIME_RANGE = 'ALL_TIME';
 export const CUSTOM_TIME_RANGE = 'CUSTOM';
 export const LAST_QUARTER_TIME_RANGE = 'LAST_QUARTER';
 
-export const getTimeRangeItems = (t: (text: string) => string) => [
+export const getTimeRangeFromDashboard = (dashboard: CustomDashboard | undefined, dashboardParametersValues: Record<string, ParameterOption>) => {
+  const dashboardParametersModel = dashboard ? dashboard['custom_dashboard_parameters'] : undefined;
+  const timeRangeParameterId = dashboardParametersModel?.find(param => param.custom_dashboards_parameter_type === 'timeRange')?.custom_dashboards_parameter_id;
+  if (!timeRangeParameterId) return undefined;
+  return dashboardParametersValues[timeRangeParameterId].value;
+};
+
+export type TimeRangeItem = {
+  value: string;
+  label_key: string;
+};
+
+export const getTimeRangeItems = (): TimeRangeItem[] => [
   {
     value: ALL_TIME_TIME_RANGE,
-    label: t('All time'),
+    label_key: 'All time',
   },
   {
     value: CUSTOM_TIME_RANGE,
-    label: t('Custom range'),
+    label_key: 'Custom range',
   },
   {
     value: 'LAST_DAY',
-    label: t('Last 24 hours'),
+    label_key: 'Last 24 hours',
   },
   {
     value: 'LAST_WEEK',
-    label: t('Last 7 days'),
+    label_key: 'Last 7 days',
   },
   {
     value: 'LAST_MONTH',
-    label: t('Last month'),
+    label_key: 'Last month',
   },
   {
     value: LAST_QUARTER_TIME_RANGE,
-    label: t('Last 3 months'),
+    label_key: 'Last 3 months',
   },
   {
     value: 'LAST_SEMESTER',
-    label: t('Last 6 months'),
+    label_key: 'Last 6 months',
   },
   {
     value: 'LAST_YEAR',
-    label: t('Last year'),
+    label_key: 'Last year',
   },
 ];
 
-export const getTimeRangeItemsWithDefault = (t: (text: string) => string) => [
+export const getTimeRangeItemsWithDefault = (): TimeRangeItem[] => [
   {
     value: 'DEFAULT',
-    label: t('Dashboard time range'),
+    label_key: 'Dashboard time range',
   },
-  ...getTimeRangeItems(t),
+  ...getTimeRangeItems(),
 ];
+
+export const getTimeRangeItem = (
+  value: string | undefined,
+): TimeRangeItem | undefined => {
+  if (!value) return undefined;
+  return getTimeRangeItemsWithDefault().find(i => i.value === value);
+};
