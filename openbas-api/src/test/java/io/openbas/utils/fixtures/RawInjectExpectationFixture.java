@@ -28,7 +28,8 @@ public class RawInjectExpectationFixture {
       String assetGroupId,
       Set<String> attackPatternIds,
       String scenarioId,
-      Set<String> securityPlatformIds)
+      Set<String> securityPlatformIds,
+      Instant trackingSentDate)
       implements RawInjectExpectation {
 
     @Override
@@ -140,6 +141,11 @@ public class RawInjectExpectationFixture {
     public String getScenario_id() {
       return scenarioId;
     }
+
+    @Override
+    public Instant getTracking_sent_date() {
+      return trackingSentDate;
+    }
   }
 
   public static RawInjectExpectation createDefaultInjectExpectation(
@@ -155,6 +161,7 @@ public class RawInjectExpectationFixture {
         expectationExpectedScore,
         null,
         false,
+        null,
         null,
         null,
         null,
