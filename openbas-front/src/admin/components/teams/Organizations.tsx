@@ -205,6 +205,13 @@ const Organizations = () => {
             <ListItem
               key={organization.organization_id}
               classes={{ root: classes.item }}
+              secondaryAction={(
+                <OrganizationPopover
+                  organization={organization}
+                  tagsMap={tagsMap}
+                  openEditOnInit={organization.organization_id === searchId}
+                />
+              )}
               divider
             >
               <ListItemIcon>
@@ -246,13 +253,6 @@ const Organizations = () => {
                   </div>
                 )}
               />
-              <ListItemSecondaryAction>
-                <OrganizationPopover
-                  organization={organization}
-                  tagsMap={tagsMap}
-                  openEditOnInit={organization.organization_id === searchId}
-                />
-              </ListItemSecondaryAction>
             </ListItem>
           ))}
         </List>
