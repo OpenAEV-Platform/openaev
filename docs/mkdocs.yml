@@ -135,7 +135,9 @@ nav:
       - Overview: usage/evaluate/overview.md
       - Simulation: usage/simulation.md
       - Atomic testing: usage/atomic.md
-      - Injects: usage/injects.md
+      - Injects:
+        - Overview: usage/inject-overview.md
+        - Inject types: usage/inject-types.md
       - Targets: usage/targets.md
       - Expectations: usage/expectations.md
       - Findings: usage/findings.md

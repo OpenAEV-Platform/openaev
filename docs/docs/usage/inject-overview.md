@@ -73,89 +73,43 @@ The "available variables" button helps you to use already defined variables into
 By following these steps and providing the necessary information, you can create injects tailored to your specific
 testing or simulation objectives.
 
-## Inject types
+### Output Parsing
+- The injector captures and parses the JSON output of Nuclei, and returns:
 
-There are different types of injector in OpenBAS.
+- Confirmed findings (if any) with severity and CVE IDs
 
-<a id="manual-section"></a>
+- Other lines as unstructured output
 
-### Manual action reminders
 
-Manual action reminders are injects designed to prompt animation team to perform specific actions manually. It allows to
-place in the timeline a stimulus to be produced manually, outside the platform (e.g. simulated a call from a journalist
-on the switchboard telephone). These reminders ensure that critical tasks are completed as part of the simulation,
-enhancing the accuracy and realism of the exercise.
+### Target Selection
 
-The inject associated with this type is referred to as `Manual`. To be able to log events not directly related to an
-email or a sms, you can attach manual expectation to this events (
-see [Manual Expectations](https://docs.openbas.io/latest/usage/expectations/?h=manual#manual-expectations)).
+The targets vary based on the provided input type:
 
-#### Example of a manual inject:
+#### If target type is **Assets**:
 
-- "A crisis cell has been put together"
+| Targeted Property   | Source Property        |
+|---------------------|------------------------|
+| Seen IP             | Seen IP address        |
+| Local IP (first)    | IP Addresses (first)   |
+| Hostname            | Hostname               |
 
-#### Manual expectations:
+#### If target type is **Manual**:
 
-- "The team responded to the journalist's inquiry."
-- "Analyze the situation and identify the key issues."
-- "Anticipate future developments."
-- "Determine the necessary actions to take."
-- "Coordinate and communicate with both internal and external stakeholders."
-- "Provide regular updates on the ongoing situation."
+- Hostnames or IP addresses are provided directly as comma-separated values.
 
-### Direct contact
+### Results
 
-Injects for direct contact allow sending emails or SMS messages to players. These injects assess the organization's
-response to communication-based threats, such as phishing attempts, social engineering attacks, or emergency
-notifications. They can also assess crisis management, including responses to internal information requests or
-management pressure.
+Scan results are categorized into:
 
-Here's the list of injects linked to this category:
+- **CVEs** (based on template classifications)
+- **Other vulnerabilities** (general issues found)
 
-- `Send a SMS`: enables sending SMS messages.
-- `Send individual mails`: enables sending emails to individuals separately.
-- `Send multi-recipients mail`: enables sending emails to a group of people (each recipient can see the other
-  recipients).
+If no vulnerabilities are detected, the injector will clearly indicate this with a **"Nothing Found"** message.
 
-<a id="media-pressure-section"></a>
+## Resources
 
-### Media pressure
-
-Injects simulating public communications involve the publication of articles, social media posts, or other fake
-announcements. These injects replicate scenarios where public disclosure of information or events affects an
-organization's reputation or operational continuity.
-
-The inject associated with this type is referred to as `Publish channel pressure`.
-
-<a id="challenge-section"></a>
-
-### Challenges
-
-Challenge injects are set to test participants' skills and response capabilities by publishing challenges. These injects
-present scenarios or tasks that require active participation and problem-solving, allowing administrators to evaluate
-players.
-
-The inject associated with this type is referred to as `Publish challenges`.
-
-<a id="http-section"></a>
-
-### HTTP requests
-
-HTTP request injects are used to forge HTTP requests to a third party services in order to perform actions outside the
-platform (e.g. API call to an EDR). These injects enable the platform to communicate with external services, gather
-information, or trigger specific actions via HTTP protocols.
-
-HTTP requests GET, POST, and PUT, can be sent. The corresponding injects are named `HTTP Request - \<request type>`.
-
-<a id="integration-section"></a>
-
-### Integrations with Agents and CyberRanges
-
-Injects executed on remote systems are facilitated by Injectors like [Caldera](inject-caldera.md) or Airbus CyberRange.
-These actions simulate real-world attack techniques, allowing administrators to gauge the effectiveness of their
-security posture in response to various technical actions attackers may take.
-
-There are over 1,700 such injects covering all the TTPs in the MITRE ATT&CK matrix.
+* [Nuclei Documentation](https://github.com/projectdiscovery/nuclei)
+* [Official Nuclei Templates](https://github.com/projectdiscovery/nuclei-templates)
 
 ## Inject tests
 
@@ -229,8 +183,10 @@ the top of the list. After clicking on it, the user confirms the tests launch an
 
 #### Navigating between active inject targets
 
-All targets that are selected for the inject are available on the Targets panel on the left side of the screen. There is a
-tab for each target type (Asset group, Endpoint, Agent, Team and Player), and only the tabs that have at least one active
+All targets that are selected for the inject are available on the Targets panel on the left side of the screen. There is
+a
+tab for each target type (Asset group, Endpoint, Agent, Team and Player), and only the tabs that have at least one
+active
 target are visible on the screen.
 
 Since there may be a large number of targets of the same type (depending on your selection), a pagination utility
@@ -241,7 +197,8 @@ with various filters is provided to help skim through the list.
 When you create a technical Inject, you assign it to endpoints, each of which may have one or multiple agents. As the
 inject executes, agents communicate their progress to the OBAS Server, which logs detailed execution traces.
 
-In the "Execution details" tab, you can see the traces related to the overall execution of the inject. On the "Execution" tab 
+In the "Execution details" tab, you can see the traces related to the overall execution of the inject. On the "
+Execution" tab
 found in the inject’s overview page, you’ll find the traces for each individual target, including both
 endpoints and agents. This helps you easily track the progress of the execution at both the agent and endpoint levels.
 Each agent produces several traces, which represent different steps of the execution process such as:
@@ -295,11 +252,13 @@ Once an inject have been executed, it is possible to access the alerts' details 
 
 By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenBAS.
 
-On the above example, we can see that there are 2 agents on the `vm3.obas.lan` asset. We can see there are detections on the
+On the above example, we can see that there are 2 agents on the `vm3.obas.lan` asset. We can see there are detections on
+the
 OpenBAS agent, while the Crowdstrike agent hasn't had any yet (it can take several minutes for the traces to
 show up in OpenBAS).
 
-By clicking on the OpenBAS agent, we can see that the inject's payload was already detected by the CrowdStrike Falcon EDR
+By clicking on the OpenBAS agent, we can see that the inject's payload was already detected by the CrowdStrike Falcon
+EDR
 while more detections might arrive at a later point.
 We can also see that there was one alert identified on CrowdStrike Falcon EDR.
 
@@ -413,4 +372,3 @@ were originally exported.
 
 This feature enables seamless sharing of injects across different environments, ensuring flexibility and efficiency in
 exercises.
-
