@@ -11,7 +11,6 @@ public class V4_38__Drop_group_organizations_table extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
-      // re-index inject in ES
       statement.executeUpdate("DROP TABLE IF EXISTS groups_organizations CASCADE;");
     }
   }
