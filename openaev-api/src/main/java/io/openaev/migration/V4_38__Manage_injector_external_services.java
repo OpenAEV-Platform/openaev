@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_37__Manage_injector_external_services extends BaseJavaMigration {
+public class V4_38__Manage_injector_external_services extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
