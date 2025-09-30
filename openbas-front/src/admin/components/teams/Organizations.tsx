@@ -174,7 +174,7 @@ const Organizations = () => {
             divider={false}
             style={{ paddingTop: 0 }}
             secondaryAction={<>&nbsp;</>}
-                >
+          >
             <ListItemIcon />
             <ListItemText
               primary={(
