@@ -42,4 +42,5 @@ public class SimpleRawInjectExpectation implements RawInjectExpectation {
   public Set<String> attack_pattern_ids;
   public Set<String> security_platform_ids;
   private String inject_title;
+  private Instant tracking_sent_date;
 }

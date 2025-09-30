@@ -7,6 +7,7 @@ import io.openbas.database.model.Filters;
 import io.openbas.database.model.InjectExpectation.EXPECTATION_STATUS;
 import io.openbas.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openbas.engine.model.EsBase;
+import java.time.Instant;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -55,6 +56,9 @@ public class EsInjectExpectation extends EsBase {
       refEnumClazz = EXPECTATION_STATUS.class)
   @EsQueryable(keyword = true)
   private String inject_expectation_status;
+
+  @Queryable(label = "execution date", filterable = true, sortable = true)
+  private Instant execution_date;
 
   // -- SIDE --
 

@@ -48,4 +48,6 @@ public interface RawInjectExpectation {
   Set<String> getSecurity_platform_ids();
 
   String getScenario_id();
+
+  Instant getTracking_sent_date();
 }

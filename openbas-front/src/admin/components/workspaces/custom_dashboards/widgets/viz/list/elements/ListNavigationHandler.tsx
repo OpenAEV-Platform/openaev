@@ -20,7 +20,7 @@ type NavigationHandler = (element: EsBase, navigate: NavigateFunction) => void;
 
 const getInjectDetailUrl = (injectElement: EsInject): string => {
   let injectUrl = `${ATOMIC_BASE_URL}/${injectElement.base_id}`;
-  if (injectElement.base_simulation_side != null && injectElement.inject_execution_date != null) {
+  if (injectElement.base_simulation_side != null && injectElement.execution_date != null) {
     injectUrl = `${SIMULATION_BASE_URL}/${injectElement.base_simulation_side}/injects/${injectElement.base_id}`;
   } else if (injectElement.base_simulation_side != null) {
     const craftedFilter = btoa(qs.stringify({

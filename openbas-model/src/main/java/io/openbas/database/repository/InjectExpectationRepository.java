@@ -218,6 +218,7 @@ public interface InjectExpectationRepository
       ie.asset_id,
       ie.asset_group_id,
       i.inject_title as inject_title,
+      MAX(ins.tracking_sent_date) AS tracking_sent_date,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
       MAX(se.scenario_id) AS scenario_id,
       array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
@@ -225,6 +226,7 @@ public interface InjectExpectationRepository
     FROM injects_expectations ie
     LEFT JOIN exercises ex ON ex.exercise_id = ie.exercise_id
     LEFT JOIN injects i ON i.inject_id = ie.inject_id
+    LEFT JOIN injects_statuses ins ON ins.status_inject = i.inject_id
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id

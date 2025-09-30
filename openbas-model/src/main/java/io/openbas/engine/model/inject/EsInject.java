@@ -26,7 +26,7 @@ public class EsInject extends EsBase {
   private String inject_status;
 
   @Queryable(label = "execution date", filterable = true, sortable = true)
-  private Instant inject_execution_date;
+  private Instant execution_date;
 
   // -- SIDE --
 

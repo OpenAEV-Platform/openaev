@@ -25,7 +25,7 @@ public class WidgetUtils {
               "inject_expectation_source");
       case "finding" -> List.of("finding_value", "finding_type", "base_updated_at");
       case "inject" ->
-          List.of("inject_title", "base_attack_patterns_side", "inject_execution_date");
+          List.of("inject_title", "base_attack_patterns_side", "execution_date");
       case "simulation" -> List.of("name", "base_updated_at", "base_tags_side");
       case "scenario" -> List.of("name", "base_updated_at", "base_tags_side");
       default -> List.of("id");

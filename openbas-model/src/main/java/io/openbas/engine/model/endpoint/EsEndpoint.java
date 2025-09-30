@@ -4,6 +4,7 @@ import io.openbas.annotation.EsQueryable;
 import io.openbas.annotation.Indexable;
 import io.openbas.annotation.Queryable;
 import io.openbas.database.model.Endpoint;
+import io.openbas.database.model.Filters;
 import io.openbas.engine.model.EsBase;
 import java.util.Set;
 import lombok.Getter;
@@ -77,12 +78,30 @@ public class EsEndpoint extends EsBase {
   @EsQueryable(keyword = true)
   private Set<String> base_tags_side; // Must finish by _side
 
-  @Queryable(label = "simulation", filterable = true, dynamicValues = true)
+  @Queryable(
+      label = "simulation",
+      filterable = true,
+      dynamicValues = true,
+      overrideOperators = {
+        Filters.FilterOperator.eq,
+        Filters.FilterOperator.not_eq,
+        Filters.FilterOperator.empty,
+        Filters.FilterOperator.not_empty
+      })
   @EsQueryable(keyword = true)
   private Set<String>
       base_simulation_side; // Must finish by _side, no plural (Set) to work as the other generic
 
-  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
+  @Queryable(
+      label = "scenario",
+      filterable = true,
+      dynamicValues = true,
+      overrideOperators = {
+        Filters.FilterOperator.eq,
+        Filters.FilterOperator.not_eq,
+        Filters.FilterOperator.empty,
+        Filters.FilterOperator.not_empty
+      })
   @EsQueryable(keyword = true)
   private Set<String>
       base_scenario_side; // Must finish by _side, no plural (Set) to work as the other generic

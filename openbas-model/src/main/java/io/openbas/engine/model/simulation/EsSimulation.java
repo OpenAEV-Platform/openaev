@@ -6,6 +6,7 @@ import io.openbas.annotation.Queryable;
 import io.openbas.database.model.Endpoint;
 import io.openbas.database.model.ExerciseStatus;
 import io.openbas.engine.model.EsBase;
+import java.time.Instant;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,6 +24,9 @@ public class EsSimulation extends EsBase {
   @Queryable(label = "simulation status", filterable = true, refEnumClazz = ExerciseStatus.class)
   @EsQueryable(keyword = true)
   private String status;
+
+  @Queryable(label = "execution date", filterable = true, sortable = true)
+  private Instant execution_date;
 
   // -- SIDE --
 

@@ -157,7 +157,7 @@ const ListWidgetParameters = (props: Props) => {
         )}
       />
 
-      <WidgetConfigDateAttributeController widgetType={props.widgetType} />
+      <WidgetConfigDateAttributeController widgetType={props.widgetType} series={[perspective]} />
       <WidgetConfigTimeRangeController />
       <Controller
         control={props.control}

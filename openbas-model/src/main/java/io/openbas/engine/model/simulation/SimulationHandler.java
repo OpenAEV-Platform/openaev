@@ -33,6 +33,7 @@ public class SimulationHandler implements Handler<EsSimulation> {
               esSimulation.setBase_created_at(simulation.getExercise_created_at());
               esSimulation.setBase_updated_at(simulation.getExercise_injects_updated_at());
               esSimulation.setName(simulation.getExercise_name());
+              esSimulation.setExecution_date(simulation.getExercise_start_date());
 
               esSimulation.setBase_representative(simulation.getExercise_name());
               esSimulation.setBase_restrictions(

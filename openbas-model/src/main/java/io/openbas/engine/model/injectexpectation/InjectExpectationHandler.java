@@ -52,6 +52,7 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               esInjectExpectation.setInject_expectation_results(
                   injectExpectation.getInject_expectation_results());
               esInjectExpectation.setInject_title(injectExpectation.getInject_title());
+              esInjectExpectation.setExecution_date(injectExpectation.getTracking_sent_date());
 
               esInjectExpectation.setInject_expectation_score(
                   injectExpectation.getInject_expectation_score());

@@ -1,25 +1,28 @@
 import { Autocomplete, TextField } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
-import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
 import { useFormatter } from '../../../../../../../components/i18n';
-import { type FilterGroup, type PropertySchemaDTO } from '../../../../../../../utils/api-types';
+import {
+  type FilterGroup,
+  type ListPerspective,
+  type PropertySchemaDTO,
+  type Series,
+} from '../../../../../../../utils/api-types';
 import type { Widget } from '../../../../../../../utils/api-types-custom';
 import type { GroupOption } from '../../../../../../../utils/Option';
 import { getBaseEntities } from '../../WidgetUtils';
 import getEntityPropertiesListOptions from '../EntityPropertiesListOptions';
 
-type Props = { widgetType: Widget['widget_type'] };
+type Props = {
+  widgetType: Widget['widget_type'];
+  series: Series[] | ListPerspective[];
+};
 
-const WidgetConfigDateAttributeController: FunctionComponent<Props> = ({ widgetType }) => {
+const WidgetConfigDateAttributeController: FunctionComponent<Props> = ({ widgetType, series }) => {
   const { t } = useFormatter();
   const { control } = useFormContext();
-
-  const series = useWatch({
-    control: control,
-    name: 'widget_config.series',
-  });
 
   const entities = (series ?? []).map((v: { filter?: FilterGroup }) => getBaseEntities(v.filter)).flat();
 

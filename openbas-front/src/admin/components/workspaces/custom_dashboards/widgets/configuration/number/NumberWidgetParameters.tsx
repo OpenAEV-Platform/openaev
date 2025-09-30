@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { type Control, Controller, type UseFormSetValue } from 'react-hook-form';
+import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import type { Widget } from '../../../../../../../utils/api-types-custom';
 import { type WidgetInputWithoutLayout } from '../../WidgetUtils';
@@ -12,15 +12,20 @@ type Props = {
   setValue: UseFormSetValue<WidgetInputWithoutLayout>;
 };
 
-const NumberWidgetParameters = (props: Props) => {
+const NumberWidgetParameters = ({ widgetType, control, setValue }: Props) => {
   useEffect(() => {
-    props.setValue('widget_config.widget_configuration_type', 'flat');
+    setValue('widget_config.widget_configuration_type', 'flat');
   }, []);
+
+  const series = useWatch({
+    control,
+    name: 'widget_config.series',
+  });
 
   return (
     <>
       <Controller
-        control={props.control}
+        control={control}
         name="widget_config.widget_configuration_type"
         render={({ field }) => (
           <input
@@ -30,7 +35,7 @@ const NumberWidgetParameters = (props: Props) => {
           />
         )}
       />
-      <WidgetConfigDateAttributeController widgetType={props.widgetType} />
+      <WidgetConfigDateAttributeController widgetType={widgetType} series={series} />
       <WidgetConfigTimeRangeController />
     </>
   );

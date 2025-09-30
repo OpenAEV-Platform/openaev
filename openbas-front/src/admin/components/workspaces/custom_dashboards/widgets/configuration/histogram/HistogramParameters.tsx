@@ -236,7 +236,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
       )}
       {
         mode === 'structural' && (
-          <WidgetConfigDateAttributeController widgetType={widgetType} />
+          <WidgetConfigDateAttributeController widgetType={widgetType} series={series} />
         )
       }
       <WidgetConfigTimeRangeController />
