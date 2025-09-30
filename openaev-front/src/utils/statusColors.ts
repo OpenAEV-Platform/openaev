@@ -7,6 +7,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
 
   const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
     ERROR: colorStyles.red,
+    FAILED: colorStyles.red,
     ASSET_INACTIVE: colorStyles.red,
     MAYBE_PREVENTED: colorStyles.purple,
     MAYBE_PARTIAL_PREVENTED: colorStyles.lightPurple,

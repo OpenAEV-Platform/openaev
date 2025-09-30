@@ -88,7 +88,7 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
 
     if (column.toLowerCase().includes('status')) {
       return (
-        <ItemStatus label={text} variant="inList" />
+        <ItemStatus label={text} variant="inList" status={text} />
       );
     }
 
