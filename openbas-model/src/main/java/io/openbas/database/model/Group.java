@@ -70,16 +70,6 @@ public class Group implements Base {
   private List<User> users = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "groups_organizations",
-      joinColumns = @JoinColumn(name = "group_id"),
-      inverseJoinColumns = @JoinColumn(name = "organization_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
-  @JsonProperty("group_organizations")
-  private List<Organization> organizations = new ArrayList<>();
-
-  @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "groups_roles",

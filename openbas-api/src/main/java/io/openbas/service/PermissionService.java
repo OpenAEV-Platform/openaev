@@ -3,7 +3,6 @@ package io.openbas.service;
 import io.openbas.database.model.*;
 import io.openbas.rest.exception.ElementNotFoundException;
 import io.openbas.rest.inject.service.InjectService;
-import io.openbas.rest.inject.service.InjectStatusService;
 import io.openbas.rest.injector_contract.InjectorContractService;
 import jakarta.validation.constraints.NotNull;
 import java.util.EnumSet;
@@ -40,8 +39,7 @@ public class PermissionService {
           ResourceType.SIMULATION,
           ResourceType.SIMULATION_OR_SCENARIO,
           ResourceType.PAYLOAD,
-          ResourceType.ATOMIC_TESTING,
-          ResourceType.ORGANIZATION);
+          ResourceType.ATOMIC_TESTING);
 
   private static final EnumSet<ResourceType> RESOURCES_USING_PARENT_PERMISSION =
       EnumSet.of(
@@ -49,7 +47,6 @@ public class PermissionService {
 
   private final GrantService grantService;
   private final InjectService injectService;
-  private final InjectStatusService injectStatusService;
   private final NotificationRuleService notificationRuleService;
   private final InjectorContractService injectorContractService;
 
