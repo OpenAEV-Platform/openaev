@@ -1,5 +1,4 @@
 import { FormControl, InputLabel, MenuItem, Select, type SelectChangeEvent } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent } from 'react';
 
@@ -18,17 +17,11 @@ interface Props {
 const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleStartDate, handleEndDate, timeRangeValue, startDateValue, endDateValue }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const theme = useTheme();
 
   const timeRangeItems = getTimeRangeItems(t);
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 300px))',
-      gap: theme.spacing(2),
-    }}
-    >
+    <>
       <FormControl
         size="small"
         sx={{ minWidth: 120 }}
@@ -87,7 +80,7 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
           </>
         )
       }
-    </div>
+    </>
   );
 };
 
