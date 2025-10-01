@@ -5,14 +5,19 @@ import {
   attackPathsByScenario,
   countByScenario,
   entitiesByScenario,
-  fetchCustomDashboardFromScenario,
+  fetchCustomDashboardFromScenario, searchScenarioExercises,
   seriesByScenario,
   updateScenario, widgetToEntitiesByByScenario,
 } from '../../../../../actions/scenarios/scenario-actions';
 import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable/filter/constants';
 import { useHelper } from '../../../../../store';
-import { type CustomDashboard, type Scenario, type WidgetToEntitiesInput } from '../../../../../utils/api-types';
+import {
+  type CustomDashboard,
+  type Scenario,
+  type SortField,
+  type WidgetToEntitiesInput,
+} from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -36,32 +41,56 @@ const ScenarioAnalysis = () => {
     }));
   };
 
-  const paramsBuilder = (dashboardParameters: CustomDashboard['custom_dashboard_parameters'], localStorageParams: Record<string, ParameterOption>) => {
-    const params: Record<string, ParameterOption> = {};
-    dashboardParameters?.forEach((p) => {
-      const value = localStorageParams[p.custom_dashboards_parameter_id]?.value;
-      if ('scenario' === p.custom_dashboards_parameter_type) {
-        params[p.custom_dashboards_parameter_id] = {
-          value: scenario.scenario_id,
-          hidden: true,
-        };
-      } else if ('simulation' === p.custom_dashboards_parameter_type) {
-        params[p.custom_dashboards_parameter_id] = {
-          value: value,
-          hidden: false,
-          searchOptionsConfig: {
-            filterKey: SCENARIO_SIMULATIONS,
-            contextId: scenarioId,
-          },
-        };
-      } else {
-        params[p.custom_dashboards_parameter_id] = {
-          value: value,
-          hidden: false,
-        };
-      }
+  const lastSimulationEndedId = async () => {
+    const { data } = await searchScenarioExercises(scenarioId, {
+      size: 1,
+      page: 0,
+      sorts: [
+        {
+          property: 'exercise_end_date',
+          direction: 'DESC',
+          nullHandling: 'NULLS_LAST' as SortField['nullHandling'],
+        },
+        {
+          property: 'exercise_updated_at',
+          direction: 'DESC',
+        },
+      ],
     });
-    return params;
+    return data.content?.[0]?.exercise_id;
+  };
+
+  const paramsBuilder = async (dashboardParameters: CustomDashboard['custom_dashboard_parameters'], localStorageParams: Record<string, ParameterOption>) => {
+    const paramsList = await Promise.all(
+      (dashboardParameters || []).map(async (p) => {
+        const paramId = p.custom_dashboards_parameter_id;
+        let paramOptions;
+        const value = localStorageParams[paramId]?.value;
+        if ('scenario' === p.custom_dashboards_parameter_type) {
+          paramOptions = {
+            value: scenario.scenario_id,
+            hidden: true,
+          };
+        } else if ('simulation' === p.custom_dashboards_parameter_type) {
+          const valueToSet = value == undefined ? await lastSimulationEndedId() : value;
+          paramOptions = {
+            value: valueToSet,
+            hidden: false,
+            searchOptionsConfig: {
+              filterKey: SCENARIO_SIMULATIONS,
+              contextId: scenarioId,
+            },
+          };
+        } else {
+          paramOptions = {
+            value: value,
+            hidden: false,
+          };
+        }
+        return [paramId, paramOptions];
+      }));
+
+    return Object.fromEntries(paramsList);
   };
 
   const configuration = {

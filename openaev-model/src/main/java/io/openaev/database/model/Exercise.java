@@ -105,6 +105,7 @@ public class Exercise implements GrantableBase {
 
   @Column(name = "exercise_end_date")
   @JsonProperty("exercise_end_date")
+  @Queryable(filterable = true, sortable = true)
   private Instant end;
 
   @Getter

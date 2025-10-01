@@ -63,13 +63,14 @@ public abstract class SearchAdaptorBase {
 
     // mind the sorts
     List<SortField> newSorts = new ArrayList<>();
-    SortField defaultSort = new SortField(fieldTranslations.get("target_name"), "ASC");
+    SortField defaultSort = new SortField(fieldTranslations.get("target_name"), "ASC", null);
     List<SortField> currentSorts =
         input.getSorts() == null ? List.of(defaultSort) : input.getSorts();
     for (SortField sortField : currentSorts) {
       if (fieldTranslations.containsKey(sortField.property())) {
         newSorts.add(
-            new SortField(fieldTranslations.get(sortField.property()), sortField.direction()));
+            new SortField(
+                fieldTranslations.get(sortField.property()), sortField.direction(), null));
       }
     }
 

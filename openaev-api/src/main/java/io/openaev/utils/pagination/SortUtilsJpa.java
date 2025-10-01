@@ -50,7 +50,11 @@ public class SortUtilsJpa {
                                             + property
                                             + " for class "
                                             + clazz));
-                    return new Sort.Order(direction, javaProperty);
+                    Sort.NullHandling nullHandling =
+                        field.nullHandling() != null
+                            ? field.nullHandling()
+                            : Sort.NullHandling.NATIVE;
+                    return new Sort.Order(direction, javaProperty, false, nullHandling);
                   })
               .toList();
     }

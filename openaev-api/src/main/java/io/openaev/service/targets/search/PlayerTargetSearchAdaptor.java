@@ -63,7 +63,7 @@ public class PlayerTargetSearchAdaptor extends SearchAdaptorBase {
     SearchPaginationInput translatedInput = this.translate(input, scopedInject);
 
     // mind the specific sorts "email" because no name for players
-    SortField defaultSort = new SortField("user_email", "ASC");
+    SortField defaultSort = new SortField("user_email", "ASC", null);
     translatedInput.setSorts(List.of(defaultSort));
 
     Page<User> filteredPlayers =

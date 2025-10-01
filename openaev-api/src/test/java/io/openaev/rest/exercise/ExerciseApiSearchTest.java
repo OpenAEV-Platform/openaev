@@ -156,7 +156,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of exercises by status")
-      void given_filter_input_by_sttaus_should_return_a_page_of_exercises_filter_by_status()
+      void given_filter_input_by_status_should_return_a_page_of_exercises_filter_by_status()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.simpleSearchWithAndOperator(

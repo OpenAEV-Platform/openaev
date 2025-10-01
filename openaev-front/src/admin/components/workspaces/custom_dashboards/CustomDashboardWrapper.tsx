@@ -20,7 +20,7 @@ import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRang
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];
   paramLocalStorageKey: string;
-  paramsBuilder?: (dashboardParams: CustomDashboard['custom_dashboard_parameters'], params: Record<string, ParameterOption>) => Record<string, ParameterOption>;
+  paramsBuilder?: (dashboardParams: CustomDashboard['custom_dashboard_parameters'], params: Record<string, ParameterOption>) => Promise<Record<string, ParameterOption>> | Record<string, ParameterOption>;
   parentContextId?: string;
   canChooseDashboard?: boolean;
   handleSelectNewDashboard?: (dashboardId: string) => void; // ==onCustomDashboardIdChange
@@ -82,29 +82,35 @@ const CustomDashboardWrapper = ({
   };
 
   useEffect(() => {
-    if (customDashboard) {
-      if (!parametersLocalStorage) {
-        setParametersLocalStorage({});
-      } else {
-        let params: Record<string, ParameterOption> = parametersLocalStorage;
-        customDashboard?.custom_dashboard_parameters?.forEach((p: {
-          custom_dashboards_parameter_type: string;
-          custom_dashboards_parameter_id: string;
-        }) => {
-          if (p.custom_dashboards_parameter_type === 'timeRange' && !parametersLocalStorage[p.custom_dashboards_parameter_id]) {
-            params[p.custom_dashboards_parameter_id] = {
-              value: LAST_QUARTER_TIME_RANGE,
-              hidden: false,
-            };
-          }
-        });
-        if (paramsBuilder) {
-          params = paramsBuilder(customDashboard.custom_dashboard_parameters, params);
-        }
-        setParameters(params);
-        setLoading(false);
-      }
+    if (!customDashboard) {
+      return;
     }
+    if (!parametersLocalStorage) {
+      setParametersLocalStorage({});
+      return;
+    }
+    const handleParametersInitialization = async () => {
+      let params: Record<string, ParameterOption> = parametersLocalStorage;
+      customDashboard?.custom_dashboard_parameters?.forEach((p: {
+        custom_dashboards_parameter_type: string;
+        custom_dashboards_parameter_id: string;
+      }) => {
+        if (p.custom_dashboards_parameter_type === 'timeRange' && !parametersLocalStorage[p.custom_dashboards_parameter_id]) {
+          params[p.custom_dashboards_parameter_id] = {
+            value: LAST_QUARTER_TIME_RANGE,
+            hidden: false,
+          };
+        }
+      });
+      if (paramsBuilder) {
+        params = await paramsBuilder(customDashboard.custom_dashboard_parameters, params);
+      }
+      return params;
+    };
+    handleParametersInitialization().then((params) => {
+      setParameters(params || {});
+      setLoading(false);
+    });
   }, [customDashboard, parametersLocalStorage]);
 
   useEffect(() => {

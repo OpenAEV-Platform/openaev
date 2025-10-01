@@ -363,7 +363,8 @@ class FindingApiTest extends IntegrationTest {
         SearchPaginationInput input = PaginationFixture.getDefault().build();
         input.setSorts(
             List.of(
-                new SortField("finding_created_at", "asc"), new SortField("finding_value", "asc")));
+                new SortField("finding_created_at", "asc", null),
+                new SortField("finding_value", "asc", null)));
 
         entityManager.flush();
         entityManager.clear();

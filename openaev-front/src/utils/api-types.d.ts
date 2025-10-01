@@ -5549,6 +5549,7 @@ export interface SimulationsResultsLatest {
 /** List of sort fields : a field is composed of a property (for instance "label" and an optional direction ("asc" is assumed if no direction is specified) : ("desc", "asc") */
 export interface SortField {
   direction?: string;
+  nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
   property?: string;
 }
 
