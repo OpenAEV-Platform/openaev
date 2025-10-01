@@ -59,15 +59,14 @@ public class CustomDashboardService {
    */
   @Transactional
   public CustomDashboard createCustomDashboard(@NotNull final CustomDashboard customDashboard) {
-    CustomDashboard customDashboardWithDefaultParams =
-        customDashboard
-            .addParameter("Time range", timeRange)
-            .addParameter("Start date", startDate)
-            .addParameter("End date", endDate);
+    CustomDashboard customDashboardWithDefaultParams = initParameters(customDashboard);
     return this.customDashboardRepository.save(customDashboardWithDefaultParams);
   }
 
   public static CustomDashboard sanityCheck(@NotNull final CustomDashboard customDashboard) {
+    if (customDashboard.getParameters() == null) {
+      return initParameters(customDashboard);
+    }
     CustomDashboard customDashboardWithDefaultParams = customDashboard;
     if (customDashboard.getParameters().stream().noneMatch(p -> p.getType().equals(timeRange))) {
       customDashboardWithDefaultParams = customDashboard.addParameter("Time range", timeRange);
@@ -79,6 +78,13 @@ public class CustomDashboardService {
       customDashboardWithDefaultParams = customDashboard.addParameter("End date", endDate);
     }
     return customDashboardWithDefaultParams;
+  }
+
+  private static CustomDashboard initParameters(@NotNull final CustomDashboard customDashboard) {
+    return customDashboard
+        .addParameter("Time range", timeRange)
+        .addParameter("Start date", startDate)
+        .addParameter("End date", endDate);
   }
 
   /**
