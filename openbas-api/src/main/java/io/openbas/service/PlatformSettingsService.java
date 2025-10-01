@@ -593,6 +593,22 @@ public class PlatformSettingsService {
     return transactionTemplate.execute(status -> findSettings());
   }
 
+  public PlatformSettings deleteXTMHubRegistration() {
+    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+
+    List<Setting> toDelete = new ArrayList<>();
+    toDelete.add(dbSettings.get(XTM_HUB_TOKEN.key()));
+    toDelete.add(dbSettings.get(XTM_HUB_REGISTRATION_DATE.key()));
+    toDelete.add(dbSettings.get(XTM_HUB_REGISTRATION_STATUS.key()));
+    toDelete.add(dbSettings.get(XTM_HUB_REGISTRATION_USER_ID.key()));
+    toDelete.add(dbSettings.get(XTM_HUB_REGISTRATION_USER_NAME.key()));
+    toDelete.add(dbSettings.get(XTM_HUB_LAST_CONNECTIVITY_CHECK.key()));
+    toDelete.add(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
+
+    this.settingRepository.deleteAll(toDelete);
+    return findSettings();
+  }
+
   // -- PLATFORM MESSAGE --
 
   public void cleanMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {

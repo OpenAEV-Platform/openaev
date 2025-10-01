@@ -99,7 +99,7 @@ public class XtmHubApiTest extends IntegrationTest {
     String responseShouldSendConnectivityEmail =
         JsonPath.read(response, "$.xtm_hub_should_send_connectivity_email");
     assertNull(responseToken);
-    assertEquals(responseStatus, XtmHubRegistrationStatus.UNREGISTERED.label);
+    assertNull(responseStatus);
     assertNull(responseUserId);
     assertNull(responseUserName);
     assertNull(responseRegistrationDate);
@@ -108,8 +108,7 @@ public class XtmHubApiTest extends IntegrationTest {
 
     PlatformSettings settings = platformSettingsService.findSettings();
     assertNull(settings.getXtmHubToken());
-    assertEquals(
-        settings.getXtmHubRegistrationStatus(), XtmHubRegistrationStatus.UNREGISTERED.label);
+    assertNull(settings.getXtmHubRegistrationStatus());
     assertNull(settings.getXtmHubRegistrationUserId());
     assertNull(settings.getXtmHubRegistrationUserName());
     assertNull(settings.getXtmHubRegistrationDate());

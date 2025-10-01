@@ -34,8 +34,7 @@ public class XtmHubService {
   }
 
   public PlatformSettings unregister() {
-    return this.platformSettingsService.updateXTMHubRegistration(
-        null, null, XtmHubRegistrationStatus.UNREGISTERED, null, null, null);
+    return this.platformSettingsService.deleteXTMHubRegistration();
   }
 
   public PlatformSettings refreshConnectivity() {
