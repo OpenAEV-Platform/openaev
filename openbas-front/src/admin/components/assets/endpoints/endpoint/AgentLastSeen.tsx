@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 
 const AgentLastSeen = ({ timestamp }: { timestamp: string }) => {
-  const { du, t } = useFormatter();
+  const { du } = useFormatter();
   const [elapsed, setElapsed] = useState(
     Date.now() - new Date(timestamp).getTime(),
   );
