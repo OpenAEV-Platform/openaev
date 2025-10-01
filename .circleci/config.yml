@@ -4,7 +4,7 @@ orbs:
   kubernetes: circleci/kubernetes@2.0.0
 jobs:
   build_frontend:
-    working_directory: ~/openbas
+    working_directory: ~/openaev
     docker:
       - image: nikolaik/python-nodejs:python3.10-nodejs22
     resource_class: large
@@ -13,74 +13,74 @@ jobs:
           command: apt-get update --allow-insecure-repositories --allow-unauthenticated && apt-get install -y build-essential libffi-dev curl
       - checkout
       - run:
-          working_directory: ~/openbas/openbas-front
+          working_directory: ~/openaev/openaev-front
           command: yarn install
       - run:
-          working_directory: ~/openbas/openbas-front
+          working_directory: ~/openaev/openaev-front
           command: NODE_OPTIONS=--max-old-space-size=8096 yarn build
           no_output_timeout: 30m
       - run:
           working_directory: ~/
-          command: cp -a openbas openbas_docker && cp -a openbas openbas_musl
+          command: cp -a openaev openaev_docker && cp -a openaev openaev_musl
       - slack/notify:
           event: fail
           template: basic_fail_1
       - persist_to_workspace:
           root: ~/
           paths:
-            - openbas
-            - openbas_docker
-            - openbas_musl
+            - openaev
+            - openaev_docker
+            - openaev_musl
 
   build_platform:
-    working_directory: ~/openbas
+    working_directory: ~/openaev
     docker:
       - image: maven:3.9.11-eclipse-temurin-21
     steps:
       - attach_workspace:
           at: ~/
       - run:
-          working_directory: ~/openbas
+          working_directory: ~/openaev
           command: |
             LATEST_VERSION=$(git describe --tags --abbrev=0)
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/linux/arm64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/linux/x86_64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/arm64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/linux/arm64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/x86_64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/linux/x86_64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/arm64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/macos/arm64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/x86_64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/macos/x86_64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/arm64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/arm64/openbas-implant-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/x86_64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/x86_64/openbas-implant-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/arm64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/linux/arm64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/x86_64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/linux/x86_64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/arm64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/macos/arm64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/x86_64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/macos/x86_64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/arm64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/arm64/openaev-implant-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/x86_64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/x86_64/openaev-implant-${CIRCLE_TAG:-latest}.exe
       - run:
-          working_directory: ~/openbas
+          working_directory: ~/openaev
           command: mvn install -DskipTests -Pdev
       - slack/notify:
           event: fail
@@ -88,10 +88,10 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - openbas
+            - openaev
 
   build_platform_musl:
-    working_directory: ~/openbas_musl
+    working_directory: ~/openaev_musl
     docker:
       - image: maven:3.9.11-eclipse-temurin-21-alpine
     resource_class: large
@@ -99,48 +99,48 @@ jobs:
       - attach_workspace:
           at: ~/
       - run:
-          working_directory: ~/openbas_musl
+          working_directory: ~/openaev_musl
           command: |
             apk add git
             LATEST_VERSION=$(git describe --tags --abbrev=0)
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/linux/arm64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/linux/x86_64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-service-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-session-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.ps1
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/arm64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/linux/arm64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/x86_64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/linux/x86_64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/arm64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/macos/arm64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/x86_64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-implant/macos/x86_64/openbas-implant-${CIRCLE_TAG:-latest}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/arm64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/arm64/openbas-implant-${CIRCLE_TAG:-latest}.exe
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/x86_64/openbas-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/x86_64/openbas-implant-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-service-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-session-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-service-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-session-user-${CIRCLE_TAG:-latest}.ps1
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/arm64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/linux/arm64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/x86_64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/linux/x86_64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/arm64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/macos/arm64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/x86_64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-implant/macos/x86_64/openaev-implant-${CIRCLE_TAG:-latest}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/arm64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/arm64/openaev-implant-${CIRCLE_TAG:-latest}.exe
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/x86_64/openaev-implant-${CIRCLE_TAG:-$LATEST_VERSION}.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/x86_64/openaev-implant-${CIRCLE_TAG:-latest}.exe
       - run:
-          working_directory: ~/openbas_musl
+          working_directory: ~/openaev_musl
           command: mvn install -DskipTests -Pdev
       - slack/notify:
           event: fail
@@ -148,42 +148,42 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - openbas_musl
+            - openaev_musl
 
   package_rolling:
-    working_directory: ~/openbas
+    working_directory: ~/openaev
     docker:
       - image: maven:3.9.11-eclipse-temurin-21
     steps:
       - attach_workspace:
           at: ~/
-      - run: mkdir -p release/openbas
-      - run: cp -a ./openbas-api/target/openbas-api.jar release/openbas/ && cp -a ./openbas-api/target/classes/application.properties release/openbas/
+      - run: mkdir -p release/openaev
+      - run: cp -a ./openaev-api/target/openaev-api.jar release/openaev/ && cp -a ./openaev-api/target/classes/application.properties release/openaev/
       - run:
-          working_directory: ~/openbas/release
-          command: tar -zcvf "openbas-$(date '+%Y%m%d').tar.gz" openbas
+          working_directory: ~/openaev/release
+          command: tar -zcvf "openaev-$(date '+%Y%m%d').tar.gz" openaev
       - run:
-          working_directory: ~/openbas/release
-          command: curl -usamuel.hassine@filigran.io:$JFROG_TOKEN -T openbas-$(date '+%Y%m%d').tar.gz "https://filigran.jfrog.io/artifactory/openbas/openbas-$(date '+%Y%m%d').tar.gz"
+          working_directory: ~/openaev/release
+          command: curl -usamuel.hassine@filigran.io:$JFROG_TOKEN -T openaev-$(date '+%Y%m%d').tar.gz "https://filigran.jfrog.io/artifactory/openaev/openaev-$(date '+%Y%m%d').tar.gz"
       - slack/notify:
           event: fail
           template: basic_fail_1
 
   package_rolling_musl:
-    working_directory: ~/openbas_musl
+    working_directory: ~/openaev_musl
     docker:
       - image: maven:3.9.11-eclipse-temurin-21
     steps:
       - attach_workspace:
           at: ~/
-      - run: mkdir -p release/openbas
-      - run: cp -a ./openbas-api/target/openbas-api.jar release/openbas/ && cp -a ./openbas-api/target/classes/application.properties release/openbas/
+      - run: mkdir -p release/openaev
+      - run: cp -a ./openaev-api/target/openaev-api.jar release/openaev/ && cp -a ./openaev-api/target/classes/application.properties release/openaev/
       - run:
-          working_directory: ~/openbas_musl/release
-          command: tar -zcvf "openbas-$(date '+%Y%m%d')_musl.tar.gz" openbas
+          working_directory: ~/openaev_musl/release
+          command: tar -zcvf "openaev-$(date '+%Y%m%d')_musl.tar.gz" openaev
       - run:
-          working_directory: ~/openbas_musl/release
-          command: curl -usamuel.hassine@filigran.io:$JFROG_TOKEN -T openbas-$(date '+%Y%m%d')_musl.tar.gz "https://filigran.jfrog.io/artifactory/openbas/openbas-$(date '+%Y%m%d')_musl.tar.gz"
+          working_directory: ~/openaev_musl/release
+          command: curl -usamuel.hassine@filigran.io:$JFROG_TOKEN -T openaev-$(date '+%Y%m%d')_musl.tar.gz "https://filigran.jfrog.io/artifactory/openaev/openaev-$(date '+%Y%m%d')_musl.tar.gz"
       - slack/notify:
           event: fail
           template: basic_fail_1
@@ -205,7 +205,7 @@ jobs:
       - run: kubectl --server=https://api.staging.eu-west.filigran.io --token=$K8S_TOKEN_PRE_RELEASE -n customer-prerelease-oaev rollout restart deployment -l app=openaev
 
   docker_build_platform:
-    working_directory: ~/openbas_docker
+    working_directory: ~/openaev_docker
     machine:
       image: ubuntu-2004:202111-02
       resource_class: large
@@ -219,42 +219,42 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get -y install git
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/arm64/openbas-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-agent/linux/arm64/openbas-agent-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/x86_64/openbas-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-agent/linux/x86_64/openbas-agent-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-service-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-session-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-service-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-session-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-service-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-session-user-${CIRCLE_TAG}.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-service-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-service-user-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-session-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-session-user-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-${CIRCLE_TAG}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-service-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-service-user-${CIRCLE_TAG}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-session-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-session-user-${CIRCLE_TAG}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-${CIRCLE_TAG}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-service-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-service-user-${CIRCLE_TAG}.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-session-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-session-user-${CIRCLE_TAG}.ps1
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/arm64/openbas-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-implant/linux/arm64/openbas-implant-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/x86_64/openbas-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-implant/linux/x86_64/openbas-implant-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/arm64/openbas-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-implant/macos/arm64/openbas-implant-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/x86_64/openbas-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openbas-implant/macos/x86_64/openbas-implant-${CIRCLE_TAG}
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/arm64/openbas-implant-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/arm64/openbas-implant-${CIRCLE_TAG}.exe
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/x86_64/openbas-implant-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/x86_64/openbas-implant-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-service-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-session-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-service-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-session-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-service-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-service-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-session-user-${CIRCLE_TAG}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-session-user-${CIRCLE_TAG}.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-service-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-service-user-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-session-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-session-user-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-${CIRCLE_TAG}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-service-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-service-user-${CIRCLE_TAG}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-session-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-session-user-${CIRCLE_TAG}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-${CIRCLE_TAG}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-service-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-service-user-${CIRCLE_TAG}.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-session-user-${CIRCLE_TAG}.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-session-user-${CIRCLE_TAG}.ps1
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/arm64/openaev-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-implant/linux/arm64/openaev-implant-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/x86_64/openaev-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-implant/linux/x86_64/openaev-implant-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/arm64/openaev-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-implant/macos/arm64/openaev-implant-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/x86_64/openaev-implant-${CIRCLE_TAG} https://filigran.jfrog.io/artifactory/openaev-implant/macos/x86_64/openaev-implant-${CIRCLE_TAG}
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/arm64/openaev-implant-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/arm64/openaev-implant-${CIRCLE_TAG}.exe
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/x86_64/openaev-implant-${CIRCLE_TAG}.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/x86_64/openaev-implant-${CIRCLE_TAG}.exe
       - run:
           name: Install buildx
           command: |
@@ -285,7 +285,7 @@ jobs:
           template: basic_fail_1
 
   docker_build_platform_rolling:
-    working_directory: ~/openbas_docker
+    working_directory: ~/openaev_docker
     machine:
       image: ubuntu-2004:202111-02
       resource_class: large
@@ -300,42 +300,42 @@ jobs:
             sudo apt-get update
             sudo apt-get -y install git
             LATEST_VERSION=$(git describe --tags --abbrev=0)
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/arm64/openbas-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-agent/linux/arm64/openbas-agent-latest
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/x86_64/openbas-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-agent/linux/x86_64/openbas-agent-latest
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-service-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-session-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-service-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-session-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/arm64/openbas-agent-latest
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/x86_64/openbas-agent-latest
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-service-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-session-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-service-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-session-user-latest.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-service-user-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-session-user-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-latest.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-latest.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-service-user-latest.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-session-user-latest.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-latest.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-service-user-latest.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-session-user-latest.ps1
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/arm64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/linux/arm64/openbas-implant-latest
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/x86_64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/linux/x86_64/openbas-implant-latest
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/arm64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/macos/arm64/openbas-implant-latest
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/x86_64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/macos/x86_64/openbas-implant-latest
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/arm64/openbas-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/arm64/openbas-implant-latest.exe
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/x86_64/openbas-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/x86_64/openbas-implant-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-latest
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-latest
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-service-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-session-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-service-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-session-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/arm64/openaev-agent-latest
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/x86_64/openaev-agent-latest
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-service-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-session-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-service-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-session-user-latest.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-service-user-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-session-user-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-latest.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-latest.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-service-user-latest.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-session-user-latest.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-latest.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-service-user-latest.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-session-user-latest.ps1
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/arm64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/linux/arm64/openaev-implant-latest
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/x86_64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/linux/x86_64/openaev-implant-latest
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/arm64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/macos/arm64/openaev-implant-latest
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/x86_64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/macos/x86_64/openaev-implant-latest
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/arm64/openaev-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/arm64/openaev-implant-latest.exe
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/x86_64/openaev-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/x86_64/openaev-implant-latest.exe
       - run:
           name: Install buildx
           command: |
@@ -355,7 +355,7 @@ jobs:
           name: Login
           command: echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
-          working_directory: ~/openbas_docker
+          working_directory: ~/openaev_docker
           name: Build Docker image openbas/platform
           command: docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci -t openbas/platform:rolling --push .
           no_output_timeout: 30m
@@ -364,7 +364,7 @@ jobs:
           template: basic_fail_1
 
   docker_build_platform_prerelease:
-    working_directory: ~/openbas_docker
+    working_directory: ~/openaev_docker
     machine:
       image: ubuntu-2004:202111-02
       resource_class: large
@@ -379,42 +379,42 @@ jobs:
             sudo apt-get update
             sudo apt-get -y install git
             LATEST_VERSION=$(git describe --tags --abbrev=0)
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/arm64/openbas-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-agent/linux/arm64/openbas-agent-prerelease
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/x86_64/openbas-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-agent/linux/x86_64/openbas-agent-prerelease
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-service-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-installer-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-installer-session-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-service-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/linux/openbas-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/linux/openbas-agent-upgrade-session-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/arm64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/arm64/openbas-agent-prerelease
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/x86_64/openbas-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openbas-agent/macos/x86_64/openbas-agent-prerelease
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-service-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-installer-session-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-service-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/macos/openbas-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openbas-agent/macos/openbas-agent-upgrade-session-user-prerelease.sh
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-service-user-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/arm64/openbas-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/arm64/openbas-agent-installer-session-user-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-service-user-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-agent/windows/x86_64/openbas-agent-installer-session-user-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-prerelease.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-service-user-prerelease.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-installer-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-installer-session-user-prerelease.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-prerelease.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-service-user-prerelease.ps1
-            curl -L -o openbas-api/src/main/resources/agents/openbas-agent/windows/openbas-agent-upgrade-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openbas-agent/windows/openbas-agent-upgrade-session-user-prerelease.ps1
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/arm64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/linux/arm64/openbas-implant-prerelease
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/linux/x86_64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/linux/x86_64/openbas-implant-prerelease
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/arm64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/macos/arm64/openbas-implant-prerelease
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/macos/x86_64/openbas-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openbas-implant/macos/x86_64/openbas-implant-prerelease
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/arm64/openbas-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/arm64/openbas-implant-prerelease.exe
-            curl -L -o openbas-api/src/main/resources/implants/openbas-implant/windows/x86_64/openbas-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openbas-implant/windows/x86_64/openbas-implant-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/arm64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/arm64/openaev-agent-prerelease
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/x86_64/openaev-agent-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-agent/linux/x86_64/openaev-agent-prerelease
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-service-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-installer-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-installer-session-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-service-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/linux/openaev-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/linux/openaev-agent-upgrade-session-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/arm64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/arm64/openaev-agent-prerelease
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/x86_64/openaev-agent-${CIRCLE_TAG:-$LATEST_VERSION} https://filigran.jfrog.io/artifactory/openaev-agent/macos/x86_64/openaev-agent-prerelease
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-service-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-service-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-installer-session-user-${CIRCLE_TAG:-$LATEST_VERSION}.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-installer-session-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-service-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-service-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/macos/openaev-agent-upgrade-session-user-$LATEST_VERSION.sh https://filigran.jfrog.io/artifactory/openaev-agent/macos/openaev-agent-upgrade-session-user-prerelease.sh
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-service-user-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/arm64/openaev-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/arm64/openaev-agent-installer-session-user-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-service-user-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-agent/windows/x86_64/openaev-agent-installer-session-user-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-prerelease.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-service-user-prerelease.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-installer-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-installer-session-user-prerelease.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-prerelease.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-service-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-service-user-prerelease.ps1
+            curl -L -o openaev-api/src/main/resources/agents/openaev-agent/windows/openaev-agent-upgrade-session-user-$LATEST_VERSION.ps1 https://filigran.jfrog.io/artifactory/openaev-agent/windows/openaev-agent-upgrade-session-user-prerelease.ps1
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/arm64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/linux/arm64/openaev-implant-prerelease
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/linux/x86_64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/linux/x86_64/openaev-implant-prerelease
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/arm64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/macos/arm64/openaev-implant-prerelease
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/macos/x86_64/openaev-implant-$LATEST_VERSION https://filigran.jfrog.io/artifactory/openaev-implant/macos/x86_64/openaev-implant-prerelease
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/arm64/openaev-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/arm64/openaev-implant-prerelease.exe
+            curl -L -o openaev-api/src/main/resources/implants/openaev-implant/windows/x86_64/openaev-implant-$LATEST_VERSION.exe https://filigran.jfrog.io/artifactory/openaev-implant/windows/x86_64/openaev-implant-prerelease.exe
       - run:
           name: Install buildx
           command: |
@@ -434,7 +434,7 @@ jobs:
           name: Login
           command: echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
-          working_directory: ~/openbas_docker
+          working_directory: ~/openaev_docker
           name: Build Docker image openbas/platform
           command: docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci -t openbas/platform:prerelease --push .
           no_output_timeout: 30m
@@ -460,7 +460,7 @@ jobs:
           template: basic_success_1
 
 workflows:
-  openbas:
+  openaev:
     jobs:
       - build_frontend:
           filters:

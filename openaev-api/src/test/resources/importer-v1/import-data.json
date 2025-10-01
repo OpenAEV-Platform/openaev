@@ -1,0 +1,64 @@
+{
+  "exercise_information": {
+    "exercise_name": "Test Exercise",
+    "exercise_description": "Description",
+    "exercise_subtitle": "Subtitle",
+    "exercise_message_header": "Header",
+    "exercise_message_footer": "Footer",
+    "exercise_mail_from": "mail@example.com",
+    "exercise_tags": []
+  },
+  "exercise_teams": [
+    {
+      "team_id": "0801be02-2aef-472e-a0b2-29f464a61c55",
+      "team_name": "Animation team",
+      "team_description": "",
+      "team_tags": [
+        "5783bfdf-aaf4-4818-976e-a8ad3e46e8eb"
+      ],
+      "team_organization": "e2a24b52-fd3e-4678-8f9e-c44d6d6a39c3",
+      "team_users": [
+        "984f481b-73c6-407a-9036-d48e306d409d"
+      ]
+    },
+    {
+      "team_id": "0801be02-2aef-472e-a0b2-29f464a61c55",
+      "team_name": "Animation team",
+      "team_description": "",
+      "team_tags": [
+        "5783bfdf-aaf4-4818-976e-a8ad3e46e8eb"
+      ],
+      "team_organization": "e2a24b52-fd3e-4678-8f9e-c44d6d6a39c3",
+      "team_users": [
+        "984f481b-73c6-407a-9036-d48e306d409d"
+      ]
+    }
+  ],
+  "exercise_users": [
+    {
+      "user_id": "984f481b-73c6-407a-9036-d48e306d409d",
+      "user_firstname": "Romuald",
+      "user_lastname": "Lemesle",
+      "user_email": "Romuald.Lemesle@openaev.io",
+      "user_organization": "e2a24b52-fd3e-4678-8f9e-c44d6d6a39c3",
+      "user_tags": [
+        "5783bfdf-aaf4-4818-976e-a8ad3e46e8eb"
+      ]
+    }
+  ],
+  "exercise_organizations": [
+    {
+      "organization_id": "e2a24b52-fd3e-4678-8f9e-c44d6d6a39c3",
+      "organization_name": "Filigran"
+    },
+    {
+      "organization_id": "e2a24b52-fd3e-4678-8f9e-c44d6d6a39c3",
+      "organization_name": "Filigran"
+    }
+  ],
+  "exercise_tags" : [ {
+    "tag_id" : "5783bfdf-aaf4-4818-976e-a8ad3e46e8eb",
+    "tag_name" : "Crisis exercise",
+    "tag_color" : "#bc42d4"
+  } ]
+}

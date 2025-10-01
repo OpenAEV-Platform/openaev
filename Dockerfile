@@ -1,27 +1,27 @@
 FROM node:22.16.0-alpine3.20 AS front-builder
 
-WORKDIR /opt/openbas-build/openbas-front
-COPY openbas-front/packages ./packages
-COPY openbas-front/.yarn ./.yarn
-COPY openbas-front/package.json openbas-front/yarn.lock openbas-front/.yarnrc.yml ./
+WORKDIR /opt/openaev-build/openaev-front
+COPY openaev-front/packages ./packages
+COPY openaev-front/.yarn ./.yarn
+COPY openaev-front/package.json openaev-front/yarn.lock openaev-front/.yarnrc.yml ./
 RUN yarn install
-COPY openbas-front /opt/openbas-build/openbas-front
+COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build
 
 FROM maven:3.9.11-eclipse-temurin-21 AS api-builder
 
-WORKDIR /opt/openbas-build/openbas
-COPY openbas-model ./openbas-model
-COPY openbas-framework ./openbas-framework
-COPY openbas-api ./openbas-api
+WORKDIR /opt/openaev-build/openaev
+COPY openaev-model ./openaev-model
+COPY openaev-framework ./openaev-framework
+COPY openaev-api ./openaev-api
 COPY pom.xml ./pom.xml
-COPY --from=front-builder /opt/openbas-build/openbas-front/builder/prod/build ./openbas-front/builder/prod/build
+COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
 
 FROM eclipse-temurin:21.0.7_6-jre AS app
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini && rm -rf /var/lib/apt/lists/*
-COPY --from=api-builder /opt/openbas-build/openbas/openbas-api/target/openbas-api.jar ./
+COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["java", "-jar", "openbas-api.jar"]
+CMD ["java", "-jar", "openaev-api.jar"]

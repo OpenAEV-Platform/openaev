@@ -1,0 +1,56 @@
+{
+  "comment": "Exported from Tanium Server 7.6.1.6540 at 2024-05-17T13:13:32",
+  "version": 2,
+  "object_list": {
+    "package_specs": [
+      {
+        "content_set": {
+          "name": "Base"
+        },
+        "name": "OpenAEV Subprocessor (Unix)",
+        "display_name": "OpenAEV Subprocessor (Unix)",
+        "files": [],
+        "file_templates": [],
+        "command": "/bin/sh -c \"/bin/echo $1 | sed 's#%2b#+#gi' | sed 's#%3d#=#gi' | sed 's#%2f#/#gi' | base64 -d | sh\"",
+        "command_timeout": 60,
+        "expire_seconds": 660,
+        "hidden_flag": 0,
+        "process_group_flag": 0,
+        "verify_group": {
+          "name": "",
+          "and_flag": 0,
+          "not_flag": 0,
+          "type": 0
+        },
+        "verify_expire_seconds": 600,
+        "skip_lock_flag": 0,
+        "parameter_definition": "{\"parameters\":[{\"defaultValue\":\"\",\"helpString\":\"\",\"label\":\"command\",\"maxChars\":\"\",\"promptText\":\"\",\"validationExpressions\":[{\"expression\":\".*\",\"helpString\":\"\",\"model\":\"com.tanium.models::ValidationExpression\",\"parameterType\":\"com.tanium.models::ValidationExpression\"}],\"parameterType\":\"com.tanium.components.parameters::TextInputParameter\",\"key\":\"$1\"}]}",
+        "metadata": []
+      },
+      {
+        "content_set": {
+          "name": "Base"
+        },
+        "name": "OpenAEV Subprocessor (Windows)",
+        "display_name": "OpenAEV Subprocessor (Windows)",
+        "files": [],
+        "file_templates": [],
+        "command": "cmd.exe /d /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NonInteractive -NoProfile -Command \"Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([convert]::FromBase64String('$1'.Replace('%3d', '=').Replace('%2b', '+').Replace('%2f', '/'))))\"",
+        "command_timeout": 60,
+        "expire_seconds": 660,
+        "hidden_flag": 0,
+        "process_group_flag": 0,
+        "verify_group": {
+          "name": "",
+          "and_flag": 0,
+          "not_flag": 0,
+          "type": 0
+        },
+        "verify_expire_seconds": 600,
+        "skip_lock_flag": 0,
+        "parameter_definition": "{\"parameters\":[{\"defaultValue\":\"\",\"helpString\":\"\",\"label\":\"command\",\"maxChars\":\"\",\"promptText\":\"\",\"validationExpressions\":[{\"expression\":\".*\",\"helpString\":\"\",\"model\":\"com.tanium.models::ValidationExpression\",\"parameterType\":\"com.tanium.models::ValidationExpression\"}],\"parameterType\":\"com.tanium.components.parameters::TextInputParameter\",\"key\":\"$1\"}]}",
+        "metadata": []
+      }
+    ]
+  }
+}

@@ -5,8 +5,8 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 logs/**
-openbas-dev/.env
-openbas-dev/.telemetry.json
+openaev-dev/.env
+openaev-dev/.telemetry.json
 
 ### STS ###
 .apt_generated

@@ -2,14 +2,14 @@ name: test-feature-branch
 on:
   workflow_dispatch:
     inputs:
-      openbas_config:
+      openaev_config:
         type: string
         default: '{ "SPRING_PROFILES_ACTIVE": "ci" }'
         required: false
 
 jobs:
-  openbas-platform:
-    name: openbas-platform
+  openaev-platform:
+    name: openaev-platform
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,21 +31,21 @@ jobs:
       - name: Build into Alpine
         run: |
           export JAVA_HOME=/usr/lib/jvm/default-jvm/
-          cd openbas-front
+          cd openaev-front
           yarn install
           yarn build
           cd ../
           mvn install -DskipTests -Pdev
         shell: alpine.sh {0}
 
-      - run: mkdir -p openbas-build/
-      - run: cp openbas-api/target/openbas-api.jar openbas-build/
+      - run: mkdir -p openaev-build/
+      - run: cp openaev-api/target/openaev-api.jar openaev-build/
 
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: filigran/openbas-platform
+          images: filigran/openaev-platform
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -71,14 +71,14 @@ jobs:
 
   deploy:
     name: deploy
-    needs: [openbas-platform]
+    needs: [openaev-platform]
     runs-on: ubuntu-latest
     steps:
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: filigran/openbas-platform
+          images: filigran/openaev-platform
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -92,11 +92,11 @@ jobs:
           ansible-tower-url: ${{ secrets.AWX_URL }}
           template-id: "65"
           additional-vars: |
-            { "openbas_version": "${{steps.meta.outputs.version}}", "openbas_config": ${{ inputs.openbas_config }}, "image_digest": "${{ needs.openbas-platform.outputs.dockerBuildDigest }}" }
+            { "openaev_version": "${{steps.meta.outputs.version}}", "openaev_config": ${{ inputs.openaev_config }}, "image_digest": "${{ needs.openaev-platform.outputs.dockerBuildDigest }}" }
       - name: Forge URL to match playbook limitations
         id: urlforge
         run: |
           url=$(echo "${{steps.meta.outputs.version}}" | cut -c 1-15 | sed 's/[_.]/-/g' | sed 's/-*$//')
           echo "url=$url" >> $GITHUB_OUTPUT
       - name: display URL
-        run: echo "https://feat-${{steps.urlforge.outputs.url}}.obas.staging.filigran.io"
+        run: echo "https://feat-${{steps.urlforge.outputs.url}}.oaev.staging.filigran.io"

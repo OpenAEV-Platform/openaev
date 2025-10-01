@@ -1,10 +1,10 @@
 FROM maven:3.9.11-eclipse-temurin-21 AS api-builder
 
-WORKDIR /opt/openbas-build/openbas
-COPY openbas-model ./openbas-model
-COPY openbas-framework ./openbas-framework
-COPY openbas-api ./openbas-api
-COPY openbas-front/builder/prod/build ./openbas-front/builder/prod/build
+WORKDIR /opt/openaev-build/openaev
+COPY openaev-model ./openaev-model
+COPY openaev-framework ./openaev-framework
+COPY openaev-api ./openaev-api
+COPY openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 COPY pom.xml ./pom.xml
 RUN mvn install -DskipTests -Pdev
 
@@ -15,7 +15,7 @@ RUN ln -s /usr/bin/dpkg-deb /usr/sbin/dpkg-deb
 RUN ln -s /bin/rm /usr/sbin/rm
 RUN ln -s /bin/tar /usr/sbin/tar
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini && rm -rf /var/lib/apt/lists/*
-COPY --from=api-builder /opt/openbas-build/openbas/openbas-api/target/openbas-api.jar ./
+COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["java", "-jar", "openbas-api.jar"]
+CMD ["java", "-jar", "openaev-api.jar"]

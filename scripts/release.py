@@ -6,7 +6,7 @@ import time
 from datetime import date
 
 import requests
-from OBAS_utils.release_utils import check_release, closeRelease, download_url
+from OAEV_utils.release_utils import check_release, closeRelease, download_url
 
 logging.basicConfig(encoding="utf-8", level=logging.INFO)
 
@@ -49,10 +49,10 @@ with open(
 ) as file:
     filedata = file.read()
 filedata = re.sub(
-    r"<groupId>io.openbas</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
+    r"<groupId>io.openaev</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
     + previous_version
     + "</version>",
-    r"<groupId>io.openbas</groupId>\1<artifactId>\2</artifactId>\3<version>"
+    r"<groupId>io.openaev</groupId>\1<artifactId>\2</artifactId>\3<version>"
     + new_version
     + "</version>",
     filedata,
@@ -63,70 +63,70 @@ with open(
 ) as file:
     file.write(filedata)
 with open(
-    "./openbas-api/pom.xml",
+    "./openaev-api/pom.xml",
     "r",
 ) as file:
     filedata = file.read()
 filedata = re.sub(
-    r"<groupId>io.openbas</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
+    r"<groupId>io.openaev</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
     + previous_version
     + "</version>",
-    r"<groupId>io.openbas</groupId>\1<artifactId>\2</artifactId>\3<version>"
+    r"<groupId>io.openaev</groupId>\1<artifactId>\2</artifactId>\3<version>"
     + new_version
     + "</version>",
     filedata,
 )
 with open(
-    "./openbas-api/pom.xml",
+    "./openaev-api/pom.xml",
     "w",
 ) as file:
     file.write(filedata)
 with open(
-    "./openbas-framework/pom.xml",
+    "./openaev-framework/pom.xml",
     "r",
 ) as file:
     filedata = file.read()
 filedata = re.sub(
-    r"<groupId>io.openbas</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
+    r"<groupId>io.openaev</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
     + previous_version
     + "</version>",
-    r"<groupId>io.openbas</groupId>\1<artifactId>\2</artifactId>\3<version>"
+    r"<groupId>io.openaev</groupId>\1<artifactId>\2</artifactId>\3<version>"
     + new_version
     + "</version>",
     filedata,
 )
 with open(
-    "./openbas-framework/pom.xml",
+    "./openaev-framework/pom.xml",
     "w",
 ) as file:
     file.write(filedata)
 with open(
-    "./openbas-model/pom.xml",
+    "./openaev-model/pom.xml",
     "r",
 ) as file:
     filedata = file.read()
 filedata = re.sub(
-    r"<groupId>io.openbas</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
+    r"<groupId>io.openaev</groupId>(\s+)<artifactId>(.*)</artifactId>(\s+)<version>"
     + previous_version
     + "</version>",
-    r"<groupId>io.openbas</groupId>\1<artifactId>\2</artifactId>\3<version>"
+    r"<groupId>io.openaev</groupId>\1<artifactId>\2</artifactId>\3<version>"
     + new_version
     + "</version>",
     filedata,
 )
 with open(
-    "./openbas-model/pom.xml",
+    "./openaev-model/pom.xml",
     "w",
 ) as file:
     file.write(filedata)
 
 # Package.json
-with open("./openbas-front/package.json", "r") as file:
+with open("./openaev-front/package.json", "r") as file:
     filedata = file.read()
 filedata = filedata.replace(
     '"version": "' + previous_version + '"', '"version": "' + new_version + '"'
 )
-with open("./openbas-front/package.json", "w") as file:
+with open("./openaev-front/package.json", "w") as file:
     file.write(filedata)
 
 logging.info("[platform] Pushing to " + branch_platform)
@@ -146,7 +146,7 @@ logging.info(
 )
 
 check_release(
-    "https://hub.docker.com/v2/repositories/openbas/platform/tags?page_size=1000",
+    "https://hub.docker.com/v2/repositories/openaev/platform/tags?page_size=1000",
     new_version,
 )
 
@@ -156,7 +156,7 @@ os.system("gren release > /dev/null 2>&1")
 # Modify the release note
 logging.info("[platform] Getting the current release note")
 release = requests.get(
-    "https://api.github.com/repos/OpenBAS-Platform/openbas/releases/latest",
+    "https://api.github.com/repos/OpenAEV-Platform/openaev/releases/latest",
     headers={
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer " + github_token,
@@ -168,7 +168,7 @@ release_body = release_data["body"]
 
 logging.info("[platform] Generating the new release note")
 github_release_note = requests.post(
-    "https://api.github.com/repos/OpenBAS-Platform/openbas/releases/generate-notes",
+    "https://api.github.com/repos/OpenAEV-Platform/openaev/releases/generate-notes",
     headers={
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer " + github_token,
@@ -191,7 +191,7 @@ else:
 
 logging.info("[platform] Updating the release")
 requests.patch(
-    "https://api.github.com/repos/OpenBAS-Platform/openbas/releases/"
+    "https://api.github.com/repos/OpenAEV-Platform/openaev/releases/"
     + str(release_data["id"]),
     headers={
         "Accept": "application/vnd.github+json",
@@ -207,23 +207,23 @@ logging.info("[platform] Downloading latest builds")
 today = date.today()
 timestamp = str(today.year) + "{:02d}".format(today.month) + "{:02d}".format(today.day)
 download_url(
-    "https://filigran.jfrog.io/artifactory/openbas/openbas-" + timestamp + ".tar.gz",
-    save_path="openbas-release-" + new_version + ".tar.gz",
+    "https://filigran.jfrog.io/artifactory/openaev/openaev-" + timestamp + ".tar.gz",
+    save_path="openaev-release-" + new_version + ".tar.gz",
 )
 download_url(
-    "https://filigran.jfrog.io/artifactory/openbas/openbas-"
+    "https://filigran.jfrog.io/artifactory/openaev/openaev-"
     + timestamp
     + "_musl.tar.gz",
-    save_path="openbas-release-" + new_version + "_musl.tar.gz",
+    save_path="openaev-release-" + new_version + "_musl.tar.gz",
 )
 
 logging.info("[platform] Updating the release")
-with open("openbas-release-" + new_version + ".tar.gz", "rb") as f:
+with open("openaev-release-" + new_version + ".tar.gz", "rb") as f:
     data = f.read()
 requests.post(
-    "https://uploads.github.com/repos/OpenBAS-Platform/openbas/releases/"
+    "https://uploads.github.com/repos/OpenAEV-Platform/openaev/releases/"
     + str(release_data["id"])
-    + "/assets?name=openbas-release-"
+    + "/assets?name=openaev-release-"
     + new_version
     + ".tar.gz",
     headers={
@@ -234,12 +234,12 @@ requests.post(
     },
     data=data,
 )
-with open("openbas-release-" + new_version + "_musl.tar.gz", "rb") as f:
+with open("openaev-release-" + new_version + "_musl.tar.gz", "rb") as f:
     data = f.read()
 requests.post(
-    "https://uploads.github.com/repos/OpenBAS-Platform/openbas/releases/"
+    "https://uploads.github.com/repos/OpenAEV-Platform/openaev/releases/"
     + str(release_data["id"])
-    + "/assets?name=openbas-release-"
+    + "/assets?name=openaev-release-"
     + new_version
     + "_musl.tar.gz",
     headers={
@@ -252,7 +252,7 @@ requests.post(
 )
 
 closeRelease(
-    "https://api.github.com/repos/OpenBAS-Platform/openbas", new_version, github_token
+    "https://api.github.com/repos/OpenAEV-Platform/openaev", new_version, github_token
 )
 
 logging.info("[platform] Release done!")

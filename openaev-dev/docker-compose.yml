@@ -1,0 +1,180 @@
+services:
+  openaev-dev-pgsql:
+    container_name: openaev-dev-pgsql
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: openaev
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  openaev-test-pgsql:
+    container_name: openaev-test-pgsql
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: openaev
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+  openaev-dev-minio:
+    container_name: openaev-dev-minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    ports:
+      - "10000:9000"
+      - "10001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+  openaev-dev-rabbitmq:
+    container_name: openaev-dev-rabbitmq
+    image: rabbitmq:4.1-management
+    restart: unless-stopped
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  openaev-dev-caldera:
+    container_name: openaev-dev-caldera
+    image: openaev/caldera-server:5.1.0
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      CALDERA_URL: http://localhost:8888
+    volumes:
+      - type: bind
+        source: caldera.yml
+        target: /usr/src/app/conf/local.yml
+#  openaev-pyroscope:
+#    container_name: openaev-pyroscope
+#    image: grafana/pyroscope:latest
+#    restart: unless-stopped
+#    ports:
+#      - "4040:4040"
+#  openaev-telemetry-otlp:
+#    container_name: openaev-telemetry-otlp
+#    image: otel/opentelemetry-collector-contrib:0.119.0
+#    restart: unless-stopped
+#    volumes:
+#      - "./otlp-config.yaml:/etc/config/otlp-config.yaml"
+#      - "./telemetry.json:/telemetry.json"
+#    command:
+#      - '--config=/etc/config/otlp-config.yaml'
+#    ports:
+#      - "1010:1010"
+  openaev-dev-pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+  openaev-dev-elasticsearch:
+    container_name: openaev-dev-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+      - essnapshots:/usr/share/elasticsearch/snapshots
+    environment:
+      - discovery.type=single-node
+      - xpack.ml.enabled=false
+      - xpack.security.enabled=false
+      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9200:9200
+      - 9300:9300
+  openaev-dev-opensearch:
+    container_name: openaev-dev-opensearch
+    image: opensearchproject/opensearch:3.1.0
+    volumes:
+      - osdata:/usr/share/opensearch/data
+      - ossnapshots:/usr/share/opensearch/snapshots
+    environment:
+      - discovery.type=single-node
+      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "DISABLE_SECURITY_PLUGIN=true" # Disables Security plugin
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9200:9200
+      - 9600:9600
+  openaev-test-elasticsearch:
+    container_name: openaev-test-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    environment:
+      - discovery.type=single-node
+      - xpack.ml.enabled=false
+      - xpack.security.enabled=false
+      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9201:9200
+      - 9301:9300
+  openaev-dev-kibana:
+    container_name: openaev-dev-kibana
+    image: docker.elastic.co/kibana/kibana:8.18.3
+    environment:
+      - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9200
+    restart: unless-stopped
+    ports:
+      - 5601:5601
+    depends_on:
+      - openaev-dev-elasticsearch
+  openaev-test-kibana:
+    container_name: openaev-test-kibana
+    image: docker.elastic.co/kibana/kibana:8.18.3
+    environment:
+      - ELASTICSEARCH_HOSTS=http://openaev-test-elasticsearch:9200
+    restart: unless-stopped
+    ports:
+      - 5602:5601
+    depends_on:
+      - openaev-dev-elasticsearch
+volumes:
+  esdata:
+    driver: local
+  osdata:
+    driver: local
+  essnapshots:
+    driver: local
+  ossnapshots:
+    driver: local
+  pgdata  :
+    driver: local

@@ -1,3 +1,3 @@
 PyYAML
 requests
-git+https://github.com/OpenBAS-Platform/release.git@main
+git+https://github.com/OpenAEV-Platform/release.git@main

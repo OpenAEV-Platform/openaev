@@ -1,5 +1,5 @@
 <!--
-Thank you very much for your pull request to the OpenBAS project! We as a community
+Thank you very much for your pull request to the OpenAEV project! We as a community
 driven project depend on support and contributions like this!
 
 Thus already a BIG THANK YOU upfront to you for choosing to help with your PR.
@@ -25,7 +25,7 @@ Thus already a BIG THANK YOU upfront to you for choosing to help with your PR.
 <!--
 Please submit the source code in a way, where you could honestly say `This code is finished`.
 If you feel that there are possibilities for improving the code quality, please do so.
-By doing this, you are actively helping us to improve the quality of the entire OpenBAS project.
+By doing this, you are actively helping us to improve the quality of the entire OpenAEV project.
 -->
 
 - [ ] I consider the submitted work as finished

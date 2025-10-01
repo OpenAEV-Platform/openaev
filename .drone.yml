@@ -1,6 +1,6 @@
 ---
 kind: pipeline
-name: openbas-tests
+name: openaev-tests
 
 steps:
   - name: Runner information
@@ -11,7 +11,7 @@ steps:
   - name: api-tests
     image: maven:3.9.9-eclipse-temurin-22
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql:5432/openbas
+      SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql:5432/openaev
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
@@ -19,15 +19,15 @@ steps:
       - sleep 60
       - mvn clean install -q -DskipTests
       - mvn spotless:check
-      - cd openbas-api
+      - cd openaev-api
       - mvn test
-      - cd ../openbas-framework
+      - cd ../openaev-framework
       - mvn test
 
   - name: frontend-tests
     image: node:22.17.1-alpine
     commands:
-      - cd openbas-front
+      - cd openaev-front
       - yarn install
       - yarn build
       - yarn check-ts
@@ -39,17 +39,17 @@ steps:
     image: maven:3.9.9-eclipse-temurin-22
     detach: true
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql-e2e:5432/openbas
-      SPRING_DATASOURCE_USERNAME: openbas
-      SPRING_DATASOURCE_PASSWORD: openbas
+      SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql-e2e:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: minio-e2e
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
-      OPENBAS_ADMIN_EMAIL: admin@openbas.io
-      OPENBAS_ADMIN_PASSWORD: admin
-      OPENBAS_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
       SPRING_PROFILES_ACTIVE: ci
     commands:
       - apt update && apt install -y gnupg
@@ -60,12 +60,12 @@ steps:
       - apt install -y yarn
       - apt install -y nodejs
       - apt install -y git
-      - cd openbas-front
+      - cd openaev-front
       - yarn install
       - yarn build
       - cd ..
       - mvn install -DskipTests=true
-      - java -jar openbas-api/target/openbas-api.jar
+      - java -jar openaev-api/target/openaev-api.jar
     depends_on:
       - api-tests
       - frontend-tests
@@ -76,7 +76,7 @@ steps:
       - apt update
       - apt -y install netcat-traditional
       - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
-      - cd openbas-front
+      - cd openaev-front
       - yarn install
       - yarn playwright install --with-deps chromium
       - APP_URL=http://app-e2e:8080 yarn test:e2e
@@ -87,12 +87,12 @@ steps:
     image: node:22.17.1
     volumes:
       - name: cache-node-frontend-api-types
-        path: /drone/src/openbas-front/node_modules
+        path: /drone/src/openaev-front/node_modules
     commands:
       - apt update
       - apt -y install netcat-traditional
       - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
-      - cd openbas-front
+      - cd openaev-front
       - yarn install
       - API_URL=http://app-e2e:8080 yarn generate-types-from-api
       - |
@@ -108,15 +108,15 @@ steps:
       token:
         from_secret: codecov_token
       files:
-        - openbas-api/target/site/jacoco/jacoco.xml
-        - openbas-framework/target/site/jacoco/jacoco.xml
+        - openaev-api/target/site/jacoco/jacoco.xml
+        - openaev-framework/target/site/jacoco/jacoco.xml
     depends_on:
       - api-tests
 
   - name: build-circleci
     image: curlimages/curl
     commands:
-      - curl -X POST --data "branch=$DRONE_COMMIT_BRANCH" https://circleci.com/api/v1.1/project/github/OpenBAS-Platform/openbas/build?circle-token=$CIRCLECI_TOKEN
+      - curl -X POST --data "branch=$DRONE_COMMIT_BRANCH" https://circleci.com/api/v1.1/project/github/OpenAEV-Platform/openaev/build?circle-token=$CIRCLECI_TOKEN
     environment:
       CIRCLECI_TOKEN:
         from_secret: circleci_token
@@ -136,7 +136,7 @@ steps:
   - name: build-circleci-release
     image: curlimages/curl
     commands:
-      - curl -X POST --data "tag=$DRONE_TAG" https://circleci.com/api/v1.1/project/github/OpenBAS-Platform/openbas/build?circle-token=$CIRCLECI_TOKEN
+      - curl -X POST --data "tag=$DRONE_TAG" https://circleci.com/api/v1.1/project/github/OpenAEV-Platform/openaev/build?circle-token=$CIRCLECI_TOKEN
     environment:
       CIRCLECI_TOKEN:
         from_secret: circleci_token
@@ -172,9 +172,9 @@ services:
   - name: pgsql
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: openbas
-      POSTGRES_PASSWORD: openbas
-      POSTGRES_DB: openbas
+      POSTGRES_USER: openaev
+      POSTGRES_PASSWORD: openaev
+      POSTGRES_DB: openaev
   - name: minio-e2e
     image: minio/minio:RELEASE.2025-06-13T11-33-47Z
     environment:
@@ -184,9 +184,9 @@ services:
   - name: pgsql-e2e
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: openbas
-      POSTGRES_PASSWORD: openbas
-      POSTGRES_DB: openbas
+      POSTGRES_USER: openaev
+      POSTGRES_PASSWORD: openaev
+      POSTGRES_DB: openaev
   - name: elastic
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
     environment:

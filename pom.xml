@@ -9,13 +9,13 @@
         <version>3.3.7</version>
     </parent>
 
-    <groupId>io.openbas</groupId>
-    <artifactId>openbas-platform</artifactId>
+    <groupId>io.openaev</groupId>
+    <artifactId>openaev-platform</artifactId>
     <version>1.18.20</version>
     <packaging>pom</packaging>
 
-    <name>OpenBAS platform</name>
-    <description>OpenBAS platform</description>
+    <name>OpenAEV platform</name>
+    <description>OpenAEV platform</description>
 
     <properties>
         <java.version>21</java.version>
@@ -133,8 +133,8 @@
     </build>
 
     <modules>
-        <module>openbas-model</module>
-        <module>openbas-framework</module>
-        <module>openbas-api</module>
+        <module>openaev-model</module>
+        <module>openaev-framework</module>
+        <module>openaev-api</module>
     </modules>
 </project>

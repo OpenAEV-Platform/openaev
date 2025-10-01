@@ -25,12 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: openbas
+        working-directory: openaev
     steps:
       - name: checkout repo content
         uses: actions/checkout@v4
         with:
-          repository: OpenBAS-Platform/openbas
+          repository: OpenAEV-Platform/openaev
           ref: ${{ inputs.branch_platform }}
       - name: setup python
         uses: actions/setup-python@v5
