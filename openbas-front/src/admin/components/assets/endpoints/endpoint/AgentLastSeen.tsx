@@ -12,16 +12,23 @@ const AgentLastSeen = ({ timestamp }: { timestamp: string }) => {
     return () => clearInterval(interval);
   }, [timestamp]);
 
-  const minutes = Math.floor(seconds / 60);
+  const days = Math.floor(seconds / (60 * 60 * 24));
+  const hours = Math.floor((seconds % (60 * 60 * 24)) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
 
-  return (
-    <span>
-      {minutes > 0
-        ? `${minutes}m ${remainingSeconds}s ago`
-        : `${remainingSeconds}s ago`}
-    </span>
-  );
+  let display;
+  if (days > 0) {
+    display = `${days}d ${hours}h ${minutes}m ${remainingSeconds}s ago`;
+  } else if (hours > 0) {
+    display = `${hours}h ${minutes}m ${remainingSeconds}s ago`;
+  } else if (minutes > 0) {
+    display = `${minutes}m ${remainingSeconds}s ago`;
+  } else {
+    display = `${remainingSeconds}s ago`;
+  }
+
+  return <span>{display}</span>;
 };
 
 export default AgentLastSeen;
