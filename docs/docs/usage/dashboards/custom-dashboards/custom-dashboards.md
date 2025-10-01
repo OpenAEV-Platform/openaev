@@ -21,7 +21,10 @@ With the "+" button on the bottom right corner, you can create a custom dashboar
 
 ![Create a custom dashboard](assets/create-custom-dashboard.png)
 
-The field "Parameters" is used for adding a dynamic parameter for the widgets. For now, only the param "simulation" is implemented.
+In the General tab, you can set the name and description, and choose to use this dashboard as the default for the home page, scenarios, or simulations.
+To learn more about default custom dashboards, see [default custom dashboard](custom-dashboards.md#default-custom-dashboard).
+
+The tab "Parameters" is used for adding a dynamic parameter for the widgets. For now, only the param "simulation" is implemented.
 It means that if you add this parameter to your dashboard, you can choose this parameter in your widget and the widget will be calculated according to the simulation you will have selected.
 See [widgets](../widgets/widgets.md) or [simulations](../../simulation.md) for more details.
 
@@ -33,6 +36,29 @@ right corner based on the importance of the information, enabling adaptation to 
 technical flexibility ensures a fluid, visually optimized user experience.
 
 ![Dashboard overview](assets/dashboard-overview.png)
+
+## Default custom dashboard
+**Setting Default Custom Dashboards**:     
+
+You can set a custom dashboard as the default for the home page, scenarios, or simulations in two ways:   
+
+- Check the corresponding box when creating or updating a custom dashboard   
+- Configure it from the Parameters page   
+
+![Set custom dashboard](assets/set_custom_dashboard.png)
+
+**How Default Dashboards Work**:   
+
+- Home Page: Replaces the standard home page when you click "Home" in the left menu   
+- Scenarios: Becomes the default Analysis tab for all newly created scenarios   
+- Simulations: Becomes the default Analysis tab for all newly created simulations  
+
+**Important Notes**:   
+For scenarios and simulations, this only sets the initial default. You can change the dashboard for each individual scenario or simulation after creation (with proper permissions) from the analysis tab.   
+![Select dashboard](assets/select_new_dashboard.png)   
+
+You cannot delete a custom dashboard that is currently set as the default home dashboard
+
 
 ## Time filters
 
