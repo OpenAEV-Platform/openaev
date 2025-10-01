@@ -39,6 +39,8 @@ import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
 import {
+  type Agent,
+  type Endpoint,
   type ExerciseSimple, type HealthCheck,
   type KillChainPhase,
   type Scenario as ScenarioType,
@@ -90,6 +92,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     collectors: helper.getCollectors(),
     endpoints: helper.getEndpoints(),
   }));
+  const agents = endpoints
+    .flatMap((endpoint: Endpoint) => endpoint.asset_agents)
+    .map((agent: Agent) => agent.agent_active);
   useDataLoader(() => {
     if (!settings) {
       dispatch(fetchPlatformParameters());
@@ -106,7 +111,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   });
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-  }, [settings.smtp_service_available, settings.imap_service_available, endpoints, collectors, scenario, injects]);
+  }, [settings.smtp_service_available, settings.imap_service_available, endpoints, agents, collectors, scenario, injects]);
 
   // Exercises
   const [loadingExercises, setLoadingExercises] = useState(true);

@@ -1,8 +1,7 @@
-import { Circle, ExpandMore, TaskAltOutlined } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Button, Paper, Typography } from '@mui/material';
+import { Circle, ExpandMore } from '@mui/icons-material';
+import { Accordion, AccordionDetails, AccordionSummary, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
@@ -12,23 +11,15 @@ interface Props {
   scenarioId: string;
 }
 
-const useStyles = makeStyles()(theme => ({
-  informationPaper: {
-    borderBottomLeftRadius: 0,
-    borderTopLeftRadius: 0,
-    display: 'flex',
-    flex: 1,
-    gap: `0px ${theme.spacing(1)}`,
-    padding: theme.spacing(2),
-    width: '100%',
-  },
-}));
-
 const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
+  if (!healthchecks?.length) {
+    return (<></>);
+  }
+
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
-  const { classes } = useStyles();
+  const orderedHealthchecks = healthchecks.sort((a, b) => a.status === 'ERROR' && b.status !== 'ERROR' ? -1 : 1);
 
   const getPaperInformationBarColor = (): string => {
     if (!healthchecks?.length) {
@@ -84,67 +75,56 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         width: '2px',
       }}
       />
-      {!healthchecks?.length
-        ? (
-            <Paper classes={{ root: classes.informationPaper }}>
-              <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
-              <TaskAltOutlined />
-            </Paper>
-          )
-        : (
-            <Accordion
-              defaultExpanded
-              style={{
-                width: '100%',
-                margin: 0,
-              }}
-            >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
+      <Accordion
+        defaultExpanded
+        style={{
+          width: '100%',
+          margin: 0,
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+          >
+            {orderedHealthchecks.map((healthcheck: HealthCheck, index: number) => {
+              return (
+                <div
+                  key={'scenario-healthcheck-' + index}
+                  style={{
+                    alignItems: 'center',
+                    display: 'flex',
+                    gap: '5px',
+                  }}
                 >
-                  {
-                    healthchecks.map((healthcheck: HealthCheck, index: number) => {
-                      return (
-                        <div
-                          key={'scenario-healthcheck-' + index}
-                          style={{
-                            alignItems: 'center',
-                            display: 'flex',
-                            gap: '5px',
-                          }}
-                        >
-                          <Circle
-                            sx={{
-                              color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
-                              height: '10px',
-                            }}
-                          />
-                          <Typography variant="h3" marginBottom={0}>
-                            {t(`healthcheck.type.${healthcheck.type}`)}
-                            :
-                          </Typography>
-                          <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
-                          <Button
-                            color="primary"
-                            size="small"
-                            onClick={() => goToHealthcheckAction(healthcheck.type!)}
-                          >
-                            {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
-                          </Button>
-                        </div>
-                      );
-                    })
-                  }
+                  <Circle
+                    sx={{
+                      color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
+                      height: '10px',
+                    }}
+                  />
+                  <Typography variant="h3" marginBottom={0}>
+                    {t(`healthcheck.type.${healthcheck.type}`)}
+                    :
+                  </Typography>
+                  <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
+                  <Button
+                    color="primary"
+                    size="small"
+                    onClick={() => goToHealthcheckAction(healthcheck.type!)}
+                  >
+                    {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
+                  </Button>
                 </div>
-              </AccordionDetails>
-            </Accordion>
-          )}
+              );
+            })}
+          </div>
+        </AccordionDetails>
+      </Accordion>
     </div>
   );
 };
