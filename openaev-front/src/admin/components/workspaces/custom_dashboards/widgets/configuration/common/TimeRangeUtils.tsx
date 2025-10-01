@@ -6,10 +6,14 @@ export const CUSTOM_TIME_RANGE = 'CUSTOM';
 export const LAST_QUARTER_TIME_RANGE = 'LAST_QUARTER';
 
 export const getTimeRangeFromDashboard = (dashboard: CustomDashboard | undefined, dashboardParametersValues: Record<string, ParameterOption>) => {
-  const dashboardParametersModel = dashboard ? dashboard['custom_dashboard_parameters'] : undefined;
+  if (!dashboard) return undefined;
+
+  const dashboardParametersModel = dashboard['custom_dashboard_parameters'];
   const timeRangeParameterId = dashboardParametersModel?.find(param => param.custom_dashboards_parameter_type === 'timeRange')?.custom_dashboards_parameter_id;
   if (!timeRangeParameterId) return undefined;
-  return dashboardParametersValues[timeRangeParameterId].value;
+
+  const parameter = dashboardParametersValues[timeRangeParameterId];
+  return parameter?.value;
 };
 
 export type TimeRangeItem = {

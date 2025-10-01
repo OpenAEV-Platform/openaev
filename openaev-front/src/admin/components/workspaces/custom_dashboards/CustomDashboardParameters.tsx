@@ -38,7 +38,7 @@ const CustomDashboardParameters: FunctionComponent = () => {
   const dateParameters: Map<CustomDashboardParametersType['custom_dashboards_parameter_type'], string> = new Map();
   customDashboard?.custom_dashboard_parameters?.forEach((p) => {
     if (['timeRange', 'startDate', 'endDate'].includes(p.custom_dashboards_parameter_type)) {
-      if (contextId && !customDashboardParameters[p.custom_dashboards_parameter_id].hidden) {
+      if (contextId && !customDashboardParameters[p.custom_dashboards_parameter_id]?.hidden) {
         dateParameters.set(p.custom_dashboards_parameter_type, p.custom_dashboards_parameter_id);
       } else if (!contextId) {
         dateParameters.set(p.custom_dashboards_parameter_type, p.custom_dashboards_parameter_id);

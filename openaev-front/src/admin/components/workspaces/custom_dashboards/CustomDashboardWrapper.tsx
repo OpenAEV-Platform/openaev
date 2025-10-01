@@ -118,6 +118,7 @@ const CustomDashboardWrapper = ({
       });
     } else {
       setLoading(false);
+      setCustomDashboard(undefined);
     }
   }, [customDashboardId]);
 
