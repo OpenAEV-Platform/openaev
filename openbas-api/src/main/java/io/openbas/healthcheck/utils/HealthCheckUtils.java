@@ -175,9 +175,9 @@ public class HealthCheckUtils {
   public static List<HealthCheck> runTeamsChecks(ScenarioOutput scenarioOutput) {
     List<HealthCheck> result = new ArrayList<>();
     boolean isMissingTeamsOrEnabledPlayers =
-        scenarioOutput.getTeams().isEmpty() ||
-        scenarioOutput.getTeams().stream().allMatch(team -> team.getUsers().isEmpty()) ||
-        scenarioOutput.getTeamUsers().isEmpty();
+        scenarioOutput.getTeams().isEmpty()
+            || scenarioOutput.getTeams().stream().allMatch(team -> team.getUsers().isEmpty())
+            || scenarioOutput.getTeamUsers().isEmpty();
 
     if (isMissingTeamsOrEnabledPlayers) {
       result.add(createWarningHealthCheck(HealthCheck.Type.TEAMS, HealthCheck.Detail.EMPTY));
