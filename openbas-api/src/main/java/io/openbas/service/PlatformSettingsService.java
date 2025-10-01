@@ -602,18 +602,19 @@ public class PlatformSettingsService {
             XTM_HUB_REGISTRATION_DATE.key(),
             XTM_HUB_REGISTRATION_STATUS.key(),
             XTM_HUB_REGISTRATION_USER_ID.key(),
+            XTM_HUB_REGISTRATION_USER_NAME.key(),
             XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
             XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
 
-    List<Setting> toDelete = new ArrayList<>();
+    List<String> toDelete = new ArrayList<>();
     keys.forEach(
         settingsKey -> {
           if (dbSettings.containsKey(settingsKey)) {
-            toDelete.add(dbSettings.get(settingsKey));
+            toDelete.add(dbSettings.get(settingsKey).getId());
           }
         });
 
-    this.settingRepository.deleteAll(toDelete);
+    this.settingRepository.deleteByIdsNative(toDelete);
     return findSettings();
   }
 
