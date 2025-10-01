@@ -74,12 +74,8 @@ public class GenericJsonApiImporter<T extends Base> {
     entityManager.flush();
 
     // Persist root entity
-    if (sanityCheck != null) {
-      T sanitized = sanityCheck.apply(entity);
-      return entityManager.merge(sanitized);
-    } else {
-      return entityManager.merge(entity);
-    }
+T entityToMerge = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
+return entityManager.merge(entity);
   }
 
   public void handleImportDocument(
