@@ -18,8 +18,6 @@ const AgentLastSeen = ({ timestamp }: { timestamp: string }) => {
   return (
     <span>
       {du(elapsed)}
-      {' '}
-      {t('ago')}
     </span>
   );
 };
