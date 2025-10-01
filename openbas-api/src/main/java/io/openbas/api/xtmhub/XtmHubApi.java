@@ -45,7 +45,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Unregister OpenAEV from XTM Hub",
       description = "Delete XTM Hub registration data from Settings.")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful unregistration")})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @RBAC(skipRBAC = true)
   public PlatformSettings unregister() {
     return this.xtmHubService.unregister();
   }
