@@ -13,7 +13,8 @@ public class V4_41__Update_Collectors_Name extends BaseJavaMigration {
     try (Statement select = context.getConnection().createStatement()) {
       select.execute(
           """
-                 SET session_replication_role = 'replica';
+                 ALTER TABLE detection_remediations
+                     DROP CONSTRAINT fk_remediation_collector_type;
 
                  UPDATE collectors
                  SET collector_type = REPLACE(collector_type, 'openbas', 'openaev')
@@ -23,7 +24,11 @@ public class V4_41__Update_Collectors_Name extends BaseJavaMigration {
                  SET detection_remediation_collector_type = REPLACE(detection_remediation_collector_type, 'openbas', 'openaev')
                  WHERE detection_remediation_collector_type LIKE '%openbas%';
 
-                 SET session_replication_role = 'origin';
+                 ALTER TABLE detection_remediations
+                     ADD CONSTRAINT fk_remediation_collector_type
+                         FOREIGN KEY (detection_remediation_collector_type)
+                             REFERENCES collectors(collector_type)
+                             ON DELETE CASCADE;
               """);
     }
   }
