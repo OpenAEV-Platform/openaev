@@ -14,15 +14,15 @@ public class V4_41__Update_Collectors_Name extends BaseJavaMigration {
       select.execute(
           """
                  SET session_replication_role = 'replica';
-                 
+
                  UPDATE collectors
                  SET collector_type = REPLACE(collector_type, 'openbas', 'openaev')
                  WHERE collector_type LIKE '%openbas%';
-                 
+
                  UPDATE detection_remediations
                  SET detection_remediation_collector_type = REPLACE(detection_remediation_collector_type, 'openbas', 'openaev')
                  WHERE detection_remediation_collector_type LIKE '%openbas%';
-                 
+
                  SET session_replication_role = 'origin';
               """);
     }
