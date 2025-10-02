@@ -8,7 +8,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
-import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
 import static java.time.Instant.now;
@@ -27,7 +26,6 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
-import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExerciseSimple;
@@ -38,8 +36,6 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
-import io.openaev.service.*;
-import io.openaev.service.GrantService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
@@ -87,7 +83,6 @@ public class ExerciseService {
   @PersistenceContext private EntityManager entityManager;
 
   private final Ee eeService;
-  private final GrantService grantService;
   private final InjectDuplicateService injectDuplicateService;
   private final TeamService teamService;
   private final VariableService variableService;
@@ -96,7 +91,6 @@ public class ExerciseService {
   private final InjectService injectService;
   private final CronService cronService;
   private final UserService userService;
-  private final DashboardService dashboardService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;

@@ -83,7 +83,7 @@ const CustomDashboardParameters: FunctionComponent = () => {
         const field = renderParameterField(p, paramOption);
         return field ? [field] : [];
       });
-  }, [customDashboard]);
+  }, [customDashboard, customDashboardParameters]);
 
   return (
     <div style={{
