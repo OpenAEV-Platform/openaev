@@ -1,8 +1,8 @@
-package io.openbas.executors.utils;
+package io.openaev.executors.utils;
 
-import static io.openbas.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 
-import io.openbas.database.model.Agent;
+import io.openaev.database.model.Agent;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;

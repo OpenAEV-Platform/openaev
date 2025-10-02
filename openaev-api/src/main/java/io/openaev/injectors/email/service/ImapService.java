@@ -73,7 +73,6 @@ public class ImapService {
 
     try {
       initStore(env);
-      this.saveServiceState(true);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       this.saveServiceState(false);
@@ -119,11 +118,14 @@ public class ImapService {
           sentBox.create(Folder.READ_WRITE);
           sentBox.setSubscribed(true);
         }
+        this.saveServiceState(true);
       } catch (Exception e) {
         log.error(e.getMessage(), e);
+        this.saveServiceState(false);
       }
     } else {
       log.info("IMAP sync disabled");
+      this.saveServiceState(false);
     }
   }
 

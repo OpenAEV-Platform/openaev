@@ -1,17 +1,14 @@
-package io.openbas.healthcheck.utils;
+package io.openaev.healthcheck.utils;
 
-import io.openbas.database.model.*;
-import io.openbas.executors.utils.ExecutorUtils;
-import io.openbas.healthcheck.dto.HealthCheck;
-import io.openbas.healthcheck.enums.ExternalServiceDependency;
-import io.openbas.helper.InjectModelHelper;
-import io.openbas.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openbas.rest.inject.output.InjectOutput;
-import io.openbas.rest.scenario.response.ScenarioOutput;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import io.openaev.database.model.*;
+import io.openaev.executors.utils.ExecutorUtils;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.helper.InjectModelHelper;
+import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.inject.output.InjectOutput;
+import io.openaev.rest.scenario.response.ScenarioOutput;
+import java.util.*;
 import org.apache.commons.lang3.ArrayUtils;
 
 public class HealthCheckUtils {
@@ -174,13 +171,29 @@ public class HealthCheckUtils {
    */
   public static List<HealthCheck> runTeamsChecks(ScenarioOutput scenarioOutput) {
     List<HealthCheck> result = new ArrayList<>();
-    boolean isMissingTeamsOrEnabledPlayers =
-        scenarioOutput.getTeams().isEmpty()
-            || scenarioOutput.getTeams().stream().allMatch(team -> team.getUsers().isEmpty())
-            || scenarioOutput.getTeamUsers().isEmpty();
+    boolean isMailSender =
+        scenarioOutput.getInjects().stream()
+            .filter(
+                inject ->
+                    inject.getInjectorContract() != null
+                        && inject.getInjectorContract().getInjector() != null)
+            .flatMap(
+                inject ->
+                    Arrays.stream(inject.getInjectorContract().getInjector().getDependencies()))
+            .anyMatch(
+                dependency ->
+                    ExternalServiceDependency.SMTP.equals(dependency)
+                        || ExternalServiceDependency.IMAP.equals(dependency));
 
-    if (isMissingTeamsOrEnabledPlayers) {
-      result.add(createWarningHealthCheck(HealthCheck.Type.TEAMS, HealthCheck.Detail.EMPTY));
+    if (isMailSender) {
+      boolean isMissingTeamsOrEnabledPlayers =
+          scenarioOutput.getTeams().isEmpty()
+              || scenarioOutput.getTeams().stream().allMatch(team -> team.getUsers().isEmpty())
+              || scenarioOutput.getTeamUsers().isEmpty();
+
+      if (isMissingTeamsOrEnabledPlayers) {
+        result.add(createWarningHealthCheck(HealthCheck.Type.TEAMS, HealthCheck.Detail.EMPTY));
+      }
     }
 
     return result;

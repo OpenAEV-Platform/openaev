@@ -1,4 +1,4 @@
-package io.openbas.healthcheck.enums;
+package io.openaev.healthcheck.enums;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

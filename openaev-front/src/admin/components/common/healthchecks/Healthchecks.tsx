@@ -16,6 +16,7 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
     return (<></>);
   }
 
+  const documentationRootUrl = 'https://docs.openbas.io';
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
@@ -32,11 +33,11 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
   const goToHealthcheckAction = (healthcheckType: string) => {
     switch (healthcheckType) {
       case 'SMTP': {
-        window.open('https://docs.openbas.io/latest/deployment/configuration/?h=smtp#mail-services');
+        window.open(`${documentationRootUrl}/latest/deployment/configuration/?h=smtp#mail-services`);
         break;
       }
       case 'IMAP': {
-        window.open('https://docs.openbas.io/latest/deployment/configuration/?h=smtp#imap');
+        window.open(`${documentationRootUrl}/latest/deployment/configuration/?h=smtp#imap`);
         break;
       }
       case 'AGENT_OR_EXECUTOR': {
@@ -44,7 +45,7 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         break;
       }
       case 'SECURITY_SYSTEM_COLLECTOR': {
-        window.open('https://docs.openbas.io/latest/usage/collectors/?h=collector');
+        window.open(`${documentationRootUrl}/latest/usage/collectors/?h=collector`);
         break;
       }
       case 'INJECT': {
@@ -64,7 +65,7 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
     <div style={{
       width: '100%',
       display: 'flex',
-      marginBottom: '10px',
+      marginBottom: theme.spacing(2),
     }}
     >
       <div style={{
@@ -85,44 +86,42 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         <AccordionSummary expandIcon={<ExpandMore />}>
           <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
         </AccordionSummary>
-        <AccordionDetails>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          >
-            {orderedHealthchecks.map((healthcheck: HealthCheck, index: number) => {
-              return (
-                <div
-                  key={'scenario-healthcheck-' + index}
-                  style={{
-                    alignItems: 'center',
-                    display: 'flex',
-                    gap: '5px',
+        <AccordionDetails style={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        >
+          {orderedHealthchecks.map((healthcheck: HealthCheck, index: number) => {
+            return (
+              <div
+                key={'scenario-healthcheck-' + index}
+                style={{
+                  alignItems: 'center',
+                  display: 'flex',
+                  gap: theme.spacing(1),
+                }}
+              >
+                <Circle
+                  sx={{
+                    color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
+                    height: '10px',
                   }}
+                />
+                <Typography variant="h3" marginBottom={0}>
+                  {t(`healthcheck.type.${healthcheck.type}`)}
+                  :
+                </Typography>
+                <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
+                <Button
+                  color="primary"
+                  size="small"
+                  onClick={() => goToHealthcheckAction(healthcheck.type!)}
                 >
-                  <Circle
-                    sx={{
-                      color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
-                      height: '10px',
-                    }}
-                  />
-                  <Typography variant="h3" marginBottom={0}>
-                    {t(`healthcheck.type.${healthcheck.type}`)}
-                    :
-                  </Typography>
-                  <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
-                  <Button
-                    color="primary"
-                    size="small"
-                    onClick={() => goToHealthcheckAction(healthcheck.type!)}
-                  >
-                    {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+                  {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
+                </Button>
+              </div>
+            );
+          })}
         </AccordionDetails>
       </Accordion>
     </div>

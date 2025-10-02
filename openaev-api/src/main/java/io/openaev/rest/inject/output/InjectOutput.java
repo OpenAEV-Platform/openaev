@@ -2,9 +2,17 @@ package io.openaev.rest.inject.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDependency;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
-import io.openbas.healthcheck.dto.HealthCheck;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;

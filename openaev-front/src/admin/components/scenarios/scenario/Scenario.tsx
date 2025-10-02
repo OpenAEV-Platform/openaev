@@ -9,14 +9,11 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchPlatformParameters } from '../../../../actions/Application';
-import type { EndpointHelper } from '../../../../actions/assets/asset-helper';
-import { fetchEndpoints } from '../../../../actions/assets/endpoint-actions';
-import { fetchCollectors } from '../../../../actions/Collector';
+import { type AgentHelper } from '../../../../actions/agents/agent-helper';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -40,8 +37,7 @@ import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
 import {
   type Agent,
-  type Endpoint,
-  type ExerciseSimple, type HealthCheck,
+  type ExerciseSimple, type HealthCheck, type Inject,
   type KillChainPhase,
   type Scenario as ScenarioType,
   type SearchPaginationInput,
@@ -80,38 +76,47 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const { scenario } = useHelper((helper: ScenariosHelper & ExercisesHelper) => ({ scenario: helper.getScenario(scenarioId) }));
-  const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
-  const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
-
-  // Fetch all data if not already loaded to spy on modifications to reload healthchecks
-  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
-  const { settings, injects, collectors, endpoints } = useHelper((helper: LoggedHelper & InjectHelper & CollectorHelper & EndpointHelper) => ({
+  const {
+    scenario,
+    settings,
+    injects,
+    collectors,
+    agents,
+  } = useHelper((helper: ScenariosHelper & ExercisesHelper & LoggedHelper & InjectHelper & CollectorHelper & AgentHelper) => ({
+    scenario: helper.getScenario(scenarioId),
     settings: helper.getPlatformSettings(),
     injects: helper.getScenarioInjects(scenarioId),
     collectors: helper.getCollectors(),
-    endpoints: helper.getEndpoints(),
+    agents: helper.getAgents(),
   }));
-  const agents = endpoints
-    .flatMap((endpoint: Endpoint) => endpoint.asset_agents)
-    .map((agent: Agent) => agent.agent_active);
+  const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
+  const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
+
+  // Spy on modifications to reload healthchecks
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const agentsActive = useMemo(() => {
+    const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
+    return agents
+      .filter((agent: Agent) => injectAssetIds.includes(agent.agent_asset))
+      .map((agent: Agent) => agent.agent_active);
+  }, [agents, injects]);
+
   useDataLoader(() => {
-    if (!settings) {
-      dispatch(fetchPlatformParameters());
-    }
-    if (!collectors || !collectors.length) {
-      dispatch(fetchCollectors());
-    }
-    if (!endpoints || !endpoints.length) {
-      dispatch(fetchEndpoints());
-    }
-    if (!injects || !injects.length) {
+    if (!injects) {
       dispatch(fetchScenarioInjects(scenarioId));
     }
   });
+
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-  }, [settings.smtp_service_available, settings.imap_service_available, endpoints, agents, collectors, scenario, injects]);
+  }, [
+    settings.smtp_service_available,
+    settings.imap_service_available,
+    scenario,
+    injects,
+    collectors.length,
+    agentsActive,
+  ]);
 
   // Exercises
   const [loadingExercises, setLoadingExercises] = useState(true);
@@ -138,10 +143,12 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
 
   return (
     <div style={{ paddingBottom: theme.spacing(5) }}>
-      <Healthchecks
-        healthchecks={healthchecks}
-        scenarioId={scenarioId}
-      />
+      {!healthchecks?.length ? (<></>) : (
+        <Healthchecks
+          healthchecks={healthchecks}
+          scenarioId={scenarioId}
+        />
+      )}
       <div style={{
         display: 'grid',
         gap: `0px ${theme.spacing(3)}`,

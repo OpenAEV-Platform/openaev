@@ -478,4 +478,5 @@ export const storeHelper = state => ({
   getScenarioLessonsQuestions: id => entities('lessonsquestions', state).filter(
     l => l.get('lessons_question_scenario') === id,
   ),
+  getAgents: () => entities('agents', state),
 });

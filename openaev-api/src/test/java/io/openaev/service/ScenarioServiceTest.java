@@ -5,8 +5,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
@@ -16,6 +15,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -26,10 +26,7 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -516,7 +513,13 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     Scenario scenario = new Scenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
+
+    Injector injector = new Injector();
+    injector.setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.SMTP,ExternalServiceDependency.IMAP});
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setInjector(injector);
     InjectOutput injectOutput = new InjectOutput(inject);
+    injectOutput.setInjectorContract(injectorContract);
     this.scenarioRepository.save(scenario);
 
     // MOCK
