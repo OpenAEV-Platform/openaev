@@ -209,6 +209,7 @@ public class InjectorService {
       newInjector.setExecutorCommands(executorCommands);
       newInjector.setExecutorClearCommands(executorClearCommands);
       newInjector.setPayloads(isPayloads);
+      newInjector.setDependencies(dependencies.toArray(new ExternalServiceDependency[0]));
       Injector savedInjector = injectorRepository.save(newInjector);
       // Save the contracts
       List<InjectorContract> injectorContracts =
