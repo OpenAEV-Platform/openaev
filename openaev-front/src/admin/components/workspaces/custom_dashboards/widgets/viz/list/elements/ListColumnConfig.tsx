@@ -18,6 +18,7 @@ import {
   type EsBase,
   type EsInjectExpectation,
 } from '../../../../../../../../utils/api-types';
+import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
 
 export type ColumnRenderer = (value: string | string[] | boolean | boolean[], opts: {
@@ -81,6 +82,14 @@ export const getTargetTypeFromInjectExpectation = (expectation: EsInjectExpectat
 };
 
 const injectExpectationRenderers: RendererMap = {
+  ['inject_expectation_status']: (_, { element }) => {
+    const expectation = element as EsInjectExpectation;
+    const label = computeInjectExpectationLabel(
+      expectation.inject_expectation_status,
+      expectation.inject_expectation_type,
+    ) ?? '';
+    return <ItemStatus label={label} variant="inList" status={label} />;
+  },
   ['inject_expectation_source']: (_, { element }) => {
     const { t } = useFormatter();
     const target = getTargetTypeFromInjectExpectation(element as EsInjectExpectation);
@@ -90,6 +99,15 @@ const injectExpectationRenderers: RendererMap = {
       </Tooltip>
     );
   },
+};
+
+export const defaultRenderer: ColumnRenderer = (value) => {
+  const text = value?.toString() ?? '';
+  return (
+    <Tooltip title={text} placement="bottom-start">
+      <span>{text}</span>
+    </Tooltip>
+  );
 };
 
 const listConfigRenderer = {

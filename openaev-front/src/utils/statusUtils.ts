@@ -19,6 +19,11 @@ const injectExpectationMap = {
     DETECTION: 'Partially Detected',
     VULNERABILITY: 'Partially vulnerable',
   },
+  PENDING: {
+    PREVENTION: 'Pending',
+    DETECTION: 'Pending',
+    VULNERABILITY: 'Pending',
+  },
 } as const;
 
 type InjectExpectationStatus = keyof typeof injectExpectationMap;
@@ -51,6 +56,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'ASSET_INACTIVE': colorStyles.red,
     'NOT PREVENTED': colorStyles.red,
     'NOT DETECTED': colorStyles.red,
+    'VULNERABLE': colorStyles.red,
 
     'MAYBE_PREVENTED': colorStyles.purple,
     'MAYBE_PARTIAL_PREVENTED': colorStyles.lightPurple,

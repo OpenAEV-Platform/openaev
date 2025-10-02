@@ -25,7 +25,7 @@ import { computeInjectExpectationLabel } from '../../../../../../../utils/status
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
-import listConfigRenderer from './elements/ListColumnConfig';
+import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig';
 import navigationHandlers from './elements/ListNavigationHandler';
 
 const useStyles = makeStyles()(() => ({
@@ -76,37 +76,12 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
     column: string,
     element: EsBase,
   ) => {
-    const renderer = listConfigRenderer[column];
+    const renderer = listConfigRenderer[column] ?? defaultRenderer;
     const value = element[column as keyof typeof element] as string | boolean | string[] | boolean[];
-    if (renderer) {
-      return renderer(value, {
-        element,
-        attackPatterns,
-      });
-    }
-    let text;
-
-    if (element.base_entity === 'expectation-inject' && column === 'inject_expectation_status') {
-      const expectation = element as Extract<EsBase, { base_entity: 'expectation-inject' }>;
-      const expectation_status = expectation.inject_expectation_status;
-      const expectation_type = expectation.inject_expectation_type;
-
-      text = computeInjectExpectationLabel(expectation_status, expectation_type) ?? '';
-    } else {
-      text = value?.toString() ?? '';
-    }
-
-    if (column.toLowerCase().includes('status')) {
-      return (
-        <ItemStatus label={text} variant="inList" status={text} />
-      );
-    }
-
-    return (
-      <Tooltip title={text} placement="bottom-start">
-        <span>{text}</span>
-      </Tooltip>
-    );
+    return renderer(value, {
+      element,
+      attackPatterns,
+    });
   };
 
   const onListItemClick = (element: EsBase): void => {
