@@ -2573,10 +2573,16 @@ export interface GroupUpdateUsersInput {
 }
 
 export interface HealthCheck {
-  /** @format date-time */
-  creationDate?: string;
+  /**
+   * Date when the failure have been found
+   * @format date-time
+   */
+  creation_date?: string;
+  /** Detail of the check failure */
   detail?: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY";
+  /** Define if it's an error or a warning */
   status?: "ERROR" | "WARNING";
+  /** Type of the check, could be a service, an attribute, etc */
   type?:
     | "SMTP"
     | "IMAP"
