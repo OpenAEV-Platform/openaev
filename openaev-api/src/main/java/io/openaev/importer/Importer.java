@@ -20,6 +20,7 @@ public interface Importer {
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,
+      String suffix,
       boolean isFromStarterPack);
 
   default Stream<JsonNode> resolveJsonElements(JsonNode node, String key) {

@@ -22,6 +22,8 @@ public class ZipJsonApi<T extends Base> {
 
   public static final DateTimeFormatter FORMATTER = ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
+  private static final String IMPORTED_OBJECT_NAME_SUFFIX = " (Import)";
+
   private final GenericJsonApiExporter exporter;
   private final ZipJsonService<T> zipJsonService;
 
@@ -70,6 +72,10 @@ public class ZipJsonApi<T extends Base> {
       throws IOException {
     return ResponseEntity.ok(
         this.zipJsonService.handleImport(
-            file.getBytes(), nameAttributeKey, includeOptions, sanityCheck, false));
+            file.getBytes(),
+            nameAttributeKey,
+            includeOptions,
+            sanityCheck,
+            IMPORTED_OBJECT_NAME_SUFFIX));
   }
 }

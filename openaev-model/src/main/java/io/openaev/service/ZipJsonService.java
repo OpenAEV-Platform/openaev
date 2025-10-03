@@ -27,13 +27,12 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import lombok.*;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class ZipJsonService<T extends Base> {
-
-  public static final String IMPORTED_OBJECT_NAME_SUFFIX = " (Import)";
 
   private static final String META_ENTRY = "meta.json";
 
@@ -80,7 +79,7 @@ public class ZipJsonService<T extends Base> {
       String nameAttributeKey,
       IncludeOptions includeOptions,
       Function<T, T> sanityCheck,
-      boolean isFromStarterPack)
+      String suffix)
       throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
@@ -88,9 +87,7 @@ public class ZipJsonService<T extends Base> {
     if (doc.data() != null && doc.data().attributes() != null) {
       Object current = doc.data().attributes().get(nameAttributeKey);
       if (current instanceof String s) {
-        doc.data()
-            .attributes()
-            .put(nameAttributeKey, isFromStarterPack ? s : s + IMPORTED_OBJECT_NAME_SUFFIX);
+        doc.data().attributes().put(nameAttributeKey, StringUtils.isBlank(suffix) ? s : s + suffix);
       }
     }
 

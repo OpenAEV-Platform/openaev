@@ -31,7 +31,6 @@ import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
 import io.openaev.service.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.utils.constants.Constants;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Resource;
 import java.time.Instant;
@@ -42,6 +41,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -146,6 +146,7 @@ public class V1_DataImporter implements Importer {
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,
+      String suffix,
       boolean isFromStarterPack) {
     Map<String, Base> baseIds = new HashMap<>();
 
@@ -159,10 +160,9 @@ public class V1_DataImporter implements Importer {
     }
     importTags(importNode, prefix, baseIds);
     Exercise savedExercise =
-        Optional.ofNullable(importExercise(importNode, baseIds, isFromStarterPack))
-            .orElse(exercise);
+        Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, isFromStarterPack))
+        Optional.ofNullable(importScenario(importNode, baseIds, suffix, isFromStarterPack))
             .orElse(scenario);
     importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
     importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
@@ -308,8 +308,7 @@ public class V1_DataImporter implements Importer {
 
   // -- EXERCISE --
 
-  private Exercise importExercise(
-      JsonNode importNode, Map<String, Base> baseIds, boolean isFromStarterPack) {
+  private Exercise importExercise(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
     JsonNode exerciseNode = importNode.get("exercise_information");
     if (exerciseNode == null) {
       return null;
@@ -318,7 +317,7 @@ public class V1_DataImporter implements Importer {
     Exercise exercise = new Exercise();
     exercise.setName(
         exerciseNode.get("exercise_name").textValue()
-            + (isFromStarterPack ? "" : " %s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)));
+            + (StringUtils.isBlank(suffix) ? "" : " %s".formatted(suffix)));
     exercise.setDescription(exerciseNode.get("exercise_description").textValue());
     exercise.setSubtitle(exerciseNode.get("exercise_subtitle").textValue());
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
@@ -336,7 +335,7 @@ public class V1_DataImporter implements Importer {
   // -- SCENARIO --
 
   private Scenario importScenario(
-      JsonNode importNode, Map<String, Base> baseIds, boolean isFromStarterPack) {
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, boolean isFromStarterPack) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
@@ -345,7 +344,7 @@ public class V1_DataImporter implements Importer {
     Scenario scenario = new Scenario();
     scenario.setName(
         scenarioNode.get("scenario_name").textValue()
-            + (isFromStarterPack ? "" : " %s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)));
+            + (StringUtils.isBlank(suffix) ? "" : " %s".formatted(suffix)));
     scenario.setDescription(scenarioNode.get("scenario_description").textValue());
     scenario.setSubtitle(scenarioNode.get("scenario_subtitle").textValue());
     scenario.setCategory(scenarioNode.get("scenario_category").textValue());

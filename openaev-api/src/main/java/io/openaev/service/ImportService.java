@@ -11,6 +11,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.importer.ImportException;
 import io.openaev.importer.Importer;
 import io.openaev.importer.V1_DataImporter;
+import io.openaev.utils.constants.Constants;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.ByteArrayInputStream;
@@ -54,13 +55,15 @@ public class ImportService {
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,
+      String suffix,
       boolean isFromStarterPack) {
     try {
       JsonNode importNode = mapper.readTree(inputStream);
       int importVersion = importNode.get("export_version").asInt();
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
-        importer.importData(importNode, docReferences, exercise, scenario, isFromStarterPack);
+        importer.importData(
+            importNode, docReferences, exercise, scenario, suffix, isFromStarterPack);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
       }
@@ -72,18 +75,27 @@ public class ImportService {
   @Transactional(rollbackOn = Exception.class)
   public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
-    handleInputStreamImport(file.getInputStream(), exercise, scenario, false);
+    handleInputStreamImport(
+        file.getInputStream(), exercise, scenario, Constants.IMPORTED_OBJECT_NAME_SUFFIX, false);
   }
 
   @Transactional(rollbackOn = Exception.class)
   public void handleInputStreamFileImport(
-      InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
+      InputStream is,
+      Exercise exercise,
+      Scenario scenario,
+      String suffix,
+      boolean isFromStarterPack)
       throws Exception {
-    handleInputStreamImport(is, exercise, scenario, isFromStarterPack);
+    handleInputStreamImport(is, exercise, scenario, suffix, isFromStarterPack);
   }
 
   private void handleInputStreamImport(
-      InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
+      InputStream is,
+      Exercise exercise,
+      Scenario scenario,
+      String suffix,
+      boolean isFromStarterPack)
       throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".zip");
     FileUtils.copyInputStreamToFile(is, tempFile);
@@ -229,7 +241,7 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(dataStream, docReferences, exercise, scenario, isFromStarterPack);
+        handleDataImport(dataStream, docReferences, exercise, scenario, suffix, isFromStarterPack);
       }
     } finally {
       tempFile.delete();
