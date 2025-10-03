@@ -4,8 +4,12 @@ import static io.openaev.utils.fixtures.TagFixture.getTag;
 
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,6 +22,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class PlayerServiceTest {
+  @Mock private TagRepository tagRepository;
+  @Mock private TeamRepository teamRepository;
+  @Mock private OrganizationRepository organizationRepository;
+  @Mock private EntityManager entityManager;
   @Mock private UserRepository userRepository;
   @InjectMocks private PlayerService playerService;
 
