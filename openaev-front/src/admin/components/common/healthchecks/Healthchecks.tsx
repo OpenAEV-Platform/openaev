@@ -12,15 +12,11 @@ interface Props {
 }
 
 const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
-  if (!healthchecks?.length) {
-    return (<></>);
-  }
-
   const documentationRootUrl = 'https://docs.openbas.io';
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
-  const orderedHealthchecks = healthchecks.sort((a, b) => a.status === 'ERROR' && b.status !== 'ERROR' ? -1 : 1);
+  const orderedHealthchecks = healthchecks.length ? healthchecks.sort((a, b) => a.status === 'ERROR' && b.status !== 'ERROR' ? -1 : 1) : [];
 
   const getPaperInformationBarColor = (): string => {
     if (!healthchecks?.length) {

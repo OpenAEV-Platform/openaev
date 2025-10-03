@@ -143,7 +143,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
 
   return (
     <div style={{ paddingBottom: theme.spacing(5) }}>
-      {!healthchecks?.length ? (<></>) : (
+      {healthchecks?.length && (
         <Healthchecks
           healthchecks={healthchecks}
           scenarioId={scenarioId}
