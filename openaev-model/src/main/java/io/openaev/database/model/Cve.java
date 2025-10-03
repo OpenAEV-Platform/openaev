@@ -128,6 +128,4 @@ public class Cve implements Base {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.CVE;
-
-  @Getter @Transient private boolean listened = false;
 }

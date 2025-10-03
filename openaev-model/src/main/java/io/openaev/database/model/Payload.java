@@ -185,8 +185,6 @@ public class Payload implements GrantableBase {
   @NotNull
   private PAYLOAD_EXECUTION_ARCH executionArch = Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
 
-  @Getter @Transient private boolean listened = false;
-
   // -- COLLECTOR --
 
   @ManyToOne(fetch = FetchType.LAZY)
