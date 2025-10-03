@@ -1,5 +1,6 @@
 package io.openaev.rest.user;
 
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
@@ -28,7 +29,7 @@ public class PlayerServiceTest {
   @InjectMocks private PlayerService playerService;
 
   @Test
-  public void test_upsertPlayer() {
+  public void test_upsertPlayer_noUpdateNeeded() {
     PlayerInput playerInput = new PlayerInput();
     User user = new User();
     user.setFirstname("newUser");
@@ -44,19 +45,52 @@ public class PlayerServiceTest {
   }
 
   @Test
-  public void test2_upsertPlayer() {
+  public void test_upsertPlayer_firstnameDifferent_shouldUpdate() {
     PlayerInput playerInput = new PlayerInput();
     User user = new User();
     user.setFirstname("newUser");
     user.setEmail("newUser@newUser.com");
 
-    playerInput.setFirstname("newUser");
+    playerInput.setFirstname("newPlayer");
     playerInput.setEmail("newUser@newUser.com");
-    playerInput.setTagIds(List.of("tag1", "tag2"));
-    playerInput.setOrganizationId("organizationId");
 
     Mockito.when(userRepository.findByEmailIgnoreCase("newUser@newUser.com"))
         .thenReturn(Optional.of(user));
+    playerService.upsertPlayer(playerInput);
+    Mockito.verify(userRepository, Mockito.times(1)).save(Mockito.any());
+  }
+
+  @Test
+  public void test_upsertPlayer_tagsDifferent_shouldUpdate() {
+    PlayerInput playerInput = new PlayerInput();
+    User user = new User();
+    user.setEmail("newUser@newUser.com");
+
+    playerInput.setEmail("newUser@newUser.com");
+    playerInput.setTagIds(List.of("tag1", "tag2"));
+
+    Mockito.when(userRepository.findByEmailIgnoreCase("newUser@newUser.com"))
+        .thenReturn(Optional.of(user));
+
+    playerService.upsertPlayer(playerInput);
+    Mockito.verify(userRepository, Mockito.times(1)).save(Mockito.any());
+  }
+
+  @Test
+  public void test_upsertPlayer_organizationDifferent_shouldUpdate() {
+    PlayerInput playerInput = new PlayerInput();
+    User user = new User();
+    Organization organization = new Organization();
+
+    user.setEmail("newUser@newUser.com");
+    user.setOrganization(organization);
+
+    playerInput.setEmail("newUser@newUser.com");
+    playerInput.setOrganizationId("newOrg");
+
+    Mockito.when(userRepository.findByEmailIgnoreCase("newUser@newUser.com"))
+        .thenReturn(Optional.of(user));
+
     playerService.upsertPlayer(playerInput);
     Mockito.verify(userRepository, Mockito.times(1)).save(Mockito.any());
   }
