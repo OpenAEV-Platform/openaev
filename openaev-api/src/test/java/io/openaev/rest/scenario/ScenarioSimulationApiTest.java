@@ -49,8 +49,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
   private static Exercise exercise2FromScenario;
   private static Exercise exercise3NotFromScenario;
 
-  @BeforeAll
-  void beforeAll() {
+  @BeforeEach
+  void beforeEach() {
     // Create scenarios
     Scenario defaultScenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario = this.scenarioRepository.save(defaultScenario);
