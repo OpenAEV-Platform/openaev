@@ -11,6 +11,7 @@ import io.openaev.aop.RBAC;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
@@ -19,6 +20,7 @@ import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -64,10 +66,17 @@ public class StreamApi extends RestBehavior {
     flux.next(message);
   }
 
+  private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
+      EnumSet.of(ResourceType.CVE, ResourceType.PAYLOAD);
+
   @Async
   @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
+    if (RESOURCES_STREAM_BLACKLIST.contains(event.getInstance().getResourceType())
+        | !event.isListened()) {
+      return;
+    }
     if (lastUpdate.isBefore(Instant.now().minus(5, ChronoUnit.MINUTES))) {
       log.info(
           "There are currently {} users connected to the stream. The id of the users connected : {}",

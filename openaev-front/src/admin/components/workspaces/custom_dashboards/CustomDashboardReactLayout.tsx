@@ -82,7 +82,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
     <ReactGridLayout
       style={style}
       className="layout"
-      margin={[0, 20]}
+      margin={[20, 20]}
+      containerPadding={[0, 0]}
       rowHeight={50}
       cols={12}
       draggableCancel=".noDrag,.MuiAutocomplete-paper,.MuiModal-backdrop,.MuiPopover-paper,.MuiDialog-paper"

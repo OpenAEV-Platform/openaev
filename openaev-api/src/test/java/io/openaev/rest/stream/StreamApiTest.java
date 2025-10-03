@@ -4,18 +4,14 @@ import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.audit.BaseEvent;
-import io.openaev.database.model.Action;
-import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.User;
+import io.openaev.database.model.*;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
@@ -29,11 +25,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.FluxSink;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+@MockitoSettings(strictness = Strictness.LENIENT) // class-wide
 @ExtendWith(MockitoExtension.class)
 public class StreamApiTest {
 
@@ -123,5 +122,15 @@ public class StreamApiTest {
     assertEquals(DATA_DELETE, baseEventCaptured.getType());
     assertTrue(baseEventCaptured.getInstance() instanceof Scenario);
     assertEquals(scenario.getId(), ((Scenario) baseEventCaptured.getInstance()).getId());
+  }
+
+  @Test
+  public void test_given_databaseEvent_when_eventIsCVE_then_doNothing() {
+    Cve cve = new Cve();
+    BaseEvent event = new BaseEvent(DATA_UPDATE, cve, mock(ObjectMapper.class));
+
+    streamApi.listenDatabaseUpdate(event);
+
+    verify(mockSink, never()).next(any());
   }
 }
