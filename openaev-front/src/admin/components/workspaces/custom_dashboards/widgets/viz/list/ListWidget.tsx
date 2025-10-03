@@ -5,7 +5,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Tooltip,
 } from '@mui/material';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -17,11 +16,9 @@ import SortHeadersComponentV2 from '../../../../../../../components/common/query
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
-import ItemStatus from '../../../../../../../components/ItemStatus';
 import { useHelper } from '../../../../../../../store';
 import { type EsBase } from '../../../../../../../utils/api-types';
 import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
-import { computeInjectExpectationLabel } from '../../../../../../../utils/statusUtils';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
