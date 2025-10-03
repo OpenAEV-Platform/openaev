@@ -500,7 +500,7 @@ public class MapperService {
             .map(this::createImportMapper)
             .peek(
                 (m) ->
-                    m.setName(m.getName() + " %s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)))
+                    m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)))
             .toList());
   }
 }

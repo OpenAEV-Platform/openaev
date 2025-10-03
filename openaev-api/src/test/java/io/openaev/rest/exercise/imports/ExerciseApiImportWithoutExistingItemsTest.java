@@ -148,7 +148,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
   }
 
   private Exercise findImportedExerciseFromDb(String baseName) {
-    String importedName = "%s %s".formatted(baseName, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    String importedName = "%s%s".formatted(baseName, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     Optional<Exercise> exerciseOpt =
         exerciseRepository.findAll().stream()
             .filter(ex -> ex.getName().equals(importedName))
@@ -192,7 +192,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     Exercise expected = exerciseWrapper.get();
 
     Assertions.assertEquals(
-        "%s %s".formatted(expected.getName(), Constants.IMPORTED_OBJECT_NAME_SUFFIX),
+        "%s%s".formatted(expected.getName(), Constants.IMPORTED_OBJECT_NAME_SUFFIX),
         imported.getName());
     Assertions.assertEquals(expected.getDescription(), imported.getDescription());
     Assertions.assertEquals(expected.getStatus(), imported.getStatus());

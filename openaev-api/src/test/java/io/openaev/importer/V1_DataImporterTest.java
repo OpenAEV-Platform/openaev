@@ -49,7 +49,7 @@ class V1_DataImporterTest extends IntegrationTest {
   private JsonNode importNode;
 
   public static final String EXERCISE_NAME =
-      "Test Exercise %s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+      "Test Exercise%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
   public static final String TEAM_NAME = "Animation team";
   public static final String USER_EMAIL = "Romuald.Lemesle@openaev.io";
   public static final String ORGANIZATION_NAME = "Filigran";

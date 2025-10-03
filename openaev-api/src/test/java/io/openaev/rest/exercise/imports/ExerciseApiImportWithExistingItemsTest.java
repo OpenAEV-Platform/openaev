@@ -148,7 +148,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
   }
 
   private Exercise findImportedExerciseFromDb(String baseName) {
-    String importedName = "%s %s".formatted(baseName, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    String importedName = "%s%s".formatted(baseName, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     Optional<Exercise> exerciseOpt =
         exerciseRepository.findAll().stream()
             .filter(ex -> ex.getName().equals(importedName))
