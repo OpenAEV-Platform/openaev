@@ -21,17 +21,21 @@ NB: The selected dashboard will appear in the Analysis tab, but only for the sim
 
 ## Import scenarios from XTM Hub
 
+_Connect to the XTM Hub to download a ZIP file that can be easily imported into OpenAEV using the following process._
+
 XTM Hub provides access to a library of pre-built OpenBAS scenarios that you can import directly into your platform to quickly get started with realistic attack simulations.
 
-To import scenarios:
+From the XTM Hub, you can effortlessly deploy your desired scenario with just a single click.
 
-1. Navigate to the Scenarios page
-2. Click on the **"Import from Hub"** button located at the top of the scenarios list
-3. Browse the available scenarios in the library
-4. Download and import the scenarios that match your testing requirements
+To get started, simply register your OpenAEV platform following the instructions in our [OpenAEV registration documentation](/administration/hub/).
+Next, navigate to your preferred scenario and click the ```Deploy in OpenAEV``` button located in the top right corner.
 
-The library contains various scenarios covering different attack vectors, threat actors, and industry-specific use cases.
+If you have multiple OpenAEV platforms registered, choose the platform in which you wish to deploy the scenario.
 
+You will then be redirected to the OpenAEV platform, where the process will continue automatically. 
+Within a few seconds, you'll be taken to the scenarios list, where your newly created scenario will appear.
+
+![Import scenario option](/usage/assets/one-click-deploy.png)
 
 ## Scenario overview
 

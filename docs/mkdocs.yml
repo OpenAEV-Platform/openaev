@@ -180,6 +180,7 @@ nav:
         - Policies: administration/policies.md
         - Users and RBAC: administration/users_and_rbac.md
       - Taxonomies: administration/taxonomies.md
+      - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
       - APIs:
           - Filters: reference/apis/filters.md
