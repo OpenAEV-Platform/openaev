@@ -54,7 +54,7 @@ const DetectionRemediationUseAriane = ({
     }
   };
 
-  let btnLabel = t('Ask AI');
+  let btnLabel = t('Use Ariane');
   if (!isAvailable) {
     btnLabel = btnLabel + ' (EE)';
   }

@@ -1,7 +1,9 @@
 package io.openaev.runner;
 
 import static io.openaev.database.model.Token.ADMIN_TOKEN_UUID;
-import static io.openaev.database.model.User.*;
+import static io.openaev.database.model.User.ADMIN_FIRSTNAME;
+import static io.openaev.database.model.User.ADMIN_LASTNAME;
+import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.Token;
@@ -24,13 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class InitAdminCommandLineRunner implements CommandLineRunner {
 
-  @Value("${openaev.admin.email:#{null}}")
+  @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
   private String adminEmail;
 
-  @Value("${openaev.admin.password:#{null}}")
+  @Value("${openbas.admin.password:${openaev.admin.password:#{null}}}")
   private String adminPassword;
 
-  @Value("${openaev.admin.token:#{null}}")
+  @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
 
   private final UserRepository userRepository;

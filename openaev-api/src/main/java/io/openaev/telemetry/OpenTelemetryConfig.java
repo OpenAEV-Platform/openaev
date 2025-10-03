@@ -59,7 +59,7 @@ public class OpenTelemetryConfig {
   private static final DateTimeFormatter CREATION_DATE_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n]");
 
-  @Value("${openaev.telemetry.enabled:true}")
+  @Value("${openbas.telemetry.enabled:${openaev.telemetry.enabled:true}}")
   private boolean telemetryEnabled;
 
   @Bean

@@ -4,9 +4,12 @@ import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -38,7 +41,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
 
-  @Value("${openaev.admin.email:#{null}}")
+  @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
   private String adminEmail;
 
   @Autowired private OrganizationRepository organizationRepository;

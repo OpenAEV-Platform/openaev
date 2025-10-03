@@ -5,6 +5,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.ee.Ee;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -27,6 +28,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class DetectionRemediationAIService {
   private static final String X_OPENAEV_CERTIFICATE = "X-OpenAEV-Certificate";
+  private static final String CROWDSTRIKE_URI = "/remediation/crowdstrike";
+  private static final String SPLUNK_URI = "/remediation/splunk";
 
   @Value("${remediation.detection.webservice:#{null}}")
   String REMEDIATION_DETECTION_WEBSERVICE;
@@ -35,12 +38,34 @@ public class DetectionRemediationAIService {
   private final HttpClientFactory httpClientFactory;
   @Resource protected ObjectMapper mapper;
 
-  public DetectionRemediationCrowdstrikeResponse callRemediationDetectionAIWebservice(
-      DetectionRemediationRequest payload) {
+  public DetectionRemediationAIResponse callRemediationDetectionAIWebservice(
+      DetectionRemediationRequest payload, String collectorType) {
     // Check if account has EE licence
     String certificate = ee.getEncodedCertificate();
 
-    String url = REMEDIATION_DETECTION_WEBSERVICE + "/remediation/crowdstrike";
+    String url;
+    Class<? extends DetectionRemediationAIResponse> classResponse;
+    switch (collectorType) {
+      case CollectorsUtils.CROWDSTRIKE -> {
+        url = REMEDIATION_DETECTION_WEBSERVICE + CROWDSTRIKE_URI;
+        classResponse = DetectionRemediationCrowdstrikeResponse.class;
+      }
+      case CollectorsUtils.SPLUNK -> {
+        url = REMEDIATION_DETECTION_WEBSERVICE + SPLUNK_URI;
+        classResponse = DetectionRemediationSplunkResponse.class;
+      }
+      case CollectorsUtils.MICROSOFT_DEFENDER ->
+          throw new ResponseStatusException(
+              HttpStatus.NOT_IMPLEMENTED,
+              "AI Webservice for collector type microsoft defender not implemented");
+
+      case CollectorsUtils.MICROSOFT_SENTINEL ->
+          throw new ResponseStatusException(
+              HttpStatus.NOT_IMPLEMENTED,
+              "AI Webservice for collector type microsoft sentinel not implemented");
+      default ->
+          throw new IllegalStateException("Collector :\"" + collectorType + "\" unsupported");
+    }
 
     String errorMessage = "Request to Remediation Detection AI Webservice failed: ";
 
@@ -57,7 +82,7 @@ public class DetectionRemediationAIService {
       String responseBody =
           httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
 
-      return mapper.readValue(responseBody, DetectionRemediationCrowdstrikeResponse.class);
+      return mapper.readValue(responseBody, classResponse);
 
     } catch (ConnectException ex) {
       throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);

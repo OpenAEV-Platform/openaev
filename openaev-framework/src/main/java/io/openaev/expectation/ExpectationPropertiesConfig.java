@@ -18,31 +18,40 @@ public class ExpectationPropertiesConfig {
   public static long DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME = 86400L; // 24 hours
   public static int DEFAULT_MANUAL_EXPECTATION_SCORE = 50;
 
-  @Value("${openaev.expectation.technical.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.technical.expiration-time:${openaev.expectation.technical.expiration-time:#{null}}}")
   private Long technicalExpirationTime;
 
-  @Value("${openaev.expectation.detection.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.detection.expiration-time:${openaev.expectation.detection.expiration-time:#{null}}}")
   private Long detectionExpirationTime;
 
-  @Value("${openaev.expectation.prevention.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.prevention.expiration-time:${openaev.expectation.prevention.expiration-time:#{null}}}")
   private Long preventionExpirationTime;
 
-  @Value("${openaev.expectation.vulnerability.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.vulnerability.expiration-time:${openaev.expectation.vulnerability.expiration-time:#{null}}}")
   private Long vulnerabilityExpirationTime;
 
-  @Value("${openaev.expectation.human.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.human.expiration-time:${openaev.expectation.human.expiration-time:#{null}}}")
   private Long humanExpirationTime;
 
-  @Value("${openaev.expectation.challenge.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.challenge.expiration-time:${openaev.expectation.challenge.expiration-time:#{null}}}")
   private Long challengeExpirationTime;
 
-  @Value("${openaev.expectation.article.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.article.expiration-time:${openaev.expectation.article.expiration-time:#{null}}}")
   private Long articleExpirationTime;
 
-  @Value("${openaev.expectation.manual.expiration-time:#{null}}")
+  @Value(
+      "${openbas.expectation.manual.expiration-time:${openaev.expectation.manual.expiration-time:#{null}}}")
   private Long manualExpirationTime;
 
-  @Value("${openaev.expectation.manual.default-score-value:#{null}}")
+  @Value(
+      "${openbas.expectation.manual.default-score-value:${openaev.expectation.manual.default-score-value:#{null}}}")
   private Integer defaultManualExpectationScore;
 
   public long getDetectionExpirationTime() {
