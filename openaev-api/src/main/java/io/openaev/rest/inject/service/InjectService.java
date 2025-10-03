@@ -23,6 +23,8 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.Ee;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.ContractFieldType;
@@ -104,6 +106,7 @@ public class InjectService {
   private final PayloadRepository payloadRepository;
   private final SmtpService smtpService;
   private final ImapService imapService;
+  private final HealthCheckUtils healthCheckUtils;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1258,16 +1261,28 @@ public class InjectService {
     InjectOutput injectOutput = new InjectOutput(inject);
     injectOutput
         .getHealthchecks()
-        .addAll(HealthCheckUtils.runSmtpChecks(inject, smtpService.isServiceAvailable()));
-    injectOutput
-        .getHealthchecks()
-        .addAll(HealthCheckUtils.runImapChecks(inject, imapService.isServiceAvailable()));
+        .addAll(
+            healthCheckUtils.runMailServiceChecks(
+                inject,
+                ExternalServiceDependency.SMTP,
+                smtpService.isServiceAvailable(),
+                HealthCheck.Type.SMTP,
+                HealthCheck.Status.ERROR));
     injectOutput
         .getHealthchecks()
         .addAll(
-            HealthCheckUtils.runExecutorChecks(
+            healthCheckUtils.runMailServiceChecks(
+                inject,
+                ExternalServiceDependency.IMAP,
+                imapService.isServiceAvailable(),
+                HealthCheck.Type.IMAP,
+                HealthCheck.Status.WARNING));
+    injectOutput
+        .getHealthchecks()
+        .addAll(
+            healthCheckUtils.runExecutorChecks(
                 inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
-    injectOutput.getHealthchecks().addAll(HealthCheckUtils.runCollectorChecks(inject, collectors));
+    injectOutput.getHealthchecks().addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     return injectOutput;
   }
 }

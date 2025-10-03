@@ -19,37 +19,21 @@ import jakarta.mail.util.ByteArrayDataSource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.bouncycastle.openpgp.PGPPublicKey;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class EmailService {
-
-  private EmailPgp emailPgp;
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
 
-  private ImapService imapService;
-
-  private SmtpService smtpService;
-
-  @Autowired
-  public void setImapService(ImapService imapService) {
-    this.imapService = imapService;
-  }
-
-  @Autowired
-  public void setSmtpService(SmtpService smtpService) {
-    this.smtpService = smtpService;
-  }
-
-  @Autowired
-  public void setEmailPgp(EmailPgp emailPgp) {
-    this.emailPgp = emailPgp;
-  }
+  private final EmailPgp emailPgp;
+  private final ImapService imapService;
+  private final SmtpService smtpService;
 
   public void sendEmail(
       Execution execution,

@@ -6,7 +6,9 @@ import io.openaev.database.model.Agent;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
 
+@Component
 public class ExecutorUtils {
 
   /**
@@ -15,7 +17,7 @@ public class ExecutorUtils {
    * @param agents to filter
    * @return filtered list
    */
-  public static Set<Agent> removeInactiveAgentsFromAgents(Set<Agent> agents) {
+  public Set<Agent> removeInactiveAgentsFromAgents(Set<Agent> agents) {
     Set<Agent> agentsToFilter = new HashSet<>(agents);
     Set<Agent> inactiveAgents = foundInactiveAgents(agents);
     agentsToFilter.removeAll(inactiveAgents);
@@ -28,7 +30,7 @@ public class ExecutorUtils {
    * @param agents to filter
    * @return filtered list
    */
-  public static Set<Agent> removeAgentsWithoutExecutorFromAgents(Set<Agent> agents) {
+  public Set<Agent> removeAgentsWithoutExecutorFromAgents(Set<Agent> agents) {
     Set<Agent> agentsToFilter = new HashSet<>(agents);
     Set<Agent> inactiveAgents = foundAgentsWithoutExecutor(agents);
     agentsToFilter.removeAll(inactiveAgents);
@@ -41,7 +43,7 @@ public class ExecutorUtils {
    * @param agents to filter
    * @return inactives agents
    */
-  public static Set<Agent> foundInactiveAgents(Set<Agent> agents) {
+  public Set<Agent> foundInactiveAgents(Set<Agent> agents) {
     return agents.stream().filter(agent -> !agent.isActive()).collect(Collectors.toSet());
   }
 
@@ -51,7 +53,7 @@ public class ExecutorUtils {
    * @param agents to filter
    * @return agents without executor
    */
-  public static Set<Agent> foundAgentsWithoutExecutor(Set<Agent> agents) {
+  public Set<Agent> foundAgentsWithoutExecutor(Set<Agent> agents) {
     return agents.stream().filter(agent -> agent.getExecutor() == null).collect(Collectors.toSet());
   }
 
@@ -61,7 +63,7 @@ public class ExecutorUtils {
    * @param agents to filter
    * @return founded crowdstrike agents
    */
-  public static Set<Agent> foundCrowdstrikeAgents(Set<Agent> agents) {
+  public Set<Agent> foundCrowdstrikeAgents(Set<Agent> agents) {
     return agents.stream()
         .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
         .collect(Collectors.toSet());

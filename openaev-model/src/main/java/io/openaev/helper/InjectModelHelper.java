@@ -322,15 +322,20 @@ public class InjectModelHelper {
     List<InjectExpectation.EXPECTATION_TYPE> values = new ArrayList<>();
     if (valueNode.isArray()) {
       for (JsonNode node : valueNode) {
-        if (!node.isNull() && !node.get("expectation_type").isNull()) {
-          values.add(
-              InjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText()));
+        if (!node.isNull()
+            && !node.get("expectation_type").isNull()
+            && (InjectExpectation.EXPECTATION_TYPE.DETECTION.equals(
+                    InjectExpectation.EXPECTATION_TYPE.valueOf(
+                        node.get("expectation_type").asText()))
+                || InjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(
+                    InjectExpectation.EXPECTATION_TYPE.valueOf(
+                        node.get("expectation_type").asText())))) {
+          return true;
         }
       }
     }
 
-    return values.contains(InjectExpectation.EXPECTATION_TYPE.DETECTION)
-        || values.contains(InjectExpectation.EXPECTATION_TYPE.PREVENTION);
+    return false;
   }
 
   public static List<String> getFieldValue(

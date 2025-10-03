@@ -1,9 +1,9 @@
 package io.openaev.injectors.email.service;
 
-import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.utils.base.ExternalServiceBase;
+import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.MimeMessage;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -13,19 +13,18 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class SmtpService {
+public class SmtpService extends ExternalServiceBase {
 
   private static final String SMTP_SETTINGS_KEY = "smtp_service_available";
 
-  @Getter private boolean serviceAvailable;
-
   @Autowired private JavaMailSender mailSender;
 
-  private final SettingRepository settingRepository;
+  public SmtpService(SettingRepository settingRepository) {
+    super(settingRepository);
+  }
 
-  public SmtpService(@Autowired SettingRepository settingRepository) {
-    this.settingRepository = settingRepository;
-    this.saveServiceState(false);
+  @PostConstruct
+  private void init() {
     this.testConnection();
   }
 
@@ -47,21 +46,13 @@ public class SmtpService {
     try {
       if (mailSender instanceof JavaMailSenderImpl javaMailSender) {
         javaMailSender.testConnection();
-        this.saveServiceState(true);
+        this.saveServiceState(SMTP_SETTINGS_KEY, true);
+      } else {
+        this.saveServiceState(SMTP_SETTINGS_KEY, false);
       }
     } catch (Exception e) {
       log.warn(e.getMessage());
-      this.saveServiceState(false);
+      this.saveServiceState(SMTP_SETTINGS_KEY, false);
     }
-  }
-
-  private void saveServiceState(boolean state) {
-    Setting imapSetting =
-        this.settingRepository
-            .findByKey(SMTP_SETTINGS_KEY)
-            .orElse(new Setting(SMTP_SETTINGS_KEY, null));
-    imapSetting.setValue(String.valueOf(state));
-    this.settingRepository.save(imapSetting);
-    this.serviceAvailable = state;
   }
 }

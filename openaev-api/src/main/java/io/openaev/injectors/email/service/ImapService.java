@@ -9,7 +9,9 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.FileService;
+import io.openaev.utils.base.ExternalServiceBase;
 import jakarta.activation.DataSource;
+import jakarta.annotation.PostConstruct;
 import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
@@ -19,7 +21,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.util.MimeMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +31,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class ImapService {
+public class ImapService extends ExternalServiceBase {
 
   private static final Pattern INJECT_ID_PATTERN = Pattern.compile("\\[inject_id=(.*)\\]");
   private static final String PROVIDER = "imap";
@@ -59,44 +60,25 @@ public class ImapService {
   @Value("${openaev.mail.imap.sent}")
   private String sentFolder;
 
-  @Getter private boolean serviceAvailable;
+  @Autowired private UserRepository userRepository;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private CommunicationRepository communicationRepository;
+  @Autowired private FileService fileService;
+  @Autowired private SettingRepository settingRepository;
+  @Autowired private Environment env;
 
-  private UserRepository userRepository;
-  private InjectRepository injectRepository;
-  private CommunicationRepository communicationRepository;
-  private FileService fileService;
-  private final SettingRepository settingRepository;
+  public ImapService(SettingRepository settingRepository) {
+    super(settingRepository);
+  }
 
-  public ImapService(Environment env, @Autowired SettingRepository settingRepository) {
-    this.settingRepository = settingRepository;
-    this.saveServiceState(false);
-
+  @PostConstruct
+  private void init() {
+    this.saveServiceState(IMAP_SETTINGS_KEY, false);
     try {
       initStore(env);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
-      this.saveServiceState(false);
     }
-  }
-
-  @Autowired
-  public void setFileService(FileService fileService) {
-    this.fileService = fileService;
-  }
-
-  @Autowired
-  public void setInjectRepository(InjectRepository injectRepository) {
-    this.injectRepository = injectRepository;
-  }
-
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setCommunicationRepository(CommunicationRepository communicationRepository) {
-    this.communicationRepository = communicationRepository;
   }
 
   private void initStore(Environment env) throws Exception {
@@ -118,14 +100,14 @@ public class ImapService {
           sentBox.create(Folder.READ_WRITE);
           sentBox.setSubscribed(true);
         }
-        this.saveServiceState(true);
+        this.saveServiceState(IMAP_SETTINGS_KEY, true);
       } catch (Exception e) {
         log.error(e.getMessage(), e);
-        this.saveServiceState(false);
+        this.saveServiceState(IMAP_SETTINGS_KEY, false);
       }
     } else {
       log.info("IMAP sync disabled");
-      this.saveServiceState(false);
+      this.saveServiceState(IMAP_SETTINGS_KEY, false);
     }
   }
 
@@ -355,10 +337,10 @@ public class ImapService {
       if (!imapStore.isConnected()) {
         try {
           imapStore.connect(host, port, username, password);
-          this.saveServiceState(true);
+          this.saveServiceState(IMAP_SETTINGS_KEY, true);
         } catch (MessagingException e) {
           log.warn(e.getMessage());
-          this.saveServiceState(false);
+          this.saveServiceState(IMAP_SETTINGS_KEY, false);
         }
       }
       syncFolders();
@@ -373,15 +355,5 @@ public class ImapService {
         folder.appendMessages(new Message[] {message});
       }
     }
-  }
-
-  private void saveServiceState(boolean state) {
-    Setting imapSetting =
-        this.settingRepository
-            .findByKey(IMAP_SETTINGS_KEY)
-            .orElse(new Setting(IMAP_SETTINGS_KEY, null));
-    imapSetting.setValue(String.valueOf(state));
-    this.settingRepository.save(imapSetting);
-    this.serviceAvailable = state;
   }
 }

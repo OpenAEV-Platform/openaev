@@ -5,6 +5,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
+import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -16,6 +17,7 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -48,6 +50,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired InjectRepository injectRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private HealthCheckUtils healthCheckUtils;
 
   @Mock Ee eeService;
   @Mock GrantService grantService;
@@ -94,7 +97,8 @@ class ScenarioServiceTest extends IntegrationTest {
             userService,
             collectorService,
             injectRepository,
-            lessonsCategoryRepository);
+            lessonsCategoryRepository,
+            healthCheckUtils);
   }
 
   void setUpWithMockRepository() {
@@ -120,7 +124,8 @@ class ScenarioServiceTest extends IntegrationTest {
             userService,
             collectorService,
             injectRepository,
-            lessonsCategoryRepository);
+            lessonsCategoryRepository,
+            healthCheckUtils);
   }
 
   @AfterAll
@@ -330,7 +335,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Type.SMTP,
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.ERROR,
-            new Date());
+            now());
     InjectOutput injectOutput = new InjectOutput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
@@ -368,7 +373,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Type.IMAP,
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.WARNING,
-            new Date());
+            now());
     InjectOutput injectOutput = new InjectOutput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
@@ -406,7 +411,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Type.AGENT_OR_EXECUTOR,
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
-            new Date());
+            now());
     InjectOutput injectOutput = new InjectOutput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
@@ -444,7 +449,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
-            new Date());
+            now());
     InjectOutput injectOutput = new InjectOutput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
@@ -482,7 +487,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Type.INJECT,
             HealthCheck.Detail.NOT_READY,
             HealthCheck.Status.WARNING,
-            new Date());
+            now());
     InjectOutput injectOutput = new InjectOutput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 

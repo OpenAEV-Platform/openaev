@@ -59,10 +59,6 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
-
-  private ScenarioComposer.Composer scenarioWrapper;
-
-  static String SCENARIO_ID;
   @Autowired private AssetGroupService assetGroupService;
 
   @AfterEach

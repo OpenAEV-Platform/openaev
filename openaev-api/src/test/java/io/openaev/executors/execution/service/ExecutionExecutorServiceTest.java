@@ -9,6 +9,7 @@ import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -16,12 +17,14 @@ import io.openaev.utils.fixtures.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 public class ExecutionExecutorServiceTest {
@@ -31,6 +34,11 @@ public class ExecutionExecutorServiceTest {
   @Mock private ExecutorContextService executorContextService;
 
   @InjectMocks private ExecutionExecutorService executorService;
+
+  @BeforeEach
+  void setUp() {
+    ReflectionTestUtils.setField(executorService, "executorUtils", new ExecutorUtils());
+  }
 
   @Test
   void test_launchExecutorContext_noAssetException() throws Exception {

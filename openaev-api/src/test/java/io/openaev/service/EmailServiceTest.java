@@ -16,15 +16,16 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 @ExtendWith(MockitoExtension.class)
 class EmailServiceTest extends IntegrationTest {
 
-  @Mock private SmtpService smtpService;
-  @InjectMocks private EmailService emailService;
+  @MockBean private SmtpService smtpService;
+
+  @Autowired private EmailService emailService;
 
   @Test
   void shouldSetReplyToInHeaderEqualsToFrom() throws Exception {
@@ -34,6 +35,7 @@ class EmailServiceTest extends IntegrationTest {
     ExecutionContext userContext = new ExecutionContext(UserFixture.getSavedUser(), null);
 
     when(smtpService.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
+
     emailService.sendEmail(
         execution,
         List.of(userContext),

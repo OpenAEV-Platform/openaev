@@ -283,18 +283,3 @@ export const sendErrorToBackend = async (error: Error, stack: ErrorInfo) => {
   };
   simplePostCall('/api/logs', errorDetails);
 };
-
-export const startServerSideEvents = <T>(uri: string, eventId: string, dataCallback: (data: T) => void): () => void => {
-  const eventSource = new EventSource(uri);
-
-  eventSource.addEventListener(eventId, (event) => {
-    const data = JSON.parse(event.data) as T;
-    dataCallback(data);
-  });
-
-  eventSource.onerror = () => {
-    eventSource.close();
-  };
-
-  return () => eventSource.close();
-};

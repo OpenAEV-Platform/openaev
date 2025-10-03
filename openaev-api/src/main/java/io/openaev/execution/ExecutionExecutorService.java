@@ -25,9 +25,9 @@ import org.springframework.stereotype.Service;
 public class ExecutionExecutorService {
 
   private final ApplicationContext context;
-
   private final ExecutionTraceRepository executionTraceRepository;
   private final InjectService injectService;
+  private final ExecutorUtils executorUtils;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -41,11 +41,11 @@ public class ExecutionExecutorService {
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
     // Filter each list to do something for each specific case and then remove the specific agents
     // from the main "agents" list to execute payloads at the end for the remaining "normal" agents
-    Set<Agent> inactiveAgents = ExecutorUtils.foundInactiveAgents(agents);
+    Set<Agent> inactiveAgents = executorUtils.foundInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
-    Set<Agent> agentsWithoutExecutor = ExecutorUtils.foundAgentsWithoutExecutor(agents);
+    Set<Agent> agentsWithoutExecutor = executorUtils.foundAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
-    Set<Agent> crowdstrikeAgents = ExecutorUtils.foundCrowdstrikeAgents(agents);
+    Set<Agent> crowdstrikeAgents = executorUtils.foundCrowdstrikeAgents(agents);
     agents.removeAll(crowdstrikeAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);

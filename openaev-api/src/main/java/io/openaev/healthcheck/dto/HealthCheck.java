@@ -3,7 +3,7 @@ package io.openaev.healthcheck.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import java.util.Date;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -51,5 +51,5 @@ public class HealthCheck {
   @Schema(description = "Date when the failure have been found")
   @JsonProperty("creation_date")
   @NotNull
-  private Date creationDate;
+  private Instant creationDate;
 }

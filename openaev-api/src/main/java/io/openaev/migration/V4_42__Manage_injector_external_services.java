@@ -41,4 +41,8 @@ public class V4_42__Manage_injector_external_services extends BaseJavaMigration 
                 """);
     }
   }
+
+  /* ROLLBACK
+   ALTER TABLE injectors DROP COLUMN IF EXISTS injector_dependencies;
+  */
 }

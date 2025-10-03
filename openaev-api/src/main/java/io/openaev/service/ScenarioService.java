@@ -123,6 +123,8 @@ public class ScenarioService {
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
 
+  private final HealthCheckUtils healthCheckUtils;
+
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     computeEmails(scenario);
@@ -913,14 +915,42 @@ public class ScenarioService {
             .map(inject -> injectService.runChecks(inject, collectors))
             .toList());
 
-    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runSmtpChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runImapChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runExecutorChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runCollectorChecks(scenarioOutput));
     scenarioOutput
         .getHealthchecks()
-        .addAll(HealthCheckUtils.runMissingContentChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(HealthCheckUtils.runTeamsChecks(scenarioOutput));
+        .addAll(
+            healthCheckUtils.runInjectsInErrorChecks(
+                scenarioOutput,
+                HealthCheck.Type.SMTP,
+                HealthCheck.Detail.SERVICE_UNAVAILABLE,
+                HealthCheck.Status.ERROR));
+    scenarioOutput
+        .getHealthchecks()
+        .addAll(
+            healthCheckUtils.runInjectsInErrorChecks(
+                scenarioOutput,
+                HealthCheck.Type.IMAP,
+                HealthCheck.Detail.SERVICE_UNAVAILABLE,
+                HealthCheck.Status.WARNING));
+    scenarioOutput
+        .getHealthchecks()
+        .addAll(
+            healthCheckUtils.runInjectsInErrorChecks(
+                scenarioOutput,
+                HealthCheck.Type.AGENT_OR_EXECUTOR,
+                HealthCheck.Detail.EMPTY,
+                HealthCheck.Status.ERROR));
+    scenarioOutput
+        .getHealthchecks()
+        .addAll(
+            healthCheckUtils.runInjectsInErrorChecks(
+                scenarioOutput,
+                HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
+                HealthCheck.Detail.EMPTY,
+                HealthCheck.Status.ERROR));
+    scenarioOutput
+        .getHealthchecks()
+        .addAll(healthCheckUtils.runMissingContentChecks(scenarioOutput));
+    scenarioOutput.getHealthchecks().addAll(healthCheckUtils.runTeamsChecks(scenarioOutput));
 
     return scenarioOutput.getHealthchecks();
   }

@@ -12,8 +12,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.exception.BadRequestException;
@@ -91,6 +93,8 @@ class InjectServiceTest {
   void setUp() {
     mapper = new ObjectMapper();
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
+    ReflectionTestUtils.setField(
+        injectService, "healthCheckUtils", new HealthCheckUtils(new ExecutorUtils()));
   }
 
   @Test
