@@ -81,11 +81,14 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### XTM Suite: XTM Hub
 
-| Parameter                        | Environment variable             | Default value | Description                                                       |
-|:---------------------------------|:---------------------------------|:--------------|:------------------------------------------------------------------|
-| openbas.xtm.hub.enable           | OPENBAS_XTM_HUB_ENABLE           | false         | Enable integration with XTM Hub                                   |
-| openbas.xtm.hub.url              | OPENBAS_XTM_HUB_URL              |               | XTM Hub URL                                                       |
-| openbas.xtm.hub.override-api-url | OPENBAS_XTM_HUB_OVERRIDE_API_URL |               | When specified, override `openbas.xtm.hub.url` during backend calls |
+| Parameter                                              | Environment variable                                  | Default value                        | Description                                                         |
+|:-------------------------------------------------------|:------------------------------------------------------|:-------------------------------------|:--------------------------------------------------------------------|
+| openbas.xtm.hub.enable                                 | OPENBAS_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                    |
+| openbas.xtm.hub.url                                    | OPENBAS_XTM_HUB_URL                                   |                                      | XTM Hub URL                                                         |
+| openbas.xtm.hub.override-api-url                       | OPENBAS_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openbas.xtm.hub.url` during backend calls |
+| openaev.xtm.hub.collector.enable                       | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
+| openaev.xtm.hub.collector.id                           | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
+| openaev.xtm.hub.collector.connectivity-check-internval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
 
 #### PostgreSQL
 
