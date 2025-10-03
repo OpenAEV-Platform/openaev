@@ -167,7 +167,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null);
+                    resourceToAdd.getInputStream(), null, null, true);
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
@@ -191,7 +191,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                         resourceToAdd.getContentAsByteArray(),
                         "custom_dashboard_name",
                         null,
-                        CustomDashboardService::sanityCheck);
+                        CustomDashboardService::sanityCheck,
+                        true);
                 this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",

@@ -53,13 +53,14 @@ public class ImportService {
       InputStream inputStream,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
-      Scenario scenario) {
+      Scenario scenario,
+      boolean isFromStarterPack) {
     try {
       JsonNode importNode = mapper.readTree(inputStream);
       int importVersion = importNode.get("export_version").asInt();
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
-        importer.importData(importNode, docReferences, exercise, scenario);
+        importer.importData(importNode, docReferences, exercise, scenario, isFromStarterPack);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
       }
@@ -71,16 +72,16 @@ public class ImportService {
   @Transactional(rollbackOn = Exception.class)
   public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
-    handleInputStreamImport(file.getInputStream(), exercise, scenario);
+    handleInputStreamImport(file.getInputStream(), exercise, scenario, false);
   }
 
   @Transactional(rollbackOn = Exception.class)
-  public void handleInputStreamFileImport(InputStream is, Exercise exercise, Scenario scenario)
+  public void handleInputStreamFileImport(InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
       throws Exception {
-    handleInputStreamImport(is, exercise, scenario);
+    handleInputStreamImport(is, exercise, scenario, isFromStarterPack);
   }
 
-  private void handleInputStreamImport(InputStream is, Exercise exercise, Scenario scenario)
+  private void handleInputStreamImport(InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
       throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".zip");
     FileUtils.copyInputStreamToFile(is, tempFile);
@@ -226,7 +227,7 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(dataStream, docReferences, exercise, scenario);
+        handleDataImport(dataStream, docReferences, exercise, scenario, isFromStarterPack);
       }
     } finally {
       tempFile.delete();

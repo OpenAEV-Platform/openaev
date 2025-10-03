@@ -79,7 +79,8 @@ public class ZipJsonService<T extends Base> {
       byte[] fileBytes,
       String nameAttributeKey,
       IncludeOptions includeOptions,
-      Function<T, T> sanityCheck)
+      Function<T, T> sanityCheck,
+      boolean isFromStarterPack)
       throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
@@ -87,7 +88,7 @@ public class ZipJsonService<T extends Base> {
     if (doc.data() != null && doc.data().attributes() != null) {
       Object current = doc.data().attributes().get(nameAttributeKey);
       if (current instanceof String s) {
-        doc.data().attributes().put(nameAttributeKey, s + IMPORTED_OBJECT_NAME_SUFFIX);
+        doc.data().attributes().put(nameAttributeKey, isFromStarterPack ? s : s + IMPORTED_OBJECT_NAME_SUFFIX);
       }
     }
 

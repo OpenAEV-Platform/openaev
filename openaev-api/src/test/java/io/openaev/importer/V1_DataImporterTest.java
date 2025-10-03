@@ -76,7 +76,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Transactional
   void testImportData() {
     // -- EXECUTE --
-    this.importer.importData(this.importNode, Map.of(), null, null);
+    this.importer.importData(this.importNode, Map.of(), null, null, false);
 
     // -- ASSERT --
     Optional<Exercise> exercise = this.exerciseRepository.findOne(exerciseByName(EXERCISE_NAME));
@@ -115,7 +115,7 @@ class V1_DataImporterTest extends IntegrationTest {
                 Paths.get(
                     "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
     this.importNode = mapper.readTree(jsonContent);
-    this.importer.importData(this.importNode, Map.of(), null, null);
+    this.importer.importData(this.importNode, Map.of(), null, null, false);
 
     Payload payload = payloadRepository.findAll().iterator().next();
 
@@ -131,7 +131,7 @@ class V1_DataImporterTest extends IntegrationTest {
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();
 
-    this.importer.importData(this.importNode, Map.of(), null, null);
+    this.importer.importData(this.importNode, Map.of(), null, null, false);
     payload = payloadRepository.findAll().iterator().next();
     AttackPattern attackPattern2 = payload.getAttackPatterns().getFirst();
     KillChainPhase killChainPhase2 = attackPattern.getKillChainPhases().getFirst();

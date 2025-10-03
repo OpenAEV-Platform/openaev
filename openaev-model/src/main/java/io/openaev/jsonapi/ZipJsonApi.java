@@ -70,6 +70,6 @@ public class ZipJsonApi<T extends Base> {
       throws IOException {
     return ResponseEntity.ok(
         this.zipJsonService.handleImport(
-            file.getBytes(), nameAttributeKey, includeOptions, sanityCheck));
+            file.getBytes(), nameAttributeKey, includeOptions, sanityCheck, false));
   }
 }

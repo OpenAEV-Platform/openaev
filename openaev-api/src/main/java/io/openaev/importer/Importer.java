@@ -19,7 +19,8 @@ public interface Importer {
       JsonNode importNode,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
-      Scenario scenario);
+      Scenario scenario,
+      boolean isFromStarterPack);
 
   default Stream<JsonNode> resolveJsonElements(JsonNode node, String key) {
     JsonNode dataNode = node.get(key);
