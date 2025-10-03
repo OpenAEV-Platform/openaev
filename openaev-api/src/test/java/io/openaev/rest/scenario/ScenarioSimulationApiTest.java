@@ -26,6 +26,7 @@ import io.openaev.utils.pagination.SortField;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
@@ -105,7 +106,9 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
           throws Exception {
         Tag tagToAdd = TagFixture.getTagWithText("ScenarioSimulationApiTestTag");
         Tag tag = tagRepository.save(tagToAdd);
-        exercise2FromScenario.setTags(Set.of(tag));
+        Set<Tag> tags = new HashSet<>();
+        tags.add(tag);
+        exercise2FromScenario.setTags(tags);
         exerciseRepository.save(exercise2FromScenario);
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.simpleSearchWithAndOperator(
