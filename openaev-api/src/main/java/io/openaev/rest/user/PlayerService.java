@@ -27,7 +27,6 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.Valid;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -165,10 +164,10 @@ public class PlayerService {
         || !userDatabase.getTeams().stream()
             .map(Team::getId)
             .collect(Collectors.toSet())
-            .equals(new HashSet<>(input.getTeamIds()))
+            .containsAll(input.getTeamIds())
         || !userDatabase.getTags().stream()
             .map(Tag::getId)
             .collect(Collectors.toSet())
-            .equals(new HashSet<>(input.getTagIds()));
+            .containsAll(input.getTagIds());
   }
 }
