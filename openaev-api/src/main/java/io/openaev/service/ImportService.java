@@ -76,12 +76,14 @@ public class ImportService {
   }
 
   @Transactional(rollbackOn = Exception.class)
-  public void handleInputStreamFileImport(InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
+  public void handleInputStreamFileImport(
+      InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
       throws Exception {
     handleInputStreamImport(is, exercise, scenario, isFromStarterPack);
   }
 
-  private void handleInputStreamImport(InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
+  private void handleInputStreamImport(
+      InputStream is, Exercise exercise, Scenario scenario, boolean isFromStarterPack)
       throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".zip");
     FileUtils.copyInputStreamToFile(is, tempFile);

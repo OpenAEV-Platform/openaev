@@ -88,7 +88,9 @@ public class ZipJsonService<T extends Base> {
     if (doc.data() != null && doc.data().attributes() != null) {
       Object current = doc.data().attributes().get(nameAttributeKey);
       if (current instanceof String s) {
-        doc.data().attributes().put(nameAttributeKey, isFromStarterPack ? s : s + IMPORTED_OBJECT_NAME_SUFFIX);
+        doc.data()
+            .attributes()
+            .put(nameAttributeKey, isFromStarterPack ? s : s + IMPORTED_OBJECT_NAME_SUFFIX);
       }
     }
 

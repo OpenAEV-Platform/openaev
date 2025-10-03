@@ -159,9 +159,11 @@ public class V1_DataImporter implements Importer {
     }
     importTags(importNode, prefix, baseIds);
     Exercise savedExercise =
-        Optional.ofNullable(importExercise(importNode, baseIds, isFromStarterPack)).orElse(exercise);
+        Optional.ofNullable(importExercise(importNode, baseIds, isFromStarterPack))
+            .orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, isFromStarterPack)).orElse(scenario);
+        Optional.ofNullable(importScenario(importNode, baseIds, isFromStarterPack))
+            .orElse(scenario);
     importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
     importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
 
@@ -306,7 +308,8 @@ public class V1_DataImporter implements Importer {
 
   // -- EXERCISE --
 
-  private Exercise importExercise(JsonNode importNode, Map<String, Base> baseIds, boolean isFromStarterPack) {
+  private Exercise importExercise(
+      JsonNode importNode, Map<String, Base> baseIds, boolean isFromStarterPack) {
     JsonNode exerciseNode = importNode.get("exercise_information");
     if (exerciseNode == null) {
       return null;
@@ -332,7 +335,8 @@ public class V1_DataImporter implements Importer {
 
   // -- SCENARIO --
 
-  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, boolean isFromStarterPack) {
+  private Scenario importScenario(
+      JsonNode importNode, Map<String, Base> baseIds, boolean isFromStarterPack) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
