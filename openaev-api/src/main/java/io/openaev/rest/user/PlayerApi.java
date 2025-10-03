@@ -3,7 +3,6 @@ package io.openaev.rest.user;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
-import static java.time.Instant.now;
 
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
@@ -21,11 +20,8 @@ import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -86,43 +82,7 @@ public class PlayerApi extends RestBehavior {
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
-    Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
-    if (user.isPresent()) {
-      User existingUser = user.get();
-      existingUser.setUpdateAttributes(input);
-      existingUser.setUpdatedAt(now());
-      Iterable<String> tags =
-          Stream.concat(
-                  existingUser.getTags().stream().map(Tag::getId).toList().stream(),
-                  input.getTagIds().stream())
-              .distinct()
-              .toList();
-      existingUser.setTags(iterableToSet(tagRepository.findAllById(tags)));
-      Iterable<String> teams =
-          Stream.concat(
-                  existingUser.getTeams().stream().map(Team::getId).toList().stream(),
-                  input.getTeamIds().stream())
-              .distinct()
-              .toList();
-      existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
-      if (StringUtils.hasText(input.getOrganizationId())) {
-        existingUser.setOrganization(
-            updateRelation(
-                input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
-      }
-      return userRepository.save(existingUser);
-    } else {
-      User newUser = new User();
-      newUser.setUpdateAttributes(input);
-      newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      newUser.setOrganization(
-          updateRelation(
-              input.getOrganizationId(), newUser.getOrganization(), organizationRepository));
-      newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
-      User savedUser = userRepository.save(newUser);
-      userService.createUserToken(savedUser);
-      return savedUser;
-    }
+    return playerService.upsertPlayer(input);
   }
 
   @PutMapping(PLAYER_URI + "/{userId}")
