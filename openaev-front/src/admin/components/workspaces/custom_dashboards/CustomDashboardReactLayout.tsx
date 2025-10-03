@@ -1,17 +1,11 @@
-import { InfoOutlined, OpenInFullOutlined } from '@mui/icons-material';
-import { Box, darken, IconButton, Paper, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { Paper } from '@mui/material';
+import { type CSSProperties, type FunctionComponent, useContext, useEffect, useState } from 'react';
 import RGL, { type Layout, WidthProvider } from 'react-grid-layout';
 
 import { updateCustomDashboardWidgetLayout } from '../../../../actions/custom_dashboards/customdashboardwidget-action';
-import { ErrorBoundary } from '../../../../components/Error';
-import { useFormatter } from '../../../../components/i18n';
 import { type Widget } from '../../../../utils/api-types-custom';
 import { CustomDashboardContext } from './CustomDashboardContext';
-import WidgetPopover from './widgets/WidgetPopover';
-import { getWidgetTitle } from './widgets/WidgetUtils';
-import WidgetViz from './widgets/WidgetViz';
+import WidgetWrapper from './widgets/WidgetWrapper';
 
 const ReactGridLayout = WidthProvider(RGL);
 
@@ -19,12 +13,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
   readOnly: boolean;
   style?: CSSProperties;
 }> = ({ readOnly, style = {} }) => {
-  // Standard hooks
-  const theme = useTheme();
-  const { t } = useFormatter();
   const [fullscreenWidgets, setFullscreenWidgets] = useState<Record<Widget['widget_id'], boolean | never>>({});
   const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
-  const [tooltipMessage, setTooltipMessage] = useState<React.ReactNode>('');
 
   const [idToResize, setIdToResize] = useState<string | null>(null);
   const handleResize = (updatedWidget: string | null) => setIdToResize(updatedWidget);
@@ -117,8 +107,6 @@ const CustomDashboardReactLayout: FunctionComponent<{
           ...fullscreenWidgets,
           [widget.widget_id]: fullscreen,
         });
-        // Make the theme.info.main color a bit darker
-        const darkerInfoStyle = darken(theme.palette.info.main, 0.7);
         return (
           <Paper
             key={widget.widget_id}
@@ -130,96 +118,16 @@ const CustomDashboardReactLayout: FunctionComponent<{
             }}
             variant="outlined"
           >
-            <Box
-              display="flex"
-              flexDirection="row"
-              alignItems="center"
+            <WidgetWrapper
+              widget={widget}
+              fullscreen={fullscreenWidgets[widget.widget_id]}
+              setFullscreen={setFullscreen}
+              handleWidgetUpdate={handleWidgetUpdate}
+              handleWidgetDelete={handleWidgetDelete}
+              readOnly={readOnly}
+              idToResize={idToResize}
             >
-              <Box
-                display="flex"
-                flexDirection="row"
-                alignItems="center"
-                paddingTop={theme.spacing(2.5)}
-              >
-                <Typography
-                  variant="h4"
-                  sx={{
-                    margin: 0,
-                    paddingLeft: theme.spacing(2),
-                    paddingRight: theme.spacing(1),
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {getWidgetTitle(widget.widget_config.title, widget.widget_type, t)}
-                </Typography>
-                {'number' === widget.widget_type && (
-                  <Tooltip
-                    title={tooltipMessage}
-                    placement="right"
-                    slotProps={{
-                      tooltip: {
-                        sx: {
-                          bgcolor: darkerInfoStyle,
-                          color: theme.palette.getContrastText(darkerInfoStyle),
-                          boxShadow: theme.shadows[1],
-                        },
-                      },
-                    }}
-                  >
-                    <InfoOutlined
-                      fontSize="small"
-                      color="primary"
-                    />
-                  </Tooltip>
-                )}
-              </Box>
-              <Box
-                display="flex"
-                flexDirection="row"
-                marginLeft="auto"
-              >
-                {widget.widget_type === 'security-coverage' && (
-                  <IconButton
-                    color="primary"
-                    className="noDrag"
-                    onClick={() => setFullscreen(true)}
-                    size="small"
-                  >
-                    <OpenInFullOutlined fontSize="small" />
-                  </IconButton>
-                )}
-                {!readOnly && (
-                  <WidgetPopover
-                    className="noDrag"
-                    customDashboardId={customDashboard.custom_dashboard_id}
-                    widget={widget}
-                    onUpdate={widget => handleWidgetUpdate(widget)}
-                    onDelete={widgetId => handleWidgetDelete(widgetId)}
-                  />
-                )}
-              </Box>
-            </Box>
-            <ErrorBoundary>
-              {widget.widget_id === idToResize ? (<div />) : (
-                <Box
-                  flex={1}
-                  display="flex"
-                  flexDirection="column"
-                  minHeight={0}
-                  padding={theme.spacing(1, 2, 2)}
-                  overflow={'number' === widget.widget_type ? 'hidden' : 'auto'}
-                  onMouseDown={(e: SyntheticEvent) => e.stopPropagation()}
-                  onTouchStart={(e: SyntheticEvent) => e.stopPropagation()}
-                >
-                  <WidgetViz
-                    widget={widget}
-                    fullscreen={fullscreenWidgets[widget.widget_id]}
-                    setFullscreen={setFullscreen}
-                    setTooltipMessage={setTooltipMessage}
-                  />
-                </Box>
-              )}
-            </ErrorBoundary>
+            </WidgetWrapper>
           </Paper>
         );
       })}

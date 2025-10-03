@@ -2,7 +2,7 @@ import { AccountTree, List, TableChart } from '@mui/icons-material';
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
 import {
-  type CustomDashboardParameters,
+  type CustomDashboardParameters, type EsAttackPath, type EsBase, type EsCountInterval, type EsSeries,
   type Exercise,
   type Filter,
   type FilterGroup,
@@ -251,3 +251,31 @@ export const updateSimulationFilterOnSeries = (series: Series[], simulationId?: 
   });
   return series;
 };
+
+export enum WidgetVizDataType {
+  SERIES = 'series',
+  ENTITIES = 'entities',
+  ATTACK_PATHS = 'attackPaths',
+  NUMBER = 'number',
+  NONE = 'none',
+}
+
+// Define the discriminated union
+export type WidgetVizData =
+  | {
+    type: WidgetVizDataType.SERIES;
+    data: EsSeries[];
+  }
+  | {
+    type: WidgetVizDataType.ENTITIES;
+    data: EsBase[];
+  }
+  | {
+    type: WidgetVizDataType.ATTACK_PATHS;
+    data: EsAttackPath[];
+  }
+  | {
+    type: WidgetVizDataType.NUMBER;
+    data: EsCountInterval;
+  }
+  | { type: WidgetVizDataType.NONE };
