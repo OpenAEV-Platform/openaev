@@ -118,7 +118,9 @@ public class Ee {
     license.setValidCert(true);
     String licenseType = getExtension(x509License, LICENSE_OPTION_TYPE);
     license.setType(LicenseTypeEnum.valueOf(licenseType));
-    boolean isValidProduct = "openaev".equals(getExtension(x509License, LICENSE_OPTION_PRODUCT));
+    boolean isValidProduct =
+        "openaev".equals(getExtension(x509License, LICENSE_OPTION_PRODUCT))
+            || "openbas".equals(getExtension(x509License, LICENSE_OPTION_PRODUCT));
     license.setValidProduct(isValidProduct);
     license.setCreator(getExtension(x509License, LICENSE_OPTION_CREATOR));
     license.setCustomer(getInSubject(x509License, "O"));

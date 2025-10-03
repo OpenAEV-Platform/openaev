@@ -43,7 +43,7 @@ services:
       - "15672:15672"
   openaev-dev-caldera:
     container_name: openaev-dev-caldera
-    image: openaev/caldera-server:5.1.0
+    image: openbas/caldera-server:5.1.0
     restart: unless-stopped
     ports:
       - "8888:8888"
