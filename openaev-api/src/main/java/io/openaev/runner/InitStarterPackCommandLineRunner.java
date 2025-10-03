@@ -2,7 +2,14 @@ package io.openaev.runner;
 
 import static io.openaev.utils.StringUtils.generateRandomColor;
 
-import io.openaev.database.model.*;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.CustomDashboard;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Filters;
+import io.openaev.database.model.Setting;
+import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.TagRule;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
@@ -10,9 +17,17 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
-import io.openaev.service.*;
+import io.openaev.service.AssetGroupService;
+import io.openaev.service.EndpointService;
+import io.openaev.service.ImportService;
+import io.openaev.service.TagRuleService;
+import io.openaev.service.ZipJsonService;
 import jakarta.validation.constraints.NotBlank;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
   private static final class Config {
+
     static final String STARTER_PACK_KEY = "starterpack";
     static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";
@@ -46,12 +62,14 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
 
   private static final class Tags {
+
     static final String VULNERABILITY = "vulnerability";
     static final String CISCO = "cisco";
     static final String OPENCTI = "opencti";
   }
 
   private static final class HoneyScanMeEndpoint {
+
     static final String HOSTNAME = "honey.scanme.sh";
     static final String[] IPS = new String[] {"67.205.158.113"};
     static final Endpoint.PLATFORM_ARCH ARCH = Endpoint.PLATFORM_ARCH.x86_64;
@@ -60,12 +78,13 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   }
 
   private static final class AllEndpointsAssetGroup {
+
     static final String NAME = "All endpoints";
     static final String KEY = "endpoint_platform";
     static final Filters.FilterOperator OPERATOR = Filters.FilterOperator.not_empty;
   }
 
-  @Value("${openaev.starterpack.enabled:#{true}}")
+  @Value("${openbas.starterpack.enabled:${openaev.starterpack.enabled:#{true}}}")
   private boolean isStarterPackEnabled;
 
   private final SettingRepository settingRepository;

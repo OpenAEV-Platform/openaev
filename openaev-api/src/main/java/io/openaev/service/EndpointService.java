@@ -1,7 +1,9 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
-import static io.openaev.database.specification.EndpointSpecification.*;
+import static io.openaev.database.specification.EndpointSpecification.findEndpointsForAssetGroup;
+import static io.openaev.database.specification.EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints;
+import static io.openaev.database.specification.EndpointSpecification.fromIds;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -13,8 +15,17 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetAgentJob;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Tag;
+import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.EndpointRepository;
+import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.database.repository.TagRepository;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
@@ -32,7 +43,13 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -77,7 +94,7 @@ public class EndpointService {
 
   @Resource private OpenAEVConfig openAEVConfig;
 
-  @Value("${openaev.admin.token:#{null}}")
+  @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
 
   @Value("${info.app.version:unknown}")
