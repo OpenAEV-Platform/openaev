@@ -1,7 +1,6 @@
 package io.openaev.service.detection_remediation;
 
 import io.openaev.api.detection_remediation.dto.PayloadInput;
-import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.DetectionRemediation;
@@ -56,13 +55,13 @@ public class DetectionRemediationService {
 
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
       List<DetectionRemediation> detectionRemediations, Payload payload, String collectorType) {
-        // GET or Create Detection remediation linked to selected payload and EDR/SIEM
-        DetectionRemediation detectionRemediation =
-            this.getOrCreateDetectionRemediationByCollector(
+    // GET or Create Detection remediation linked to selected payload and EDR/SIEM
+    DetectionRemediation detectionRemediation =
+        this.getOrCreateDetectionRemediationByCollector(
             collectorType, detectionRemediations, payload);
 
-        // GET AI rules from webservice
-        DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
+    // GET AI rules from webservice
+    DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collectorType);
 
