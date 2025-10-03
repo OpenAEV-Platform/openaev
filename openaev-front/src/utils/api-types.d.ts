@@ -2577,13 +2577,13 @@ export interface HealthCheck {
    * Date when the failure have been found
    * @format date-time
    */
-  creation_date?: string;
+  creation_date: string;
   /** Detail of the check failure */
-  detail?: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY";
+  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY";
   /** Define if it's an error or a warning */
-  status?: "ERROR" | "WARNING";
+  status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
-  type?:
+  type:
     | "SMTP"
     | "IMAP"
     | "AGENT_OR_EXECUTOR"
