@@ -12,8 +12,7 @@ export const getTimeRangeFromDashboard = (dashboard: CustomDashboard | undefined
   const timeRangeParameterId = dashboardParametersModel?.find(param => param.custom_dashboards_parameter_type === 'timeRange')?.custom_dashboards_parameter_id;
   if (!timeRangeParameterId) return undefined;
 
-  const parameter = dashboardParametersValues[timeRangeParameterId];
-  return parameter?.value;
+  return dashboardParametersValues[timeRangeParameterId]?.value;
 };
 
 export type TimeRangeItem = {
