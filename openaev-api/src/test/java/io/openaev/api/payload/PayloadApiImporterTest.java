@@ -75,7 +75,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     // Payload
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
-        "Echo " + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
+        "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
     assertEquals("psh", json.at("/data/attributes/command_executor").asText());
     assertEquals("echo \"toto\"", json.at("/data/attributes/command_content").asText());
   }

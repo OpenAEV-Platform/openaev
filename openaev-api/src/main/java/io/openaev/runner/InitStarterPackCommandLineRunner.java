@@ -23,11 +23,7 @@ import io.openaev.service.ImportService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.ZipJsonService;
 import jakarta.validation.constraints.NotBlank;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -142,6 +138,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
     filter.setMode(Filters.FilterMode.or);
+    filter.setValues(new ArrayList<>());
 
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.or);
@@ -167,7 +164,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null, null, true);
+                    resourceToAdd.getInputStream(), null, null, "", true);
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
@@ -192,7 +189,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                         "custom_dashboard_name",
                         null,
                         CustomDashboardService::sanityCheck,
-                        null);
+                        "");
                 this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",

@@ -27,7 +27,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import lombok.*;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -87,7 +86,7 @@ public class ZipJsonService<T extends Base> {
     if (doc.data() != null && doc.data().attributes() != null) {
       Object current = doc.data().attributes().get(nameAttributeKey);
       if (current instanceof String s) {
-        doc.data().attributes().put(nameAttributeKey, StringUtils.isBlank(suffix) ? s : s + suffix);
+        doc.data().attributes().put(nameAttributeKey, s + suffix);
       }
     }
 
