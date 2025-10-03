@@ -6,7 +6,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.api.detection_remediation.dto.DetectionRemediationAIOutput;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
-import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.*;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
