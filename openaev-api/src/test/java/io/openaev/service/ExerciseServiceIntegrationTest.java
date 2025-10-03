@@ -14,7 +14,6 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
-import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -40,10 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @Mock Ee eeService;
-  @Mock GrantService grantService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
-  @Mock DashboardService dashboardService;
 
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
@@ -82,7 +79,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     exerciseService =
         new ExerciseService(
             eeService,
-            grantService,
             injectDuplicateService,
             teamService,
             variableService,
@@ -91,7 +87,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectService,
             cronService,
             userService,
-            dashboardService,
             exerciseMapper,
             injectMapper,
             resultUtils,
