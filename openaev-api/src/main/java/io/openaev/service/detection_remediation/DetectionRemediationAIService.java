@@ -38,14 +38,13 @@ public class DetectionRemediationAIService {
   private final HttpClientFactory httpClientFactory;
   @Resource protected ObjectMapper mapper;
 
-  @SuppressWarnings("unchecked")
-  public <T extends DetectionRemediationAIResponse> T callRemediationDetectionAIWebservice(
+  public DetectionRemediationAIResponse callRemediationDetectionAIWebservice(
       DetectionRemediationRequest payload, String collectorType) {
     // Check if account has EE licence
     String certificate = ee.getEncodedCertificate();
 
     String url;
-    Class<?> classResponse;
+    Class<? extends DetectionRemediationAIResponse> classResponse;
     switch (collectorType) {
       case CollectorsUtils.CROWDSTRIKE -> {
         url = REMEDIATION_DETECTION_WEBSERVICE + CROWDSTRIKE_URI;
@@ -83,7 +82,7 @@ public class DetectionRemediationAIService {
       String responseBody =
           httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
 
-      return (T) mapper.readValue(responseBody, classResponse);
+      return mapper.readValue(responseBody, classResponse);
 
     } catch (ConnectException ex) {
       throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorMessage, ex);
