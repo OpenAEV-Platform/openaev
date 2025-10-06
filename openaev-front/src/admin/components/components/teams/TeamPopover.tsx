@@ -8,6 +8,7 @@ import { deleteTeam, updateTeam } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
+import DialogDelete from '../../../../components/common/DialogDelete';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
@@ -18,7 +19,6 @@ import { AbilityContext } from '../../../../utils/permissions/PermissionsProvide
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
-import DialogDelete from "../../../../components/common/DialogDelete";
 
 interface TeamPopoverProps {
   team: Team | TeamOutput;

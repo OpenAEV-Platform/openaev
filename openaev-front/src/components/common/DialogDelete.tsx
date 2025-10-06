@@ -1,10 +1,11 @@
+import { LoadingButton } from '@mui/lab';
 import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
-import React, {useState} from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
 import Transition from './Transition';
-import { LoadingButton } from '@mui/lab';
 
 interface DialogDeleteProps {
   open: boolean;
@@ -22,15 +23,14 @@ const DialogDelete: FunctionComponent<DialogDeleteProps> = ({
   richContent,
 }) => {
   const { t } = useFormatter();
-  
+
   const handleLoadingAndSubmit = () => {
     setLoading(true);
-    if(handleSubmit)
+    if (handleSubmit)
       handleSubmit();
-  }
+  };
 
   const [loading, setLoading] = useState<boolean>(false);
-
 
   return (
     <DialogMUI
