@@ -18,6 +18,7 @@ import { AbilityContext } from '../../../../utils/permissions/PermissionsProvide
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
+import DialogDelete from "../../../../components/common/DialogDelete";
 
 interface TeamPopoverProps {
   team: Team | TeamOutput;
@@ -171,24 +172,12 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   return (
     <>
       <ButtonPopover disabled={disabled} entries={entries} variant="icon" />
-      <MuiDialog
+      <DialogDelete
         open={openDelete}
-        TransitionComponent={Transition}
-        onClose={handleCloseDelete}
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogContent>
-          <DialogContentText>
-            {t('Do you want to delete this team?')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
-            {t('Delete')}
-          </Button>
-        </DialogActions>
-      </MuiDialog>
+        handleClose={handleCloseDelete}
+        handleSubmit={submitDelete}
+        text={t('Do you want to delete this team?')}
+      />
       <Dialog
         open={openEdit}
         handleClose={handleCloseEdit}
