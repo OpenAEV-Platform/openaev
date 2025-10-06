@@ -36,6 +36,22 @@ public class V4_42__Manage_injector_external_services extends BaseJavaMigration 
                 """);
       statement.execute(
           """
+                    UPDATE injectors
+                    SET injector_dependencies = array_append(injector_dependencies, 'SMTP')
+                    WHERE
+                     injector_type IN ('openeav_email', 'openeav_challenge', 'openeav_channel') AND
+                     ('SMTP' != ALL(injector_dependencies) OR injector_dependencies IS NULL);
+                """);
+      statement.execute(
+          """
+                    UPDATE injectors
+                    SET injector_dependencies = array_append(injector_dependencies, 'IMAP')
+                    WHERE
+                     injector_type IN ('openeav_email', 'openeav_challenge', 'openeav_channel') AND
+                     ('IMAP' != ALL(injector_dependencies) OR injector_dependencies IS NULL);
+                """);
+      statement.execute(
+          """
                     DELETE FROM parameters
                     WHERE parameter_key = 'imap_unavailable';
                 """);
