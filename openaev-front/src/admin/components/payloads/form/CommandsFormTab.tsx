@@ -119,7 +119,7 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
         <>
           <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Attack command')}</Typography>
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
-          <TextFieldController variant="outlined" multiline rows={3} name="command_content" required />
+          <TextFieldController variant="outlined" multiline rows={3} name="command_content" />
         </>
       )}
 
