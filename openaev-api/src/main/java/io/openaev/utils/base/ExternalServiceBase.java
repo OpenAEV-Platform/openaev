@@ -4,11 +4,12 @@ import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import lombok.Getter;
 
+@Getter
 public class ExternalServiceBase {
 
   private final SettingRepository settingRepository;
 
-  @Getter public boolean serviceAvailable = false;
+  public boolean serviceAvailable = false;
 
   public ExternalServiceBase(SettingRepository settingRepository) {
     this.settingRepository = settingRepository;

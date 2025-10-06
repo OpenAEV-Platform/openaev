@@ -1258,7 +1258,7 @@ public class InjectService {
       return null;
     }
 
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput
         .getHealthchecks()
         .addAll(

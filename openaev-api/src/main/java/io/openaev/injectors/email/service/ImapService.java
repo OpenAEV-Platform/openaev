@@ -64,7 +64,6 @@ public class ImapService extends ExternalServiceBase {
   @Autowired private InjectRepository injectRepository;
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private FileService fileService;
-  @Autowired private SettingRepository settingRepository;
   @Autowired private Environment env;
 
   public ImapService(SettingRepository settingRepository) {
@@ -273,10 +272,10 @@ public class ImapService extends ExternalServiceBase {
 
   private void synchronizeBox(Folder inbox, Boolean isSent) throws Exception {
     String inboxKey = username + "-imap-" + inbox.getName();
-    Optional<Setting> state = settingRepository.findByKey(inboxKey);
+    Optional<Setting> state = super.getSettingRepository().findByKey(inboxKey);
     Setting currentState = state.orElse(null);
     if (currentState == null) {
-      currentState = settingRepository.save(new Setting(inboxKey, "0"));
+      currentState = super.getSettingRepository().save(new Setting(inboxKey, "0"));
     }
     int startMessageNumber = parseInt(currentState.getValue());
     int messageCount = inbox.getMessageCount();
@@ -290,7 +289,7 @@ public class ImapService extends ExternalServiceBase {
       }
     }
     currentState.setValue(String.valueOf(messageCount));
-    settingRepository.save(currentState);
+    super.getSettingRepository().save(currentState);
   }
 
   private void tryToSynchronizeFolderFromBox(String folderName, Boolean isSent) throws Exception {

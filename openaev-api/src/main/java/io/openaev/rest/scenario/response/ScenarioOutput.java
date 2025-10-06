@@ -1,7 +1,5 @@
 package io.openaev.rest.scenario.response;
 
-import static lombok.AccessLevel.NONE;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.model.*;
@@ -13,9 +11,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import lombok.Data;
-import lombok.Setter;
+import lombok.RequiredArgsConstructor;
 
 @Data
+@RequiredArgsConstructor
 public class ScenarioOutput {
 
   @JsonProperty("scenario_id")
@@ -118,12 +117,10 @@ public class ScenarioOutput {
 
   @JsonProperty("scenario_planners")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @Setter(NONE)
   private List<User> planners;
 
   @JsonProperty("scenario_observers")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @Setter(NONE)
   private List<User> observers;
 
   @JsonProperty("scenario_injects_statistics")
@@ -140,56 +137,14 @@ public class ScenarioOutput {
   private List<User> users;
 
   @JsonProperty("scenario_communications_number")
-  @Setter(NONE)
   private long communicationsNumber;
 
   @JsonProperty("scenario_platforms")
-  @Setter(NONE)
   private List<Endpoint.PLATFORM_TYPE> platforms;
 
   @JsonProperty("scenario_kill_chain_phases")
-  @Setter(NONE)
   private List<KillChainPhase> killChainPhases;
 
   @JsonProperty("scenario_healthchecks")
   private List<HealthCheck> healthchecks = new ArrayList<>();
-
-  public ScenarioOutput(Scenario scenario) {
-    this.id = scenario.getId();
-    this.name = scenario.getName();
-    this.description = scenario.getDescription();
-    this.subtitle = scenario.getSubtitle();
-    this.category = scenario.getCategory();
-    this.mainFocus = scenario.getMainFocus();
-    this.severity = scenario.getSeverity();
-    this.externalReference = scenario.getExternalReference();
-    this.externalUrl = scenario.getExternalUrl();
-    this.recurrence = scenario.getRecurrence();
-    this.recurrenceStart = scenario.getRecurrenceStart();
-    this.recurrenceEnd = scenario.getRecurrenceEnd();
-    this.header = scenario.getHeader();
-    this.footer = scenario.getFooter();
-    this.from = scenario.getFrom();
-    this.replyTos = scenario.getReplyTos();
-    this.createdAt = scenario.getCreatedAt();
-    this.updatedAt = scenario.getUpdatedAt();
-    this.customDashboard = scenario.getCustomDashboard();
-    this.teams = scenario.getTeams();
-    this.teamUsers = scenario.getTeamUsers();
-    this.tags = scenario.getTags();
-    this.documents = scenario.getDocuments();
-    this.articles = scenario.getArticles();
-    this.lessonsCategories = scenario.getLessonsCategories();
-    this.exercises = scenario.getExercises();
-    this.lessonsAnonymized = scenario.isLessonsAnonymized();
-    this.planners = scenario.getPlanners();
-    this.observers = scenario.getObservers();
-    this.injectStatistics = scenario.getInjectStatistics();
-    this.usersAllNumber = scenario.usersAllNumber();
-    this.usersNumber = scenario.usersNumber();
-    this.users = scenario.getUsers();
-    this.communicationsNumber = scenario.getCommunicationsNumber();
-    this.platforms = scenario.getPlatforms();
-    this.killChainPhases = scenario.getKillChainPhases();
-  }
 }

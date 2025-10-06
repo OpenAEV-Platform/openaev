@@ -2,16 +2,8 @@ package io.openaev.rest.inject.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.Asset;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDependency;
-import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.Team;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.injectors.email.EmailContract;
@@ -20,10 +12,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.stream.Stream;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 @Data
+@RequiredArgsConstructor
 public class InjectOutput {
 
   @JsonProperty("inject_id")
@@ -124,52 +117,5 @@ public class InjectOutput {
     if (injectDependency != null) {
       this.dependsOn = List.of(injectDependency);
     }
-  }
-
-  public InjectOutput(Inject inject) {
-    this.id = inject.getId();
-    this.title = inject.getTitle();
-    this.enabled = inject.isEnabled();
-    this.exercise = Optional.ofNullable(inject.getExercise()).map(Exercise::getId).orElse(null);
-    this.scenario = Optional.ofNullable(inject.getScenario()).map(Scenario::getId).orElse(null);
-    this.dependsDuration = inject.getDependsDuration();
-    this.injectorContract = inject.getInjectorContract().orElse(null);
-    this.tags =
-        inject.getTags() != null
-            ? new HashSet<>(inject.getTags().stream().map(Tag::getId).toList())
-            : new HashSet<>();
-    this.teams =
-        inject.getTeams() != null
-            ? inject.getTeams().stream().map(Team::getId).toList()
-            : new ArrayList<>();
-    this.assets =
-        inject.getAssets() != null
-            ? inject.getAssets().stream().map(Asset::getId).toList()
-            : new ArrayList<>();
-    this.assetGroups =
-        inject.getAssetGroups() != null
-            ? new ArrayList<>(inject.getAssetGroups().stream().map(AssetGroup::getId).toList())
-            : new ArrayList<>();
-    this.content = inject.getContent();
-    this.isReady =
-        InjectModelHelper.isReady(
-            injectorContract,
-            content,
-            inject.isAllTeams(),
-            this.teams,
-            this.assets,
-            this.assetGroups);
-    this.injectType =
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .map(Injector::getType)
-            .orElse(null);
-    this.dependsOn =
-        Optional.ofNullable(inject.getDependsOn())
-            .map(List::stream)
-            .flatMap(Stream::findAny)
-            .stream()
-            .toList();
   }
 }

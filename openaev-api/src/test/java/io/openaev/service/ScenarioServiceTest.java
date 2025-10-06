@@ -28,6 +28,8 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
+import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utils.mapper.ScenarioMapper;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
@@ -51,6 +53,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
+  @Autowired private InjectMapper injectMapper;
 
   @Mock Ee eeService;
   @Mock GrantService grantService;
@@ -64,6 +67,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private UserService userService;
   @Mock private CollectorService collectorService;
   @InjectMocks private ScenarioService scenarioService;
+  @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
@@ -98,7 +102,8 @@ class ScenarioServiceTest extends IntegrationTest {
             collectorService,
             injectRepository,
             lessonsCategoryRepository,
-            healthCheckUtils);
+            healthCheckUtils,
+            scenarioMapper);
   }
 
   void setUpWithMockRepository() {
@@ -125,7 +130,8 @@ class ScenarioServiceTest extends IntegrationTest {
             collectorService,
             injectRepository,
             lessonsCategoryRepository,
-            healthCheckUtils);
+            healthCheckUtils,
+            scenarioMapper);
   }
 
   @AfterAll
@@ -336,7 +342,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
@@ -374,7 +380,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.WARNING,
             now());
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
@@ -412,7 +418,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
@@ -450,7 +456,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
@@ -488,7 +494,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.NOT_READY,
             HealthCheck.Status.WARNING,
             now());
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
@@ -526,7 +532,7 @@ class ScenarioServiceTest extends IntegrationTest {
         });
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setInjector(injector);
-    InjectOutput injectOutput = new InjectOutput(inject);
+    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     injectOutput.setInjectorContract(injectorContract);
     this.scenarioRepository.save(scenario);
 

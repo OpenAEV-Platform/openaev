@@ -22,6 +22,7 @@ public class ImportTestSummary {
   @JsonIgnore private List<Inject> injects = new ArrayList<>();
 
   @JsonProperty("injects")
+  @Deprecated
   public List<InjectOutput> getInjectResults() {
     return injects.stream()
         .map(

@@ -185,7 +185,7 @@ public class InjectSearchService {
     return query.getResultList().stream()
         .map(
             tuple ->
-                new InjectOutput(
+                injectMapper.toInjectOutput(
                     tuple.get("inject_id", String.class),
                     tuple.get("inject_title", String.class),
                     tuple.get("inject_enabled", Boolean.class),

@@ -34,7 +34,9 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -70,9 +72,11 @@ class InjectServiceTest {
 
   @Mock private InjectStatusRepository injectStatusRepository;
 
-  @Mock private InjectMapper injectMapper;
-
   @Mock private InjectUtils injectUtils;
+
+  @Mock private InjectStatusMapper injectStatusMapper;
+
+  @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private InjectorContractService injectorContractService;
 
@@ -95,6 +99,10 @@ class InjectServiceTest {
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
     ReflectionTestUtils.setField(
         injectService, "healthCheckUtils", new HealthCheckUtils(new ExecutorUtils()));
+    ReflectionTestUtils.setField(
+        injectService,
+        "injectMapper",
+        new InjectMapper(injectStatusMapper, injectExpectationMapper, injectUtils));
   }
 
   @Test

@@ -47,6 +47,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
+import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -124,6 +125,8 @@ public class ScenarioService {
   private final LessonsCategoryRepository lessonsCategoryRepository;
 
   private final HealthCheckUtils healthCheckUtils;
+
+  private final ScenarioMapper scenarioMapper;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -909,7 +912,7 @@ public class ScenarioService {
     List<Collector> collectors = this.collectorService.securityPlatformCollectors();
 
     Scenario scenario = this.scenario(scenarioId);
-    ScenarioOutput scenarioOutput = new ScenarioOutput(scenario);
+    ScenarioOutput scenarioOutput = scenarioMapper.toScenarioOutput(scenario);
     scenarioOutput.setInjects(
         scenario.getInjects().stream()
             .map(inject -> injectService.runChecks(inject, collectors))
