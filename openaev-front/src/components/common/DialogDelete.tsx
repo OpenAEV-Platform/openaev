@@ -9,7 +9,7 @@ import { LoadingButton } from '@mui/lab';
 interface DialogDeleteProps {
   open: boolean;
   handleClose: () => void;
-  handleSubmit: () => void | null | undefined;
+  handleSubmit: (() => void) | (() => Promise<void>) | null | undefined;
   text: string;
   richContent?: React.ReactNode;
 }
