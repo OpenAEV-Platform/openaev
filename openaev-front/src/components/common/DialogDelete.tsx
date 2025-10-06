@@ -1,4 +1,3 @@
-import { LoadingButton } from '@mui/lab';
 import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
 import { useState } from 'react';
@@ -24,13 +23,13 @@ const DialogDelete: FunctionComponent<DialogDeleteProps> = ({
 }) => {
   const { t } = useFormatter();
 
+  const [loading, setLoading] = useState<boolean>(false);
+
   const handleLoadingAndSubmit = () => {
     setLoading(true);
     if (handleSubmit)
       handleSubmit();
   };
-
-  const [loading, setLoading] = useState<boolean>(false);
 
   return (
     <DialogMUI
