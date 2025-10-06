@@ -2572,6 +2572,7 @@ export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
 
+/** Healthcheck of the inject */
 export interface HealthCheck {
   /**
    * Date when the failure have been found
@@ -2702,6 +2703,7 @@ export interface Inject {
   inject_exercise?: string;
   inject_expectations?: string[];
   inject_id: string;
+  /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
   inject_ready?: boolean;
@@ -2760,6 +2762,7 @@ export interface InjectBulkUpdateOperation {
   values?: string[];
 }
 
+/** Inject dependency of the inject */
 export interface InjectDependency {
   dependency_condition?: InjectDependencyCondition;
   /** @format date-time */
@@ -3003,23 +3006,33 @@ export interface InjectOutput {
   inject_assets?: string[];
   inject_content?: object;
   /**
+   * Depend duration of the inject
    * @format int64
    * @min 0
    */
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
+  /** Enabled state of the inject */
   inject_enabled?: boolean;
+  /** Exercise ID of the inject */
   inject_exercise?: string;
   inject_healthchecks?: HealthCheck[];
+  /** ID of the inject */
   inject_id: string;
+  /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
+  /** Ready state of the inject */
   inject_ready?: boolean;
+  /** Scenario ID of the inject */
   inject_scenario?: string;
   /** @uniqueItems true */
   inject_tags?: string[];
   inject_teams?: string[];
+  /** Testable state of the inject */
   inject_testable?: boolean;
+  /** Title of the inject */
   inject_title: string;
+  /** Type of the inject */
   inject_type?: string;
 }
 
@@ -3199,6 +3212,7 @@ export interface InjectorConnection {
   vhost?: string;
 }
 
+/** Injector contract of the inject */
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";

@@ -21,9 +21,9 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.util.MimeMessageParser;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ImapService extends ExternalServiceBase {
 
   private static final Pattern INJECT_ID_PATTERN = Pattern.compile("\\[inject_id=(.*)\\]");
@@ -60,15 +61,12 @@ public class ImapService extends ExternalServiceBase {
   @Value("${openaev.mail.imap.sent}")
   private String sentFolder;
 
-  @Autowired private UserRepository userRepository;
-  @Autowired private InjectRepository injectRepository;
-  @Autowired private CommunicationRepository communicationRepository;
-  @Autowired private FileService fileService;
-  @Autowired private Environment env;
-
-  public ImapService(SettingRepository settingRepository) {
-    super(settingRepository);
-  }
+  private final UserRepository userRepository;
+  private final InjectRepository injectRepository;
+  private final CommunicationRepository communicationRepository;
+  private final FileService fileService;
+  private final Environment env;
+  private final SettingRepository settingRepository;
 
   @PostConstruct
   private void init() {
@@ -272,10 +270,10 @@ public class ImapService extends ExternalServiceBase {
 
   private void synchronizeBox(Folder inbox, Boolean isSent) throws Exception {
     String inboxKey = username + "-imap-" + inbox.getName();
-    Optional<Setting> state = super.getSettingRepository().findByKey(inboxKey);
+    Optional<Setting> state = this.getSettingRepository().findByKey(inboxKey);
     Setting currentState = state.orElse(null);
     if (currentState == null) {
-      currentState = super.getSettingRepository().save(new Setting(inboxKey, "0"));
+      currentState = this.getSettingRepository().save(new Setting(inboxKey, "0"));
     }
     int startMessageNumber = parseInt(currentState.getValue());
     int messageCount = inbox.getMessageCount();
@@ -289,7 +287,7 @@ public class ImapService extends ExternalServiceBase {
       }
     }
     currentState.setValue(String.valueOf(messageCount));
-    super.getSettingRepository().save(currentState);
+    this.getSettingRepository().save(currentState);
   }
 
   private void tryToSynchronizeFolderFromBox(String folderName, Boolean isSent) throws Exception {
@@ -354,5 +352,10 @@ public class ImapService extends ExternalServiceBase {
         folder.appendMessages(new Message[] {message});
       }
     }
+  }
+
+  @Override
+  public SettingRepository getSettingRepository() {
+    return settingRepository;
   }
 }

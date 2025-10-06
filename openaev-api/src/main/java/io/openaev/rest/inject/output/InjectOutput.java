@@ -8,70 +8,91 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Data
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
 public class InjectOutput {
 
   @JsonProperty("inject_id")
   @NotBlank
+  @Schema(description = "ID of the inject")
   private String id;
 
   @JsonProperty("inject_title")
   @NotBlank
+  @Schema(description = "Title of the inject")
   private String title;
 
   @JsonProperty("inject_enabled")
+  @Schema(description = "Enabled state of the inject")
   private boolean enabled;
 
   @JsonProperty("inject_exercise")
+  @Schema(description = "Exercise ID of the inject")
   private String exercise;
 
   @JsonProperty("inject_scenario")
+  @Schema(description = "Scenario ID of the inject")
   private String scenario;
 
   @JsonProperty("inject_depends_duration")
   @NotNull
   @Min(value = 0L, message = "The value must be positive")
+  @Schema(description = "Depend duration of the inject")
   private Long dependsDuration;
 
   @JsonProperty("inject_depends_on")
+  @ArraySchema(schema = @Schema(description = "Inject dependency of the inject"))
   private List<InjectDependency> dependsOn;
 
   @JsonProperty("inject_injector_contract")
+  @Schema(description = "Injector contract of the inject")
   private InjectorContract injectorContract;
 
   @JsonProperty("inject_tags")
+  @ArraySchema(schema = @Schema(description = "Tag of the inject"))
   private Set<String> tags;
 
   @JsonProperty("inject_ready")
+  @Schema(description = "Ready state of the inject")
   public boolean isReady;
 
   @JsonProperty("inject_type")
+  @Schema(description = "Type of the inject")
   public String injectType;
 
   @JsonProperty("inject_teams")
+  @ArraySchema(schema = @Schema(description = "Team of the inject"))
   private List<String> teams;
 
   @JsonProperty("inject_assets")
+  @ArraySchema(schema = @Schema(description = "Asset of the inject"))
   private List<String> assets;
 
   @JsonProperty("inject_asset_groups")
+  @ArraySchema(schema = @Schema(description = "Asset group of the inject"))
   private List<String> assetGroups;
 
   @JsonProperty("inject_content")
+  @Schema(description = "Content of the inject")
   private ObjectNode content;
 
   @JsonProperty("inject_healthchecks")
+  @ArraySchema(schema = @Schema(description = "Healthcheck of the inject"))
   private List<HealthCheck> healthchecks = new ArrayList<>();
 
   @JsonProperty("inject_testable")
+  @Schema(description = "Testable state of the inject")
   public boolean canBeTested() {
     return EmailContract.TYPE.equals(this.getInjectType())
         || OvhSmsContract.TYPE.equals(this.getInjectType());

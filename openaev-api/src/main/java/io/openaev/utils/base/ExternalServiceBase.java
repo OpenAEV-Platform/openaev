@@ -5,20 +5,16 @@ import io.openaev.database.repository.SettingRepository;
 import lombok.Getter;
 
 @Getter
-public class ExternalServiceBase {
-
-  private final SettingRepository settingRepository;
+public abstract class ExternalServiceBase {
 
   public boolean serviceAvailable = false;
 
-  public ExternalServiceBase(SettingRepository settingRepository) {
-    this.settingRepository = settingRepository;
-  }
+  public abstract SettingRepository getSettingRepository();
 
   protected void saveServiceState(String key, boolean state) {
-    Setting imapSetting = this.settingRepository.findByKey(key).orElse(new Setting(key, null));
+    Setting imapSetting = this.getSettingRepository().findByKey(key).orElse(new Setting(key, null));
     imapSetting.setValue(String.valueOf(state));
-    this.settingRepository.save(imapSetting);
+    this.getSettingRepository().save(imapSetting);
     this.serviceAvailable = state;
   }
 }

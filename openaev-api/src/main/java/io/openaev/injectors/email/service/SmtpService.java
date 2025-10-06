@@ -4,8 +4,8 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.utils.base.ExternalServiceBase;
 import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,15 +13,13 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class SmtpService extends ExternalServiceBase {
 
   private static final String SMTP_SETTINGS_KEY = "smtp_service_available";
 
-  @Autowired private JavaMailSender mailSender;
-
-  public SmtpService(SettingRepository settingRepository) {
-    super(settingRepository);
-  }
+  private final JavaMailSender mailSender;
+  private final SettingRepository settingRepository;
 
   @PostConstruct
   private void init() {
@@ -54,5 +52,10 @@ public class SmtpService extends ExternalServiceBase {
       log.warn(e.getMessage());
       this.saveServiceState(SMTP_SETTINGS_KEY, false);
     }
+  }
+
+  @Override
+  public SettingRepository getSettingRepository() {
+    return settingRepository;
   }
 }
