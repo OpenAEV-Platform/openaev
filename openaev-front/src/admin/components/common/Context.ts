@@ -7,6 +7,7 @@ import {
   type Article,
   type ArticleCreateInput,
   type ArticleUpdateInput,
+  type Challenge,
   type Channel,
   type Evaluation,
   type EvaluationInput,
@@ -56,14 +57,27 @@ export type PermissionsContextType = {
 
 export type ArticleContextType = {
   previewArticleUrl: (article: FullArticleStore) => string;
-  fetchChannels: () => Promise<Channel[]>;
+  fetchArticles: () => Promise<{
+    result: string[];
+    entities: { articles: Record<string, Article> };
+  }>;
+  fetchChannels: () => Promise<{
+    result: string[];
+    entities: { channels: Record<string, Channel> };
+  }>;
   fetchDocuments: () => Promise<Document[]>;
   onAddArticle: (data: ArticleCreateInput) => Promise<{ result: string }>;
   onUpdateArticle: (article: Article, data: ArticleUpdateInput) => string;
   onDeleteArticle: (article: Article) => string;
 };
 
-export type ChallengeContextType = { previewChallengeUrl: () => string };
+export type ChallengeContextType = {
+  previewChallengeUrl?: () => string;
+  fetchChallenges?: () => Promise<{
+    result: string[];
+    entities: { challenges: Record<string, Challenge> };
+  }>;
+};
 
 export type PreviewChallengeContextType = {
   linkToPlayerMode: string;
@@ -202,8 +216,22 @@ export const PermissionsContext = createContext<PermissionsContextType>({
   inherited_context: INHERITED_CONTEXT.NONE,
 });
 export const ArticleContext = createContext<ArticleContextType>({
-  fetchChannels(): Promise<Channel[]> {
-    return new Promise<Channel[]>(() => {
+  fetchArticles(): Promise<{
+    result: string[];
+    entities: { articles: Record<string, Article> };
+  }> {
+    return Promise.resolve({
+      result: [],
+      entities: { articles: {} },
+    });
+  },
+  fetchChannels(): Promise<{
+    result: string[];
+    entities: { channels: Record<string, Channel> };
+  }> {
+    return Promise.resolve({
+      result: [],
+      entities: { channels: {} },
     });
   },
   fetchDocuments(): Promise<Document[]> {
@@ -226,6 +254,15 @@ export const ArticleContext = createContext<ArticleContextType>({
 export const ChallengeContext = createContext<ChallengeContextType>({
   previewChallengeUrl(): string {
     return '';
+  },
+  fetchChallenges(): Promise<{
+    result: string[];
+    entities: { challenges: Record<string, Challenge> };
+  }> {
+    return Promise.resolve({
+      result: [],
+      entities: { challenges: {} },
+    });
   },
 });
 export const PreviewChallengeContext = createContext<PreviewChallengeContextType>({

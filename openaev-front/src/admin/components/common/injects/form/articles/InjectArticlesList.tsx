@@ -1,21 +1,20 @@
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { ControlPointOutlined } from '@mui/icons-material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type ArticlesHelper } from '../../../../../../actions/channels/article-helper';
-import { fetchChannels } from '../../../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../../../actions/channels/channel-helper';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
-import type { Article } from '../../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../../utils/hooks';
-import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
+import type { Article, Channel } from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import ArticlePopover from '../../../articles/ArticlePopover';
-import InjectAddArticles from './InjectAddArticles';
+import { ArticleContext } from '../../../Context';
+import InjectAddArticlesDialog from './InjectAddArticlesDialog';
 
 const useStyles = makeStyles()(theme => ({
   columns: {
@@ -28,6 +27,11 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
     fontSize: theme.typography.h3.fontSize,
   },
+  text: {
+    fontSize: 15,
+    color: theme.palette.primary.main,
+    fontWeight: 500,
+  },
 }));
 
 interface Props {
@@ -37,9 +41,11 @@ interface Props {
 
 const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
   const { t } = useFormatter();
-  const dispatch = useAppDispatch();
   const { control, setValue } = useFormContext();
+  const { fetchChannels, fetchArticles } = useContext(ArticleContext);
   const { classes } = useStyles();
+  const [openAddArticles, setOpenAddArticles] = useState(false);
+
   const injectArticlesIds: string[] = (useWatch({
     control,
     name: 'inject_content.articles',
@@ -51,32 +57,32 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
     article_channel_name: string;
   })[]>([]);
 
-  const { articlesMap, channelsMap } = useHelper((helper: ArticlesHelper & ChannelsHelper) => ({
-    articlesMap: helper.getArticlesMap(),
-    channelsMap: helper.getChannelsMap(),
-  }));
-
-  useDataLoader(() => {
-    if (injectArticlesIds.length > 0) {
-      dispatch(fetchChannels());
-    }
-  }, [injectArticlesIds]);
-
   useEffect(() => {
-    const articles: (Article & {
-      article_channel_type: string;
-      article_channel_name: string;
-    })[] = (injectArticlesIds || [])
-      .map(a => articlesMap[a])
-      .filter(a => a !== undefined)
-      .map(a => ({
-        ...a,
-        article_channel_type: channelsMap[a.article_channel]?.channel_type ?? '',
-        article_channel_name: channelsMap[a.article_channel]?.channel_name ?? '',
-      }))
-      .toSorted((a, b) => (a.article_name ?? '').localeCompare(b.article_name ?? ''));
-    setSortedArticles(articles);
-  }, [injectArticlesIds, channelsMap]);
+    const processArticles = async () => {
+      const sortArticles = (articles: Article[], channels: Record<string, Channel>): (Article & {
+        article_channel_type: string;
+        article_channel_name: string;
+      })[] => {
+        return articles
+          .map(a => ({
+            ...a,
+            article_channel_type: channels[a.article_channel]?.channel_type ?? '',
+            article_channel_name: channels[a.article_channel]?.channel_name ?? '',
+          }))
+          .toSorted((a, b) => (a.article_name ?? '').localeCompare(b.article_name ?? ''));
+      };
+
+      const [channelResult, result] = await Promise.all([
+        fetchChannels(),
+        fetchArticles(),
+      ]);
+
+      const articles = injectArticlesIds.map(id => result.entities.articles[id]).filter(a => a !== undefined);
+      setSortedArticles(sortArticles(articles, channelResult.entities.channels));
+    };
+
+    processArticles();
+  }, [injectArticlesIds]);
 
   const addArticles = (ids: string[]) => setValue('inject_content.articles', [...ids, ...injectArticlesIds]);
   const removeArticle = (articleId: string) => setValue('inject_content.articles', injectArticlesIds.filter(id => id !== articleId));
@@ -126,13 +132,30 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
         }
       </List>
       <Can I={ACTIONS.ACCESS} a={SUBJECTS.DOCUMENTS}>
-        <InjectAddArticles
-          articles={allArticles || []}
-          injectArticlesIds={injectArticlesIds ?? []}
-          handleAddArticles={addArticles}
-          handleRemoveArticle={removeArticle}
+        <ListItemButton
+          divider
+          onClick={() => setOpenAddArticles(true)}
+          color="primary"
           disabled={readOnly}
-        />
+        >
+          <ListItemIcon color="primary">
+            <ControlPointOutlined color="primary" />
+          </ListItemIcon>
+          <ListItemText
+            primary={t('Add media pressure')}
+            classes={{ primary: classes.text }}
+          />
+        </ListItemButton>
+        {openAddArticles && (
+          <InjectAddArticlesDialog
+            open={openAddArticles}
+            onHandleClose={() => setOpenAddArticles(false)}
+            articles={allArticles || []}
+            injectArticlesIds={injectArticlesIds ?? []}
+            handleAddArticles={addArticles}
+            handleRemoveArticle={removeArticle}
+          />
+        )}
       </Can>
     </>
   );

@@ -57,9 +57,21 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroups);
   }
 
+  public List<AssetGroup> assetGroupsByIdsForSimulation(@NotBlank final String simulationId,List<String> assetGroupIds) {
+    List<AssetGroup> assetGroups =
+            fromIterable(this.assetGroupRepository.findDistinctByInjectsSimulationIdAndIdIn(simulationId, assetGroupIds));
+    return computeDynamicAssets(assetGroups);
+  }
+
   public List<AssetGroup> assetGroupsForScenario(@NotBlank final String scenarioId) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findDistinctByInjectsScenarioId(scenarioId));
+    return computeDynamicAssets(assetGroups);
+  }
+
+  public List<AssetGroup> assetGroupsByIdsForScenario(@NotBlank final String scenarioId,List<String> assetGroupIds) {
+    List<AssetGroup> assetGroups =
+            fromIterable(this.assetGroupRepository.findDistinctByInjectsScenarioIdAndIdIn(scenarioId, assetGroupIds));
     return computeDynamicAssets(assetGroups);
   }
 

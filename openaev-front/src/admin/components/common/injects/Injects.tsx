@@ -82,7 +82,6 @@ interface Props {
   articles: Article[];
   variables: Variable[];
   uriVariable: string;
-  assetGroups: AssetGroup[];
 }
 
 const Injects: FunctionComponent<Props> = ({
@@ -92,7 +91,6 @@ const Injects: FunctionComponent<Props> = ({
   articles,
   variables,
   uriVariable,
-  assetGroups,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -668,7 +666,6 @@ const Injects: FunctionComponent<Props> = ({
                 selectAll={selectAll}
                 handleClearSelectedElements={handleClearSelectedElements}
                 teamsFromExerciseOrScenario={teams}
-                assetGroups={assetGroups}
                 id={contextId}
                 handleUpdate={massUpdateInjects}
                 handleBulkDelete={bulkDeleteInjects}

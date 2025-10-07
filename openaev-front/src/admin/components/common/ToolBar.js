@@ -32,6 +32,7 @@ import { Component, forwardRef } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
+import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
 import { storeHelper } from '../../../actions/Schema';
 import DialogDelete from '../../../components/common/DialogDelete';
@@ -172,7 +173,10 @@ class ToolBar extends Component {
   }
 
   componentDidMount() {
-    this.props.fetchEndpoints();
+    if (this.props.canManage) {
+      this.props.fetchEndpoints();
+      this.props.fetchAssetGroups();
+    }
     this.subscription = MESSAGING$.toggleNav.subscribe({ next: () => this.setState({ navOpen: localStorage.getItem('navOpen') === 'true' }) });
   }
 
@@ -829,7 +833,7 @@ const select = (state, ownProps) => {
       value: n.asset_id,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
-  const assetGroups = ownProps.assetGroups
+  const assetGroups = helper.getAssetGroups().toJS()
     .map(n => ({
       label: n.asset_group_name,
       value: n.asset_group_id,
@@ -849,7 +853,10 @@ const select = (state, ownProps) => {
 };
 
 export default R.compose(
-  connect(select, { fetchEndpoints }),
+  connect(select, {
+    fetchEndpoints,
+    fetchAssetGroups,
+  }),
   inject18n,
   Component => withStyles(Component, styles),
 )(ToolBar);

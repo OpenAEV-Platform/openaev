@@ -3,11 +3,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchSimulationAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
-import { fetchSimulationEndpoints } from '../../../../../actions/assets/endpoint-actions';
-import { fetchExerciseArticles } from '../../../../../actions/channels/article-action';
+import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import type { ArticlesHelper } from '../../../../../actions/channels/article-helper';
-import { fetchSimulationChannels } from '../../../../../actions/channels/channel-action';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
@@ -25,16 +22,19 @@ import SearchFilter from '../../../../../components/SearchFilter';
 import Timeline from '../../../../../components/Timeline';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type Inject } from '../../../../../utils/api-types';
+import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
+import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useSearchAnFilter from '../../../../../utils/SortingFiltering';
 import { isNotEmptyField } from '../../../../../utils/utils';
-import { TeamContext } from '../../../common/Context';
+import { ArticleContext, ChallengeContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import InjectPopover from '../../../common/injects/InjectPopover';
 import UpdateInject from '../../../common/injects/UpdateInject';
 import AnimationMenu from '../AnimationMenu';
+import articleContextForExercise from '../articles/articleContextForExercise';
 import teamContextForExercise from '../teams/teamContextForExercise';
 import InjectOverTimeArea from './InjectOverTimeArea';
 import InjectOverTimeLine from './InjectOverTimeLine';
@@ -81,14 +81,10 @@ const TimelineOverview = () => {
 
   // Fetching Data
   useDataLoader(() => {
-    dispatch(fetchExerciseTeams(exerciseId));
-    dispatch(fetchExerciseArticles(exerciseId));
-    dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseInjects(exerciseId));
-    dispatch(fetchSimulationEndpoints(exerciseId));
-    dispatch(fetchSimulationAssetGroups(exerciseId));
+    dispatch(fetchExerciseTeams(exerciseId));
+    dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseDocuments(exerciseId));
-    dispatch(fetchSimulationChannels(exerciseId));
   });
 
   // Sort
@@ -111,6 +107,9 @@ const TimelineOverview = () => {
   };
 
   const teamContext = teamContextForExercise(exerciseId, []);
+  const articleContext = articleContextForExercise(exerciseId);
+  const endpointContext = endpointContextForExercise(exerciseId);
+  const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
 
   return (
     <div>
@@ -302,19 +301,25 @@ const TimelineOverview = () => {
         </Paper>
       </div>
       {selectedInjectId && (
-        <TeamContext.Provider value={teamContext}>
-          <UpdateInject
-            open={selectedInjectId !== null}
-            handleClose={() => setSelectedInjectId(null)}
-            onUpdateInject={onUpdateInject}
-            injectId={selectedInjectId}
-            isAtomic={false}
-            injects={injects}
-            articlesFromExerciseOrScenario={articles}
-            uriVariable={`/admin/simulations/${exerciseId}/definition`}
-            variablesFromExerciseOrScenario={variables}
-          />
-        </TeamContext.Provider>
+        <ArticleContext.Provider value={articleContext}>
+          <TeamContext.Provider value={teamContext}>
+            <EndpointContext.Provider value={endpointContext}>
+              <ChallengeContext.Provider value={challengeContext}>
+                <UpdateInject
+                  open
+                  handleClose={() => setSelectedInjectId(null)}
+                  onUpdateInject={onUpdateInject}
+                  injectId={selectedInjectId}
+                  isAtomic={false}
+                  injects={injects}
+                  articlesFromExerciseOrScenario={articles}
+                  uriVariable={`/admin/simulations/${exerciseId}/definition`}
+                  variablesFromExerciseOrScenario={variables}
+                />
+              </ChallengeContext.Provider>
+            </EndpointContext.Provider>
+          </TeamContext.Provider>
+        </ArticleContext.Provider>
       )}
     </div>
   );

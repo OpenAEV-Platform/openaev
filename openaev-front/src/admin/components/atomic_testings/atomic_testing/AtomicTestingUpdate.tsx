@@ -3,6 +3,8 @@ import { type FunctionComponent, useContext } from 'react';
 
 import { updateAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { type Inject, type InjectResultOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
+import endpointContextForAtomicTesting from '../../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import UpdateInject from '../../common/injects/UpdateInject';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 
@@ -40,14 +42,17 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
     });
   };
 
+  const endpointContext = endpointContextForAtomicTesting();
   return (
-    <UpdateInject
-      open={open}
-      handleClose={handleClose}
-      onUpdateInject={onUpdateAtomicTesting}
-      injectId={atomic.inject_id}
-      isAtomic
-    />
+    <EndpointContext.Provider value={endpointContext}>
+      <UpdateInject
+        open={open}
+        handleClose={handleClose}
+        onUpdateInject={onUpdateAtomicTesting}
+        injectId={atomic.inject_id}
+        isAtomic
+      />
+    </EndpointContext.Provider>
   );
 };
 

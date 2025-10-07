@@ -92,9 +92,19 @@ export const fetchSimulationAssetGroups = (simulationId: string) => (dispatch: D
   return getReferential(arrayOfAssetGroups, uri)(dispatch);
 };
 
+export const findSimulationAssetGroupsByIds = (simulationId: string, assetGroupIds: string[]) => {
+  const uri = `/api/exercises/${simulationId}/asset_groups/find`;
+  return simplePostCall(uri, assetGroupIds);
+};
+
 // -- SCENARIOS --
 
 export const fetchScenarioAssetGroups = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/asset_groups`;
   return getReferential(arrayOfAssetGroups, uri)(dispatch);
+};
+
+export const findScenarioAssetGroupsByIds = (scenarioId: string, assetGroupIds: string[]) => {
+  const uri = `/api/scenarios/${scenarioId}/asset_groups/find`;
+  return simplePostCall(uri, assetGroupIds);
 };

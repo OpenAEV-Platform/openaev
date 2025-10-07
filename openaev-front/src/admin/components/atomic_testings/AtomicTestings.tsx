@@ -10,6 +10,8 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { type AtomicTestingInput, type InjectResultOverviewOutput } from '../../../utils/api-types';
+import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
+import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { TeamContext } from '../common/Context';
@@ -42,6 +44,7 @@ const AtomicTestings = () => {
   };
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('atomic-testing', buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }));
+  const endpointContext = endpointContextForAtomicTesting();
 
   return (
     <>
@@ -64,13 +67,15 @@ const AtomicTestings = () => {
         <>
           <ButtonCreate onClick={() => setOpenCreateDrawer(true)} />
           <TeamContext.Provider value={teamContextForAtomicTesting()}>
-            <CreateInject
-              title={t('Create a new atomic test')}
-              onCreateInject={onCreateAtomicTesting}
-              isAtomic
-              open={openCreateDrawer}
-              handleClose={() => setOpenCreateDrawer(false)}
-            />
+            <EndpointContext.Provider value={endpointContext}>
+              <CreateInject
+                title={t('Create a new atomic test')}
+                onCreateInject={onCreateAtomicTesting}
+                isAtomic
+                open={openCreateDrawer}
+                handleClose={() => setOpenCreateDrawer(false)}
+              />
+            </EndpointContext.Provider>
           </TeamContext.Provider>
         </>
       </Can>

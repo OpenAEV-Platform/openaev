@@ -50,6 +50,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -904,6 +906,19 @@ public class ExerciseApi extends RestBehavior {
     return this.assetGroupService.assetGroupsForSimulation(exerciseId);
   }
 
+  @PostMapping(EXERCISE_URI + "/{exerciseId}/asset_groups/find")
+  @RBAC(
+          resourceId = "#exerciseId",
+          actionPerformed = Action.READ,
+          resourceType = ResourceType.SIMULATION)
+  @Operation(
+          summary =
+                  "Get asset groups by ids. Can only be called if the user has access to the given simulation.",
+          description = "Get all asset groups by ids used by injects for a given simulation")
+  public List<AssetGroup> assetGroupsByIds(@PathVariable String exerciseId,  @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
+    return this.assetGroupService.assetGroupsByIdsForSimulation(exerciseId, assetGroupIds);
+  }
+
   @GetMapping(EXERCISE_URI + "/{exerciseId}/channels")
   @RBAC(
       resourceId = "#exerciseId",
@@ -926,6 +941,18 @@ public class ExerciseApi extends RestBehavior {
       description = "Get all endpoints used by injects for a given simulation")
   public List<Endpoint> endpoints(@PathVariable String exerciseId) {
     return this.endpointService.endpointsForSimulation(exerciseId);
+  }
+
+  @PostMapping(EXERCISE_URI + "/{exerciseId}/endpoints/find")
+  @RBAC(
+          resourceId = "#exerciseId",
+          actionPerformed = Action.READ,
+          resourceType = ResourceType.SIMULATION)
+  @Operation(
+          summary = "Get endpoints by ids. Can only be called if the user has access to the given simulation.",
+          description = "Get all endpoints by ids used by by injects for a given simulation")
+  public List<Endpoint> endpointsByIds(@PathVariable String exerciseId, @RequestBody @Valid @NotNull final List<String> endpointIds) {
+    return this.endpointService.endpointsByIdsForSimulation(exerciseId, endpointIds);
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/documents")

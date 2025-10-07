@@ -406,6 +406,19 @@ public class ScenarioApi extends RestBehavior {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
   }
 
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/asset_groups/find")
+  @RBAC(
+          resourceId = "#scenarioId",
+          actionPerformed = Action.READ,
+          resourceType = ResourceType.SCENARIO)
+  @Operation(
+          summary =
+                  "Get asset groups by ids. Can only be called if the user has access to the given scenario.",
+          description = "Get all asset groups by ids and used by injects for a given scenario")
+  public List<AssetGroup> assetGroupsByIds(@PathVariable String scenarioId, @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
+    return this.assetGroupService.assetGroupsByIdsForScenario(scenarioId, assetGroupIds);
+  }
+
   @GetMapping(SCENARIO_URI + "/{scenarioId}/channels")
   @RBAC(
       resourceId = "#scenarioId",
@@ -428,6 +441,18 @@ public class ScenarioApi extends RestBehavior {
       description = "Get all endpoints used by injects for a given scenario")
   public List<Endpoint> endpoints(@PathVariable String scenarioId) {
     return this.endpointService.endpointsForScenario(scenarioId);
+  }
+
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/endpoints/find")
+  @RBAC(
+          resourceId = "#scenarioId",
+          actionPerformed = Action.READ,
+          resourceType = ResourceType.SCENARIO)
+  @Operation(
+          summary = "Get endpoints by ids. Can only be called if the user has access to the given scenario.",
+          description = "Get all endpoints by ids used by injects for a given scenario")
+  public List<Endpoint> endpointsByIds(@PathVariable String scenarioId, @RequestBody @Valid @NotNull final List<String> endpointIds) {
+    return this.endpointService.endpointsByIdsForScenario(scenarioId, endpointIds);
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/documents")

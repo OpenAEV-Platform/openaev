@@ -1,20 +1,18 @@
 import { EmojiEventsOutlined } from '@mui/icons-material';
 import { FormHelperText, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { findChallenges } from '../../../../../../actions/challenge-action';
 import { type ChallengeHelper } from '../../../../../../actions/helper';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { useHelper } from '../../../../../../store';
 import type { Challenge } from '../../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../../utils/hooks';
-import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChallengePopover from '../../../../components/challenges/ChallengePopover';
+import { ChallengeContext } from '../../../Context';
 import InjectAddChallenges from './InjectAddChallenges';
 
 const useStyles = makeStyles()(theme => ({
@@ -38,31 +36,33 @@ interface Props {
 const InjectChallengesList = ({ readOnly = false, error }: Props) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { control, setValue } = useFormContext();
+
+  const { fetchChallenges } = useContext(ChallengeContext);
   const [sortedChallenges, setSortedChallenges] = useState<Challenge[]>([]);
+  const { challengesMap } = useHelper((helper: ChallengeHelper) => ({ challengesMap: helper.getChallengesMap() }));
 
   const injectChallengeIds: string[] = useWatch({
     control,
     name: 'inject_content.challenges',
     defaultValue: [],
   });
-  const { challengesMap } = useHelper((helper: ChallengeHelper) => ({ challengesMap: helper.getChallengesMap() }));
-
-  useDataLoader(() => {
-    if (injectChallengeIds.length > 0) {
-      dispatch(findChallenges(injectChallengeIds));
-    }
-  }, [injectChallengeIds]);
 
   useEffect(() => {
-    const challenges: Challenge[] = (injectChallengeIds ?? [])
-      .map(a => challengesMap[a])
-      .filter(a => a !== undefined)
-      .toSorted((a, b) => (a.challenge_name ?? '').localeCompare(b.challenge_name ?? ''));
+    const sortChallenges = (challenges: Challenge[]) => challenges.toSorted((a, b) => (a.challenge_name ?? '').localeCompare(b.challenge_name ?? ''));
 
-    setSortedChallenges(challenges);
-  }, [injectChallengeIds, challengesMap]);
+    const challenges = injectChallengeIds.map(id => challengesMap[id]).filter(e => e !== undefined) as Challenge[];
+    const missingIds = injectChallengeIds.filter(id => !challengesMap[id]);
+
+    if (missingIds.length > 0) {
+      fetchChallenges?.().then((result) => {
+        const injectChallenges = injectChallengeIds.map(id => result.entities.challenges[id]).filter(a => a !== undefined);
+        setSortedChallenges(sortChallenges(injectChallenges));
+      });
+    } else {
+      setSortedChallenges(sortChallenges(challenges));
+    }
+  }, [injectChallengeIds]);
 
   const addChallenge = (ids: string[]) => setValue('inject_content.challenges', [...ids, ...injectChallengeIds]);
   const removeChallenge = (challengeId: string) => setValue('inject_content.challenges', injectChallengeIds.filter(id => id !== challengeId));

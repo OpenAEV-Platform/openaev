@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
-import { findEndpoints } from '../../../../../../actions/assets/endpoint-actions';
+import { type EndpointHelper } from '../../../../../../actions/assets/asset-helper';
+import { useHelper } from '../../../../../../store';
 import type { EndpointOutput } from '../../../../../../utils/api-types';
+import { EndpointContext } from '../../../../../../utils/context/endpoint/EndpointContext';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import EndpointPopover from '../../../../assets/endpoints/EndpointPopover';
@@ -19,18 +21,23 @@ interface Props {
 }
 const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = false, errorLabel, label }: Props) => {
   const { control, setValue } = useFormContext();
+  const { fetchEndpointsByIds } = useContext(EndpointContext);
+  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
+  const { endpointsMap } = useHelper((helper: EndpointHelper) => ({ endpointsMap: helper.getEndpointsMap() }));
 
   const endpointIds = useWatch({
     control,
     name,
   }) as string[];
 
-  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   useEffect(() => {
-    if (endpointIds.length > 0) {
-      findEndpoints(endpointIds).then(result => setEndpoints(result.data));
+    const endpoints = endpointIds.map(id => endpointsMap[id]).filter(e => e !== undefined) as EndpointOutput[];
+    const missingIds = endpointIds.filter(id => !endpointsMap[id]);
+
+    if (missingIds.length > 0) {
+      fetchEndpointsByIds(missingIds).then(result => setEndpoints([...result.data, ...endpoints]));
     } else {
-      setEndpoints([]);
+      setEndpoints(endpoints);
     }
   }, [endpointIds]);
 

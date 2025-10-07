@@ -77,9 +77,19 @@ export const fetchSimulationEndpoints = (simulationId: string) => (dispatch: Dis
   return getReferential(arrayOfEndpoints, uri)(dispatch);
 };
 
+export const findSimulationEndpointsByIds = (simulationId: string, endpointIds: string[]) => {
+  const uri = `/api/exercises/${simulationId}/endpoints/find`;
+  return simplePostCall(uri, endpointIds);
+};
+
 // -- SCENARIOS --
 
 export const fetchScenarioEndpoints = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/endpoints`;
   return getReferential(arrayOfEndpoints, uri)(dispatch);
+};
+
+export const findScenarioEndpointsByIds = (simulationId: string, endpointIds: string[]) => {
+  const uri = `/api/scenarios/${simulationId}/endpoints/find`;
+  return simplePostCall(uri, endpointIds);
 };

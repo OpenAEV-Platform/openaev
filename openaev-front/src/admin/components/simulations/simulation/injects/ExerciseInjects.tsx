@@ -1,12 +1,11 @@
 import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
 import { GridLegacy, Paper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchAssetGroups, fetchSimulationAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
 import type { AssetGroupsHelper } from '../../../../../actions/asset_groups/assetgroup-helper';
-import { fetchSimulationEndpoints } from '../../../../../actions/assets/endpoint-actions';
+import { fetchExerciseChallenges, fetchScenarioChallenges } from '../../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchSimulationChannels } from '../../../../../actions/channels/channel-action';
@@ -15,18 +14,24 @@ import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../..
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/simulation-inject-test-actions';
-import { fetchTeams } from '../../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
 import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Exercise } from '../../../../../utils/api-types';
+import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
+import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import { ArticleContext, InjectTestContext, type InjectTestContextType, TeamContext, ViewModeContext } from '../../../common/Context';
+import {
+  ArticleContext,
+  ChallengeContext,
+  InjectTestContext,
+  type InjectTestContextType,
+  TeamContext,
+  ViewModeContext,
+} from '../../../common/Context';
 import InjectDistributionByTeam from '../../../common/injects/InjectDistributionByTeam';
 import InjectDistributionByType from '../../../common/injects/InjectDistributionByType';
 import Injects from '../../../common/injects/Injects';
@@ -51,7 +56,6 @@ const ExerciseInjects: FunctionComponent = () => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
   const availableButtons = ['chain', 'list', 'distribution'];
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
@@ -65,38 +69,26 @@ const ExerciseInjects: FunctionComponent = () => {
     setViewMode(mode);
   };
 
-  const { exercise, teams, articles, variables, assetGroups } = useHelper(
-    (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & AssetGroupsHelper & TeamsHelper) => {
+  const { exercise, teams, articles, variables } = useHelper(
+    (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
       return {
         exercise: helper.getExercise(exerciseId),
         teams: helper.getTeams(),
         articles: helper.getExerciseArticles(exerciseId),
         variables: helper.getExerciseVariables(exerciseId),
-        assetGroups: helper.getAssetGroups(),
       };
     },
   );
   useDataLoader(() => {
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS)) {
-      dispatch(fetchTeams());
-    } else {
-      dispatch(fetchExerciseTeams(exerciseId));
-    }
-    dispatch(fetchExerciseArticles(exerciseId));
+    dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchVariablesForExercise(exerciseId));
-    dispatch(fetchExerciseInjectExpectations(exerciseId));
-    dispatch(fetchSimulationEndpoints(exerciseId));
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
-      dispatch(fetchAssetGroups());
-    } else {
-      dispatch(fetchSimulationAssetGroups(exerciseId));
-    }
     dispatch(fetchExerciseDocuments(exerciseId));
-    dispatch(fetchSimulationChannels(exerciseId));
   });
 
   const articleContext = articleContextForExercise(exerciseId);
   const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
+  const endpointContext = endpointContextForExercise(exerciseId);
+  const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
 
   const injectTestContext: InjectTestContextType = {
     contextId: exerciseId,
@@ -109,17 +101,20 @@ const ExerciseInjects: FunctionComponent = () => {
       {(viewMode === 'list' || viewMode === 'chain') && (
         <ArticleContext.Provider value={articleContext}>
           <TeamContext.Provider value={teamContext}>
-            <InjectTestContext.Provider value={injectTestContext}>
-              <Injects
-                setViewMode={handleViewMode}
-                availableButtons={availableButtons}
-                teams={teams}
-                articles={articles}
-                variables={variables}
-                uriVariable={`/admin/simulations/${exerciseId}/definition`}
-                assetGroups={assetGroups}
-              />
-            </InjectTestContext.Provider>
+            <EndpointContext.Provider value={endpointContext}>
+              <ChallengeContext.Provider value={challengeContext}>
+                <InjectTestContext.Provider value={injectTestContext}>
+                  <Injects
+                    setViewMode={handleViewMode}
+                    availableButtons={availableButtons}
+                    teams={teams}
+                    articles={articles}
+                    variables={variables}
+                    uriVariable={`/admin/simulations/${exerciseId}/definition`}
+                  />
+                </InjectTestContext.Provider>
+              </ChallengeContext.Provider>
+            </EndpointContext.Provider>
           </TeamContext.Provider>
         </ArticleContext.Provider>
       )}

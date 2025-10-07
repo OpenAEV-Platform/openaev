@@ -173,5 +173,9 @@ public interface EndpointRepository
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
 
+  List<Endpoint> findDistinctByInjectsScenarioIdAndIdIn(String scenarioId, List<String> ids);
+
   List<Endpoint> findDistinctByInjectsExerciseId(String exerciseId);
+
+  List<Endpoint> findDistinctByInjectsExerciseIdAndIdIn(String exerciseId, List<String> ids);
 }

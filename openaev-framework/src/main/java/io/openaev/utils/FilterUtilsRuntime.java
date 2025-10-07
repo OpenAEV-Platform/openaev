@@ -60,16 +60,17 @@ public class FilterUtilsRuntime {
     String filterKey = filter.getKey();
     List<String> filterValues = filter.getValues();
 
-    if (!filterValues.isEmpty()) {
-      return (value) -> {
-        List<PropertySchema> propertySchemas = SchemaUtils.schema(value.getClass());
-        List<PropertySchema> filterableProperties = getFilterableProperties(propertySchemas);
-        PropertySchema filterableProperty = retrieveProperty(filterableProperties, filterKey);
-        Map.Entry<Class<Object>, Object> entry = getPropertyInfo(value, filterableProperty);
-        return getPropertyValue(entry, filter);
-      };
+    if (filterValues == null || filterValues.isEmpty()) {
+      return EMPTY_PREDICATE;
     }
-    return EMPTY_PREDICATE;
+
+    return (value) -> {
+      List<PropertySchema> propertySchemas = SchemaUtils.schema(value.getClass());
+      List<PropertySchema> filterableProperties = getFilterableProperties(propertySchemas);
+      PropertySchema filterableProperty = retrieveProperty(filterableProperties, filterKey);
+      Map.Entry<Class<Object>, Object> entry = getPropertyInfo(value, filterableProperty);
+      return getPropertyValue(entry, filter);
+    };
   }
 
   @SuppressWarnings("unchecked")

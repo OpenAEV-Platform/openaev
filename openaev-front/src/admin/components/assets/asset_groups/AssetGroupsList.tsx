@@ -12,13 +12,13 @@ import {
 } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { findAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
+import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
 import { type Header } from '../../../../components/common/SortHeadersList';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { useHelper } from '../../../../store';
 import { type AssetGroupOutput } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
 import type { EndpointPopoverProps } from '../endpoints/EndpointPopover';
 
 const useStyles = makeStyles()(() => ({
@@ -47,26 +47,30 @@ const AssetGroupsList: FunctionComponent<Props> = ({
   assetGroupIds = [],
   renderActions,
 }) => {
-  // Standard hooks
   const { classes } = useStyles();
-  const ability = useContext(AbilityContext);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [assetGroupValues, setAssetGroupValues] = useState<AssetGroupOutput[]>([]);
+  const { fetchAssetGroupsByIds } = useContext(EndpointContext);
+  const { assetGroupMaps } = useHelper((helper: AssetGroupsHelper) => ({ assetGroupMaps: helper.getAssetGroupMaps() }));
 
   const component = (assetGroup: AssetGroupOutput) => {
     return renderActions(assetGroup);
   };
 
-  const [loading, setLoading] = useState<boolean>(true);
-  const [assetGroupValues, setAssetGroupValues] = useState<AssetGroupOutput[]>([]);
   useEffect(() => {
     setLoading(true);
-    if (assetGroupIds.length > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
-      findAssetGroups(assetGroupIds).then((result) => {
-        setAssetGroupValues(result.data);
+    const assetGroups = assetGroupIds.map(id => assetGroupMaps[id]).filter(e => e !== undefined) as AssetGroupOutput[];
+    const missingIds = assetGroupIds.filter(id => !assetGroupMaps[id]);
+
+    if (missingIds.length > 0) {
+      fetchAssetGroupsByIds(missingIds).then((result) => {
+        setAssetGroupValues([...result.data, ...assetGroups]);
         setLoading(false);
       });
     } else {
+      setAssetGroupValues(assetGroups);
       setLoading(false);
-      setAssetGroupValues([]);
     }
   }, [assetGroupIds]);
 

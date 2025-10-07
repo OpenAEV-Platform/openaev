@@ -1,8 +1,10 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { normalize } from 'normalizr';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
+import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/Executor';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
@@ -15,6 +17,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import * as Constants from '../../../../constants/ActionTypes';
 import { useHelper } from '../../../../store';
 import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../../utils/api-types';
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
@@ -80,6 +83,10 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   };
 
   const handleSubmit = () => {
+    dispatch({
+      type: Constants.DATA_FETCH_SUCCESS,
+      payload: normalize(endpointValues, arrayOfEndpoints),
+    });
     onSubmit(endpointValues.map(v => v.asset_id));
     handleClose();
   };

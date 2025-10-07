@@ -71,7 +71,7 @@ const InjectContentForm = ({
     />
   );
 
-  // -- ASSETS --
+  // -- ENDPOINTS --
   const renderSourceAssets = (err?: string | null, isInMandatoryGroup?: boolean, mandatoryGroupContractElementLabels?: string) => (
     <div key="asset">
       <InputLabel required={enhancedFieldsMapByType.get('asset')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('asset')?.label || 'Assets')}</InputLabel>

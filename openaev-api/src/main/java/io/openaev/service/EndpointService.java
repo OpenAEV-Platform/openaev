@@ -697,8 +697,16 @@ public class EndpointService {
     return this.endpointRepository.findDistinctByInjectsScenarioId(scenarioId);
   }
 
+  public List<Endpoint> endpointsByIdsForScenario(String scenarioId, List<String> endpointIds) {
+    return this.endpointRepository.findDistinctByInjectsScenarioIdAndIdIn(scenarioId, endpointIds);
+  }
+
   public List<Endpoint> endpointsForSimulation(String simulationId) {
     return this.endpointRepository.findDistinctByInjectsExerciseId(simulationId);
+  }
+
+  public List<Endpoint> endpointsByIdsForSimulation(String simulationId, List<String> endpointIds) {
+    return this.endpointRepository.findDistinctByInjectsExerciseIdAndIdIn(simulationId, endpointIds);
   }
 
   // -- OPTIONS --
