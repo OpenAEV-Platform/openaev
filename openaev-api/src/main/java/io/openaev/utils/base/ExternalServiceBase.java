@@ -12,9 +12,9 @@ public abstract class ExternalServiceBase {
   public abstract SettingRepository getSettingRepository();
 
   protected void saveServiceState(String key, boolean state) {
-    Setting imapSetting = this.getSettingRepository().findByKey(key).orElse(new Setting(key, null));
-    imapSetting.setValue(String.valueOf(state));
-    this.getSettingRepository().save(imapSetting);
+    Setting setting = this.getSettingRepository().findByKey(key).orElse(new Setting(key, null));
+    setting.setValue(String.valueOf(state));
+    this.getSettingRepository().save(setting);
     this.serviceAvailable = state;
   }
 }

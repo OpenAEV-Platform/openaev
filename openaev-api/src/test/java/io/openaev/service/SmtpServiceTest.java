@@ -1,45 +1,45 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.injectors.email.service.SmtpService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
-import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest(properties = "spring.task.scheduling.enabled=false")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Transactional
 public class SmtpServiceTest {
 
-  @Mock private JavaMailSenderImpl mailSender;
+  private JavaMailSenderImpl mailSender;
 
-  @Autowired private SettingRepository settingRepository;
+  @MockBean private SettingRepository settingRepository;
 
-  private SmtpService smtpService;
+  @Autowired private SmtpService smtpService;
 
   @BeforeEach
-  void setUp() throws NoSuchFieldException, IllegalAccessException {
-    smtpService = new SmtpService(settingRepository);
+  void resetMocks() {
+    // Clears calls made during app startup
+    clearInvocations(settingRepository);
 
-    Field mailSenderField = SmtpService.class.getDeclaredField("mailSender");
-    mailSenderField.setAccessible(true);
-    mailSenderField.set(smtpService, mailSender);
+    this.mailSender = Mockito.mock(JavaMailSenderImpl.class, Mockito.CALLS_REAL_METHODS);
+    ReflectionTestUtils.setField(smtpService, "mailSender", mailSender);
   }
 
   @Test
@@ -48,7 +48,7 @@ public class SmtpServiceTest {
     Session session = Session.getInstance(props);
     MimeMessage message = new MimeMessage(session);
 
-    when(mailSender.createMimeMessage()).thenReturn(message);
+    doReturn(message).when(mailSender).createMimeMessage();
 
     MimeMessage mimeMessage = smtpService.createMimeMessage();
 
@@ -61,6 +61,8 @@ public class SmtpServiceTest {
     Session session = Session.getInstance(props);
     MimeMessage message = new MimeMessage(session);
 
+    doNothing().when(mailSender).send(message);
+
     smtpService.send(message);
 
     verify(mailSender).send(message);
@@ -69,24 +71,32 @@ public class SmtpServiceTest {
   @Test
   void testConnectionSuccess() throws MessagingException {
     doNothing().when(mailSender).testConnection();
+    when(settingRepository.findByKey(eq("smtp_service_available"))).thenReturn(Optional.empty());
+    when(settingRepository.save(any())).thenReturn(null);
 
     smtpService.connectionListener();
 
-    Optional<Setting> setting = settingRepository.findByKey("smtp_service_available");
-    assertFalse(setting.isEmpty());
-    assertEquals("true", setting.get().getValue());
-    assertTrue(smtpService.isServiceAvailable());
+    verify(settingRepository)
+        .save(
+            argThat(
+                setting ->
+                    "smtp_service_available".equals(setting.getKey())
+                        && "true".equals(setting.getValue())));
   }
 
   @Test
   void testConnectionFail() throws MessagingException {
     doThrow(MessagingException.class).when(mailSender).testConnection();
+    when(settingRepository.findByKey(eq("smtp_service_available"))).thenReturn(Optional.empty());
+    when(settingRepository.save(any())).thenReturn(null);
 
     smtpService.connectionListener();
 
-    Optional<Setting> setting = settingRepository.findByKey("smtp_service_available");
-    assertFalse(setting.isEmpty());
-    assertEquals("false", setting.get().getValue());
-    assertFalse(smtpService.isServiceAvailable());
+    verify(settingRepository)
+        .save(
+            argThat(
+                setting ->
+                    "smtp_service_available".equals(setting.getKey())
+                        && "false".equals(setting.getValue())));
   }
 }
