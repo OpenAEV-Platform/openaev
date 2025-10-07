@@ -1889,7 +1889,6 @@
   "Yes": "Yes",
   "Yes, close": "Yes, close",
   "You are about to disable the \"Enterprise Edition\" mode. Please note that this action will disable access to certain advanced features.": "You are about to disable the \"Enterprise Edition\" mode. Please note that this action will disable access to certain advanced features.",
-  "You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue ?": "You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue ?",
   "You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue?": "You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue?",
   "You can whether directly copy and paste the following bash snippet in a root console or download the .sh script (and execute it as root).": "You can whether directly copy and paste the following bash snippet in a root console or download the .sh script (and execute it as root).",
   "You can whether directly copy and paste the following Powershell snippet in an elevated prompt or download the .ps1 script (and execute it as an administrator).": "You can whether directly copy and paste the following Powershell snippet in an elevated prompt or download the .ps1 script (and execute it as an administrator).",

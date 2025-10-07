@@ -35,7 +35,7 @@ const ConfirmChangeDefaultDashboardDialog = ({ open, onClose, onSubmit, existing
             defaultTypeName,
           })}
         </Typography>
-        <Typography>{t('Do you want to continue and set this new dashboard as {defaultTypeName} default ?', { defaultTypeName }) }</Typography>
+        <Typography>{t('Do you want to continue and set this new dashboard as {defaultTypeName} default?', { defaultTypeName }) }</Typography>
       </>
     </Dialog>
   );

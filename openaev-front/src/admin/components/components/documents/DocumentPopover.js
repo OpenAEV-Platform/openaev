@@ -281,7 +281,7 @@ const DocumentPopover = (props) => {
           <DialogContentText>
             {ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)
               ? t('Do you want to remove the document from the element?')
-              : t('You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue ?')}
+              : t('You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue?')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

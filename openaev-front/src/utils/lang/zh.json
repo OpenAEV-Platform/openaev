@@ -1889,7 +1889,6 @@
   "Yes": "是",
   "Yes, close": "是，关闭",
   "You are about to disable the \"Enterprise Edition\" mode. Please note that this action will disable access to certain advanced features.": "您将禁用企业版模式。请注意，此操作将禁用某些高级功能。",
-  "You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue ?": "您将删除一个元素，但由于访问限制，您将无法恢复该元素。您确定要继续吗？",
   "You are about to remove an element that you will not be able to bring back due to access restriction. Are you sure you want to continue?": "由于访问限制，您将删除一个无法恢复的元素。您确定要继续吗？",
   "You can whether directly copy and paste the following bash snippet in a root console or download the .sh script (and execute it as root).": "您可以直接将以下 bash 代码粘贴到 root 控制台中，或者下载 .sh 脚本（并以 root 用户身份执行）。",
   "You can whether directly copy and paste the following Powershell snippet in an elevated prompt or download the .ps1 script (and execute it as an administrator).": "您可以直接将以下 PowerShell 代码粘贴到提升的命令提示符中，或者下载 .ps1 脚本（并以管理员身份执行）。",
