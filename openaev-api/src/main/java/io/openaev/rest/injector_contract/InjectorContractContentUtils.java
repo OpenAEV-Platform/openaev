@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import java.util.List;
+import java.util.Spliterators;
 import java.util.stream.StreamSupport;
 import org.jetbrains.annotations.NotNull;
 
@@ -101,5 +102,25 @@ public class InjectorContractContentUtils {
     }
 
     return null;
+  }
+
+  public static boolean hasField(InjectorContract injectorContract, String field) {
+    if (injectorContract == null || injectorContract.getContent() == null) {
+      return false;
+    }
+
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode objectNode = (ObjectNode) mapper.readTree(injectorContract.getContent());
+
+      return objectNode.get("fields") != null
+          && objectNode.get("fields").isArray()
+          && StreamSupport.stream(
+                  Spliterators.spliteratorUnknownSize(objectNode.get("fields").iterator(), 0),
+                  false)
+              .anyMatch(node -> node.has("key") && field.equals(node.get("key").asText()));
+    } catch (JsonProcessingException e) {
+      return false;
+    }
   }
 }

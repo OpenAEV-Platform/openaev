@@ -2,14 +2,7 @@ package io.openaev.runner;
 
 import static io.openaev.utils.StringUtils.generateRandomColor;
 
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.CustomDashboard;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Filters;
-import io.openaev.database.model.Setting;
-import io.openaev.database.model.SettingKeys;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.TagRule;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
@@ -110,9 +103,11 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     try {
       Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
       Tag tagCisco = this.createTag(Tags.CISCO);
-      this.createHoneyScanMeAgentlessEndpoint(List.of(tagVulnerability.getId(), tagCisco.getId()));
-      this.createAllEndpointsAssetGroup();
-      this.importScenariosFromResources();
+      Endpoint honeyScanMeEndpoint =
+          this.createHoneyScanMeAgentlessEndpoint(
+              List.of(tagVulnerability.getId(), tagCisco.getId()));
+      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+      this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
     } catch (Exception e) {
       recordError("Unexpected error during StarterPack initialization; cause " + e.getMessage());
@@ -121,7 +116,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     this.createSetting();
   }
 
-  private void createHoneyScanMeAgentlessEndpoint(List<String> tags) {
+  private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
     EndpointInput endpointInput = new EndpointInput();
     endpointInput.setName(HoneyScanMeEndpoint.HOSTNAME);
     endpointInput.setHostname(HoneyScanMeEndpoint.HOSTNAME);
@@ -130,10 +125,10 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     endpointInput.setPlatform(HoneyScanMeEndpoint.PLATFORM);
     endpointInput.setEol(HoneyScanMeEndpoint.END_OF_LIFE);
     endpointInput.setTagIds(tags);
-    this.endpointService.createEndpoint(endpointInput);
+    return this.endpointService.createEndpoint(endpointInput);
   }
 
-  private void createAllEndpointsAssetGroup() {
+  private AssetGroup createAllEndpointsAssetGroup() {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -156,15 +151,17 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
         tagRule ->
             this.tagRuleService.updateTagRule(
                 tagRule.getId(), Tags.OPENCTI, List.of(createdAllEndpointAssetGroup.getId())));
+
+    return createdAllEndpointAssetGroup;
   }
 
-  private void importScenariosFromResources() {
+  private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {
     listFilesInResourceFolder(Config.SCENARIOS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null, "", true);
+                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "", true);
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
