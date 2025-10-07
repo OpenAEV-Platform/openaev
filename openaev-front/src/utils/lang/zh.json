@@ -684,7 +684,7 @@
   "faq.results.share_scenarios.details": "可以通过平台导出和导入方案。您还可以从 XTM Hub 获取新方案。",
   "faq.results.share_scenarios.summary": "如何共享或重复使用方案？",
   "faq.results.title": "期望和结果",
-  "faq.support.help.details": "您可以随时通过 Slack (https://app.slack.com/client/TJ1PH4GBZ) 联系我们，也可以在 GitHub 上提交问题。",
+  "faq.support.help.details": "您可以随时通过 [Slack](https://app.slack.com/client/TJ1PH4GBZ) 联系我们，也可以在 [GitHub](https://github.com/OpenAEV-Platform/openaev/issues) 上提交问题。",
   "faq.support.help.summary": "我在哪里可以获得帮助？",
   "faq.support.title": "支持",
   "faq.usage.missing_content.details": "注入尚未附加内容。请在运行模拟前编辑并提供所需的内容。",

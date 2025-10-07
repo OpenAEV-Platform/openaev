@@ -684,7 +684,7 @@
   "faq.results.share_scenarios.details": "Les scénarios peuvent être exportés et importés via la plateforme. Vous pouvez également récupérer de nouveaux scénarios à partir de XTM Hub.",
   "faq.results.share_scenarios.summary": "Comment puis-je partager ou réutiliser des scénarios ?",
   "faq.results.title": "Attentes et résultats",
-  "faq.support.help.details": "Vous pouvez nous contacter à tout moment sur Slack (https://app.slack.com/client/TJ1PH4GBZ) ou ouvrir un problème sur GitHub.",
+  "faq.support.help.details": "Vous pouvez nous contacter à tout moment sur [Slack](https://app.slack.com/client/TJ1PH4GBZ) ou ouvrir un problème sur [GitHub](https://github.com/OpenAEV-Platform/openaev/issues).",
   "faq.support.help.summary": "Où puis-je obtenir de l'aide ?",
   "faq.support.title": "Support",
   "faq.usage.missing_content.details": "L'injection n'a pas encore de contenu attaché. Modifiez-le et fournissez le contenu requis avant de lancer la simulation.",
