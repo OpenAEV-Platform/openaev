@@ -692,7 +692,7 @@
   "faq.support.help.summary": "Où puis-je obtenir de l'aide ?",
   "faq.support.title": "Support",
   "faq.usage.missing_content.details": "L'injection n'a pas encore de contenu attaché. Modifiez-le et fournissez le contenu requis avant de lancer la simulation.",
-  "faq.usage.missing_content.summary": "Mon injection a le statut \"missing content\" ;, qu'est-ce que cela signifie ?",
+  "faq.usage.missing_content.summary": "Mon injection a le statut \"missing content\", qu'est-ce que cela signifie ?",
   "faq.usage.production_safe.details": "Les simulations imitent le comportement d'un attaquant réel et peuvent avoir un impact sur les services. N'exécutez les simulations en production qu'après évaluation de l'impact et approbation explicite de votre équipe de sécurité.",
   "faq.usage.production_safe.summary": "Puis-je effectuer des simulations en production ?",
   "faq.usage.simulation_not_working.details": "Seules les injections d'attaque nécessitent des actifs - vérifiez que les actifs sont attachés, que l'agent est connecté et que les journaux sont disponibles.",
