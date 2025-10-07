@@ -2572,7 +2572,7 @@ export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
 
-/** Healthcheck of the inject */
+/** Healthchecks of the inject */
 export interface HealthCheck {
   /**
    * Date when the failure have been found
@@ -2762,7 +2762,7 @@ export interface InjectBulkUpdateOperation {
   values?: string[];
 }
 
-/** Inject dependency of the inject */
+/** Inject dependencies of the inject */
 export interface InjectDependency {
   dependency_condition?: InjectDependencyCondition;
   /** @format date-time */
@@ -3014,7 +3014,7 @@ export interface InjectOutput {
   inject_depends_on?: InjectDependency[];
   /** Enabled state of the inject */
   inject_enabled?: boolean;
-  /** Exercise ID of the inject */
+  /** Simulation ID of the inject */
   inject_exercise?: string;
   inject_healthchecks?: HealthCheck[];
   /** ID of the inject */
