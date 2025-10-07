@@ -56,7 +56,7 @@ public class ScenarioOutput {
   private String externalReference;
 
   @JsonProperty("scenario_external_url")
-  @Schema(description = "Extarnel url of the scenario")
+  @Schema(description = "External URL of the scenario")
   private String externalUrl;
 
   @JsonProperty("scenario_recurrence")
@@ -85,7 +85,7 @@ public class ScenarioOutput {
   private String from;
 
   @JsonProperty("scenario_mails_reply_to")
-  @ArraySchema(schema = @Schema(description = "Reply to of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Replies to of the scenario"))
   private List<String> replyTos;
 
   @JsonProperty("scenario_created_at")
@@ -105,12 +105,12 @@ public class ScenarioOutput {
 
   @JsonSerialize(using = MonoIdDeserializer.class)
   @JsonProperty("scenario_injects")
-  @ArraySchema(schema = @Schema(description = "Inject of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Injects of the scenario"))
   private List<InjectOutput> injects;
 
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("scenario_teams")
-  @ArraySchema(schema = @Schema(description = "Team of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Teams of the scenario"))
   private List<Team> teams;
 
   @JsonProperty("scenario_teams_users")
@@ -125,22 +125,22 @@ public class ScenarioOutput {
 
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("scenario_documents")
-  @ArraySchema(schema = @Schema(description = "Document of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Documents of the scenario"))
   private List<Document> documents;
 
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("scenario_articles")
-  @ArraySchema(schema = @Schema(description = "Article of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Articles of the scenario"))
   private List<Article> articles;
 
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("scenario_lessons_categories")
-  @ArraySchema(schema = @Schema(description = "Lesson category of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Lesson categories of the scenario"))
   private List<LessonsCategory> lessonsCategories;
 
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("scenario_exercises")
-  @ArraySchema(schema = @Schema(description = "Exercice of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Exercices of the scenario"))
   private List<Exercise> exercises;
 
   @JsonProperty("scenario_lessons_anonymized")
@@ -149,12 +149,12 @@ public class ScenarioOutput {
 
   @JsonProperty("scenario_planners")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "Planner of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Planners of the scenario"))
   private List<User> planners;
 
   @JsonProperty("scenario_observers")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "Observer of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Observers of the scenario"))
   private List<User> observers;
 
   @JsonProperty("scenario_injects_statistics")
@@ -171,7 +171,7 @@ public class ScenarioOutput {
 
   @JsonProperty("scenario_users")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "User of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Users of the scenario"))
   private List<User> users;
 
   @JsonProperty("scenario_communications_number")
@@ -179,14 +179,14 @@ public class ScenarioOutput {
   private long communicationsNumber;
 
   @JsonProperty("scenario_platforms")
-  @ArraySchema(schema = @Schema(description = "Platform of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Platforms of the scenario"))
   private List<Endpoint.PLATFORM_TYPE> platforms;
 
   @JsonProperty("scenario_kill_chain_phases")
-  @ArraySchema(schema = @Schema(description = "Kill chain phase of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Kill chain phases of the scenario"))
   private List<KillChainPhase> killChainPhases;
 
   @JsonProperty("scenario_healthchecks")
-  @ArraySchema(schema = @Schema(description = "Healthcheck of the scenario"))
+  @ArraySchema(schema = @Schema(description = "Healthchecks of the scenario"))
   private List<HealthCheck> healthchecks = new ArrayList<>();
 }

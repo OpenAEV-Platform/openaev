@@ -38,7 +38,7 @@ public class InjectOutput {
   private boolean enabled;
 
   @JsonProperty("inject_exercise")
-  @Schema(description = "Exercise ID of the inject")
+  @Schema(description = "Simulation ID of the inject")
   private String exercise;
 
   @JsonProperty("inject_scenario")
@@ -52,7 +52,7 @@ public class InjectOutput {
   private Long dependsDuration;
 
   @JsonProperty("inject_depends_on")
-  @ArraySchema(schema = @Schema(description = "Inject dependency of the inject"))
+  @ArraySchema(schema = @Schema(description = "Inject dependencies of the inject"))
   private List<InjectDependency> dependsOn;
 
   @JsonProperty("inject_injector_contract")
@@ -60,7 +60,7 @@ public class InjectOutput {
   private InjectorContract injectorContract;
 
   @JsonProperty("inject_tags")
-  @ArraySchema(schema = @Schema(description = "Tag of the inject"))
+  @ArraySchema(schema = @Schema(description = "Tags of the inject"))
   private Set<String> tags;
 
   @JsonProperty("inject_ready")
@@ -72,15 +72,15 @@ public class InjectOutput {
   public String injectType;
 
   @JsonProperty("inject_teams")
-  @ArraySchema(schema = @Schema(description = "Team of the inject"))
+  @ArraySchema(schema = @Schema(description = "Teams of the inject"))
   private List<String> teams;
 
   @JsonProperty("inject_assets")
-  @ArraySchema(schema = @Schema(description = "Asset of the inject"))
+  @ArraySchema(schema = @Schema(description = "Assets of the inject"))
   private List<String> assets;
 
   @JsonProperty("inject_asset_groups")
-  @ArraySchema(schema = @Schema(description = "Asset group of the inject"))
+  @ArraySchema(schema = @Schema(description = "Asset groups of the inject"))
   private List<String> assetGroups;
 
   @JsonProperty("inject_content")
@@ -88,7 +88,7 @@ public class InjectOutput {
   private ObjectNode content;
 
   @JsonProperty("inject_healthchecks")
-  @ArraySchema(schema = @Schema(description = "Healthcheck of the inject"))
+  @ArraySchema(schema = @Schema(description = "Healthchecks of the inject"))
   private List<HealthCheck> healthchecks = new ArrayList<>();
 
   @JsonProperty("inject_testable")
