@@ -684,7 +684,7 @@
   "faq.results.share_scenarios.details": "Scenarios can be exported and imported through the platform. You can also fetch new scenarios from [XTM Hub](https://hub.filigran.io/).",
   "faq.results.share_scenarios.summary": "How can I share or reuse scenarios?",
   "faq.results.title": "Expectations & Results",
-  "faq.support.help.details": "You can reach us anytime on [Slack](https://app.slack.com/client/TJ1PH4GBZ) or open an issue on [GitHub](https://github.com/OpenAEV-Platform/openaev/issues).",
+  "faq.support.help.details": "You can reach us anytime on [Slack](https://community.filigran.io) or open an issue on [GitHub](https://github.com/OpenAEV-Platform/openaev/issues).",
   "faq.support.help.summary": "Where can I get help?",
   "faq.support.title": "Support",
   "faq.usage.missing_content.details": "The inject has no content attached yet. Edit it and provide the required content before running the simulation.",
