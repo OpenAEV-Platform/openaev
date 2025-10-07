@@ -115,6 +115,14 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.scenarios(searchPaginationInput);
   }
 
+  @LogExecutionTime
+  @PostMapping(SCENARIO_URI + "/search-by-id")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  public List<ScenarioSimple> scenariosById(
+      @RequestBody final GetScenariosInput getScenariosInput) {
+    return this.scenarioService.scenarios(getScenariosInput.getScenarioIds());
+  }
+
   @GetMapping(SCENARIO_URI + "/{scenarioId}")
   @RBAC(
       resourceId = "#scenarioId",

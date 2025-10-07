@@ -9,6 +9,7 @@ import {
   simplePostCall,
 } from '../../utils/Action';
 import {
+  type GetScenariosInput,
   type InjectsImportInput,
   type LessonsCategoryCreateInput,
   type LessonsCategoryTeamsInput,
@@ -37,6 +38,10 @@ export const addScenario = (data: ScenarioInput) => (dispatch: Dispatch) => {
 
 export const fetchScenarios = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfScenarios, SCENARIO_URI)(dispatch);
+};
+
+export const fetchScenariosById = (exerciseIds: GetScenariosInput) => (dispatch: Dispatch) => {
+  return postReferential(arrayOfScenarios, SCENARIO_URI + '/search-by-id', exerciseIds, undefined, false)(dispatch);
 };
 
 export const searchScenarios = (paginationInput: SearchPaginationInput) => {

@@ -769,6 +769,14 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @PostMapping(EXERCISE_URI + "/search-by-id")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
+  public List<ExerciseSimple> exercisesById(
+      @RequestBody final GetExercisesInput getExercisesInput) {
+    return exerciseService.exercises(getExercisesInput.getExerciseIds());
+  }
+
+  @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/search")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public Page<ExerciseSimple> exercises(

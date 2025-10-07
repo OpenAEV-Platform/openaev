@@ -3,6 +3,8 @@ import * as schema from './Schema';
 
 export const fetchExercises = () => dispatch => getReferential(schema.arrayOfExercises, '/api/exercises')(dispatch);
 
+export const fetchExercisesById = exerciseIds => dispatch => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', exerciseIds, undefined, false)(dispatch);
+
 export const searchExercises = paginationInput => simplePostCall('/api/exercises/search', paginationInput);
 
 export const fetchExercise = exerciseId => dispatch => getReferential(schema.exercise, `/api/exercises/${exerciseId}`)(dispatch);

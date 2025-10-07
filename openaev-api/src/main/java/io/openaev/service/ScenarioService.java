@@ -160,6 +160,19 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
 
+  public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
+    List<RawScenario> scenarios;
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()
+        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
+      scenarios = fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds));
+    } else {
+      scenarios =
+          this.scenarioRepository.rawGrantedByScenarioIds(currentUser().getId(), scenarioIds);
+    }
+    return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
+  }
+
   public Page<RawPaginationScenario> scenarios(
       @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();

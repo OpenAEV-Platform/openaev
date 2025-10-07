@@ -2514,6 +2514,14 @@ export interface FullTextSearchResult {
   tags?: Tag[];
 }
 
+export interface GetExercisesInput {
+  exercise_ids?: string[];
+}
+
+export interface GetScenariosInput {
+  scenario_ids?: string[];
+}
+
 export interface GlobalScoreBySimulationEndDate {
   /** @format float */
   global_score_success_percentage: number;

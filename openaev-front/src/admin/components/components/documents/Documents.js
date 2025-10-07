@@ -1,14 +1,14 @@
 import { DescriptionOutlined, HelpOutlineOutlined, RowingOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
 import * as R from 'ramda';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchDocuments } from '../../../../actions/Document';
-import { fetchExercises } from '../../../../actions/Exercise';
-import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
+import { fetchExercisesById } from '../../../../actions/Exercise';
+import { fetchScenariosById } from '../../../../actions/scenarios/scenario-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
@@ -18,7 +18,6 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader.js';
 import { useHelper } from '../../../../store';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import CreateDocument from './CreateDocument';
@@ -77,10 +76,6 @@ const Documents = () => {
     exercisesMap: helper.getExercisesMap(),
     scenariosMap: helper.getScenariosMap(),
   }));
-  useDataLoader(() => {
-    dispatch(fetchExercises());
-    dispatch(fetchScenarios());
-  });
 
   // Headers
   const headers = [
@@ -118,6 +113,23 @@ const Documents = () => {
 
   const [documents, setDocuments] = useState([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState({ sorts: initSorting('document_name') });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    let neededPromises = [];
+    let exerciseIds = documents.map(document => document.document_exercises).flat();
+    let scenarioIds = documents.map(document => document.document_scenarios).flat();
+    if (exerciseIds.length > 0) {
+      neededPromises.push(dispatch(fetchExercisesById({ exercise_ids: documents.map(document => document.document_exercises).flat() })));
+    }
+    if (scenarioIds.length > 0) {
+      neededPromises.push(dispatch(fetchScenariosById({ scenario_ids: documents.map(document => document.document_scenarios).flat() })));
+    }
+    Promise.all(neededPromises).then(() => {
+      setLoading(false);
+    });
+  }, [documents]);
 
   /**
    * Callback when a new document has been created or an previous one updated with a new version
@@ -142,10 +154,9 @@ const Documents = () => {
     exportFileName: `${t('Documents')}.csv`,
   };
 
-  const [loading, setLoading] = useState(true);
   const searchDocumentsToLoad = (input) => {
     setLoading(true);
-    return searchDocuments(input).finally(() => setLoading(false));
+    return searchDocuments(input);
   };
 
   return (
