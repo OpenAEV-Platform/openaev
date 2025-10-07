@@ -273,11 +273,11 @@ jobs:
           name: Login
           command: echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
-          name: Build Docker image openbas/platform
+          name: Build Docker image openaev/platform
           command: |
             LATEST_SEMANTIC_VERSION=$(git tag --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-            TAGS="-t openbas/platform:${CIRCLE_TAG}"
-            [ "$CIRCLE_TAG" = "$LATEST_SEMANTIC_VERSION" ] && TAGS="$TAGS -t openbas/platform:latest"
+            TAGS="-t openbas/platform:${CIRCLE_TAG} -t openaev/platform:${CIRCLE_TAG}"
+            [ "$CIRCLE_TAG" = "$LATEST_SEMANTIC_VERSION" ] && TAGS="$TAGS -t openbas/platform:latest -t openaev/platform:latest"
             docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci $TAGS --push .
           no_output_timeout: 30m
       - slack/notify:
@@ -356,8 +356,8 @@ jobs:
           command: echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
           working_directory: ~/openaev_docker
-          name: Build Docker image openbas/platform
-          command: docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci -t openbas/platform:rolling --push .
+          name: Build Docker image openaev/platform
+          command: docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci -t openbas/platform:rolling -t openaev/platform:rolling --push .
           no_output_timeout: 30m
       - slack/notify:
           event: fail
@@ -435,8 +435,8 @@ jobs:
           command: echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
           working_directory: ~/openaev_docker
-          name: Build Docker image openbas/platform
-          command: docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci -t openbas/platform:prerelease --push .
+          name: Build Docker image openaev/platform
+          command: docker buildx build --progress=plain --platform $BUILDX_PLATFORMS -f Dockerfile_circleci -t openbas/platform:prerelease -t openaev/platform:prerelease --push .
           no_output_timeout: 30m
       - slack/notify:
           event: fail
