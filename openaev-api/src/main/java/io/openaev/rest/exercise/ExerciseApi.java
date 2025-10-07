@@ -45,13 +45,12 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -908,14 +907,16 @@ public class ExerciseApi extends RestBehavior {
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/asset_groups/find")
   @RBAC(
-          resourceId = "#exerciseId",
-          actionPerformed = Action.READ,
-          resourceType = ResourceType.SIMULATION)
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
   @Operation(
-          summary =
-                  "Get asset groups by ids. Can only be called if the user has access to the given simulation.",
-          description = "Get all asset groups by ids used by injects for a given simulation")
-  public List<AssetGroup> assetGroupsByIds(@PathVariable String exerciseId,  @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
+      summary =
+          "Get asset groups by ids. Can only be called if the user has access to the given simulation.",
+      description = "Get all asset groups by ids used by injects for a given simulation")
+  public List<AssetGroup> assetGroupsByIds(
+      @PathVariable String exerciseId,
+      @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return this.assetGroupService.assetGroupsByIdsForSimulation(exerciseId, assetGroupIds);
   }
 
@@ -945,13 +946,16 @@ public class ExerciseApi extends RestBehavior {
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/endpoints/find")
   @RBAC(
-          resourceId = "#exerciseId",
-          actionPerformed = Action.READ,
-          resourceType = ResourceType.SIMULATION)
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
   @Operation(
-          summary = "Get endpoints by ids. Can only be called if the user has access to the given simulation.",
-          description = "Get all endpoints by ids used by by injects for a given simulation")
-  public List<Endpoint> endpointsByIds(@PathVariable String exerciseId, @RequestBody @Valid @NotNull final List<String> endpointIds) {
+      summary =
+          "Get endpoints by ids. Can only be called if the user has access to the given simulation.",
+      description = "Get all endpoints by ids used by by injects for a given simulation")
+  public List<Endpoint> endpointsByIds(
+      @PathVariable String exerciseId,
+      @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForSimulation(exerciseId, endpointIds);
   }
 

@@ -49,10 +49,10 @@ public interface AssetGroupRepository
   List<AssetGroup> findDistinctByInjectsScenarioId(String scenarioId);
 
   @Query(
-          "SELECT ag FROM AssetGroup ag "
-                  + "WHERE ag.id IN (SELECT DISTINCT ag2.id FROM AssetGroup ag2 "
-                  + "JOIN ag2.injects i WHERE i.scenario.id = :scenarioId)"
-                  + "AND ag.id IN :ids")
+      "SELECT ag FROM AssetGroup ag "
+          + "WHERE ag.id IN (SELECT DISTINCT ag2.id FROM AssetGroup ag2 "
+          + "JOIN ag2.injects i WHERE i.scenario.id = :scenarioId)"
+          + "AND ag.id IN :ids")
   List<AssetGroup> findDistinctByInjectsScenarioIdAndIdIn(String scenarioId, List<String> ids);
 
   @Query(
@@ -62,10 +62,10 @@ public interface AssetGroupRepository
   List<AssetGroup> findDistinctByInjectsSimulationId(String simulationId);
 
   @Query(
-          "SELECT ag FROM AssetGroup ag "
-                  + "WHERE ag.id IN (SELECT DISTINCT ag2.id FROM AssetGroup ag2 "
-                  + "JOIN ag2.injects i WHERE i.exercise.id = :simulationId)"
-                  + " AND ag.id IN :ids")
+      "SELECT ag FROM AssetGroup ag "
+          + "WHERE ag.id IN (SELECT DISTINCT ag2.id FROM AssetGroup ag2 "
+          + "JOIN ag2.injects i WHERE i.exercise.id = :simulationId)"
+          + " AND ag.id IN :ids")
   List<AssetGroup> findDistinctByInjectsSimulationIdAndIdIn(String simulationId, List<String> ids);
 
   /**

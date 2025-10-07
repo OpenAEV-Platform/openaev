@@ -706,7 +706,8 @@ public class EndpointService {
   }
 
   public List<Endpoint> endpointsByIdsForSimulation(String simulationId, List<String> endpointIds) {
-    return this.endpointRepository.findDistinctByInjectsExerciseIdAndIdIn(simulationId, endpointIds);
+    return this.endpointRepository.findDistinctByInjectsExerciseIdAndIdIn(
+        simulationId, endpointIds);
   }
 
   // -- OPTIONS --

@@ -4,10 +4,7 @@ import { useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type ArticlesHelper } from '../../../../../../actions/channels/article-helper';
-import { type ChannelsHelper } from '../../../../../../actions/channels/channel-helper';
 import { useFormatter } from '../../../../../../components/i18n';
-import { useHelper } from '../../../../../../store';
 import type { Article, Channel } from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';

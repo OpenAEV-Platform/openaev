@@ -4,13 +4,10 @@ import { type FunctionComponent, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import type { AssetGroupsHelper } from '../../../../../actions/asset_groups/assetgroup-helper';
-import { fetchExerciseChallenges, fetchScenarioChallenges } from '../../../../../actions/challenge-action';
-import { fetchExerciseArticles } from '../../../../../actions/channels/article-action';
+import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
-import { fetchSimulationChannels } from '../../../../../actions/channels/channel-action';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
-import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
+import { fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/simulation-inject-test-actions';
