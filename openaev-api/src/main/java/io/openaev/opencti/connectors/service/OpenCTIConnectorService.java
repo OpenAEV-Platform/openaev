@@ -1,10 +1,14 @@
 package io.openaev.opencti.connectors.service;
 
+import io.openaev.opencti.client.mutations.PushStixBundle;
 import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.opencti.service.OpenCTIService;
+import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,5 +50,17 @@ public class OpenCTIConnectorService {
             e);
       }
     }
+  }
+
+  public PushStixBundle.ResponsePayload pushSecurityCoverageStixBundle(Bundle bundle)
+      throws ConnectorError, IOException {
+    Optional<ConnectorBase> connector =
+        connectors.stream().filter(c -> c instanceof SecurityCoverageConnector).findFirst();
+    if (connector.isEmpty() || !connector.get().isRegistered()) {
+      throw new ConnectorError(
+          "Security Coverage connector is not ready to send security coverage bundles.");
+    }
+
+    return openCTIService.sendSecurityCoverageStixBundle(bundle, connector.get());
   }
 }

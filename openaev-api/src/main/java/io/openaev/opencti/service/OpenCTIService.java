@@ -13,6 +13,7 @@ import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -85,6 +86,35 @@ public class OpenCTIService {
     } else {
       Ping.ResponsePayload payload = mapper.convertValue(r.getData(), Ping.ResponsePayload.class);
       log.info("Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getUrl());
+      return payload;
+    }
+  }
+
+  public PushStixBundle.ResponsePayload sendSecurityCoverageStixBundle(
+      Bundle bundle, ConnectorBase connector) throws IOException, ConnectorError {
+    Mutation m = new PushStixBundle(connector, bundle.toStix(mapper));
+    Response r =
+        openCTIClient.execute(
+            connector.getUrl(),
+            connector.getAuthToken(),
+            new PushStixBundle(connector, bundle.toStix(mapper)));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+            Failed to push STIX bundle via connector %s to OpenCTI at %s
+            Errors: %s
+            """
+              .formatted(
+                  connector.getName(),
+                  connector.getUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      PushStixBundle.ResponsePayload payload =
+          mapper.convertValue(r.getData(), PushStixBundle.ResponsePayload.class);
+      log.info(
+          "Pushed STIX bundle via connector {} to OpenCTI at {}",
+          connector.getName(),
+          connector.getUrl());
       return payload;
     }
   }

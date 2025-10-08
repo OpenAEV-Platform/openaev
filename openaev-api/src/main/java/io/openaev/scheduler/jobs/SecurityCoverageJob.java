@@ -1,12 +1,11 @@
 package io.openaev.scheduler.jobs;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.SecurityCoverageSendJob;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.stix.SecurityCoverageService;
-import io.openaev.stix.objects.Bundle;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SecurityCoverageJob implements Job {
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final SecurityCoverageService securityCoverageService;
+  private final OpenCTIConnectorService openCTIConnectorService;
   private final ObjectMapper mapper;
 
   @Override
@@ -37,10 +37,9 @@ public class SecurityCoverageJob implements Job {
     List<SecurityCoverageSendJob> successfulJobs = new ArrayList<>();
     for (SecurityCoverageSendJob securityCoverageSendJob : jobs) {
       try {
-        Bundle bundle =
-            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
-        JsonNode n = bundle.toStix(mapper);
         // send bundle
+        openCTIConnectorService.pushSecurityCoverageStixBundle(
+            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob)));
         successfulJobs.add(securityCoverageSendJob);
       } catch (Exception e) {
         // don't crash the job
