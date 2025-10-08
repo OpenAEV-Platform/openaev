@@ -13,8 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 public class SecurityCoverageConnectorTest extends IntegrationTest {
-  private static final Object NULL = null;
-
   @Nested
   @DisplayName("Remote URL override")
   public class RemoteUrlOverride {
