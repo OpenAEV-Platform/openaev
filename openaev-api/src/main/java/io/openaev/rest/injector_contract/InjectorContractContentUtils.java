@@ -105,6 +105,13 @@ public class InjectorContractContentUtils {
     return null;
   }
 
+  /**
+   * Function to find if into the injector contract content a field with a key value exist
+   *
+   * @param injectorContract to analyse
+   * @param field to find
+   * @return true if field is found, false if not
+   */
   public boolean hasField(InjectorContract injectorContract, String field) {
     if (injectorContract == null || injectorContract.getContent() == null) {
       return false;
