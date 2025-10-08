@@ -109,10 +109,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               savedAssetGroup,
               EXPIRATION_TIME_1_s);
       detectionExpectations.add(
-          createTechnicalDetectionExpectationForAsset(
-              savedEndpoint,
-              null,
-              EXPIRATION_TIME_1_s));
+          createTechnicalDetectionExpectationForAsset(savedEndpoint, null, EXPIRATION_TIME_1_s));
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 

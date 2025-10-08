@@ -440,13 +440,14 @@ public class ExpectationUtils {
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
         .filter(ExpectationUtils::isAssetExpectation)
-        .filter(e -> {
-          AssetGroup assetGroup = e.getAssetGroup();
-          AssetGroup injectGroup = injectExpectation.getAssetGroup();
-          return assetGroup != null
-              && injectGroup != null
-              && assetGroup.getId().equals(injectGroup.getId());
-        })
+        .filter(
+            e -> {
+              AssetGroup assetGroup = e.getAssetGroup();
+              AssetGroup injectGroup = injectExpectation.getAssetGroup();
+              return assetGroup != null
+                  && injectGroup != null
+                  && assetGroup.getId().equals(injectGroup.getId());
+            })
         .filter(e -> e.getType().equals(injectExpectation.getType()))
         .toList();
   }
