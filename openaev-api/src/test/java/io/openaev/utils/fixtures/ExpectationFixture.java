@@ -70,7 +70,7 @@ public class ExpectationFixture {
         signatures);
   }
 
-  private static DetectionExpectation createTechnicalDetectionExpectationForAsset(
+  public static DetectionExpectation createTechnicalDetectionExpectationForAsset(
       Asset asset, AssetGroup assetGroup, Long expirationTime) {
     return detectionExpectationForAsset(
         SCORE, DETECTION_NAME, "Detection Expectation", asset, assetGroup, expirationTime);

@@ -3,6 +3,7 @@ package io.openaev.rest.inject_expectation;
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
 import static io.openaev.utils.fixtures.ExpectationFixture.createDetectionExpectations;
+import static io.openaev.utils.fixtures.ExpectationFixture.createTechnicalDetectionExpectationForAsset;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -107,6 +108,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               savedEndpoint,
               savedAssetGroup,
               EXPIRATION_TIME_1_s);
+      detectionExpectations.add(
+          createTechnicalDetectionExpectationForAsset(
+              savedEndpoint,
+              null,
+              EXPIRATION_TIME_1_s));
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
