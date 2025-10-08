@@ -12,6 +12,7 @@ import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.utils.fixtures.opencti.ResponseFixture;
 import io.openaev.utils.fixtures.opencti.TestBeanConnector;
+import io.openaev.utils.mockConfig.WithMockSecurityCoverageConnectorConfig;
 import java.io.IOException;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
@@ -19,7 +20,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.annotation.DirtiesContext;
 
-// @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@WithMockSecurityCoverageConnectorConfig(
+    url = "some-url",
+    authToken = "68949a7b-c1c2-4649-b3de-7db804ba02bb",
+    id = "a0f2d50c-3712-47bd-8305-e2412769eb86")
 public class OpenCTIConnectorServiceTest extends IntegrationTest {
   @MockBean private OpenCTIClient mockOpenCTIClient;
   @Autowired OpenCTIConnectorService openCTIConnectorService;

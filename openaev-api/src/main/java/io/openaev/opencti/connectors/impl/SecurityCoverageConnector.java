@@ -30,6 +30,10 @@ public class SecurityCoverageConnector extends ConnectorBase {
 
   @Override
   public String getUrl() {
+    if (io.openaev.utils.StringUtils.isBlank(super.getUrl())) {
+      return null;
+    }
+
     String configuredStripped = StringUtils.stripEnd(super.getUrl(), "/");
     if (configuredStripped.endsWith("/%s".formatted(GRAPHQL_ENDPOINT_URI))) {
       return configuredStripped;

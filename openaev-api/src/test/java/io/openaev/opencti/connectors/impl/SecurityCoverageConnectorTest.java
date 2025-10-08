@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 public class SecurityCoverageConnectorTest extends IntegrationTest {
+  private static final Object NULL = null;
 
   @Nested
   @DisplayName("Remote URL override")
@@ -56,6 +57,19 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
       @DisplayName("it appends the graphql endpoint to the url")
       public void itAppendsTheGraphQLEndpointToTheURL() {
         assertThat(connector.getUrl()).isEqualTo("https://opencti/graphql");
+      }
+    }
+
+    @Nested
+    @SpringBootTest
+    @DisplayName("With OpenCTI URL not defined")
+    public class WithNullUrl {
+      @Autowired private SecurityCoverageConnector connector;
+
+      @Test
+      @DisplayName("it appends the graphql endpoint to the url")
+      public void itAppendsTheGraphQLEndpointToTheURL() {
+        assertThat(connector.getUrl()).isNull();
       }
     }
   }
