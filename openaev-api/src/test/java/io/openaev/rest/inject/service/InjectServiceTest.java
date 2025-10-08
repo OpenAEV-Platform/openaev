@@ -22,6 +22,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
@@ -47,6 +48,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
@@ -88,6 +90,8 @@ class InjectServiceTest {
 
   @Mock private ImapService imapService;
 
+  @Spy private InjectorContractContentUtils injectorContractContentUtils;
+
   ObjectMapper mapper;
 
   @InjectMocks private InjectService injectService;
@@ -103,6 +107,8 @@ class InjectServiceTest {
         injectService,
         "injectMapper",
         new InjectMapper(injectStatusMapper, injectExpectationMapper, injectUtils));
+    ReflectionTestUtils.setField(
+        injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
 
   @Test
