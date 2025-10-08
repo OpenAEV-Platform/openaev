@@ -17,15 +17,17 @@ import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement
 import java.util.List;
 import java.util.Spliterators;
 import java.util.stream.StreamSupport;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.stereotype.Component;
 
+@Component
+@NoArgsConstructor
 public class InjectorContractContentUtils {
 
   public static final String OUTPUTS = "outputs";
   public static final String FIELDS = "fields";
   public static final String MULTIPLE = "n";
-
-  private InjectorContractContentUtils() {}
 
   /**
    * Function used to get the outputs from the injector contract content.
@@ -34,7 +36,7 @@ public class InjectorContractContentUtils {
    * @param mapper ObjectMapper used to convert JSON to Java objects
    * @return List of ContractOutputElement ( from Injector contract content )
    */
-  public static List<InjectorContractContentOutputElement> getContractOutputs(
+  public List<InjectorContractContentOutputElement> getContractOutputs(
       @NotNull final ObjectNode content, ObjectMapper mapper) {
     return StreamSupport.stream(content.get(OUTPUTS).spliterator(), false)
         .map(
@@ -54,8 +56,7 @@ public class InjectorContractContentUtils {
    * @param injectorContract InjectorContract object containing the converted content
    * @return ObjectNode containing the dynamic fields for inject
    */
-  public static ObjectNode getDynamicInjectorContractFieldsForInject(
-      InjectorContract injectorContract) {
+  public ObjectNode getDynamicInjectorContractFieldsForInject(InjectorContract injectorContract) {
     ObjectNode convertedContent = injectorContract.getConvertedContent();
 
     if (convertedContent.has(FIELDS) && convertedContent.get(FIELDS).isArray()) {
@@ -104,7 +105,7 @@ public class InjectorContractContentUtils {
     return null;
   }
 
-  public static boolean hasField(InjectorContract injectorContract, String field) {
+  public boolean hasField(InjectorContract injectorContract, String field) {
     if (injectorContract == null || injectorContract.getContent() == null) {
       return false;
     }

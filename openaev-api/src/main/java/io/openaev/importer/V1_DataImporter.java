@@ -43,7 +43,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,7 +76,9 @@ public class V1_DataImporter implements Importer {
   private final VariableRepository variableRepository;
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
-  @Autowired private CollectorRepository collectorRepository;
+  private final CollectorRepository collectorRepository;
+
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   // endregion
 
@@ -1160,10 +1161,10 @@ public class V1_DataImporter implements Importer {
           if (injectorContract.isPresent() && injectOpt.isPresent()) {
             Inject inject = injectOpt.get();
             if (assetGroup != null
-                && InjectorContractContentUtils.hasField(injectorContract.get(), "asset_groups")) {
+                && injectorContractContentUtils.hasField(injectorContract.get(), "asset_groups")) {
               inject.getAssetGroups().add(assetGroup);
             } else if (asset != null
-                && InjectorContractContentUtils.hasField(injectorContract.get(), "assets")) {
+                && injectorContractContentUtils.hasField(injectorContract.get(), "assets")) {
               inject.getAssets().add(asset);
             }
             injectRepository.save(inject);

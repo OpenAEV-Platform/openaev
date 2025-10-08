@@ -160,6 +160,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           this.tagRuleService.updateTagRule(tagRule.getId(), Tags.OPENCTI, existingAssetGroupRules);
         },
         () -> {
+          // Could happen if InitTagRuleCommandLineRunner doesn't run yet
           TagRule tagRule = new TagRule();
           tagRule.setTag(openCti);
           tagRule.setAssetGroups(List.of(createdAllEndpointAssetGroup));

@@ -1,7 +1,6 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.rest.injector_contract.InjectorContractContentUtils.getContractOutputs;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +12,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -36,6 +36,8 @@ public class FindingService {
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   @Resource private ObjectMapper mapper;
 
@@ -162,7 +164,8 @@ public class FindingService {
     // Get the contract
     InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
     List<InjectorContractContentOutputElement> contractOutputs =
-        getContractOutputs(injectorContract.getConvertedContent(), mapper);
+        injectorContractContentUtils.getContractOutputs(
+            injectorContract.getConvertedContent(), mapper);
 
     if (contractOutputs.isEmpty()) {
       log.warn("No contract outputs found for inject: " + inject.getId());
