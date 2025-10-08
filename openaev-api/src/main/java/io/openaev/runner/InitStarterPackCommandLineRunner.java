@@ -4,6 +4,7 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
@@ -77,12 +78,15 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private boolean isStarterPackEnabled;
 
   private final SettingRepository settingRepository;
+  private final TagRuleRepository tagRuleRepository;
+
   private final TagService tagService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final TagRuleService tagRuleService;
   private final ImportService importService;
   private final ZipJsonService<CustomDashboard> zipJsonService;
+
   private final ResourcePatternResolver resolver;
 
   private boolean hasError = false;
@@ -103,10 +107,11 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     try {
       Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
       Tag tagCisco = this.createTag(Tags.CISCO);
+      Tag openCti = this.createTag(Tags.OPENCTI);
       Endpoint honeyScanMeEndpoint =
           this.createHoneyScanMeAgentlessEndpoint(
               List.of(tagVulnerability.getId(), tagCisco.getId()));
-      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup(openCti);
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
     } catch (Exception e) {
@@ -128,7 +133,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     return this.endpointService.createEndpoint(endpointInput);
   }
 
-  private AssetGroup createAllEndpointsAssetGroup() {
+  private AssetGroup createAllEndpointsAssetGroup(Tag openCti) {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -147,10 +152,19 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
         this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
 
     Optional<TagRule> openCtiTagRule = this.tagRuleService.findByTagName(Tags.OPENCTI);
-    openCtiTagRule.ifPresent(
-        tagRule ->
-            this.tagRuleService.updateTagRule(
-                tagRule.getId(), Tags.OPENCTI, List.of(createdAllEndpointAssetGroup.getId())));
+    openCtiTagRule.ifPresentOrElse(
+        tagRule -> {
+          List<String> existingAssetGroupRules =
+              new ArrayList<>(tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList());
+          existingAssetGroupRules.add(createdAllEndpointAssetGroup.getId());
+          this.tagRuleService.updateTagRule(tagRule.getId(), Tags.OPENCTI, existingAssetGroupRules);
+        },
+        () -> {
+          TagRule tagRule = new TagRule();
+          tagRule.setTag(openCti);
+          tagRule.setAssetGroups(List.of(createdAllEndpointAssetGroup));
+          this.tagRuleRepository.save(tagRule);
+        });
 
     return createdAllEndpointAssetGroup;
   }

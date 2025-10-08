@@ -44,7 +44,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
-  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private TagRuleRepository tagRuleRepository;
 
   @Autowired private TagService tagService;
   @Autowired private EndpointService endpointService;
@@ -68,6 +68,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -107,6 +108,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -150,6 +152,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -174,6 +177,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
   }
 
   @Test
@@ -183,6 +187,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -215,6 +220,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -251,6 +257,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -273,6 +280,45 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
+  }
+
+  @Test
+  @DisplayName("Should init StarterPack even if OpenCTI tag rule doesn't exist")
+  public void shouldInitStarterPackEvenIfOpenCTITagRuleDoesntExist() {
+    // PREPARE
+    Optional<Tag> openCtiTag = this.tagRepository.findByName("opencti");
+    assertFalse(openCtiTag.isEmpty());
+    List<TagRule> tagRules = this.tagRuleRepository.findByTags(List.of(openCtiTag.get().getId()));
+    tagRules.forEach(tagRule -> this.tagRuleRepository.deleteById(tagRule.getId()));
+
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagRuleRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            tagRuleService,
+            importService,
+            zipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyTagsExist();
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    this.verifyScenarioExist();
+    this.verifyDashboardExist();
+    this.verifyParameterExist();
+    this.verifyDefaultHomeDashboardParameterExist();
+    this.verifyDefaultScenarioDashboardParameterExist();
+    this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
   }
 
   @Test
@@ -296,6 +342,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -318,6 +365,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
 
     List<Inject> injects = this.injectRepository.findAll();
     assertFalse(injects.isEmpty());
@@ -330,7 +378,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Should init StarterPack with and All endpoints asset group")
+  @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
@@ -351,6 +399,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -373,6 +422,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
 
     List<Inject> injects = this.injectRepository.findAll();
     assertFalse(injects.isEmpty());
@@ -493,5 +543,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
         settingRepository.findByKey("platform_simulation_dashboard");
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
+  }
+
+  private void verifyTagRuleExist() {
+    Optional<TagRule> tagRule = this.tagRuleRepository.findTagRuleByTagName("opencti");
+    assertTrue(tagRule.isPresent());
   }
 }
