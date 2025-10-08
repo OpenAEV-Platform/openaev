@@ -28,6 +28,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
@@ -93,6 +94,8 @@ public class EndpointService {
   public static final String OPENAEV_SERVICE_NAME_UNIX_SESSION_USER = "openaev-agent-session";
 
   @Resource private OpenAEVConfig openAEVConfig;
+
+  private final EndpointMapper endpointMapper;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
@@ -697,17 +700,26 @@ public class EndpointService {
     return this.endpointRepository.findDistinctByInjectsScenarioId(scenarioId);
   }
 
-  public List<Endpoint> endpointsByIdsForScenario(String scenarioId, List<String> endpointIds) {
-    return this.endpointRepository.findDistinctByInjectsScenarioIdAndIdIn(scenarioId, endpointIds);
+  public List<EndpointOutput> endpointsByIdsForScenario(
+      String scenarioId, List<String> endpointIds) {
+    return this.endpointRepository
+        .findDistinctByInjectsScenarioIdAndIdIn(scenarioId, endpointIds)
+        .stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   public List<Endpoint> endpointsForSimulation(String simulationId) {
     return this.endpointRepository.findDistinctByInjectsExerciseId(simulationId);
   }
 
-  public List<Endpoint> endpointsByIdsForSimulation(String simulationId, List<String> endpointIds) {
-    return this.endpointRepository.findDistinctByInjectsExerciseIdAndIdIn(
-        simulationId, endpointIds);
+  public List<EndpointOutput> endpointsByIdsForSimulation(
+      String simulationId, List<String> endpointIds) {
+    return this.endpointRepository
+        .findDistinctByInjectsExerciseIdAndIdIn(simulationId, endpointIds)
+        .stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   // -- OPTIONS --

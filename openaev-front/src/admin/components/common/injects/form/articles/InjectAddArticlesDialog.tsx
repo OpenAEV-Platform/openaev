@@ -32,14 +32,14 @@ import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import CreateArticle from '../../../articles/CreateArticle';
 import { PermissionsContext } from '../../../Context';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   box: {
     width: '100%',
     minHeight: '100%',
     padding: 20,
     border: '1px dashed rgba(255, 255, 255, 0.3)',
   },
-  chip: { margin: '0 10px 10px 0' },
+  chip: { margin: `0 ${theme.spacing(2)}px ${theme.spacing(2)}px 0` },
 }));
 
 interface Props {
@@ -128,15 +128,17 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
   return (
     <Dialog
       open={open}
-      TransitionComponent={Transition}
       onClose={handleClose}
       fullWidth
       maxWidth="lg"
-      PaperProps={{
-        elevation: 1,
-        sx: {
-          minHeight: 580,
-          maxHeight: 580,
+      slots={{ transition: Transition }}
+      slotProps={{
+        paper: {
+          elevation: 1,
+          style: {
+            minHeight: 580,
+            maxHeight: 580,
+          },
         },
       }}
     >

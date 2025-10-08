@@ -14,6 +14,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.repository.*;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
+import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -393,7 +395,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   // region asset groups, endpoints, documents and channels
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/asset_groups")
+  @GetMapping(SCENARIO_URI + "/{scenarioId}/asset-groups")
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -406,7 +408,7 @@ public class ScenarioApi extends RestBehavior {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/asset_groups/find")
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/asset-groups/find")
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -415,7 +417,7 @@ public class ScenarioApi extends RestBehavior {
       summary =
           "Get asset groups by ids. Can only be called if the user has access to the given scenario.",
       description = "Get all asset groups by ids and used by injects for a given scenario")
-  public List<AssetGroup> assetGroupsByIds(
+  public List<AssetGroupOutput> assetGroupsByIds(
       @PathVariable String scenarioId,
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return this.assetGroupService.assetGroupsByIdsForScenario(scenarioId, assetGroupIds);
@@ -454,7 +456,7 @@ public class ScenarioApi extends RestBehavior {
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints by ids used by injects for a given scenario")
-  public List<Endpoint> endpointsByIds(
+  public List<EndpointOutput> endpointsByIds(
       @PathVariable String scenarioId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForScenario(scenarioId, endpointIds);

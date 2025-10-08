@@ -18,6 +18,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.*;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
+import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -892,7 +894,7 @@ public class ExerciseApi extends RestBehavior {
   // endregion
 
   // region asset groups, endpoints, documents and channels
-  @GetMapping(EXERCISE_URI + "/{exerciseId}/asset_groups")
+  @GetMapping(EXERCISE_URI + "/{exerciseId}/asset-groups")
   @RBAC(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -905,7 +907,7 @@ public class ExerciseApi extends RestBehavior {
     return this.assetGroupService.assetGroupsForSimulation(exerciseId);
   }
 
-  @PostMapping(EXERCISE_URI + "/{exerciseId}/asset_groups/find")
+  @PostMapping(EXERCISE_URI + "/{exerciseId}/asset-groups/find")
   @RBAC(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -914,7 +916,7 @@ public class ExerciseApi extends RestBehavior {
       summary =
           "Get asset groups by ids. Can only be called if the user has access to the given simulation.",
       description = "Get all asset groups by ids used by injects for a given simulation")
-  public List<AssetGroup> assetGroupsByIds(
+  public List<AssetGroupOutput> assetGroupsByIds(
       @PathVariable String exerciseId,
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return this.assetGroupService.assetGroupsByIdsForSimulation(exerciseId, assetGroupIds);
@@ -952,8 +954,8 @@ public class ExerciseApi extends RestBehavior {
   @Operation(
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given simulation.",
-      description = "Get all endpoints by ids used by by injects for a given simulation")
-  public List<Endpoint> endpointsByIds(
+      description = "Get all endpoints by ids used by injects for a given simulation")
+  public List<EndpointOutput> endpointsByIds(
       @PathVariable String exerciseId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForSimulation(exerciseId, endpointIds);
