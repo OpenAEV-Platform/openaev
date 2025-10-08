@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.sql.Statement;
 
 @Component
-public class V4_42__Create_Missing_Time_Range extends BaseJavaMigration {
+public class V4_43__Create_Missing_Time_Range extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
