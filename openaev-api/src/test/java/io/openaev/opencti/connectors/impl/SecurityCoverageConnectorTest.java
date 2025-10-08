@@ -65,7 +65,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
       @Autowired private SecurityCoverageConnector connector;
 
       @Test
-      @DisplayName("it appends the graphql endpoint to the url")
+      @DisplayName("it is null")
       public void itAppendsTheGraphQLEndpointToTheURL() {
         assertThat(connector.getUrl()).isNull();
       }
