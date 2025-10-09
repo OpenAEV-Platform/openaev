@@ -5,7 +5,6 @@ import static java.util.Collections.emptyList;
 
 import io.openaev.database.helper.InjectorContractRepositoryHelper;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
@@ -35,7 +34,6 @@ public class InjectAssistantService {
   private final AttackPatternService attackPatternService;
   private final InjectorContractService injectorContractService;
 
-  private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
 
   // -- Used in Assistance AI
