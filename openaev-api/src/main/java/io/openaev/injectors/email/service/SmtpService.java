@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class SmtpService extends ExternalServiceBase {
+
+  @Value("${openaev.listener.smtp.enabled:#{true}}")
+  private boolean enabled;
 
   private static final String SMTP_SETTINGS_KEY = "smtp_service_available";
 
@@ -41,16 +45,18 @@ public class SmtpService extends ExternalServiceBase {
   }
 
   private void testConnection() {
-    try {
-      if (mailSender instanceof JavaMailSenderImpl javaMailSender) {
-        javaMailSender.testConnection();
-        this.saveServiceState(SMTP_SETTINGS_KEY, true);
-      } else {
+    if (enabled) {
+      try {
+        if (mailSender instanceof JavaMailSenderImpl javaMailSender) {
+          javaMailSender.testConnection();
+          this.saveServiceState(SMTP_SETTINGS_KEY, true);
+        } else {
+          this.saveServiceState(SMTP_SETTINGS_KEY, false);
+        }
+      } catch (Exception e) {
+        log.warn(e.getMessage());
         this.saveServiceState(SMTP_SETTINGS_KEY, false);
       }
-    } catch (Exception e) {
-      log.warn(e.getMessage());
-      this.saveServiceState(SMTP_SETTINGS_KEY, false);
     }
   }
 
