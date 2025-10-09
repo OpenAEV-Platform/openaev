@@ -25,19 +25,19 @@ public class PingTest {
     assertThatJson(ping.getVariables())
         .isEqualTo(
             """
-      {
-        "id":"%s",
-        "state":null,
-        "connectorInfo": {
-          "run_and_terminate":false,
-          "buffering":false,
-          "queue_threshold":0.0,
-          "queue_messages_size":0.0,
-          "next_run_datetime":null,
-          "last_run_datetime":null
-        }
-      }
-      """
+          {
+            "id":"%s",
+            "state":null,
+            "connectorInfo": {
+              "run_and_terminate":false,
+              "buffering":false,
+              "queue_threshold":0.0,
+              "queue_messages_size":0.0,
+              "next_run_datetime":null,
+              "last_run_datetime":null
+            }
+          }
+          """
                 .formatted(cb.getId()));
   }
 }
