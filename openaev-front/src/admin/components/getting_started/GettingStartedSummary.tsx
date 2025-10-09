@@ -1,38 +1,48 @@
-import { Box, List, Paper, Typography } from '@mui/material';
+import { Box, Link, List, Paper, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import VideoPlayer from './VideoPlayer';
 
 const GettingStartedSummary = () => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   return (
-    <Box>
+    <Box sx={{ overflow: 'hidden' }}>
       <Typography variant="h1">
         {t('getting_started_welcome')}
       </Typography>
       <Paper
         variant="outlined"
         sx={{ p: 2 }}
-        style={{
+      >
+        <Box sx={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
         }}
-      >
-        <div>
-          {t('getting_started_description')}
-          <List sx={{
-            listStyleType: 'disc',
-            pl: 3,
+        >
+          <Box style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: theme.spacing(2),
           }}
           >
-            <li>{t('getting_started_oaev')}</li>
-            <li>{t('getting_started_usage')}</li>
-            <li>{t('getting_started_demonstration')}</li>
-            <li>{t('getting_started_explanation')}</li>
-          </List>
-        </div>
-        <VideoPlayer videoLink="https://app.storylane.io/demo/bxqijbtlfklz" />
+            {t('getting_started_description_text')}
+            <List sx={{
+              listStyleType: 'disc',
+              pl: 3,
+            }}
+            >
+              <li>{t('getting_started_description_first_task_text')}</li>
+              <li>{t('getting_started_description_scenario_text')}</li>
+              <li>{t('getting_started_description_end_text')}</li>
+              <li>{t('getting_started_description_test_scenarios_text', { xtmHubLink: <Link href="https://hub.filigran.io/cybersecurity-solutions/open-bas-scenarios">{t('XTM Hub Library')}</Link> })}</li>
+            </List>
+            {t('getting_started_description_conclusion_text')}
+          </Box>
+          <VideoPlayer videoLink="https://app.storylane.io/demo/bxqijbtlfklz" />
+        </Box>
       </Paper>
     </Box>
   );

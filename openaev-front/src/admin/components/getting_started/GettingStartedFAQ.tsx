@@ -18,16 +18,28 @@ const GettingStartedFAQ = () => {
       category: t('faq.usage.title'),
       questions: [
         {
-          summary: t('faq.usage.missing_content.summary'),
-          details: t('faq.usage.missing_content.details'),
+          summary: t('faq.howto.import_scenario.summary'),
+          details: t('faq.howto.import_scenario.details'),
         },
         {
-          summary: t('faq.usage.simulation_not_working.summary'),
-          details: t('faq.usage.simulation_not_working.details'),
+          summary: t('faq.howto.run_scenario.summary'),
+          details: t('faq.howto.run_scenario.details'),
         },
         {
-          summary: t('faq.usage.production_safe.summary'),
-          details: t('faq.usage.production_safe.details'),
+          summary: t('faq.howto.create_scenario.summary'),
+          details: t('faq.howto.create_scenario.details'),
+        },
+        {
+          summary: t('faq.question.simulations_production.summary'),
+          details: t('faq.question.simulations_production.details'),
+        },
+        {
+          summary: t('faq.question.inject_missing_content.summary'),
+          details: t('faq.question.inject_missing_content.details'),
+        },
+        {
+          summary: t('faq.question.share_scenarios.summary'),
+          details: t('faq.question.share_scenarios.details'),
         },
       ],
     },
@@ -35,12 +47,18 @@ const GettingStartedFAQ = () => {
       category: t('faq.results.title'),
       questions: [
         {
-          summary: t('faq.results.expectations_expire.summary'),
-          details: t('faq.results.expectations_expire.details'),
+          summary: t('faq.howto.understand_results.summary'),
+          details: t('faq.howto.understand_results.details'),
+          subdetailsList: [
+            t('faq.howto.understand_results.home_dashboard.details'),
+            t('faq.howto.understand_results.scenario.details'),
+            t('faq.howto.understand_results.simulation.details'),
+            t('faq.howto.understand_results.inject_results.details'),
+          ],
         },
         {
-          summary: t('faq.results.share_scenarios.summary'),
-          details: t('faq.results.share_scenarios.details'),
+          summary: t('faq.question.expectations_expire.summary'),
+          details: t('faq.question.expectations_expire.details'),
         },
       ],
     },
@@ -48,8 +66,8 @@ const GettingStartedFAQ = () => {
       category: t('faq.components.title'),
       questions: [
         {
-          summary: t('faq.components.executors_injectors_collectors.summary'),
-          details: t('faq.components.executors_injectors_collectors.details'),
+          summary: t('faq.question.executor_injectors_collectors.summary'),
+          details: t('faq.question.executor_injectors_collectors.details'),
         },
       ],
     },
@@ -57,8 +75,8 @@ const GettingStartedFAQ = () => {
       category: t('faq.support.title'),
       questions: [
         {
-          summary: t('faq.support.help.summary'),
-          details: t('faq.support.help.details'),
+          summary: t('faq.question.get_help.summary'),
+          details: t('faq.question.get_help.details'),
         },
       ],
     },
@@ -96,7 +114,9 @@ const GettingStartedFAQ = () => {
                     ),
                   }}
                 >
-                  {faq.details}
+                  {faq.subdetailsList && faq.subdetailsList.length
+                    ? faq.details + '\n' + faq.subdetailsList.map(subdetail => '- ' + subdetail).join('\n')
+                    : faq.details}
                 </ReactMarkdown>
               </AccordionDetails>
             </Accordion>
