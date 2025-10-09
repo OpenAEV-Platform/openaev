@@ -114,7 +114,7 @@ const GettingStartedFAQ = () => {
                     ),
                   }}
                 >
-                  {faq.subdetailsList && faq.subdetailsList.length
+                  {faq.subdetailsList?.length
                     ? faq.details + '\n' + faq.subdetailsList.map(subdetail => '- ' + subdetail).join('\n')
                     : faq.details}
                 </ReactMarkdown>
