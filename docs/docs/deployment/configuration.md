@@ -165,12 +165,13 @@ integrations with APIs such as O365 and Google Apps.
 
 ##### SMTP
 
-| Parameter            | Environment variable | Default value     | Description          |
-|:---------------------|:---------------------|:------------------|:---------------------|
-| spring.mail.host     | SPRING_MAIL_HOST     | smtp.mail.com     | SMTP Server hostname |
-| spring.mail.port     | SPRING_MAIL_PORT     | 465               | SMTP Server port     |
-| spring.mail.username | SPRING_MAIL_USERNAME | username@mail.com | SMTP Server username |
-| spring.mail.password | SPRING_MAIL_PASSWORD | password          | SMTP Server password |
+| Parameter                      | Environment variable           | Default value     | Description                                                                                                            |
+|:-------------------------------|:-------------------------------|:------------------|:-----------------------------------------------------------------------------------------------------------------------|
+| openaev.listener.smtp.enabled  | OPENAEV_LISTENER_SMTP_ENABLED  | `true`            | SMTP connection monitoring, enabled by default. Allow you to monitor service state from healthchecks and settings page |
+| spring.mail.host               | SPRING_MAIL_HOST               | smtp.mail.com     | SMTP Server hostname                                                                                                   |
+| spring.mail.port               | SPRING_MAIL_PORT               | 465               | SMTP Server port                                                                                                       |
+| spring.mail.username           | SPRING_MAIL_USERNAME           | username@mail.com | SMTP Server username                                                                                                   |
+| spring.mail.password           | SPRING_MAIL_PASSWORD           | password          | SMTP Server password                                                                                                   |
 
 | Parameter                                        | Environment variable                             | Default value | Description                   |
 |:-------------------------------------------------|:-------------------------------------------------|:--------------|:------------------------------|
