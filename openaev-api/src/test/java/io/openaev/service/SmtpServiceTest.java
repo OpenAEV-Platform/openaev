@@ -40,6 +40,7 @@ public class SmtpServiceTest {
 
     this.mailSender = Mockito.mock(JavaMailSenderImpl.class, Mockito.CALLS_REAL_METHODS);
     ReflectionTestUtils.setField(smtpService, "mailSender", mailSender);
+    ReflectionTestUtils.setField(smtpService, "enabled", true);
   }
 
   @Test
