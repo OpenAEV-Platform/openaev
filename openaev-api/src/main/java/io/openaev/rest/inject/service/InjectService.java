@@ -107,6 +107,7 @@ public class InjectService {
   private final SmtpService smtpService;
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -196,7 +197,7 @@ public class InjectService {
     // this is the case when creating an inject from OpenCti
     if (inject.getContent() == null || inject.getContent().isEmpty()) {
       inject.setContent(
-          InjectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
+          injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     }
 
     return injectRepository.save(inject);
@@ -226,7 +227,7 @@ public class InjectService {
     inject.setDependsDuration(0L);
     inject.setEnabled(enabled);
     inject.setContent(
-        InjectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
+        injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     return inject;
   }
 

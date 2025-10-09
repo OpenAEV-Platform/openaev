@@ -6,6 +6,8 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.importer.ImportException;
@@ -55,6 +57,8 @@ public class ImportService {
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
       String suffix,
       boolean isFromStarterPack) {
     try {
@@ -63,7 +67,14 @@ public class ImportService {
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
         importer.importData(
-            importNode, docReferences, exercise, scenario, suffix, isFromStarterPack);
+            importNode,
+            docReferences,
+            exercise,
+            scenario,
+            asset,
+            assetGroup,
+            suffix,
+            isFromStarterPack);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
       }
@@ -76,7 +87,13 @@ public class ImportService {
   public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
     handleInputStreamImport(
-        file.getInputStream(), exercise, scenario, Constants.IMPORTED_OBJECT_NAME_SUFFIX, false);
+        file.getInputStream(),
+        exercise,
+        scenario,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX,
+        false);
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -84,16 +101,20 @@ public class ImportService {
       InputStream is,
       Exercise exercise,
       Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
       String suffix,
       boolean isFromStarterPack)
       throws Exception {
-    handleInputStreamImport(is, exercise, scenario, suffix, isFromStarterPack);
+    handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix, isFromStarterPack);
   }
 
   private void handleInputStreamImport(
       InputStream is,
       Exercise exercise,
       Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
       String suffix,
       boolean isFromStarterPack)
       throws Exception {
@@ -241,7 +262,15 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(dataStream, docReferences, exercise, scenario, suffix, isFromStarterPack);
+        handleDataImport(
+            dataStream,
+            docReferences,
+            exercise,
+            scenario,
+            asset,
+            assetGroup,
+            suffix,
+            isFromStarterPack);
       }
     } finally {
       tempFile.delete();

@@ -4,12 +4,21 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doThrow;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.injector_contract.ContractCardinality;
+import io.openaev.injector_contract.fields.ContractAsset;
+import io.openaev.injector_contract.fields.ContractAssetGroup;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +44,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
+  @Autowired private TagRuleRepository tagRuleRepository;
 
   @Autowired private TagService tagService;
   @Autowired private EndpointService endpointService;
@@ -47,6 +57,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Mock private ZipJsonService<CustomDashboard> mockZipJsonService;
   @Mock private ResourcePatternResolver mockResolver;
 
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private InjectRepository injectRepository;
+
   @Test
   @DisplayName("Should not init StarterPack for disabled feature")
   public void shouldNotInitStarterPackForDisabledFeature() {
@@ -54,6 +68,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -93,6 +108,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -136,6 +152,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -160,6 +177,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
   }
 
   @Test
@@ -169,6 +187,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -201,6 +220,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -237,6 +257,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
         new InitStarterPackCommandLineRunner(
             settingRepository,
+            tagRuleRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -259,6 +280,158 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     this.verifyDefaultHomeDashboardParameterExist();
     this.verifyDefaultScenarioDashboardParameterExist();
     this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
+  }
+
+  @Test
+  @DisplayName("Should init StarterPack even if OpenCTI tag rule doesn't exist")
+  public void shouldInitStarterPackEvenIfOpenCTITagRuleDoesntExist() {
+    // PREPARE
+    Optional<Tag> openCtiTag = this.tagRepository.findByName("opencti");
+    assertFalse(openCtiTag.isEmpty());
+    List<TagRule> tagRules = this.tagRuleRepository.findByTags(List.of(openCtiTag.get().getId()));
+    tagRules.forEach(tagRule -> this.tagRuleRepository.deleteById(tagRule.getId()));
+
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagRuleRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            tagRuleService,
+            importService,
+            zipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyTagsExist();
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    this.verifyScenarioExist();
+    this.verifyDashboardExist();
+    this.verifyParameterExist();
+    this.verifyDefaultHomeDashboardParameterExist();
+    this.verifyDefaultScenarioDashboardParameterExist();
+    this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
+  }
+
+  @Test
+  @DisplayName("Should init StarterPack with honey.scan.me asset")
+  public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
+    // PREPARE
+    ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
+    contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
+    Injector injector = InjectorFixture.createDefaultPayloadInjector();
+    Payload payload = PayloadFixture.createDefaultCommand();
+    InjectorContract injectorContract =
+        InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+            injector, payload, List.of(contractAsset));
+    injectorContract.setId("2e7fc079-4444-4531-4444-928fe4a1fc0b");
+    injectorContractComposer
+        .forInjectorContract(injectorContract)
+        .withInjector(injector)
+        .withPayload(payloadComposer.forPayload(payload))
+        .persist();
+
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagRuleRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            tagRuleService,
+            importService,
+            zipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyTagsExist();
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    this.verifyScenarioExist();
+    this.verifyDashboardExist();
+    this.verifyParameterExist();
+    this.verifyDefaultHomeDashboardParameterExist();
+    this.verifyDefaultScenarioDashboardParameterExist();
+    this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
+
+    List<Inject> injects = this.injectRepository.findAll();
+    assertFalse(injects.isEmpty());
+    assertTrue(
+        injects.stream()
+            .anyMatch(
+                inject ->
+                    inject.getAssets() != null
+                        && "honey.scanme.sh".equals(inject.getAssets().getFirst().getName())));
+  }
+
+  @Test
+  @DisplayName("Should init StarterPack with All endpoints asset group")
+  public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
+    // PREPARE
+    ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
+    contractAssetGroup.setLinkedFields(
+        InjectorContractFixture.buildMandatoryOnConditionValue("asset_groups"));
+    Injector injector = InjectorFixture.createDefaultPayloadInjector();
+    Payload payload = PayloadFixture.createDefaultCommand();
+    InjectorContract injectorContract =
+        InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+            injector, payload, List.of(contractAssetGroup));
+    injectorContract.setId("ea43ae39-1a8c-47dc-93e1-80ef8b0e70c4");
+    injectorContractComposer
+        .forInjectorContract(injectorContract)
+        .withInjector(injector)
+        .withPayload(payloadComposer.forPayload(payload))
+        .persist();
+
+    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
+        new InitStarterPackCommandLineRunner(
+            settingRepository,
+            tagRuleRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            tagRuleService,
+            importService,
+            zipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    initStarterPackCommandLineRunner.run();
+
+    // VERIFY
+    this.verifyTagsExist();
+    this.verifyEndpointExist();
+    this.verifyAssetGroupExist();
+    this.verifyScenarioExist();
+    this.verifyDashboardExist();
+    this.verifyParameterExist();
+    this.verifyDefaultHomeDashboardParameterExist();
+    this.verifyDefaultScenarioDashboardParameterExist();
+    this.verifyDefaultSimulationDashboardParameterExist();
+    this.verifyTagRuleExist();
+
+    List<Inject> injects = this.injectRepository.findAll();
+    assertFalse(injects.isEmpty());
+    assertTrue(
+        injects.stream()
+            .anyMatch(
+                inject ->
+                    inject.getAssetGroups() != null
+                        && "All endpoints".equals(inject.getAssetGroups().getFirst().getName())));
   }
 
   private void verifyTagsExist() {
@@ -318,7 +491,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
 
   private void verifyScenarioExist() {
     List<Scenario> scenarios = scenarioRepository.findAll();
-    assertEquals(1, scenarios.size());
+    assertEquals(2, scenarios.size());
 
     Scenario scenario = scenarios.getFirst();
     assertEquals("starterpack", scenario.getName());
@@ -370,5 +543,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
         settingRepository.findByKey("platform_simulation_dashboard");
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
+  }
+
+  private void verifyTagRuleExist() {
+    Optional<TagRule> tagRule = this.tagRuleRepository.findTagRuleByTagName("opencti");
+    assertTrue(tagRule.isPresent());
   }
 }

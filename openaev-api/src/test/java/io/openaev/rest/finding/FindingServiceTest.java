@@ -17,6 +17,7 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
@@ -28,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @ExtendWith(MockitoExtension.class)
 class FindingServiceTest extends IntegrationTest {
@@ -35,6 +37,7 @@ class FindingServiceTest extends IntegrationTest {
   public static final String ASSET_1 = "asset1";
   public static final String ASSET_2 = "asset2";
 
+  @Autowired private InjectorContractContentUtils injectorContractContentUtils;
   @Mock private InjectService injectService;
   @Mock private FindingRepository findingRepository;
   @Mock private AssetRepository assetRepository;
@@ -46,7 +49,12 @@ class FindingServiceTest extends IntegrationTest {
   void setUp() {
     findingService =
         new FindingService(
-            injectService, findingRepository, assetRepository, teamRepository, userRepository);
+            injectService,
+            findingRepository,
+            assetRepository,
+            teamRepository,
+            userRepository,
+            injectorContractContentUtils);
   }
 
   @Test

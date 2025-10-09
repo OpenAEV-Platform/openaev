@@ -13,7 +13,6 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
 import static io.openaev.rest.injector_contract.InjectorContractContentUtils.FIELDS;
 import static io.openaev.rest.injector_contract.InjectorContractContentUtils.MULTIPLE;
-import static io.openaev.rest.injector_contract.InjectorContractContentUtils.getDynamicInjectorContractFieldsForInject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,12 +24,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
+@SpringBootTest
 public class InjectorContractContentUtilsTest {
 
   public static final String EXPECTATION_NAME = "expectation_name";
@@ -38,6 +41,8 @@ public class InjectorContractContentUtilsTest {
   public static final String DETECTION = "Detection";
 
   private static final ObjectMapper mapper = new ObjectMapper();
+
+  @Autowired private InjectorContractContentUtils injectorContractContentUtils;
 
   @Test
   public void shouldAddExpectationsWhenPredefinedExpectationsExistent() {
@@ -53,7 +58,8 @@ public class InjectorContractContentUtilsTest {
             predefinedExpectations);
 
     InjectorContract contract = InjectorContractFixture.createInjectorContract(content);
-    ObjectNode result = getDynamicInjectorContractFieldsForInject(contract);
+    ObjectNode result =
+        injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(contract);
 
     assertNotNull(result);
     assertTrue(result.has(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS));
@@ -87,7 +93,8 @@ public class InjectorContractContentUtilsTest {
             emptyExpectations);
 
     InjectorContract contract = InjectorContractFixture.createInjectorContract(content);
-    ObjectNode result = getDynamicInjectorContractFieldsForInject(contract);
+    ObjectNode result =
+        injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(contract);
 
     assertNotNull(result);
     assertFalse(result.has(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS));
@@ -98,7 +105,8 @@ public class InjectorContractContentUtilsTest {
     ObjectNode content = mapper.createObjectNode(); // no "fields" -> no key "expectations"
 
     InjectorContract contract = InjectorContractFixture.createInjectorContract(content);
-    ObjectNode result = getDynamicInjectorContractFieldsForInject(contract);
+    ObjectNode result =
+        injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(contract);
 
     assertNull(result);
   }

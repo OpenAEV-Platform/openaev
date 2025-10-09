@@ -3,6 +3,8 @@ package io.openaev.importer;
 import static java.util.Spliterators.spliteratorUnknownSize;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.service.ImportEntry;
@@ -20,6 +22,8 @@ public interface Importer {
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
       String suffix,
       boolean isFromStarterPack);
 
