@@ -65,6 +65,6 @@ public class OpenCTIConnectorService {
           "No instance of Security Coverage connector is currently active to send security coverage bundles.");
     }
 
-    openCTIService.sendSecurityCoverageStixBundle(bundle, connector.get());
+    openCTIService.pushStixBundle(bundle, connector.get());
   }
 }

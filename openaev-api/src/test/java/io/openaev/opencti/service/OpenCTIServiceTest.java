@@ -14,6 +14,7 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
+import io.openaev.opencti.client.mutations.PushStixBundle;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
@@ -22,6 +23,8 @@ import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
 import io.openaev.service.UserService;
+import io.openaev.stix.objects.Bundle;
+import io.openaev.stix.types.Identifier;
 import io.openaev.utils.fixtures.GroupFixture;
 import io.openaev.utils.fixtures.RoleFixture;
 import io.openaev.utils.fixtures.TokenFixture;
@@ -220,6 +223,81 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .isInstanceOf(ConnectorError.class)
             .hasMessage(
                 "Cannot ping connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
+                    .formatted(testConnector.getName(), testConnector.getUrl()));
+      }
+    }
+
+    @Nested
+    @DisplayName("For pushing STIX bundle")
+    public class ForPushingSTIXBundle {
+      private Bundle createBundle() {
+        return new Bundle(new Identifier("titi"), List.of());
+      }
+
+      @Test
+      @DisplayName("When request crashes, throw exception")
+      public void whenRequestCrashes_throwException() throws IOException, ConnectorError {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        testConnector.setRegistered(true); // so it can push!
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenThrow(IOException.class);
+
+        assertThatThrownBy(() -> openCTIService.pushStixBundle(createBundle(), testConnector))
+            .isInstanceOf(IOException.class);
+      }
+
+      @Test
+      @DisplayName("When response has errors in it, throw exception")
+      public void whenResponseHasErrorsInIt_throwException() throws IOException, ConnectorError {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        testConnector.setRegistered(true); // so it can push!
+        Response errorResponse = ResponseFixture.getErrorResponse();
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenReturn(errorResponse);
+
+        assertThatThrownBy(() -> openCTIService.pushStixBundle(createBundle(), testConnector))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessageContaining(errorResponse.getErrors().get(0).getMessage())
+            .hasMessageContaining(
+                "Failed to push STIX bundle via connector %s to OpenCTI at %s"
+                    .formatted(testConnector.getName(), testConnector.getUrl()));
+      }
+
+      @Test
+      @DisplayName("When response is valid, return correct payload")
+      public void whenResponseIsValid_returnCorrectPayload() throws IOException, ConnectorError {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        testConnector.setRegistered(true); // so it can push!
+        Response okResponse = ResponseFixture.getOkResponse();
+        String payloadText =
+            """
+              {
+                "stixBundlePush": true
+              }
+              """;
+        okResponse.setData((ObjectNode) mapper.readTree(payloadText));
+
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenReturn(okResponse);
+
+        PushStixBundle.ResponsePayload payload =
+            openCTIService.pushStixBundle(createBundle(), testConnector);
+
+        assertThatJson(mapper.valueToTree(payload)).isEqualTo(payloadText);
+        assertThat(testConnector.isRegistered()).isTrue();
+      }
+
+      @Test
+      @DisplayName("When connector not yet registered, throw exception")
+      public void wheConnectorNotYetRegistered_throwException() throws IOException, ConnectorError {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenReturn(ResponseFixture.getOkResponse());
+
+        assertThatThrownBy(() -> openCTIService.pushStixBundle(createBundle(), testConnector))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessage(
+                "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
                     .formatted(testConnector.getName(), testConnector.getUrl()));
       }
     }

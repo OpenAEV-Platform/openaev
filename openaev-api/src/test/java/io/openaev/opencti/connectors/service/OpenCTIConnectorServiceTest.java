@@ -177,7 +177,7 @@ public class OpenCTIConnectorServiceTest {
                 () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
             .isInstanceOf(ConnectorError.class)
             .hasMessage(
-                "Cannot send STIX bundle via connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
+                "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
                     .formatted(connector.getName(), connector.getUrl()));
       }
 

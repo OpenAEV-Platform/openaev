@@ -90,11 +90,11 @@ public class OpenCTIService {
     }
   }
 
-  public PushStixBundle.ResponsePayload sendSecurityCoverageStixBundle(
-      Bundle bundle, ConnectorBase connector) throws IOException, ConnectorError {
+  public PushStixBundle.ResponsePayload pushStixBundle(Bundle bundle, ConnectorBase connector)
+      throws IOException, ConnectorError {
     if (!connector.isRegistered()) {
       throw new ConnectorError(
-          "Cannot send STIX bundle via connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
+          "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
               .formatted(connector.getName(), connector.getUrl()));
     }
 
