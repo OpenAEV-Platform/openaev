@@ -1,17 +1,16 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.model.*;
-import io.openaev.injector_contract.fields.ContractFieldType;
-import jakarta.annotation.Nullable;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-
 import static io.openaev.database.model.Command.COMMAND_TYPE;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.database.model.Payload.PAYLOAD_STATUS.VERIFIED;
+
+import io.openaev.database.model.*;
+import io.openaev.injector_contract.fields.ContractFieldType;
+import jakarta.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
 public class PayloadFixture {
 
@@ -66,7 +65,7 @@ public class PayloadFixture {
     return command;
   }
 
-  public static Payload createDefaultCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments(
+  public static Payload createDefaultCommandWithAttackPatternAndArguments(
       List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
     Payload command = createDefaultCommand();
     command.setPlatforms(LINUX_PLATFORM);
@@ -85,7 +84,7 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultDnsResolutionWithAttackPatternAndArguments(
-          List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
 
     final DnsResolution dnsResolution =
         new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
@@ -115,13 +114,14 @@ public class PayloadFixture {
     return executable;
   }
 
-  public static Payload createDefaultExecutableWithAttackPatternAndArguments(List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+  public static Payload createDefaultExecutableWithAttackPatternAndArguments(
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(executable, MACOS_PLATFORM);
-      executable.setAttackPatterns(attackPatterns);
-      executable.setArguments(arguments);
+    executable.setAttackPatterns(attackPatterns);
+    executable.setArguments(arguments);
     return executable;
   }
 
@@ -133,16 +133,16 @@ public class PayloadFixture {
     return filedrop;
   }
 
-    public static Payload createDefaultFileDropWithAttackPatternAndArguments(
-            List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
-        final FileDrop filedrop =
-                new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
-        filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-        initializeDefaultPayload(filedrop, MACOS_PLATFORM);
-        filedrop.setAttackPatterns(attackPatterns);
-        filedrop.setArguments(arguments);
-        return filedrop;
-    }
+  public static Payload createDefaultFileDropWithAttackPatternAndArguments(
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+    final FileDrop filedrop =
+        new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
+    filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
+    initializeDefaultPayload(filedrop, MACOS_PLATFORM);
+    filedrop.setAttackPatterns(attackPatterns);
+    filedrop.setArguments(arguments);
+    return filedrop;
+  }
 
   public static PayloadArgument createPayloadArgument(
       String key, ContractFieldType type, String defaultValue, String separator) {
