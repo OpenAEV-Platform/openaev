@@ -30,6 +30,7 @@ import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injector_contract.fields.ContractTargetedAsset;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import lombok.SneakyThrows;
@@ -207,6 +208,17 @@ public class InjectorContractFixture {
     ContractDef builder = contractBuilder();
     return builder
         .mandatoryOnConditionValue(assetField, assetGroupField, value)
+        .optional(assetGroupField)
+        .build();
+  }
+
+  public static List<ContractElement> buildMandatoryOnConditionValue(
+      @NotNull final List<String> values) {
+    ContractAsset assetField = assetField(Multiple);
+    ContractAssetGroup assetGroupField = assetGroupField(Multiple);
+    ContractDef builder = contractBuilder();
+    return builder
+        .mandatoryOnConditionValue(assetField, assetGroupField, values)
         .optional(assetGroupField)
         .build();
   }

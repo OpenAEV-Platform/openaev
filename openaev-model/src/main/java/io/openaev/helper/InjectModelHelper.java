@@ -123,11 +123,17 @@ public class InjectModelHelper {
                     jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
 
                 if (conditionalValuesNode.has(fieldKey)) {
-                  String specificValuesNode = conditionalValuesNode.get(fieldKey).asText();
+                  List<String> specificValuesNode =
+                      conditionalValuesNode.get(fieldKey).isArray()
+                          ? stream(conditionalValuesNode.get(fieldKey).spliterator(), false)
+                              .map(JsonNode::asText)
+                              .toList()
+                          : List.of(conditionalValuesNode.get(fieldKey).asText());
 
                   List<String> actualValues =
                       getFieldValue(teams, assets, assetGroups, conditionalFieldOpt.get(), content);
-                  boolean conditionMet = actualValues.contains(specificValuesNode);
+                  boolean conditionMet =
+                      actualValues.stream().anyMatch(specificValuesNode::contains);
 
                   if (!conditionMet) {
                     continue; // condition not met → skip
