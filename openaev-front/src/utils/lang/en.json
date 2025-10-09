@@ -699,7 +699,7 @@
   "faq.question.expectations_expire.summary": "Why do my detection / prevention expectations always expire?",
   "faq.question.get_help.details": "OpenAEV is an open source projects, if you find bugs or you want to request a feature, feel free to open an issue in our [Github repository](https://github.com/OpenAEV-Platform/openaev/issues) & if you need support, reach us anytime on [Slack](https://app.slack.com/client/TJ1PH4GBZ).",
   "faq.question.get_help.summary": "Where can I get help?",
-  "faq.question.inject_missing_content.details": "Missing content on an inject occurs when not all mandatory information are addressed, therefor the inject can’t be launch. \nIn most cases, your injects is missing a target (an asset or a team) and in some cases it is missing a specific argument.\nEdit your inject and provide the required content to run the inject smoothly.",
+  "faq.question.inject_missing_content.details": "Missing content on an inject occurs when not all mandatory information are addressed, therefore the inject can’t be launch. \nIn most cases, your injects is missing a target (an asset or a team) and in some cases it is missing a specific argument.\nEdit your inject and provide the required content to run the inject smoothly.",
   "faq.question.inject_missing_content.summary": "My inject has the status \"missing content\", what does that mean?",
   "faq.question.share_scenarios.details": "Scenarios can be exported and imported through the platform. You can also fetch new scenarios from our [XTM Hub library](https://hub.filigran.io/cybersecurity-solutions/open-bas-scenarios).",
   "faq.question.share_scenarios.summary": "How can I share or reuse scenarios?",
