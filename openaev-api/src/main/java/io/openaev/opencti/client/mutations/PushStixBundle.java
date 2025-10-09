@@ -30,7 +30,7 @@ public class PushStixBundle implements Mutation {
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.set("connectorId", mapper.valueToTree(connector.getId()));
-    node.set("bundle", bundle);
+    node.set("bundle", mapper.valueToTree(bundle.toString()));
     node.set("work_id", mapper.valueToTree(workId));
     return node;
   }
