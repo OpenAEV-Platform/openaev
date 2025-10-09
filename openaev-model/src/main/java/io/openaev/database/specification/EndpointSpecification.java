@@ -35,6 +35,16 @@ public class EndpointSpecification {
     };
   }
 
+  public static Specification<Endpoint> findEndpointsForAssetGroupTest(
+      @NotNull final List<String> assetGroupIds) {
+    return (root, query, criteriaBuilder) -> {
+      Join<Endpoint, AssetGroup> assetGroupJoin = root.join("assetGroups", JoinType.LEFT);
+      query.groupBy(root.get("id"));
+      query.distinct(true);
+      return assetGroupJoin.get("id").in(assetGroupIds);
+    };
+  }
+
   public static Specification<Endpoint> findEndpointsForAssetGroup(
       @NotNull final String assetGroupId) {
     return (root, query, criteriaBuilder) -> {
