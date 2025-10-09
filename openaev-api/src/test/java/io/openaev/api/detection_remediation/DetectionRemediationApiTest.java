@@ -216,7 +216,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(rules).isNotBlank();
     assertThat(rules)
         .isEqualTo(
-                """
+            """
                         <p>================================</p>
                         <p>Rule 1</p>
                         <p>Rule Type: Process Creation</p>
@@ -287,7 +287,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(rules).isNotBlank();
     assertThat(rules)
         .isEqualTo(
-                """
+            """
                         <p>================================</p>
                         <p>Rule 1</p>
                         <p>Rule Type: Process Creation</p>
@@ -412,7 +412,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(rules).isNotBlank();
     assertThat(rules)
         .isEqualTo(
-                """
+            """
                         <p>================================</p>
                         <p>Rule 1</p>
                         <p>Rule Type: Process Creation</p>
@@ -819,7 +819,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(rules).isNotBlank();
     assertThat(rules)
         .isEqualTo(
-                """
+            """
                         <p>================================</p>
                         <p>Rule 1</p>
                         <p>Rule Type: Process Creation</p>
@@ -942,7 +942,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(rules).isNotBlank();
     assertThat(rules)
         .isEqualTo(
-                """
+            """
                         <p>================================</p>
                         <p>Rule 1</p>
                         <p>Rule Type: Process Creation</p>

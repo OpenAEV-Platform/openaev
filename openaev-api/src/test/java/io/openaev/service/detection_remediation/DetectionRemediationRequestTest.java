@@ -169,8 +169,8 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
     input.setAttackPatternsIds(attackPatternsIds);
     switch (payload) {
       case Command ignored -> {
-          input.setExecutor("cmd");
-          input.setContent("vaultcmd /listcreds:\"Windows Credentials\"");
+        input.setExecutor("cmd");
+        input.setContent("vaultcmd /listcreds:\"Windows Credentials\"");
       }
       case DnsResolution ignored -> input.setHostname("example.com");
       default -> {}
