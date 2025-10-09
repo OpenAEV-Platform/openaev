@@ -12,6 +12,7 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.InjectorService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.time.Instant;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -40,13 +42,17 @@ public class Executor {
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
 
+  @Qualifier("coreInjectorService")
+  private final InjectorService injectorService;
+
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
       throws IOException, TimeoutException {
     Inject inject = executableInject.getInjection().getInject();
     String jsonInject = mapper.writeValueAsString(executableInject);
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
-    queueService.publish(injector.getType(), jsonInject);
+
+    queueService.publish(injectorService.getOriginInjectorType(injector.getType()), jsonInject);
     injectStatus.addInfoTrace(
         "The inject has been published and is now waiting to be consumed.",
         ExecutionTraceAction.EXECUTION);

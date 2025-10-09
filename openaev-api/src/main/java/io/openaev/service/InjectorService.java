@@ -67,6 +67,21 @@ public class InjectorService {
     injectorRepository.findById(injectorType + MOCK_SUFFIX).ifPresent(injectorRepository::delete);
   }
 
+  /**
+   * This method will check if the injector type is a mock if yes it will remove the mock suffix if
+   * no it will return the parameter It is used to send the execution to the correct injector even
+   * if the current one is just a mock
+   *
+   * @param injectorType
+   * @return
+   */
+  public String getOriginInjectorType(@NotBlank final String injectorType) {
+    if (injectorType.endsWith(MOCK_SUFFIX)) {
+      return injectorType.substring(0, injectorType.length() - MOCK_SUFFIX.length());
+    }
+    return injectorType;
+  }
+
   public InjectorRegistration registerInjector(
       InjectorCreateInput input, Optional<MultipartFile> file) {
     ConnectionFactory factory = new ConnectionFactory();
