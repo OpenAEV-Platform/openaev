@@ -15,7 +15,6 @@ import static java.util.Optional.ofNullable;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawAssetGroup;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
@@ -193,28 +192,28 @@ public class EndpointService {
         Endpoint.class);
   }
 
-  private List<RawAssetGroup> extractAssetGroupIdsFromSearchInput(
+  private List<AssetGroup> extractAssetGroupIdsFromSearchInput(
       SearchPaginationInput searchPaginationInput) {
     Optional<Filters.Filter> assetGroupFilter =
         ofNullable(searchPaginationInput.getFilterGroup())
             .flatMap(f -> f.findByKey(ASSET_GROUP_FILTER));
-    List<RawAssetGroup> assetGroups = new ArrayList<>();
+    List<AssetGroup> assetGroups = new ArrayList<>();
     if (assetGroupFilter.isPresent()) {
       List<String> assetGroupIds = assetGroupFilter.get().getValues();
-      assetGroups = assetGroupRepository.rawAssetGroupByIds(assetGroupIds);
+      assetGroups = fromIterable(assetGroupRepository.findAllById(assetGroupIds));
       searchPaginationInput.getFilterGroup().removeByKey(ASSET_GROUP_FILTER);
     }
     return assetGroups;
   }
 
   public Page<Endpoint> searchManagedEndpointsTest(SearchPaginationInput searchPaginationInput) {
-    List<RawAssetGroup> assetGroups = extractAssetGroupIdsFromSearchInput(searchPaginationInput);
+    List<AssetGroup> assetGroups = extractAssetGroupIdsFromSearchInput(searchPaginationInput);
 
     List<Specification<Endpoint>> specifications = new ArrayList<>();
-    for (RawAssetGroup assetGroup : assetGroups) {
-      if (!isEmptyFilterGroup(assetGroup.getAssetGroupDynamicFilter())) {
+    for (AssetGroup assetGroup : assetGroups) {
+      if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
         Specification<Endpoint> specificationDynamic =
-            computeFilterGroupJpa(assetGroup.getAssetGroupDynamicFilter());
+            computeFilterGroupJpa(assetGroup.getDynamicFilter());
 
         //        Specification<Endpoint> specificationDynamicWithInjection =
         //            specificationDynamic.and(findEndpointsForInjectionOrAgentlessEndpoints());
@@ -227,19 +226,11 @@ public class EndpointService {
       //      Specification<Endpoint> combinedSpec =
       //          Specification.anyOf(specifications.toArray(new Specification[0]));
       Specification<Endpoint> combinedSpec = specifications.get(0).or(specifications.get(1));
-      Specification<Endpoint> combinedSpec2 = specifications.getFirst();
 
       Page<Endpoint> dynamicResult =
           buildPaginationJPA(
               (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(combinedSpec.or(specification), pageable),
-              handleEndpointFilter(searchPaginationInput),
-              Endpoint.class);
-
-      Page<Endpoint> dynamicResult2 =
-          buildPaginationJPA(
-              (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(combinedSpec2.or(specification), pageable),
+                  this.endpointRepository.findAll(combinedSpec.and(specification), pageable),
               handleEndpointFilter(searchPaginationInput),
               Endpoint.class);
 
