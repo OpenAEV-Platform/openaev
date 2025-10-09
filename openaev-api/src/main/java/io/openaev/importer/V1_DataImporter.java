@@ -29,6 +29,7 @@ import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
+import io.openaev.service.InjectorService;
 import io.openaev.service.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.activation.MimetypesFileTypeMap;
@@ -43,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +79,9 @@ public class V1_DataImporter implements Importer {
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
   @Autowired private CollectorRepository collectorRepository;
+
+  @Qualifier("coreInjectorService")
+  private final InjectorService injectorService;
 
   // endregion
 
@@ -1035,7 +1040,7 @@ public class V1_DataImporter implements Importer {
           }
 
           if (injectorContractId == null) {
-            if (isStarterPack) {
+            if (isFromStarterPack) {
               // if the we are importing starter pack, we will create the injector contract so the
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
@@ -1179,7 +1184,7 @@ public class V1_DataImporter implements Importer {
                 })
             .toList();
     if (!childInjects.isEmpty()) {
-      importInjects(baseIds, exercise, scenario, childInjects, allInjects);
+      importInjects(baseIds, exercise, scenario, childInjects, allInjects, isFromStarterPack);
     }
   }
 

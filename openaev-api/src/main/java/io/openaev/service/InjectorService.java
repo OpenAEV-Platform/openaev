@@ -58,6 +58,11 @@ public class InjectorService {
     return injectorRepository.save(injector);
   }
 
+  /**
+   * Check if a mock injector exist for an injector type and delete it
+   *
+   * @param injectorType
+   */
   public void deleteMockInjectorIfItExists(@NotBlank final String injectorType) {
     injectorRepository.findById(injectorType + MOCK_SUFFIX).ifPresent(injectorRepository::delete);
   }
