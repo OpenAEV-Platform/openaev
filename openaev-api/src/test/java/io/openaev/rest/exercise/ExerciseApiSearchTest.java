@@ -1,5 +1,6 @@
 package io.openaev.rest.exercise;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.ExerciseStatus.SCHEDULED;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
@@ -11,8 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Exercise;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.GrantRepository;
+import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.exercise.form.GetExercisesInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -31,6 +36,9 @@ public class ExerciseApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private GroupRepository groupRepository;
+  @Autowired private GrantRepository grantRepository;
+  @Autowired private UserRepository userRepository;
 
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
 
@@ -168,6 +176,98 @@ public class ExerciseApiSearchTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput)))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2));
+      }
+
+      @Test
+      @DisplayName("Search exercises by ids as admin")
+      void given_list_of_ids_select_exercises() throws Exception {
+        GetExercisesInput getExercisesInput = new GetExercisesInput();
+        getExercisesInput.setExerciseIds(EXERCISE_IDS);
+
+        mvc.perform(
+                post(EXERCISE_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getExercisesInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(2));
+      }
+
+      @Test
+      @DisplayName("Search exercises by ids as user granted")
+      @WithMockUser(isAdmin = false, withCapabilities = Capability.ACCESS_ASSESSMENT)
+      void given_list_of_ids_select_exercises_with_capabilities() throws Exception {
+        GetExercisesInput getExercisesInput = new GetExercisesInput();
+        getExercisesInput.setExerciseIds(EXERCISE_IDS);
+
+        mvc.perform(
+                post(EXERCISE_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getExercisesInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(2));
+      }
+
+      @Test
+      @DisplayName("Search exercises by ids as user non granted")
+      @WithMockUser(isAdmin = false)
+      void given_list_of_ids_select_exercises_without_capabilities_no_grants() throws Exception {
+        GetExercisesInput getExercisesInput = new GetExercisesInput();
+        getExercisesInput.setExerciseIds(EXERCISE_IDS);
+
+        mvc.perform(
+                post(EXERCISE_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getExercisesInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(0));
+      }
+
+      @Test
+      @DisplayName("Search exercises by ids as user granted on some exercises")
+      @WithMockUser(isAdmin = false)
+      void given_list_of_ids_select_exercises_without_capabilities_with_grants() throws Exception {
+        Exercise exerciseGranted = ExerciseFixture.createDefaultExercise();
+        User user = userRepository.findById(currentUser().getId()).get();
+        Group group = new Group();
+        group.setName("test");
+        group = groupRepository.save(group);
+        exerciseGranted.getGrants().addAll(group.getGrants());
+        exerciseGranted = exerciseRepository.save(exerciseGranted);
+
+        Grant grantObserver = new Grant();
+        grantObserver.setResourceId(exerciseGranted.getId());
+        grantObserver.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
+        grantObserver.setGroup(group);
+        grantObserver.setName(Grant.GRANT_TYPE.OBSERVER);
+        Grant grantPlanner = new Grant();
+        grantPlanner.setResourceId(exerciseGranted.getId());
+        grantPlanner.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
+        grantPlanner.setGroup(group);
+        grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
+        grantRepository.saveAll(List.of(grantObserver, grantPlanner));
+        group.setGrants(List.of(grantObserver, grantPlanner));
+        group.setUsers(List.of(user));
+        groupRepository.save(group);
+        EXERCISE_IDS.add(exerciseGranted.getId());
+
+        GetExercisesInput getExercisesInput = new GetExercisesInput();
+        List<String> exerciseIds = new ArrayList<>();
+        exerciseIds.add(exerciseGranted.getId());
+        exerciseIds.addAll(EXERCISE_IDS);
+        getExercisesInput.setExerciseIds(exerciseIds);
+
+        mvc.perform(
+                post(EXERCISE_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getExercisesInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(1));
+
+        exerciseRepository.delete(exerciseGranted);
       }
     }
   }
