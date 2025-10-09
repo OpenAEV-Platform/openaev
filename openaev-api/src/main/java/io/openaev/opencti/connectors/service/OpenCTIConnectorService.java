@@ -1,6 +1,5 @@
 package io.openaev.opencti.connectors.service;
 
-import io.openaev.opencti.client.mutations.PushStixBundle;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
@@ -52,15 +51,20 @@ public class OpenCTIConnectorService {
     }
   }
 
-  public PushStixBundle.ResponsePayload pushSecurityCoverageStixBundle(Bundle bundle)
-      throws ConnectorError, IOException {
+  public void pushSecurityCoverageStixBundle(Bundle bundle) throws ConnectorError, IOException {
+    // don't examine the bundle
+    // pick the first occurrence of the correct connector type
+    // it's not supported yet to have more than one active connector of each type
     Optional<ConnectorBase> connector =
-        connectors.stream().filter(c -> c instanceof SecurityCoverageConnector).findFirst();
-    if (connector.isEmpty() || !connector.get().isRegistered()) {
+        connectors.stream()
+            .filter(c -> c instanceof SecurityCoverageConnector && c.shouldRegister())
+            .findFirst();
+
+    if (connector.isEmpty()) {
       throw new ConnectorError(
-          "Security Coverage connector is not ready to send security coverage bundles.");
+          "No instance of Security Coverage connector is currently active to send security coverage bundles.");
     }
 
-    return openCTIService.sendSecurityCoverageStixBundle(bundle, connector.get());
+    openCTIService.sendSecurityCoverageStixBundle(bundle, connector.get());
   }
 }

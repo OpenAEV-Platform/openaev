@@ -92,7 +92,12 @@ public class OpenCTIService {
 
   public PushStixBundle.ResponsePayload sendSecurityCoverageStixBundle(
       Bundle bundle, ConnectorBase connector) throws IOException, ConnectorError {
-    Mutation m = new PushStixBundle(connector, bundle.toStix(mapper));
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot send STIX bundle via connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getUrl()));
+    }
+
     Response r =
         openCTIClient.execute(
             connector.getUrl(),

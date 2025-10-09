@@ -1,5 +1,6 @@
 package io.openaev.opencti.client.mutations;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,5 +36,8 @@ public class PushStixBundle implements Mutation {
   }
 
   @Data
-  public class ResponsePayload {}
+  public static class ResponsePayload {
+    @JsonProperty("stixBundlePush")
+    private Boolean stixBundlePush;
+  }
 }
