@@ -41,7 +41,6 @@ public class SmtpService extends ExternalServiceBase {
 
   // Check connection every 10 seconds
   @Scheduled(fixedDelay = 10000, initialDelay = 10000)
-  @Profile("!test")
   public void connectionListener() {
     this.testConnection();
   }
