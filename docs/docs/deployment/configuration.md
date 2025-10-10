@@ -69,7 +69,7 @@ Here are the configuration keys, for both containers (environment variables) and
 
 ### Dependencies
 
-#### XTM Suite: OpenCTI
+#### XTM Suite: OpenCTI (Classic API)
 
 | Parameter                           | Environment variable                | Default value | Description                                                                                         |
 |:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------|
@@ -78,6 +78,19 @@ Here are the configuration keys, for both containers (environment variables) and
 | openbas.xtm.opencti.api_url         | OPENBAS_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completly override the OpenCTI URL, otherwise the default url will be `openbas.xtm.opencti.url` + '/graphql'|
 | openbas.xtm.opencti.token           | OPENBAS_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                       |
 | openbas.xtm.opencti.disable-display | OPENBAS_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                           |
+
+#### XTM Suite: OpenCTI (Connector)
+
+You can configure connectors individually, on the basis of a single connector per connector type per OpenAEV instance.
+
+Currently, the only supported connector is "OpenAEV Coverage" (aka Security Coverage).
+
+| Parameter                                                           | Environment variable                                                | Default value | Description                                                                                                   |
+|:--------------------------------------------------------------------|:--------------------------------------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------|
+| openaev.xtm.opencti.connector.security-coverage.url                 | OPENAEV_XTM_OPENCTI_CONNECTOR_SECURITY-COVERAGE_URL                 |               | Root URL (FQDN) to the OpenCTI instance to connect with the Connector. Example: `https://opencti.example`     |
+| openaev.xtm.opencti.connector.security-coverage.id                  | OPENAEV_XTM_OPENCTI_CONNECTOR_SECURITY-COVERAGE_ID                  |               | Unique ID for the Connector. Will be visible to the target OpenCTI instance.                                  |
+| openaev.xtm.opencti.connector.security-coverage.auth-token          | OPENAEV_XTM_OPENCTI_CONNECTOR_SECURITY-COVERAGE_AUTH-TOKEN          |               | An OpenCTI API token that is valid on the configured OpenCTI instance. Ask the OpenCTI administrator for one. |
+
 
 #### XTM Suite: XTM Hub
 
