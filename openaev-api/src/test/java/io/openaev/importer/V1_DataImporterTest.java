@@ -9,6 +9,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.service.ScenarioService;
 import io.openaev.utils.constants.Constants;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,11 +41,19 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Autowired private ScenarioRepository scenarioRepository;
 
+  @Autowired private ScenarioService scenarioService;
+
   @Autowired private PayloadRepository payloadRepository;
 
   @Autowired private AttackPatternRepository attackPatternRepository;
 
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
+
+  @Autowired private InjectorRepository injectorRepository;
+
+  @Autowired private InjectorContractRepository injectorContractRepository;
+
+  @Autowired private InjectRepository injectRepository;
 
   private JsonNode importNode;
 
@@ -57,6 +66,7 @@ class V1_DataImporterTest extends IntegrationTest {
   public static final String ATTACK_PATTERN_EXTERNAL_ID = "ATTACK_PATTERN_EXTERNAL_ID";
   public static final String KILLCHAIN_EXTERNAL_ID = "KILLCHAIN_EXTERNAL_ID";
   public static final String PAYLOAD_EXTERNAL_ID = "PAYLOAD_EXTERNAL_ID";
+  public static final String NMAP_MOCK_INJECTOR_TYPE = "openaev_nmap_mock";
 
   @BeforeEach
   void cleanBefore() throws IOException {
@@ -64,6 +74,9 @@ class V1_DataImporterTest extends IntegrationTest {
     attackPatternRepository.deleteAll();
     exerciseRepository.deleteAll();
     scenarioRepository.deleteAll();
+    injectRepository.deleteAll();
+    injectorContractRepository.deleteAll();
+    injectorRepository.deleteAll();
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -163,6 +176,38 @@ class V1_DataImporterTest extends IntegrationTest {
     // verify that the new payload use the same attack pattern / killchain phase
     assertEquals(attackPattern.getId(), attackPattern2.getId());
     assertEquals(killChainPhase.getId(), killChainPhase2.getId());
+  }
+
+  @Test
+  @Transactional
+  void
+      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_mock_injector()
+          throws IOException {
+
+    MockitoAnnotations.openMocks(this);
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
+    this.importNode = mapper.readTree(jsonContent);
+    this.importer.importData(
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX,
+        true);
+
+    // mock injector should be created with 1 associated injector contract
+    Injector mockInjector =
+        this.injectorRepository.findByType(NMAP_MOCK_INJECTOR_TYPE).orElseThrow();
+    List<InjectorContract> injectorContracts =
+        injectorContractRepository.findInjectorContractsByInjector(mockInjector);
+    assertEquals(1, injectorContracts.size());
   }
 
   // -- UTILS --

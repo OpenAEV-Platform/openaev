@@ -1262,7 +1262,8 @@ public class V1_DataImporter implements Importer {
     injectorContract.setInjector(createMockInjector(importNode));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
-    injectorContract.setLabels(new ObjectMapper()
+    injectorContract.setLabels(
+        new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     return injectorContractRepository.save(injectorContract);
   }
