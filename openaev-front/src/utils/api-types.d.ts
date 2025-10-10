@@ -6163,7 +6163,7 @@ export interface VulnerabilityOutput {
    * CVSS score
    * @example 7.8
    */
-  cve_cvss_v31: number;
+  vulnerability_cvss_v31: number;
   /**
    * CISA required action due date
    * @format date-time
@@ -6182,18 +6182,6 @@ export interface VulnerabilityOutput {
   cve_cwes?: CweOutput[];
   /** Detailed CVE description */
   cve_description?: string;
-  /**
-   * External CVE identifier
-   * @example "CVE-2024-0001"
-   */
-  cve_external_id: string;
-  /** Id */
-  cve_id: string;
-  /**
-   * CVE published date
-   * @format date-time
-   */
-  cve_published?: string;
   /** External references */
   cve_reference_urls?: string[];
   /** Remediation suggestions */
@@ -6202,27 +6190,39 @@ export interface VulnerabilityOutput {
   cve_source_identifier?: string;
   /** Status of the vulnerability */
   cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+  /**
+   * External Vulnerability identifier
+   * @example "CVE-2024-0001"
+   */
+  vulnerability_external_id: string;
+  /** Id */
+  vulnerability_id: string;
+  /**
+   * CVE published date
+   * @format date-time
+   */
+  vulnerability_published?: string;
 }
 
-/** Simplified CVE representation */
+/** Simplified Vulnerability representation */
 export interface VulnerabilitySimple {
   /**
    * CVSS score
    * @example 7.8
    */
-  cve_cvss_v31: number;
+  vulnerability_cvss_v31: number;
   /**
-   * External CVE identifier
+   * External Vulnerability identifier
    * @example "CVE-2024-0001"
    */
-  cve_external_id: string;
+  vulnerability_external_id: string;
   /** Id */
-  cve_id: string;
+  vulnerability_id: string;
   /**
    * CVE published date
    * @format date-time
    */
-  cve_published?: string;
+  vulnerability_published?: string;
 }
 
 /** Payload to update a CVE */
