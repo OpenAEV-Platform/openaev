@@ -44,7 +44,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -189,7 +188,15 @@ public class V1_DataImporter implements Importer {
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
     importObjectives(importNode, prefix, savedExercise, savedScenario, baseIds);
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
-    importInjects(importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds, isFromStarterPack);
+    importInjects(
+        importNode,
+        prefix,
+        savedExercise,
+        savedScenario,
+        asset,
+        assetGroup,
+        baseIds,
+        isFromStarterPack);
     importVariables(importNode, savedExercise, savedScenario, baseIds);
   }
 
@@ -1211,7 +1218,15 @@ public class V1_DataImporter implements Importer {
                 })
             .toList();
     if (!childInjects.isEmpty()) {
-      importInjects(baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects, isFromStarterPack);
+      importInjects(
+          baseIds,
+          exercise,
+          scenario,
+          asset,
+          assetGroup,
+          childInjects,
+          allInjects,
+          isFromStarterPack);
     }
   }
 
@@ -1242,6 +1257,8 @@ public class V1_DataImporter implements Importer {
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
     injectorContract.setInjector(createMockInjector(importNode));
+    injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
+    injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
     return injectorContractRepository.save(injectorContract);
   }
 
