@@ -36,7 +36,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     private final InjectorContract injectorContract;
     private final List<AttackPatternComposer.Composer> attackPatternComposer = new ArrayList<>();
-    private final List<CveComposer.Composer> vulnerabilityComposer = new ArrayList<>();
+    private final List<VulnerabilityComposer.Composer> vulnerabilityComposer = new ArrayList<>();
     private Optional<PayloadComposer.Composer> payloadComposer = Optional.empty();
     private final List<ChallengeComposer.Composer> challengeComposers = new ArrayList<>();
     private final List<ArticleComposer.Composer> articleComposers = new ArrayList<>();
@@ -62,7 +62,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       return this;
     }
 
-    public Composer withVulnerability(CveComposer.Composer cveComposer) {
+    public Composer withVulnerability(VulnerabilityComposer.Composer cveComposer) {
       this.vulnerabilityComposer.add(cveComposer);
       Set<Vulnerability> tempVulnerability = this.injectorContract.getVulnerabilities();
       tempVulnerability.add(cveComposer.get());
@@ -141,7 +141,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       challengeComposers.forEach(ChallengeComposer.Composer::persist);
       articleComposers.forEach(ArticleComposer.Composer::persist);
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
-      vulnerabilityComposer.forEach(CveComposer.Composer::persist);
+      vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
         entityManager.persist(injectorContract.getInjector());
         injectorRepository.save(injectorContract.getInjector());
@@ -158,7 +158,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       challengeComposers.forEach(ChallengeComposer.Composer::delete);
       articleComposers.forEach(ArticleComposer.Composer::delete);
       attackPatternComposer.forEach(AttackPatternComposer.Composer::delete);
-      vulnerabilityComposer.forEach(CveComposer.Composer::delete);
+      vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::delete);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
         injectorContractRepository.delete(injectorContract);
       }

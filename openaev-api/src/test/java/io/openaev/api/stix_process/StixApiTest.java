@@ -56,7 +56,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
 
   @Autowired private AttackPatternComposer attackPatternComposer;
-  @Autowired private CveComposer vulnerabilityComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private TagRuleComposer tagRuleComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private EndpointComposer endpointComposer;

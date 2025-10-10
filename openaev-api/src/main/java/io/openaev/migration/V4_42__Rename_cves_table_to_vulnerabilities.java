@@ -28,7 +28,7 @@ public class V4_42__Rename_cves_table_to_vulnerabilities extends BaseJavaMigrati
                     ALTER TABLE vulnerabilities RENAME COLUMN cve_published TO vulnerability_published;
                     ALTER TABLE vulnerabilities RENAME COLUMN cve_description TO vulnerability_description;
                     ALTER TABLE vulnerabilities RENAME COLUMN cve_vuln_status TO vulnerability_vuln_status;
-                    ALTER TABLE vulnerabilities RENAME COLUMN cve_cvss TO vulnerability_cvss;
+                    ALTER TABLE vulnerabilities RENAME COLUMN cve_cvss_v31 TO vulnerability_cvss_v31;
                     ALTER TABLE vulnerabilities RENAME COLUMN cve_cisa_exploit_add TO vulnerability_cisa_exploit_add;
                     ALTER TABLE vulnerabilities RENAME COLUMN cve_cisa_action_due TO vulnerability_cisa_action_due;
                     ALTER TABLE vulnerabilities RENAME COLUMN cve_cisa_required_action TO vulnerability_cisa_required_action;

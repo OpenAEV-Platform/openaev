@@ -34,7 +34,7 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
-import io.openaev.utils.fixtures.composers.CveComposer;
+import io.openaev.utils.fixtures.composers.VulnerabilityComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -71,7 +71,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
-  @Autowired private CveComposer cveComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadComposer payloadComposer;
 
@@ -85,7 +85,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     payloadComposer.reset();
-    cveComposer.reset();
+    vulnerabilityComposer.reset();
     userComposer.reset();
     groupComposer.reset();
     roleComposer.reset();
@@ -168,7 +168,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
+          vulnerabilityComposer
               .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
               .persist();
         }
@@ -177,7 +177,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
         input.setVulnerabilityIds(
-            cveComposer.generatedItems.stream().map(Vulnerability::getId).toList());
+            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL
@@ -280,8 +280,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
-        CveComposer.Composer vulnWrapper =
-            cveComposer
+        VulnerabilityComposer.Composer vulnWrapper =
+            vulnerabilityComposer
                 .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
@@ -318,12 +318,12 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract succeeds with external vuln IDs")
       void updateContractWithExtVulnIdsSucceeds() throws Exception {
-        CveComposer.Composer vulnWrapper =
-            cveComposer
+        VulnerabilityComposer.Composer vulnWrapper =
+            vulnerabilityComposer
                 .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
                 .persist();
-        CveComposer.Composer otherVulnWrapper =
-            cveComposer
+        VulnerabilityComposer.Composer otherVulnWrapper =
+            vulnerabilityComposer
                 .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
@@ -557,7 +557,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities, creating contract succeeds")
       void withExistingVulnerabilitiesCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
+          vulnerabilityComposer
               .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
               .persist();
         }
@@ -567,7 +567,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(
-            cveComposer.generatedItems.stream().map(Vulnerability::getId).toList());
+            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
 
@@ -605,7 +605,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                     injectorContractInternalId,
                     String.join(
                         ",",
-                        cveComposer.generatedItems.stream()
+                        vulnerabilityComposer.generatedItems.stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
                             .toList())));
       }
@@ -614,7 +614,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities by external ID, creating contract succeeds")
       void withExistingVulnerabilitiesByExternalIdCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
+          vulnerabilityComposer
               .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
               .persist();
         }
@@ -625,7 +625,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setVulnerabilityExternalIds(
             // force converting the ids to lower case; it must work in case-insensitive mode
-            cveComposer.generatedItems.stream()
+            vulnerabilityComposer.generatedItems.stream()
                 .map(vuln -> vuln.getExternalId().toLowerCase())
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
@@ -665,7 +665,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                     injectorContractInternalId,
                     String.join(
                         ",",
-                        cveComposer.generatedItems.stream()
+                        vulnerabilityComposer.generatedItems.stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
                             .toList())));
       }
@@ -809,7 +809,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
+          vulnerabilityComposer
               .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
               .persist();
         }
@@ -818,7 +818,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
         input.setVulnerabilityIds(
-            cveComposer.generatedItems.stream().map(Vulnerability::getId).toList());
+            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
@@ -907,8 +907,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
-        CveComposer.Composer vulnWrapper =
-            cveComposer
+        VulnerabilityComposer.Composer vulnWrapper =
+            vulnerabilityComposer
                 .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
