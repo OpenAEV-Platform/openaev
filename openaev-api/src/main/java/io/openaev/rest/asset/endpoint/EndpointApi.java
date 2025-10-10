@@ -202,8 +202,7 @@ public class EndpointApi extends RestBehavior {
   public Page<EndpointTargetOutput> targetEndpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
 
-    Page<Endpoint> endpointPage = endpointService.searchManagedEndpointsTest(searchPaginationInput);
-
+    Page<Endpoint> endpointPage = endpointService.searchManagedEndpoints(searchPaginationInput);
     List<EndpointTargetOutput> endpointTargetOutputs =
         endpointPage.getContent().stream().map(endpointMapper::toEndpointTargetOutput).toList();
     return new PageImpl<>(
