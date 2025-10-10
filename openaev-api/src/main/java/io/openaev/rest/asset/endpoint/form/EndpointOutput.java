@@ -18,6 +18,7 @@ import lombok.Setter;
 @Builder
 @JsonInclude(NON_NULL)
 public class EndpointOutput {
+
   @Schema(description = "Asset Id")
   @JsonProperty("asset_id")
   @NotBlank
