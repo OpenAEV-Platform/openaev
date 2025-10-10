@@ -83,11 +83,6 @@ public class Asset implements Base {
 
   @JsonIgnore
   @ManyToMany(mappedBy = "assets")
-//  @ManyToMany(fetch = FetchType.LAZY)
-//  @JoinTable(
-//          name = "asset_groups_assets",
-//          joinColumns = @JoinColumn(name = "asset_id"),
-//          inverseJoinColumns = @JoinColumn(name = "asset_group_id"))
   @Queryable(filterable = true, dynamicValues = true, path = "assetGroups.id")
   private Set<AssetGroup> assetGroups = new HashSet<>();
 
