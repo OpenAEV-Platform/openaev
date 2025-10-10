@@ -35,14 +35,14 @@ public class TeamSpecification {
 
   public static Specification<Team> fromExercise(@NotBlank final String exerciseId) {
     return (root, query, cb) -> {
-      Join<Team, Exercise> exercisesJoin = root.join("exercises", JoinType.LEFT);
+      Join<Team, Exercise> exercisesJoin = root.join("exercises", JoinType.INNER);
       return cb.equal(exercisesJoin.get("id"), exerciseId);
     };
   }
 
   public static Specification<Team> fromScenario(@NotBlank final String scenarioId) {
     return (root, query, cb) -> {
-      Join<Team, Scenario> scenariosJoin = root.join("scenarios", JoinType.LEFT);
+      Join<Team, Scenario> scenariosJoin = root.join("scenarios", JoinType.INNER);
       return cb.equal(scenariosJoin.get("id"), scenarioId);
     };
   }

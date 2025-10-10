@@ -3,11 +3,10 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchExerciseInjectExpectations } from '../../../../../actions/Exercise';
+import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { fetchExerciseInjects } from '../../../../../actions/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import { fetchTeams } from '../../../../../actions/teams/team-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import arrowDark from '../../../../../static/images/misc/arrow_dark.png';
@@ -56,7 +55,7 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
     const fetchPromises = [
       dispatch(fetchExerciseInjectExpectations(exerciseId)),
       dispatch(fetchExerciseInjects(exerciseId)),
-      dispatch(fetchTeams()),
+      dispatch(fetchExerciseTeams(exerciseId)),
     ];
     Promise.all(fetchPromises)
       .finally(() => {
