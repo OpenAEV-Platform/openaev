@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.database.model.Filters.FilterMode.and;
+import static io.openaev.database.model.Filters.FilterMode.or;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.database.specification.EndpointSpecification.*;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
@@ -63,7 +65,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EndpointService {
 
-  private static final String ASSET_GROUP_FILTER = "asset_groups";
+  private static final String ASSET_GROUP_FILTER = "assetGroups";
 
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
@@ -201,7 +203,6 @@ public class EndpointService {
     if (assetGroupFilter.isPresent()) {
       List<String> assetGroupIds = assetGroupFilter.get().getValues();
       assetGroups = fromIterable(assetGroupRepository.findAllById(assetGroupIds));
-      searchPaginationInput.getFilterGroup().removeByKey(ASSET_GROUP_FILTER);
     }
     return assetGroups;
   }
@@ -214,53 +215,42 @@ public class EndpointService {
       if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
         Specification<Endpoint> specificationDynamic =
             computeFilterGroupJpa(assetGroup.getDynamicFilter());
-
-        //        Specification<Endpoint> specificationDynamicWithInjection =
-        //            specificationDynamic.and(findEndpointsForInjectionOrAgentlessEndpoints());
-
         specifications.add(specificationDynamic);
       }
     }
 
-    if (!specifications.isEmpty()) {
-      //      Specification<Endpoint> combinedSpec =
-      //          Specification.anyOf(specifications.toArray(new Specification[0]));
-      Specification<Endpoint> combinedSpec = specifications.get(0).or(specifications.get(1));
+    Specification<Endpoint> finalSpec = !specifications.isEmpty() ?
+            Specification.anyOf(specifications).and(findEndpointsForInjectionOrAgentlessEndpoints()):
+            findEndpointsForInjectionOrAgentlessEndpoints();
 
-      Page<Endpoint> dynamicResult =
-          buildPaginationJPA(
+    Filters.FilterMode mode = searchPaginationInput.getFilterGroup().getMode();
+
+    return buildPaginationJPA(
               (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(combinedSpec.and(specification), pageable),
+                  this.endpointRepository.findAll(and.equals(mode) || specifications.isEmpty() ? finalSpec.and(specification) : finalSpec.or(specification), pageable),
               handleEndpointFilter(searchPaginationInput),
               Endpoint.class);
 
-      Page<Endpoint> staticResult =
-          buildPaginationJPA(
-              (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(
-                      findEndpointsForInjectionOrAgentlessEndpoints().and(specification), pageable),
-              handleEndpointFilter(searchPaginationInput),
-              Endpoint.class);
-
-      // TODO check if pagination is working with the merge
-      List<Endpoint> mergedContent =
-          Stream.concat(dynamicResult.getContent().stream(), staticResult.getContent().stream())
-              .distinct()
-              .limit(searchPaginationInput.getSize())
-              .collect(Collectors.toList());
-
-      long total = dynamicResult.getTotalElements() + staticResult.getTotalElements();
-
-      Pageable pageable = buildPageable(searchPaginationInput, Endpoint.class);
-      return new PageImpl<>(mergedContent, pageable, total);
-    } else {
-      return buildPaginationJPA(
-          (Specification<Endpoint> specification, Pageable pageable) ->
-              this.endpointRepository.findAll(
-                  findEndpointsForInjectionOrAgentlessEndpoints().and(specification), pageable),
-          handleEndpointFilter(searchPaginationInput),
-          Endpoint.class);
-    }
+//    if (!specifications.isEmpty()) {
+//      Specification<Endpoint> combinedDynamicAssetGroupSpecs = Specification.anyOf(specifications);
+//      Specification<Endpoint> finalSpec = combinedDynamicAssetGroupSpecs.and(findEndpointsForInjectionOrAgentlessEndpoints());
+//
+//      Filters.FilterMode mode = searchPaginationInput.getFilterGroup().getMode();
+//
+//      return buildPaginationJPA(
+//              (Specification<Endpoint> specification, Pageable pageable) ->
+//                  this.endpointRepository.findAll(or.equals(mode) ? finalSpec.or(specification) : finalSpec.and(specification), pageable),
+//              handleEndpointFilter(searchPaginationInput),
+//              Endpoint.class);
+//
+//    } else {
+//      return buildPaginationJPA(
+//          (Specification<Endpoint> specification, Pageable pageable) ->
+//              this.endpointRepository.findAll(
+//                  findEndpointsForInjectionOrAgentlessEndpoints().and(specification), pageable),
+//          handleEndpointFilter(searchPaginationInput),
+//          Endpoint.class);
+//    }
   }
 
   public Page<Endpoint> searchManagedEndpoints(
