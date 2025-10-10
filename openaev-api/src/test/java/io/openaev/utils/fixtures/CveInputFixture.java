@@ -1,6 +1,6 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.rest.cve.form.CveCreateInput;
+import io.openaev.rest.vulnerability.form.VulnerabilityCreateInput;
 import java.math.BigDecimal;
 
 public class CveInputFixture {
@@ -9,8 +9,8 @@ public class CveInputFixture {
   public static final BigDecimal CVE_CVSS_V31 = new BigDecimal("4.5");
   public static final String CVE_DESCRIPTION = "Description";
 
-  public static CveCreateInput createDefaultCveCreateInput() {
-    CveCreateInput input = new CveCreateInput();
+  public static VulnerabilityCreateInput createDefaultCveCreateInput() {
+    VulnerabilityCreateInput input = new VulnerabilityCreateInput();
     input.setExternalId(CVE_EXTERNAL_ID);
     input.setCvssV31(CVE_CVSS_V31);
     input.setDescription(CVE_DESCRIPTION);

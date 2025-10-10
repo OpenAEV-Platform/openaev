@@ -87,7 +87,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
 
     List<AttackPattern> attackPatternList =
         attackPatternWrappers.keySet().stream().map(AttackPatternComposer.Composer::get).toList();
-    List<Cve> vulnerabilities =
+    List<Vulnerability> vulnerabilities =
         vulnWrappers.keySet().stream().map(CveComposer.Composer::get).toList();
 
     ExerciseComposer.Composer exerciseWrapper =

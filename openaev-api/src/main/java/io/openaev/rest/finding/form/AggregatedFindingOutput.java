@@ -27,7 +27,7 @@ public class AggregatedFindingOutput {
 
   @Schema(
       description = "Represents the data type being extracted.",
-      example = "text, number, port, portscan, ipv4, ipv6, credentials, cve")
+      example = "text, number, port, portscan, ipv4, ipv6, credentials, vulnerability")
   @JsonProperty("finding_type")
   @NotNull
   private ContractOutputType type;

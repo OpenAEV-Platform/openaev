@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { fetchCveByExternalId } from '../../../actions/cve-actions';
+import { fetchVulnerabilityByExternalId } from '../../../actions/vulnerability-actions';
 import type { Page } from '../../../components/common/queryable/Page';
 import { type Header } from '../../../components/common/SortHeadersList';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
@@ -8,12 +8,12 @@ import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type AggregatedFindingOutput, type CveOutput, type RelatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { type CveStatus } from '../settings/cves/CveDetail';
-import CveTabPanel from '../settings/cves/CveTabPanel';
-import GeneralVulnerabilityInfoTab from '../settings/cves/GeneralVulnerabilityInfoTab';
-import RelatedInjectsTab from '../settings/cves/RelatedInjectsTab';
-import RemediationInfoTab from '../settings/cves/RemediationInfoTab';
-import TabLabelWithEE from '../settings/cves/TabLabelWithEE';
+import { type CveStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
+import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
+import GeneralVulnerabilityInfoTab from '../settings/vulnerabilities/GeneralVulnerabilityInfoTab';
+import RelatedInjectsTab from '../settings/vulnerabilities/RelatedInjectsTab';
+import RemediationInfoTab from '../settings/vulnerabilities/RemediationInfoTab';
+import TabLabelWithEE from '../settings/vulnerabilities/TabLabelWithEE';
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
@@ -40,9 +40,9 @@ const FindingDetail = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  const isCVE = selectedFinding.finding_type === 'cve';
+  const isCVE = selectedFinding.finding_type === 'vulnerability';
 
-  const [cve, setCve] = useState<CveOutput | null>(null);
+  const [vulnerability, setCve] = useState<CveOutput | null>(null);
   const [cveStatus, setCveStatus] = useState<CveStatus>('loading');
 
   useEffect(() => {
@@ -50,7 +50,7 @@ const FindingDetail = ({
 
     setCveStatus('loading');
 
-    fetchCveByExternalId(selectedFinding.finding_value)
+    fetchVulnerabilityByExternalId(selectedFinding.finding_value)
       .then((res) => {
         setCve(res.data);
         if (res.data?.cve_cvss_v31 && onCvssScore) {
@@ -83,9 +83,9 @@ const FindingDetail = ({
     switch (currentTab) {
       case 'General':
         return (
-          <CveTabPanel status={cveStatus} cve={cve}>
-            <GeneralVulnerabilityInfoTab cve={cve!} />
-          </CveTabPanel>
+          <VulnerabilityTabPanel status={cveStatus} vulnerability={vulnerability}>
+            <GeneralVulnerabilityInfoTab vulnerability={vulnerability!} />
+          </VulnerabilityTabPanel>
         );
       case 'Related Injects':
         return (
@@ -100,9 +100,9 @@ const FindingDetail = ({
       case 'Remediation':
         return isEE
           ? (
-              <CveTabPanel status={cveStatus} cve={cve}>
-                <RemediationInfoTab cve={cve!} />
-              </CveTabPanel>
+              <VulnerabilityTabPanel status={cveStatus} vulnerability={vulnerability}>
+                <RemediationInfoTab vulnerability={vulnerability!} />
+              </VulnerabilityTabPanel>
             )
           : null;
       default:

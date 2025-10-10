@@ -8,9 +8,9 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Cve;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
@@ -64,7 +64,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     public Composer withVulnerability(CveComposer.Composer cveComposer) {
       this.vulnerabilityComposer.add(cveComposer);
-      Set<Cve> tempVulnerability = this.injectorContract.getVulnerabilities();
+      Set<Vulnerability> tempVulnerability = this.injectorContract.getVulnerabilities();
       tempVulnerability.add(cveComposer.get());
       this.injectorContract.setVulnerabilities(tempVulnerability);
       return this;

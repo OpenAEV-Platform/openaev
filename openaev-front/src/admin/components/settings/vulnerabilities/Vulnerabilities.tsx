@@ -21,9 +21,9 @@ import { type CveSimple, type SearchPaginationInput } from '../../../../utils/ap
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TaxonomiesMenu from '../TaxonomiesMenu';
-import CreateCve from './CreateCve';
-import CveDetail from './CveDetail';
-import CvePopover from './CvePopover';
+import CreateVulnerability from './CreateVulnerability';
+import VulnerabilityDetail from './VulnerabilityDetail';
+import VulnerabilityPopover from './VulnerabilityPopover';
 
 const useStyles = makeStyles()({
   itemHead: { textTransform: 'uppercase' },
@@ -126,7 +126,7 @@ const Vulnerabilities = () => {
               divider
               disablePadding
               secondaryAction={(
-                <CvePopover
+                <VulnerabilityPopover
                   vulnerability={vulnerability}
                   onUpdate={(result: CveSimple) => setVulnerabilities(vulnerabilities.map(a => (a.cve_id !== result.cve_id ? a : result)))}
                   onDelete={(result: string) => setVulnerabilities(vulnerabilities.filter(a => (a.cve_id !== result)))}
@@ -162,7 +162,7 @@ const Vulnerabilities = () => {
           ))}
         </List>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-          <CreateCve
+          <CreateVulnerability
             onCreate={(result: CveSimple) => setVulnerabilities([result, ...vulnerabilities])}
           />
         </Can>
@@ -174,7 +174,7 @@ const Vulnerabilities = () => {
           additionalChipLabel={selectedCve?.cve_cvss_v31.toFixed(1)}
         >
           {selectedCve && (
-            <CveDetail
+            <VulnerabilityDetail
               selectedCve={selectedCve}
             />
           )}

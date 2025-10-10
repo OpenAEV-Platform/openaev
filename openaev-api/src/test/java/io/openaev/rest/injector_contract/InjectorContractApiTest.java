@@ -176,7 +176,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.clear();
 
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(cveComposer.generatedItems.stream().map(Cve::getId).toList());
+        input.setVulnerabilityIds(
+            cveComposer.generatedItems.stream().map(Vulnerability::getId).toList());
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL
@@ -565,7 +566,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
-        input.setVulnerabilityIds(cveComposer.generatedItems.stream().map(Cve::getId).toList());
+        input.setVulnerabilityIds(
+            cveComposer.generatedItems.stream().map(Vulnerability::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
 
@@ -815,7 +817,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.clear();
 
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(cveComposer.generatedItems.stream().map(Cve::getId).toList());
+        input.setVulnerabilityIds(
+            cveComposer.generatedItems.stream().map(Vulnerability::getId).toList());
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")

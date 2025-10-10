@@ -2,9 +2,9 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Cve;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.database.model.Vulnerability;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -26,7 +26,7 @@ public class SecurityCoverageFixture {
   }
 
   public static SecurityCoverage createSecurityCoverageWithDomainObjects(
-      List<AttackPattern> attackPatterns, List<Cve> vulnerabilities) {
+      List<AttackPattern> attackPatterns, List<Vulnerability> vulnerabilities) {
     Set<StixRefToExternalRef> attackPatternRefs =
         attackPatterns.stream()
             .map(

@@ -22,7 +22,7 @@ const TaxonomiesMenuComponent: FunctionComponent = () => {
       label: 'Kill chain phases',
     },
     {
-      path: '/admin/settings/taxonomies/cves',
+      path: '/admin/settings/taxonomies/vulnerabilities',
       icon: () => (<ReportProblemOutlined />),
       label: 'Vulnerabilities',
     },
