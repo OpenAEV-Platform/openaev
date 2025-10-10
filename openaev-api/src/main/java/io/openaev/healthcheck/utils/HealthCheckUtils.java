@@ -101,6 +101,32 @@ public class HealthCheckUtils {
     return result;
   }
 
+    /**
+     * Run all Injectors checks for one inject
+     *
+     * @param inject to test
+     * @param injectors all available injectors
+     * @return all found injectors healthchecks issues
+     */
+    public List<HealthCheck> runInjectorChecks(Inject inject, List<Injector> injectors) {
+        List<HealthCheck> result = new ArrayList<>();
+        InjectorContract contract =  inject.getInjectorContract().orElse(null);
+        if (contract != null && contract.getInjector() != null) {
+            Injector injector = contract.getInjector();
+            List<ExternalServiceDependency> externalServiceDependency = Arrays.stream(injector.getDependencies()).toList();
+            result.add(
+                    new HealthCheck(
+                            HealthCheck.Type.NMAP,
+                            HealthCheck.Detail.EMPTY,
+                            HealthCheck.Status.ERROR,
+                            now()));
+
+
+        }
+
+        return result;
+    }
+
   /**
    * Run all missing content checks for one scenario
    *

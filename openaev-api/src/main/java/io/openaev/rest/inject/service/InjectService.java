@@ -1284,6 +1284,7 @@ public class InjectService {
             healthCheckUtils.runExecutorChecks(
                 inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
     injectOutput.getHealthchecks().addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
+
     return injectOutput;
   }
 }
