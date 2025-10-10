@@ -118,7 +118,6 @@ const WidgetWrapper = ({ widget, fullscreen, setFullscreen, idToResize, handleWi
             flexDirection="column"
             minHeight={0}
             padding={theme.spacing(1, 2, 2)}
-            overflow={'number' === widget.widget_type ? 'hidden' : 'auto'}
             onMouseDown={(e: SyntheticEvent) => e.stopPropagation()}
             onTouchStart={(e: SyntheticEvent) => e.stopPropagation()}
           >
