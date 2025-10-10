@@ -3,6 +3,7 @@ package io.openaev.rest.injector_contract;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openaev.utils.JpaUtils.createLeftJoin;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
@@ -10,6 +11,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContrats;
+import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
@@ -19,6 +21,7 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.cve.service.CveService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
+import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
@@ -58,6 +61,7 @@ public class InjectorContractService {
   private final CveService cveService;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
+  private final AttackPatternRepository attackPatternRepository;
 
   @Value("${openaev.xls.import.mail.enable}")
   private boolean mailImportEnabled;
@@ -380,5 +384,27 @@ public class InjectorContractService {
                     tuple.get("injector_contract_external_id", String.class),
                     tuple.get("injector_contract_updated_at", Instant.class)))
         .toList();
+  }
+
+  // TODO JRI => REFACTOR TO RELY ON INJECTOR SERVICE
+  public InjectorContract convertInjectorFromInput(InjectorContractInput in, Injector injector) {
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(in.getId());
+    injectorContract.setManual(in.isManual());
+    injectorContract.setLabels(in.getLabels());
+    injectorContract.setInjector(injector);
+    injectorContract.setContent(in.getContent());
+    injectorContract.setAtomicTesting(in.isAtomicTesting());
+    injectorContract.setPlatforms(in.getPlatforms());
+    if (!in.getAttackPatternsExternalIds().isEmpty()) {
+      List<AttackPattern> attackPatterns =
+          fromIterable(
+              attackPatternRepository.findAllByExternalIdInIgnoreCase(
+                  in.getAttackPatternsExternalIds()));
+      injectorContract.setAttackPatterns(attackPatterns);
+    } else {
+      injectorContract.setAttackPatterns(new ArrayList<>());
+    }
+    return injectorContract;
   }
 }

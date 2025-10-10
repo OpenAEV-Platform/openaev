@@ -18,6 +18,7 @@ import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.response.InjectorConnection;
 import io.openaev.rest.injector.response.InjectorRegistration;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -39,6 +40,7 @@ public class InjectorService {
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final FileService fileService;
+  private final InjectorContractService injectorContractService;
 
   @Resource private RabbitmqConfig rabbitmqConfig;
 
@@ -143,7 +145,7 @@ public class InjectorService {
         // Save the contracts
         List<InjectorContract> injectorContracts =
             input.getContracts().stream()
-                .map(in -> convertInjectorFromInput(in, savedInjector))
+                .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
         injectorContractRepository.saveAll(injectorContracts);
 
@@ -224,32 +226,10 @@ public class InjectorService {
     List<InjectorContract> toCreates =
         contracts.stream()
             .filter(c -> !existing.contains(c.getId()))
-            .map(in -> convertInjectorFromInput(in, injector))
+            .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
     injectorContractRepository.deleteAllById(toDeletes);
     injectorContractRepository.saveAll(toCreates);
     return injectorRepository.save(injector);
-  }
-
-  // TODO JRI => REFACTOR TO RELY ON INJECTOR SERVICE
-  private InjectorContract convertInjectorFromInput(InjectorContractInput in, Injector injector) {
-    InjectorContract injectorContract = new InjectorContract();
-    injectorContract.setId(in.getId());
-    injectorContract.setManual(in.isManual());
-    injectorContract.setLabels(in.getLabels());
-    injectorContract.setInjector(injector);
-    injectorContract.setContent(in.getContent());
-    injectorContract.setAtomicTesting(in.isAtomicTesting());
-    injectorContract.setPlatforms(in.getPlatforms());
-    if (!in.getAttackPatternsExternalIds().isEmpty()) {
-      List<AttackPattern> attackPatterns =
-          fromIterable(
-              attackPatternRepository.findAllByExternalIdInIgnoreCase(
-                  in.getAttackPatternsExternalIds()));
-      injectorContract.setAttackPatterns(attackPatterns);
-    } else {
-      injectorContract.setAttackPatterns(new ArrayList<>());
-    }
-    return injectorContract;
   }
 }
