@@ -147,7 +147,7 @@ public class AttackPatternApi extends RestBehavior {
                   ? fromIterable(
                       killChainPhaseRepository.findAllById(
                           attackPatternInput.getKillChainPhasesIds()))
-                  : List.of();
+                  : new ArrayList<>();
           AttackPattern attackPatternParent =
               attackPatternInput.getParentId() != null
                   ? attackPatternRepository
