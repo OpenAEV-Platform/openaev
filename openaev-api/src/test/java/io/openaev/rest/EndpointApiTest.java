@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
+import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTag;
@@ -10,11 +11,13 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
@@ -22,9 +25,12 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.EndpointService;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -53,6 +59,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
 
   @SpyBean private EndpointService endpointService;
+  @Autowired private AssetGroupRepository assetGroupRepository;
 
   @DisplayName("Given valid input, should create an endpoint agentless successfully")
   @Test
@@ -265,7 +272,112 @@ class EndpointApiTest extends IntegrationTest {
         .andExpect(status().is4xxClientError());
   }
 
-  // Options endpoint tests
+  @DisplayName("Should return endpoint targets")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_validInput_should_returnEndpointTargets() throws Exception {
+    // -- PREPARE --
+    SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+
+    // Prepare asset group with an endpoint
+    Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+    AssetGroup assetGroup =
+        assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
+
+    // Prepare an endpoint
+    Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
+
+    // Prepare asset group filter
+    Filters.Filter filterAssetGroup =
+        buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
+
+    // Prepare asset filter
+    Filters.Filter filterAsset =
+        buildFilter("asset_id", Filters.FilterMode.or, List.of(endpoint2.getId()));
+
+    // Prepare filter group
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.or);
+    filterGroup.setFilters(List.of(filterAssetGroup, filterAsset));
+    searchPaginationInput.setFilterGroup(filterGroup);
+
+    mvc.perform(
+            post(ENDPOINT_URI + "/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(searchPaginationInput)))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.numberOfElements").value(2))
+        .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()))
+        .andExpect(jsonPath("$.content.[1].asset_id").value(endpoint2.getId()));
+  }
+
+  @DisplayName("Should return endpoints filtered by dynamic filter")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_dynamicFilter_should_returnMatchingEndpoints() throws Exception {
+    // -- PREPARE --
+    SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+
+    // Prepare an endpoint
+    Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+
+    // Prepare filter
+    Filters.Filter filter =
+        buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
+
+    // Prepare group filter
+    Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
+    dynamicFilter.setMode(Filters.FilterMode.or);
+    dynamicFilter.setFilters(List.of(filter));
+
+    searchPaginationInput.setFilterGroup(dynamicFilter);
+
+    mvc.perform(
+            post(ENDPOINT_URI + "/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(searchPaginationInput)))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.numberOfElements").value(1))
+        .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
+  }
+
+  @DisplayName("Should return endpoints that match both dynamic filter and asset group")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_dynamicFilterAndAssetGroup_should_ReturnEndpointsPresentInBoth() throws Exception {
+    // -- PREPARE --
+    SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+
+    // Prepare an endpoint
+    Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+    Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpointNotTargetProperty());
+    AssetGroup assetGroup =
+        assetGroupRepository.save(
+            createAssetGroupWithAssets("All asset", List.of(endpoint, endpoint2)));
+
+    // Prepare filter
+    Filters.Filter filter =
+        buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
+
+    // Prepare asset group filter
+    Filters.Filter filterAssetGroup =
+        buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
+
+    // Prepare group filter
+    Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
+    dynamicFilter.setMode(Filters.FilterMode.and);
+    dynamicFilter.setFilters(List.of(filter, filterAssetGroup));
+
+    searchPaginationInput.setFilterGroup(dynamicFilter);
+
+    mvc.perform(
+            post(ENDPOINT_URI + "/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(searchPaginationInput)))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.numberOfElements").value(1))
+        .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
+  }
 
   private Inject prepareOptionsEndpointTestData() {
     // Teams
@@ -390,5 +502,14 @@ class EndpointApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(expectedNumberOfResults, jsonArray.length());
+  }
+
+  private Filters.Filter buildFilter(String key, Filters.FilterMode mode, List<String> values) {
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey(key);
+    filter.setMode(mode);
+    filter.setOperator(Filters.FilterOperator.eq);
+    filter.setValues(values);
+    return filter;
   }
 }
