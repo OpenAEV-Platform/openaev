@@ -5,20 +5,23 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Endpoint;
-import io.openaev.rest.asset.endpoint.output.EndpointBaseOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.Set;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.experimental.SuperBuilder;
 
 @Setter
 @Getter
-@SuperBuilder
+@Builder
 @JsonInclude(NON_NULL)
-public class EndpointOutput extends EndpointBaseOutput {
+public class EndpointOutput {
+  @Schema(description = "Asset Id")
+  @JsonProperty("asset_id")
+  @NotBlank
+  private String id;
 
   @Schema(description = "Asset name")
   @JsonProperty("asset_name")

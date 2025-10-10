@@ -2,15 +2,20 @@ package io.openaev.rest.asset.endpoint.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.experimental.SuperBuilder;
 
 @Setter
 @Getter
-@SuperBuilder
-public class EndpointTargetOutput extends EndpointBaseOutput {
+@Builder
+public class EndpointTargetOutput {
+  @Schema(description = "Asset Id")
+  @JsonProperty("asset_id")
+  @NotBlank
+  private String id;
 
   @Schema(description = "Hostname")
   @JsonProperty("endpoint_hostname")

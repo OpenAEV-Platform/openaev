@@ -1659,6 +1659,20 @@ export interface EndpointTarget {
     | "SUCCESS";
 }
 
+export interface EndpointTargetOutput {
+  /** Asset Id */
+  asset_id: string;
+  /** Hostname */
+  endpoint_hostname?: string;
+  /**
+   * List IPs
+   * @uniqueItems true
+   */
+  endpoint_ips?: string[];
+  /** Seen IP */
+  endpoint_seen_ip?: string;
+}
+
 export interface EngineSortField {
   direction: "ASC" | "DESC";
   fieldName: string;
@@ -4040,6 +4054,25 @@ export interface PageCveSimple {
 
 export interface PageEndpointOutput {
   content?: EndpointOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageEndpointTargetOutput {
+  content?: EndpointTargetOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
