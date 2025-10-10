@@ -1182,13 +1182,15 @@ public class V1_DataImporter implements Importer {
 
           // Define default AssetsGroup or Assets
           Optional<Inject> injectOpt = injectRepository.findById(injectId);
-          if (injectorContract.isPresent() && injectOpt.isPresent()) {
+          if (injectOpt.isPresent() && injectOpt.get().getInjectorContract().isPresent()) {
             Inject inject = injectOpt.get();
             if (assetGroup != null
-                && injectorContractContentUtils.hasField(injectorContract.get(), "asset_groups")) {
+                && injectorContractContentUtils.hasField(
+                    inject.getInjectorContract().get(), "asset_groups")) {
               inject.getAssetGroups().add(assetGroup);
             } else if (asset != null
-                && injectorContractContentUtils.hasField(injectorContract.get(), "assets")) {
+                && injectorContractContentUtils.hasField(
+                    inject.getInjectorContract().get(), "assets")) {
               inject.getAssets().add(asset);
             }
             injectRepository.save(inject);

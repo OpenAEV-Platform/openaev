@@ -14,6 +14,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.response.InjectorConnection;
 import io.openaev.rest.injector.response.InjectorRegistration;
@@ -55,6 +56,8 @@ public class InjectorService {
     injector.setName("Mock " + injectorName);
     injector.setType(injectorType + MOCK_SUFFIX);
     injector.setId(injectorType + MOCK_SUFFIX);
+    injector.setDependencies(
+        new ExternalServiceDependency[] {ExternalServiceDependency.fromValue(injectorType)});
     return injectorRepository.save(injector);
   }
 

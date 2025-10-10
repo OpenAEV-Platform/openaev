@@ -137,7 +137,8 @@ public class HealthCheckUtils {
             .filter(
                 inject ->
                     inject.getInjectorContract() != null
-                        && inject.getInjectorContract().getInjector() != null)
+                        && inject.getInjectorContract().getInjector() != null
+                        && inject.getInjectorContract().getInjector().getDependencies() != null)
             .flatMap(
                 inject ->
                     Arrays.stream(inject.getInjectorContract().getInjector().getDependencies()))
