@@ -431,6 +431,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             .anyMatch(
                 inject ->
                     inject.getAssetGroups() != null
+                        && !inject.getAssetGroups().isEmpty()
                         && "All endpoints".equals(inject.getAssetGroups().getFirst().getName())));
   }
 
