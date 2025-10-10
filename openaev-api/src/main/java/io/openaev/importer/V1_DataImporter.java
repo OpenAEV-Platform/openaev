@@ -11,6 +11,7 @@ import static io.openaev.rest.scenario.export.ScenarioFileExport.SCENARIO_VARIAB
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -1261,6 +1262,8 @@ public class V1_DataImporter implements Importer {
     injectorContract.setInjector(createMockInjector(importNode));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
+    injectorContract.setLabels(new ObjectMapper()
+            .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     return injectorContractRepository.save(injectorContract);
   }
 
