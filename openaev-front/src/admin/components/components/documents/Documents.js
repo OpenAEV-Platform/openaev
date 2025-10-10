@@ -113,10 +113,11 @@ const Documents = () => {
 
   const [documents, setDocuments] = useState([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState({ sorts: initSorting('document_name') });
-  const [loading, setLoading] = useState(true);
+  const [loadingDocuments, setLoadingDocuments] = useState(true);
+  const [loadingExercisesAndScenarios, setLoadingExercisesAndScenarios] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
+    setLoadingExercisesAndScenarios(true);
     let neededPromises = [];
     let exerciseIds = documents.map(document => document.document_exercises).flat();
     let scenarioIds = documents.map(document => document.document_scenarios).flat();
@@ -127,7 +128,7 @@ const Documents = () => {
       neededPromises.push(dispatch(fetchScenariosById({ scenario_ids: documents.map(document => document.document_scenarios).flat() })));
     }
     Promise.all(neededPromises).then(() => {
-      setLoading(false);
+      setLoadingExercisesAndScenarios(false);
     });
   }, [documents]);
 
@@ -155,8 +156,8 @@ const Documents = () => {
   };
 
   const searchDocumentsToLoad = (input) => {
-    setLoading(true);
-    return searchDocuments(input);
+    setLoadingDocuments(true);
+    return searchDocuments(input).finally(() => setLoadingDocuments(false));
   };
 
   return (
@@ -203,7 +204,7 @@ const Documents = () => {
           />
           <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
         </ListItem>
-        {loading
+        {(loadingDocuments || loadingExercisesAndScenarios)
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
           : documents.map(document => (
               <ListItem
