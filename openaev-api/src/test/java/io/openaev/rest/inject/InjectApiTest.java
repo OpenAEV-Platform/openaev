@@ -557,7 +557,7 @@ class InjectApiTest extends IntegrationTest {
       Map<String, Object> payloadArguments = new HashMap<>();
       payloadArguments.put("arg_value", argValue);
       Inject inject =
-          InjectFixture.createInjectCommandPayload(injectorContractSaved, payloadArguments);
+          InjectFixture.createInjectWithPayloadArg(injectorContractSaved, payloadArguments);
 
       Inject injectSaved = injectRepository.save(inject);
       doNothing()
@@ -646,7 +646,7 @@ class InjectApiTest extends IntegrationTest {
           CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR + "-asset-separate-by-space", " ");
 
       Inject inject =
-          InjectFixture.createInjectCommandPayload(injectorContractSaved, payloadArguments);
+          InjectFixture.createInjectWithPayloadArg(injectorContractSaved, payloadArguments);
 
       Inject injectSaved = injectRepository.save(inject);
       doNothing()
@@ -690,7 +690,7 @@ class InjectApiTest extends IntegrationTest {
       InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
 
       Inject inject =
-          InjectFixture.createInjectCommandPayload(injectorContractSaved, new HashMap<>());
+          InjectFixture.createInjectWithPayloadArg(injectorContractSaved, new HashMap<>());
       Inject injectSaved = injectRepository.save(inject);
 
       // Prepare injectExpectation on specific agent
@@ -747,7 +747,7 @@ class InjectApiTest extends IntegrationTest {
       Map<String, Object> payloadArguments = new HashMap<>();
       payloadArguments.put("obfuscator", "base64");
       Inject inject =
-          InjectFixture.createInjectCommandPayload(injectorContractSaved, payloadArguments);
+          InjectFixture.createInjectWithPayloadArg(injectorContractSaved, payloadArguments);
 
       Inject injectSaved = injectRepository.save(inject);
       doNothing()

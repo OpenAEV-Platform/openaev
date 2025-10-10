@@ -101,7 +101,7 @@ public class InjectFixture {
     return inject;
   }
 
-  public static Inject createInjectCommandPayload(
+  public static Inject createInjectWithPayloadArg(
       InjectorContract injectorContract, Map<String, Object> payloadArguments) {
 
     Inject inject = createInject(injectorContract, "Inject title");

@@ -65,11 +65,35 @@ public class PayloadFixture {
     return command;
   }
 
+  public static Payload createDefaultCommandWithAttackPatternAndArguments(
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+    Payload command = createDefaultCommand();
+    command.setPlatforms(LINUX_PLATFORM);
+    command.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+    command.setAttackPatterns(attackPatterns);
+    command.setArguments(arguments);
+    return command;
+  }
+
   public static Payload createDefaultDnsResolution() {
     final DnsResolution dnsResolution =
         new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
     dnsResolution.setHostname("localhost");
     initializeDefaultPayload(dnsResolution, LINUX_PLATFORM);
+    return dnsResolution;
+  }
+
+  public static Payload createDefaultDnsResolutionWithAttackPatternAndArguments(
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+
+    final DnsResolution dnsResolution =
+        new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
+    dnsResolution.setHostname("localhost");
+    initializeDefaultPayload(dnsResolution, LINUX_PLATFORM);
+    dnsResolution.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
+    dnsResolution.setAttackPatterns(attackPatterns);
+    dnsResolution.setArguments(arguments);
+
     return dnsResolution;
   }
 
@@ -90,11 +114,33 @@ public class PayloadFixture {
     return executable;
   }
 
+  public static Payload createDefaultExecutableWithAttackPatternAndArguments(
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+    final Executable executable =
+        new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
+    executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
+    initializeDefaultPayload(executable, MACOS_PLATFORM);
+    executable.setAttackPatterns(attackPatterns);
+    executable.setArguments(arguments);
+    return executable;
+  }
+
   public static Payload createDefaultFileDrop() {
     final FileDrop filedrop =
         new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(filedrop, MACOS_PLATFORM);
+    return filedrop;
+  }
+
+  public static Payload createDefaultFileDropWithAttackPatternAndArguments(
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+    final FileDrop filedrop =
+        new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
+    filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
+    initializeDefaultPayload(filedrop, MACOS_PLATFORM);
+    filedrop.setAttackPatterns(attackPatterns);
+    filedrop.setArguments(arguments);
     return filedrop;
   }
 

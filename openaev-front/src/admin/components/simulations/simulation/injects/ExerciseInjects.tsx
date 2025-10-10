@@ -70,7 +70,7 @@ const ExerciseInjects: FunctionComponent = () => {
     (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
       return {
         exercise: helper.getExercise(exerciseId),
-        teams: helper.getTeams(),
+        teams: helper.getExerciseTeams(exerciseId),
         articles: helper.getExerciseArticles(exerciseId),
         variables: helper.getExerciseVariables(exerciseId),
       };

@@ -42,7 +42,7 @@ const ScenarioInjects: FunctionComponent = () => {
     (helper: InjectHelper & ScenariosHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
       return {
         scenario: helper.getScenario(scenarioId),
-        teams: helper.getTeams(),
+        teams: helper.getScenarioTeams(scenarioId),
         articles: helper.getScenarioArticles(scenarioId),
         variables: helper.getScenarioVariables(scenarioId),
       };
