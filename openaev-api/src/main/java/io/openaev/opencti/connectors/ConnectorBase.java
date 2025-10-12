@@ -13,6 +13,7 @@ public abstract class ConnectorBase {
   private String id;
   private List<String> scope = new ArrayList<>();
   private boolean auto = false;
+  private boolean autoUpdate = false;
   private boolean onlyContextual = false;
   private boolean playbookCompatible = false;
   private String listenCallbackURI;

@@ -1,11 +1,11 @@
 package io.openaev.scheduler.jobs;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.stix.SecurityCoverageService;
+import io.openaev.stix.objects.Bundle;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,6 @@ public class SecurityCoverageJob implements Job {
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final SecurityCoverageService securityCoverageService;
   private final OpenCTIConnectorService openCTIConnectorService;
-  private final ObjectMapper mapper;
 
   @Override
   @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
@@ -38,8 +37,9 @@ public class SecurityCoverageJob implements Job {
     for (SecurityCoverageSendJob securityCoverageSendJob : jobs) {
       try {
         // send bundle
-        openCTIConnectorService.pushSecurityCoverageStixBundle(
-            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob)));
+        Bundle resultBundle =
+            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
+        openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle);
         successfulJobs.add(securityCoverageSendJob);
       } catch (Exception e) {
         // don't crash the job

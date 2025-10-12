@@ -14,11 +14,11 @@ import java.util.stream.Collectors;
 public class SecurityCoverageFixture {
   public static SecurityCoverage createDefaultSecurityCoverage() {
     SecurityCoverage securityCoverage = new SecurityCoverage();
-    securityCoverage.setName("Security assessment for tests");
-    securityCoverage.setExternalId("x-security-assessment--%s".formatted(UUID.randomUUID()));
+    securityCoverage.setName("Security coverage for tests");
+    securityCoverage.setExternalId("security-coverage--%s".formatted(UUID.randomUUID()));
     securityCoverage.setScheduling(ScheduleFrequency.DAILY);
     securityCoverage.setContent(
-        "{\"type\": \"x-security-assessment\", \"id\": \"%s\"}"
+        "{\"type\": \"security-coverage\", \"id\": \"%s\"}"
             .formatted(securityCoverage.getExternalId()));
     securityCoverage.setAttackPatternRefs(new HashSet<>());
     securityCoverage.setVulnerabilitiesRefs(new HashSet<>());

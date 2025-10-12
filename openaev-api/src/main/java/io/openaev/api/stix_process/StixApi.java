@@ -1,5 +1,7 @@
 package io.openaev.api.stix_process;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -30,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StixApi extends RestBehavior {
 
   public static final String STIX_URI = "/api/stix";
-
+  private final ObjectMapper objectMapper;
   private final StixService stixService;
 
   @PostMapping(
@@ -49,8 +51,10 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody String stixJson) {
+  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent) {
     try {
+      JsonNode root = objectMapper.readTree(ctiEvent);
+      String stixJson = root.get("event").get("stix_objects").asText();
       Scenario scenario = stixService.processBundle(stixJson);
       String summary = stixService.generateBundleImportReport(scenario);
       BundleImportReport importReport = new BundleImportReport(scenario.getId(), summary);

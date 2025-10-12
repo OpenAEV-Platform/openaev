@@ -1,13 +1,9 @@
 package io.openaev.service.stix;
 
+import static io.openaev.cron.ScheduleFrequency.ONESHOT;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
-import static io.openaev.utils.constants.StixConstants.ATTACK_SCENARIO;
-import static io.openaev.utils.constants.StixConstants.STIX_DESCRIPTION;
-import static io.openaev.utils.constants.StixConstants.STIX_NAME;
-import static io.openaev.utils.constants.StixConstants.STIX_PERIOD_END;
-import static io.openaev.utils.constants.StixConstants.STIX_PERIOD_START;
-import static io.openaev.utils.constants.StixConstants.STIX_SCHEDULING;
+import static io.openaev.utils.constants.StixConstants.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,21 +30,21 @@ import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
-import io.openaev.stix.types.BaseType;
-import io.openaev.stix.types.Identifier;
-import io.openaev.stix.types.StixString;
-import io.openaev.stix.types.Timestamp;
+import io.openaev.stix.types.*;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -74,6 +70,9 @@ public class SecurityCoverageService {
   private final VulnerabilityService vulnerabilityService;
 
   private final PreviewFeatureService previewFeatureService;
+
+  @Value("${openaev.xtm.opencti.connector.security-coverage.url}")
+  private String openctiUrl;
 
   /**
    * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
@@ -103,6 +102,10 @@ public class SecurityCoverageService {
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
     securityCoverage.setName(name);
 
+    String configuredStripped = StringUtils.stripEnd(openctiUrl, "/");
+    String coveredRef = stixCoverageObj.getRequiredProperty(STIX_COVERED_REF);
+    securityCoverage.setExternalUrl(configuredStripped + "/dashboard/id/" + coveredRef);
+
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
     stixCoverageObj.setIfSetPresent(
@@ -117,8 +120,7 @@ public class SecurityCoverageService {
         extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY.toString())));
 
     // Default Fields
-    String scheduling =
-        stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ScheduleFrequency.ONESHOT.toString());
+    String scheduling = stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ONESHOT.toString());
     securityCoverage.setScheduling(ScheduleFrequency.fromString(scheduling));
 
     // Period Start & End
@@ -204,18 +206,26 @@ public class SecurityCoverageService {
     scenario.setDescription(sa.getDescription());
     scenario.setSeverity(Scenario.SEVERITY.high);
     scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
+    scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
 
-    Instant start = sa.getPeriodStart();
-    Instant end = sa.getPeriodEnd();
+    if (!sa.getScheduling().equals(ScheduleFrequency.ONESHOT)) {
+      Instant start = sa.getPeriodStart() != null ? sa.getPeriodStart() : Instant.now();
+      Instant end = sa.getPeriodEnd();
 
-    scenario.setRecurrenceStart(start);
-    scenario.setRecurrenceEnd(end);
+      scenario.setRecurrenceStart(start);
+      scenario.setRecurrenceEnd(end);
 
-    String cron = cronService.getCronExpression(sa.getScheduling(), start);
-    scenario.setRecurrence(cron);
+      String cron = cronService.getCronExpression(sa.getScheduling(), start);
+      scenario.setRecurrence(cron);
+    }
 
-    scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+    Set<Tag> tags = tagService.fetchTagsFromLabels(sa.getLabels());
+    TagCreateInput octiLabel = new TagCreateInput();
+    octiLabel.setName("opencti");
+    octiLabel.setColor("#001bda");
+    tags.add(this.tagService.upsertTag(octiLabel));
+    scenario.setTags(tags);
   }
 
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)
@@ -278,7 +288,7 @@ public class SecurityCoverageService {
       objects.add(platformIdentity);
 
       BaseType<?> platformCoverage = getOverallCoveragePerPlatform(exercise, securityPlatform);
-      boolean covered = !((Map<String, BaseType<?>>) platformCoverage.getValue()).isEmpty();
+      boolean covered = !((List<?>) platformCoverage.getValue()).isEmpty();
       RelationshipObject sro =
           new RelationshipObject(
               new HashMap<>(
@@ -319,7 +329,7 @@ public class SecurityCoverageService {
       List<ObjectBase> objects) {
     for (StixRefToExternalRef stixRef : refs) {
       BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), exercise);
-      boolean covered = !((Map<String, BaseType<?>>) coverageResult.getValue()).isEmpty();
+      boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
           new RelationshipObject(
@@ -427,15 +437,15 @@ public class SecurityCoverageService {
   @NotNull
   private BaseType<?> computeCoverage(
       List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults) {
-    Map<String, BaseType<?>> coverageValues = new HashMap<>();
+    List<Complex<?>> coverageValues = new ArrayList<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
-      coverageValues.put(
-          result.type().name(), new StixString(String.valueOf(result.getSuccessRate())));
+      CoverageResult cov = new CoverageResult(result.type().name(), result.getSuccessRate());
+      coverageValues.add(new Complex<>(cov));
     }
-    return new io.openaev.stix.types.Dictionary(coverageValues);
+    return new io.openaev.stix.types.List<>(coverageValues);
   }
 
   private BaseType<?> uncovered() {
-    return new io.openaev.stix.types.Dictionary(new HashMap<>());
+    return new io.openaev.stix.types.List<>(new ArrayList<>());
   }
 }

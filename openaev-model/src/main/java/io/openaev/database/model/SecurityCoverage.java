@@ -40,6 +40,10 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_external_id")
   private String externalId;
 
+  @Column(name = "security_coverage_external_url", nullable = false)
+  @JsonProperty("security_coverage_external_url")
+  private String externalUrl;
+
   @Column(name = "security_coverage_name", nullable = false)
   @JsonProperty("security_coverage_name")
   @NotBlank

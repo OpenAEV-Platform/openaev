@@ -25,7 +25,9 @@ public class SecurityCoverageConnector extends ConnectorBase {
   private final String name = "OpenAEV Coverage";
 
   public SecurityCoverageConnector() {
-    this.setScope(new ArrayList<>(List.of("application/stix+json;version=2.1", "indicator")));
+    this.setScope(new ArrayList<>(List.of("security-coverage")));
+    this.setAuto(true);
+    this.setAutoUpdate(true);
   }
 
   @Override
