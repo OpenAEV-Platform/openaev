@@ -33,8 +33,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @RequiredArgsConstructor
 @Service("coreInjectorService")
+// TODO needs to be merged with integrations/InjectorService
 public class InjectorService {
-  private static final String MOCK_SUFFIX = "_mock";
+  private static final String DUMMY_SUFFIX = "_dummy";
 
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -45,31 +46,31 @@ public class InjectorService {
   @Resource private RabbitmqConfig rabbitmqConfig;
 
   /**
-   * Create a mock injector, that is used when importing the starter pack before the real injector
-   * are registered
+   * Create a dummmy injector, that is used when importing the starter pack before the real
+   * injectors are registered
    *
    * @param injectorType
    * @param injectorName
    * @return
    */
-  public Injector createMockInjector(
+  public Injector createDummyInjector(
       @NotBlank final String injectorType, @NotBlank final String injectorName) {
     Injector injector = new Injector();
-    injector.setName("Mock " + injectorName);
-    injector.setType(injectorType + MOCK_SUFFIX);
-    injector.setId(injectorType + MOCK_SUFFIX);
+    injector.setName("Dummy " + injectorName);
+    injector.setType(injectorType + DUMMY_SUFFIX);
+    injector.setId(injectorType + DUMMY_SUFFIX);
     injector.setDependencies(
         new ExternalServiceDependency[] {ExternalServiceDependency.fromValue(injectorType)});
     return injectorRepository.save(injector);
   }
 
   /**
-   * Check if a mock injector exist for an injector type and delete it
+   * Check if a dummy injector exist for an injector type and delete it
    *
    * @param injectorType
    */
-  public void deleteMockInjectorIfItExists(@NotBlank final String injectorType) {
-    injectorRepository.findById(injectorType + MOCK_SUFFIX).ifPresent(injectorRepository::delete);
+  public void deleteDummyInjectorIfItExists(@NotBlank final String injectorType) {
+    injectorRepository.findById(injectorType + DUMMY_SUFFIX).ifPresent(injectorRepository::delete);
   }
 
   /**
@@ -81,8 +82,8 @@ public class InjectorService {
    * @return
    */
   public String getOriginInjectorType(@NotBlank final String injectorType) {
-    if (injectorType.endsWith(MOCK_SUFFIX)) {
-      return injectorType.substring(0, injectorType.length() - MOCK_SUFFIX.length());
+    if (injectorType.endsWith(DUMMY_SUFFIX)) {
+      return injectorType.substring(0, injectorType.length() - DUMMY_SUFFIX.length());
     }
     return injectorType;
   }
@@ -150,7 +151,7 @@ public class InjectorService {
         injectorContractRepository.saveAll(injectorContracts);
 
         // delete the mock injector if it was created when importing the starter pack
-        deleteMockInjectorIfItExists(input.getType());
+        deleteDummyInjectorIfItExists(input.getType());
       }
       InjectorConnection conn =
           new InjectorConnection(

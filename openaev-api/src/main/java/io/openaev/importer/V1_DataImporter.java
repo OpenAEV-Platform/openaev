@@ -1234,15 +1234,15 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
-   * Used to create an injector to be able to import injector contract from the starterpack before
-   * thye real contract is created by the real injector
+   * Used to create a dummy injector to be able to import injector contract from the starterpack
+   * before the real contract is created by the real injector
    *
    * @param importNode contract node
    * @return
    */
-  private Injector createMockInjector(JsonNode importNode) {
+  private Injector createDummyInjector(JsonNode importNode) {
 
-    return injectorService.createMockInjector(
+    return injectorService.createDummyInjector(
         importNode.get("injector_contract_injector_type").asText(),
         importNode.get("injector_contract_injector_type_name").asText());
   }
@@ -1259,7 +1259,7 @@ public class V1_DataImporter implements Importer {
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    injectorContract.setInjector(createMockInjector(importNode));
+    injectorContract.setInjector(createDummyInjector(importNode));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
     injectorContract.setLabels(

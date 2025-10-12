@@ -66,7 +66,7 @@ class V1_DataImporterTest extends IntegrationTest {
   public static final String ATTACK_PATTERN_EXTERNAL_ID = "ATTACK_PATTERN_EXTERNAL_ID";
   public static final String KILLCHAIN_EXTERNAL_ID = "KILLCHAIN_EXTERNAL_ID";
   public static final String PAYLOAD_EXTERNAL_ID = "PAYLOAD_EXTERNAL_ID";
-  public static final String NMAP_MOCK_INJECTOR_TYPE = "openaev_nmap_mock";
+  public static final String NMAP_DUMMY_INJECTOR_TYPE = "openaev_nmap_dummy";
 
   @BeforeEach
   void cleanBefore() throws IOException {
@@ -181,7 +181,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void
-      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_mock_injector()
+      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_dummy_injector()
           throws IOException {
 
     MockitoAnnotations.openMocks(this);
@@ -202,11 +202,11 @@ class V1_DataImporterTest extends IntegrationTest {
         Constants.IMPORTED_OBJECT_NAME_SUFFIX,
         true);
 
-    // mock injector should be created with 1 associated injector contract
-    Injector mockInjector =
-        this.injectorRepository.findByType(NMAP_MOCK_INJECTOR_TYPE).orElseThrow();
+    // dummy injector should be created with 1 associated injector contract
+    Injector dummyInjector =
+        this.injectorRepository.findByType(NMAP_DUMMY_INJECTOR_TYPE).orElseThrow();
     List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByInjector(mockInjector);
+        injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
     assertEquals(1, injectorContracts.size());
   }
 
