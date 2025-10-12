@@ -74,9 +74,9 @@ public class InjectorService {
   }
 
   /**
-   * This method will check if the injector type is a mock if yes it will remove the mock suffix if
-   * no it will return the parameter It is used to send the execution to the correct injector even
-   * if the current one is just a mock
+   * This method will check if the injector type is a dummy if yes it will remove the dummy suffix
+   * if no it will return the parameter It is used to send the execution to the correct injector
+   * even if the current one is just a dummy injector
    *
    * @param injectorType
    * @return
@@ -150,7 +150,7 @@ public class InjectorService {
                 .toList();
         injectorContractRepository.saveAll(injectorContracts);
 
-        // delete the mock injector if it was created when importing the starter pack
+        // delete the dummy injector if it was created when importing the starter pack
         deleteDummyInjectorIfItExists(input.getType());
       }
       InjectorConnection conn =
