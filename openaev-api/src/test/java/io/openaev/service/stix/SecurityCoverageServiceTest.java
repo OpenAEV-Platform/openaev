@@ -131,7 +131,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       }
     }
 
-    for (Map.Entry<VulnerabilityComposer.Composer, java.lang.Boolean> vulnw : vulnWrappers.entrySet()) {
+    for (Map.Entry<VulnerabilityComposer.Composer, java.lang.Boolean> vulnw :
+        vulnWrappers.entrySet()) {
       if (vulnw.getValue()) { // this vuln should be covered
         exerciseWrapper.withInject(
             injectComposer

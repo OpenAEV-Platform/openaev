@@ -46,7 +46,7 @@ public enum ResourceType {
 
   public static ResourceType fromString(@NotNull String name) {
     try {
-      if("CVE".equals(name)) {
+      if ("CVE".equals(name)) {
         return VULNERABILITY;
       }
       return ResourceType.valueOf(name.toUpperCase());

@@ -175,9 +175,11 @@ class CveApiTest extends IntegrationTest {
       vulnerability.setDescription("To be deleted");
       vulnerabilityComposer.forCve(vulnerability).persist();
 
-      mvc.perform(delete(VULNERABILITY_API + "/" + vulnerability.getExternalId())).andExpect(status().isOk());
+      mvc.perform(delete(VULNERABILITY_API + "/" + vulnerability.getExternalId()))
+          .andExpect(status().isOk());
 
-      Assertions.assertFalse(vulnerabilityRepository.findById(vulnerability.getExternalId()).isPresent());
+      Assertions.assertFalse(
+          vulnerabilityRepository.findById(vulnerability.getExternalId()).isPresent());
     }
 
     @Test

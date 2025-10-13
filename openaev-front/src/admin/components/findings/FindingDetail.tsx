@@ -6,7 +6,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type AggregatedFindingOutput, type CveOutput, type RelatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type VulnerabilityOutput, type RelatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { type CveStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
 import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
@@ -42,7 +42,7 @@ const FindingDetail = ({
 
   const isCVE = selectedFinding.finding_type === 'vulnerability';
 
-  const [vulnerability, setCve] = useState<CveOutput | null>(null);
+  const [vulnerability, setCve] = useState<VulnerabilityOutput | null>(null);
   const [cveStatus, setCveStatus] = useState<CveStatus>('loading');
 
   useEffect(() => {

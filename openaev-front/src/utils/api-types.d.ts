@@ -6112,49 +6112,49 @@ export interface VulnerabilityCreateInput {
    * @exclusiveMax false
    * @example 7.5
    */
-  cve_cvss_v31: number;
+  vulnerability_cvss_v31: number;
   /**
    * Date when action is due by CISA
    * @format date-time
    */
-  cve_cisa_action_due?: string;
+  vulnerability_cisa_action_due?: string;
   /**
    * Date when CISA added the CVE to the exploited list
    * @format date-time
    */
-  cve_cisa_exploit_add?: string;
+  vulnerability_cisa_exploit_add?: string;
   /** Action required by CISA */
-  cve_cisa_required_action?: string;
+  vulnerability_cisa_required_action?: string;
   /** Vulnerability name used by CISA */
-  cve_cisa_vulnerability_name?: string;
+  vulnerability_cisa_vulnerability_name?: string;
   /** List of linked CWEs */
-  cve_cwes?: CweInput[];
+  vulnerability_cwes?: CweInput[];
   /** Description of the CVE */
-  cve_description?: string;
+  vulnerability_description?: string;
   /**
-   * External Unique CVE identifier
+   * External Unique VULNERABILITY IDentifier
    * @example "CVE-2024-0001"
    */
-  cve_external_id: string;
+  vulnerability_external_id: string;
   /**
    * Publication date of the CVE
    * @format date-time
    */
-  cve_published?: string;
+  vulnerability_published?: string;
   /** List of reference URLs */
-  cve_reference_urls?: string[];
+  vulnerability_reference_urls?: string[];
   /** Suggested remediation */
-  cve_remediation?: string;
+  vulnerability_remediation?: string;
   /**
    * Identifier of the CVE source
    * @example "MITRE"
    */
-  cve_source_identifier?: string;
+  vulnerability_source_identifier?: string;
   /**
    * Vulnerability status
    * @example "ANALYZED"
    */
-  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
 /** Full CVE output including references and CWEs */
@@ -6168,28 +6168,20 @@ export interface VulnerabilityOutput {
    * CISA required action due date
    * @format date-time
    */
-  cve_cisa_action_due?: string;
+  vulnerability_cisa_action_due?: string;
   /**
    * CISA exploit addition date
    * @format date-time
    */
-  cve_cisa_exploit_add?: string;
+  vulnerability_cisa_exploit_add?: string;
   /** Action required by CISA */
-  cve_cisa_required_action?: string;
+  vulnerability_cisa_required_action?: string;
   /** Name used by CISA for the vulnerability */
-  cve_cisa_vulnerability_name?: string;
+  vulnerability_cisa_vulnerability_name?: string;
   /** List of CWE outputs */
-  cve_cwes?: CweOutput[];
+  vulnerability_cwes?: CweOutput[];
   /** Detailed CVE description */
-  cve_description?: string;
-  /** External references */
-  cve_reference_urls?: string[];
-  /** Remediation suggestions */
-  cve_remediation?: string;
-  /** Source identifier */
-  cve_source_identifier?: string;
-  /** Status of the vulnerability */
-  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+  vulnerability_description?: string;
   /**
    * External Vulnerability identifier
    * @example "CVE-2024-0001"
@@ -6202,6 +6194,14 @@ export interface VulnerabilityOutput {
    * @format date-time
    */
   vulnerability_published?: string;
+  /** External references */
+  vulnerability_reference_urls?: string[];
+  /** Remediation suggestions */
+  vulnerability_remediation?: string;
+  /** Source identifier */
+  vulnerability_source_identifier?: string;
+  /** Status of the vulnerability */
+  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
 /** Simplified Vulnerability representation */
@@ -6231,39 +6231,39 @@ export interface VulnerabilityUpdateInput {
    * Date when action is due by CISA
    * @format date-time
    */
-  cve_cisa_action_due?: string;
+  vulnerability_cisa_action_due?: string;
   /**
    * Date when CISA added the CVE to the exploited list
    * @format date-time
    */
-  cve_cisa_exploit_add?: string;
+  vulnerability_cisa_exploit_add?: string;
   /** Action required by CISA */
-  cve_cisa_required_action?: string;
+  vulnerability_cisa_required_action?: string;
   /** Vulnerability name used by CISA */
-  cve_cisa_vulnerability_name?: string;
+  vulnerability_cisa_vulnerability_name?: string;
   /** List of linked CWEs */
-  cve_cwes?: CweInput[];
+  vulnerability_cwes?: CweInput[];
   /** Description of the CVE */
-  cve_description?: string;
+  vulnerability_description?: string;
   /**
    * Publication date of the CVE
    * @format date-time
    */
-  cve_published?: string;
+  vulnerability_published?: string;
   /** List of reference URLs */
-  cve_reference_urls?: string[];
+  vulnerability_reference_urls?: string[];
   /** Suggested remediation */
-  cve_remediation?: string;
+  vulnerability_remediation?: string;
   /**
    * Identifier of the CVE source
    * @example "MITRE"
    */
-  cve_source_identifier?: string;
+  vulnerability_source_identifier?: string;
   /**
    * Vulnerability status
    * @example "ANALYZED"
    */
-  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
 export interface Widget {
