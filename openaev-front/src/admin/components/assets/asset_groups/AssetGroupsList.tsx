@@ -10,12 +10,15 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { findAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
 import { type Header } from '../../../../components/common/SortHeadersList';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { ASSET_RULES_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type AssetGroupOutput } from '../../../../utils/api-types';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
@@ -48,6 +51,7 @@ const AssetGroupsList: FunctionComponent<Props> = ({
   renderActions,
 }) => {
   const { classes } = useStyles();
+  const location = useLocation();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [assetGroupValues, setAssetGroupValues] = useState<AssetGroupOutput[]>([]);
@@ -64,7 +68,9 @@ const AssetGroupsList: FunctionComponent<Props> = ({
     const missingIds = assetGroupIds.filter(id => !assetGroupMaps[id]);
 
     if (missingIds.length > 0) {
-      fetchAssetGroupsByIds(missingIds).then((result) => {
+      // Can't check if the EndpointContext exists so check the URL to know which method used
+      const assetGroupPromise = location.pathname.includes(ASSET_RULES_BASE_URL) ? findAssetGroups(missingIds) : fetchAssetGroupsByIds(missingIds);
+      assetGroupPromise.then((result) => {
         setAssetGroupValues([...result.data, ...assetGroups]);
         setLoading(false);
       });

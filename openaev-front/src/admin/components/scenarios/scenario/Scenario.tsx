@@ -110,8 +110,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
   }, [
-    settings.smtp_service_available,
-    settings.imap_service_available,
+    settings?.smtp_service_available,
+    settings?.imap_service_available,
     scenario,
     injects,
     collectors.length,

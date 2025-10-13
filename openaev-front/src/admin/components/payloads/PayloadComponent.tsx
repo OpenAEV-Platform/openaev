@@ -96,6 +96,13 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
     }
   };
 
+  const getArgumentContent = (argument: PayloadArgument): string => {
+    if (argument?.type === 'document' && documentsMap && documentsMap[argument.default_value]) {
+      return documentsMap[argument.default_value].document_name;
+    }
+    return argument.default_value;
+  };
+
   return (
     <div className={classes.payloadContainer}>
       <Typography variant="h2" gutterBottom>{selectedPayload?.payload_name}</Typography>
@@ -315,7 +322,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                               </TableCell>
                               <TableCell>
                                 <pre>
-                                  <ItemCopy content={argument.default_value} />
+                                  <ItemCopy content={getArgumentContent(argument)} />
                                 </pre>
                               </TableCell>
                             </TableRow>
