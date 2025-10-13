@@ -52,6 +52,11 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         navigate(`/admin/scenarios/${scenarioId}/definition`);
         break;
       }
+      case 'NMAP':
+      case 'NUCLEI': {
+        window.open(`${documentationRootUrl}/latest/usage/injectors`);
+        break;
+      }
       default:
         return;
     }
