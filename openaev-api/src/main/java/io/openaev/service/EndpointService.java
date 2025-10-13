@@ -251,7 +251,11 @@ public class EndpointService {
     return buildPaginationJPA(
         (Specification<Endpoint> specification, Pageable pageable) ->
             this.endpointRepository.findAll(
-                and.equals(mode) ? finalSpec.and(specification) : finalSpec.or(specification),
+                searchPaginationInput.getFilterGroup().getFilters().isEmpty()
+                    ? finalSpec
+                    : (and.equals(mode)
+                        ? finalSpec.and(specification)
+                        : finalSpec.or(specification)),
                 pageable),
         handleEndpointFilter(searchPaginationInput),
         Endpoint.class);

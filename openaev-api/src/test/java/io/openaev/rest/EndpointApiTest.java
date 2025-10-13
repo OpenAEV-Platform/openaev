@@ -3,7 +3,7 @@ package io.openaev.rest;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
-import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
+import static io.openaev.utils.fixtures.AssetGroupFixture.*;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTag;
@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -272,111 +273,132 @@ class EndpointApiTest extends IntegrationTest {
         .andExpect(status().is4xxClientError());
   }
 
-  @DisplayName("Should return endpoint targets")
-  @Test
+  @Nested
+  @DisplayName("Retrieve targets")
   @WithMockUser(isAdmin = true)
-  void given_validInput_should_returnEndpointTargets() throws Exception {
-    // -- PREPARE --
-    SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+  class TargetEndpoint {
 
-    // Prepare asset group with an endpoint
-    Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-    AssetGroup assetGroup =
-        assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
+    @Test
+    @DisplayName("Should return matching endpoints when given a static asset group or asset ID")
+    void given_staticAssetGroupOrAssetId_should_returnMatchingEndpoints() throws Exception {
+      // -- PREPARE --
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
 
-    // Prepare an endpoint
-    Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
+      // Prepare asset group with an endpoint
+      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      AssetGroup assetGroup =
+          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
 
-    // Prepare asset group filter
-    Filters.Filter filterAssetGroup =
-        buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
+      // Prepare an endpoint
+      Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
+      // Prepare another endpoint, that we shouldn't retrieve
+      endpointRepository.save(EndpointFixture.createEndpoint());
 
-    // Prepare asset filter
-    Filters.Filter filterAsset =
-        buildFilter("asset_id", Filters.FilterMode.or, List.of(endpoint2.getId()));
+      // Prepare asset group filter
+      Filters.Filter filterAssetGroup =
+          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
 
-    // Prepare filter group
-    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-    filterGroup.setMode(Filters.FilterMode.or);
-    filterGroup.setFilters(List.of(filterAssetGroup, filterAsset));
-    searchPaginationInput.setFilterGroup(filterGroup);
+      // Prepare asset filter
+      Filters.Filter filterAsset =
+          buildFilter("asset_id", Filters.FilterMode.or, List.of(endpoint2.getId()));
 
-    mvc.perform(
-            post(ENDPOINT_URI + "/search")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(searchPaginationInput)))
-        .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.numberOfElements").value(2))
-        .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()))
-        .andExpect(jsonPath("$.content.[1].asset_id").value(endpoint2.getId()));
-  }
+      // Prepare filter group
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.or);
+      filterGroup.setFilters(List.of(filterAssetGroup, filterAsset));
+      searchPaginationInput.setFilterGroup(filterGroup);
 
-  @DisplayName("Should return endpoints filtered by dynamic filter")
-  @Test
-  @WithMockUser(isAdmin = true)
-  void given_dynamicFilter_should_returnMatchingEndpoints() throws Exception {
-    // -- PREPARE --
-    SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+      String response =
+          mvc.perform(
+                  post(ENDPOINT_URI + "/targets")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.numberOfElements").value(2))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThatJson(response)
+          .inPath("$.content[*].asset_id")
+          .isArray()
+          .containsExactlyInAnyOrderElementsOf(List.of(endpoint.getId(), endpoint2.getId()));
+    }
 
-    // Prepare an endpoint
-    Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+    @Test
+    @DisplayName("Should return matching endpoints when given dynamic asset group")
+    void given_dynamicAssetGroupId_should_returnMatchingEndpoints() throws Exception {
+      // -- PREPARE --
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
 
-    // Prepare filter
-    Filters.Filter filter =
-        buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
+      // Prepare an endpoint
+      Endpoint windowEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      Endpoint linuxEndpoint = EndpointFixture.createEndpoint();
+      linuxEndpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+      endpointRepository.save(linuxEndpoint);
 
-    // Prepare group filter
-    Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
-    dynamicFilter.setMode(Filters.FilterMode.or);
-    dynamicFilter.setFilters(List.of(filter));
+      // Prepare dynamic asset group
+      Filters.Filter windowfilter =
+          buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
+      Filters.FilterGroup dynamicFilter = Filters.FilterGroup.defaultFilterGroup();
+      dynamicFilter.setFilters(List.of(windowfilter));
+      AssetGroup assetGroup = createDefaultAssetGroup("All windows");
+      assetGroup.setDynamicFilter(dynamicFilter);
+      AssetGroup assetGroupSaved = assetGroupRepository.save(assetGroup);
 
-    searchPaginationInput.setFilterGroup(dynamicFilter);
+      // Prepare searcPagination input
+      Filters.Filter assetGroupfilter =
+          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroupSaved.getId()));
+      Filters.FilterGroup searchPaginationFilterGroup = new Filters.FilterGroup();
+      searchPaginationFilterGroup.setFilters(List.of(assetGroupfilter));
+      searchPaginationFilterGroup.setMode(Filters.FilterMode.or);
+      searchPaginationInput.setFilterGroup(searchPaginationFilterGroup);
 
-    mvc.perform(
-            post(ENDPOINT_URI + "/search")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(searchPaginationInput)))
-        .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.numberOfElements").value(1))
-        .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
-  }
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(searchPaginationInput)))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint.getId()));
+    }
 
-  @DisplayName("Should return endpoints that match both dynamic filter and asset group")
-  @Test
-  @WithMockUser(isAdmin = true)
-  void given_dynamicFilterAndAssetGroup_should_ReturnEndpointsPresentInBoth() throws Exception {
-    // -- PREPARE --
-    SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+    @Test
+    @DisplayName("Should return one endpoints when given dynamic asset group AND asset id")
+    void given_dynamicAssetGroupAndAssetID_should_ReturnEndpointsPresentInBoth() throws Exception {
+      // -- PREPARE --
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
 
-    // Prepare an endpoint
-    Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-    Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpointNotTargetProperty());
-    AssetGroup assetGroup =
-        assetGroupRepository.save(
-            createAssetGroupWithAssets("All asset", List.of(endpoint, endpoint2)));
+      // Prepare an endpoint
+      endpointRepository.save(EndpointFixture.createEndpoint());
+      Endpoint windowEndpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
 
-    // Prepare filter
-    Filters.Filter filter =
-        buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
+      // Prepare dynamic asset group
+      Filters.Filter windowfilter =
+          buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
+      Filters.FilterGroup dynamicFilter = Filters.FilterGroup.defaultFilterGroup();
+      dynamicFilter.setFilters(List.of(windowfilter));
+      AssetGroup assetGroup = createDefaultAssetGroup("All windows");
+      assetGroup.setDynamicFilter(dynamicFilter);
+      AssetGroup assetGroupSaved = assetGroupRepository.save(assetGroup);
 
-    // Prepare asset group filter
-    Filters.Filter filterAssetGroup =
-        buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
+      // Prepare searcPagination input
+      Filters.Filter assetGroupfilter =
+          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroupSaved.getId()));
+      Filters.Filter assetIdFilter =
+          buildFilter("asset_id", Filters.FilterMode.or, List.of(windowEndpoint2.getId()));
+      Filters.FilterGroup searchPaginationFilterGroup = new Filters.FilterGroup();
+      searchPaginationFilterGroup.setFilters(List.of(assetGroupfilter, assetIdFilter));
+      searchPaginationFilterGroup.setMode(Filters.FilterMode.and);
+      searchPaginationInput.setFilterGroup(searchPaginationFilterGroup);
 
-    // Prepare group filter
-    Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
-    dynamicFilter.setMode(Filters.FilterMode.and);
-    dynamicFilter.setFilters(List.of(filter, filterAssetGroup));
-
-    searchPaginationInput.setFilterGroup(dynamicFilter);
-
-    mvc.perform(
-            post(ENDPOINT_URI + "/search")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(searchPaginationInput)))
-        .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.numberOfElements").value(1))
-        .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(searchPaginationInput)))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint2.getId()));
+    }
   }
 
   private Inject prepareOptionsEndpointTestData() {

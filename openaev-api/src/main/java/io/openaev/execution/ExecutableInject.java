@@ -44,6 +44,7 @@ public class ExecutableInject {
     this.assets = assets;
     this.assets.forEach(asset -> Hibernate.initialize(asset.getTags()));
     this.assetGroups = assetGroups;
+    this.assetGroups.forEach(assetGroup -> Hibernate.initialize(assetGroup.getAssets()));
     this.assetGroups.forEach(assetGroup -> Hibernate.initialize(assetGroup.getTags()));
     this.teamSize = teams.size();
     this.documentSize = injection.getInject().getDocuments().size();

@@ -28,4 +28,8 @@ public class EndpointTargetOutput {
   @Schema(description = "Seen IP")
   @JsonProperty("endpoint_seen_ip")
   private String seenIp;
+
+  @Schema(description = "Indicates whether the endpoint has an agent installed")
+  @JsonProperty("has_agent")
+  private Boolean hasAgent;
 }
