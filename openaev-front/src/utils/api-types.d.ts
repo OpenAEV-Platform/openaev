@@ -2590,7 +2590,9 @@ export interface HealthCheck {
     | "AGENT_OR_EXECUTOR"
     | "SECURITY_SYSTEM_COLLECTOR"
     | "INJECT"
-    | "TEAMS";
+    | "TEAMS"
+    | "NMAP"
+    | "NUCLEI";
 }
 
 export interface HistogramWidget {
