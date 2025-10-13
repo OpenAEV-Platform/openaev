@@ -24,10 +24,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
-import io.openaev.utils.fixtures.AssetGroupFixture;
-import io.openaev.utils.fixtures.InjectFixture;
-import io.openaev.utils.fixtures.ScenarioFixture;
-import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
@@ -516,8 +513,9 @@ class ScenarioServiceTest extends IntegrationTest {
         new ExternalServiceDependency[] {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP
         });
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
     injectorContract.setInjector(injector);
+
     Inject inject = InjectFixture.createInject(injectorContract, "test");
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
