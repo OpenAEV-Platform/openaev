@@ -32,7 +32,6 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
@@ -118,8 +117,6 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
-  private final CollectorService collectorService;
-  private final InjectorService injectorService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -911,8 +908,6 @@ public class ScenarioService {
 
     List<HealthCheck> healthChecks = new ArrayList<>();
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
-    List<Injector> injectors = this.injectorService.findAll();
     Scenario scenario = this.scenario(scenarioId);
 
     // run the healthchecks for each injects
