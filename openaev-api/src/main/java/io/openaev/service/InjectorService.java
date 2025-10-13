@@ -27,7 +27,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -95,12 +94,12 @@ public class InjectorService {
     return injectorRepository.findByType(injectorType);
   }
 
-  public List<Injector> findAll(){
-      return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
-              .collect(Collectors.toList());
+  public List<Injector> findAll() {
+    return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
+        .collect(Collectors.toList());
   }
 
-    public InjectorRegistration registerInjector(
+  public InjectorRegistration registerInjector(
       InjectorCreateInput input, Optional<MultipartFile> file) {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(rabbitmqConfig.getHostname());

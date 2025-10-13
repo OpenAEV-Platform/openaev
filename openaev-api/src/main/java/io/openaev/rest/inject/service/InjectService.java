@@ -1262,33 +1262,30 @@ public class InjectService {
       return null;
     }
 
-      List<Collector> collectors = this.collectorService.securityPlatformCollectors();
-      List<Injector> injectors = this.injectorService.findAll();
-      List<HealthCheck> healthChecks = new ArrayList<>();
+    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Injector> injectors = this.injectorService.findAll();
+    List<HealthCheck> healthChecks = new ArrayList<>();
 
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-      healthChecks
-        .addAll(
-            healthCheckUtils.runMailServiceChecks(
-                inject,
-                ExternalServiceDependency.SMTP,
-                smtpService.isServiceAvailable(),
-                HealthCheck.Type.SMTP,
-                HealthCheck.Status.ERROR));
-      healthChecks
-        .addAll(
-            healthCheckUtils.runMailServiceChecks(
-                inject,
-                ExternalServiceDependency.IMAP,
-                imapService.isServiceAvailable(),
-                HealthCheck.Type.IMAP,
-                HealthCheck.Status.WARNING));
-      healthChecks
-        .addAll(
-            healthCheckUtils.runExecutorChecks(
-                inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
-      healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
-      healthChecks.addAll(healthCheckUtils.runInjectorChecks(inject, injectors));
+    healthChecks.addAll(
+        healthCheckUtils.runMailServiceChecks(
+            inject,
+            ExternalServiceDependency.SMTP,
+            smtpService.isServiceAvailable(),
+            HealthCheck.Type.SMTP,
+            HealthCheck.Status.ERROR));
+    healthChecks.addAll(
+        healthCheckUtils.runMailServiceChecks(
+            inject,
+            ExternalServiceDependency.IMAP,
+            imapService.isServiceAvailable(),
+            HealthCheck.Type.IMAP,
+            HealthCheck.Status.WARNING));
+    healthChecks.addAll(
+        healthCheckUtils.runExecutorChecks(
+            inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+    healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
+    healthChecks.addAll(healthCheckUtils.runInjectorChecks(inject, injectors));
 
     return healthChecks;
   }

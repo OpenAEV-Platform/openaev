@@ -42,7 +42,6 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioSimple;
-import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
@@ -120,7 +119,7 @@ public class ScenarioService {
   private final InjectService injectService;
   private final UserService userService;
   private final CollectorService collectorService;
-    private final InjectorService  injectorService;
+  private final InjectorService injectorService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -129,7 +128,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
 
-    @Transactional
+  @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
@@ -914,16 +913,32 @@ public class ScenarioService {
 
     List<Collector> collectors = this.collectorService.securityPlatformCollectors();
     List<Injector> injectors = this.injectorService.findAll();
-
-    //run the healthchecks for each injects
     Scenario scenario = this.scenario(scenarioId);
-    scenario.getInjects().stream().forEach(inject -> healthChecks.addAll(injectService.runChecks(inject, collectors, injectors)));
 
+    // run the healthchecks for each injects
+    List<HealthCheck> injectsHealthChecks =
+        scenario.getInjects().stream()
+            .flatMap(inject -> injectService.runChecks(inject).stream())
+            .toList();
 
-      healthChecks
-        .addAll(healthCheckUtils.runMissingContentChecks(scenario));
-      healthChecks.
-              addAll(healthCheckUtils.runTeamsChecks(scenario));
+    // remove duplicate from injects HealthCheck results and add them to the result
+    List<HealthCheck> injectsHealthChecksNoDuplicate =
+        injectsHealthChecks.stream()
+            .collect(
+                Collectors.toMap(
+                    hc -> hc.getType() + "_" + hc.getDetail(),
+                    hc -> hc,
+                    (a, b) ->
+                        a.getStatus() == HealthCheck.Status.ERROR
+                            ? a
+                            : b.getStatus() == HealthCheck.Status.ERROR ? b : a))
+            .values()
+            .stream()
+            .toList();
+    healthChecks.addAll(injectsHealthChecksNoDuplicate);
+
+    healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
+    healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
     return healthChecks;
   }

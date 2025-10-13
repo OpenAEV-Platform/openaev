@@ -8,15 +8,10 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.inject.output.InjectOutput;
-import io.openaev.rest.scenario.response.ScenarioOutput;
-import io.openaev.service.InjectorService;
-import java.util.*;
-
 import jakarta.validation.constraints.NotNull;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -120,15 +115,19 @@ public class HealthCheckUtils {
         && contract.getInjector().getDependencies() != null
         && Arrays.asList(contract.getInjector().getDependencies())
             .contains(ExternalServiceDependency.NMAP)) {
-        boolean isNmapInjectorRegistered = injectors.stream()
-                .anyMatch(injector -> Objects.equals(injector.getType(), ExternalServiceDependency.NMAP.getValue()));
+      boolean isNmapInjectorRegistered =
+          injectors.stream()
+              .anyMatch(
+                  injector ->
+                      Objects.equals(
+                          injector.getType(), ExternalServiceDependency.NMAP.getValue()));
 
-        // if the injector is dependent on NMAP and NMAP is not registered
+      // if the injector is dependent on NMAP and NMAP is not registered
       if (!isNmapInjectorRegistered) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.NMAP,
-                HealthCheck.Detail.EMPTY,
+                HealthCheck.Detail.SERVICE_UNAVAILABLE,
                 HealthCheck.Status.ERROR,
                 now()));
       }
@@ -140,18 +139,22 @@ public class HealthCheckUtils {
         && Arrays.asList(contract.getInjector().getDependencies())
             .contains(ExternalServiceDependency.NUCLEI)) {
 
-        // if the injector is dependent on NUCLEI and NUCLEI is not registered
-        boolean isNucleiInjectorRegistered = injectors.stream()
-                .anyMatch(injector -> Objects.equals(injector.getType(), ExternalServiceDependency.NUCLEI.getValue()));
+      // if the injector is dependent on NUCLEI and NUCLEI is not registered
+      boolean isNucleiInjectorRegistered =
+          injectors.stream()
+              .anyMatch(
+                  injector ->
+                      Objects.equals(
+                          injector.getType(), ExternalServiceDependency.NUCLEI.getValue()));
 
-        if (!isNucleiInjectorRegistered) {
-            result.add(
-                    new HealthCheck(
-                            HealthCheck.Type.NUCLEI,
-                            HealthCheck.Detail.EMPTY,
-                            HealthCheck.Status.ERROR,
-                            now()));
-        }
+      if (!isNucleiInjectorRegistered) {
+        result.add(
+            new HealthCheck(
+                HealthCheck.Type.NUCLEI,
+                HealthCheck.Detail.SERVICE_UNAVAILABLE,
+                HealthCheck.Status.ERROR,
+                now()));
+      }
     }
 
     return result;
@@ -166,7 +169,7 @@ public class HealthCheckUtils {
   public List<HealthCheck> runMissingContentChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean atLeastOneInjectIsNotReady =
-            scenario.getInjects().stream().anyMatch(inject -> !inject.isReady());
+        scenario.getInjects().stream().anyMatch(inject -> !inject.isReady());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(
@@ -189,16 +192,18 @@ public class HealthCheckUtils {
   public List<HealthCheck> runTeamsChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean isMailSender =
-            scenario.getInjects().stream()
+        scenario.getInjects().stream()
             .filter(
                 inject ->
                     inject.getInjectorContract() != null
                         && inject.getInjectorContract().isPresent()
-                            && inject.getInjectorContract().get().getInjector() != null
-                        && inject.getInjectorContract().get().getInjector().getDependencies() != null)
+                        && inject.getInjectorContract().get().getInjector() != null
+                        && inject.getInjectorContract().get().getInjector().getDependencies()
+                            != null)
             .flatMap(
                 inject ->
-                    Arrays.stream(inject.getInjectorContract().get().getInjector().getDependencies()))
+                    Arrays.stream(
+                        inject.getInjectorContract().get().getInjector().getDependencies()))
             .anyMatch(
                 dependency ->
                     ExternalServiceDependency.SMTP.equals(dependency)
@@ -206,7 +211,7 @@ public class HealthCheckUtils {
 
     if (isMailSender) {
       boolean isMissingTeamsOrEnabledPlayers =
-              scenario.getTeams().isEmpty()
+          scenario.getTeams().isEmpty()
               || scenario.getTeams().stream().allMatch(team -> team.getUsers().isEmpty())
               || scenario.getTeamUsers().isEmpty();
 
@@ -222,6 +227,4 @@ public class HealthCheckUtils {
 
     return result;
   }
-
-
 }
