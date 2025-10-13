@@ -170,7 +170,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     command: [ server, /data ]
   - name: pgsql
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: openaev
       POSTGRES_PASSWORD: openaev
@@ -182,7 +182,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     command: [ server, /data ]
   - name: pgsql-e2e
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: openaev
       POSTGRES_PASSWORD: openaev
