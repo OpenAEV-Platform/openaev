@@ -25,6 +25,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -342,7 +343,6 @@ class ScenarioServiceTest extends IntegrationTest {
             now());
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
@@ -379,7 +379,6 @@ class ScenarioServiceTest extends IntegrationTest {
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
@@ -416,7 +415,6 @@ class ScenarioServiceTest extends IntegrationTest {
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
@@ -453,7 +451,6 @@ class ScenarioServiceTest extends IntegrationTest {
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
@@ -490,7 +487,6 @@ class ScenarioServiceTest extends IntegrationTest {
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
@@ -513,9 +509,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
-    Inject inject = new Inject();
     Scenario scenario = new Scenario();
-    scenario.setInjects(new HashSet<>(List.of(inject)));
 
     Injector injector = new Injector();
     injector.setDependencies(
@@ -524,12 +518,11 @@ class ScenarioServiceTest extends IntegrationTest {
         });
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setInjector(injector);
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setInjectorContract(injectorContract);
+    Inject inject = InjectFixture.createInject(injectorContract, "test");
+    scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
     when(this.injectService.runChecks(any())).thenReturn(List.of());
 
     // RUN

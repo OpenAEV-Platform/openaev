@@ -40,7 +40,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.security.SecurityExpression;
@@ -1266,7 +1265,6 @@ public class InjectService {
     List<Injector> injectors = this.injectorService.findAll();
     List<HealthCheck> healthChecks = new ArrayList<>();
 
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
     healthChecks.addAll(
         healthCheckUtils.runMailServiceChecks(
             inject,
