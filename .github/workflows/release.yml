@@ -33,7 +33,7 @@ jobs:
           repository: OpenAEV-Platform/openaev
           ref: ${{ inputs.branch_platform }}
       - name: setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.8 #install the python needed
       - name: Install dependencies
