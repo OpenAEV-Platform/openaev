@@ -756,4 +756,98 @@ class InjectServiceTest {
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
   }
+
+  @Test
+  public void given_injectorDependenciesOnNmap_when_nmapIsRegistered_then_noHealtchCheck()
+      throws JsonProcessingException {
+
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
+
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    Injector nmapInjector = new Injector();
+    nmapInjector.setId("testNmap");
+    nmapInjector.setType("openaev_nmap");
+    when(injectorService.findAll()).thenReturn(List.of(nmapInjector));
+
+    // RUN
+    List<HealthCheck> healtchChecks = injectService.runChecks(inject);
+    // VERIFY
+    assertTrue(healtchChecks.isEmpty());
+  }
+
+  @Test
+  public void given_injectorDependenciesOnNmap_when_nmapIsRegistered_then_healtchCheckCreated()
+      throws JsonProcessingException {
+
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
+
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // RUN
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // VERIFY
+    HealthCheck healthCheckToVerify =
+        healthChecks.stream()
+            .filter(hc -> HealthCheck.Type.NMAP.equals(hc.getType()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(HealthCheck.Type.NMAP, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void given_injectorDependenciesOnNuclei_when_nucleiIsRegistered_then_healtchCheckCreated()
+      throws JsonProcessingException {
+
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
+
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // RUN
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // VERIFY
+    HealthCheck healthCheckToVerify =
+        healthChecks.stream()
+            .filter(hc -> HealthCheck.Type.NUCLEI.equals(hc.getType()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(HealthCheck.Type.NUCLEI, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
 }
