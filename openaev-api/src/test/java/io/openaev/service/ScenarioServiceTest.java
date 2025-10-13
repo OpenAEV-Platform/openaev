@@ -99,7 +99,6 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            collectorService,
             injectRepository,
             lessonsCategoryRepository,
             healthCheckUtils,
@@ -127,7 +126,6 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            collectorService,
             injectRepository,
             lessonsCategoryRepository,
             healthCheckUtils,
@@ -342,12 +340,10 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -381,11 +377,10 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.WARNING,
             now());
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -419,11 +414,10 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.ERROR,
             now());
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -457,11 +451,10 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.ERROR,
             now());
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -495,11 +488,10 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.WARNING,
             now());
     InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -538,7 +530,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
     // MOCK
     when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
