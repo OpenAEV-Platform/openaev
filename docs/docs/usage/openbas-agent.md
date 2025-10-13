@@ -48,7 +48,10 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 ### Linux
 
-- Requirement → systemd, access to the OpenBAS instance used
+- Requirements :
+    - systemd
+    - curl
+    - access to the OpenBAS instance used
 - Compatibility → All systemd based linux distros
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                        | Folder path                                 | AV exclusions                                        | Uninstallation                                                                                                                                                                                                             |
@@ -62,8 +65,10 @@ Depending on the OS, several installations are at your disposal, you can find th
     If you want to allow your agent to launch commands payloads for a user without filling the sudo password, follow [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
 
 ### MacOS
-
-  - Requirement → launchd, access to the OpenBAS instance used
+  - Requirements :
+    - launchd
+    - curl
+    - access to the OpenBAS instance used
   - Compatibility → All launchd based MacOS distros (10.4 Tiger or higher)
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                                                                                                               | Folder path                                 | AV exclusions                                          | Uninstallation                                                                                       |
