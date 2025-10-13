@@ -69,17 +69,11 @@ const AssetGroupsList: FunctionComponent<Props> = ({
 
     if (missingIds.length > 0) {
       // Can't check if the EndpointContext exists so check the URL to know which method used
-      if (location.pathname.includes(ASSET_RULES_BASE_URL)) {
-        findAssetGroups(missingIds).then((result) => {
-          setAssetGroupValues([...result.data, ...assetGroups]);
-          setLoading(false);
-        });
-      } else {
-        fetchAssetGroupsByIds(missingIds).then((result) => {
-          setAssetGroupValues([...result.data, ...assetGroups]);
-          setLoading(false);
-        });
-      }
+      const assetGroupPromise = location.pathname.includes(ASSET_RULES_BASE_URL) ? findAssetGroups(missingIds) : fetchAssetGroupsByIds(missingIds);
+      assetGroupPromise.then((result) => {
+        setAssetGroupValues([...result.data, ...assetGroups]);
+        setLoading(false);
+      });
     } else {
       setAssetGroupValues(assetGroups);
       setLoading(false);
