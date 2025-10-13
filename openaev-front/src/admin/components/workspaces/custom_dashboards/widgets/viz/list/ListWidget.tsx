@@ -93,7 +93,7 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
 
   return (
     <Box
-    style={{overflow: 'auto'}}
+      style={{overflow: 'auto'}}
     >
       <MuiList>
         <MuiListItem
