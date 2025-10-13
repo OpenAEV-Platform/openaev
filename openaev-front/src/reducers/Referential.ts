@@ -81,7 +81,7 @@ const referential = (state: any = Map({}), action: any = {}) => {
   switch (action.type) {
     case Constants.DATA_UPDATE_SUCCESS:
     case Constants.DATA_FETCH_SUCCESS: {
-      if (action.payload.entities.settings) {
+      if (action.payload?.entities?.settings) {
         const firstKey = Object.keys(action.payload.entities.settings)[0];
         const firstValue = action.payload.entities.settings[firstKey];
         return state.setIn(
