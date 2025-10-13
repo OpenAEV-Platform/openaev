@@ -120,6 +120,7 @@ public class ScenarioService {
   private final InjectService injectService;
   private final UserService userService;
   private final CollectorService collectorService;
+    private final InjectorService  injectorService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -128,7 +129,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
 
-  @Transactional
+    @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
@@ -909,52 +910,21 @@ public class ScenarioService {
       return null;
     }
 
+    List<HealthCheck> healthChecks = new ArrayList<>();
+
     List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Injector> injectors = this.injectorService.findAll();
 
+    //run the healthchecks for each injects
     Scenario scenario = this.scenario(scenarioId);
-    ScenarioOutput scenarioOutput = scenarioMapper.toScenarioOutput(scenario);
-    scenarioOutput.setInjects(
-        scenario.getInjects().stream()
-            .map(inject -> injectService.runChecks(inject, collectors))
-            .toList());
+    scenario.getInjects().stream().forEach(inject -> healthChecks.addAll(injectService.runChecks(inject, collectors, injectors)));
 
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.SMTP,
-                HealthCheck.Detail.SERVICE_UNAVAILABLE,
-                HealthCheck.Status.ERROR));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.IMAP,
-                HealthCheck.Detail.SERVICE_UNAVAILABLE,
-                HealthCheck.Status.WARNING));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.AGENT_OR_EXECUTOR,
-                HealthCheck.Detail.EMPTY,
-                HealthCheck.Status.ERROR));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
-                HealthCheck.Detail.EMPTY,
-                HealthCheck.Status.ERROR));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(healthCheckUtils.runMissingContentChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(healthCheckUtils.runTeamsChecks(scenarioOutput));
 
-    return scenarioOutput.getHealthchecks();
+      healthChecks
+        .addAll(healthCheckUtils.runMissingContentChecks(scenario));
+      healthChecks.
+              addAll(healthCheckUtils.runTeamsChecks(scenario));
+
+    return healthChecks;
   }
 }
