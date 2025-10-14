@@ -796,7 +796,7 @@
   "healthcheck.description.AGENT_OR_EXECUTOR.EMPTY": "Un agent actif est nécessaire dans les stimulis, veuillez le mettre à jour",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "services IMAP manquants, veuillez vérifier votre configuration ou vos informations d'identification",
   "healthcheck.description.INJECT.NOT_READY": "Des stimulis ont un statut de contenu manquant, veuillez les mettre à jour",
-  "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "Pour récupérer les alertes générées via OpenEAV, veuillez configurer un collecteur",
+  "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "Pour récupérer les alertes générées via OpenAEV, veuillez configurer un collecteur",
   "healthcheck.description.SMTP.SERVICE_UNAVAILABLE": "services SMTP manquants, veuillez vérifier votre configuration ou vos informations d'identification",
   "healthcheck.description.TEAMS.EMPTY": "Vous devez définir une équipe dans l'onglet de définition et associer la bonne équipe dans le stimulis",
   "healthcheck.type.AGENT_OR_EXECUTOR": "Agent ou exécuteur",

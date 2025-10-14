@@ -796,7 +796,7 @@
   "healthcheck.description.AGENT_OR_EXECUTOR.EMPTY": "注射时需要活性剂，请使用它进行更新",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "缺少 IMAP 服务，请检查您的配置或凭据",
   "healthcheck.description.INJECT.NOT_READY": "注入内容缺失，请更新",
-  "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "要获取通过 OpenEAV 发出的警报，请设置收集器",
+  "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "要获取通过 OpenAEV 发出的警报，请设置收集器",
   "healthcheck.description.SMTP.SERVICE_UNAVAILABLE": "缺少 SMTP 服务，请检查您的配置或凭据",
   "healthcheck.description.TEAMS.EMPTY": "您必须在定义选项卡中设置一个团队，并将正确的团队关联到注入中",
   "healthcheck.type.AGENT_OR_EXECUTOR": "代理人或执行人",
