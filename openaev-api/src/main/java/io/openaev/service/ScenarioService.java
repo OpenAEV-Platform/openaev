@@ -910,15 +910,11 @@ public class ScenarioService {
 
     Scenario scenario = this.scenario(scenarioId);
 
-    // run the healthchecks for each injects
-    List<HealthCheck> injectsHealthChecks =
+    // get the healthcheck for each injects, remove duplicate from injects HealthCheck results and
+    // add them to the result
+    List<HealthCheck> injectsHealthChecksNoDuplicate =
         scenario.getInjects().stream()
             .flatMap(inject -> injectService.runChecks(inject).stream())
-            .toList();
-
-    // remove duplicate from injects HealthCheck results and add them to the result
-    List<HealthCheck> injectsHealthChecksNoDuplicate =
-        injectsHealthChecks.stream()
             .collect(
                 Collectors.toMap(
                     hc -> hc.getType() + "_" + hc.getDetail(),
