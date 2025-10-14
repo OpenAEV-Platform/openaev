@@ -124,7 +124,6 @@ const InjectExpectationResultList = ({
           {injectExpectationResults.map((expectationResult, index) => {
             const isResultSecurityPlatform: boolean = !!(
               injectExpectationAgent
-              && injectExpectationStatus === 'SUCCESS'
               && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected')
               && expectationResult.sourceType === 'collector'
             );
