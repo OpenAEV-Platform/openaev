@@ -771,7 +771,10 @@ public class ExerciseApi extends RestBehavior {
   @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/search-by-id")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public List<ExerciseSimple> exercisesById(
+  @Operation(
+      summary = "Get simulations by their id",
+      description = "Get the simulations with the specified ids if you have the right to see them")
+  public List<ExerciseSimple> simulationsById(
       @RequestBody final GetExercisesInput getExercisesInput) {
     return exerciseService.exercises(getExercisesInput.getExerciseIds());
   }

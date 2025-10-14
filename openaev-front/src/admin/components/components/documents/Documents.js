@@ -117,17 +117,22 @@ const Documents = () => {
   const [loadingExercisesAndScenarios, setLoadingExercisesAndScenarios] = useState(false);
 
   useEffect(() => {
+    documents.forEach((document) => {
+      document.displayed_scenarios = R.take(3, document.document_scenarios);
+      document.displayed_exercises = R.take(3, document.document_exercises);
+    });
+
     setLoadingExercisesAndScenarios(true);
     let neededPromises = [];
-    let exerciseIds = documents.map(document => document.document_exercises).flat();
-    let scenarioIds = documents.map(document => document.document_scenarios).flat();
-    if (exerciseIds.length > 0) {
-      neededPromises.push(dispatch(fetchExercisesById({ exercise_ids: documents.map(document => document.document_exercises).flat() })));
+    let exerciseIds = new Set(documents.map(document => document.displayed_exercises).flat());
+    let scenarioIds = new Set(documents.map(document => document.displayed_scenarios).flat());
+    if (exerciseIds.size > 0) {
+      neededPromises.push(dispatch(fetchExercisesById({ exercise_ids: [...exerciseIds] })));
     }
-    if (scenarioIds.length > 0) {
-      neededPromises.push(dispatch(fetchScenariosById({ scenario_ids: documents.map(document => document.document_scenarios).flat() })));
+    if (scenarioIds.size > 0) {
+      neededPromises.push(dispatch(fetchScenariosById({ scenario_ids: [...scenarioIds] })));
     }
-    Promise.all(neededPromises).then(() => {
+    Promise.all(neededPromises).finally(() => {
       setLoadingExercisesAndScenarios(false);
     });
   }, [documents]);
@@ -254,7 +259,7 @@ const Documents = () => {
                             ...inlineStyles.document_exercises,
                           }}
                         >
-                          {R.take(3, document.document_exercises).map((e, i) => {
+                          {document.displayed_exercises && R.take(3, document.displayed_exercises).map((e, i) => {
                             const exercise = exercisesMap[e];
                             if (exercise === undefined) return <div key={i} />;
                             return (
@@ -287,7 +292,7 @@ const Documents = () => {
                             ...inlineStyles.document_scenarios,
                           }}
                         >
-                          {R.take(3, document.document_scenarios).map((e, i) => {
+                          {document.displayed_scenarios && R.take(3, document.displayed_scenarios).map((e, i) => {
                             const scenario = scenariosMap[e];
                             if (scenario === undefined) return <div key={i} />;
                             return (
