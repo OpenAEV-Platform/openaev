@@ -131,14 +131,14 @@ const InjectExpectationResultList = ({
 
             return (
               <TableRow
-                 key={`${expectationResult.sourceName}-${index}`}
-                 hover={isResultSecurityPlatform}
-                 sx={{ cursor: `${isResultSecurityPlatform ? 'pointer' : 'default'}` }}
-                 onClick={() => {
+                key={`${expectationResult.sourceName}-${index}`}
+                hover={isResultSecurityPlatform}
+                sx={{ cursor: `${isResultSecurityPlatform ? 'pointer' : 'default'}` }}
+                onClick={() => {
                   if (isResultSecurityPlatform) {
                     handleClickSecurityPlatformResult(expectationResult);
                   }
-                 }}
+                }}
               >
                 <TableCell>
                   <div style={{

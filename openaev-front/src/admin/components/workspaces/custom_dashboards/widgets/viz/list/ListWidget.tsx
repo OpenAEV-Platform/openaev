@@ -131,8 +131,8 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
                       <div
                         key={col}
                         style={{
-                         ...bodyItemsStyles.bodyItem,
-                         ...stylesFromEntityType(elements)[col],
+                          ...bodyItemsStyles.bodyItem,
+                          ...stylesFromEntityType(elements)[col],
                         }}
                       >
                         {elementsFromColumn(col, e)}
@@ -143,7 +143,7 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
               />
             </ListItemButton>
           </MuiListItem>
-          ),
+        ),
         )}
       </MuiList>
     </Box>
