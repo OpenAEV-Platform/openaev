@@ -101,29 +101,54 @@ public class HealthCheckUtils {
   }
 
   /**
-   * Run all Injectors checks for one inject
+   * Launch all the injector checks on one inject
    *
    * @param inject to test
    * @param injectors all available injectors
-   * @return all found injectors healthchecks issues
+   * @return list of the healthcheck result
    */
-  public List<HealthCheck> runInjectorChecks(Inject inject, List<Injector> injectors) {
+  public List<HealthCheck> runAllInjectorChecks(
+      @NotNull final Inject inject, @NotNull final List<Injector> injectors) {
+
+    List<HealthCheck> results = new ArrayList<>();
+    results.addAll(
+        runInjectorCheck(inject, injectors, ExternalServiceDependency.NMAP, HealthCheck.Type.NMAP));
+    results.addAll(
+        runInjectorCheck(
+            inject, injectors, ExternalServiceDependency.NUCLEI, HealthCheck.Type.NUCLEI));
+    return results;
+  }
+
+  /**
+   * Verify whether an injector contract depends on an injector and whether that injector is
+   * registered; if not, add an error to the health check.
+   *
+   * @param inject
+   * @param injectors
+   * @param externalServiceDependency
+   * @param type
+   * @return
+   */
+  public List<HealthCheck> runInjectorCheck(
+      @NotNull final Inject inject,
+      @NotNull final List<Injector> injectors,
+      @NotNull final ExternalServiceDependency externalServiceDependency,
+      @NotNull final HealthCheck.Type type) {
     List<HealthCheck> result = new ArrayList<>();
     InjectorContract contract = inject.getInjectorContract().orElse(null);
     if (contract != null
         && contract.getInjector() != null
         && contract.getInjector().getDependencies() != null
         && Arrays.asList(contract.getInjector().getDependencies())
-            .contains(ExternalServiceDependency.NMAP)) {
-      boolean isNmapInjectorRegistered =
+            .contains(externalServiceDependency)) {
+      boolean isInjectorRegistered =
           injectors.stream()
               .anyMatch(
                   injector ->
-                      Objects.equals(
-                          injector.getType(), ExternalServiceDependency.NMAP.getValue()));
+                      Objects.equals(injector.getType(), externalServiceDependency.getValue()));
 
-      // if the injector is dependent on NMAP and NMAP is not registered
-      if (!isNmapInjectorRegistered) {
+      // if the injector is not registered we add an error in the healst check
+      if (!isInjectorRegistered) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.NMAP,
@@ -132,31 +157,6 @@ public class HealthCheckUtils {
                 now()));
       }
     }
-
-    if (contract != null
-        && contract.getInjector() != null
-        && contract.getInjector().getDependencies() != null
-        && Arrays.asList(contract.getInjector().getDependencies())
-            .contains(ExternalServiceDependency.NUCLEI)) {
-
-      // if the injector is dependent on NUCLEI and NUCLEI is not registered
-      boolean isNucleiInjectorRegistered =
-          injectors.stream()
-              .anyMatch(
-                  injector ->
-                      Objects.equals(
-                          injector.getType(), ExternalServiceDependency.NUCLEI.getValue()));
-
-      if (!isNucleiInjectorRegistered) {
-        result.add(
-            new HealthCheck(
-                HealthCheck.Type.NUCLEI,
-                HealthCheck.Detail.SERVICE_UNAVAILABLE,
-                HealthCheck.Status.ERROR,
-                now()));
-      }
-    }
-
     return result;
   }
 
