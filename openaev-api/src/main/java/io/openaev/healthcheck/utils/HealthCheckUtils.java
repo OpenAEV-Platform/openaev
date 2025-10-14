@@ -147,14 +147,11 @@ public class HealthCheckUtils {
                   injector ->
                       Objects.equals(injector.getType(), externalServiceDependency.getValue()));
 
-      // if the injector is not registered we add an error in the healst check
+      // if the injector is not registered we add an error in the health check
       if (!isInjectorRegistered) {
         result.add(
             new HealthCheck(
-                HealthCheck.Type.NMAP,
-                HealthCheck.Detail.SERVICE_UNAVAILABLE,
-                HealthCheck.Status.ERROR,
-                now()));
+                type, HealthCheck.Detail.SERVICE_UNAVAILABLE, HealthCheck.Status.ERROR, now()));
       }
     }
     return result;
