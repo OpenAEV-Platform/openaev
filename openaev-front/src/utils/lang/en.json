@@ -800,7 +800,7 @@
   "healthcheck.description.INJECT.NOT_READY": "Injects are in missing content status, please update them",
   "healthcheck.description.NMAP.SERVICE_UNAVAILABLE": "missing Nmap injector, please check your configuration",
   "healthcheck.description.NUCLEI.SERVICE_UNAVAILABLE": "missing Nuclei injector, please check your configuration",
-  "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "To fetch alert raised through OpenEAV, please setup a collector",
+  "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "To fetch alert raised through OpenAEV, please setup a collector",
   "healthcheck.description.SMTP.SERVICE_UNAVAILABLE": "missing SMTP services, please check your configuration or credentials",
   "healthcheck.description.TEAMS.EMPTY": "You have to set a team into the definition tab, and associate the correct team into the inject",
   "healthcheck.type.AGENT_OR_EXECUTOR": "Agent or executor",
