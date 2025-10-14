@@ -10,6 +10,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectorService;
@@ -41,6 +42,7 @@ public class Executor {
 
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
+  private final ExecutableInjectDTOMapper executableInjectDTOMapper;
 
   @Qualifier("coreInjectorService")
   private final InjectorService injectorService;
@@ -48,7 +50,9 @@ public class Executor {
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
       throws IOException, TimeoutException {
     Inject inject = executableInject.getInjection().getInject();
-    String jsonInject = mapper.writeValueAsString(executableInject);
+    String jsonInject =
+        mapper.writeValueAsString(
+            executableInjectDTOMapper.toExecutableInjectDTO(executableInject));
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
