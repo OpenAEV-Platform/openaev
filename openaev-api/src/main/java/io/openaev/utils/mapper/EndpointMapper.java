@@ -49,7 +49,7 @@ public class EndpointMapper {
             endpoint.getIps() != null
                 ? new HashSet<>(Arrays.asList(setIps(endpoint.getIps())))
                 : emptySet())
-        .hasAgent(!endpoint.getAgents().isEmpty())
+        .agents(agentMapper.toAgentOutputs(endpoint.getAgents()))
         .build();
   }
 

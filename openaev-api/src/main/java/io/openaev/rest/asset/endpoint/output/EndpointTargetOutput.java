@@ -1,6 +1,7 @@
 package io.openaev.rest.asset.endpoint.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.rest.asset.endpoint.form.AgentOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
@@ -12,6 +13,7 @@ import lombok.Setter;
 @Getter
 @Builder
 public class EndpointTargetOutput {
+
   @Schema(description = "Asset Id")
   @JsonProperty("asset_id")
   @NotBlank
@@ -29,7 +31,7 @@ public class EndpointTargetOutput {
   @JsonProperty("endpoint_seen_ip")
   private String seenIp;
 
-  @Schema(description = "Indicates whether the endpoint has an agent installed")
-  @JsonProperty("has_agent")
-  private Boolean hasAgent;
+  @Schema(description = "List agents installed")
+  @JsonProperty("asset_agents")
+  private Set<AgentOutput> agents;
 }
