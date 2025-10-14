@@ -19,14 +19,12 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mapper.ExerciseMapper;
-import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -51,7 +49,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
-  @Autowired private InjectMapper injectMapper;
 
   @Mock Ee eeService;
   @Mock GrantService grantService;
@@ -373,7 +370,6 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.WARNING,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
 
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
@@ -409,8 +405,6 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
@@ -445,8 +439,6 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
@@ -481,8 +473,6 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.NOT_READY,
             HealthCheck.Status.WARNING,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
