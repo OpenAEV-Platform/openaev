@@ -920,9 +920,9 @@ public class ScenarioService {
                     hc -> hc.getType() + "_" + hc.getDetail(),
                     hc -> hc,
                     (a, b) ->
-                        a.getStatus() == HealthCheck.Status.ERROR
+                        HealthCheck.Status.ERROR.equals(a.getStatus())
                             ? a
-                            : b.getStatus() == HealthCheck.Status.ERROR ? b : a))
+                            : HealthCheck.Status.ERROR.equals(b.getStatus()) ? b : a))
             .values()
             .stream()
             .toList();
