@@ -1,5 +1,6 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Scenario.SEVERITY.critical;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
@@ -11,10 +12,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Scenario;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.GrantRepository;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.utils.fixtures.PaginationFixture;
-import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.scenario.form.GetScenariosInput;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -31,6 +35,9 @@ public class ScenarioApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private GroupRepository groupRepository;
+  @Autowired private GrantRepository grantRepository;
+  @Autowired private UserRepository userRepository;
 
   private static final List<String> SCENARIO_IDS = new ArrayList<>();
 
@@ -184,6 +191,98 @@ public class ScenarioApiSearchTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput)))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
+      }
+
+      @Test
+      @DisplayName("Search scenarios by ids as admin")
+      void given_list_of_ids_select_scenarios() throws Exception {
+        GetScenariosInput getScenariosInput = new GetScenariosInput();
+        getScenariosInput.setScenarioIds(SCENARIO_IDS);
+
+        mvc.perform(
+                post(SCENARIO_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getScenariosInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(2));
+      }
+
+      @Test
+      @DisplayName("Search scenarios by ids as granted user")
+      @WithMockUser(isAdmin = false, withCapabilities = Capability.ACCESS_ASSESSMENT)
+      void given_list_of_ids_select_scenarios_with_capabilities() throws Exception {
+        GetScenariosInput getScenariosInput = new GetScenariosInput();
+        getScenariosInput.setScenarioIds(SCENARIO_IDS);
+
+        mvc.perform(
+                post(SCENARIO_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getScenariosInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(2));
+      }
+
+      @Test
+      @DisplayName("Search scenarios by ids as user not granted")
+      @WithMockUser(isAdmin = false)
+      void given_list_of_ids_select_scenarios_without_capabilities_no_grants() throws Exception {
+        GetScenariosInput getScenariosInput = new GetScenariosInput();
+        getScenariosInput.setScenarioIds(SCENARIO_IDS);
+
+        mvc.perform(
+                post(SCENARIO_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getScenariosInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(0));
+      }
+
+      @Test
+      @DisplayName("Search scenarios by ids as user granted on some scenario")
+      @WithMockUser(isAdmin = false)
+      void given_list_of_ids_select_scenarios_without_capabilities_with_grants() throws Exception {
+        Scenario scenarioGranted = ScenarioFixture.createDefaultIncidentResponseScenario();
+        User user = userRepository.findById(currentUser().getId()).get();
+        Group group = new Group();
+        group.setName("test");
+        group = groupRepository.save(group);
+        scenarioGranted.getGrants().addAll(group.getGrants());
+        scenarioGranted = scenarioRepository.save(scenarioGranted);
+
+        Grant grantObserver = new Grant();
+        grantObserver.setResourceId(scenarioGranted.getId());
+        grantObserver.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+        grantObserver.setGroup(group);
+        grantObserver.setName(Grant.GRANT_TYPE.OBSERVER);
+        Grant grantPlanner = new Grant();
+        grantPlanner.setResourceId(scenarioGranted.getId());
+        grantPlanner.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+        grantPlanner.setGroup(group);
+        grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
+        grantRepository.saveAll(List.of(grantObserver, grantPlanner));
+        group.setGrants(List.of(grantObserver, grantPlanner));
+        group.setUsers(List.of(user));
+        groupRepository.save(group);
+        SCENARIO_IDS.add(scenarioGranted.getId());
+
+        GetScenariosInput getScenariosInput = new GetScenariosInput();
+        List<String> scenarioIds = new ArrayList<>();
+        scenarioIds.add(scenarioGranted.getId());
+        scenarioIds.addAll(SCENARIO_IDS);
+        getScenariosInput.setScenarioIds(scenarioIds);
+
+        mvc.perform(
+                post(SCENARIO_URI + "/search-by-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(getScenariosInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(1));
+
+        scenarioRepository.delete(scenarioGranted);
       }
     }
   }

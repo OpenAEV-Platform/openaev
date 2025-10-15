@@ -147,6 +147,17 @@ public class ExerciseService {
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
   }
 
+  public List<ExerciseSimple> exercises(final List<String> exerciseIds) {
+
+    User currentUser = userService.currentUser();
+    List<RawExerciseSimple> exercises =
+        currentUser.isAdminOrBypass()
+                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+            ? exerciseRepository.rawByExerciseIds(exerciseIds)
+            : exerciseRepository.rawGrantedByExerciseIds(currentUser().getId(), exerciseIds);
+    return exerciseMapper.getExerciseSimples(exercises);
+  }
+
   // -- UPDATE --
   public Exercise updateExercise(@NotNull final Exercise exercise) {
     exercise.setUpdatedAt(now());

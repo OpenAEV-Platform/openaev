@@ -115,9 +115,34 @@ public interface ScenarioRepository
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
+              + "INNER JOIN grants ON grants.grant_resource = sce.scenario_id AND grants.grant_resource_type = 'SCENARIO' "
+              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
+              + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
+              + "WHERE users_groups.user_id = :userId "
+              + "AND sce.scenario_id IN :scenarioIds "
+              + "GROUP BY sce.scenario_id",
+      nativeQuery = true)
+  List<RawScenario> rawGrantedByScenarioIds(
+      @Param("userId") String userId, @Param("scenarioIds") List<String> scenarioIds);
+
+  @Query(
+      value =
+          "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
+              + "FROM scenarios sce "
+              + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenario> rawAll();
+
+  @Query(
+      value =
+          "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
+              + "FROM scenarios sce "
+              + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
+              + "WHERE sce.scenario_id IN :scenarioIds "
+              + "GROUP BY sce.scenario_id",
+      nativeQuery = true)
+  List<RawScenario> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
       value =

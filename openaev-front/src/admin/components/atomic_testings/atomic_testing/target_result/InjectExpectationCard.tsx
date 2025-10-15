@@ -224,7 +224,6 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
             <InjectExpectationResultList
               injectExpectationId={injectExpectation.inject_expectation_id}
               injectExpectationResults={injectExpectation.inject_expectation_results ?? []}
-              injectExpectationStatus={injectExpectation.inject_expectation_status}
               injectExpectationAgent={injectExpectation.inject_expectation_agent}
               injectorContractPayload={inject.inject_injector_contract?.injector_contract_payload}
               injectType={inject.inject_type}
