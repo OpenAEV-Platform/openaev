@@ -29,9 +29,10 @@ can [generate a trial license](https://filigran.io/enterprise-editions-trial/).
 
 As a reminder:
 
-- OpenBAS EE is free-to-use for development, testing and research purposes as well as for non-profit organizations.
-- OpenBAS EE is included for all Filigran SaaS customers without additional fee.
-- **For all other usages, OpenBAS EE is reserved to organizations that have signed a Filigran Enterprise agreement.**
+- Filigran is the only company producing and providing OpenBAS Enterprise Edition license keys.
+- Filigran can provide free-to-use OpenBAS Enterprise Edition licenses for development and research purposes (e.g. connector development purposes, integrations with technical partners, etc...) as well as for non-governmental charity organizations.
+- OpenBAS Enterprise Edition licenses are automatically provided to all Filigran SaaS customers.
+- **For all other usages including On-Premise deployments, OpenBAS Enterprise Edition is reserved to organizations that have signed a Filigran Enterprise agreement.**
 
 ## Available features
 
