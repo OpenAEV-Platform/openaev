@@ -385,7 +385,7 @@
   "Customization": "自定义",
   "Customize columns": "专栏标准化",
   "VULNERABILITY ID": "VULNERABILITY ID",
-  "cve_external_id": "VULNERABILITY ID",
+  "vulnerability_external_id": "VULNERABILITY ID",
   "CVSS must be at least 0.0": "CVSS 必须至少为 0.0",
   "CVSS must be at most 10.0": "CVSS 必须至少为 10.0",
   "CVSS score is required": "CVSS 分数是必需的",

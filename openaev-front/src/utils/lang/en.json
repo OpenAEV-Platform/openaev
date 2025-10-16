@@ -385,7 +385,7 @@
   "Customization": "Customization",
   "Customize columns": "Customize columns",
   "VULNERABILITY ID": "VULNERABILITY ID",
-  "cve_external_id": "VULNERABILITY ID",
+  "vulnerability_external_id": "VULNERABILITY ID",
   "CVSS must be at least 0.0": "CVSS must be at least 0.0",
   "CVSS must be at most 10.0": "CVSS must be at most 10.0",
   "CVSS score is required": "CVSS score is required",
