@@ -1,4 +1,4 @@
-package io.openaev.rest.vulnerability.form;
+package io.openaev.rest.cve.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,18 +12,18 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@Schema(description = "Payload to create a Vulnerabilty")
-public class VulnerabilityCreateInput extends VulnerabilityInput {
+@Schema(description = "Payload to create a CVE")
+public class CveCreateInput extends CveInput {
 
   @NotBlank
-  @JsonProperty("vulnerability_external_id")
-  @Schema(description = "External Unique VULNERABILITY IDentifier", example = "CVE-2024-0001")
+  @JsonProperty("cve_external_id")
+  @Schema(description = "External Unique CVE identifier", example = "CVE-2024-0001")
   private String externalId;
 
   @NotNull
   @DecimalMin("0.0")
   @DecimalMax("10.0")
-  @JsonProperty("vulnerability_cvss_v31")
+  @JsonProperty("cve_cvss_v31")
   @Schema(description = "CVSS score", example = "7.5", minimum = "0.0", maximum = "10.0")
   private BigDecimal cvssV31;
 }
