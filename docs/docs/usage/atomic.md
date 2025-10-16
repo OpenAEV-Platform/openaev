@@ -11,22 +11,7 @@ The presented list allows you to easily see global scores of all your recent ato
 ![Example of Atomic testing](assets/atomic_list.png)
 
 ## Search the list
-
-You can search the list using the name or one the filters. Here are the available filters for this list.
-
-![Atomic testing filters list](assets/atomic_list_filter_attributes.png)
-
-Once you choose the attribute you want to apply a filter on, you can choose the operator.
-
-![Atomic testing filters operators](assets/atomic_list_filter_operator.png)
-
-Then you have the list of values for the attributes you choose.
-
-![Atomic testing filters attributes values](assets/atomic_list_filter_elements.png)
-
-Here is the list once you apply the filter.
-
-![Atomic testing filters values](assets/atomic_list_filter_result.png)
+- [Injects: Search and Filters](inject-result-list.md/#executed-injects-search-and-filters)
 
 ## Create an Atomic testing
 
@@ -62,48 +47,8 @@ Details of an Atomic testing is composed of three parts:
 ![Atomic testing Overview with Results](assets/atomic_details_overview.png)
 ![Atomic testing Overview with Results](assets/atomic_details_tooltip.png)
 
-### Overview
-
-The first screen displayed when you click on a specific Atomic testing from the list is a breakdown of your security
-posture against this test.
-
-As for Simulation and Scenario, Results are broken down into:
-
-- Prevention: the ability of your security posture to prevent the inject
-- Detection: the ability of your security posture to detect the inject
-- Human response: the ability of your security teams to react as intented facing the inject
-- Vulnerability: the ability of your security posture to detect common vulnerabilities and exposures (CVEs)
-
-At the top, big metrics summarize how all targets performed. On the left, a list of targets lets you quickly check
-results for each one. When you select a target, the right side shows a timeline of the test and its results, including
-execution logs.
-
-![Atomic testing Overview with Results](assets/atomic_testing_overview.png)
-![Atomic testing Overview with Results](assets/atomic_testing_overview_expectations.png)
-
-### Findings
-
-The Findings screen displays what was detected during the inject, based on the output parser in the payload. You can
-filter findings by name, type, creation date, target, value, or tag.
-
-![Atomic testing Overview with Results](assets/atomic_testing_findings.png)
-
-### Execution details
-
-This screen shows the full trace of the inject’s execution, including logs and status information.
-
-![Execution trace of a successfull atomic testing](assets/atomic_testing_execution_details.png)
-
-### Payload info
-
-This screen is available for technical injects only. You can see the details of the payload related to the test.
-
-![Payload info of atomic testing](assets/atomic_testing_payload_info.png)
-
-### Remediations (EE)
-
-This screen is available for technical injects only. It displays remediation content related to the executed payload,
-specifically focused on detection logic. You will see one Remediation tab per collector available in the platform.
-
-![Detection Remediations-no-present](assets/atomic_testing_detection_remediation_no_present.png)
-![Detection Remediations](assets/atomic_testing_detection_remediation.png)
+- [Overview](inject-result.md/#overview)
+- [Findings](inject-result.md/#findings)
+- [Inject execution details](inject-result.md/#execution-details)
+- [Payload info](inject-result.md/#payload-info)
+- [Remediation](inject-result.md/#remediations-ee)

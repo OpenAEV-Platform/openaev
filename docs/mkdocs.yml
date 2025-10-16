@@ -138,6 +138,8 @@ nav:
       - Injects:
         - Overview: usage/inject-overview.md
         - Inject types: usage/inject-types.md
+        - Search and Filter: usage/inject-result-list.md
+        - Inject result: usage/inject-result.md
       - Targets: usage/targets.md
       - Expectations: usage/expectations.md
       - Findings: usage/findings.md
