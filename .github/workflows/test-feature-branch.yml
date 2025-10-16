@@ -45,7 +45,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: filigran/openbas-platform
+          images: filigran/openaev-platform
           tags: |
             type=ref,event=branch
             type=ref,event=pr
