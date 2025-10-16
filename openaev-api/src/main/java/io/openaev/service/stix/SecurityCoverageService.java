@@ -111,11 +111,11 @@ public class SecurityCoverageService {
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.ATTACK_PATTERN.toString())));
+        extractObjectReferences(bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY.toString())));
+        extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY)));
 
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ONESHOT.toString());

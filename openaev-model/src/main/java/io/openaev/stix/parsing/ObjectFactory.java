@@ -19,6 +19,7 @@ public class ObjectFactory {
     constructors.put(ObjectTypes.SIGHTING, RelationshipObject::new);
     constructors.put(ObjectTypes.ATTACK_PATTERN, DomainObject::new);
     constructors.put(ObjectTypes.VULNERABILITY, DomainObject::new);
+    constructors.put(ObjectTypes.SECURITY_COVERAGE, DomainObject::new);
     constructors.put(ObjectTypes.IDENTITY, DomainObject::new);
     constructors.put(ObjectTypes.DEFAULT, DomainObject::new);
   }

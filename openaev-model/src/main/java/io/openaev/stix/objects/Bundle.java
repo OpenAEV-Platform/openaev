@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.stix.objects.constants.CommonProperties;
+import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.parsing.StixSerialisable;
 import io.openaev.stix.types.Identifier;
@@ -28,10 +29,14 @@ public class Bundle implements StixSerialisable {
     }
   }
 
-  public List<ObjectBase> findByType(String type) {
+  private List<ObjectBase> findByType(String type) {
     return this.allObjects().stream()
         .filter(o -> o.getProperty(CommonProperties.TYPE.toString()).equals(type))
         .toList();
+  }
+
+  public List<ObjectBase> findByType(ObjectTypes type) {
+    return this.findByType(type.toString());
   }
 
   public ObjectBase findById(Identifier id) throws ParsingException {

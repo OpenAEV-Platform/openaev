@@ -54,7 +54,12 @@
                 "Office Suite"
             ],
             "x_opencti_id": "65224fd3-a2e1-4fd8-9f20-37bbfdafea82",
-            "x_opencti_type": "Attack-Pattern"
+            "x_opencti_type": "Attack-Pattern",
+            "extensions": {
+              "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b": {
+                "id": "T1531"
+              }
+            }
         },
         {
             "aliases": [
@@ -81,7 +86,12 @@
                 "macOS"
             ],
             "x_opencti_id": "eb25bbe2-7af3-4d93-837c-d1933eb521e7",
-            "x_opencti_type": "Attack-Pattern"
+            "x_opencti_type": "Attack-Pattern",
+            "extensions": {
+              "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b": {
+                "id": "T1003"
+              }
+            }
         },
         {
             "id": "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975",

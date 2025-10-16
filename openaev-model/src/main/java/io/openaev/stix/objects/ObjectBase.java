@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.stix.objects.constants.CommonProperties;
+import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.parsing.StixSerialisable;
 import io.openaev.stix.types.BaseType;
+import io.openaev.stix.types.Dictionary;
 import io.openaev.stix.types.Identifier;
 import io.openaev.stix.types.StixString;
 import java.time.Instant;
@@ -45,6 +47,27 @@ public abstract class ObjectBase implements StixSerialisable {
 
   public boolean hasProperty(String name) {
     return properties.containsKey(name);
+  }
+
+  public boolean hasProperty(CommonProperties propertySpec) {
+    return this.hasProperty(propertySpec.toString());
+  }
+
+  public boolean hasExtension(String id) {
+    return hasProperty(CommonProperties.EXTENSIONS)
+        && ((Dictionary) getProperty(CommonProperties.EXTENSIONS)).has(id);
+  }
+
+  public boolean hasExtension(ExtendedProperties extendedPropertySpec) {
+    return hasExtension(extendedPropertySpec.toString());
+  }
+
+  public BaseType<?> getExtension(String id) {
+    return ((Dictionary) getProperty(CommonProperties.EXTENSIONS)).get(id);
+  }
+
+  public BaseType<?> getExtension(ExtendedProperties extendedPropertySpec) {
+    return getExtension(extendedPropertySpec.toString());
   }
 
   @Override

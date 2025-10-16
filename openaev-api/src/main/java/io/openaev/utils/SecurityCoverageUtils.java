@@ -6,8 +6,8 @@ import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
+import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
-import io.openaev.stix.types.BaseType;
 import io.openaev.stix.types.Dictionary;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,9 +26,9 @@ public class SecurityCoverageUtils {
    * @throws BadRequestException if the bundle does not contain exactly one such object
    */
   public static ObjectBase extractAndValidateCoverage(Bundle bundle) throws BadRequestException {
-    List<ObjectBase> coverages = bundle.findByType(STIX_SECURITY_COVERAGE);
+    List<ObjectBase> coverages = bundle.findByType(ObjectTypes.SECURITY_COVERAGE);
     if (coverages.size() != 1) {
-      throw new BadRequestException("STIX bundle must contain exactly one x-security-coverage");
+      throw new BadRequestException("STIX bundle must contain exactly one security-coverage");
     }
     return coverages.getFirst();
   }
@@ -50,14 +50,12 @@ public class SecurityCoverageUtils {
       String refId = null;
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
-        if (obj.hasProperty(STIX_EXTENSION_ATTRIBUTE)) {
-          Object rawValue = obj.getProperty(STIX_EXTENSION_ATTRIBUTE).getValue();
-
-          if (rawValue instanceof Map<?, ?> extension) {
-            Dictionary mitreExtension = (Dictionary) extension.get(STIX_MITRE_EXTENSION_DEFINITION);
-            Map<String, BaseType<?>> mitreValues = mitreExtension.getValue();
-            refId = (String) mitreValues.get(CommonProperties.ID.toString()).getValue();
-          }
+        if (obj.hasExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION)) {
+          refId =
+              (String)
+                  ((Dictionary) obj.getExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION))
+                      .get(CommonProperties.ID.toString())
+                      .getValue();
         }
       } else if (obj.hasProperty(STIX_NAME)) {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
