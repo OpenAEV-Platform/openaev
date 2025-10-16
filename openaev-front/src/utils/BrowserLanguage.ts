@@ -16,7 +16,7 @@ const browserLanguagePropertyKeys = [
   'systemLanguage',
 ];
 
-const availableLanguages = ['en', 'fr', 'zh'];
+const availableLanguages = ['en', 'es', 'fr', 'zh'];
 
 const detectedLocale = R.pipe(
   R.pick(browserLanguagePropertyKeys), // Get only language properties
