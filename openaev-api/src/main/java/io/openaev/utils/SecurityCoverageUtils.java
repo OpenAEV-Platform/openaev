@@ -50,11 +50,14 @@ public class SecurityCoverageUtils {
       String refId = null;
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
-        Object rawValue = obj.getProperty(STIX_EXTENSION_ATTRIBUTE).getValue();
-        if (rawValue instanceof Map<?, ?> extension) {
-          Dictionary mitreExtension = (Dictionary) extension.get(STIX_MITRE_EXTENSION_DEFINITION);
-          Map<String, BaseType<?>> mitreValues = mitreExtension.getValue();
-          refId = (String) mitreValues.get(CommonProperties.ID.toString()).getValue();
+        if (obj.hasProperty(STIX_EXTENSION_ATTRIBUTE)) {
+          Object rawValue = obj.getProperty(STIX_EXTENSION_ATTRIBUTE).getValue();
+
+          if (rawValue instanceof Map<?, ?> extension) {
+            Dictionary mitreExtension = (Dictionary) extension.get(STIX_MITRE_EXTENSION_DEFINITION);
+            Map<String, BaseType<?>> mitreValues = mitreExtension.getValue();
+            refId = (String) mitreValues.get(CommonProperties.ID.toString()).getValue();
+          }
         }
       } else if (obj.hasProperty(STIX_NAME)) {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
