@@ -147,6 +147,7 @@ public class InjectExpectationResultUtils {
         .sourceId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID)
         .sourceType(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE)
         .sourceName(EXPECTATIONS_VULNERABILITY_COLLECTOR_NAME)
+        .score(0.0)
         .result(VULNERABILITY.failureLabel)
         .date(String.valueOf(Instant.now()))
         .build();

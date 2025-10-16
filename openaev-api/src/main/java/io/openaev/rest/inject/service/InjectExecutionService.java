@@ -1,10 +1,10 @@
 package io.openaev.rest.inject.service;
 
+import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
@@ -20,7 +20,6 @@ import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -143,69 +142,75 @@ public class InjectExecutionService {
    */
   public void checkCveExpectation(
       Set<OutputParser> outputParsers, ObjectNode structuredOutput, Inject inject, Agent agent) {
-    List<InjectExpectation> injectExpectations = new ArrayList<>();
 
-    inject.getExpectations().stream()
-        .filter(injectExpectation -> injectExpectation.getAgent() != null)
-        .filter(injectExpectation -> injectExpectation.getAgent().getId().equals(agent.getId()))
-        .forEach(
-            expectation -> {
-              if (expectation.getType() == InjectExpectation.EXPECTATION_TYPE.VULNERABILITY) {
-                injectExpectations.add(expectation);
-              }
-            });
+    List<InjectExpectation> injectExpectations =
+        inject.getExpectations().stream()
+            .filter(exp -> exp.getAgent() != null && exp.getAgent().getId().equals(agent.getId()))
+            .filter(exp -> InjectExpectation.EXPECTATION_TYPE.VULNERABILITY == exp.getType())
+            .toList();
 
-    if (!injectExpectations.isEmpty()) {
-      InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
-      if (outputParsers.isEmpty()) {
-        injectExpectations.forEach(
-            expectation -> {
-              expectation.setScore(expectation.getExpectedScore());
-              injectExpectationResult.setResult("Not vulnerable");
-              injectExpectationResult.setScore(expectation.getExpectedScore());
-              expectation.setResults(List.of(injectExpectationResult));
-            });
-      }else{
-        outputParsers.forEach(
-            outputParser -> {
-              outputParser
-                  .getContractOutputElements()
-                  .forEach(
-                      contractOutputElement -> {
-                        if (contractOutputElement.getType().equals(ContractOutputType.CVE)) {
-                          JsonNode jsonNode = structuredOutput.get(contractOutputElement.getKey());
-                          if (jsonNode != null) {
-                            if (!jsonNode.isEmpty()) {
-                              injectExpectations.forEach(
-                                  expectation -> {
-                                    expectation.setScore(0.0);
-                                    expectation.setResults(List.of(injectExpectationResult));
-                                  });
-                            } else {
-                              injectExpectations.forEach(
-                                  expectation -> {
-                                    expectation.setScore(expectation.getExpectedScore());
-                                    injectExpectationResult.setResult("Not vulnerable");
-                                    injectExpectationResult.setScore(expectation.getExpectedScore());
-                                    expectation.setResults(List.of(injectExpectationResult));
-                                  });
-                            }
-                            injectExpectationRepository.saveAll(injectExpectations);
-                            validateResultForAsset(injectExpectations, injectExpectationResult);
-                          }
-                        } else {
-                          injectExpectations.forEach(
-                              expectation -> {
-                                expectation.setScore(expectation.getExpectedScore());
-                                injectExpectationResult.setResult("Not vulnerable");
-                                injectExpectationResult.setScore(expectation.getExpectedScore());
-                                expectation.setResults(List.of(injectExpectationResult));
-                              });
-                        }
-                      });
-            });
-      }
+    if (injectExpectations.isEmpty()) {
+      return;
+    }
 
+    InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
+
+    // If no output parsers, default to "Not vulnerable"
+    if (outputParsers.isEmpty()) {
+      setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
+      return;
+    }
+
+    // I need to check any output parser is Type CVE
+    boolean hasCveType =
+        outputParsers.stream()
+            .flatMap(parser -> parser.getContractOutputElements().stream())
+            .anyMatch(element -> ContractOutputType.CVE == element.getType());
+
+    if (!hasCveType) {
+      // No type CVE -> Not vulnerable
+      setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
+      return;
+    }
+
+    // At least one CVE-type element found
+    boolean hasCveData =
+        outputParsers.stream()
+            .flatMap(parser -> parser.getContractOutputElements().stream())
+            .filter(element -> ContractOutputType.CVE == element.getType())
+            .map(element -> structuredOutput.get(element.getKey()))
+            .anyMatch(jsonNode -> jsonNode != null && !jsonNode.isEmpty());
+
+    if (hasCveData) {
+      // Found CVE in raw output then vulnerable
+      setExpectationsVulnerable(injectExpectations, injectExpectationResult);
+    } else {
+      // CVE type exists but we dont have data then Not vulnerable
+      setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
+    }
+
+    injectExpectationRepository.saveAll(injectExpectations);
+    validateResultForAsset(injectExpectations, injectExpectationResult);
+  }
+
+  private void setExpectationsNotVulnerable(
+      List<InjectExpectation> expectations, InjectExpectationResult result) {
+
+    for (InjectExpectation expectation : expectations) {
+      double score = expectation.getExpectedScore();
+      result.setResult(VULNERABILITY.successLabel);
+      result.setScore(score);
+      expectation.setScore(score);
+      expectation.setResults(List.of(result));
+    }
+  }
+
+  private void setExpectationsVulnerable(
+      List<InjectExpectation> expectations, InjectExpectationResult result) {
+
+    for (InjectExpectation expectation : expectations) {
+      expectation.setScore(0.0);
+      expectation.setResults(List.of(result));
     }
   }
 
