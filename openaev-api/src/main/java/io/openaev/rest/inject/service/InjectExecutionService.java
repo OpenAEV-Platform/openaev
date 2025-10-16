@@ -157,36 +157,55 @@ public class InjectExecutionService {
 
     if (!injectExpectations.isEmpty()) {
       InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
-      outputParsers.forEach(
-          outputParser -> {
-            outputParser
-                .getContractOutputElements()
-                .forEach(
-                    contractOutputElement -> {
-                      if (contractOutputElement.getType().equals(ContractOutputType.CVE)) {
-                        JsonNode jsonNode = structuredOutput.get(contractOutputElement.getKey());
-                        if (jsonNode != null) {
-                          if (!jsonNode.isEmpty()) {
-                            injectExpectations.forEach(
-                                expectation -> {
-                                  expectation.setScore(0.0);
-                                  expectation.setResults(List.of(injectExpectationResult));
-                                });
-                          } else {
-                            injectExpectations.forEach(
-                                expectation -> {
-                                  expectation.setScore(expectation.getExpectedScore());
-                                  injectExpectationResult.setResult("Not vulnerable");
-                                  injectExpectationResult.setScore(expectation.getExpectedScore());
-                                  expectation.setResults(List.of(injectExpectationResult));
-                                });
+      if (outputParsers.isEmpty()) {
+        injectExpectations.forEach(
+            expectation -> {
+              expectation.setScore(expectation.getExpectedScore());
+              injectExpectationResult.setResult("Not vulnerable");
+              injectExpectationResult.setScore(expectation.getExpectedScore());
+              expectation.setResults(List.of(injectExpectationResult));
+            });
+      }else{
+        outputParsers.forEach(
+            outputParser -> {
+              outputParser
+                  .getContractOutputElements()
+                  .forEach(
+                      contractOutputElement -> {
+                        if (contractOutputElement.getType().equals(ContractOutputType.CVE)) {
+                          JsonNode jsonNode = structuredOutput.get(contractOutputElement.getKey());
+                          if (jsonNode != null) {
+                            if (!jsonNode.isEmpty()) {
+                              injectExpectations.forEach(
+                                  expectation -> {
+                                    expectation.setScore(0.0);
+                                    expectation.setResults(List.of(injectExpectationResult));
+                                  });
+                            } else {
+                              injectExpectations.forEach(
+                                  expectation -> {
+                                    expectation.setScore(expectation.getExpectedScore());
+                                    injectExpectationResult.setResult("Not vulnerable");
+                                    injectExpectationResult.setScore(expectation.getExpectedScore());
+                                    expectation.setResults(List.of(injectExpectationResult));
+                                  });
+                            }
+                            injectExpectationRepository.saveAll(injectExpectations);
+                            validateResultForAsset(injectExpectations, injectExpectationResult);
                           }
-                          injectExpectationRepository.saveAll(injectExpectations);
-                          validateResultForAsset(injectExpectations, injectExpectationResult);
+                        } else {
+                          injectExpectations.forEach(
+                              expectation -> {
+                                expectation.setScore(expectation.getExpectedScore());
+                                injectExpectationResult.setResult("Not vulnerable");
+                                injectExpectationResult.setScore(expectation.getExpectedScore());
+                                expectation.setResults(List.of(injectExpectationResult));
+                              });
                         }
-                      }
-                    });
-          });
+                      });
+            });
+      }
+
     }
   }
 
