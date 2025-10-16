@@ -85,6 +85,9 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
+      - name: Install AWX cli
+        run: pip install awxkit
+        
       - name: Deploy feature environment via AWX
         run: |
           awx --conf.host ${{ secrets.AWX_URL }} \
