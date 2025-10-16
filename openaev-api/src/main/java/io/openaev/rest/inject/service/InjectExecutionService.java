@@ -94,10 +94,6 @@ public class InjectExecutionService {
     injectStatusService.updateInjectStatus(agent, inject, input, structured);
     addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
 
-    if (structured == null) {
-      return;
-    }
-
     if (agent != null) {
       // validate vulnerability expectations
       checkCveExpectation(outputParsers, structured, inject, agent);
@@ -156,7 +152,7 @@ public class InjectExecutionService {
     InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
 
     // If no output parsers, default to "Not vulnerable"
-    if (outputParsers.isEmpty()) {
+    if (outputParsers.isEmpty() || structuredOutput == null) {
       setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
       return;
     }
