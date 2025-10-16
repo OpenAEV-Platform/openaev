@@ -3,7 +3,6 @@ package io.openaev.rest.injector_contract;
 import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonUtils.asJsonString;
-import static io.openaev.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
@@ -28,7 +27,7 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.CveFixture;
+import io.openaev.utils.fixtures.VulnerabilityFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -169,7 +168,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
           vulnerabilityComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
@@ -282,7 +281,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
             vulnerabilityComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
@@ -320,11 +319,11 @@ public class InjectorContractApiTest extends IntegrationTest {
       void updateContractWithExtVulnIdsSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
             vulnerabilityComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         VulnerabilityComposer.Composer otherVulnWrapper =
             vulnerabilityComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
@@ -558,7 +557,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void withExistingVulnerabilitiesCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
           vulnerabilityComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
@@ -615,7 +614,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void withExistingVulnerabilitiesByExternalIdCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
           vulnerabilityComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
@@ -810,7 +809,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
           vulnerabilityComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+              .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
@@ -909,7 +908,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
             vulnerabilityComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+                .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer

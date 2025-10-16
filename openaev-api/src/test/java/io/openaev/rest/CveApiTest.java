@@ -1,10 +1,10 @@
 package io.openaev.rest;
 
-import static io.openaev.rest.vulnerability.VulnerabilityApi.VULNERABILITY_API;
+import static io.openaev.rest.cve.CveApi.CVE_API;
 import static io.openaev.utils.JsonUtils.asJsonString;
-import static io.openaev.utils.fixtures.CveFixture.CVE_2025_5678;
-import static io.openaev.utils.fixtures.CveInputFixture.CVE_EXTERNAL_ID;
-import static io.openaev.utils.fixtures.CveInputFixture.createDefaultCveCreateInput;
+import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2025_5678;
+import static io.openaev.utils.fixtures.VulnerabilityFixture.VULNERABILITY_EXTERNAL_ID;
+import static io.openaev.utils.fixtures.VulnerabilityInputFixture.createDefaultVulnerabilityInput;
 import static java.time.Instant.now;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -14,13 +14,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.Cve;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.database.repository.CveRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
+import io.openaev.rest.cve.form.CVEBulkInsertInput;
+import io.openaev.rest.cve.form.CveCreateInput;
+import io.openaev.rest.cve.form.CveUpdateInput;
 import io.openaev.rest.vulnerability.form.VulnerabilityBulkInsertInput;
 import io.openaev.rest.vulnerability.form.VulnerabilityCreateInput;
 import io.openaev.rest.vulnerability.form.VulnerabilityUpdateInput;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
+import io.openaev.utils.fixtures.composers.CveComposer;
 import io.openaev.utils.fixtures.composers.VulnerabilityComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -39,183 +45,178 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("CVE API Integration Tests")
 class CveApiTest extends IntegrationTest {
 
-  @Resource protected ObjectMapper mapper;
-  @Autowired private MockMvc mvc;
-  private Collector collector;
+    @Resource protected ObjectMapper mapper;
+    @Autowired private MockMvc mvc;
+    private Collector collector;
 
-  @Autowired private VulnerabilityComposer vulnerabilityComposer;
-  @Autowired private CollectorComposer collectorComposer;
-  @Autowired private VulnerabilityRepository vulnerabilityRepository;
+    @Autowired private VulnerabilityComposer vulnerabilityComposer;
+    @Autowired private CollectorComposer collectorComposer;
+    @Autowired private VulnerabilityRepository vulnerabilityRepository;
 
-  @BeforeAll
-  void init() {
-    collector =
-        collectorComposer
-            .forCollector(CollectorFixture.createDefaultCollector("CS"))
-            .persist()
-            .get();
-  }
-
-  @BeforeEach
-  void setUp() {
-    vulnerabilityComposer.reset();
-  }
-
-  @Nested
-  @DisplayName("When working with CVEs")
-  @WithMockUser(isAdmin = true)
-  class WhenWorkingWithCves {
-
-    @Test
-    @DisplayName("Should create a new CVE successfully")
-    void shouldCreateNewCve() throws Exception {
-      VulnerabilityCreateInput input = new VulnerabilityCreateInput();
-      input.setExternalId("CVE-2025-1234");
-      input.setCvssV31(new BigDecimal("5.2"));
-      input.setDescription("Test summary for CVE creation");
-
-      String response =
-          mvc.perform(
-                  post(VULNERABILITY_API)
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      assertThatJson(response).node("cve_external_id").isEqualTo("CVE-2025-1234");
+    @BeforeAll
+    void init() {
+        collector =
+                collectorComposer
+                        .forCollector(CollectorFixture.createDefaultCollector("CS"))
+                        .persist()
+                        .get();
     }
 
-    @Test
-    @DisplayName("Should fetch a CVE by ID")
-    void shouldFetchCveById() throws Exception {
-      Vulnerability vulnerability = new Vulnerability();
-      vulnerability.setExternalId(CVE_2025_5678);
-      vulnerability.setCvssV31(new BigDecimal("8.9"));
-      vulnerability.setDescription("Test CVE");
-
-      vulnerabilityComposer.forCve(vulnerability).persist();
-
-      String response =
-          mvc.perform(get(VULNERABILITY_API + "/" + vulnerability.getId()))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      assertThatJson(response).node("cve_external_id").isEqualTo(CVE_2025_5678);
+    @BeforeEach
+    void setUp() {
+        collectorComposer.reset();
     }
 
-    @Test
-    @DisplayName("Should update an existing CVE")
-    void shouldUpdateCve() throws Exception {
-      Vulnerability vulnerability = new Vulnerability();
-      vulnerability.setExternalId("CVE-2025-5679");
-      vulnerability.setCvssV31(new BigDecimal("4.5"));
-      vulnerability.setDescription("Old description");
-      vulnerabilityComposer.forCve(vulnerability).persist();
+    @Nested
+    @DisplayName("When working with CVEs")
+    @WithMockUser(isAdmin = true)
+    class WhenWorkingWithCves {
 
-      VulnerabilityUpdateInput updateInput = new VulnerabilityUpdateInput();
-      updateInput.setDescription("Updated Summary");
+        @Test
+        @DisplayName("Should create a new CVE successfully")
+        void shouldCreateNewCve() throws Exception {
+            VulnerabilityCreateInput input = new VulnerabilityCreateInput();
+            input.setExternalId("CVE-2025-1234");
+            input.setCvssV31(new BigDecimal("5.2"));
+            input.setDescription("Test summary for CVE creation");
 
-      mvc.perform(
-              put(VULNERABILITY_API + "/" + vulnerability.getId())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(updateInput)))
-          .andExpect(status().isOk())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+            String response =
+                    mvc.perform(
+                                    post(CVE_API)
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(asJsonString(input)))
+                            .andExpect(status().isOk())
+                            .andReturn()
+                            .getResponse()
+                            .getContentAsString();
 
-      Assertions.assertTrue(
-          updateInput
-              .getDescription()
-              .equals(
-                  vulnerabilityRepository
-                      .findById(vulnerability.getId())
-                      .map(cve1 -> cve1.getDescription())
-                      .get()));
+            assertThatJson(response).node("cve_external_id").isEqualTo("CVE-2025-1234");
+        }
+
+        @Test
+        @DisplayName("Should fetch a CVE by ID")
+        void shouldFetchCveById() throws Exception {
+            Vulnerability cve = new Vulnerability();
+            cve.setExternalId(CVE_2025_5678);
+            cve.setCvssV31(new BigDecimal("8.9"));
+            cve.setDescription("Test CVE");
+
+            vulnerabilityComposer.forVulnerability(cve).persist();
+
+            String response =
+                    mvc.perform(get(CVE_API + "/" + cve.getId()))
+                            .andExpect(status().isOk())
+                            .andReturn()
+                            .getResponse()
+                            .getContentAsString();
+
+            assertThatJson(response).node("cve_external_id").isEqualTo(CVE_2025_5678);
+        }
+
+        @Test
+        @DisplayName("Should update an existing CVE")
+        void shouldUpdateCve() throws Exception {
+            Vulnerability cve = new Vulnerability();
+            cve.setExternalId("CVE-2025-5679");
+            cve.setCvssV31(new BigDecimal("4.5"));
+            cve.setDescription("Old description");
+            vulnerabilityComposer.forVulnerability(cve).persist();
+
+            VulnerabilityUpdateInput updateInput = new VulnerabilityUpdateInput();
+            updateInput.setDescription("Updated Summary");
+
+            mvc.perform(
+                            put(CVE_API + "/" + cve.getId())
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(asJsonString(updateInput)))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            Assertions.assertTrue(
+                    updateInput
+                            .getDescription()
+                            .equals(
+                                    vulnerabilityRepository.findById(cve.getId()).map(cve1 -> cve1.getDescription()).get()));
+        }
+
+        @Test
+        @DisplayName("Should bulk insert multiple CVEs")
+        void shouldBulkInsertCVEs() throws Exception {
+            // -- PREPARE -
+            VulnerabilityCreateInput input = createDefaultVulnerabilityInput();
+            VulnerabilityBulkInsertInput inputs = new VulnerabilityBulkInsertInput();
+            inputs.setSourceIdentifier(collector.getId());
+            inputs.setLastModifiedDateFetched(now());
+            inputs.setLastIndex(1234);
+            inputs.setInitialDatasetCompleted(false);
+            inputs.setVulnerabilities(List.of(input));
+
+            // -- EXECUTE --
+
+            mvc.perform(
+                            post(CVE_API + "/bulk")
+                                    .content(asJsonString(inputs))
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            // -- ASSERT --
+            Assertions.assertTrue(vulnerabilityRepository.findByExternalId(VULNERABILITY_EXTERNAL_ID).isPresent());
+        }
+
+        @Test
+        @DisplayName("Should delete a CVE")
+        void shouldDeleteCve() throws Exception {
+            Vulnerability cve = new Vulnerability();
+            cve.setExternalId("CVE-2025-5679");
+            cve.setCvssV31(new BigDecimal("7.5"));
+            cve.setDescription("To be deleted");
+            vulnerabilityComposer.forVulnerability(cve).persist();
+
+            mvc.perform(delete(CVE_API + "/" + cve.getExternalId())).andExpect(status().isOk());
+
+            Assertions.assertFalse(vulnerabilityRepository.findById(cve.getExternalId()).isPresent());
+        }
+
+        @Test
+        @DisplayName("Should return CVEs on search")
+        void shouldReturnCvesOnSearch() throws Exception {
+            Vulnerability cve = new Vulnerability();
+            cve.setExternalId("CVE-2024-5679");
+            cve.setCvssV31(new BigDecimal("4.5"));
+            cve.setDescription("Cve 1");
+            vulnerabilityComposer.forVulnerability(cve).persist();
+
+            Vulnerability cve1 = new Vulnerability();
+            cve1.setExternalId("CVE-2025-5671");
+            cve1.setCvssV31(new BigDecimal("1.8"));
+            cve1.setDescription("Cve 2");
+            vulnerabilityComposer.forVulnerability(cve1).persist();
+
+            SearchPaginationInput input = new SearchPaginationInput();
+            input.setSize(10);
+            input.setPage(0);
+
+            String response =
+                    mvc.perform(
+                                    post(CVE_API + "/search")
+                                            .content(asJsonString(input))
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .accept(MediaType.APPLICATION_JSON))
+                            .andExpect(status().isOk())
+                            .andReturn()
+                            .getResponse()
+                            .getContentAsString();
+
+            assertThatJson(response)
+                    .inPath("content[*].cve_external_id")
+                    .isArray()
+                    .contains("CVE-2024-5679", "CVE-2025-5671");
+        }
     }
-
-    @Test
-    @DisplayName("Should bulk insert multiple CVEs")
-    void shouldBulkInsertCVEs() throws Exception {
-      // -- PREPARE -
-      VulnerabilityCreateInput input = createDefaultCveCreateInput();
-      VulnerabilityBulkInsertInput inputs = new VulnerabilityBulkInsertInput();
-      inputs.setSourceIdentifier(collector.getId());
-      inputs.setLastModifiedDateFetched(now());
-      inputs.setLastIndex(1234);
-      inputs.setInitialDatasetCompleted(false);
-      inputs.setVulnerabilities(List.of(input));
-
-      // -- EXECUTE --
-
-      mvc.perform(
-              post(VULNERABILITY_API + "/bulk")
-                  .content(asJsonString(inputs))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-      // -- ASSERT --
-      Assertions.assertTrue(vulnerabilityRepository.findByExternalId(CVE_EXTERNAL_ID).isPresent());
-    }
-
-    @Test
-    @DisplayName("Should delete a CVE")
-    void shouldDeleteCve() throws Exception {
-      Vulnerability vulnerability = new Vulnerability();
-      vulnerability.setExternalId("CVE-2025-5679");
-      vulnerability.setCvssV31(new BigDecimal("7.5"));
-      vulnerability.setDescription("To be deleted");
-      vulnerabilityComposer.forCve(vulnerability).persist();
-
-      mvc.perform(delete(VULNERABILITY_API + "/" + vulnerability.getExternalId()))
-          .andExpect(status().isOk());
-
-      Assertions.assertFalse(
-          vulnerabilityRepository.findById(vulnerability.getExternalId()).isPresent());
-    }
-
-    @Test
-    @DisplayName("Should return CVEs on search")
-    void shouldReturnCvesOnSearch() throws Exception {
-      Vulnerability vulnerability = new Vulnerability();
-      vulnerability.setExternalId("CVE-2024-5679");
-      vulnerability.setCvssV31(new BigDecimal("4.5"));
-      vulnerability.setDescription("Vulnerability 1");
-      vulnerabilityComposer.forCve(vulnerability).persist();
-
-      Vulnerability cve1 = new Vulnerability();
-      cve1.setExternalId("CVE-2025-5671");
-      cve1.setCvssV31(new BigDecimal("1.8"));
-      cve1.setDescription("Vulnerability 2");
-      vulnerabilityComposer.forCve(cve1).persist();
-
-      SearchPaginationInput input = new SearchPaginationInput();
-      input.setSize(10);
-      input.setPage(0);
-
-      String response =
-          mvc.perform(
-                  post(VULNERABILITY_API + "/search")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      assertThatJson(response)
-          .inPath("content[*].cve_external_id")
-          .isArray()
-          .contains("CVE-2024-5679", "CVE-2025-5671");
-    }
-  }
 }

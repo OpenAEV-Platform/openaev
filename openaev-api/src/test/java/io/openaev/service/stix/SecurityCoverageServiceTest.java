@@ -379,7 +379,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
           throws ParsingException, JsonProcessingException {
         VulnerabilityComposer.Composer vuln1 =
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+            vulnerabilityComposer.forVulnerability(VulnerabilityFixture.createVulnerabilityInput("CVE-1234-5678"));
         // create exercise cover all TTPs
         ExerciseComposer.Composer exerciseWrapper =
             createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
@@ -447,7 +447,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
           throws ParsingException, JsonProcessingException {
         VulnerabilityComposer.Composer vuln1 =
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+            vulnerabilityComposer.forVulnerability(VulnerabilityFixture.createVulnerabilityInput("CVE-1234-5678"));
         // create exercise cover all TTPs
         ExerciseComposer.Composer exerciseWrapper =
             createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
