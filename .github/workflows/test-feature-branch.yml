@@ -84,15 +84,16 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: deploy via awx
-        uses: certara/github-action-ansible-tower-awx@master
-        with:
-          ansible-tower-user: ${{ secrets.AWX_USER }}
-          ansible-tower-pass: ${{ secrets.AWX_PASSWORD }}
-          ansible-tower-url: ${{ secrets.AWX_URL }}
-          template-id: "65"
-          additional-vars: |
-            { "openbas_version": "${{steps.meta.outputs.version}}", "openbas_config": ${{ inputs.openbas_config }}, "image_digest": "${{ needs.openbas-platform.outputs.dockerBuildDigest }}" }
+
+      - name: Deploy feature environment via AWX
+        run: |
+          awx --conf.host ${{ secrets.AWX_URL }} \
+            --conf.username ${{ secrets.AWX_USER }} \
+            --conf.password ${{ secrets.AWX_PASSWORD }} \
+            -f human job_templates launch 'Deploy OpenAEV feature branch for testing' \
+            --inventory eu-west-staging \
+            --extra_vars "{\"openbas_version\":\"${{steps.meta.outputs.version}}\",\"openbas_config\":\"${{ inputs.openbas_config }}\",\"redis_cluster\":\"${{ needs.openbas-platform.outputs.dockerBuildDigest }}\"}"
+
       - name: Forge URL to match playbook limitations
         id: urlforge
         run: |
