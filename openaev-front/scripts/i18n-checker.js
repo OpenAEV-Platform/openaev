@@ -3,8 +3,7 @@ import fs from 'node:fs';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-
-const supportedLangs = ['en', 'es', 'fr', 'zh'];
+import { DEFAULT_LANG, supportedLanguages } from "../src/constants/Lang.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -20,7 +19,7 @@ const computeLangKeys = (lang) => {
   const basePath = path.join(__dirname, 'utils', 'lang');
 
   // fallback to English if unsupported
-  const targetLang = supportedLangs.includes(lang) ? lang : 'en';
+  const targetLang = supportedLanguages.includes(lang) ? lang : DEFAULT_LANG;
   const filePath = path.join(basePath, `${targetLang}.json`);
 
   try {
@@ -74,7 +73,7 @@ const checkLanguageSupport = (lang) => {
 const run = () => {
   const missingKeys = {};
 
-  supportedLangs.forEach((lang) => {
+  supportedLanguages.forEach((lang) => {
     const keys = checkLanguageSupport(lang);
     if (keys.length > 0) {
       missingKeys[lang] = keys;
