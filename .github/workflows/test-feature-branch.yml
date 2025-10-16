@@ -87,7 +87,7 @@ jobs:
 
       - name: Install AWX cli
         run: pip install awxkit
-        
+
       - name: Deploy feature environment via AWX
         run: |
           awx --conf.host ${{ secrets.AWX_URL }} \
@@ -95,7 +95,7 @@ jobs:
             --conf.password ${{ secrets.AWX_PASSWORD }} \
             -f human job_templates launch 'Deploy OpenAEV feature branch for testing' \
             --inventory eu-west-staging \
-            --extra_vars "{\"openbas_version\":\"${{steps.meta.outputs.version}}\",\"openbas_config\":\"${{ inputs.openbas_config }}\",\"redis_cluster\":\"${{ needs.openbas-platform.outputs.dockerBuildDigest }}\"}"
+            --extra_vars "{\"openaev_version\":\"${{steps.meta.outputs.version}}\",\"openaev_config\":\"${{ inputs.openbas_config }}\",\"image_digest\":\"${{ needs.openbas-platform.outputs.dockerBuildDigest }}\"}"
 
       - name: Forge URL to match playbook limitations
         id: urlforge
