@@ -31,7 +31,7 @@ public class SecurityCoverageConnector extends ConnectorBase {
   }
 
   @Override
-  public String getUrl() {
+  public String getApiUrl() {
     if (io.openaev.utils.StringUtils.isBlank(super.getUrl())) {
       return null;
     }

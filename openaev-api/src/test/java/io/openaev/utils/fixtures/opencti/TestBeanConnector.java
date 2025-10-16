@@ -22,4 +22,9 @@ public class TestBeanConnector extends ConnectorBase {
     this.setScope(null);
     this.setListenCallbackURI("test callback uri");
   }
+
+  @Override
+  public String getApiUrl() {
+    return getUrl();
+  }
 }

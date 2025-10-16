@@ -17,7 +17,6 @@ import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.types.*;
-import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.*;
@@ -164,19 +163,19 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     return obj;
   }
 
-  private Dictionary predictCoverageFromInjects(List<Inject> injects) {
+  private io.openaev.stix.types.List<Complex<CoverageResult>> predictCoverageFromInjects(
+      List<Inject> injects) {
     List<InjectExpectationResultUtils.ExpectationResultsByType> results =
         resultUtils.computeGlobalExpectationResults(
             injects.stream().map(Inject::getId).collect(Collectors.toSet()));
-    Map<String, BaseType<?>> dict = new HashMap<>();
-    for (InjectExpectationResultUtils.ExpectationResultsByType result : results) {
-      dict.put(result.type().toString(), new StixString(String.valueOf(result.getSuccessRate())));
-    }
-    return toDictionary(dict);
+    return toList(
+        results.stream()
+            .map(r -> new Complex<>(new CoverageResult(r.type().name(), r.getSuccessRate())))
+            .toList());
   }
 
-  private Dictionary toDictionary(Map<String, BaseType<?>> map) {
-    return new Dictionary(map);
+  private <T extends BaseType<?>> io.openaev.stix.types.List<T> toList(List<T> innerList) {
+    return new io.openaev.stix.types.List<>(innerList);
   }
 
   private DomainObject getExpectedMainSecurityCoverage(
@@ -309,24 +308,26 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
                     ExtendedProperties.COVERAGE.toString(),
-                    toDictionary(
-                        Map.of(
-                            "PREVENTION",
-                            new StixString(
-                                platformSdo
-                                        .getId()
-                                        .getValue()
-                                        .contains(securityPlatformWrapper.get().getId())
-                                    ? "1.0"
-                                    : "0.0"),
-                            "DETECTION",
-                            new StixString(
-                                platformSdo
-                                        .getId()
-                                        .getValue()
-                                        .contains(securityPlatformWrapper.get().getId())
-                                    ? "1.0"
-                                    : "0.0")))));
+                    toList(
+                        List.of(
+                            new Complex<>(
+                                new CoverageResult(
+                                    "PREVENTION",
+                                    platformSdo
+                                            .getId()
+                                            .getValue()
+                                            .contains(securityPlatformWrapper.get().getId())
+                                        ? 1.0
+                                        : 0.0)),
+                            new Complex<>(
+                                new CoverageResult(
+                                    "DETECTION",
+                                    platformSdo
+                                            .getId()
+                                            .getValue()
+                                            .contains(securityPlatformWrapper.get().getId())
+                                        ? 1.0
+                                        : 0.0))))));
         assertThatJson(actualSro.toStix(mapper))
             .whenIgnoringPaths(CommonProperties.ID.toString())
             .isEqualTo(expectedSro.toStix(mapper));
@@ -356,12 +357,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
                     ExtendedProperties.COVERAGE.toString(),
-                    toDictionary(
-                        Map.of(
-                            "PREVENTION",
-                            new StixString("1.0"),
-                            "DETECTION",
-                            new StixString("1.0")))));
+                    toList(
+                        List.of(
+                            new Complex<>(new CoverageResult("PREVENTION", 1.0)),
+                            new Complex<>(new CoverageResult("DETECTION", 1.0))))));
         assertThatJson(actualSro.toStix(mapper))
             .whenIgnoringPaths(CommonProperties.ID.toString())
             .isEqualTo(expectedSro.toStix(mapper));
@@ -431,7 +430,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(true),
                       ExtendedProperties.COVERAGE.toString(),
-                      toDictionary(Map.of("VULNERABILITY", new StixString("1.0")))));
+                      toList(List.of(new Complex<>(new CoverageResult("VULNERABILITY", 1.0))))));
           assertThatJson(actualSro.toStix(mapper))
               .whenIgnoringPaths(CommonProperties.ID.toString())
               .isEqualTo(expectedSro.toStix(mapper));
@@ -615,24 +614,26 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
                   ExtendedProperties.COVERAGE.toString(),
-                  toDictionary(
-                      Map.of(
-                          "PREVENTION",
-                          new StixString(
-                              platformSdo
-                                      .getId()
-                                      .getValue()
-                                      .contains(securityPlatformWrapper.get().getId())
-                                  ? "0.5"
-                                  : "0.0"),
-                          "DETECTION",
-                          new StixString(
-                              platformSdo
-                                      .getId()
-                                      .getValue()
-                                      .contains(securityPlatformWrapper.get().getId())
-                                  ? "0.5"
-                                  : "0.0")))));
+                  toList(
+                      List.of(
+                          new Complex<>(
+                              new CoverageResult(
+                                  "PREVENTION",
+                                  platformSdo
+                                          .getId()
+                                          .getValue()
+                                          .contains(securityPlatformWrapper.get().getId())
+                                      ? 0.5
+                                      : 0.0)),
+                          new Complex<>(
+                              new CoverageResult(
+                                  "DETECTION",
+                                  platformSdo
+                                          .getId()
+                                          .getValue()
+                                          .contains(securityPlatformWrapper.get().getId())
+                                      ? 0.5
+                                      : 0.0))))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));
@@ -661,13 +662,16 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
                   ExtendedProperties.COVERAGE.toString(),
-                  toDictionary(
-                      Map.of(
-                          "PREVENTION",
-                          new StixString(stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0"),
-                          "DETECTION",
-                          new StixString(
-                              stixRef.getExternalRef().equals("T1234") ? "1.0" : "0.0")))));
+                  toList(
+                      List.of(
+                          new Complex<>(
+                              new CoverageResult(
+                                  "PREVENTION",
+                                  stixRef.getExternalRef().equals("T1234") ? 1.0 : 0.0)),
+                          new Complex<>(
+                              new CoverageResult(
+                                  "DETECTION",
+                                  stixRef.getExternalRef().equals("T1234") ? 1.0 : 0.0))))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));

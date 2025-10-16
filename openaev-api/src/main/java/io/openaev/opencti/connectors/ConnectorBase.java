@@ -22,6 +22,8 @@ public abstract class ConnectorBase {
 
   public abstract ConnectorType getType();
 
+  public abstract String getApiUrl();
+
   public boolean shouldRegister() {
     return !StringUtils.isBlank(this.getUrl())
         && !StringUtils.isBlank(this.getAuthToken())

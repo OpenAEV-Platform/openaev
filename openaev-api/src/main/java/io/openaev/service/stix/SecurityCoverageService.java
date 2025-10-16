@@ -12,6 +12,7 @@ import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
+import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.settings.PreviewFeature;
@@ -42,9 +43,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -71,8 +70,8 @@ public class SecurityCoverageService {
 
   private final PreviewFeatureService previewFeatureService;
 
-  @Value("${openaev.xtm.opencti.connector.security-coverage.url}")
-  private String openctiUrl;
+  // FIXME: don't access the connector directly when we deal with multiple origins
+  private final SecurityCoverageConnector connector;
 
   /**
    * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
@@ -102,9 +101,8 @@ public class SecurityCoverageService {
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
     securityCoverage.setName(name);
 
-    String configuredStripped = StringUtils.stripEnd(openctiUrl, "/");
     String coveredRef = stixCoverageObj.getRequiredProperty(STIX_COVERED_REF);
-    securityCoverage.setExternalUrl(configuredStripped + "/dashboard/id/" + coveredRef);
+    securityCoverage.setExternalUrl(connector.getUrl() + "/dashboard/id/" + coveredRef);
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);

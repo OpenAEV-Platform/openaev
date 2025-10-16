@@ -178,7 +178,7 @@ public class OpenCTIConnectorServiceTest {
             .isInstanceOf(ConnectorError.class)
             .hasMessage(
                 "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
-                    .formatted(connector.getName(), connector.getUrl()));
+                    .formatted(connector.getName(), connector.getApiUrl()));
       }
 
       @Test
@@ -196,7 +196,7 @@ public class OpenCTIConnectorServiceTest {
             .isInstanceOf(ConnectorError.class)
             .hasMessageContaining(
                 "Failed to push STIX bundle via connector %s to OpenCTI at %s"
-                    .formatted(connector.getName(), connector.getUrl()));
+                    .formatted(connector.getName(), connector.getApiUrl()));
       }
 
       @Test

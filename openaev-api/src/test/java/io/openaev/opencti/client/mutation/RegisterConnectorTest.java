@@ -34,6 +34,7 @@ public class RegisterConnectorTest {
               "type": "%s",
               "scope": [%s],
               "auto": %b,
+              "auto_update": %b,
               "only_contextual": %b,
               "playbook_compatible": %b,
               "listen_callback_uri": "%s"
@@ -48,6 +49,7 @@ public class RegisterConnectorTest {
                         .map("\"%s\""::formatted)
                         .collect(Collectors.joining(",")),
                     testConnector.isAuto(),
+                    testConnector.isAutoUpdate(),
                     testConnector.isOnlyContextual(),
                     testConnector.isPlaybookCompatible(),
                     testConnector.getListenCallbackURI()));

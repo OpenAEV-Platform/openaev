@@ -54,7 +54,7 @@ public class StixApi extends RestBehavior {
   public ResponseEntity<?> processBundle(@RequestBody String ctiEvent) {
     try {
       JsonNode root = objectMapper.readTree(ctiEvent);
-      String stixJson = root.get("event").get("stix_objects").asText();
+      String stixJson = root.get("event").get("stix_objects").toString();
       Scenario scenario = stixService.processBundle(stixJson);
       String summary = stixService.generateBundleImportReport(scenario);
       BundleImportReport importReport = new BundleImportReport(scenario.getId(), summary);

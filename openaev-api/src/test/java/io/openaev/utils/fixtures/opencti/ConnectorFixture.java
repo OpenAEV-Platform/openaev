@@ -14,6 +14,11 @@ public class ConnectorFixture {
   private static class TestConnector extends ConnectorBase {
     private final String name;
     private final ConnectorType type;
+
+    @Override
+    public String getApiUrl() {
+      return getUrl();
+    }
   }
 
   public static ConnectorBase getDefaultConnector() {
@@ -22,6 +27,7 @@ public class ConnectorFixture {
     cb.setUrl("test opencti server url");
     cb.setAuthToken(UUID.randomUUID().toString());
     cb.setAuto(false);
+    cb.setAutoUpdate(false);
     cb.setOnlyContextual(false);
     cb.setPlaybookCompatible(false);
     cb.setScope(new ArrayList<>(List.of("scope_1", "scope_2")));
