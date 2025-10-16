@@ -128,6 +128,7 @@
   },
   "scripts": {
     "auto-translation:all": "yarn run auto-translation:fr && yarn run auto-translation:cn",
+    "auto-translation:es": "i18n-auto-translation -a deepl-free -p ./src/utils/lang/en.json -t es -k $SUBSCRIPTION_KEY",
     "auto-translation:fr": "i18n-auto-translation -a deepl-free -p ./src/utils/lang/en.json -t fr -k $SUBSCRIPTION_KEY",
     "auto-translation:cn": "i18n-auto-translation -a deepl-free -p ./src/utils/lang/en.json -t zh -k $SUBSCRIPTION_KEY",
     "extract-translation": "node scripts/extract-i18n-keyword.js",

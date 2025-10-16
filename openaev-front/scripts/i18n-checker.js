@@ -18,6 +18,8 @@ const computeLangKeys = (lang) => {
   let data;
   if (lang === 'en') {
     data = fs.readFileSync(`${__dirname}/utils/lang/en.json`, { encoding: 'utf8' });
+  } else if (lang === 'es') {
+    data = fs.readFileSync(`${__dirname}/utils/lang/es.json`, { encoding: 'utf8' });
   } else if (lang === 'fr') {
     data = fs.readFileSync(`${__dirname}/utils/lang/fr.json`, { encoding: 'utf8' });
   } else if (lang === 'zh') {
@@ -67,7 +69,7 @@ const checkLanguageSupport = (lang) => {
 };
 
 const run = () => {
-  const languages = ['en', 'fr', 'zh'];
+  const languages = ['en', 'es', 'fr', 'zh'];
   const missingKeys = {};
 
   languages.forEach((lang) => {
