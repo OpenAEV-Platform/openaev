@@ -4,7 +4,6 @@ import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
 import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';
-import Vulnerabilities from './vulnerabilities/Vulnerabilities';
 import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
@@ -15,6 +14,7 @@ import Roles from './roles/Roles';
 import TagRules from './tag_rules/TagRules';
 import Tags from './tags/Tags';
 import Users from './users/Users';
+import Vulnerabilities from './vulnerabilities/Vulnerabilities';
 
 const Index = () => {
   return (

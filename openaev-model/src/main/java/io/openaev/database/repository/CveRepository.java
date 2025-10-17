@@ -10,9 +10,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CveRepository extends CrudRepository<Cve, String>, JpaSpecificationExecutor<Cve> {
 
-    Optional<Cve> findByExternalId(String externalId);
+  Optional<Cve> findByExternalId(String externalId);
 
-    Set<Cve> getAllByIdInIgnoreCase(Set<String> ids);
+  Set<Cve> getAllByIdInIgnoreCase(Set<String> ids);
 
-    Set<Cve> getAllByExternalIdInIgnoreCase(Set<String> externalIds);
+  Set<Cve> getAllByExternalIdInIgnoreCase(Set<String> externalIds);
 }

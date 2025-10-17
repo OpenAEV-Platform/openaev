@@ -30,102 +30,102 @@ import org.hibernate.annotations.UuidGenerator;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Cve implements Base {
 
-    public enum VulnerabilityStatus {
-        ANALYZED,
-        DEFERRED,
-        MODIFIED,
-    }
+  public enum VulnerabilityStatus {
+    ANALYZED,
+    DEFERRED,
+    MODIFIED,
+  }
 
-    @Id
-    @Column(name = "cve_id")
-    @JsonProperty("cve_id")
-    @GeneratedValue(generator = "UUID")
-    @UuidGenerator
-    @EqualsAndHashCode.Include
-    @NotBlank
-    private String id;
+  @Id
+  @Column(name = "cve_id")
+  @JsonProperty("cve_id")
+  @GeneratedValue(generator = "UUID")
+  @UuidGenerator
+  @EqualsAndHashCode.Include
+  @NotBlank
+  private String id;
 
-    @Column(name = "cve_external_id")
-    @JsonProperty("cve_external_id")
-    @NotBlank
-    @Queryable(searchable = true, filterable = true, sortable = true)
-    private String externalId;
+  @Column(name = "cve_external_id")
+  @JsonProperty("cve_external_id")
+  @NotBlank
+  @Queryable(searchable = true, filterable = true, sortable = true)
+  private String externalId;
 
-    @Column(name = "cve_source_identifier")
-    @JsonProperty("cve_source_identifier")
-    private String sourceIdentifier;
+  @Column(name = "cve_source_identifier")
+  @JsonProperty("cve_source_identifier")
+  private String sourceIdentifier;
 
-    @Column(name = "cve_published")
-    @JsonProperty("cve_published")
-    @Queryable(sortable = true)
-    private Instant published;
+  @Column(name = "cve_published")
+  @JsonProperty("cve_published")
+  @Queryable(sortable = true)
+  private Instant published;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "cve_vuln_status")
-    @JsonProperty("cve_vuln_status")
-    private VulnerabilityStatus vulnStatus;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "cve_vuln_status")
+  @JsonProperty("cve_vuln_status")
+  private VulnerabilityStatus vulnStatus;
 
-    @Column(name = "cve_description")
-    @JsonProperty("cve_description")
-    private String description;
+  @Column(name = "cve_description")
+  @JsonProperty("cve_description")
+  private String description;
 
-    @Column(name = "cve_remediation")
-    @JsonProperty("cve_remediation")
-    private String remediation;
+  @Column(name = "cve_remediation")
+  @JsonProperty("cve_remediation")
+  private String remediation;
 
-    @Column(name = "cve_cisa_exploit_add")
-    @JsonProperty("cve_cisa_exploit_add")
-    private Instant cisaExploitAdd;
+  @Column(name = "cve_cisa_exploit_add")
+  @JsonProperty("cve_cisa_exploit_add")
+  private Instant cisaExploitAdd;
 
-    @Column(name = "cve_cisa_action_due")
-    @JsonProperty("cve_cisa_action_due")
-    private Instant cisaActionDue;
+  @Column(name = "cve_cisa_action_due")
+  @JsonProperty("cve_cisa_action_due")
+  private Instant cisaActionDue;
 
-    @Column(name = "cve_cisa_required_action")
-    @JsonProperty("cve_cisa_required_action")
-    private String cisaRequiredAction;
+  @Column(name = "cve_cisa_required_action")
+  @JsonProperty("cve_cisa_required_action")
+  private String cisaRequiredAction;
 
-    @Column(name = "cve_cisa_vulnerability_name")
-    @JsonProperty("cve_cisa_vulnerability_name")
-    private String cisaVulnerabilityName;
+  @Column(name = "cve_cisa_vulnerability_name")
+  @JsonProperty("cve_cisa_vulnerability_name")
+  private String cisaVulnerabilityName;
 
-    @ElementCollection
-    @CollectionTable(name = "cve_reference_urls", joinColumns = @JoinColumn(name = "cve_id"))
-    @Column(name = "cve_reference_url")
-    @JsonProperty("cve_reference_urls")
-    private List<String> referenceUrls = new ArrayList<>();
+  @ElementCollection
+  @CollectionTable(name = "cve_reference_urls", joinColumns = @JoinColumn(name = "cve_id"))
+  @Column(name = "cve_reference_url")
+  @JsonProperty("cve_reference_urls")
+  private List<String> referenceUrls = new ArrayList<>();
 
-    @NotNull
-    @Column(name = "cve_cvss_v31", precision = 3, scale = 1)
-    @JsonProperty("cve_cvss_v31")
-    @Queryable(searchable = true, filterable = true, sortable = true)
-    private BigDecimal cvssV31;
+  @NotNull
+  @Column(name = "cve_cvss_v31", precision = 3, scale = 1)
+  @JsonProperty("cve_cvss_v31")
+  @Queryable(searchable = true, filterable = true, sortable = true)
+  private BigDecimal cvssV31;
 
-    @ArraySchema(schema = @Schema(type = "string"))
-    @ManyToMany
-    @JoinTable(
-            name = "cves_cwes",
-            joinColumns = @JoinColumn(name = "cve_id"),
-            inverseJoinColumns = @JoinColumn(name = "cwe_id"))
-    @JsonSerialize(using = MultiIdListDeserializer.class)
-    @JsonProperty("cves_cwes")
-    private List<Cwe> cwes = new ArrayList<>();
+  @ArraySchema(schema = @Schema(type = "string"))
+  @ManyToMany
+  @JoinTable(
+      name = "cves_cwes",
+      joinColumns = @JoinColumn(name = "cve_id"),
+      inverseJoinColumns = @JoinColumn(name = "cwe_id"))
+  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonProperty("cves_cwes")
+  private List<Cwe> cwes = new ArrayList<>();
 
-    // -- AUDIT --
+  // -- AUDIT --
 
-    @CreationTimestamp
-    @Queryable(filterable = true, sortable = true, label = "created at")
-    @Column(name = "cve_created_at", updatable = false)
-    @JsonProperty("cve_created_at")
-    private Instant creationDate;
+  @CreationTimestamp
+  @Queryable(filterable = true, sortable = true, label = "created at")
+  @Column(name = "cve_created_at", updatable = false)
+  @JsonProperty("cve_created_at")
+  private Instant creationDate;
 
-    @UpdateTimestamp
-    @Queryable(filterable = true, sortable = true, label = "updated at")
-    @Column(name = "cve_updated_at")
-    @JsonProperty("cve_updated_at")
-    private Instant updateDate;
+  @UpdateTimestamp
+  @Queryable(filterable = true, sortable = true, label = "updated at")
+  @Column(name = "cve_updated_at")
+  @JsonProperty("cve_updated_at")
+  private Instant updateDate;
 
-    @Getter(onMethod_ = @JsonIgnore)
-    @Transient
-    private final ResourceType resourceType = ResourceType.VULNERABILITY;
+  @Getter(onMethod_ = @JsonIgnore)
+  @Transient
+  private final ResourceType resourceType = ResourceType.VULNERABILITY;
 }

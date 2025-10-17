@@ -6,14 +6,14 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type AggregatedFindingOutput, type VulnerabilityOutput, type RelatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPaginationInput, type VulnerabilityOutput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { type CveStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
-import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 import GeneralVulnerabilityInfoTab from '../settings/vulnerabilities/GeneralVulnerabilityInfoTab';
 import RelatedInjectsTab from '../settings/vulnerabilities/RelatedInjectsTab';
 import RemediationInfoTab from '../settings/vulnerabilities/RemediationInfoTab';
 import TabLabelWithEE from '../settings/vulnerabilities/TabLabelWithEE';
+import { type CveStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
+import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;

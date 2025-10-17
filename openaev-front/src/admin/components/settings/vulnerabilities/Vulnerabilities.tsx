@@ -17,7 +17,7 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import CVSSBadge from '../../../../components/CvssBadge';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { type VulnerabilitySimple, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type SearchPaginationInput, type VulnerabilitySimple } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TaxonomiesMenu from '../TaxonomiesMenu';
@@ -31,9 +31,9 @@ const useStyles = makeStyles()({
 });
 
 const inlineStyles: Record<string, CSSProperties> = ({
-    vulnerability_external_id: { width: '20%' },
-    vulnerability_cvss_v31: { width: '20%' },
-    vulnerability_published: { width: '60%' },
+  vulnerability_external_id: { width: '20%' },
+  vulnerability_cvss_v31: { width: '20%' },
+  vulnerability_published: { width: '60%' },
 });
 
 const Vulnerabilities = () => {
