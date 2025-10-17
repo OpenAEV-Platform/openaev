@@ -1,8 +1,8 @@
 package io.openaev.rest.inject.service;
 
+import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-import static io.openaev.utils.ExpectationUtils.setExpectationsNotVulnerable;
-import static io.openaev.utils.ExpectationUtils.setExpectationsVulnerable;
+import static io.openaev.utils.ExpectationUtils.*;
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -182,9 +182,11 @@ public class InjectExecutionService {
 
     // Set expectations based on result
     if (vulnerable) {
-      setExpectationsVulnerable(injectExpectations, injectExpectationResult);
-    } else {
-      setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
+      setResultExpectationVulnerable(
+          injectExpectations, injectExpectationResult, VULNERABILITY.failureLabel);
+    } else { // Not vulnerable
+      setResultExpectationVulnerable(
+          injectExpectations, injectExpectationResult, VULNERABILITY.successLabel);
     }
 
     // Validate and save once

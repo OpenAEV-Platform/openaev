@@ -351,24 +351,21 @@ public class ExpectationUtils {
     return Collections.emptyList();
   }
 
-  // Set value for Vulnerability
-  public static void setExpectationsNotVulnerable(
-      List<InjectExpectation> expectations, InjectExpectationResult result) {
+  // Set Result for Vulnerability
+  public static void setResultExpectationVulnerable(
+      List<InjectExpectation> expectations,
+      InjectExpectationResult result,
+      String vulnerabilityResult) {
 
     for (InjectExpectation expectation : expectations) {
-      double score = expectation.getExpectedScore();
-      result.setResult(VULNERABILITY.successLabel);
+      double score =
+          VULNERABILITY.successLabel.equals(vulnerabilityResult)
+              ? expectation.getExpectedScore()
+              : 0.0;
+
+      result.setResult(vulnerabilityResult);
       result.setScore(score);
       expectation.setScore(score);
-      expectation.setResults(List.of(result));
-    }
-  }
-
-  public static void setExpectationsVulnerable(
-      List<InjectExpectation> expectations, InjectExpectationResult result) {
-
-    for (InjectExpectation expectation : expectations) {
-      expectation.setScore(0.0);
       expectation.setResults(List.of(result));
     }
   }
