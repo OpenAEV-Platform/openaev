@@ -20,7 +20,6 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

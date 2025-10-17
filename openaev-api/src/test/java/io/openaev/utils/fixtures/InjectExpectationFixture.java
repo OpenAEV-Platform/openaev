@@ -49,6 +49,17 @@ public class InjectExpectationFixture {
     return injectExpectation;
   }
 
+  public static InjectExpectation createVulnerabilityInjectExpectation(
+      Inject inject, @Nullable Agent agent) {
+    InjectExpectation injectExpectation = new InjectExpectation();
+    injectExpectation.setInject(inject);
+    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY);
+    injectExpectation.setAgent(agent);
+    injectExpectation.setExpectedScore(EXPECTED_SCORE);
+    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return injectExpectation;
+  }
+
   public static InjectExpectation createManualInjectExpectation(Team team, Inject inject) {
     InjectExpectation injectExpectation = new InjectExpectation();
     injectExpectation.setInject(inject);
