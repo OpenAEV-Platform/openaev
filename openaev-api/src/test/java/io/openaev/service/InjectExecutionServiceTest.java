@@ -51,7 +51,8 @@ class InjectExecutionServiceTest {
     try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
       testInjectExecutionService.checkCveExpectation(
           outputParsers, structuredOutput, inject, agent);
-      mocked.verify(() -> ExpectationUtils.setExpectationsNotVulnerable(any(), any()), times(1));
+      mocked.verify(
+          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), times(1));
     }
   }
 
@@ -62,7 +63,8 @@ class InjectExecutionServiceTest {
     try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
       testInjectExecutionService.checkCveExpectation(
           outputParsers, structuredOutput, inject, agent);
-      mocked.verify(() -> ExpectationUtils.setExpectationsNotVulnerable(any(), any()), times(1));
+      mocked.verify(
+          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), times(1));
     }
   }
 
@@ -79,7 +81,8 @@ class InjectExecutionServiceTest {
     try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
       testInjectExecutionService.checkCveExpectation(
           outputParsers, structuredOutput, inject, agent);
-      mocked.verify(() -> ExpectationUtils.setExpectationsNotVulnerable(any(), any()), times(1));
+      mocked.verify(
+          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), times(1));
     }
   }
 
@@ -100,7 +103,8 @@ class InjectExecutionServiceTest {
       testInjectExecutionService.checkCveExpectation(
           outputParsers, structuredOutput, inject, agent);
 
-      mocked.verify(() -> ExpectationUtils.setExpectationsVulnerable(any(), any()), times(1));
+      mocked.verify(
+          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), times(1));
     }
   }
 }
