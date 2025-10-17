@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { DEFAULT_LANG, supportedLanguages } from '../src/constants/Lang.ts';
+const DEFAULT_LANG = 'en';
+const supportedLanguages = ['en', 'es', 'fr', 'zh'];
 
 const __filename = fileURLToPath(import.meta.url);
 
