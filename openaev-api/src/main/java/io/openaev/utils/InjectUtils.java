@@ -5,6 +5,8 @@ import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import static io.openaev.database.model.NetworkTraffic.NETWORK_TRAFFIC_TYPE;
+import static io.openaev.utils.ExpectationUtils.isAssetExpectation;
+import static io.openaev.utils.ExpectationUtils.isAssetGroupExpectation;
 import static java.util.Collections.emptyList;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -192,10 +194,10 @@ public class InjectUtils {
               boolean teamMatch =
                   expectation.getTeam() != null && firstIds.contains(expectation.getTeam().getId());
               boolean assetMatch =
-                  expectation.getAsset() != null
+                  isAssetExpectation(expectation)
                       && firstIds.contains(expectation.getAsset().getId());
               boolean assetGroupMatch =
-                  expectation.getAssetGroup() != null
+                  isAssetGroupExpectation(expectation)
                       && firstIds.contains(expectation.getAssetGroup().getId());
               return teamMatch || assetMatch || assetGroupMatch;
             })

@@ -19,6 +19,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -185,8 +186,8 @@ public class InjectExecutionService {
       setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
     }
 
-    injectExpectationRepository.saveAll(injectExpectations);
     validateResultForAsset(injectExpectations, injectExpectationResult);
+    injectExpectationRepository.saveAll(injectExpectations);
   }
 
   private void setExpectationsNotVulnerable(
@@ -210,6 +211,7 @@ public class InjectExecutionService {
     }
   }
 
+  @Transactional(rollbackOn = Exception.class)
   public void validateResultForAsset(
       List<InjectExpectation> injectExpectations, InjectExpectationResult injectExpectationResult) {
     injectExpectations.forEach(
