@@ -191,7 +191,6 @@ public class InjectExecutionService {
     injectExpectationRepository.saveAll(injectExpectations);
   }
 
-  @Transactional(rollbackOn = Exception.class)
   public void validateResultForAsset(
       List<InjectExpectation> injectExpectations, InjectExpectationResult injectExpectationResult) {
     injectExpectations.forEach(
