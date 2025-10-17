@@ -1,50 +1,83 @@
 package io.openaev.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static io.openaev.utils.ExpectationUtils.setExpectationsNotVulnerable;
+import static io.openaev.utils.ExpectationUtils.setExpectationsVulnerable;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Agent;
 import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.utils.fixtures.InjectExpectationFixture;
+import io.openaev.database.model.OutputParser;
+import io.openaev.rest.inject.service.InjectExecutionService;
+import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.InjectFixture;
-import java.util.List;
+import io.openaev.utils.fixtures.OutputParserFixture;
+import jakarta.annotation.Resource;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class InjectExecutionServiceTest {
 
-  static Long EXPIRATION_TIME_SIX_HOURS = 21600L;
+  @InjectMocks private InjectExecutionService testInjectExecutionService;
 
-  @Mock private InjectExpectationRepository mockedInjectExpectationRepository;
-  @InjectMocks private InjectExpectationService testInjectExpectationService;
+  @Resource protected ObjectMapper mapper;
 
   @Test
-  void preventionExpectationsNotExpired_NoneExpired() {
-    // Arrange
+  void checkCveExpectation_NoOutputParsers_ShouldSetNotVulnerable() {
     Inject inject = InjectFixture.getDefaultInject();
-    InjectExpectation preventionExpectation =
-        InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
-    InjectExpectation preventionExpectation2 =
-        InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
+    Agent agent = AgentFixture.createDefaultAgentService();
+    Set<OutputParser> outputParsers = Set.of();
+    ObjectNode structuredOutput = null;
+    testInjectExecutionService.checkCveExpectation(outputParsers, structuredOutput, inject, agent);
+    verify(setExpectationsNotVulnerable(any(), any()), times(1));
+  }
 
-    when(mockedInjectExpectationRepository.findAll(any()))
-        .thenReturn(List.of(preventionExpectation, preventionExpectation2));
+  @Test
+  void checkCveExpectation_NullStructuredOutput_ShouldSetNotVulnerable() {
+    Inject inject = InjectFixture.getDefaultInject();
+    Agent agent = AgentFixture.createDefaultAgentService();
+    Set<OutputParser> outputParsers = Set.of(OutputParserFixture.getDefaultOutputParser());
+    ObjectNode structuredOutput = null;
+    testInjectExecutionService.checkCveExpectation(outputParsers, structuredOutput, inject, agent);
+    verify(setExpectationsNotVulnerable(any(), any()), times(1));
+  }
 
-    // Act
-    List<InjectExpectation> result =
-        testInjectExpectationService.preventionExpectationsNotExpired(
-            EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
+  @Test
+  void checkCveExpectation_NoCveType_ShouldSetNotVulnerable() {
+    Inject inject = InjectFixture.getDefaultInject();
+    Agent agent = AgentFixture.createDefaultAgentService();
+    Set<OutputParser> outputParsers = Set.of(OutputParserFixture.getDefaultOutputParser());
+    ObjectNode structuredOutput = ObjectMapper.createObjectNode();
+    structuredOutput
+        .putArray("cve_key")
+        .addObject()
+        .put("id", "CVE-2025-0234")
+        .put("host", "savacano28")
+        .put("severity", "7.1");
+    testInjectExecutionService.checkCveExpectation(outputParsers, structuredOutput, inject, agent);
+    verify(setExpectationsNotVulnerable(any(), any()), times(1));
+  }
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(2, result.size());
-    assertEquals(preventionExpectation.getId(), result.get(0).getId());
+  @Test
+  void checkCveExpectation_HasCveTypeAndCveData_ShouldSetVulnerable() {
+    Inject inject = InjectFixture.getDefaultInject();
+    Agent agent = AgentFixture.createDefaultAgentService();
+    Set<OutputParser> outputParsers = Set.of(OutputParserFixture.getCVEOutputElement());
+    ObjectNode structuredOutput = ObjectMapper.createObjectNode();
+    structuredOutput
+        .putArray("cve_key")
+        .addObject()
+        .put("id", "CVE-2025-0234")
+        .put("host", "savacano28")
+        .put("severity", "7.1");
+    testInjectExecutionService.checkCveExpectation(outputParsers, structuredOutput, inject, agent);
+    verify(setExpectationsVulnerable(any(), any()), times(1));
   }
 }

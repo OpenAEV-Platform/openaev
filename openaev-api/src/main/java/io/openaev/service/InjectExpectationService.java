@@ -238,6 +238,7 @@ public class InjectExpectationService {
 
     // 2) Asset -> Asset Group
     expectations.addAll(propagateToAssetGroup(injectExpectation));
+
     this.injectExpectationRepository.saveAll(expectations);
 
     // Security coverage job creation

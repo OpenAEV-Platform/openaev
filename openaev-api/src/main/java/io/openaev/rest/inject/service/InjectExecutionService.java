@@ -1,7 +1,8 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openaev.utils.ExpectationUtils.setExpectationsNotVulnerable;
+import static io.openaev.utils.ExpectationUtils.setExpectationsVulnerable;
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -188,27 +189,6 @@ public class InjectExecutionService {
 
     validateResultForAsset(injectExpectations, injectExpectationResult);
     injectExpectationRepository.saveAll(injectExpectations);
-  }
-
-  private void setExpectationsNotVulnerable(
-      List<InjectExpectation> expectations, InjectExpectationResult result) {
-
-    for (InjectExpectation expectation : expectations) {
-      double score = expectation.getExpectedScore();
-      result.setResult(VULNERABILITY.successLabel);
-      result.setScore(score);
-      expectation.setScore(score);
-      expectation.setResults(List.of(result));
-    }
-  }
-
-  private void setExpectationsVulnerable(
-      List<InjectExpectation> expectations, InjectExpectationResult result) {
-
-    for (InjectExpectation expectation : expectations) {
-      expectation.setScore(0.0);
-      expectation.setResults(List.of(result));
-    }
   }
 
   @Transactional(rollbackOn = Exception.class)

@@ -2,6 +2,7 @@ package io.openaev.utils;
 
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
+import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAgent;
 import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAsset;
 import static io.openaev.model.expectation.ManualExpectation.manualExpectationForAgent;
@@ -348,6 +349,28 @@ public class ExpectationUtils {
           .toList();
     }
     return Collections.emptyList();
+  }
+
+  // Set value for Vulnerability
+  public static void setExpectationsNotVulnerable(
+      List<InjectExpectation> expectations, InjectExpectationResult result) {
+
+    for (InjectExpectation expectation : expectations) {
+      double score = expectation.getExpectedScore();
+      result.setResult(VULNERABILITY.successLabel);
+      result.setScore(score);
+      expectation.setScore(score);
+      expectation.setResults(List.of(result));
+    }
+  }
+
+  public static void setExpectationsVulnerable(
+      List<InjectExpectation> expectations, InjectExpectationResult result) {
+
+    for (InjectExpectation expectation : expectations) {
+      expectation.setScore(0.0);
+      expectation.setResults(List.of(result));
+    }
   }
 
   // COMPUTE SIGNATURES
