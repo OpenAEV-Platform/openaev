@@ -2,7 +2,8 @@ package io.openaev.utils.mapper;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.helper.InjectModelHelper;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
@@ -32,6 +33,7 @@ public class InjectMapper {
   private final InjectStatusMapper injectStatusMapper;
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
+  private final HealthCheckUtils healthCheckUtils;
 
   /**
    * Converts an inject to a result overview output containing full execution details.
@@ -70,7 +72,7 @@ public class InjectMapper {
                 inject.getContent(),
                 injectUtils.getPrimaryExpectations(inject),
                 InjectExpectationResultUtils::getScores))
-        .isReady(inject.isReady())
+        .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
         .updatedAt(inject.getUpdatedAt())
         .build();
   }
@@ -242,47 +244,114 @@ public class InjectMapper {
   public InjectOutput toInjectOutput(
       String id,
       String title,
+      String description,
+      String country,
+      String city,
       boolean enabled,
+      Instant triggerNowDate,
       ObjectNode content,
+      Instant createdAt,
+      Instant updatedAt,
       boolean allTeams,
-      String exerciseId,
-      String scenarioId,
+      Exercise exercise,
+      Scenario scenario,
+      List<InjectDependency> dependsOn,
       Long dependsDuration,
       InjectorContract injectorContract,
-      String[] tags,
-      String[] teams,
-      String[] assets,
-      String[] assetGroups,
-      String injectType,
-      InjectDependency injectDependency) {
+      User user,
+      InjectStatus status,
+      CollectExecutionStatus collectExecutionStatus,
+      Set<Tag> tags,
+      List<Team> teams,
+      List<Asset> assets,
+      List<AssetGroup> assetGroups,
+      List<InjectDocument> documents,
+      List<Communication> communications,
+      List<InjectExpectation> expectations,
+      Long numberOfTargetUsers,
+      Instant date,
+      Long communicationsNumber,
+      Long communicationsNotAckNumber,
+      Instant sentAt,
+      List<KillChainPhase> killChainPhases,
+      List<AttackPattern> attackPatterns,
+      String type,
+      List<HealthCheck> healthchecks) {
     InjectOutput injectOutput = new InjectOutput();
     injectOutput.setId(id);
     injectOutput.setTitle(title);
+    injectOutput.setDescription(description);
+    injectOutput.setCountry(country);
+    injectOutput.setCity(city);
     injectOutput.setEnabled(enabled);
-    injectOutput.setExercise(exerciseId);
-    injectOutput.setScenario(scenarioId);
+    injectOutput.setTriggerNowDate(triggerNowDate);
+    injectOutput.setContent(content);
+    injectOutput.setCreatedAt(createdAt);
+    injectOutput.setUpdatedAt(updatedAt);
+    injectOutput.setAllTeams(allTeams);
+    injectOutput.setExercise(exercise);
+    injectOutput.setScenario(scenario);
+    injectOutput.setDependsOn(dependsOn);
     injectOutput.setDependsDuration(dependsDuration);
     injectOutput.setInjectorContract(injectorContract);
-    injectOutput.setTags(tags != null ? new HashSet<>(Arrays.asList(tags)) : new HashSet<>());
-    injectOutput.setTeams(
-        teams != null ? new ArrayList<>(Arrays.asList(teams)) : new ArrayList<>());
-    injectOutput.setAssets(
-        assets != null ? new ArrayList<>(Arrays.asList(assets)) : new ArrayList<>());
-    injectOutput.setAssetGroups(
-        assetGroups != null ? new ArrayList<>(Arrays.asList(assetGroups)) : new ArrayList<>());
-    injectOutput.setReady(
-        InjectModelHelper.isReady(
-            injectorContract,
-            content,
-            allTeams,
-            injectOutput.getTeams(),
-            injectOutput.getAssets(),
-            injectOutput.getAssetGroups()));
-    injectOutput.setInjectType(injectType);
-    injectOutput.setContent(content);
-    if (injectDependency != null) {
-      injectOutput.setDependsOn(List.of(injectDependency));
-    }
+    injectOutput.setUser(user);
+    injectOutput.setStatus(status);
+    injectOutput.setCollectExecutionStatus(collectExecutionStatus);
+    injectOutput.setTags(tags);
+    injectOutput.setTeams(teams);
+    injectOutput.setAssets(assets);
+    injectOutput.setAssetGroups(assetGroups);
+    injectOutput.setDocuments(documents);
+    injectOutput.setCommunications(communications);
+    injectOutput.setExpectations(expectations);
+    injectOutput.setNumberOfTargetUsers(numberOfTargetUsers);
+    injectOutput.setDate(date);
+    injectOutput.setCommunicationsNumber(communicationsNumber);
+    injectOutput.setCommunicationsNotAckNumber(communicationsNotAckNumber);
+    injectOutput.setSentAt(sentAt);
+    injectOutput.setKillChainPhases(killChainPhases);
+    injectOutput.setAttackPatterns(attackPatterns);
+    injectOutput.setType(type);
+    injectOutput.setHealthchecks(healthchecks);
     return injectOutput;
+  }
+
+  public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
+    return toInjectOutput(
+        inject.getId(),
+        inject.getTitle(),
+        inject.getDescription(),
+        inject.getCountry(),
+        inject.getCity(),
+        inject.isEnabled(),
+        inject.getTriggerNowDate(),
+        inject.getContent(),
+        inject.getCreatedAt(),
+        inject.getUpdatedAt(),
+        inject.isAllTeams(),
+        inject.getExercise(),
+        inject.getScenario(),
+        inject.getDependsOn(),
+        inject.getDependsDuration(),
+        inject.getInjectorContract().orElse(null),
+        inject.getUser(),
+        inject.getStatus().orElse(null),
+        inject.getCollectExecutionStatus(),
+        inject.getTags(),
+        inject.getTeams(),
+        inject.getAssets(),
+        inject.getAssetGroups(),
+        inject.getDocuments(),
+        inject.getCommunications(),
+        inject.getExpectations(),
+        inject.getNumberOfTargetUsers(),
+        inject.getDate().orElse(null),
+        inject.getCommunicationsNumber(),
+        inject.getCommunicationsNotAckNumber(),
+        inject.getSentAt(),
+        inject.getKillChainPhases(),
+        inject.getAttackPatterns(),
+        inject.getType(),
+        healthchecks);
   }
 }

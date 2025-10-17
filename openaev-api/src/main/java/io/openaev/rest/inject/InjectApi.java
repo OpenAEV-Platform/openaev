@@ -28,6 +28,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
@@ -39,6 +40,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,6 +90,8 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
+  private final InjectMapper injectMapper;
+  private final GrantRepository grantRepository;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
 
   private final RabbitmqConfig rabbitmqConfig;
@@ -117,8 +121,10 @@ public class InjectApi extends RestBehavior {
 
   @GetMapping(INJECT_URI + "/{injectId}")
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
-  public Inject inject(@PathVariable @NotBlank final String injectId) {
-    return this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+  public InjectOutput inject(@PathVariable @NotBlank final String injectId) {
+    Inject inject =
+        this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
   }
 
   @LogExecutionTime

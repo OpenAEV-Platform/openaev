@@ -357,6 +357,7 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+/** Attack pattern of the inject */
 export interface AttackPattern {
   /** @format date-time */
   attack_pattern_created_at?: string;
@@ -2913,7 +2914,7 @@ export interface HealthCheck {
    */
   creation_date: string;
   /** Detail of the check failure */
-  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY";
+  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY" | "MANDATORY_CONTENT";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -2925,7 +2926,14 @@ export interface HealthCheck {
     | "INJECT"
     | "TEAMS"
     | "NMAP"
-    | "NUCLEI";
+    | "NUCLEI"
+    | "INJECTOR_CONTRACT"
+    | "ASSETS"
+    | "ASSET_GROUPS"
+    | "SUBJECT"
+    | "BODY"
+    | "OPTIONAL_ARGS"
+    | "UNKNOWN";
 }
 
 export interface ImportMapper {
@@ -2974,7 +2982,6 @@ export interface ImportPostSummary {
 
 export interface ImportTestSummary {
   import_message?: ImportMessage[];
-  /** @deprecated */
   injects?: InjectOutput[];
   /** @format int32 */
   total_injects?: number;
@@ -3019,10 +3026,10 @@ export interface Inject {
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
-  inject_ready?: boolean;
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;
+  /** Status of the inject */
   inject_status?: InjectStatus;
   inject_tags?: string[];
   inject_teams?: string[];
@@ -3075,7 +3082,7 @@ export interface InjectBulkUpdateOperation {
   values?: string[];
 }
 
-/** Inject dependencies of the inject */
+/** Dependencies of the inject */
 export interface InjectDependency {
   dependency_condition?: InjectDependencyCondition;
   /** @format date-time */
@@ -3348,9 +3355,39 @@ export interface InjectInput {
 }
 
 export interface InjectOutput {
+  /** All teams value of the inject */
+  inject_all_teams?: boolean;
   inject_asset_groups?: string[];
   inject_assets?: string[];
+  inject_attack_patterns?: AttackPattern[];
+  /** City of the inject */
+  inject_city?: string;
+  /** Collect execution status of the inject */
+  inject_collect_status?: "COLLECTING" | "COMPLETED";
+  inject_communications?: string[];
+  /**
+   * Communications not ack size of the inject
+   * @format int64
+   */
+  inject_communications_not_ack_number?: number;
+  /**
+   * Communications size of the inject
+   * @format int64
+   */
+  inject_communications_number?: number;
   inject_content?: object;
+  /** Country of the inject */
+  inject_country?: string;
+  /**
+   * Creation date of the inject
+   * @format date-time
+   */
+  inject_created_at: string;
+  /**
+   * Date of the inject
+   * @format date-time
+   */
+  inject_date?: string;
   /**
    * Domain of the inject
    * @uniqueItems true
@@ -3363,28 +3400,56 @@ export interface InjectOutput {
    */
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
+  /** Description of the inject */
+  inject_description?: string;
+  inject_documents?: string[];
   /** Enabled state of the inject */
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
   inject_exercise?: string;
+  inject_expectations?: string[];
   inject_healthchecks?: HealthCheck[];
   /** ID of the inject */
   inject_id: string;
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
+  inject_kill_chain_phases?: KillChainPhase[];
   /** Ready state of the inject */
   inject_ready?: boolean;
   /** Scenario ID of the inject */
   inject_scenario?: string;
-  /** @uniqueItems true */
+  /**
+   * Sent date of the inject
+   * @format date-time
+   */
+  inject_sent_at?: string;
+  /** Status of the inject */
+  inject_status?: InjectStatus;
   inject_tags?: string[];
   inject_teams?: string[];
   /** Testable state of the inject */
   inject_testable?: boolean;
   /** Title of the inject */
   inject_title: string;
+  /**
+   * Trigger date of the inject
+   * @format date-time
+   */
+  inject_trigger_now_date?: string;
   /** Type of the inject */
   inject_type?: string;
+  /**
+   * Update date of the inject
+   * @format date-time
+   */
+  inject_updated_at: string;
+  /** User of the inject */
+  inject_user?: string;
+  /**
+   * Number of users tageted by the inject
+   * @format int64
+   */
+  inject_users_number?: number;
 }
 
 export interface InjectReceptionInput {
@@ -3466,6 +3531,7 @@ export interface InjectSimple {
   inject_title: string;
 }
 
+/** Status of the inject */
 export interface InjectStatus {
   listened?: boolean;
   status_id?: string;
@@ -3846,6 +3912,7 @@ export interface JsonApiDocumentResourceObject {
 
 export type JsonNode = object;
 
+/** Kill chain phases of the inject */
 export interface KillChainPhase {
   listened?: boolean;
   /** @format date-time */
