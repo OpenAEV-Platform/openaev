@@ -11,7 +11,10 @@
     "**/node_modules/**"
   ],
   "prConcurrentLimit": 10,
-  "baseBranches": ["release/current", "master"],
+  "baseBranchPatterns": [
+    "release/current",
+    "master"
+  ],
   "packageRules": [
     {
       "matchUpdateTypes": [
@@ -61,13 +64,21 @@
       "commitMessageSuffix": "(cronstrue will remove a functionality we use on a future release https://github.com/bradymholt/cRonstrue/pull/336)"
     },
     {
-      "matchJsonata": ["$exists(isVulnerabilityAlert)"],
-      "matchBaseBranches": ["release/current"],
+      "matchJsonata": [
+        "$exists(isVulnerabilityAlert)"
+      ],
+      "matchBaseBranches": [
+        "release/current"
+      ],
       "enabled": false
     },
     {
-      "matchJsonata": ["$not($exists(isVulnerabilityAlert))"],
-      "matchBaseBranches": ["master"],
+      "matchJsonata": [
+        "$not($exists(isVulnerabilityAlert))"
+      ],
+      "matchBaseBranches": [
+        "master"
+      ],
       "enabled": false
     }
   ],
