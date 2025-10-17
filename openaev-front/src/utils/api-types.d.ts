@@ -1054,6 +1054,74 @@ export interface CustomDashboardParametersInput {
     | "scenario";
 }
 
+/** Full CVE output including references and CWEs */
+export interface CveOutput {
+  /**
+   * CVSS score
+   * @example 7.8
+   */
+  cve_cvss_v31: number;
+  /**
+   * CISA required action due date
+   * @format date-time
+   */
+  cve_cisa_action_due?: string;
+  /**
+   * CISA exploit addition date
+   * @format date-time
+   */
+  cve_cisa_exploit_add?: string;
+  /** Action required by CISA */
+  cve_cisa_required_action?: string;
+  /** Name used by CISA for the vulnerability */
+  cve_cisa_vulnerability_name?: string;
+  /** List of CWE outputs */
+  cve_cwes?: CweOutput[];
+  /** Detailed CVE description */
+  cve_description?: string;
+  /**
+   * External CVE identifier
+   * @example "CVE-2024-0001"
+   */
+  cve_external_id: string;
+  /** Id */
+  cve_id: string;
+  /**
+   * CVE published date
+   * @format date-time
+   */
+  cve_published?: string;
+  /** External references */
+  cve_reference_urls?: string[];
+  /** Remediation suggestions */
+  cve_remediation?: string;
+  /** Source identifier */
+  cve_source_identifier?: string;
+  /** Status of the vulnerability */
+  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+/** Simplified CVE representation */
+export interface CveSimple {
+  /**
+   * CVSS score
+   * @example 7.8
+   */
+  cve_cvss_v31: number;
+  /**
+   * External CVE identifier
+   * @example "CVE-2024-0001"
+   */
+  cve_external_id: string;
+  /** Id */
+  cve_id: string;
+  /**
+   * CVE published date
+   * @format date-time
+   */
+  cve_published?: string;
+}
+
 /** CWE input used in CVE creation/update */
 export interface CweInput {
   /**
@@ -3864,6 +3932,25 @@ export interface PageCustomDashboard {
   totalPages?: number;
 }
 
+export interface PageCveSimple {
+  content?: CveSimple[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageEndpointOutput {
   content?: EndpointOutput[];
   empty?: boolean;
@@ -6102,7 +6189,7 @@ export interface VulnerabilityBulkInsertInput {
   vulnerabilities: VulnerabilityCreateInput[];
 }
 
-/** Payload to create a CVE */
+/** Payload to create a Vulnerabilty */
 export interface VulnerabilityCreateInput {
   /**
    * CVSS score
