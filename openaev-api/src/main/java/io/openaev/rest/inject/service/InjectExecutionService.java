@@ -154,7 +154,7 @@ public class InjectExecutionService {
     boolean vulnerable;
 
     // Determine vulnerability
-    if (outputParsers.isEmpty() || structuredOutput == null) {
+    if (outputParsers.isEmpty()) {
       vulnerable = false;
     } else {
       boolean hasCveType =
@@ -185,7 +185,7 @@ public class InjectExecutionService {
 
     // Validate and save once
     validateResultForAsset(injectExpectations, injectExpectationResult);
-    injectExpectationRepository.saveAll(inject.getExpectations());
+    injectExpectationRepository.saveAll(injectExpectations);
   }
 
   public void validateResultForAsset(
