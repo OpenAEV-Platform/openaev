@@ -2,6 +2,7 @@ package io.openaev.rest.cve.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.rest.vulnerability.form.CweInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;

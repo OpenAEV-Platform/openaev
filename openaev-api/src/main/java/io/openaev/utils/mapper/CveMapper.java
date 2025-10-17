@@ -7,7 +7,7 @@ import io.openaev.database.model.Vulnerability;
 import io.openaev.ee.Ee;
 import io.openaev.rest.cve.form.CveOutput;
 import io.openaev.rest.cve.form.CveSimple;
-import io.openaev.rest.cve.form.CweOutput;
+import io.openaev.rest.vulnerability.form.CweOutput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
