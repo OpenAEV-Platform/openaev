@@ -165,12 +165,16 @@ public class InjectExecutionService {
       if (!hasCveType) {
         vulnerable = false;
       } else {
-        boolean hasCveData =
-            outputParsers.stream()
-                .flatMap(parser -> parser.getContractOutputElements().stream())
-                .filter(element -> ContractOutputType.CVE == element.getType())
-                .map(element -> structuredOutput.get(element.getKey()))
-                .anyMatch(jsonNode -> jsonNode != null && !jsonNode.isEmpty());
+        boolean hasCveData = false;
+
+        if (structuredOutput != null) {
+          hasCveData =
+              outputParsers.stream()
+                  .flatMap(parser -> parser.getContractOutputElements().stream())
+                  .filter(element -> ContractOutputType.CVE == element.getType())
+                  .map(element -> structuredOutput.get(element.getKey()))
+                  .anyMatch(jsonNode -> jsonNode != null && !jsonNode.isEmpty());
+        }
 
         vulnerable = hasCveData;
       }
