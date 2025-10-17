@@ -152,7 +152,7 @@ public class DetectionRemediationAIService {
     try {
       final int retry_connection_waiting_second = 30;
       int codeResponse = response.getCode();
-      if (codeResponse != 200) {
+      if (codeResponse >= 200 && codeResponse < 300) {
         HttpStatus httpStatus =
             HttpStatus.resolve(codeResponse) == null
                 ? HttpStatus.SERVICE_UNAVAILABLE
