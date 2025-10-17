@@ -51,7 +51,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -112,7 +111,11 @@ class InjectServiceTest {
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
-        new InjectMapper(injectStatusMapper, injectExpectationMapper, injectUtils, new HealthCheckUtils(new ExecutorUtils())));
+        new InjectMapper(
+            injectStatusMapper,
+            injectExpectationMapper,
+            injectUtils,
+            new HealthCheckUtils(new ExecutorUtils())));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
