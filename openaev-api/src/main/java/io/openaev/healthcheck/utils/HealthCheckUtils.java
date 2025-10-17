@@ -6,6 +6,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS;
 import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -19,8 +20,10 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.inject.output.InjectOutput;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -169,20 +172,29 @@ public class HealthCheckUtils {
     return result;
   }
 
+  /**
+   * Verify if into the provided list of healthchecks, at least one specific exist
+   *
+   * @param type to search
+   * @param detail to search
+   * @param status to search
+   * @param injectsHealthChecks to filter
+   * @return list of found healthcheck
+   */
   public List<HealthCheck> runInjectsChecksFor(
       HealthCheck.Type type,
       HealthCheck.Detail detail,
       HealthCheck.Status status,
       List<HealthCheck> injectsHealthChecks) {
-    List<HealthCheck> result = new ArrayList<>();
+      List<HealthCheck> result = new ArrayList<>();
 
     if (injectsHealthChecks.stream()
         .anyMatch(
             healthCheck ->
-                type.equals(healthCheck.getType())
-                    && detail.equals(healthCheck.getDetail())
-                    && status.equals(healthCheck.getStatus()))) {
-      result.add(new HealthCheck(type, detail, status, now()));
+                Objects.equals(type, healthCheck.getType())
+                    && Objects.equals(detail, healthCheck.getDetail())
+                    && Objects.equals(status, healthCheck.getStatus()))) {
+        result.add(new HealthCheck(type, detail, status, now()));
     }
 
     return result;
@@ -204,18 +216,17 @@ public class HealthCheckUtils {
                             inject.getInjectorContract().orElse(null),
                             inject.getContent(),
                             inject.isAllTeams(),
-                            inject.getTeams() != null
-                                ? inject.getTeams().stream().map(Team::getId).toList()
-                                : new ArrayList<>(),
-                            inject.getAssets() != null
-                                ? inject.getAssets().stream().map(Asset::getId).toList()
-                                : new ArrayList<>(),
-                            inject.getAssetGroups() != null
-                                ? new ArrayList<>(
-                                    inject.getAssetGroups().stream()
-                                        .map(AssetGroup::getId)
-                                        .toList())
-                                : new ArrayList<>())
+                            ofNullable(inject.getTeams())
+                                .map(teams -> teams.stream().map(Team::getId).toList())
+                                .orElse(new ArrayList<>()),
+                            ofNullable(inject.getAssets())
+                                .map(assets -> assets.stream().map(Asset::getId).toList())
+                                .orElse(new ArrayList<>()),
+                            ofNullable(inject.getAssetGroups())
+                                .map(
+                                    assetGroups ->
+                                        assetGroups.stream().map(AssetGroup::getId).toList())
+                                .orElse(new ArrayList<>()))
                         .isEmpty());
 
     if (atLeastOneInjectIsNotReady) {
@@ -275,22 +286,39 @@ public class HealthCheckUtils {
     return result;
   }
 
+  /**
+   * Run content checks by injects
+   *
+   * @param inject to verify
+   * @return found healthchecks
+   */
   public List<HealthCheck> runContentChecks(Inject inject) {
     return runContentChecks(
         inject.getInjectorContract().orElse(null),
         inject.getContent(),
         inject.isAllTeams(),
-        inject.getTeams() != null
-            ? inject.getTeams().stream().map(Team::getId).toList()
-            : new ArrayList<>(),
-        inject.getAssets() != null
-            ? inject.getAssets().stream().map(Asset::getId).toList()
-            : new ArrayList<>(),
-        inject.getAssetGroups() != null
-            ? new ArrayList<>(inject.getAssetGroups().stream().map(AssetGroup::getId).toList())
-            : new ArrayList<>());
+        ofNullable(inject.getTeams())
+            .map(teams -> teams.stream().map(Team::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getAssets())
+            .map(assets -> assets.stream().map(Asset::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getAssetGroups())
+            .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
+            .orElse(new ArrayList<>()));
   }
 
+  /**
+   * Run content check by injector contract
+   *
+   * @param injectorContract to validate
+   * @param content to validate
+   * @param allTeams to control
+   * @param teams to control
+   * @param assets to control
+   * @param assetGroups to control
+   * @return found list of healthchecks
+   */
   public List<HealthCheck> runContentChecks(
       InjectorContract injectorContract,
       ObjectNode content,
@@ -461,7 +489,7 @@ public class HealthCheckUtils {
       }
     }
 
-    return result;
+    return removeDuplicates(result);
   }
 
   /**
@@ -471,17 +499,29 @@ public class HealthCheckUtils {
    * @return filtered healthchecks
    */
   public List<HealthCheck> removeDuplicates(List<HealthCheck> healthChecks) {
+    if (healthChecks == null || healthChecks.isEmpty()) {
+      return Collections.emptyList();
+    }
+
     return healthChecks.stream()
         .collect(
             Collectors.toMap(
-                hc -> hc.getType() + "_" + hc.getDetail(),
-                hc -> hc,
-                (a, b) ->
-                    HealthCheck.Status.ERROR.equals(a.getStatus())
-                        ? a
-                        : HealthCheck.Status.ERROR.equals(b.getStatus()) ? b : a))
+                this::createHealthCheckKey, Function.identity(), this::keepErrorStatusPriority))
         .values()
         .stream()
         .toList();
+  }
+
+  private String createHealthCheckKey(HealthCheck healthCheck) {
+    return healthCheck.getType() + "_" + healthCheck.getDetail();
+  }
+
+  private HealthCheck keepErrorStatusPriority(HealthCheck first, HealthCheck second) {
+    if (HealthCheck.Status.ERROR.equals(first.getStatus())) {
+      return first;
+    } else if (HealthCheck.Status.ERROR.equals(second.getStatus())) {
+      return second;
+    }
+    return first;
   }
 }

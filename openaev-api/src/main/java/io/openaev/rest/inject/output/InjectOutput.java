@@ -93,7 +93,7 @@ public class InjectOutput {
   private Scenario scenario;
 
   @JsonProperty("inject_depends_on")
-  @ArraySchema(schema = @Schema(description = "Dependencies of the inject"))
+  @ArraySchema(schema = @Schema(description = "Dependency of the inject"))
   private List<InjectDependency> dependsOn = new ArrayList<>();
 
   @JsonProperty("inject_depends_duration")
@@ -122,41 +122,41 @@ public class InjectOutput {
 
   @JsonProperty("inject_tags")
   @JsonSerialize(using = MultiIdSetDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Tags of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Tag of the inject"))
   private Set<Tag> tags;
 
   @JsonProperty("inject_teams")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Teams of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Team of the inject"))
   private List<Team> teams;
 
   @JsonProperty("inject_assets")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Assets of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Asset of the inject"))
   private List<Asset> assets;
 
   @JsonProperty("inject_asset_groups")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Asset groups of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Asset group of the inject"))
   private List<AssetGroup> assetGroups;
 
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Documents of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Document of the inject"))
   private List<InjectDocument> documents = new ArrayList<>();
 
   @JsonProperty("inject_communications")
   @JsonSerialize(using = MultiModelDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Communications of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Communication of the inject"))
   private List<Communication> communications = new ArrayList<>();
 
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelDeserializer.class)
-  @ArraySchema(schema = @Schema(type = "string", description = "Expectations of the inject"))
+  @ArraySchema(schema = @Schema(type = "string", description = "Expectation of the inject"))
   private List<InjectExpectation> expectations = new ArrayList<>();
 
   @JsonProperty("inject_users_number")
-  @Schema(description = "Number of users tageted by the inject")
+  @Schema(description = "Count of users targeted by the inject")
   public Long numberOfTargetUsers;
 
   @JsonProperty("inject_date")
@@ -164,11 +164,11 @@ public class InjectOutput {
   private Instant date;
 
   @JsonProperty("inject_communications_number")
-  @Schema(description = "Communications size of the inject")
+  @Schema(description = "Communications count of the inject")
   public Long communicationsNumber;
 
   @JsonProperty("inject_communications_not_ack_number")
-  @Schema(description = "Communications not ack size of the inject")
+  @Schema(description = "Communications not ack count of the inject")
   private Long communicationsNotAckNumber;
 
   @JsonProperty("inject_sent_at")
@@ -176,7 +176,7 @@ public class InjectOutput {
   public Instant sentAt;
 
   @JsonProperty("inject_kill_chain_phases")
-  @ArraySchema(schema = @Schema(description = "Kill chain phases of the inject"))
+  @ArraySchema(schema = @Schema(description = "Kill chain phase of the inject"))
   public List<KillChainPhase> killChainPhases;
 
   @JsonProperty("inject_attack_patterns")
@@ -194,7 +194,7 @@ public class InjectOutput {
   }
 
   @JsonProperty("inject_healthchecks")
-  @ArraySchema(schema = @Schema(description = "Healthchecks of the inject"))
+  @ArraySchema(schema = @Schema(description = "Healthcheck of the inject"))
   private List<HealthCheck> healthchecks = new ArrayList<>();
   @JsonProperty("inject_contract_domains")
   @Schema(description = "Domain of the inject")

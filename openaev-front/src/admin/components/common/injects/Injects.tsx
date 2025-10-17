@@ -203,9 +203,9 @@ const Injects: FunctionComponent<Props> = ({
         if (!inject.inject_ready) {
           injectLabel = t('Missing content');
           injectTooltip = inject.inject_healthchecks
-            ? inject.inject_healthchecks.filter(healthcheck => 'MANDATORY_CONTENT' === healthcheck.detail)
+            ? `${t('Missing content')} : ${inject.inject_healthchecks.filter(healthcheck => 'MANDATORY_CONTENT' === healthcheck.detail)
                 .map(healthcheck => t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`))
-                .join(', ')
+                .join(', ')}`
             : '';
         }
         return (

@@ -15,14 +15,12 @@ import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusSimple;
 import io.openaev.rest.atomic_testing.form.InjectorContractSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.inject.output.InjectOutput;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.TargetType;
@@ -54,10 +52,6 @@ public class InjectSearchService {
   private final TeamRepository teamRepository;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
-
-  private final InjectService injectService;
-  private final AssetService assetService;
-  private final AssetGroupService assetGroupService;
 
   private final InjectMapper injectMapper;
   private final InjectExpectationMapper injectExpectationMapper;
@@ -129,9 +123,6 @@ public class InjectSearchService {
 
     // -- Count Query --
     Long total = countQuery(cb, this.entityManager, Inject.class, specificationCount);
-
-    // -- Feed injects with healthchecks
-    // TO DO
 
     return new PageImpl<>(injects, pageable, total);
   }
@@ -262,15 +253,28 @@ public class InjectSearchService {
                       .orElse(new ArrayList<>()));
               inject.setAssets(
                   ofNullable(tuple.get("inject_assets", String[].class))
-                      .map(ids -> assetService.assets(Arrays.asList(ids)))
+                      .map(ids -> Arrays.stream(ids)
+                              .map(
+                                      id -> {
+                                          Asset asset = new Asset();
+                                          asset.setId(id);
+                                          return asset;
+                                      })
+                              .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
               inject.setAssetGroups(
                   ofNullable(tuple.get("inject_asset_groups", String[].class))
-                      .map(ids -> assetGroupService.assetGroups(Arrays.asList(ids)))
+                      .map(ids -> Arrays.stream(ids)
+                              .map(
+                                      id -> {
+                                          AssetGroup assetGroup = new AssetGroup();
+                                          assetGroup.setId(id);
+                                          return assetGroup;
+                                      })
+                              .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
-              List<HealthCheck> healthChecks =
-                  healthCheckUtils.removeDuplicates(injectService.runChecks(inject));
-              return injectMapper.toInjectOutput(inject, healthChecks);
+              // Check only for content checks because this result is only used to display the inject list on scenario
+              return injectMapper.toInjectOutput(inject, healthCheckUtils.runContentChecks(inject));
             })
         .toList();
   }
