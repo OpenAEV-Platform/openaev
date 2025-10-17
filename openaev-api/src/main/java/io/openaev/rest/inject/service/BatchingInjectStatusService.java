@@ -1,6 +1,7 @@
 package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
+import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -201,16 +202,7 @@ public class BatchingInjectStatusService {
             });
 
     if (!injectExpectations.isEmpty()) {
-      InjectExpectationResult injectExpectationResult =
-          InjectExpectationResult.builder()
-              .sourceId("acab8214-0379-448a-a575-05e9d934eadd")
-              .date(String.valueOf(Instant.now()))
-              .sourceType("openbas_expectations_vulnerability_manager")
-              .sourceName("Expectations Vulnerability Manager")
-              .score(0.0)
-              .result("Vulnerable")
-              .metadata(null)
-              .build();
+      InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
       outputParsers.forEach(
           outputParser -> {
             outputParser
