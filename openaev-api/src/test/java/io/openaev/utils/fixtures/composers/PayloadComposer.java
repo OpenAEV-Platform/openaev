@@ -1,12 +1,10 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.composers.payload_composers.OutputParserComposer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -99,5 +97,35 @@ public class PayloadComposer extends ComposerBase<Payload> {
   public Composer forPayload(Payload payload) {
     this.generatedItems.add(payload);
     return new Composer(payload);
+  }
+
+  public PayloadInput forPayloadInput(Payload payload, List<String> attackPatternsIds) {
+
+    PayloadInput input = new PayloadInput();
+    input.setType(payload.getType());
+    input.setName(payload.getName());
+    input.setPlatforms(payload.getPlatforms());
+    input.setDescription(payload.getDescription());
+    input.setExecutionArch(payload.getExecutionArch());
+    input.setArguments(payload.getArguments());
+    input.setPrerequisites(payload.getPrerequisites());
+    input.setCleanupExecutor(payload.getCleanupExecutor());
+    input.setCleanupCommand(payload.getCleanupCommand());
+    input.setTagIds(new ArrayList<>());
+    input.setDetectionRemediations(new ArrayList<>());
+    input.setOutputParsers(new HashSet<>());
+    input.setAttackPatternsIds(attackPatternsIds);
+    switch (payload) {
+      case Command command -> {
+        input.setExecutor(command.getExecutor());
+        input.setContent(command.getContent());
+      }
+      case DnsResolution dnsResolution -> input.setHostname(dnsResolution.getHostname());
+      case Executable executable -> executable.setExecutableFile(executable.getExecutableFile());
+      case FileDrop fileDrop -> fileDrop.setFileDropFile(fileDrop.getFileDropFile());
+      default -> {}
+    }
+
+    return input;
   }
 }

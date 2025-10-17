@@ -39,6 +39,9 @@ public class DetectionRemediationAIService {
   @Value("${#remediation.detection.webservice.retry:#{3}}")
   Integer RETRY_CONNECTION;
 
+  @Value("${#remediation.detection.webservice.retry.waiting.second:#{30}}")
+  Integer RETRY_CONNECTION_WAITING_SECOND;
+
   private final Ee ee;
   private final HttpClientFactory httpClientFactory;
   @Resource protected ObjectMapper mapper;
@@ -89,7 +92,8 @@ public class DetectionRemediationAIService {
           payload.getClass().getName(),
           e.getMessage(),
           e);
-      throw new RuntimeException(e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, errorMessage + ": " + e.getMessage());
     }
 
     httpPost.setEntity(httpBody);
@@ -100,7 +104,9 @@ public class DetectionRemediationAIService {
       return mapper.readValue(responseBody, classResponse);
     } catch (JsonProcessingException e) {
       log.error("Failed to parse JSON response {} . Error: {} ", classResponse, e.getMessage(), e);
-      throw new RuntimeException(e);
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY,
+          errorMessage + "The external service returned an invalid response: " + e.getMessage());
     }
   }
 
@@ -121,7 +127,9 @@ public class DetectionRemediationAIService {
           "Failed to parse JSON response DetectionRemediationHealthResponse . Error: {} ",
           e.getMessage(),
           e);
-      throw new RuntimeException(e);
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY,
+          errorMessage + "The external service returned an invalid response: " + e.getMessage());
     }
   }
 
@@ -150,9 +158,8 @@ public class DetectionRemediationAIService {
 
   private String checkCodeResponse(String errorMessage, ClassicHttpResponse response, int retry) {
     try {
-      final int retry_connection_waiting_second = 30;
       int codeResponse = response.getCode();
-      if (codeResponse >= 200 && codeResponse < 300) {
+      if (codeResponse >= 300) {
         HttpStatus httpStatus =
             HttpStatus.resolve(codeResponse) == null
                 ? HttpStatus.SERVICE_UNAVAILABLE
@@ -167,7 +174,7 @@ public class DetectionRemediationAIService {
             response.getReasonPhrase(),
             retry < RETRY_CONNECTION
                 ? " Try again in "
-                    + retry_connection_waiting_second
+                    + RETRY_CONNECTION_WAITING_SECOND
                     + " seconds ("
                     + retry
                     + "/"
@@ -175,7 +182,7 @@ public class DetectionRemediationAIService {
                     + ")"
                 : RETRY_CONNECTION + " attempt failed, call stoped.");
 
-        Thread.sleep(1000 * retry_connection_waiting_second);
+        Thread.sleep(1000L * RETRY_CONNECTION_WAITING_SECOND);
 
       } else {
         return EntityUtils.toString(response.getEntity());
@@ -187,14 +194,18 @@ public class DetectionRemediationAIService {
           this.getClass().getName(),
           e.getMessage(),
           e);
-      throw new RuntimeException(e);
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY,
+          errorMessage + "The external service returned an invalid response: " + e.getMessage());
     } catch (InterruptedException e) {
       log.error(
           "Thread sleep retry stoped : retry to call remediation detection webservice {} . Error: {} ",
           this.getClass().getName(),
           e.getMessage(),
           e);
-      throw new RuntimeException(e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          errorMessage + "The operation was interrupted unexpectedly: " + e.getMessage());
     }
 
     return null;
