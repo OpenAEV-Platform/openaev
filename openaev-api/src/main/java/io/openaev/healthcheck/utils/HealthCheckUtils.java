@@ -20,7 +20,6 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.inject.output.InjectOutput;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
@@ -186,7 +185,7 @@ public class HealthCheckUtils {
       HealthCheck.Detail detail,
       HealthCheck.Status status,
       List<HealthCheck> injectsHealthChecks) {
-      List<HealthCheck> result = new ArrayList<>();
+    List<HealthCheck> result = new ArrayList<>();
 
     if (injectsHealthChecks.stream()
         .anyMatch(
@@ -194,7 +193,7 @@ public class HealthCheckUtils {
                 Objects.equals(type, healthCheck.getType())
                     && Objects.equals(detail, healthCheck.getDetail())
                     && Objects.equals(status, healthCheck.getStatus()))) {
-        result.add(new HealthCheck(type, detail, status, now()));
+      result.add(new HealthCheck(type, detail, status, now()));
     }
 
     return result;

@@ -2906,7 +2906,7 @@ export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
 
-/** Healthchecks of the inject */
+/** Healthcheck of the inject */
 export interface HealthCheck {
   /**
    * Date when the failure have been found
@@ -3082,7 +3082,7 @@ export interface InjectBulkUpdateOperation {
   values?: string[];
 }
 
-/** Dependencies of the inject */
+/** Dependency of the inject */
 export interface InjectDependency {
   dependency_condition?: InjectDependencyCondition;
   /** @format date-time */
@@ -3366,12 +3366,12 @@ export interface InjectOutput {
   inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
   /**
-   * Communications not ack size of the inject
+   * Communications not ack count of the inject
    * @format int64
    */
   inject_communications_not_ack_number?: number;
   /**
-   * Communications size of the inject
+   * Communications count of the inject
    * @format int64
    */
   inject_communications_number?: number;
@@ -3446,7 +3446,7 @@ export interface InjectOutput {
   /** User of the inject */
   inject_user?: string;
   /**
-   * Number of users tageted by the inject
+   * Count of users targeted by the inject
    * @format int64
    */
   inject_users_number?: number;
@@ -3912,7 +3912,7 @@ export interface JsonApiDocumentResourceObject {
 
 export type JsonNode = object;
 
-/** Kill chain phases of the inject */
+/** Kill chain phase of the inject */
 export interface KillChainPhase {
   listened?: boolean;
   /** @format date-time */

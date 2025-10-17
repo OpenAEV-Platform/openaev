@@ -69,9 +69,9 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectDuplicateService injectDuplicateService;
   private final InjectStatusService injectStatusService;
   private final SimulationInjectService simulationInjectService;
-    private final InjectMapper injectMapper;
+  private final InjectMapper injectMapper;
 
-    @Operation(summary = "Retrieved injects for an exercise")
+  @Operation(summary = "Retrieved injects for an exercise")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -127,7 +127,7 @@ public class SimulationInjectApi extends RestBehavior {
   public Iterable<InjectOutput> exerciseInjects(@PathVariable @NotBlank final String exerciseId) {
     return injectRepository.findByExerciseId(exerciseId).stream()
         .sorted(Inject.executionComparator)
-            .map(inject -> injectMapper.toInjectOutput(inject, injectService.runChecks(inject)))
+        .map(inject -> injectMapper.toInjectOutput(inject, injectService.runChecks(inject)))
         .toList();
   }
 
@@ -160,7 +160,8 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public InjectOutput exerciseInject(@PathVariable String exerciseId, @PathVariable String injectId) {
+  public InjectOutput exerciseInject(
+      @PathVariable String exerciseId, @PathVariable String injectId) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
   }
@@ -202,8 +203,8 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    Inject createdInject = this.injectService.createAndSaveInject(exercise, null, input);
-      return injectMapper.toInjectOutput(createdInject, injectService.runChecks(createdInject));
+    Inject createdInject = this.injectService.createInject(exercise, null, input);
+    return injectMapper.toInjectOutput(createdInject, injectService.runChecks(createdInject));
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")
@@ -227,8 +228,9 @@ public class SimulationInjectApi extends RestBehavior {
   public InjectOutput duplicateInjectForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
-    Inject duplicatedInject = injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
-        exerciseId, injectId);
+    Inject duplicatedInject =
+        injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
+            exerciseId, injectId);
     return injectMapper.toInjectOutput(duplicatedInject, injectService.runChecks(duplicatedInject));
   }
 
@@ -331,7 +333,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
     Inject updatedInject = injectStatusService.updateInjectStatus(injectId, input);
-      return injectMapper.toInjectOutput(updatedInject, injectService.runChecks(updatedInject));
+    return injectMapper.toInjectOutput(updatedInject, injectService.runChecks(updatedInject));
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")

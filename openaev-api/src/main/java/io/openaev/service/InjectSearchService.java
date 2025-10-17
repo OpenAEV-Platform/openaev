@@ -253,27 +253,32 @@ public class InjectSearchService {
                       .orElse(new ArrayList<>()));
               inject.setAssets(
                   ofNullable(tuple.get("inject_assets", String[].class))
-                      .map(ids -> Arrays.stream(ids)
-                              .map(
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .map(
                                       id -> {
-                                          Asset asset = new Asset();
-                                          asset.setId(id);
-                                          return asset;
+                                        Asset asset = new Asset();
+                                        asset.setId(id);
+                                        return asset;
                                       })
-                              .collect(Collectors.toList()))
+                                  .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
               inject.setAssetGroups(
                   ofNullable(tuple.get("inject_asset_groups", String[].class))
-                      .map(ids -> Arrays.stream(ids)
-                              .map(
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .map(
                                       id -> {
-                                          AssetGroup assetGroup = new AssetGroup();
-                                          assetGroup.setId(id);
-                                          return assetGroup;
+                                        AssetGroup assetGroup = new AssetGroup();
+                                        assetGroup.setId(id);
+                                        return assetGroup;
                                       })
-                              .collect(Collectors.toList()))
+                                  .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
-              // Check only for content checks because this result is only used to display the inject list on scenario
+              // Check only for content checks because this result is only used to display the
+              // inject list on scenario
               return injectMapper.toInjectOutput(inject, healthCheckUtils.runContentChecks(inject));
             })
         .toList();
