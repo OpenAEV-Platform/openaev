@@ -5,12 +5,15 @@ import static org.springframework.util.StringUtils.hasText;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Component
 @Data
+@ConfigurationProperties(prefix = "openaev")
 public class OpenAEVConfig {
 
   @JsonProperty("parameters_id")
@@ -104,6 +107,10 @@ public class OpenAEVConfig {
   @JsonProperty("extra_trusted_certs_dir")
   @Value("${openbas.extra-trusted-certs-dir:${openaev.extra-trusted-certs-dir:#{null}}}")
   private String extraTrustedCertsDir;
+
+  @JsonProperty("queue-config")
+  @Value("${openbas.queue-config:${openaev.queue-config:#{null}}}")
+  private Map<String, QueueConfig> queueConfig;
 
   public String getBaseUrl() {
     return url(baseUrl);

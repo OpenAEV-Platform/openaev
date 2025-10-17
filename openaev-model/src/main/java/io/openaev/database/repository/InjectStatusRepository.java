@@ -36,4 +36,9 @@ public interface InjectStatusRepository
               + " WHERE i.inject_id = :injectId",
       nativeQuery = true)
   Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
+
+  @Query(
+      value = "SELECT * FROM injects_statuses c WHERE c.status_inject IN (:injectId)",
+      nativeQuery = true)
+  List<InjectStatus> findAllByInjectId(@NotNull List<String> injectId);
 }
