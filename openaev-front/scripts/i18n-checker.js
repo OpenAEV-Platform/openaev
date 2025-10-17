@@ -3,7 +3,8 @@ import fs from 'node:fs';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { DEFAULT_LANG, supportedLanguages } from "../src/constants/Lang.ts";
+
+import { DEFAULT_LANG, supportedLanguages } from '../src/constants/Lang.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -25,6 +26,7 @@ const computeLangKeys = (lang) => {
   try {
     return fs.readFileSync(filePath, 'utf8');
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(`Failed to read language file for "${targetLang}":`, err);
     return null;
   }

@@ -11,12 +11,12 @@ import { type FunctionComponent, type ReactElement, useEffect } from 'react';
 import { IntlProvider } from 'react-intl';
 
 import { type LoggedHelper } from '../actions/helper';
+import { DEFAULT_LANG } from '../constants/Lang';
 import { useHelper } from '../store';
 import enOpenAEV from '../utils/lang/en.json';
 import esOpenAEV from '../utils/lang/es.json';
 import frOpenAEV from '../utils/lang/fr.json';
 import zhOpenAEV from '../utils/lang/zh.json';
-import { DEFAULT_LANG } from '../constants/Lang';
 
 type Lang = 'en' | 'es' | 'fr' | 'zh';
 

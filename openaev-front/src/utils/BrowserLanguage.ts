@@ -1,4 +1,5 @@
 import * as R from 'ramda';
+
 import { DEFAULT_LANG, supportedLanguages } from '../constants/Lang';
 
 // These window.navigator contain language information
