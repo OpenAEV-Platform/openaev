@@ -151,43 +151,41 @@ public class InjectExecutionService {
     }
 
     InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
+    boolean vulnerable;
 
-    // If no output parsers, default to "Not vulnerable"
+    // Determine vulnerability
     if (outputParsers.isEmpty() || structuredOutput == null) {
-      setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
-      return;
+      vulnerable = false;
+    } else {
+      boolean hasCveType =
+          outputParsers.stream()
+              .flatMap(parser -> parser.getContractOutputElements().stream())
+              .anyMatch(element -> ContractOutputType.CVE == element.getType());
+
+      if (!hasCveType) {
+        vulnerable = false;
+      } else {
+        boolean hasCveData =
+            outputParsers.stream()
+                .flatMap(parser -> parser.getContractOutputElements().stream())
+                .filter(element -> ContractOutputType.CVE == element.getType())
+                .map(element -> structuredOutput.get(element.getKey()))
+                .anyMatch(jsonNode -> jsonNode != null && !jsonNode.isEmpty());
+
+        vulnerable = hasCveData;
+      }
     }
 
-    // I need to check any output parser is Type CVE
-    boolean hasCveType =
-        outputParsers.stream()
-            .flatMap(parser -> parser.getContractOutputElements().stream())
-            .anyMatch(element -> ContractOutputType.CVE == element.getType());
-
-    if (!hasCveType) {
-      // No type CVE -> Not vulnerable
-      setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
-      return;
-    }
-
-    // At least one CVE-type element found
-    boolean hasCveData =
-        outputParsers.stream()
-            .flatMap(parser -> parser.getContractOutputElements().stream())
-            .filter(element -> ContractOutputType.CVE == element.getType())
-            .map(element -> structuredOutput.get(element.getKey()))
-            .anyMatch(jsonNode -> jsonNode != null && !jsonNode.isEmpty());
-
-    if (hasCveData) {
-      // Found CVE in raw output then vulnerable
+    // Set expectations based on result
+    if (vulnerable) {
       setExpectationsVulnerable(injectExpectations, injectExpectationResult);
     } else {
-      // CVE type exists but we dont have data then Not vulnerable
       setExpectationsNotVulnerable(injectExpectations, injectExpectationResult);
     }
 
+    // Validate and save once
     validateResultForAsset(injectExpectations, injectExpectationResult);
-    injectExpectationRepository.saveAll(injectExpectations);
+    injectExpectationRepository.saveAll(inject.getExpectations());
   }
 
   public void validateResultForAsset(
