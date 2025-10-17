@@ -30,7 +30,7 @@ class InjectExecutionServiceTest {
   private Inject inject;
   private Agent agent;
 
-  private ObjectMapper mapper;
+  private ObjectMapper mapper = new ObjectMapper();
 
   @BeforeEach
   void setUp() {

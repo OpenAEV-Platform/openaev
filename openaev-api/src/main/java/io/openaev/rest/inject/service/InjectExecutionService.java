@@ -138,6 +138,7 @@ public class InjectExecutionService {
    * @param inject
    * @param agent
    */
+  @Transactional(rollbackOn = Exception.class)
   public void checkCveExpectation(
       Set<OutputParser> outputParsers, ObjectNode structuredOutput, Inject inject, Agent agent) {
 
