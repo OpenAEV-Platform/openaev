@@ -286,7 +286,7 @@ public class HealthCheckUtils {
   }
 
   /**
-   * Run content checks by injects
+   * Run content checks by inject
    *
    * @param inject to verify
    * @return found healthchecks

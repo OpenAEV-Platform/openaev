@@ -42,10 +42,6 @@ public class TeamService {
 
   private final UserService userService;
 
-  public List<Team> teams(@NotNull List<String> teamIds) {
-    return teamRepository.findAllById(teamIds);
-  }
-
   public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
     List<RawTeam> rawTeams =
         teamRepository.rawTeamByIds(teamIds).stream()
