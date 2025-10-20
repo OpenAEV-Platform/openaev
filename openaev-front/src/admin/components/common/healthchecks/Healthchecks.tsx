@@ -12,7 +12,7 @@ interface Props {
 }
 
 const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
-  const documentationRootUrl = 'https://docs.openbas.io';
+  const documentationRootUrl = 'https://docs.openaev.io';
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
