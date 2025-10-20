@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_42__Rename_cves_table_to_vulnerabilities extends BaseJavaMigration {
+public class V4_44__Rename_cves_table_to_vulnerabilities extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
