@@ -155,6 +155,18 @@ public class InjectOutput {
   @ArraySchema(schema = @Schema(type = "string", description = "Expectation of the inject"))
   private List<InjectExpectation> expectations = new ArrayList<>();
 
+  @JsonProperty("listened")
+  @Schema(description = "Stream listener value of the inject")
+  private boolean isListened;
+
+  @JsonProperty("header")
+  @Schema(description = "Header of the inject")
+  private String header;
+
+  @JsonProperty("footer")
+  @Schema(description = "Footer of the inject")
+  private String footer;
+
   @JsonProperty("inject_users_number")
   @Schema(description = "Count of users targeted by the inject")
   public Long numberOfTargetUsers;

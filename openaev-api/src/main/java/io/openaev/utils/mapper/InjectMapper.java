@@ -268,6 +268,9 @@ public class InjectMapper {
       List<InjectDocument> documents,
       List<Communication> communications,
       List<InjectExpectation> expectations,
+      boolean isListened,
+      String header,
+      String footer,
       Long numberOfTargetUsers,
       Instant date,
       Long communicationsNumber,
@@ -304,6 +307,9 @@ public class InjectMapper {
     injectOutput.setDocuments(documents);
     injectOutput.setCommunications(communications);
     injectOutput.setExpectations(expectations);
+    injectOutput.setListened(isListened);
+    injectOutput.setHeader(header);
+    injectOutput.setFooter(footer);
     injectOutput.setNumberOfTargetUsers(numberOfTargetUsers);
     injectOutput.setDate(date);
     injectOutput.setCommunicationsNumber(communicationsNumber);
@@ -344,6 +350,9 @@ public class InjectMapper {
         inject.getDocuments(),
         inject.getCommunications(),
         inject.getExpectations(),
+        inject.isListened(),
+        inject.getHeader(),
+        inject.getFooter(),
         inject.getNumberOfTargetUsers(),
         inject.getDate().orElse(null),
         inject.getCommunicationsNumber(),

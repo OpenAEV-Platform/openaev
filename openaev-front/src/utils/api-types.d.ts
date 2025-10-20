@@ -3355,6 +3355,10 @@ export interface InjectInput {
 }
 
 export interface InjectOutput {
+  /** Footer of the inject */
+  footer?: string;
+  /** Header of the inject */
+  header?: string;
   /** All teams value of the inject */
   inject_all_teams?: boolean;
   inject_asset_groups?: string[];
@@ -3450,6 +3454,8 @@ export interface InjectOutput {
    * @format int64
    */
   inject_users_number?: number;
+  /** Stream listener value of the inject */
+  listened?: boolean;
 }
 
 export interface InjectReceptionInput {
