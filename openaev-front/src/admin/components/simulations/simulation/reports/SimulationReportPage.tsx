@@ -6,7 +6,7 @@ import { Link, useParams } from 'react-router';
 import { updateReportForExercise, updateReportInjectCommentForExercise } from '../../../../../actions/reports/report-actions';
 import ExportPdfButton from '../../../../../components/ExportPdfButton';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from '../../../../../components/Loader';
+import Loader from "../../../../../components/common/loader/Loader";
 import { type Exercise, type LessonsQuestion, type Report, type ReportInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';

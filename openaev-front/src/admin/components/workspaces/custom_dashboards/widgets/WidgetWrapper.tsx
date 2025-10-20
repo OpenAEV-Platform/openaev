@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { memo, type SyntheticEvent, useContext, useEffect, useState } from 'react';
 
 import { ErrorBoundary } from '../../../../../components/Error';
-import Loader from '../../../../../components/Loader';
+import Loader from "../../../../../components/common/loader/Loader";
 import {
   type EsAttackPath,
   type EsBase,
@@ -97,7 +97,7 @@ const WidgetWrapper = ({ widget, fullscreen, setFullscreen, idToResize, handleWi
   }, [widget, customDashboardParameters]);
 
   if (loading) {
-    return <Loader variant="inElement" />;
+    return <Loader />;
   }
 
   return (

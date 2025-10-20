@@ -5,9 +5,9 @@ import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchTargets } from '../../../../actions/injects/inject-action';
+import Loader from '../../../../components/common/loader/Loader';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
 import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';

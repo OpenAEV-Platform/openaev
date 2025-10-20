@@ -11,7 +11,6 @@ import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
 import EnterpriseEditionProvider from './components/EnterpriseEditionProvider';
 import { errorWrapper } from './components/Error';
-import Loader from './components/Loader';
 import Message from './components/Message';
 import NotFound from './components/NotFound';
 import SystemBanners from './public/components/systembanners/SystemBanners';
@@ -21,6 +20,7 @@ import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
+import Loader from "./components/common/loader/Loader";
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));

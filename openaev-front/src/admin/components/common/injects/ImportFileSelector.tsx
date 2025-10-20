@@ -6,8 +6,8 @@ import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
 import CustomFileUploader from '../../../../components/common/CustomFileUploader';
+import Loader from '../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
 import { zodImplement } from '../../../../utils/Zod';
 
 const useStyles = makeStyles()(() => ({
@@ -73,8 +73,8 @@ const ImportFileSelector: FunctionComponent<Props> = ({
 
   return (
     <>
-      {loading && <Loader variant="inElement" />}
-      {!loading
+      {!loading && <Loader variant="inElement" />}
+      {loading
         && (
           <form id="importUploadInjectForm" onSubmit={handleSubmitWithoutPropagation}>
             <div className={classes.container}>

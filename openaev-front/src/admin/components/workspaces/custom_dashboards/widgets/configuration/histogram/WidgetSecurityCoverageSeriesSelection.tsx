@@ -7,11 +7,11 @@ import { makeStyles } from 'tss-react/mui';
 import { SIMULATIONS } from '../../../../../../../components/common/queryable/filter/constants';
 import SimulationField from '../../../../../../../components/fields/SimulationField';
 import { useFormatter } from '../../../../../../../components/i18n';
-import Loader from '../../../../../../../components/Loader';
 import { type InjectExpectation, type Series } from '../../../../../../../utils/api-types';
 import type { GroupOption } from '../../../../../../../utils/Option';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import { extractGroupOptionsFromCustomDashboardParameters, getSeries, updateSimulationFilterOnSeries } from '../../WidgetUtils';
+import Loader from "../../../../../../../components/common/loader/Loader";
 
 const useStyles = makeStyles()(theme => ({
   container: {

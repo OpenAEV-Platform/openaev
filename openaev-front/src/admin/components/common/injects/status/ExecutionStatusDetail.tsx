@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { getInjectTracesFromInjectAndTarget } from '../../../../../actions/injects/inject-action';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from '../../../../../components/Loader';
+import Loader from "../../../../../components/common/loader/Loader";
 import { type ExecutionTraceOutput } from '../../../../../utils/api-types';
 import AgentTraces from './traces/AgentTraces';
 import EndpointTraces from './traces/EndpointTraces';
@@ -48,7 +48,7 @@ const ExecutionStatusDetail = ({ injectId, target }: Props) => {
   }, [injectId, target?.id, target?.targetType]);
 
   if (loading) {
-    return <Loader />;
+    return < Loader variant={"inElement"}/>
   }
 
   if (traces && traces.length === 0) {

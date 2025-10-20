@@ -37,7 +37,7 @@ import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import OldTextField from '../../../components/fields/OldTextField';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
-import Loader from '../../../components/Loader';
+import Loader from "../../../components/common/loader/Loader";
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions.js';

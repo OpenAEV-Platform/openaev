@@ -5,7 +5,7 @@ import Chart from 'react-apexcharts';
 import { fetchScenarioStatistic } from '../../../../actions/scenarios/scenario-actions';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import { type GlobalScoreBySimulationEndDate, type ScenarioStatistic } from '../../../../utils/api-types';
 import { type CustomTooltipFunction, type CustomTooltipOptions, verticalBarsChartOptions } from '../../../../utils/Charts';
 

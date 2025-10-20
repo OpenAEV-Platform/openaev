@@ -12,7 +12,7 @@ import type { CollectorHelper } from '../../../../actions/collectors/collector-h
 import { postDetectionRemediationAIRulesByInject } from '../../../../actions/detection-remediation/detectionremediation-action';
 import { fetchPayloadDetectionRemediationsByInject } from '../../../../actions/injects/inject-action';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import { COLLECTOR_LIST } from '../../../../constants/Entities';
 import { useHelper } from '../../../../store';
 import {

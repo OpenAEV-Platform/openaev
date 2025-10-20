@@ -5,6 +5,7 @@ import { compose } from 'ramda';
 import { withStyles } from 'tss-react/mui';
 
 import inject18n from './i18n';
+import Loader from "./common/loader/Loader.js";
 
 const styles = () => ({
   chip: {
@@ -108,7 +109,7 @@ const renderChip = (props) => {
       <Chip
         classes={{ root: style }}
         style={inlineStyles.blue}
-        label={<CircularProgress size={10} color="primary" />}
+        label={<Loader size={"s"} />}
       />
     );
   }

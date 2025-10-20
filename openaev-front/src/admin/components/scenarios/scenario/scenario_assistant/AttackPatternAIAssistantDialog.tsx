@@ -15,6 +15,7 @@ import { searchAttackPatternsWithAIWebservice } from '../../../../../actions/Att
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import ImportUploader from '../../../../../components/common/ImportUploader';
 import { useFormatter } from '../../../../../components/i18n';
+import Loader from "../../../../../components/common/loader/Loader";
 
 const useStyles = makeStyles()(theme => ({
   modalContainer: {
@@ -38,16 +39,9 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(1),
   },
   loaderContainer: {
-    textAlign: 'center',
-    position: 'relative',
-    overflow: 'hidden',
+    height: '5em'
   },
-  loaderText: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-  },
+
 }));
 
 interface Props {
@@ -151,16 +145,8 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
         )}
         {
           isLoading && (
-            <div className={`${classes.allWidth} ${classes.loaderContainer}`}>
-              <CircularProgress size={200} thickness={0.3} />
-              <Typography
-                variant="caption"
-                component="div"
-                color="text.secondary"
-                className={classes.loaderText}
-              >
-                {t('Loading AI assistant, please wait...')}
-              </Typography>
+            <div className={classes.loaderContainer}>
+              <Loader size={"m"}></Loader>
             </div>
           )
         }

@@ -18,7 +18,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import ItemTags from '../../../../components/ItemTags';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type Article, type Inject, type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput, type InjectInput, type InjectTestStatusOutput, type SearchPaginationInput, type Team, type Variable } from '../../../../utils/api-types';

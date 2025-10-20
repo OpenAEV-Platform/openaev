@@ -4,7 +4,7 @@ import { useParams } from 'react-router';
 import { fetchInjectResultOverviewOutput } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import { fetchExercise } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import Loader from '../../../../../components/Loader';
+import Loader from "../../../../../components/common/loader/Loader";
 import { useHelper } from '../../../../../store';
 import { type Exercise as ExerciseType, type InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';

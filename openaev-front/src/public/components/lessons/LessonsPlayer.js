@@ -12,7 +12,7 @@ import Empty from '../../../components/Empty';
 import OldTextField from '../../../components/fields/OldTextField';
 import SliderField from '../../../components/fields/SliderField';
 import { useFormatter } from '../../../components/i18n';
-import Loader from '../../../components/Loader';
+import Loader from "../../../components/common/loader/Loader";
 
 const useStyles = makeStyles()(() => ({
   root: {

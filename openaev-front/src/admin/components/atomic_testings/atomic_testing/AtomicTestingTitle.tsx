@@ -2,9 +2,9 @@ import { InfoOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
+import Loader from '../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../components/i18n';
 import ItemStatus from '../../../../components/ItemStatus';
-import Loader from '../../../../components/Loader';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { truncate } from '../../../../utils/String';
 import AtomicTestingInformation from './AtomicTestingInformation';

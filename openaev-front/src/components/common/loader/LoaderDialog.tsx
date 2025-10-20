@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
 import Dialog from '../dialog/Dialog';
+import Loader from "./Loader";
 
 interface Props {
   open: boolean;
@@ -41,8 +42,7 @@ const LoaderDialog = ({
 
         {isSubmitting && (
           <>
-            <CircularProgress size={200} thickness={0.3} />
-
+            <Loader size={"l"}></Loader>
             <Typography
               variant="caption"
               component="div"

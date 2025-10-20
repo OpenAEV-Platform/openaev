@@ -1,7 +1,9 @@
 import { Button, SvgIcon } from '@mui/material';
+import { height } from '@mui/system';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useState } from 'react';
 
+import Loader from '../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../components/i18n';
 import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -10,7 +12,6 @@ import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 import useIsEligibleArianeCollector from '../hook/useIsEligibleArianeCollector';
 import useIsEligibleArianePayloadType from '../hook/useIsEligibleArianePayloadType';
-import Loader from '../Loader';
 import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
 
 export interface Props {
@@ -72,9 +73,15 @@ const DetectionRemediationUseAriane = ({
 
   return (
     <EETooltip forAi title={btnLabel}>
-      <span>
+      <span style={{ height: '2em' }}>
         {(loading || snapshot?.get(collectorType)?.isLoading) ? (
-          <Loader />
+          <div style={{
+            position: 'sticky',
+            width: '2em',
+          }}
+          >
+            <Loader size="s" />
+          </div>
         ) : (
           <Button
             type="button"

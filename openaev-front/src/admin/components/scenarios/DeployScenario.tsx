@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router';
 
 import { importScenario } from '../../../actions/scenarios/scenario-actions';
-import Loader from '../../../components/Loader';
+import Loader from "../../../components/common/loader/Loader";
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useXtmHubDownloadDocument from '../../../utils/hooks/useXtmHubDownloadDocument';

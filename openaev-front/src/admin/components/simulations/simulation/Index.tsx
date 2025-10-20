@@ -9,7 +9,7 @@ import { type ExercisesHelper } from '../../../../actions/exercises/exercise-hel
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
 import { type Exercise as ExerciseType } from '../../../../utils/api-types';
