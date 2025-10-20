@@ -10,8 +10,8 @@ import { type UserHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { sendErrorToBackend } from '../utils/Action';
 import { MESSAGING$ } from '../utils/Environment';
+import Loader from './common/loader/Loader';
 import { useFormatter } from './i18n';
-import Loader from './Loader';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (pdfMake as any).addVirtualFileSystem(pdfFonts);

@@ -12,7 +12,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import ItemTargets from '../../../components/ItemTargets';
-import Loader from '../../../components/Loader';
+import Loader from "../../../components/common/loader/Loader";
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type ExercisesGlobalScoresOutput, type ExerciseSimple, type ExpectationResultsByType } from '../../../utils/api-types';
 import AtomicTestingResult from '../atomic_testings/atomic_testing/AtomicTestingResult';

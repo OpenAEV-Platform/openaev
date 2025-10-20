@@ -4,12 +4,12 @@ import type { EndpointHelper } from '../../../../actions/assets/asset-helper';
 import { fetchEndpoint, updateEndpoint } from '../../../../actions/assets/endpoint-actions';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
 import { useHelper } from '../../../../store';
 import type { Endpoint, EndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import EndpointForm from './EndpointForm';
+import Loader from "../../../../components/common/loader/Loader";
 
 interface Props {
   open: boolean;
@@ -55,23 +55,21 @@ const EndpointUpdate: FunctionComponent<Props> = ({
       },
     );
   };
-
-  if (loading) {
-    return <Loader />;
-  }
   return (
     <Drawer
       open={open}
       handleClose={handleClose}
       title={t('Update an endpoint')}
     >
-      <EndpointForm
+      <>
+      {loading && <Loader /> }
+      {!loading && <EndpointForm
         initialValues={endpoint}
         editing
         onSubmit={onSubmit}
         agentless={agentless}
-        handleClose={handleClose}
-      />
+        handleClose={handleClose} />}
+      </>
     </Drawer>
   );
 };

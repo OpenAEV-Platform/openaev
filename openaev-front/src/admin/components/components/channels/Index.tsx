@@ -4,8 +4,8 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchChannel } from '../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
+import Loader from '../../../../components/common/loader/Loader';
 import { errorWrapper } from '../../../../components/Error';
-import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
 import { type Channel as ChannelType } from '../../../../utils/api-types';
@@ -25,7 +25,7 @@ const Index = () => {
   useDataLoader(() => {
     dispatch(fetchChannel(channelId));
   });
-  if (channel) {
+  if (!channel) {
     return (
       <div className={classes.root}>
         <ChannelHeader />

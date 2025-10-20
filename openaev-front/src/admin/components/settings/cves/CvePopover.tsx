@@ -6,7 +6,7 @@ import ButtonPopover, { type PopoverEntry } from '../../../../components/common/
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import { type CveOutput, type CveSimple, type CveUpdateInput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';

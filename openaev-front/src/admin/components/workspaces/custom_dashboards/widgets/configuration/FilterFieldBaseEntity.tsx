@@ -5,8 +5,8 @@ import {
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { engineSchemas } from '../../../../../../actions/schema/schema-action';
+import Loader from '../../../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../../../components/i18n';
-import Loader from '../../../../../../components/Loader';
 import { type PropertySchemaDTO } from '../../../../../../utils/api-types';
 import { type Option } from '../../../../../../utils/Option';
 

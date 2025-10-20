@@ -1,9 +1,10 @@
 import { CloudUploadOutlined } from '@mui/icons-material';
-import { Button, CircularProgress, type CircularProgressProps, IconButton, ToggleButton, Tooltip } from '@mui/material';
+import { Button, type CircularProgressProps, IconButton, ToggleButton, Tooltip } from '@mui/material';
 import { type ChangeEvent, type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../i18n';
+import Loader from './loader/Loader';
 
 const useStyles = makeStyles()(theme => ({ buttonImport: { borderColor: theme.palette.divider } }));
 
@@ -20,7 +21,6 @@ interface Props {
 const ImportUploader: FunctionComponent<Props> = ({
   title,
   handleUpload,
-  color,
   isIconButton = true,
   fileAccepted = '',
   allowReUpload = false,
@@ -47,12 +47,8 @@ const ImportUploader: FunctionComponent<Props> = ({
         title={`Uploading ${upload}`}
         aria-label={`Uploading ${upload}`}
       >
-        <IconButton disabled={true} style={{ marginRight: 10 }}>
-          <CircularProgress
-            size={24}
-            thickness={2}
-            color={color ?? 'primary'}
-          />
+        <IconButton disabled={true}>
+          <Loader size="s" variant="inElement"></Loader>
         </IconButton>
       </Tooltip>
     );

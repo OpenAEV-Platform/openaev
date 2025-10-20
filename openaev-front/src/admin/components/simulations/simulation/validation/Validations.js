@@ -9,7 +9,7 @@ import { fetchExerciseInjectExpectations } from '../../../../../actions/Exercise
 import { fetchExerciseInjects } from '../../../../../actions/Inject';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
-import Loader from '../../../../../components/Loader';
+import Loader from "../../../../../components/common/loader/Loader";
 import SearchFilter from '../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';

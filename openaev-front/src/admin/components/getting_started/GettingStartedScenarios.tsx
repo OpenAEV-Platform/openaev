@@ -5,12 +5,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import { searchScenarios } from '../../../actions/scenarios/scenario-actions';
+import Loader from '../../../components/common/loader/Loader';
 import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import type { Page } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../components/i18n';
-import Loader from '../../../components/Loader';
 import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { type FilterGroup, type Scenario } from '../../../utils/api-types';
 
@@ -35,7 +35,7 @@ const GettingStartedScenarios = () => {
   }, []);
 
   if (loading) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   if (scenarios.length === 0) {

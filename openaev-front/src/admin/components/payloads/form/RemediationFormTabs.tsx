@@ -6,7 +6,7 @@ import { fetchCollectors } from '../../../../actions/Collector';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchCollectorsForPayload } from '../../../../actions/payloads/payload-actions';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import { COLLECTOR_LIST } from '../../../../constants/Entities';
 import { useHelper } from '../../../../store';
 import { type Collector } from '../../../../utils/api-types';

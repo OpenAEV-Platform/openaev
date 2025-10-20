@@ -4,7 +4,6 @@ import { useContext, useState } from 'react';
 import { fetchExercise } from '../../../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../../../actions/exercises/exercise-helper';
 import { useFormatter } from '../../../../../../../components/i18n';
-import Loader from '../../../../../../../components/Loader';
 import { useHelper } from '../../../../../../../store';
 import { type EsAttackPath } from '../../../../../../../utils/api-types';
 import type { StructuralHistogramWidget } from '../../../../../../../utils/api-types-custom';
@@ -12,6 +11,7 @@ import { useAppDispatch } from '../../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../../utils/hooks/useDataLoader';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import AttackPath from './AttackPath';
+import Loader from "../../../../../../../components/common/loader/Loader";
 
 interface Props {
   attackPathsData: EsAttackPath[];

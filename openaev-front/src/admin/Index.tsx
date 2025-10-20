@@ -11,7 +11,6 @@ import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
 import { fetchTags } from '../actions/Tag';
 import { errorWrapper } from '../components/Error';
-import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
 import { useHelper } from '../store';
@@ -25,6 +24,7 @@ import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
+import Loader from "../components/common/loader/Loader";
 
 const Home = lazy(() => import('./components/Home'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));

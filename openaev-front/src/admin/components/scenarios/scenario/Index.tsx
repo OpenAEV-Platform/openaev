@@ -11,7 +11,7 @@ import { findNotificationRuleByResource } from '../../../../actions/scenarios/sc
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
+import Loader from "../../../../components/common/loader/Loader";
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
 import { type NotificationRuleOutput, type Scenario } from '../../../../utils/api-types';
