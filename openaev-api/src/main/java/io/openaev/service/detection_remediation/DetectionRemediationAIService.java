@@ -39,8 +39,8 @@ public class DetectionRemediationAIService {
   @Value("#{${remediation.detection.webservice.retry: null} ?: 3}")
   Integer RETRY_CONNECTION;
 
-  @Value("#{${remediation.detection.webservice.retry.waiting.second: null} ?: 30}")
-  Integer RETRY_CONNECTION_WAITING_SECOND;
+  @Value("#{${remediation.detection.webservice.retry.waiting.milliseconds: null} ?: 30000}")
+  Long RETRY_CONNECTION_WAITING_MILLISECONDS;
 
   private final Ee ee;
   private final HttpClientFactory httpClientFactory;
@@ -174,8 +174,8 @@ public class DetectionRemediationAIService {
             response.getReasonPhrase(),
             retry < RETRY_CONNECTION
                 ? " Try again in "
-                    + RETRY_CONNECTION_WAITING_SECOND
-                    + " seconds ("
+                    + RETRY_CONNECTION_WAITING_MILLISECONDS
+                    + " milliseconds ("
                     + retry
                     + "/"
                     + RETRY_CONNECTION
@@ -185,9 +185,9 @@ public class DetectionRemediationAIService {
         if (retry >= RETRY_CONNECTION)
           throw new ResponseStatusException(httpStatus, errorMessage + response.getReasonPhrase());
 
-        if (RETRY_CONNECTION_WAITING_SECOND <= 0) return null;
+        if (RETRY_CONNECTION_WAITING_MILLISECONDS <= 0) return null;
 
-        Thread.sleep(1000L * RETRY_CONNECTION_WAITING_SECOND);
+        Thread.sleep(RETRY_CONNECTION_WAITING_MILLISECONDS);
 
       } else {
         return EntityUtils.toString(response.getEntity());
