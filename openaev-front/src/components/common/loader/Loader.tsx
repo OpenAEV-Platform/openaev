@@ -17,8 +17,10 @@ const Loader = ({ size = 'm', variant = 'container' }: Props) => {
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const hasFiligranLoader = theme && !(settings?.platform_license?.license_is_validated && settings?.platform_whitemark);
 
-  const getSize = (size: 's' | 'm' | 'l') => {
-    if (size === 's') {
+  const getSize = (size: 'xs' | 's' | 'm' | 'l') => {
+    if (size === 'xs') {
+      return 15;
+    } else if (size === 's') {
       return 24;
     } else if (size === 'l') {
       return 80;
