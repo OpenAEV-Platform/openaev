@@ -26,7 +26,6 @@ import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -346,14 +345,15 @@ public class InjectExpectationService {
 
   public Page<InjectExpectation> expectationsNotFill() {
     return this.injectExpectationRepository.findAll(
-        (root, query, criteriaBuilder) -> criteriaBuilder.and(
-                  criteriaBuilder.isNotNull(root.get("agent")),
-                  criteriaBuilder.or(
-                          criteriaBuilder.equal(
-                                  criteriaBuilder.function("json_array_length", Integer.class, root.get("results")),
-                                  0),
-                          criteriaBuilder.isNull(root.get("score"))
-                  )),
+        (root, query, criteriaBuilder) ->
+            criteriaBuilder.and(
+                criteriaBuilder.isNotNull(root.get("agent")),
+                criteriaBuilder.or(
+                    criteriaBuilder.equal(
+                        criteriaBuilder.function(
+                            "json_array_length", Integer.class, root.get("results")),
+                        0),
+                    criteriaBuilder.isNull(root.get("score")))),
         PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
   }
 
