@@ -6,6 +6,7 @@ import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
+import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -36,9 +37,8 @@ public class Cwe implements Base {
   @JsonProperty("cwe_source")
   private String source;
 
-  // todo update with new cve/vulnerabilities models
-  //  @ManyToMany(mappedBy = "cwes")
-  //  private List<Vulnerability> vulnerabilities;
+  @ManyToMany(mappedBy = "cwes")
+  private List<Vulnerability> vulnerabilities;
 
   // -- AUDIT --
 

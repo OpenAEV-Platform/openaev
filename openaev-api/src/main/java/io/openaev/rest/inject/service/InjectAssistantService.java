@@ -334,12 +334,11 @@ public class InjectAssistantService {
       return Set.of(
           buildManualInject(contractForPlaceholder, vulnerability.getExternalId(), null, null));
     }
-    // todo replace name by correct vulnerability type like cisaCVEname for example
     Set<Inject> injects = new HashSet<>();
     for (InjectorContract ic : injectorContracts) {
       Inject inject =
           injectService.buildTechnicalInject(
-              ic, vulnerability.getExternalId(), "test-vulnerability");
+              ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
       // Set the targets in the inject based on the field types in the contract's content.fields.
       // Fields of type "asset-group" take priority, because tag rules are directly associated with
       // asset groups.
