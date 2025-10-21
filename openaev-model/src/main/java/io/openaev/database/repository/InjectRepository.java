@@ -385,7 +385,6 @@ public interface InjectRepository
   void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
 
   @Modifying
-  @Transactional
   @Query(value = "DELETE FROM injects WHERE inject_id = :id", nativeQuery = true)
-  int deleteByIdNative(@Param("id") String id);
+  void deleteByIdNative(@Param("id") String id);
 }
