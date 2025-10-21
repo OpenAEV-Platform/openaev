@@ -41,7 +41,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
   const defaultFields = {
     credentials: ['username', 'password'],
     portscan: ['host', 'port', 'service'],
-    vulnerability: ['id', 'host', 'severity'],
+    cve: ['id', 'host', 'severity'],
   };
 
   const selectedContractOutputElementType = watch(`${prefixName}.${index}.contract_output_element_type`) as keyof typeof defaultFields | undefined;

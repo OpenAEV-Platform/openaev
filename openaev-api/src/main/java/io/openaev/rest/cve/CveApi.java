@@ -21,9 +21,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * * ... * @deprecated since <version> for removal in <version> in favor of @See vulnerabilityApi
+ * @deprecated (since = "1.19.0", forRemoval = true) in favor of @See vulnerabilityApi
  */
-@Deprecated(since = "<1.19>", forRemoval = true)
+@Deprecated(since = "1.19", forRemoval = true)
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Cve API", description = "Operations related to CVEs")
