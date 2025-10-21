@@ -1,4 +1,4 @@
-import { Chip, CircularProgress, Tooltip } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import { compose } from 'ramda';
@@ -109,7 +109,7 @@ const renderChip = (props) => {
       <Chip
         classes={{ root: style }}
         style={inlineStyles.blue}
-        label={<Loader size="s" />}
+        label={<Loader size="xs" variant="inElement" />}
       />
     );
   }
