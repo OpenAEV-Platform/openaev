@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
+@Deprecated
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Cve API", description = "Operations related to CVEs")
