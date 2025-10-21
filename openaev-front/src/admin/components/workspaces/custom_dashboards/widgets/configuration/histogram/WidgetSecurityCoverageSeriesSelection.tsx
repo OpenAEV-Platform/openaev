@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import Loader from '../../../../../../../components/common/loader/Loader';
 import { SIMULATIONS } from '../../../../../../../components/common/queryable/filter/constants';
 import SimulationField from '../../../../../../../components/fields/SimulationField';
 import { useFormatter } from '../../../../../../../components/i18n';
@@ -11,7 +12,6 @@ import { type InjectExpectation, type Series } from '../../../../../../../utils/
 import type { GroupOption } from '../../../../../../../utils/Option';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import { extractGroupOptionsFromCustomDashboardParameters, getSeries, updateSimulationFilterOnSeries } from '../../WidgetUtils';
-import Loader from "../../../../../../../components/common/loader/Loader";
 
 const useStyles = makeStyles()(theme => ({
   container: {

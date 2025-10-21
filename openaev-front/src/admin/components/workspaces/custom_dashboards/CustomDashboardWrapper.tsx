@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 
-import Loader from "../../../../components/common/loader/Loader";
+import Loader from '../../../../components/common/loader/Loader';
 import type {
   CustomDashboard,
   EsAttackPath,

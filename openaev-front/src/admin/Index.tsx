@@ -10,6 +10,7 @@ import { fetchAttackPatterns } from '../actions/AttackPattern';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
 import { fetchTags } from '../actions/Tag';
+import Loader from '../components/common/loader/Loader';
 import { errorWrapper } from '../components/Error';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
@@ -24,7 +25,6 @@ import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
-import Loader from "../components/common/loader/Loader";
 
 const Home = lazy(() => import('./components/Home'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));

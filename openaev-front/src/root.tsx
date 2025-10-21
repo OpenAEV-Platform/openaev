@@ -9,6 +9,7 @@ import { type LoggedHelper } from './actions/helper';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
+import Loader from './components/common/loader/Loader';
 import EnterpriseEditionProvider from './components/EnterpriseEditionProvider';
 import { errorWrapper } from './components/Error';
 import Message from './components/Message';
@@ -20,7 +21,6 @@ import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import { PermissionsProvider } from './utils/permissions/PermissionsProvider';
-import Loader from "./components/common/loader/Loader";
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));

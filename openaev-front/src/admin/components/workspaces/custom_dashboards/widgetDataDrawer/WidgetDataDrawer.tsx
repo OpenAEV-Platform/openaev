@@ -3,8 +3,8 @@ import { useContext, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import Drawer from '../../../../../components/common/Drawer';
+import Loader from '../../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from "../../../../../components/common/loader/Loader";
 import {
   type EsBase,
   type ListConfiguration,

@@ -1,8 +1,8 @@
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
+import Loader from '../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from "../../../../components/common/loader/Loader";
 import { type CveOutput } from '../../../../utils/api-types';
 import { type CveStatus } from './CveDetail';
 
@@ -17,7 +17,7 @@ const CveTabPanel = ({ status, cve, children }: CveTabPanelProps) => {
   const { t } = useFormatter();
 
   switch (status) {
-    case 'loaded':
+    case 'loading':
       return <Loader />;
     case 'notAvailable':
       return (
@@ -27,7 +27,7 @@ const CveTabPanel = ({ status, cve, children }: CveTabPanelProps) => {
           </Typography>
         </Box>
       );
-    case 'loading':
+    case 'loaded':
       return cve ? <>{children}</> : null;
     default:
       return null;

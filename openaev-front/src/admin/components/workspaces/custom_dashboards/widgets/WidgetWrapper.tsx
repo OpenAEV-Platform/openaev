@@ -2,8 +2,8 @@ import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { memo, type SyntheticEvent, useContext, useEffect, useState } from 'react';
 
+import Loader from '../../../../../components/common/loader/Loader';
 import { ErrorBoundary } from '../../../../../components/Error';
-import Loader from "../../../../../components/common/loader/Loader";
 import {
   type EsAttackPath,
   type EsBase,

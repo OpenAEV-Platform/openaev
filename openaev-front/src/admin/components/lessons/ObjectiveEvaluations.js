@@ -3,8 +3,8 @@ import { Box, Button, LinearProgress, List, ListItem, ListItemIcon, ListItemText
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
+import Loader from '../../../components/common/loader/Loader';
 import { useFormatter } from '../../../components/i18n';
-import Loader from "../../../components/common/loader/Loader";
 import { useHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../utils/String';

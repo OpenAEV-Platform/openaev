@@ -3,9 +3,9 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import Loader from '../components/common/loader/Loader';
 import { errorWrapper } from '../components/Error';
 import Reset from './components/login/Reset';
-import Loader from "../components/common/loader/Loader";
 
 const Login = lazy(() => import('./components/login/Login'));
 const Comcheck = lazy(() => import('./components/comcheck/Comcheck'));

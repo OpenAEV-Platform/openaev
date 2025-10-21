@@ -7,12 +7,12 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { ViewLessonContext } from '../../../admin/components/common/Context';
+import Loader from '../../../components/common/loader/Loader';
 import Transition from '../../../components/common/Transition';
 import Empty from '../../../components/Empty';
 import OldTextField from '../../../components/fields/OldTextField';
 import SliderField from '../../../components/fields/SliderField';
 import { useFormatter } from '../../../components/i18n';
-import Loader from "../../../components/common/loader/Loader";
 
 const useStyles = makeStyles()(() => ({
   root: {
