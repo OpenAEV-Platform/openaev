@@ -6202,6 +6202,8 @@ export interface UserOutput {
   /** Last name of the user */
   user_lastname?: string;
   /** Organization of the user */
+  user_organization_id?: string;
+  /** Organization of the user */
   user_organization_name?: string;
   /**
    * Tags of the user
