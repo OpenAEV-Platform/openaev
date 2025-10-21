@@ -20,7 +20,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
-@Deprecated
+/**
+ * * ... * @deprecated since <version> for removal in <version> in favor of @See vulnerabilityApi
+ */
+@Deprecated(since = "<1.19>", forRemoval = true)
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Cve API", description = "Operations related to CVEs")

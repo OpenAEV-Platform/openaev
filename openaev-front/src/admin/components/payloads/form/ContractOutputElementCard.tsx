@@ -53,7 +53,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
 
   type ContractOutputElementType = ContractOutputElement['contract_output_element_type'];
   const contractOutputElementTypes: ContractOutputElementType[] = [
-    'text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'vulnerability',
+    'text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve',
   ];
 
   const outputParserTypeList = contractOutputElementTypes.map(type => ({

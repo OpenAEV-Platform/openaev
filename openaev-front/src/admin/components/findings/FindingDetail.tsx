@@ -12,7 +12,7 @@ import GeneralVulnerabilityInfoTab from '../settings/vulnerabilities/GeneralVuln
 import RelatedInjectsTab from '../settings/vulnerabilities/RelatedInjectsTab';
 import RemediationInfoTab from '../settings/vulnerabilities/RemediationInfoTab';
 import TabLabelWithEE from '../settings/vulnerabilities/TabLabelWithEE';
-import { type CveStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
+import { type VulnerabilityStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
 import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 
 interface Props {
@@ -40,26 +40,26 @@ const FindingDetail = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  const isCVE = selectedFinding.finding_type === 'vulnerability';
+  const isCVE = selectedFinding.finding_type === 'cve';
 
-  const [vulnerability, setCve] = useState<VulnerabilityOutput | null>(null);
-  const [cveStatus, setCveStatus] = useState<CveStatus>('loading');
+  const [vulnerability, setVulnerability] = useState<VulnerabilityOutput | null>(null);
+  const [vulnerabilityStatus, setVulnerabilityStatus] = useState<VulnerabilityStatus>('loading');
 
   useEffect(() => {
     if (!isCVE || !selectedFinding.finding_value) return;
 
-    setCveStatus('loading');
+    setVulnerabilityStatus('loading');
 
     fetchVulnerabilityByExternalId(selectedFinding.finding_value)
       .then((res) => {
-        setCve(res.data);
-        if (res.data?.cve_cvss_v31 && onCvssScore) {
-          onCvssScore(res.data.cve_cvss_v31);
+        setVulnerability(res.data);
+        if (res.data?.vulnerability_cvss_v31 && onCvssScore) {
+          onCvssScore(res.data.vulnerability_cvss_v31);
         }
 
-        setCveStatus(res.data ? 'loaded' : 'notAvailable');
+        setVulnerabilityStatus(res.data ? 'loaded' : 'notAvailable');
       })
-      .catch(() => setCveStatus('notAvailable'));
+      .catch(() => setVulnerabilityStatus('notAvailable'));
   }, [selectedFinding, isCVE]);
 
   const tabEntries: TabsEntry[] = isCVE
@@ -83,7 +83,7 @@ const FindingDetail = ({
     switch (currentTab) {
       case 'General':
         return (
-          <VulnerabilityTabPanel status={cveStatus} vulnerability={vulnerability}>
+          <VulnerabilityTabPanel status={vulnerabilityStatus} vulnerability={vulnerability}>
             <GeneralVulnerabilityInfoTab vulnerability={vulnerability!} />
           </VulnerabilityTabPanel>
         );
@@ -100,7 +100,7 @@ const FindingDetail = ({
       case 'Remediation':
         return isEE
           ? (
-              <VulnerabilityTabPanel status={cveStatus} vulnerability={vulnerability}>
+              <VulnerabilityTabPanel status={vulnerabilityStatus} vulnerability={vulnerability}>
                 <RemediationInfoTab vulnerability={vulnerability!} />
               </VulnerabilityTabPanel>
             )

@@ -118,9 +118,9 @@ public enum ContractOutputType {
       null,
       null,
       null),
-  @JsonProperty("vulnerability")
+  @JsonProperty("cve")
   CVE(
-      "vulnerability",
+      "cve",
       ContractOutputTechnicalType.Object,
       new ArrayList<>(
           List.of(
