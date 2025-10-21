@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
-import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/User';
+import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User.js';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';

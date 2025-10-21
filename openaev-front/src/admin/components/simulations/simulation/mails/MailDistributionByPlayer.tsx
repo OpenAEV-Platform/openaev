@@ -6,7 +6,7 @@ import Chart from 'react-apexcharts';
 import { fetchExerciseCommunications } from '../../../../../actions/Communication';
 import { type CommunicationHelper } from '../../../../../actions/communications/communication-helper';
 import { type UserHelper } from '../../../../../actions/helper';
-import { fetchPlayers } from '../../../../../actions/User';
+import { fetchPlayers } from '../../../../../actions/users/User';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';

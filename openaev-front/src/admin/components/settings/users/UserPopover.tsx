@@ -1,7 +1,8 @@
 import { useContext, useState } from 'react';
 
 import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
-import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/User';
+import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
+import { type UserInputForm } from '../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -12,7 +13,6 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
-import { type UserInputForm } from './User';
 import UserForm from './UserForm';
 import UserPasswordForm from './UserPasswordForm';
 

@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchOrganizations } from '../../../../actions/Organization';
-import { searchUsers } from '../../../../actions/User';
+import { searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -140,6 +140,7 @@ const Users = () => {
           }]}
         />
         <PaginationComponentV2
+          disableFilters
           fetch={searchUsers}
           searchPaginationInput={searchPaginationInput}
           setContent={setUsers}
@@ -207,7 +208,6 @@ const Users = () => {
                     </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_organization}>
                       {user.user_organization_name}
-                      {/* {user.user_organization && organizationsMap[user.user_organization].organization_name} */}
                     </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_admin}>
                       {user.user_admin ? (<CheckCircleOutlined fontSize="small" />) : ('-')}

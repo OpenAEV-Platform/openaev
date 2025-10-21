@@ -19,7 +19,7 @@ import { updateInjectExpectation } from '../../../../../../actions/Exercise';
 import { type UserHelper } from '../../../../../../actions/helper';
 import { fetchTeams } from '../../../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../../../actions/teams/team-helper';
-import { fetchPlayers } from '../../../../../../actions/User';
+import { fetchPlayers } from '../../../../../../actions/users/User';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import { type Team, type User } from '../../../../../../utils/api-types';

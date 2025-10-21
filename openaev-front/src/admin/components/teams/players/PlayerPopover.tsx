@@ -2,7 +2,7 @@ import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogConten
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type OrganizationHelper, type TagHelper, type UserHelper } from '../../../../actions/helper';
-import { deletePlayer, updatePlayer } from '../../../../actions/User';
+import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
