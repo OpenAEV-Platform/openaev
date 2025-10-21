@@ -347,13 +347,13 @@ public class InjectExpectationService {
     return this.injectExpectationRepository.findAll(
         (root, query, criteriaBuilder) ->
             criteriaBuilder.and(
-                criteriaBuilder.isNotNull(root.get("agent")),
+                criteriaBuilder.isNull(root.get("score")),
                 criteriaBuilder.or(
                     criteriaBuilder.equal(
                         criteriaBuilder.function(
                             "json_array_length", Integer.class, root.get("results")),
                         0),
-                    criteriaBuilder.isNull(root.get("score")))),
+                    criteriaBuilder.isNotNull(root.get("agent")))),
         PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
   }
 
