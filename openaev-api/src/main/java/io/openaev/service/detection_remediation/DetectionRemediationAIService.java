@@ -182,10 +182,8 @@ public class DetectionRemediationAIService {
                     + ")"
                 : RETRY_CONNECTION + " attempt failed, call stoped.");
 
-          if(retry >= RETRY_CONNECTION)
-              throw new ResponseStatusException(
-                      httpStatus,
-                      errorMessage + response.getReasonPhrase());
+        if (retry >= RETRY_CONNECTION)
+          throw new ResponseStatusException(httpStatus, errorMessage + response.getReasonPhrase());
 
         if (RETRY_CONNECTION_WAITING_SECOND <= 0) return null;
 
