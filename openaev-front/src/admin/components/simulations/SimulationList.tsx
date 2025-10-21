@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExercisesGlobalScores } from '../../../actions/exercises/exercise-action';
+import Loader from '../../../components/common/loader/Loader';
 import { type QueryableHelpers } from '../../../components/common/queryable/QueryableHelpers';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
@@ -12,7 +13,6 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import ItemTargets from '../../../components/ItemTargets';
-import Loader from "../../../components/common/loader/Loader";
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type ExercisesGlobalScoresOutput, type ExerciseSimple, type ExpectationResultsByType } from '../../../utils/api-types';
 import AtomicTestingResult from '../atomic_testings/atomic_testing/AtomicTestingResult';

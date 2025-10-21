@@ -3,8 +3,8 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/injects/inject-action';
+import Loader from '../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from "../../../../components/common/loader/Loader";
 import { type InjectResultOverviewOutput, type InjectStatusOutput } from '../../../../utils/api-types';
 import GlobalExecutionTraces from '../../common/injects/status/traces/GlobalExecutionTraces';
 

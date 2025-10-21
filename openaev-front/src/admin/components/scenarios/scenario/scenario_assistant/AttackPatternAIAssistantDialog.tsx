@@ -14,8 +14,8 @@ import { makeStyles } from 'tss-react/mui';
 import { searchAttackPatternsWithAIWebservice } from '../../../../../actions/AttackPattern';
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import ImportUploader from '../../../../../components/common/ImportUploader';
+import Loader from '../../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from "../../../../../components/common/loader/Loader";
 
 const useStyles = makeStyles()(theme => ({
   modalContainer: {
@@ -38,9 +38,7 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     gap: theme.spacing(1),
   },
-  loaderContainer: {
-    height: '5em'
-  },
+  loaderContainer: { height: '5em' },
 
 }));
 
@@ -146,7 +144,7 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
         {
           isLoading && (
             <div className={classes.loaderContainer}>
-              <Loader size={"m"}></Loader>
+              <Loader size="m"></Loader>
             </div>
           )
         }

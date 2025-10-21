@@ -1,7 +1,7 @@
 import { Box, Button } from '@mui/material';
 import type React from 'react';
 
-import Loader from "../../../../../components/common/loader/Loader";
+import Loader from '../../../../../components/common/loader/Loader';
 
 interface ProcessLoaderProps {
   onFocusTab: () => void;

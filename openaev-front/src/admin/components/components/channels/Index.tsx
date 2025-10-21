@@ -25,7 +25,7 @@ const Index = () => {
   useDataLoader(() => {
     dispatch(fetchChannel(channelId));
   });
-  if (!channel) {
+  if (channel) {
     return (
       <div className={classes.root}>
         <ChannelHeader />

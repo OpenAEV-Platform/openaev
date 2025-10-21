@@ -4,8 +4,8 @@ import * as PropTypes from 'prop-types';
 import { compose } from 'ramda';
 import { withStyles } from 'tss-react/mui';
 
+import Loader from './common/loader/Loader.js';
 import inject18n from './i18n';
-import Loader from "./common/loader/Loader.js";
 
 const styles = () => ({
   chip: {
@@ -109,7 +109,7 @@ const renderChip = (props) => {
       <Chip
         classes={{ root: style }}
         style={inlineStyles.blue}
-        label={<Loader size={"s"} />}
+        label={<Loader size="s" />}
       />
     );
   }

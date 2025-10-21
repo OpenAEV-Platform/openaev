@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
 import Dialog from '../dialog/Dialog';
-import Loader from "./Loader";
+import Loader from './Loader';
 
 interface Props {
   open: boolean;
@@ -42,7 +42,7 @@ const LoaderDialog = ({
 
         {isSubmitting && (
           <>
-            <Loader size={"l"}></Loader>
+            <Loader size="l"></Loader>
             <Typography
               variant="caption"
               component="div"

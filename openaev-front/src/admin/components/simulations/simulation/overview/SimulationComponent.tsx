@@ -7,11 +7,11 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import Loader from '../../../../../components/common/loader/Loader';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from "../../../../../components/common/loader/Loader";
 import { useHelper } from '../../../../../store';
 import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';

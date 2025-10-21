@@ -10,10 +10,10 @@ import { makeStyles } from 'tss-react/mui';
 
 import { tryChallenge } from '../../../../actions/challenge-action';
 import Dialog from '../../../../components/common/dialog/Dialog';
+import Loader from '../../../../components/common/loader/Loader';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from "../../../../components/common/loader/Loader";
 import { type Challenge, type ChallengeInformation, type ChallengeResult, type ChallengeTryInput } from '../../../../utils/api-types';
 import ChallengeTryForm from '../../components/challenges/ChallengeTryForm';
 import { PreviewChallengeContext } from '../Context';

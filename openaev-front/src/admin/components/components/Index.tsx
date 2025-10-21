@@ -2,8 +2,8 @@ import { lazy, Suspense, useContext } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import Loader from '../../../components/common/loader/Loader';
 import { errorWrapper } from '../../../components/Error';
-import Loader from "../../../components/common/loader/Loader";
 import NotFound from '../../../components/NotFound';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';

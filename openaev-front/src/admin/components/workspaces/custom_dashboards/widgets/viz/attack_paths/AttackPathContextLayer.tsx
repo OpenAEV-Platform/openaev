@@ -3,6 +3,7 @@ import { useContext, useState } from 'react';
 
 import { fetchExercise } from '../../../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../../../actions/exercises/exercise-helper';
+import Loader from '../../../../../../../components/common/loader/Loader';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
 import { type EsAttackPath } from '../../../../../../../utils/api-types';
@@ -11,7 +12,6 @@ import { useAppDispatch } from '../../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../../utils/hooks/useDataLoader';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import AttackPath from './AttackPath';
-import Loader from "../../../../../../../components/common/loader/Loader";
 
 interface Props {
   attackPathsData: EsAttackPath[];

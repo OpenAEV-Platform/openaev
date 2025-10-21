@@ -5,10 +5,10 @@ import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z, type ZodIssue, type ZodObject } from 'zod/v4';
 
+import Loader from '../../../../../components/common/loader/Loader';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from "../../../../../components/common/loader/Loader";
 import {
   type Article,
   type AttackPattern,
