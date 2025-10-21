@@ -5304,7 +5304,6 @@ export interface RuleAttributeUpdateInput {
 }
 
 export interface Scenario {
-  from_starter_pack?: boolean;
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
@@ -5315,6 +5314,7 @@ export interface Scenario {
   /** @format date-time */
   scenario_created_at: string;
   scenario_custom_dashboard?: string;
+  scenario_dependencies?: "STARTERPACK"[];
   scenario_description?: string;
   scenario_documents?: string[];
   scenario_exercises?: string[];

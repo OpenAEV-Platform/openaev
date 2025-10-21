@@ -578,6 +578,7 @@ public class ScenarioService {
     zipExport.write(
         objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(scenarioFileExport));
     zipExport.closeEntry();
+
     // Add the documents
     documentIds.stream()
         .distinct()
@@ -777,6 +778,7 @@ public class ScenarioService {
     scenarioDuplicate.setLessonsAnonymized(scenario.isLessonsAnonymized());
     scenarioDuplicate.setDocuments(new ArrayList<>(scenario.getDocuments()));
     scenarioDuplicate.setGrants(new ArrayList<>(scenario.getGrants()));
+    scenarioDuplicate.setDependencies(scenario.getDependencies());
     return scenarioDuplicate;
   }
 

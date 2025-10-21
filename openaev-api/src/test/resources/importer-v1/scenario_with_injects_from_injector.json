@@ -12,7 +12,8 @@
     "scenario_message_footer": "SIMULATION FOOTER",
     "scenario_mail_from": "test@filigran.cloud",
     "scenario_tags": [],
-    "scenario_documents": []
+    "scenario_documents": [],
+    "scenario_dependencies": ["STARTERPACK"]
   },
   "scenario_teams": [],
   "scenario_objectives": null,
