@@ -36,10 +36,10 @@ public class DetectionRemediationAIService {
   @Value("${remediation.detection.webservice:#{null}}")
   String REMEDIATION_DETECTION_WEBSERVICE;
 
-  @Value("${#remediation.detection.webservice.retry:#{3}}")
+  @Value("#{${remediation.detection.webservice.retry: null} ?: 3}")
   Integer RETRY_CONNECTION;
 
-  @Value("${#remediation.detection.webservice.retry.waiting.second:#{30}}")
+  @Value("#{${remediation.detection.webservice.retry.waiting.second: null} ?: 30}")
   Integer RETRY_CONNECTION_WAITING_SECOND;
 
   private final Ee ee;
@@ -129,7 +129,7 @@ public class DetectionRemediationAIService {
           e);
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY,
-          errorMessage + "The external service returned an invalid response: " + e.getMessage());
+          errorMessage + "The external service returned an invalid response.");
     }
   }
 
@@ -182,6 +182,13 @@ public class DetectionRemediationAIService {
                     + ")"
                 : RETRY_CONNECTION + " attempt failed, call stoped.");
 
+          if(retry >= RETRY_CONNECTION)
+              throw new ResponseStatusException(
+                      httpStatus,
+                      errorMessage + response.getReasonPhrase());
+
+        if (RETRY_CONNECTION_WAITING_SECOND <= 0) return null;
+
         Thread.sleep(1000L * RETRY_CONNECTION_WAITING_SECOND);
 
       } else {
@@ -196,7 +203,7 @@ public class DetectionRemediationAIService {
           e);
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY,
-          errorMessage + "The external service returned an invalid response: " + e.getMessage());
+          errorMessage + "The external service returned an invalid response.");
     } catch (InterruptedException e) {
       log.error(
           "Thread sleep retry stoped : retry to call remediation detection webservice {} . Error: {} ",
@@ -205,7 +212,7 @@ public class DetectionRemediationAIService {
           e);
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR,
-          errorMessage + "The operation was interrupted unexpectedly: " + e.getMessage());
+          errorMessage + "The operation was interrupted unexpectedly.");
     }
 
     return null;

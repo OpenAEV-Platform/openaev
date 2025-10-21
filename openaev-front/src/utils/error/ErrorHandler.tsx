@@ -27,6 +27,10 @@ const ErrorHandler = () => {
         }
       } else if (error.status === 500) {
         MESSAGING$.notifyError(t('Internal error'));
+      } else if (error.status === 502) {
+        MESSAGING$.notifyError(t('Bad Gateway'));
+      } else if (error.status === 503) {
+        MESSAGING$.notifyError(t('Service Unavailable'));
       } else if (error.message) {
         MESSAGING$.notifyError(error.message);
       } else {
