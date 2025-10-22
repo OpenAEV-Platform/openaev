@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.database.model.InjectExpectation;
@@ -16,14 +17,20 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class InjectExpectationUtils {
-
-  private InjectExpectationUtils() {}
+  public InjectExpectationUtils() {}
 
   public static final double FAILED_SCORE_VALUE = 0.0;
+
+  //  private final ExpectationsExpirationManagerConfig expectationExpirationManagerConfig;
+
+  //  public InjectExpectationUtils(ExpectationsExpirationManagerConfig config){
+  //    this.expectationExpirationManagerConfig = config;
+  //  }
 
   // -- SCORE --
 
@@ -159,7 +166,21 @@ public class InjectExpectationUtils {
           }
           expectation.setScore(score);
           if (addResult != null) {
-            expectation.getResults().add(addResult.apply(score));
+            InjectExpectationResult newResultToAdd = addResult.apply(score);
+            Optional<InjectExpectationResult> existingResult =
+                expectation.getResults().stream()
+                    .filter(result -> newResultToAdd.getSourceId().equals(result.getSourceId()))
+                    .findFirst();
+            existingResult.ifPresent(
+                injectExpectationResult ->
+                    expectation.getResults().remove(injectExpectationResult));
+            expectation.getResults().add(newResultToAdd);
+
+            // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with
+            // no result to expired
+            if ("96e476e0-b9c4-4660-869c-98585adf754d".equals(newResultToAdd.getSourceId())) {
+              expireEmptyResults(expectation.getResults());
+            }
           }
         });
   }
