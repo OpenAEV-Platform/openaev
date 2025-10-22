@@ -2,21 +2,10 @@ import { Groups3Outlined, PersonOutlined } from '@mui/icons-material';
 import { ListItemButton, ListItemIcon, ListItemText, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
-import { makeStyles } from 'tss-react/mui';
 
 import PlatformIcon from '../../../../components/PlatformIcon';
 import type { InjectTarget } from '../../../../utils/api-types';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
-
-const useStyles = makeStyles()(() => ({
-  bodyTarget: {
-    fontSize: 13,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    verticalAlign: 'middle',
-    textOverflow: 'ellipsis',
-  },
-}));
 
 interface Props {
   selected?: boolean;
