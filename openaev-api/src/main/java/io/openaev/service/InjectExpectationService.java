@@ -321,7 +321,7 @@ public class InjectExpectationService {
       InjectExpectation injectExpectation,
       Collector collector,
       InjectExpectationUpdateInput input,
-      Boolean shouldPropagateLastInjectExpectationResult) {
+      boolean shouldPropagateLastInjectExpectationResult) {
     // Update inject expectation at agent level
     injectExpectation =
         this.computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input, collector);

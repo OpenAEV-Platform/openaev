@@ -23,7 +23,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class InjectExpectationUtils {
-  public InjectExpectationUtils() {}
+
+  private InjectExpectationUtils() {}
 
   public static final double FAILED_SCORE_VALUE = 0.0;
 
@@ -173,8 +174,8 @@ public class InjectExpectationUtils {
 
             // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with
             // no result to expired
-            ExpectationsExpirationManagerConfig conf = new ExpectationsExpirationManagerConfig();
-            if (conf.getId().equals(newResultToAdd.getSourceId())) {
+            if (ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                newResultToAdd.getSourceId())) {
               expireEmptyResults(expectation.getResults());
             }
           }
