@@ -98,15 +98,13 @@ public class InjectExpectationService {
         expectationsForAgents.forEach(
             e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
         this.injectExpectationRepository.saveAll(expectationsForAgents);
-        propagateTechnicalExpectation(
-            injectExpectation, isAgentless, (score) -> injectExpectation.getResults().getLast());
+        propagateTechnicalExpectation(injectExpectation, isAgentless, null);
         return injectExpectation;
         // Computation on agent or asset agentless
       } else {
         computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input);
         InjectExpectation updated = this.injectExpectationRepository.save(injectExpectation);
-        propagateTechnicalExpectation(
-            updated, isAgentless, (score) -> updated.getResults().getLast());
+        propagateTechnicalExpectation(updated, isAgentless, null);
         return updated;
       }
     }
@@ -282,7 +280,7 @@ public class InjectExpectationService {
     InjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
     Collector collector = this.collectorService.collector(input.getCollectorId());
 
-    computeTechnicalExpectation(injectExpectation, collector, input);
+    computeTechnicalExpectation(injectExpectation, collector, input, false);
 
     return injectExpectation;
   }
@@ -315,19 +313,25 @@ public class InjectExpectationService {
         log.error("Inject expectation not found for ID: {}", injectExpectationId);
         continue;
       }
-      computeTechnicalExpectation(injectExpectation, collector, input);
+      computeTechnicalExpectation(injectExpectation, collector, input, false);
     }
   }
 
   public void computeTechnicalExpectation(
       InjectExpectation injectExpectation,
       Collector collector,
-      InjectExpectationUpdateInput input) {
+      InjectExpectationUpdateInput input,
+      Boolean shouldPropagateLastInjectExpectationResult) {
     // Update inject expectation at agent level
     injectExpectation =
         this.computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input, collector);
     InjectExpectation updated = this.injectExpectationRepository.save(injectExpectation);
-    propagateTechnicalExpectation(updated, false, (score) -> updated.getResults().getLast());
+    propagateTechnicalExpectation(
+        updated,
+        false,
+        shouldPropagateLastInjectExpectationResult
+            ? (score) -> updated.getResults().getLast()
+            : null);
   }
 
   // -- COMPUTE RESULTS FROM INJECT EXPECTATIONS --

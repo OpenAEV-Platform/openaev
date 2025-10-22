@@ -4,6 +4,7 @@ import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.Team;
@@ -25,12 +26,6 @@ public class InjectExpectationUtils {
   public InjectExpectationUtils() {}
 
   public static final double FAILED_SCORE_VALUE = 0.0;
-
-  //  private final ExpectationsExpirationManagerConfig expectationExpirationManagerConfig;
-
-  //  public InjectExpectationUtils(ExpectationsExpirationManagerConfig config){
-  //    this.expectationExpirationManagerConfig = config;
-  //  }
 
   // -- SCORE --
 
@@ -178,7 +173,8 @@ public class InjectExpectationUtils {
 
             // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with
             // no result to expired
-            if ("96e476e0-b9c4-4660-869c-98585adf754d".equals(newResultToAdd.getSourceId())) {
+            ExpectationsExpirationManagerConfig conf = new ExpectationsExpirationManagerConfig();
+            if (conf.getId().equals(newResultToAdd.getSourceId())) {
               expireEmptyResults(expectation.getResults());
             }
           }

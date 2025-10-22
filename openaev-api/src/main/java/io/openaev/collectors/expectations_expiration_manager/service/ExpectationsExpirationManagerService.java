@@ -62,7 +62,7 @@ public class ExpectationsExpirationManagerService {
             input.setResult(computeFailedMessage(expectation.getType()));
             expireEmptyResults(expectation.getResults());
             this.injectExpectationService.computeTechnicalExpectation(
-                expectation, collector, input);
+                expectation, collector, input, true);
           }
         });
   }
