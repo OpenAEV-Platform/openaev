@@ -77,9 +77,9 @@ public class CveApi extends RestBehavior {
   @LogExecutionTime
   @PostMapping(CVE_API + "/bulk")
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
-  public void bulkInsertCVEsForCollector(
-      @Valid @RequestBody @NotNull VulnerabilityBulkInsertInput input) {
-    this.vulnerabilityService.bulkUpsertVulnerabilities(input);
+  public void bulkInsertCVEsForCollector(@Valid @RequestBody @NotNull CVEBulkInsertInput input) {
+    this.vulnerabilityService.bulkUpsertVulnerabilities(
+        vulnerabilityMapper.fromCVEBulkInsertInput(input));
   }
 
   @Operation(summary = "Update an existing CVE")

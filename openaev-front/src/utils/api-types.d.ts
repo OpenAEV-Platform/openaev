@@ -115,7 +115,7 @@ export interface AggregatedFindingOutput {
   finding_id: string;
   /**
    * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials, vulnerability"
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
     | "text"
@@ -125,7 +125,7 @@ export interface AggregatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
   /** Finding Value */
   finding_value: string;
 }
@@ -588,6 +588,16 @@ type BaseWidgetConfigurationWidgetConfigurationTypeMapping<Key, Type> = {
   widget_configuration_type: Key;
 } & Type;
 
+export interface CVEBulkInsertInput {
+  cves: CveCreateInput[];
+  initial_dataset_completed?: boolean;
+  /** @format int32 */
+  last_index?: number;
+  /** @format date-time */
+  last_modified_date_fetched?: string;
+  source_identifier: string;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -902,7 +912,7 @@ export interface ContractOutputElement {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -935,7 +945,7 @@ export interface ContractOutputElementInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -962,7 +972,7 @@ export interface ContractOutputElementSimple {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
 }
 
 export interface CreateExerciseInput {
@@ -1052,6 +1062,61 @@ export interface CustomDashboardParametersInput {
     | "startDate"
     | "endDate"
     | "scenario";
+}
+
+/** Payload to create a CVE */
+export interface CveCreateInput {
+  /**
+   * CVSS score
+   * @min 0
+   * @exclusiveMin false
+   * @max 10
+   * @exclusiveMax false
+   * @example 7.5
+   */
+  cve_cvss_v31: number;
+  /**
+   * Date when action is due by CISA
+   * @format date-time
+   */
+  cve_cisa_action_due?: string;
+  /**
+   * Date when CISA added the CVE to the exploited list
+   * @format date-time
+   */
+  cve_cisa_exploit_add?: string;
+  /** Action required by CISA */
+  cve_cisa_required_action?: string;
+  /** Vulnerability name used by CISA */
+  cve_cisa_vulnerability_name?: string;
+  /** List of linked CWEs */
+  cve_cwes?: CweInput[];
+  /** Description of the CVE */
+  cve_description?: string;
+  /**
+   * External Unique CVE identifier
+   * @example "CVE-2024-0001"
+   */
+  cve_external_id: string;
+  /**
+   * Publication date of the CVE
+   * @format date-time
+   */
+  cve_published?: string;
+  /** List of reference URLs */
+  cve_reference_urls?: string[];
+  /** Suggested remediation */
+  cve_remediation?: string;
+  /**
+   * Identifier of the CVE source
+   * @example "MITRE"
+   */
+  cve_source_identifier?: string;
+  /**
+   * Vulnerability status
+   * @example "ANALYZED"
+   */
+  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
 /** Full CVE output including references and CWEs */
@@ -2378,7 +2443,7 @@ export interface Finding {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -2398,7 +2463,7 @@ export interface FindingInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
   finding_value: string;
 }
 
@@ -5091,7 +5156,7 @@ export interface RelatedFindingOutput {
   finding_simulation?: ExerciseSimple;
   /**
    * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials, vulnerability"
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
     | "text"
@@ -5101,7 +5166,7 @@ export interface RelatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "vulnerability";
+    | "cve";
   /** Finding Value */
   finding_value: string;
 }
@@ -6219,7 +6284,7 @@ export interface VulnerabilityCreateInput {
   /** Description of the vulnerability */
   vulnerability_description?: string;
   /**
-   * External Unique VULNERABILITY IDentifier
+   * External Unique Vulnerabilty Identifier
    * @example "CVE-2024-0001"
    */
   vulnerability_external_id: string;
