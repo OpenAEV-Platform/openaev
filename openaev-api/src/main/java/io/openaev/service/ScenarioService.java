@@ -578,7 +578,6 @@ public class ScenarioService {
     zipExport.write(
         objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(scenarioFileExport));
     zipExport.closeEntry();
-
     // Add the documents
     documentIds.stream()
         .distinct()
