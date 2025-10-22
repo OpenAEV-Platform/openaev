@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 public class TagService {
 
   public static final String OPENCTI_TAG_NAME = "opencti";
-  public static final String OPENCTI_TAG_COLOR = "#001bda";
 
   private final TagRepository tagRepository;
 
@@ -66,11 +65,7 @@ public class TagService {
         }
         TagCreateInput tagCreateInput = new TagCreateInput();
         tagCreateInput.setName(label);
-        if (OPENCTI_TAG_NAME.equalsIgnoreCase(label)) {
-          tagCreateInput.setColor(OPENCTI_TAG_COLOR);
-        } else {
-          tagCreateInput.setColor(generateRandomColor());
-        }
+        tagCreateInput.setColor(generateRandomColor());
 
         tags.add(upsertTag(tagCreateInput));
       }
