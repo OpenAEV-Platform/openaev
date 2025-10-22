@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import static io.openaev.cron.ScheduleFrequency.ONESHOT;
+import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
@@ -107,7 +108,11 @@ public class SecurityCoverageService {
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
     stixCoverageObj.setIfSetPresent(
-        CommonProperties.LABELS.toString(), securityCoverage::setLabels);
+        CommonProperties.LABELS.toString(),
+        labels -> {
+          labels.add(OPENCTI_TAG_NAME);
+          securityCoverage.setLabels(labels);
+        });
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
