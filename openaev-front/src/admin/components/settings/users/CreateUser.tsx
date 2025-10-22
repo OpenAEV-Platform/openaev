@@ -69,6 +69,7 @@ const CreateUser = ({ onCreate }: CreateUserProps) => {
           editing={false}
           onSubmit={onSubmit}
           handleClose={handleClose}
+          initialValues={{ user_tags: [] }}
         />
       </Drawer>
     </>
