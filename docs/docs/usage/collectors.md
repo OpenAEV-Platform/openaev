@@ -2,11 +2,11 @@
 
 !!! question "Collectors list"
 
-    You are looking for the available collectors? The list is in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+    You are looking for the available collectors? The list is in the [OpenAEV Ecosystem](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
 
 ## Introduction
 
-Collectors are one of the cornerstones of the OpenBAS platform, they are responsible for pulling data from various
+Collectors are one of the cornerstones of the OpenAEV platform, they are responsible for pulling data from various
 external services for two purposes:
 
 - Collect all alerts, logs and traces related to attacks, incidents or crisis and match them to simulated injects to
@@ -25,8 +25,8 @@ these 45 minutes, if no data has been found for a given inject, this inject's re
 #### Detection & Prevention with EDR
 
 For EDRs, we analyze the tool's logs to identify matches for the hostname and the parent process name associated with
-the attack. If the attack is initiated by the OpenBAS agent, the parent process name will follow this format:
-openbas-implant-INJECT_ID.exe.
+the attack. If the attack is initiated by the OpenAEV agent, the parent process name will follow this format:
+openaev-implant-INJECT_ID.exe.
 
 #### Detection & Prevention with SIEM
 
@@ -53,5 +53,5 @@ complete the view overview about your current posture.
 
 ### 🔭 Others
 
-All other system OpenBAS can pull from, to add more meaningful and relevant information to the view of your security
+All other system OpenAEV can pull from, to add more meaningful and relevant information to the view of your security
 posture.

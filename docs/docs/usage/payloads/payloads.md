@@ -1,6 +1,6 @@
 # Payloads
 
-In **OpenBAS**, payloads are key components used to build and customize injects.
+In **OpenAEV**, payloads are key components used to build and customize injects.
 They allow you to enrich your scenarios with dynamic, reusable content tailored to various attack simulations.
 
 ## Payloads List View
@@ -24,10 +24,10 @@ columns:
 Payloads can have one of the following statuses:
 
 - **Verified** ✅  
-  OpenBAS has tested the payload and confirmed it works as expected.
+  OpenAEV has tested the payload and confirmed it works as expected.
 
 - **Unverified** ⚠️  
-  The payload has not been tested by OpenBAS. It may or may not work.
+  The payload has not been tested by OpenAEV. It may or may not work.
 
 - **Deprecated** ❌  
   The original source has marked the payload as deprecated. It’s kept for reference, but functionality is not
@@ -41,10 +41,10 @@ Each payload has a source indicating its origin:
   Submitted by external users. May vary in quality or coverage.
 
 - **Manual** ✍️  
-  Custom payload created within your OpenBAS instance.
+  Custom payload created within your OpenAEV instance.
 
 - **Filigran** 📦  
-  From the [official Filigran payload library](https://github.com/OpenBAS-Platform/payloads), curated and maintained by
+  From the [official Filigran payload library](https://github.com/OpenAEV-Platform/payloads), curated and maintained by
   Filigran.
 
 ## Create a Payload
@@ -222,7 +222,7 @@ accessibility, detect issues, and simulate potential attacker behavior.
 Output Parsers allows processing the raw output from an execution. You can define rules to extract specific data from
 the output and link it to variables.
 
-These variables can then be used for [chaining injects](../injects.md/#conditional-execution-of-injects).
+These variables can then be used for [chaining injects](../inject-overview.md/#conditional-execution-of-injects).
 
 Currently, Output Parsers support:
 
@@ -294,7 +294,7 @@ references next to each other). The final value of the field will be a compositi
 ## Use a Payload
 
 After creation, a new inject type will automatically appear in the inject types list if the implant you're using
-supports it (the OpenBAS Implant does).
+supports it (the OpenAEV Implant does).
 
 ![Payload creation dns](assets/payload-creation-dns.png)
 ![Payload to inject](assets/payload-to-inject.png)

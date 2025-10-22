@@ -23,7 +23,7 @@ NB: The selected dashboard will appear in the Analysis tab, but only for the sim
 
 _Connect to the XTM Hub to download a ZIP file that can be easily imported into OpenAEV using the following process._
 
-XTM Hub provides access to a library of pre-built OpenBAS scenarios that you can import directly into your platform to quickly get started with realistic attack simulations.
+XTM Hub provides access to a library of pre-built OpenAEV scenarios that you can import directly into your platform to quickly get started with realistic attack simulations.
 
 From the XTM Hub, you can effortlessly deploy your desired scenario with just a single click.
 
@@ -61,7 +61,7 @@ In the "Definition" tab, you can add various elements to construct events:
 
 Once you have added all the elements you need, you can go to the "Injects" tab to begin to create the chain of events that will shape your scenario.
 
-By clicking on the + button at the bottom right of the screen, you enter the [inject creation workflow](injects.md#Inject-creation-process).
+By clicking on the + button at the bottom right of the screen, you enter the [inject creation workflow](inject-overview.md#inject-creation-process).
 
 ## Scenario Assistant
 

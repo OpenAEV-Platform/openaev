@@ -2,9 +2,9 @@
 
 !!! tip "Under construction"
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/docs).
 
-The Home screen provides visitors of the OpenBAS platform with an overview of the platform's live activity and a
+The Home screen provides visitors of the OpenAEV platform with an overview of the platform's live activity and a
 snapshot of your global security posture. Below is a breakdown of the various widgets available on this page.
 
 ## Metric cards

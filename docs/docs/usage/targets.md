@@ -1,7 +1,7 @@
 # Targets
 
 
-When you are using an [Inject](injects.md), whether for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), it's necessary to define the recipients, known as "targets", which could include [Players, Teams](people.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the inject.
+When you are using an [Inject](inject-overview.md), whether for [Atomic testing](atomic.md), [Scenario](scenario.md) or [Simulation](simulation.md), it's necessary to define the recipients, known as "targets", which could include [Players, Teams](people.md), [Assets (endpoints) or/and Asset groups](assets.md) it will be sent to. They are called "targets" of the inject.
 
 Note that certain injects can't target assets, while others can't target players. For instance, the "Send individual mails" inject can only target players and teams, not assets. 
 

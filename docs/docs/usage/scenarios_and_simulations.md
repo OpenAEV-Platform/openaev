@@ -1,10 +1,10 @@
 # Scenarios and Simulations
 
-In OpenBAS, the core concept to simulate attacks is based on the duo [Scenario](scenario.md) & [Simulation](simulation.md).
+In OpenAEV, the core concept to simulate attacks is based on the duo [Scenario](scenario.md) & [Simulation](simulation.md).
 
 ## Scenarios
 
-Scenario enable to translate a threat context, such as an attack or even a threat actor, into a meaningful sequence of events (referred to as [injects](injects.md)), which can be technical or non-technical. This chronology of events can be enriched with associated documents or media articles to simulate the environment surrounding them.
+Scenario enable to translate a threat context, such as an attack or even a threat actor, into a meaningful sequence of events (referred to as [injects](inject-overview.md)), which can be technical or non-technical. This chronology of events can be enriched with associated documents or media articles to simulate the environment surrounding them.
 
 Within Scenarios, you also specify who participates, whether actual people (referred to as [Players](people.md)) or endpoints (referred to as [Assets](assets.md)). They will be the targets of the events representing the threat.
 

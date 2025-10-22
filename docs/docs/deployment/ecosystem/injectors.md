@@ -6,7 +6,7 @@
 
 !!! question "Injectors list"
 
-    You are looking for the available injectors? The list is in the [OpenBAS Ecosystem](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
+    You are looking for the available injectors? The list is in the [OpenAEV Ecosystem](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
 
 ## Installation
 
@@ -19,7 +19,7 @@ just add the proper configuration parameters in your platform configuration.
 
 #### Configuration
 
-All external injectors have to be able to access the OpenBAS API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENBAS_URL` and the `OPENBAS_TOKEN`. In addition to these 2 parameters, injectors have other mandatory parameters that need to be set in order to get them work.
+All external injectors have to be able to access the OpenAEV API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENAEV_URL` and the `OPENAEV_TOKEN`. In addition to these 2 parameters, injectors have other mandatory parameters that need to be set in order to get them work.
 
 !!! info "Injector tokens"
 
@@ -27,8 +27,8 @@ All external injectors have to be able to access the OpenBAS API. To allow this 
 
 Here is an example of a injector `docker-compose.yml` file:
 ```yaml
-- OPENBAS_URL=http://localhost
-- OPENBAS_TOKEN=ChangeMe
+- OPENAEV_URL=http://localhost
+- OPENAEV_TOKEN=ChangeMe
 - INJECTOR_ID=ChangeMe # Specify a valid UUIDv4 of your choice
 - "INJECTOR_NAME=HTTP query"
 - INJECTOR_LOG_LEVEL=error
@@ -37,7 +37,7 @@ Here is an example of a injector `docker-compose.yml` file:
 Here is an example in a injector `config.yml` file:
 
 ```yaml
-openbas:
+openaev:
   url: 'http://localhost:3001'
   token: 'ChangeMe'
 
@@ -49,13 +49,13 @@ injector:
 
 #### Networking
 
-Be aware that all injectors are reaching RabbitMQ based the RabbitMQ configuration provided by the OpenBAS platform. The injector must be able to reach RabbitMQ on the specified hostname and port. If you have a specific Docker network configuration, please be sure to adapt your `docker-compose.yml` file in such way that the injector container gets attached to the OpenBAS Network, e.g.:
+Be aware that all injectors are reaching RabbitMQ based the RabbitMQ configuration provided by the OpenAEV platform. The injector must be able to reach RabbitMQ on the specified hostname and port. If you have a specific Docker network configuration, please be sure to adapt your `docker-compose.yml` file in such way that the injector container gets attached to the OpenAEV Network, e.g.:
 
 ```yaml
 networks:
   default:
     external: true
-    name: openbas-docker_default
+    name: openaev-docker_default
 ```
 
 ## Docker activation
@@ -68,10 +68,10 @@ For instance, to enable the HTTP query injector, you can add a new service to yo
 
 ```docker
   injector-http-query:
-    image: openbas/injector-http-query:latest
+    image: openaev/injector-http-query:latest
     environment:
-      - OPENBAS_URL=http://localhost
-      - OPENBAS_TOKEN=ChangeMe
+      - OPENAEV_URL=http://localhost
+      - OPENAEV_TOKEN=ChangeMe
       - INJECTOR_ID=ChangeMe
       - "INJECTOR_NAME=HTTP query"
       - INJECTOR_LOG_LEVEL=error
@@ -80,10 +80,10 @@ For instance, to enable the HTTP query injector, you can add a new service to yo
 
 ### Launch a standalone injector
 
-To launch standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenBAS-Platform/injectors/releases) and start the injector:
+To launch standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/injectors/releases) and start the injector:
 
 ```
-$ wget https://github.com/OpenBAS-Platform/injectors/archive/{RELEASE_VERSION}.zip
+$ wget https://github.com/OpenAEV-Platform/injectors/archive/{RELEASE_VERSION}.zip
 $ unzip {RELEASE_VERSION}.zip
 $ cd injectors-{RELEASE_VERSION}/http-query/
 ```
@@ -105,7 +105,7 @@ $ apt install python3 python3-pip
 Download the release of the injectors:
 
 ```
-$ wget <https://github.com/OpenBAS-Platform/injectors/archive/{RELEASE_VERSION}.zip>
+$ wget <https://github.com/OpenAEV-Platform/injectors/archive/{RELEASE_VERSION}.zip>
 $ unzip {RELEASE_VERSION}.zip
 $ cd injectors-{RELEASE_VERSION}/http-query/src/
 ```
@@ -120,7 +120,7 @@ $ cp config.yml.sample config.yml
 Change the `config.yml` content according to the parameters of the platform and of the targeted service and launch the injector:
 
 ```
-$ python3 openbas_http.py
+$ python3 openaev_http.py
 ```
 
 ## Injectors status
@@ -128,7 +128,3 @@ $ python3 openbas_http.py
 The injector status can be displayed in the dedicated section of the platform available in Integration > injectors. You will be able to see the statistics of the RabbitMQ queue of the injector:
 
 ![injectors](../assets/injectors-status.png)
-
-!!! bug "Problem"
-
-    If you encounter problems deploying OpenBAS or injectors, you can consult the [troubleshooting page](../troubleshooting.md) page.

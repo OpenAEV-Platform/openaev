@@ -2,46 +2,42 @@
 
 ## Introduction
 
-To be able to use the power of the OpenBAS platform on endpoints, you need at least one **neutral executor** that will
+To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
 be in charge of executing implants as detached processes. Implants will then execute payloads.
 
-![Architecture](../platform/assets/architecture.png)
-
-The OpenBAS platform manages 4 executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64
+The platform manages different executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64
 architectures. This table below summarizes the information about each agent.
 
 | Executor                           | Type          | Installation mode                                 | Installation type | Run As                                 | Payload execution                              | Multi agents for an endpoint                     |
 |:-----------------------------------|:--------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
-| **OpenBAS Agent (native/default)** | Open source   | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
+| **OpenAEV Agent (native/default)** | Open source   | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
 | **Tanium Agent**                   | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
 | **Crowdstrike Falcon Agent**       | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
 | **Caldera Agent**                  | Open source   | As a user session                                 | Script            | An admin background process            | As a user admin                                | Yes, depending on the user                       |                      
 
-For more details about the installation and working of each agent, see the sections dedicated below.
+## OpenAEV Agent
 
-## OpenBAS Agent
-
-The OpenBAS agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and
+The OpenAEV agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and
 payloads on endpoints.
 
-[Learn More](../../usage/openbas-agent.md)
+[Learn More](../../usage/openaev-agent.md)
 
 ## Tanium Agent
 
 The Tanium agent can be leveraged to execute implants as detached processes that will then execute payloads, according
-to the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
+to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview).
 
 ### Configure the Tanium Platform
 
 We
-provide [two Tanium packages](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages.json)
+provide [two Tanium packages](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages.json)
 to be imported into the Tanium platform.
 
 ![Tanium Packages](../assets/tanium-packages.png)
 
 !!! warning "Tanium package configuration"
 
-    Because OpenBAS should run implants as detached processes, you must uncheck  
+    Because OpenAEV should run implants as detached processes, you must uncheck  
     **"Launch this package command in a process group"** in the package configuration:
 
     ![Tanium Package](../assets/tanium-package.png)
@@ -49,15 +45,15 @@ to be imported into the Tanium platform.
 !!! warning "Tanium Threat Response usage"
 
     If your environment uses **Tanium Threat Response (TTR)** together with the Tanium agent, you should rely on the **dedicated TTR package**.  
-    This package technically works in all cases, but it is **only recommended** when OpenBAS runs on endpoints with TTR enabled.  
+    This package technically works in all cases, but it is **only recommended** when OpenAEV runs on endpoints with TTR enabled.  
     Reason: this package performs more extensive operations on the machine and can generate **more noise and alerts**.  
     → If you do **not** use Tanium Threat Response, prefer the **standard Tanium package**.  
 
     📦 Packages to import:  
-    - [OpenBAS Tanium Windows & Unix package (TTR)](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-tanium-packages-TTR.json)  
+    - [OpenAEV Tanium Windows & Unix package (TTR)](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages-TTR.json)  
 
     📜 Scripts to attach in the package configuration into files section:   
-    - [Windows TTR script](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/java/io/openbas/executors/tanium/openbas-ttr.ps1)  
+    - [Windows TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.ps1)  
 
 | Package type                | Recommended use case                  | Characteristics                                            |
 |-----------------------------|---------------------------------------|------------------------------------------------------------|
@@ -72,7 +68,7 @@ Once configured and imported, retrieve the package IDs from the URL:
 > - **Computer Group ID**: identifies which endpoints will be queried.
 > - **Action Group ID**: identifies where actions (like package execution) are allowed.
 
-### Configure the OpenBAS Platform
+### Configure the OpenAEV Platform
 
 To use the Tanium executor, fill the following configuration:
 
@@ -83,8 +79,8 @@ To use the Tanium executor, fill the following configuration:
 | executor.tanium.api-key            | EXECUTOR_TANIUM_API-KEY            |               | Tanium API key                                  |
 | executor.tanium.computer-group-id  | EXECUTOR_TANIUM_COMPUTER_GROUP_ID  | `1`           | Tanium Computer Group to be used in simulations |
 | executor.tanium.action-group-id    | EXECUTOR_TANIUM_ACTION_GROUP_ID    | `4`           | Tanium Action Group to apply actions to         |
-| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |               | ID of the OpenBAS Tanium Windows package        |
-| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |               | ID of the OpenBAS Tanium Unix package           |
+| executor.tanium.windows-package-id | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID |               | ID of the OpenAEV Tanium Windows package        |
+| executor.tanium.unix-package-id    | EXECUTOR_TANIUM_UNIX_PACKAGE_ID    |               | ID of the OpenAEV Tanium Unix package           |
 
 !!! note "Tanium API Key"
 
@@ -100,49 +96,49 @@ Once enabled, you should see **Tanium** available in the `Install agents` sectio
 
 ![Agents](../assets/agents.png)
 
-Endpoints from the selected computer groups should now appear in the **OpenBAS Endpoints** section:
+Endpoints from the selected computer groups should now appear in the **OpenAEV Endpoints** section:
 
 ![Endpoints](../assets/tanium-endpoints.png)
 
 !!! note "Agent uniqueness"
 
     An endpoint can only have **one Tanium agent** registered due to MAC address uniqueness.  
-    Installing a new agent will overwrite the existing one, and you will always see a single endpoint in the OpenBAS console.
+    Installing a new agent will overwrite the existing one, and you will always see a single endpoint in the OpenAEV console.
 
 !!! success "Installation done"
 
-    You are now ready to leverage your Tanium platform to run OpenBAS payloads!
+    You are now ready to leverage your Tanium platform to run OpenAEV payloads!
 
 ---
 
 ## CrowdStrike Falcon Agent
 
 The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute payloads
-according to the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview).
+according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview).
 
 The implants will be downloaded to these folders on the different assets:
 
-* On Windows assets: `C:\Windows\Temp\.openbas\implant-XXXXX`
-* On Linux or MacOS assets: `/tmp/.openbas/implant-XXXXX`
+* On Windows assets: `C:\Windows\Temp\.openaev\implant-XXXXX`
+* On Linux or MacOS assets: `/tmp/.openaev/implant-XXXXX`
 
 where XXXXX will be a completely random UUID, generated for each inject that will be executed.
 This ensures that the implants are unique and will be deleted on assets' restart.
 
 ### Configure the CrowdStrike Platform
 
-#### Upload OpenBAS scripts
+#### Upload OpenAEV scripts
 
 First of all, you need to create two custom scripts, one for Windows and one for Unix, covering both Linux and MacOS
 systems.
 
 To create it, go to `Host setup and management` > `Response and containment` > `Response scripts and files`. The names
-of the scripts can be changed if necessary, they will be put in the OpenBAS configuration.
+of the scripts can be changed if necessary, they will be put in the OpenAEV configuration.
 
 *Unix Script*
 
 | Attribute             | Value                                                            |
 |:----------------------|:-----------------------------------------------------------------|
-| name                  | OpenBAS Subprocessor (Unix)                                      |
+| name                  | OpenAEV Subprocessor (Unix)                                      |
 | shell type            | bash                                                             |
 | script access         | Users with the role of RTR Administrator or RTR Active Responder |
 | shared with workflows | yes                                                              |
@@ -178,7 +174,7 @@ Put the following Input schema:
 
 | Attribute             | Value                                                            |
 |:----------------------|:-----------------------------------------------------------------|
-| name                  | OpenBAS Subprocessor (Windows)                                   |
+| name                  | OpenAEV Subprocessor (Windows)                                   |
 | shell type            | PowerShell                                                       |
 | script access         | Users with the role of RTR Administrator or RTR Active Responder |
 | shared with workflows | yes                                                              |
@@ -227,7 +223,7 @@ To create a host group, go to `Host setup and management` > `Host groups`.
 
 #### Create/Update response policies for your targeted platforms
 
-As OpenBAS will ask CrowdStrike to create implants in order to execute payloads as scripts, you need to allow the
+As OpenAEV will ask CrowdStrike to create implants in order to execute payloads as scripts, you need to allow the
 execution of custom scripts on your assets. To do so, you need to create a new response policy or update an existing one
 for your assets' platforms.
 
@@ -250,7 +246,7 @@ Once done, the policy may take a few minutes to be applied to your assets.
 You can go back to the policies list screen and check that there is a 0 in the `Pending` column to know that it has been
 applied.
 
-### Configure the OpenBAS platform
+### Configure the OpenAEV platform
 
 !!! warning "CrowdStrike API Key"
 
@@ -262,51 +258,51 @@ To use the CrowdStrike executor, just fill the following configuration.
 |:-----------------------------------------------------------|:-----------------------------------------------------------|:-----------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------|
 | executor.crowdstrike.enable                                | EXECUTOR_CROWDSTRIKE_ENABLE                                | `false`                            | Enable the Crowdstrike executor                                                                                                               |
 | executor.crowdstrike.api-url                               | EXECUTOR_CROWDSTRIKE_API_URL                               | `https://api.us-2.crowdstrike.com` | Crowdstrike API url                                                                                                                           |
-| executor.crowdstrike.api-register-interval                 | EXECUTOR_CROWDSTRIKE_API_REGISTER_INTERVAL                 | 1200                               | Crowdstrike API interval to register/update the host groups/hosts/agents in OpenBAS (in seconds)                                              | 
+| executor.crowdstrike.api-register-interval                 | EXECUTOR_CROWDSTRIKE_API_REGISTER_INTERVAL                 | 1200                               | Crowdstrike API interval to register/update the host groups/hosts/agents in OpenAEV (in seconds)                                              | 
 | executor.crowdstrike.api-batch-execution-action-pagination | EXECUTOR_CROWDSTRIKE_API_BATCH_EXECUTION_ACTION_PAGINATION | 2500                               | Crowdstrike API pagination per second to set for hosts batch executions (number of hosts sent per second to Crowdstrike to execute a payload) | 
 | executor.crowdstrike.client-id                             | EXECUTOR_CROWDSTRIKE_CLIENT_ID                             |                                    | Crowdstrike client id                                                                                                                         |
 | executor.crowdstrike.client-secret                         | EXECUTOR_CROWDSTRIKE_CLIENT_SECRET                         |                                    | Crowdstrike client secret                                                                                                                     |
 | executor.crowdstrike.host-group                            | EXECUTOR_CROWDSTRIKE_HOST_GROUP                            |                                    | Crowdstrike host group id or hosts groups ids separated with commas                                                                           |
-| executor.crowdstrike.windows-script-name                   | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME                   | `OpenBAS Subprocessor (Windows)`   | Name of the OpenBAS Crowdstrike windows script                                                                                                |
-| executor.crowdstrike.unix-script-name                      | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME                      | `OpenBAS Subprocessor (Unix)`      | Name of the OpenBAS Crowdstrike unix script                                                                                                   |
+| executor.crowdstrike.windows-script-name                   | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME                   | `OpenAEV Subprocessor (Windows)`   | Name of the OpenAEV Crowdstrike windows script                                                                                                |
+| executor.crowdstrike.unix-script-name                      | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME                      | `OpenAEV Subprocessor (Unix)`      | Name of the OpenAEV Crowdstrike unix script                                                                                                   |
 
 ### Checks
 
 Once enabled, you should see CrowdStrike available in your `Install agents` section
 
-![Crowdstrike available agent](../assets/crowdstrike-available-agent.png)
+![Crowdstrike available agent](../assets/agents.png)
 
 Also, the assets and the asset groups in the selected computer groups should now be available in the endpoints and asset
-groups sections in OpenBAS:
+groups sections in OpenAEV:
 
 ![Crowdstrike Endpoints](../assets/crowdstrike-endpoints.png)
 
 NB : An Asset can only have one CrowdStrike agent installed due to the uniqueness of the MAC address parameters. If you
 try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one
-Endpoint on the OpenBAS endpoint page.
+Endpoint on the OpenAEV endpoint page.
 
 !!! success "Installation done"
 
-    You are now ready to leverage your CrowdStrike platform to run OpenBAS payloads!
+    You are now ready to leverage your CrowdStrike platform to run OpenAEV payloads!
 
 ## Caldera Agent
 
 The Caldera agent can be leveraged to execute implants as detached processes that will the execute payloads according to
-the [OpenBAS architecture](https://docs.openbas.io/latest/deployment/overview/#architecture).
+the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/overview/#architecture).
 
 !!! note "Caldera already installed"
 
-    If you already have a working Caldera installation, just go directly to [OpenBAS configuration section](#openbas-configuration).
+    If you already have a working Caldera installation, just go directly to [OpenAEV configuration section](#openaev-configuration).
 
 ### Deploy Caldera
 
-To deploy Caldera, you can just add Caldera to the OpenBAS stack, we advise you to modify your `docker-compose.yml` and
-add a [Caldera service](https://github.com/OpenBAS-Platform/caldera/blob/filigran/docker/docker-compose.yml):
+To deploy Caldera, you can just add Caldera to the OpenAEV stack, we advise you to modify your `docker-compose.yml` and
+add a [Caldera service](https://github.com/OpenAEV-Platform/caldera/blob/filigran/docker/docker-compose.yml):
 
 ```
 services:
   caldera:
-    image: openbas/caldera-server:5.1.0
+    image: openaev/caldera-server:5.1.0
     restart: always
     ports:
       - "8888:8888"
@@ -319,10 +315,10 @@ services:
 ```
 
 As you can see in the configuration, you will also need a configuration
-file [caldera.yml](https://github.com/OpenBAS-Platform/caldera/blob/filigran/docker/caldera.yml) because Caldera does
+file [caldera.yml](https://github.com/OpenAEV-Platform/caldera/blob/filigran/docker/caldera.yml) because Caldera does
 not support well environment variables for configuration.
 
-Download [caldera.yml](https://github.com/OpenBAS-Platform/caldera/blob/filigran/docker/caldera.yml) and put it
+Download [caldera.yml](https://github.com/OpenAEV-Platform/caldera/blob/filigran/docker/caldera.yml) and put it
 alongside your `docker-compose.yml` file. This file must be modified prior launching, only change what is marked as *
 *Change this**, listed below.
 
@@ -337,7 +333,7 @@ api_key_blue: ChangeMe                                                          
 api_key: ChangeMe                                                                     # Change this
 crypt_salt: ChangeMe                                                                  # Change this
 encryption_key: ChangeMe                                                              # Change this
-app.contact.http: http://caldera.myopenbas.myorganization.com:8888                    # Change this
+app.contact.http: http://caldera.myopenaev.myorganization.com:8888                    # Change this
 app.contact.tunnel.ssh.user_password: ChangeMe                                        # Change this
 ```
 
@@ -347,15 +343,15 @@ Just update your stack and check Caldera is running:
 docker compose up -d
 ```
 
-### OpenBAS configuration
+### OpenAEV configuration
 
-Then, just change the OpenBAS configuration as follow:
+Then, just change the OpenAEV configuration as follow:
 
 | Parameter                   | Environment variable        | Default value | Description                                                                                  |
 |:----------------------------|:----------------------------|:--------------|:---------------------------------------------------------------------------------------------|
 | executor.caldera.enable     | EXECUTOR_CALDERA_ENABLE     | `false`       | Enable the Caldera executor           						                                                 |
 | executor.caldera.url        | EXECUTOR_CALDERA_URL        |               | Caldera URL                           													                                          |
-| executor.caldera.public-url | EXECUTOR_CALDERA_PUBLIC-URL |               | Caldera URL accessible from endpoints (ex: http://caldera.myopenbas.myorganization.com:8888) |
+| executor.caldera.public-url | EXECUTOR_CALDERA_PUBLIC-URL |               | Caldera URL accessible from endpoints (ex: http://caldera.myopenaev.myorganization.com:8888) |
 | executor.caldera.api-key    | EXECUTOR_CALDERA_API-KEY    |               | Caldera API key                                                                              |
 
 ### Agents
@@ -364,28 +360,26 @@ Then, just change the OpenBAS configuration as follow:
 
 Once enabled, you should see Caldera available in your `Install agents` section:
 
-![Agents](../assets/agents.png)
-
-OpenBAS has built-in instruction if you want command line examples to deploy the agent on one endpoint.
+OpenAEV has built-in instruction if you want command line examples to deploy the agent on one endpoint.
 
 ![Caldera deploy agents](../assets/caldera-deploy-agent.png)
 
 !!! warning "Caldera AV detection"
 
-    By default, the Caldera agent "Sandcat" is detected and blocked by antivirus. Here, we are using Caldera as a neutral executor that will execute implants that will execute payloads, so you need to add the proper AV exclusions as instructed in the OpenBAS screen.
+    By default, the Caldera agent "Sandcat" is detected and blocked by antivirus. Here, we are using Caldera as a neutral executor that will execute implants that will execute payloads, so you need to add the proper AV exclusions as instructed in the OpenAEV screen.
 
     ![Caldera AV exclusion](../assets/caldera-av.png)
 
 #### Checks
 
-All assets with a proper Caldera agent installed using the OpenBAS provided command line (then persistent) should now be
-available in the OpenBAS endpoints list.
+All assets with a proper Caldera agent installed using the OpenAEV provided command line (then persistent) should now be
+available in the OpenAEV endpoints list.
 
 ![Endpoints](../assets/caldera-endpoints.png)
 
 #### Uninstallation
 
 Run the following commands with an administrator Powershell in order to uninstall your Caldera agent:<br/>
-`schtasks /delete /tn OpenBASCaldera`<br/>
+`schtasks /delete /tn OpenAEVCaldera`<br/>
 `Stop-Process -Name obas-agent-caldera`<br/>
 `rm -force -Recurse "C:\Program Files (x86)\Filigran\OBAS Caldera"`

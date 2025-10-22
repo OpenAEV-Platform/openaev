@@ -16,7 +16,7 @@ From the `Assets` section, users can access the following pages:
 ## Endpoints
 
 Endpoints encompass devices and systems that connect to a network, serving as the foundation for interaction with
-OpenBAS.
+OpenAEV.
 
 The list of endpoints continues to grow with the changing landscape of networked technologies and the increasing
 interconnectivity of digital ecosystems. Below is a non-exhaustive list of terminal categories:
@@ -37,7 +37,7 @@ details specific to each endpoint.
 
 !!! note
 
-    Openbas marks an endpoint as inactive if none of its agents have communicated within one hour.
+    OpenAEV marks an endpoint as inactive if none of its agents have communicated within one hour.
 
 ![Example of list of Assets](assets/assets_list.png)
 
@@ -58,18 +58,18 @@ By clicking on an endpoint, you will be able to access and manage its details:
 | **Architecture**    | Architecture (arm64 or x86_64)                                                                                                                                                                                                                                                                                                                                        | Yes                                     |
 | **IP addresses**    | All IP addresses detected                                                                                                                                                                                                                                                                                                                                             | Yes*                                    |
 | **MAC addresses**   | All MAC addresses detected                                                                                                                                                                                                                                                                                                                                            | Yes*                                    |
-| **Tags**            | OpenBAS tags to identify your machine                                                                                                                                                                                                                                                                                                                                 | No                                      |
+| **Tags**            | OpenAEV tags to identify your machine                                                                                                                                                                                                                                                                                                                                 | No                                      |
 
 *IP and MAC addresses can be manually added or removed by the user (but the ones the agents find will always be upserted)
 
-To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../usage/openbas-agent.md).
+To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../usage/openaev-agent.md).
 
 **Agents panel**
 
 | Attribute       | Meaning                                                              |
 |-----------------|----------------------------------------------------------------------|
 | **Name**        | Local user account on the endpoint that executes the agent process   | 
-| **Executor**    | Agent type (OpenBAS, Crowdstrike, Tanium or Caldera)                 | 
+| **Executor**    | Agent type (OpenAEV, Crowdstrike, Tanium or Caldera)                 | 
 | **Privilege**   | Local account's privileges on the endpoint (admin, or standard user) | 
 | **Deployment**  | Installation type (Service or Session)                               |
 | **Status**      | Active or Inactive (threshold: 1 hour)                               | 
@@ -116,10 +116,10 @@ We plan to extend the possibilities by including additional filters in future up
 
 ## Security platforms
 
-Some integrations in OpenBAS are connected to your security platforms, such as Microsoft Sentinel, Microsoft Defender,
+Some integrations in OpenAEV are connected to your security platforms, such as Microsoft Sentinel, Microsoft Defender,
 etc., and can be viewed on this screen.
 
-OpenBAS strives to support as many integrations as possible with the most popular tools on the market. However, if your
+OpenAEV strives to support as many integrations as possible with the most popular tools on the market. However, if your
 security platform integration is not yet available, you can create it manually here.
 
 ![Security platforms](./assets/security-platforms.png)

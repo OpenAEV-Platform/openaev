@@ -1,6 +1,6 @@
 # Channels
 
-In OpenBAS, Channels represent communication medias with a particular look. They are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
+In OpenAEV, Channels represent communication medias with a particular look. They are used to present [web articles or other media contents](media_pressure.md) to Players in a specific way.
 
 It helps give shape to your Scenario context and events.
 
@@ -14,7 +14,7 @@ You can define primary and secondary colors, choose logos and define how the hea
 
 On the right, a mock up of the overview is displayed to give you the look and fill of it.
 
-![Channel creation](../assets/Channel_update.png)
+![Channel creation](./assets/channel-update.png)
 
 ## Use a Channel
 

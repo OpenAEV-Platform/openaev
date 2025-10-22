@@ -1,8 +1,8 @@
 # Configuration
 
-The purpose of this section is to learn how to configure OpenBAS to have it tailored for your production and development
+The purpose of this section is to learn how to configure OpenAEV to have it tailored for your production and development
 needs. It is possible to check all default parameters implemented in the platform in the [
-`application.properties` file](https://github.com/OpenBAS-Platform/openbas/blob/master/openbas-api/src/main/resources/application.properties).
+`application.properties` file](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/resources/application.properties).
 
 Here are the configuration keys, for both containers (environment variables) and manual deployment.
 
@@ -26,44 +26,44 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### Basic parameters
 
-| Parameter                      | Environment variable               | Default value         | Description                                                                                                              |
-|:-------------------------------|:-----------------------------------|:----------------------|:-------------------------------------------------------------------------------------------------------------------------|
-| server.address                 | SERVER_ADDRESS                     | 0.0.0.0               | Listen address of the application                                                                                        |
-| server.port                    | SERVER_PORT                        | 8080                  | Listen port of the application                                                                                           |
-| openbas.base-url               | OPENBAS_BASE-URL                   | http://localhost:8080 | Base URL of the application, will be used in some email links                                                            |
-| server.servlet.session.timeout | SERVER_SERVLET_SESSION_TIMEOUT     | 60m                   | Default duration of session (60 minutes)                                                                                 |
-| openbas.cookie-secure          | OPENBAS_COOKIE-SECURE              | `false`               | Turn on if the access is done in HTTPS                                                                                   |
-| openbas.cookie-duration        | OPENBAS_COOKIE-DURATION            | P1D                   | Cookie duration (default 1 day)                                                                                          |
-| openbas.admin.email            | OPENBAS_ADMIN_EMAIL                | admin@openbas.io      | Default login email of the admin user                                                                                    |
-| openbas.admin.password         | OPENBAS_ADMIN_PASSWORD             | ChangeMe              | Default password of the admin user                                                                                       |
-| openbas.admin.token            | OPENBAS_ADMIN_TOKEN                | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                   |
-| openbas.healthcheck.key        | OPENBAS_HEALTHCHECK_KEY            | ChangeMe              |  The key to use in the health check endpoint (/api/health)                                                                              |
-| inject.execution.threshold.minutes    | INJECT_EXECUTION_THRESHOLD_MINUTES | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status. |
-| openbas.starterpack.enabled | OPENBAS_STARTERPACK_ENABLED | true          | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards |
-
+| Parameter                          | Environment variable               | Default value         | Description                                                                                                              |
+|:-----------------------------------|:-----------------------------------|:----------------------|:-------------------------------------------------------------------------------------------------------------------------|
+| server.address                     | SERVER_ADDRESS                     | 0.0.0.0               | Listen address of the application                                                                                        |
+| server.port                        | SERVER_PORT                        | 8080                  | Listen port of the application                                                                                           |
+| openaev.base-url                   | OPENAEV_BASE-URL                   | http://localhost:8080 | Base URL of the application, will be used in some email links                                                            |
+| server.servlet.session.timeout     | SERVER_SERVLET_SESSION_TIMEOUT     | 60m                   | Default duration of session (60 minutes)                                                                                 |
+| openaev.cookie-secure              | OPENAEV_COOKIE-SECURE              | `false`               | Turn on if the access is done in HTTPS                                                                                   |
+| openaev.cookie-duration            | OPENAEV_COOKIE-DURATION            | P1D                   | Cookie duration (default 1 day)                                                                                          |
+| openaev.admin.email                | OPENAEV_ADMIN_EMAIL                | admin@openaev.io      | Default login email of the admin user                                                                                    |
+| openaev.admin.password             | OPENAEV_ADMIN_PASSWORD             | ChangeMe              | Default password of the admin user                                                                                       |
+| openaev.admin.token                | OPENAEV_ADMIN_TOKEN                | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                   |
+| openaev.healthcheck.key            | OPENAEV_HEALTHCHECK_KEY            | ChangeMe              | The key to use in the health check endpoint (/api/health)                                                                |
+| inject.execution.threshold.minutes | INJECT_EXECUTION_THRESHOLD_MINUTES | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status. |
+| openaev.starterpack.enabled        | OPENAEV_STARTERPACK_ENABLED        | true                  | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards                                   |
 
 #### Network and security
 
-| Parameter                         | Environment variable            | Default value           | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
-|:----------------------------------|:--------------------------------|:------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| server.ssl.enabled                | SERVER_SSL_ENABLED              | `false`                 | Turn on to enable SSL on the local server                                                                                                                                                                                                                                                                                                                                                                      |
-| server.ssl.key-store-type         | SERVER_SSL_KEY-STORE-TYPE       | PKCS12                  | Type of SSL keystore                                                                                                                                                                                                                                                                                                                                                                                           |
-| server.ssl.key-store              | SERVER_SSL_KEY-STORE            | classpath:localhost.p12 | SSL keystore path                                                                                                                                                                                                                                                                                                                                                                                              |
-| server.ssl.key-store-password     | SERVER_SSL_KEY-STORE-PASSWORD   | admin                   | SSL keystore password                                                                                                                                                                                                                                                                                                                                                                                          |
-| server.ssl.key-alias              | SERVER_SSL_KEY-ALIAS            | localhost               | SSL key alias                                                                                                                                                                                                                                                                                                                                                                                                  |
-| openbas.unsecured-certificate     | OPENBAS_UNSECURED-CERTIFICATE   | `false`                 | Turn on to authorize self-signed or unsecure ssl certificate                                                                                                                                                                                                                                                                                                                                                   |
-| openbas.with-proxy                | OPENBAS_WITH-PROXY              | `false`                 | Turn on to authorize environment with proxy                                                                                                                                                                                                                                                                                                                                                                    |
-| openbas.extra-trusted-certs-dir   | OPENBAS_EXTRA-TRUSTED-CERTS-DIR |                         | If you want to set extra trusted self-signed TLS certificates to communicate with external applications (Crowdstrike, Tanium,...),<br/>fill this attribute with you local folder containing your public .PEM certs. If you install OpenBAS with Docker,<br/>uncomment the volume and set the attribute in the [docker compose file](https://github.com/OpenBAS-Platform/docker/blob/master/docker-compose.yml) | 
+| Parameter                       | Environment variable            | Default value           | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
+|:--------------------------------|:--------------------------------|:------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| server.ssl.enabled              | SERVER_SSL_ENABLED              | `false`                 | Turn on to enable SSL on the local server                                                                                                                                                                                                                                                                                                                                                                      |
+| server.ssl.key-store-type       | SERVER_SSL_KEY-STORE-TYPE       | PKCS12                  | Type of SSL keystore                                                                                                                                                                                                                                                                                                                                                                                           |
+| server.ssl.key-store            | SERVER_SSL_KEY-STORE            | classpath:localhost.p12 | SSL keystore path                                                                                                                                                                                                                                                                                                                                                                                              |
+| server.ssl.key-store-password   | SERVER_SSL_KEY-STORE-PASSWORD   | admin                   | SSL keystore password                                                                                                                                                                                                                                                                                                                                                                                          |
+| server.ssl.key-alias            | SERVER_SSL_KEY-ALIAS            | localhost               | SSL key alias                                                                                                                                                                                                                                                                                                                                                                                                  |
+| openaev.unsecured-certificate   | OPENAEV_UNSECURED-CERTIFICATE   | `false`                 | Turn on to authorize self-signed or unsecure ssl certificate                                                                                                                                                                                                                                                                                                                                                   |
+| openaev.with-proxy              | OPENAEV_WITH-PROXY              | `false`                 | Turn on to authorize environment with proxy                                                                                                                                                                                                                                                                                                                                                                    |
+| openaev.extra-trusted-certs-dir | OPENAEV_EXTRA-TRUSTED-CERTS-DIR |                         | If you want to set extra trusted self-signed TLS certificates to communicate with external applications (Crowdstrike, Tanium,...),<br/>fill this attribute with you local folder containing your public .PEM certs. If you install OpenAEV with Docker,<br/>uncomment the volume and set the attribute in the [docker compose file](https://github.com/OpenAEV-Platform/docker/blob/master/docker-compose.yml) | 
 
-⚠️ **Important**: If you are using the parameter `openbas.extra-trusted-certs-dir`, the file format needed for the certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 certs.
+⚠️ **Important**: If you are using the parameter `openaev.extra-trusted-certs-dir`, the file format needed for the
+certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 certs.
 
 #### Logging
 
 | Parameter                                   | Environment variable                        | Default value      | Description                                   |
 |:--------------------------------------------|:--------------------------------------------|:-------------------|:----------------------------------------------|
 | logging.level.root                          | LOGGING_LEVEL_ROOT                          | fatal              | Root log level                                |
-| logging.level.io.openbas                    | LOGGING_LEVEL_IO_OPENBAS                    | warn               | OpenBAS log level                             |
-| logging.file.name                           | LOGGING_FILE_NAME                           | ./logs/openbas.log | Log file path (in addition to console output) |
+| logging.level.io.openaev                    | LOGGING_LEVEL_IO_OPENAEV                    | warn               | OpenAEV log level                             |
+| logging.file.name                           | LOGGING_FILE_NAME                           | ./logs/openaev.log | Log file path (in addition to console output) |
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
@@ -71,13 +71,13 @@ Here are the configuration keys, for both containers (environment variables) and
 
 #### XTM Suite: OpenCTI (Classic API)
 
-| Parameter                           | Environment variable                | Default value | Description                                                                                         |
-|:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------|
-| openbas.xtm.opencti.enable          | OPENBAS_XTM_OPENCTI_ENABLE          | false         | Enable integration with OpenCTI                                                                     |
-| openbas.xtm.opencti.url             | OPENBAS_XTM_OPENCTI_URL             |               | OpenCTI URL                                                                                         |
-| openbas.xtm.opencti.api_url         | OPENBAS_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completly override the OpenCTI URL, otherwise the default url will be `openbas.xtm.opencti.url` + '/graphql'|
-| openbas.xtm.opencti.token           | OPENBAS_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                       |
-| openbas.xtm.opencti.disable-display | OPENBAS_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                           |
+| Parameter                           | Environment variable                | Default value | Description                                                                                                                           |
+|:------------------------------------|:------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.xtm.opencti.enable          | OPENAEV_XTM_OPENCTI_ENABLE          | false         | Enable integration with OpenCTI                                                                                                       |
+| openaev.xtm.opencti.url             | OPENAEV_XTM_OPENCTI_URL             |               | OpenCTI URL                                                                                                                           |
+| openaev.xtm.opencti.api_url         | OPENAEV_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completly override the OpenCTI URL, otherwise the default url will be `openaev.xtm.opencti.url` + '/graphql' |
+| openaev.xtm.opencti.token           | OPENAEV_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                                                         |
+| openaev.xtm.opencti.disable-display | OPENAEV_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                                                             |
 
 #### XTM Suite: OpenCTI (Connector)
 
@@ -94,11 +94,11 @@ Currently, the only supported connector is "OpenAEV Coverage" (aka Security Cove
 
 #### XTM Suite: XTM Hub
 
-| Parameter                                              | Environment variable                                  | Default value                        | Description                                                         |
-|:-------------------------------------------------------|:------------------------------------------------------|:-------------------------------------|:--------------------------------------------------------------------|
-| openbas.xtm.hub.enable                                 | OPENBAS_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                    |
-| openbas.xtm.hub.url                                    | OPENBAS_XTM_HUB_URL                                   |                                      | XTM Hub URL                                                         |
-| openbas.xtm.hub.override-api-url                       | OPENBAS_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openbas.xtm.hub.url` during backend calls |
+| Parameter                        | Environment variable             | Default value | Description                                                         |
+|:-------------------------------------------------------|:------------------------------------------------------|:-------------------------------------|:----------------------------------------------------------------------|
+| openaev.xtm.hub.enable                                 | OPENAEV_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                     |
+| openaev.xtm.hub.url                                    | OPENAEV_XTM_HUB_URL              |               | XTM Hub URL                                                         |
+| openaev.xtm.hub.override-api-url                       | OPENAEV_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openaev.xtm.hub.url` during backend calls |
 | openaev.xtm.hub.collector.enable                       | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
 | openaev.xtm.hub.collector.id                           | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
 | openaev.xtm.hub.collector.connectivity-check-internval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
@@ -107,61 +107,62 @@ Currently, the only supported connector is "OpenAEV Coverage" (aka Security Cove
 
 | Parameter                  | Environment variable       | Default value         | Description                                                                                |
 |:---------------------------|:---------------------------|:----------------------|:-------------------------------------------------------------------------------------------|
-| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the PostgreSQL database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openbas) |
+| spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the PostgreSQL database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openaev) |
 | spring.datasource.username | SPRING_DATASOURCE_USERNAME |                       | Login for the database                                                                     |
 | spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                                  |
 
 #### Engine
 
-| Parameter               | Environment variable   | Default value         | Description                                                                                    |
-|:------------------------|:-----------------------|:----------------------|:-----------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode  | ENGINE_ENGINE_AWS_MODE | no                    | Whether to use AWS SigV4 authentication (yes or no)                                            |
-| engine.engine-selector  | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
-| engine.url              | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
-| engine.username         | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
-| engine.password         | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the dat                                               |
+| Parameter              | Environment variable   | Default value         | Description                                                                                    |
+|:-----------------------|:-----------------------|:----------------------|:-----------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Whether to use AWS SigV4 authentication (yes or no)                                            |
+| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
+| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
+| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
+| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the dat                                               |
 
-If you switch your engine selector, you’ll need to delete the `indexing_status` table in PostgreSQL to trigger a full reindex.
+If you switch your engine selector, you’ll need to delete the `indexing_status` table in PostgreSQL to trigger a full
+reindex.
 
 #### RabbitMQ
 
-| Parameter                        | Environment variable             | Default value | Description                                                                                                                                                                       |
+| Parameter                             | Environment variable                  | Default value                     | Description                                                                                                                                                                       |
 |:--------------------------------------|:--------------------------------------|:----------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openbas.rabbitmq.prefix               | OPENBAS_RABBITMQ_PREFIX               | openbas                           | Prefix for the queue names                                                                                                                                                        |
-| openbas.rabbitmq.hostname             | OPENBAS_RABBITMQ_HOSTNAME             | localhost                         | Hostname of the RabbitMQ server                                                                                                                                                   |
-| openbas.rabbitmq.vhost                | OPENBAS_RABBITMQ_VHOST                | /                                 | Vhost of the RabbitMQ server                                                                                                                                                      |
-| openbas.rabbitmq.port                 | OPENBAS_RABBITMQ_PORT                 | 5672                              | Port of the RabbitMQ Server                                                                                                                                                       |
-| openbas.rabbitmq.management-port      | OPENBAS_RABBITMQ_MANAGEMENT-PORT      | 15672                             | Management port of the RabbitMQ Server                                                                                                                                            |
-| openbas.rabbitmq.ssl                  | OPENBAS_RABBITMQ_SSL                  | `false`                           | Use SSL                                                                                                                                                                           |
-| openbas.rabbitmq.user                 | OPENBAS_RABBITMQ_USER                 | guest                             | RabbitMQ user                                                                                                                                                                     |
-| openbas.rabbitmq.pass                 | OPENBAS_RABBITMQ_PASS                 | guest                             | RabbitMQ password                                                                                                                                                                 |
-| openbas.rabbitmq.queue-type           | OPENBAS_RABBITMQ_QUEUE-TYPE           | classic                           | RabbitMQ Queue Type ("classic" or "quorum")                                                                                                                                       |
-| openbas.rabbitmq.management-insecure  | OPENBAS_RABBITMQ_MANAGEMENT-INSECURE  | `true`                            | Whether or not the calls to the management plugin of rabbitmq can be insecure                                                                                                     |
-| openbas.rabbitmq.trust.store          | OPENBAS_RABBITMQ_TRUST_STORE          | <file:/path/to/client-store.p12\> | Path to the p12 keystore file to use if ssl is activated and insecure management is deactivated. The keystore must contain the client side certificate and key generated for ssl. |
-| openbas.rabbitmq.trust-store-password | OPENBAS_RABBITMQ_TRUST-STORE-PASSWORD | <trust-store-password\>           | Password of the keystore                                                                                                                                                          |
+| openaev.rabbitmq.prefix               | OPENAEV_RABBITMQ_PREFIX               | openaev                           | Prefix for the queue names                                                                                                                                                        |
+| openaev.rabbitmq.hostname             | OPENAEV_RABBITMQ_HOSTNAME             | localhost                         | Hostname of the RabbitMQ server                                                                                                                                                   |
+| openaev.rabbitmq.vhost                | OPENAEV_RABBITMQ_VHOST                | /                                 | Vhost of the RabbitMQ server                                                                                                                                                      |
+| openaev.rabbitmq.port                 | OPENAEV_RABBITMQ_PORT                 | 5672                              | Port of the RabbitMQ Server                                                                                                                                                       |
+| openaev.rabbitmq.management-port      | OPENAEV_RABBITMQ_MANAGEMENT-PORT      | 15672                             | Management port of the RabbitMQ Server                                                                                                                                            |
+| openaev.rabbitmq.ssl                  | OPENAEV_RABBITMQ_SSL                  | `false`                           | Use SSL                                                                                                                                                                           |
+| openaev.rabbitmq.user                 | OPENAEV_RABBITMQ_USER                 | guest                             | RabbitMQ user                                                                                                                                                                     |
+| openaev.rabbitmq.pass                 | OPENAEV_RABBITMQ_PASS                 | guest                             | RabbitMQ password                                                                                                                                                                 |
+| openaev.rabbitmq.queue-type           | OPENAEV_RABBITMQ_QUEUE-TYPE           | classic                           | RabbitMQ Queue Type ("classic" or "quorum")                                                                                                                                       |
+| openaev.rabbitmq.management-insecure  | OPENAEV_RABBITMQ_MANAGEMENT-INSECURE  | `true`                            | Whether or not the calls to the management plugin of rabbitmq can be insecure                                                                                                     |
+| openaev.rabbitmq.trust.store          | OPENAEV_RABBITMQ_TRUST_STORE          | <file:/path/to/client-store.p12\> | Path to the p12 keystore file to use if ssl is activated and insecure management is deactivated. The keystore must contain the client side certificate and key generated for ssl. |
+| openaev.rabbitmq.trust-store-password | OPENAEV_RABBITMQ_TRUST-STORE-PASSWORD | <trust-store-password\>           | Password of the keystore                                                                                                                                                          |
 
 #### S3 bucket
 
-| Parameter           | Environment variable | Default value | Description                                                                                                                                                                                                                 |
-|:--------------------|:---------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| minio.endpoint      | MINIO_ENDPOINT       | localhost     | Hostname of the S3 Service. Example if you use AWS Bucket S3: __s3.us-east-1.amazonaws.com__ (if `minio:bucket_region` value is _us-east-1_). This parameter value can be omitted if you use Minio as an S3 Bucket Service. |
-| minio.port          | MINIO_PORT           | 9000          | Port of the S3 Service. For AWS Bucket S3 over HTTPS, this value can be changed (usually __443__).                                                                                                                          |
-| minio.secure        | MINIO_SECURE         | `false`       | Indicates whether the S3 Service has TLS enabled. For AWS Bucket S3 over HTTPS, this value could be `true`.                                                                                                                 |
-| minio.access-key    | MINIO_ACCESS-KEY     | key           | Access key for the S3 Service.                                                                                                                                                                                              |
-| minio.access-secret | MINIO_ACCESS-SECRET  | secret        | Secret key for the S3 Service.                                                                                                                                                                                              |
-| minio.bucket        | MINIO_BUCKET         | openbas       | S3 bucket name. Useful to change if you use AWS.                                                                                                                                                                            |
-| minio.bucket-region | MINIO_BUCKET-REGION  | us-east-1     | Region of the S3 bucket if you are using AWS. This parameter value can be omitted if you use Minio as an S3 Bucket Service.                                                                                                 |
-| openbas.s3.use-aws-role | OPENBAS_S3_USE-AWS-ROLE  | `false` | Whether or not we want to get the AWS role using AWS Security Token Service  |
-| openbas.s3.sts-endpoint | OPENBAS_S3_STS-ENDPOINT  |         | `experimental` This parameter is optional. If it stays empty, it will use either the AWS legacy STS endpoint (https://sts.amazonaws.com) or the regional one using AWS_REGION if the environment variable is set (you can learn more about it [here](https://docs.aws.amazon.com/general/latest/gr/sts.html#sts_region)). Otherwise, if you want to use your own custom implementation of STS endpoints, you can set it here. |
+| Parameter               | Environment variable    | Default value | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
+|:------------------------|:------------------------|:--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| minio.endpoint          | MINIO_ENDPOINT          | localhost     | Hostname of the S3 Service. Example if you use AWS Bucket S3: __s3.us-east-1.amazonaws.com__ (if `minio:bucket_region` value is _us-east-1_). This parameter value can be omitted if you use Minio as an S3 Bucket Service.                                                                                                                                                                                                   |
+| minio.port              | MINIO_PORT              | 9000          | Port of the S3 Service. For AWS Bucket S3 over HTTPS, this value can be changed (usually __443__).                                                                                                                                                                                                                                                                                                                            |
+| minio.secure            | MINIO_SECURE            | `false`       | Indicates whether the S3 Service has TLS enabled. For AWS Bucket S3 over HTTPS, this value could be `true`.                                                                                                                                                                                                                                                                                                                   |
+| minio.access-key        | MINIO_ACCESS-KEY        | key           | Access key for the S3 Service.                                                                                                                                                                                                                                                                                                                                                                                                |
+| minio.access-secret     | MINIO_ACCESS-SECRET     | secret        | Secret key for the S3 Service.                                                                                                                                                                                                                                                                                                                                                                                                |
+| minio.bucket            | MINIO_BUCKET            | openaev       | S3 bucket name. Useful to change if you use AWS.                                                                                                                                                                                                                                                                                                                                                                              |
+| minio.bucket-region     | MINIO_BUCKET-REGION     | us-east-1     | Region of the S3 bucket if you are using AWS. This parameter value can be omitted if you use Minio as an S3 Bucket Service.                                                                                                                                                                                                                                                                                                   |
+| openaev.s3.use-aws-role | OPENAEV_S3_USE-AWS-ROLE | `false`       | Whether or not we want to get the AWS role using AWS Security Token Service                                                                                                                                                                                                                                                                                                                                                   |
+| openaev.s3.sts-endpoint | OPENAEV_S3_STS-ENDPOINT |               | `experimental` This parameter is optional. If it stays empty, it will use either the AWS legacy STS endpoint (https://sts.amazonaws.com) or the regional one using AWS_REGION if the environment variable is set (you can learn more about it [here](https://docs.aws.amazon.com/general/latest/gr/sts.html#sts_region)). Otherwise, if you want to use your own custom implementation of STS endpoints, you can set it here. |
 
 #### Agents (executors)
 
-To be able to use the power of the OpenBAS platform on endpoints, you need at least one **neutral executor** that will
+To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
 be in charge of executing implants as detached processes. Implants will then execute payloads.
 
-##### OpenBAS Agent
+##### OpenAEV Agent
 
-The OpenBAS agent is enabled by default and cannot be disabled. It is available for:
+The OpenAEV agent is enabled by default and cannot be disabled. It is available for:
 
 - Windows (`x86_64` / `arm64`)
 - Linux (`x86_64` / `arm64`)
@@ -211,34 +212,34 @@ required. You can find a guide [here](https://support.google.com/accounts/answer
 
 | Parameter                  | Environment variable       | Default value     | Description                                                                         |
 |:---------------------------|:---------------------------|:------------------|:------------------------------------------------------------------------------------|
-| openbas.mail.imap.enabled  | OPENBAS_MAIL_IMAP_ENABLED  | false             | Turn on to enable IMAP mail synchronization. Injector email must be well configured |
-| openbas.mail.imap.host     | OPENBAS_MAIL_IMAP_HOST     | imap.mail.com     | IMAP Server hostname                                                                |
-| openbas.mail.imap.port     | OPENBAS_MAIL_IMAP_PORT     | 993               | IMAP Server port                                                                    |
-| openbas.mail.imap.username | OPENBAS_MAIL_IMAP_USERNAME | username@mail.com | IMAP Server username                                                                |
-| openbas.mail.imap.password | OPENBAS_MAIL_IMAP_PASSWORD | password          | IMAP Server password                                                                |
-| openbas.mail.imap.inbox    | OPENBAS_MAIL_IMAP_INBOX    | INBOX             | IMAP inbox directory to synchronize from                                            |
-| openbas.mail.imap.sent     | OPENBAS_MAIL_IMAP_SENT     | Sent              | IMAP sent directory to synchronize from                                             |
+| openaev.mail.imap.enabled  | OPENAEV_MAIL_IMAP_ENABLED  | false             | Turn on to enable IMAP mail synchronization. Injector email must be well configured |
+| openaev.mail.imap.host     | OPENAEV_MAIL_IMAP_HOST     | imap.mail.com     | IMAP Server hostname                                                                |
+| openaev.mail.imap.port     | OPENAEV_MAIL_IMAP_PORT     | 993               | IMAP Server port                                                                    |
+| openaev.mail.imap.username | OPENAEV_MAIL_IMAP_USERNAME | username@mail.com | IMAP Server username                                                                |
+| openaev.mail.imap.password | OPENAEV_MAIL_IMAP_PASSWORD | password          | IMAP Server password                                                                |
+| openaev.mail.imap.inbox    | OPENAEV_MAIL_IMAP_INBOX    | INBOX             | IMAP inbox directory to synchronize from                                            |
+| openaev.mail.imap.sent     | OPENAEV_MAIL_IMAP_SENT     | Sent              | IMAP sent directory to synchronize from                                             |
 
 | Parameter                         | Environment variable              | Default value | Description                   |
 |:----------------------------------|:----------------------------------|:--------------|:------------------------------|
-| openbas.mail.imap.ssl.enable      | OPENBAS_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
-| openbas.mail.imap.ssl.trust       | OPENBAS_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
-| openbas.mail.imap.auth            | OPENBAS_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
-| openbas.mail.imap.starttls.enable | OPENBAS_MAIL_IMAP_STARTTLS_ENABLE | true          | Turn on IMAP STARTTLS         |
+| openaev.mail.imap.ssl.enable      | OPENAEV_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
+| openaev.mail.imap.ssl.trust       | OPENAEV_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
+| openaev.mail.imap.auth            | OPENAEV_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
+| openaev.mail.imap.starttls.enable | OPENAEV_MAIL_IMAP_STARTTLS_ENABLE | true          | Turn on IMAP STARTTLS         |
 
 > **Note :** Example with Gmail
 
-| Parameter                    | Environment variable         | Value              | Description                             |
-|:-----------------------------|:-----------------------------|:-------------------|:----------------------------------------|
-| openbas.mail.imap.enabled    | OPENBAS_MAIL_IMAP_ENABLED    | true               | Enable IMAP for Gmail                   |
-| openbas.mail.imap.host       | OPENBAS_MAIL_IMAP_HOST       | imap.gmail.com     | Gmail IMAP server hostname              |
-| openbas.mail.imap.port       | OPENBAS_MAIL_IMAP_PORT       | 993                | Gmail IMAP port (SSL)                   |
-| openbas.mail.imap.username   | OPENBAS_MAIL_IMAP_USERNAME   | username@mail.com  | Gmail address                           |
-| openbas.mail.imap.password   | OPENBAS_MAIL_IMAP_PASSWORD   | app password       | Gmail App-specific password             |
-| openbas.mail.imap.ssl.enable | OPENBAS_MAIL_IMAP_SSL_ENABLE | true               | Enable IMAP SSL                         |
-| openbas.mail.imap.ssl.trust  | OPENBAS_MAIL_IMAP_SSL_TRUST  | *                  | Trust unverified certificates           |
-| openbas.mail.imap.auth       | OPENBAS_MAIL_IMAP_AUTH       | true               | Enable IMAP authentication              |
-| openbas.mail.imap.sent       | OPENBAS_MAIL_IMAP_SENT       | [Gmail]/Sent Mail  | IMAP sent directory to synchronize from |
+| Parameter                    | Environment variable         | Value             | Description                             |
+|:-----------------------------|:-----------------------------|:------------------|:----------------------------------------|
+| openaev.mail.imap.enabled    | OPENAEV_MAIL_IMAP_ENABLED    | true              | Enable IMAP for Gmail                   |
+| openaev.mail.imap.host       | OPENAEV_MAIL_IMAP_HOST       | imap.gmail.com    | Gmail IMAP server hostname              |
+| openaev.mail.imap.port       | OPENAEV_MAIL_IMAP_PORT       | 993               | Gmail IMAP port (SSL)                   |
+| openaev.mail.imap.username   | OPENAEV_MAIL_IMAP_USERNAME   | username@mail.com | Gmail address                           |
+| openaev.mail.imap.password   | OPENAEV_MAIL_IMAP_PASSWORD   | app password      | Gmail App-specific password             |
+| openaev.mail.imap.ssl.enable | OPENAEV_MAIL_IMAP_SSL_ENABLE | true              | Enable IMAP SSL                         |
+| openaev.mail.imap.ssl.trust  | OPENAEV_MAIL_IMAP_SSL_TRUST  | *                 | Trust unverified certificates           |
+| openaev.mail.imap.auth       | OPENAEV_MAIL_IMAP_AUTH       | true              | Enable IMAP authentication              |
+| openaev.mail.imap.sent       | OPENAEV_MAIL_IMAP_SENT       | [Gmail]/Sent Mail | IMAP sent directory to synchronize from |
 
 ⚠️ **Important**: If you are using two-factor authentication on your Gmail account, an app-specific password is
 required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
@@ -247,7 +248,7 @@ required. You can find a guide [here](https://support.google.com/accounts/answer
 
 !!! note "AI deployment and cloud services"
 
-    There are several possibilities for [Enterprise Edition](../administration/enterprise.md) customers to use OpenBAS AI endpoints:
+    There are several possibilities for [Enterprise Edition](../administration/enterprise.md) customers to use OpenAEV AI endpoints:
 
      - Use the Filigran AI Service leveraging our custom AI model using the token given by the support team.
      - Use OpenAI or MistralAI cloud endpoints using your own tokens.

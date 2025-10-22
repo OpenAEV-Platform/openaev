@@ -4,7 +4,7 @@ The [Caldera framework](https://caldera.mitre.org/), developed by MITRE, is a po
 
 ## Injects
 
-In OpenBAS, the Caldera framework has been fully integrated, offering users access to a comprehensive library of injects for conducting simulation exercises. With this integration, users can leverage the extensive capabilities of Caldera within OpenBAS.
+In OpenAEV, the Caldera framework has been fully integrated, offering users access to a comprehensive library of injects for conducting simulation exercises. With this integration, users can leverage the extensive capabilities of Caldera within OpenAEV.
 
 Caldera offers 1600+ [abilities](https://caldera.readthedocs.io/en/latest/Learning-the-terminology.html#abilities-and-adversaries), covering the full range of ATT&CK tactics and techniques. These capabilities equip security teams with an extensive toolkit to simulate various threats and assess defense mechanisms effectively.
 
@@ -13,9 +13,9 @@ Caldera offers 1600+ [abilities](https://caldera.readthedocs.io/en/latest/Learni
 
 ## Behavior
 
-Injects within the Caldera framework can be played on both individual [Endpoints and Asset groups](assets.md). Prior to playing injects, [Caldera agents](injectors.md#agent-section) need to be installed on the target machines to enable interaction with the platform.
+Injects within the Caldera framework can be played on both individual [Endpoints and Asset groups](assets.md). Prior to playing injects, [Caldera agents](injectors.md#agents) need to be installed on the target machines to enable interaction with the platform.
 
-Once the agents are deployed, simulations with Caldera injects can be executed. The platform will contact the Agent to start the ability. Subsequently, the agents will report the results to OpenBAS. Below is the workflow illustrating the behavior of injects.
+Once the agents are deployed, simulations with Caldera injects can be executed. The platform will contact the Agent to start the ability. Subsequently, the agents will report the results to OpenAEV. Below is the workflow illustrating the behavior of injects.
 
 ![Async workflow](assets/inject-caldera.png)
 
@@ -24,7 +24,7 @@ Once the agents are deployed, simulations with Caldera injects can be executed. 
 
 <!-- cette partie n'est plus d'actualité maintenant que Caldera est built-in, non ? à supprimer ? Si ce n'est pas à supprimer, c'est à migrer dans une page de configuration, pas dans une page "usage" -->
 
-Below are the properties you'll need to set for OpenBAS:
+Below are the properties you'll need to set for OpenAEV:
 
 | Property                | application.properties         | Docker environment variable      | Mandatory | Description                                              |
 |-------------------------|--------------------------------|----------------------------------|-----------|----------------------------------------------------------|

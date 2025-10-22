@@ -4,18 +4,21 @@ hide:
   - toc
 ---
 
-# OpenBAS Documentation Space
+# OpenAEV Documentation Space
 
-Welcome to the OpenBAS Documentation space. Here you will be able to find all documents, meeting notes and presentations about the platform.
+Welcome to the OpenAEV Documentation space. Here you will be able to find all documents, meeting notes and presentations about the platform.
 
 
 !!! tip "Release notes"
 
-    Please, be sure to also take a look at the [OpenBAS releases notes](https://github.com/OpenBAS-Platform/openbas/releases), they may contain important information about releases and deployments.
+    Please, be sure to also take a look at the [OpenAEV releases notes](https://github.com/OpenAEV-Platform/openaev/releases), they may contain important information about releases and deployments.
 
 ## Introduction
 
-OpenBAS is an open source platform allowing organizations to plan, schedule and conduct crisis exercises as well as adversary and breach simulations. OpenBAS is an ISO 22398 compliant product and has been designed as a modern web application including a RESTFul API and an UX oriented frontend.
+OpenAEV is an open-source platform that helps organizations design, schedule, and run both crisis management exercises 
+and adversary simulation scenarios. Fully aligned with ISO 22398, OpenAEV combines a modern web architecture with a 
+RESTful API and a user-friendly frontend, making it easy to integrate, automate, and deliver realistic training 
+experiences.
 
 ## Getting started
 
@@ -26,7 +29,7 @@ OpenBAS is an open source platform allowing organizations to plan, schedule and 
     ---
 
     Learn how to deploy and configure the platform as well as
-    launch connectors to get the first data in OpenBAS.
+    launch connectors to get the first data in OpenAEV.
 
     [:octicons-arrow-right-24:{ .middle } Deploy now](deployment/platform/overview.md)
 
@@ -34,8 +37,8 @@ OpenBAS is an open source platform allowing organizations to plan, schedule and 
 
     ---
 
-    Understand how to use the platform, create exercises and campaigns, use 
-    media pressure simulation and integrate with other tools. 
+    Understand how to use the platform, manage assets,
+    design scenarios with tailored payloads and integrate with other tools.
 
     [:octicons-arrow-right-24:{ .middle } Explore](usage/getting-started.md)
 
@@ -43,8 +46,7 @@ OpenBAS is an open source platform allowing organizations to plan, schedule and 
 
     ---
 
-    Know how to administrate OpenBAS, create users and groups using RBAC /
-    segregation, customize the overall experience.
+    Know how to administrate OpenAEV, create users and groups using RBAC and custom taxonomies.
 
     [:octicons-arrow-right-24:{ .middle } Customize](administration/introduction.md)
 
@@ -65,18 +67,18 @@ OpenBAS is an open source platform allowing organizations to plan, schedule and 
 
     ---
 
-    Discover tutorials, best practices and deep dives on OpenBAS features on our Filigran blog.
+    Discover tutorials, best practices and deep dives on OpenAEV features on our Filigran blog.
 
     [:octicons-arrow-right-24:{ .middle } Read now](https://blog.filigran.io)
 </div>
 
 ## Additional resources
 
-Below, you will find external resources which may be useful along your OpenCTI journey.
+Below, you will find external resources which may be useful along your OpenAEV journey.
 
 <div class="grid" markdown>
 
-[**:material-package-variant-closed:{ .middle } OpenBAS Ecosystem**](https://filigran.notion.site/OpenBAS-Ecosystem-30d8eb73d7d04611843e758ddef8941b)<br />
+[**:material-package-variant-closed:{ .middle } OpenAEV Ecosystem**](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b)<br />
 List of available injectors and collectors to expand platform usage.
 
 [**:material-school-outline:{ .middle } Training Courses**](https://academy.filigran.io)<br />

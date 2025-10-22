@@ -1,6 +1,6 @@
 # Inject types
 
-There are different types of injector in OpenBAS.
+There are different types of injector in OpenAEV.
 
 <a id="manual-section"></a>
 
@@ -13,7 +13,7 @@ enhancing the accuracy and realism of the exercise.
 
 The inject associated with this type is referred to as `Manual`. To be able to log events not directly related to an
 email or a sms, you can attach manual expectation to this events (
-see [Manual Expectations](https://docs.openbas.io/latest/usage/expectations/?h=manual#manual-expectations)).
+see [Manual Expectations](https://docs.openaev.io/latest/usage/expectations/?h=manual#manual-expectations)).
 
 ### Example of a manual inject:
 

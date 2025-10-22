@@ -1,10 +1,10 @@
 # Importing Injects into a Scenario
 
-Recreating a timeline of [injects](injects.md) that were already defined in a spreadsheet can be a frustrating task. To help users save time, we added the possibility to import injects as defined in an xls file into a [scenario](scenario.md). This is done via a two-steps process : [creating a mapper](#how-to-create-a-mapper) and [importing the xls file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
+Recreating a timeline of [injects](inject-overview.md) that were already defined in a spreadsheet can be a frustrating task. To help users save time, we added the possibility to import injects as defined in an xls file into a [scenario](scenario.md). This is done via a two-steps process : [creating a mapper](#how-to-create-a-mapper) and [importing the xls file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
 
 ## How to create a mapper ?
 
-First of all, to import [injects](injects.md) into a [scenario](scenario.md), you need to create a mapper. To do that, using an admin account, navigate to the Settings > Data ingestion page. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
+First of all, to import [injects](inject-overview.md) into a [scenario](scenario.md), you need to create a mapper. To do that, using an admin account, navigate to the Settings > Data ingestion page. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
 
 ![List of Mappers](assets/mapper_screen.png)
 
@@ -16,7 +16,7 @@ The first thing to define in this representation is the matching type in the xls
 
 ![Creating an xls mapper](assets/xls_mapper_example.png)
 
-Once that is done, you can select the inject type among a list of [injects](injects.md) that are compatible with the xls import. When that selection is done, you will be able to set a column for each of the attribute that can be completed using the import. If you wish to set a default value you can do so by clicking the gear on the right side of the field.
+Once that is done, you can select the inject type among a list of [injects](inject-overview.md) that are compatible with the xls import. When that selection is done, you will be able to set a column for each of the attribute that can be completed using the import. If you wish to set a default value you can do so by clicking the gear on the right side of the field.
 
 ### Properly setting the trigger time of the inject
 It should also be noted that the "Trigger Time" field has a second parameter that can be set using the gear button. It can be used to set a custom format for specific dates and or time to be interpreted. The complete format rules are available [here](https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html) but here is a very quick overview :
@@ -61,10 +61,9 @@ If you click on the test button, you'll then be asked to choose a file. Once tha
 
 ## How to import injects into a scenario using a mapper ?
 
-Once your mapper has been created, navigate to your [scenario](scenario.md) and then to the [injects](injects.md) tab. There, you will be able to click on an import button on the top right.
+Once your mapper has been created, navigate to your [scenario](scenario.md) and then to the [injects](inject-overview.md) tab. There, you will be able to click on an import button on the top right.
 A modal will be opening, inviting you to select an .xls/.xlsx file. Once it has been selected, you can click on next. You will then be asked to choose the sheet to import out of the spreadsheet and to select the mapper to use. You will also be able to select the timezone to use for the import. Once everything is set, click on the launch import button and your injects will be imported into the current scenario !
 Please do note that if all the dates in the xls file are absolute time of the day (e.g. 9:30, 12:45, ...), it is required for the scenario to have a launch date set.
-
 ## Example 
 #### 1. Mapper
     
@@ -117,5 +116,4 @@ The scenario has been scheduled before import of the file and the **trigger time
 Team “AI Desk” already exists and is associated with the Inject “Notify the Service Desk (user email),” while the others are created at import as contextual teams.
 
 ![mapper_import_inject_team.png](assets/mapper_import_inject_team.png)
-
 

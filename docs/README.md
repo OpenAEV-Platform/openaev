@@ -1,11 +1,11 @@
-# OpenBAS Documentation Space
+# OpenAEV Documentation Space
 
-[![Website](https://img.shields.io/badge/website-openbas.io-blue.svg)](https://openbas.io)
+[![Website](https://img.shields.io/badge/website-openaev.io-blue.svg)](https://openaev.io)
 [![Slack Status](https://img.shields.io/badge/slack-3K%2B%20members-4A154B)](https://community.filigran.io)
 
 ## Introduction
 
-This is the main repository of the OpenBAS Documentation space. The online version is available directly on [docs.openbas.io](https://docs.openbas.io).
+This is the main repository of the OpenAEV Documentation space. The online version is available directly on [docs.openaev.io](https://docs.openaev.io).
 
 ## Development (local setup)
 ### Prerequisites
@@ -28,7 +28,7 @@ Please follow the Manual instructions below.
 ### Alternative: manual local build and serve
 Clone the repository:
 ```shell
-$ git clone git@github.com:OpenBAS-Platform/docs.git
+$ git clone git@github.com:OpenAEV-Platform/docs.git
 ```
 
 Install dependencies; consider a virtual environment for doing so

@@ -2,7 +2,7 @@
 
 !!! tip "Under construction"
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/docs).
 
 
 When clicking on Simulations in the left menu, you access to the list of all Simulations ever launched in the platform. You can filter by tag (for example to only display simulation related to a specific threat actor) and sort them (chronologically, by status, etc.).
@@ -46,7 +46,7 @@ The Animation screen of a Simulation is the place to follow the Simulation execu
 
 The Timeline screen is the overview of the Animation tab, to see ongoing injects.
 
-The Mails screen is a way to manage email interaction with Players into the OpenBAS platform.
+The Mails screen is a way to manage email interaction with Players into the OpenAEV platform.
 
 The Validation screen is the place to manually validate expectations of the Simulation to consolidate Results.
 
@@ -65,7 +65,7 @@ In the Lesson Learned tab of a Simulation, you can manage the collection and con
 NB: The Analysis tab is shown if you have selected a dashboard for your simulation (during creating or updating).
 If you have selected a dynamic parameter "Simulation" for your dashboard and widgets, they will be calculated for this specific simulation.
 
-The Analysis tab of a simulation is intended to enhance the data visualization and analytical capabilities of OpenBAS. 
+The Analysis tab of a simulation is intended to enhance the data visualization and analytical capabilities of OpenAEV. 
 By incorporating specific widgets, users can gain deeper insights into the effectiveness of their simulations and security posture. 
 This enhancement will provide users with contextualized, actionable intelligence, enabling them to make informed decisions to improve their security strategies.
 

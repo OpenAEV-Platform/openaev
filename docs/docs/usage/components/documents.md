@@ -12,7 +12,7 @@ To create a new document, follow these steps:
 3. Optionally, add a description and tags to provide additional context. You can also link your documents directly to specific simulations or scenarios.
    specific simulations or scenarios.
 
-![Document creation](../assets/document-creation.png)
+![Document creation](./assets/document-creation.png)
 
 After completing these steps, your new document will appear in the document list. Clicking on a document in the list
 will allow you to download it.

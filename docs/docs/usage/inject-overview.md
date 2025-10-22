@@ -1,15 +1,13 @@
 # Injects
 
-Injects are fundamental elements of simulations within OpenBAS, each representing a discrete action to be executed
+Injects are fundamental elements of simulations within OpenAEV, each representing a discrete action to be executed
 during a Scenario. Managed and facilitated by various [injectors](injectors.md), each inject type serves a distinct
 purpose, contributing to the comprehensive evaluation of defenses.
-
-![Injects list in a Scenario](assets/injects_list_in_scenario.png)
 
 ## Create an inject
 
 Whether intended for [Atomic testing](atomic.md) or for a [Simulation](simulation.md), the process for creating injects
-remains consistent within OpenBAS.
+remains consistent within OpenAEV.
 
 ![Capture of a filtered list of inject during selection process](assets/example_inject_filtering.png)
 
@@ -37,7 +35,7 @@ steps in the creation process include:
 #### 1. Choose the type of inject
 
 You first need to select an inject in the list of available ones (on the left of the creation screen). Logos on the left
-of each line indicates which Injector is associated with each [inject](injects.md). Depending on your integrations, this
+of each line indicates which Injector is associated with each [inject](inject-overview.md). Depending on your integrations, this
 list can be long.
 
 To facilitate the selection into this possibly very long list, you can search injects by name and filter the list by
@@ -119,6 +117,10 @@ You can test direct contact injects in simulations and scenarios.
 
     For now, only email and sms inject are concerned by this feature.
 
+!!! note
+
+    Only the latest test is displayed for each inject.
+
 ### Unit test
 
 You can test injects one at a time.
@@ -154,18 +156,6 @@ As mentioned in the dialog, only sms and emails injects will be tested. The emai
 
 After the launch of the test, you are redirected to the tests list page.
 
-### Tests list
-
-![Inject tests list](assets/inject_test_list.png)
-
-A "Tests" tab is available in simulations and scenarios. The list of all the tests done on the injects of the
-simulation/scenario are displayed. Clicking on one of the lines opens the drawer with the execution details of the
-tests.
-
-!!! note
-
-    Only the latest test is displayed for each inject.
-
 ### Replay tests
 
 Each test in the list has a menu allowing users to delete or replay the test.
@@ -179,7 +169,7 @@ the top of the list. After clicking on it, the user confirms the tests launch an
 
 ## Inject status
 
-### Inject status using the OpenBAS agent
+### Inject status using the OpenAEV agent
 
 #### Navigating between active inject targets
 
@@ -250,14 +240,14 @@ Once an inject have been executed, it is possible to access the alerts' details 
 
 ![Inject execution traces details](assets/inject-expectation-traces-1.png)
 
-By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenBAS.
+By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenAEV.
 
 On the above example, we can see that there are 2 agents on the `vm3.obas.lan` asset. We can see there are detections on
 the
-OpenBAS agent, while the Crowdstrike agent hasn't had any yet (it can take several minutes for the traces to
-show up in OpenBAS).
+OpenAEV agent, while the Crowdstrike agent hasn't had any yet (it can take several minutes for the traces to
+show up in OpenAEV).
 
-By clicking on the OpenBAS agent, we can see that the inject's payload was already detected by the CrowdStrike Falcon
+By clicking on the OpenAEV agent, we can see that the inject's payload was already detected by the CrowdStrike Falcon
 EDR
 while more detections might arrive at a later point.
 We can also see that there was one alert identified on CrowdStrike Falcon EDR.

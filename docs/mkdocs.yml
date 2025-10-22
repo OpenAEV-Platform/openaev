@@ -1,11 +1,11 @@
-site_name: OpenBAS Documentation
-site_description: Documentation about OpenBAS, the next-generation Breach & Attack Simulation platform.
+site_name: OpenAEV Documentation
+site_description: Documentation about OpenAEV, the next-generation Open Adversary Exposure Validation Platform.
 site_author: Filigran
-site_url: https://docs.openbas.io
-copyright: © 2024 Filigran. All rights reserved
+site_url: https://docs.openaev.io
+copyright: © 2025 Filigran. All rights reserved
 repo_name: GitHub
-repo_url: https://github.com/OpenBAS-Platform/openbas
-edit_uri: https://github.com/OpenBAS-Platform/docs/blob/main/docs/
+repo_url: https://github.com/OpenAEV-Platform/openaev
+edit_uri: https://github.com/OpenAEV-Platform/docs/blob/main/docs/
 
 # Theming
 theme:
@@ -41,14 +41,14 @@ extra:
   generator: false
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/OpenBAS-Platform
-    - icon: fontawesome/brands/medium
+      link: https://github.com/OpenAEV-Platform
+    - icon: fontawesome/solid/book
       link: https://blog.filigran.io
     - icon: fontawesome/brands/slack
       link: https://community.filigran.io
     - icon: fontawesome/brands/linkedin
       link: https://linkedin.com/company/filigran
-    - icon: fontawesome/brands/twitter
+    - icon: fontawesome/brands/x-twitter
       link: https://twitter.com/FiligranHQ
     - icon: fontawesome/brands/facebook
       link: https://facebook.com/FiligranHQ
@@ -60,7 +60,7 @@ plugins:
       canonical_version: latest
   - search
   - git-committers:
-      repository: OpenBAS-Platform/docs
+      repository: OpenAEV-Platform/docs
       branch: main
   - git-revision-date-localized:
       enable_creation_date: true
@@ -121,11 +121,8 @@ nav:
       - Executors: deployment/ecosystem/executors.md
       - Injectors: deployment/ecosystem/injectors.md
       - Collectors: deployment/ecosystem/collectors.md
-      - Other resources: deployment/resources.md
     - Advanced:
       - Platform managers: deployment/managers.md
-      - Clustering: deployment/clustering.md
-      - Troubleshooting: deployment/troubleshooting.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
@@ -172,7 +169,7 @@ nav:
         - Caldera Injector: usage/inject-caldera.md
       - Collectors:
         - Overview: usage/collectors.md
-      - Agents: usage/openbas-agent.md
+      - Agents: usage/openaev-agent.md
     - Rest API: usage/rest-api.md
   - Administration:
     - Introduction: administration/introduction.md

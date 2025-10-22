@@ -4,24 +4,24 @@
 
 ### Introduction
 
-This guide explains how to implement an **OpenBAS collector for a EDR/XDR**, to retrieve security events and compare
-them against injected expectations in OpenBAS.
+This guide explains how to implement an **OpenAEV collector for a EDR/XDR**, to retrieve security events and compare
+them against injected expectations in OpenAEV.
 
 ### Prerequisites
 
 !!! tip "Not just Python"
 
     Note that while this guide puts an emphasis on the Python language, a collector may be implemented in any language
-    because it communicates with the OpenBAS server via its REST API. However, Filigran provides an official implementation
-    of a REST client for the OpenBAS API, in python: PyOBAS.
+    because it communicates with the OpenAEV server via its REST API. However, Filigran provides an official implementation
+    of a REST client for the OpenAEV API, in python: PyOBAS.
 
-In this guide, we will use [PyOBAS](https://pypi.org/project/pyobas/), the official OpenBAS API client for Python. The guide requires a basic understanding
+In this guide, we will use [PyOBAS](https://pypi.org/project/pyobas/), the official OpenAEV API client for Python. The guide requires a basic understanding
 of the Python language, and a working Python install on the development machine.
 
 ### High level overview
 
 Let's consider this diagram for understanding the basic, generic process involved to retrieve alerts and match them with
-expectations from within the OpenBAS system.
+expectations from within the OpenAEV system.
 
 ![High level process overview](assets/high-level-collector-overview.png)
 
@@ -33,7 +33,7 @@ from pyobas.configuration import Configuration
 # this is where the whole of the collector logic needs
 # to be implemented.
 def main_loop(collector: CollectorDaemon):
-    # get some expectations from OpenBAS
+    # get some expectations from OpenAEV
     # if there are any waiting for results
     expectations = collector.api.inject_expectation.expectations_models_for_source(collector.get_id())
     if any(expectations):
@@ -68,9 +68,9 @@ if __name__ == "__main__":
     # this might look a bit verbose
     # it defines where and how to specify various config keys
     config = Configuration(config_hints={
-            # OpenBAS API
-            "openbas_url": {"env": "OPENBAS_URL"},
-            "openbas_token": {"env": "OPENBAS_TOKEN"},
+            # OpenAEV API
+            "openaev_url": {"env": "OPENAEV_URL"},
+            "openaev_token": {"env": "OPENAEV_TOKEN"},
             # Collector configuration
             "collector_id": {"env": "COLLECTOR_ID"},
             "collector_name": {"env": "COLLECTOR_NAME"},
@@ -112,7 +112,7 @@ period is exceeded, the expectations should be updated to be marked as failed by
 
 This step focuses on collecting alerts from your service tiers. There are two key aspects to define:
 
-- How to extract relevant information from an alert to match OpenBAS signatures.
+- How to extract relevant information from an alert to match OpenAEV signatures.
 - How to determine whether the alert successfully prevented or detected the attack based on the expectations.
 
 Definition: a signature is a way to find an attack in an alert, for example the presence of a specific process name
@@ -120,7 +120,7 @@ in the process tree of the subject of the alert:
 
 | Signature           | Description                                                                                                                 |
 |---------------------|-----------------------------------------------------------------------------------------------------------------------------|
-| PARENT_PROCESS_NAME | The parent process name of the attack, which corresponds to the implant<br/>name created with openbas-implant-INJECT_ID.exe |
+| PARENT_PROCESS_NAME | The parent process name of the attack, which corresponds to the implant<br/>name created with openaev-implant-INJECT_ID.exe |
 
 #### 3. Matching Expectations
 
@@ -131,18 +131,18 @@ proper validation.
 
 ### Use it
 
-Now, you can launch your collector by connecting it with OpenBAS.
-Your collector will register to OpenBAS and you can view in Integrations > Collectors.
+Now, you can launch your collector by connecting it with OpenAEV.
+Your collector will register to OpenAEV and you can view in Integrations > Collectors.
 
-![Collectors view in OpenBAS](assets/collectors-view.png)
+![Collectors view in OpenAEV](assets/collectors-view.png)
 
 ## Learn more
 
-You may find reference implementations in the OpenBAS Collectors repository:
+You may find reference implementations in the OpenAEV Collectors repository:
 
-* [Crowdstrike Falcon EDR](https://github.com/OpenBAS-Platform/collectors/tree/main/crowdstrike)
-* [Microsoft Defender](https://github.com/OpenBAS-Platform/collectors/tree/main/microsoft-defender)
-* [Microsoft Sentinel](https://github.com/OpenBAS-Platform/collectors/tree/main/microsoft-sentinel)
+* [Crowdstrike Falcon EDR](https://github.com/OpenAEV-Platform/collectors/tree/main/crowdstrike)
+* [Microsoft Defender](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-defender)
+* [Microsoft Sentinel](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-sentinel)
 
 You might find them useful to find inspiration on how to implement a matching logic against your EDR or SIEM
 of choice, using PyOBAS.

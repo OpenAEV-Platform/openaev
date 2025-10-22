@@ -1,115 +1,169 @@
 # Getting started
 
-!!! tip "Under construction"
+OpenAEV allows you to validate your security posture by simulating real-world adversary techniques.  
+It has been designed as part of the Filigran XTM suite and can be integrated
+with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate meaningful attack scenarios based on real threats.
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenBAS-Platform/docs).
+This guide introduces the **key concepts** and **workflows** behind the platform.
 
-This guide aims to give you a full overview of the OpenBAS features and workflows. The platform can be used in various
-contexts to handle Breach and Attack simulations at technical or strategical levels. OpenBAS has been designed as a part
-of the Filigran XTM suite and can be integrated with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate
-meaningful attack scenarios based on real threat. OpenBAS is result-oriented with many dashboards helping you to
-evaluate
-you security posture given a defined context.
+---
 
-Here are some examples of use cases:
+## What you can do with OpenAEV
 
-- Designing attack scenario based on real threat
-- Evaluate your security posture against technical simulations on endpoints
-- Enhance team skills by evaluating them during simulations along with your security systems
-- Organize Capture The Flag with multiple challenges
-- Conduct atomic testing
+Some typical use cases include:
 
-## Welcome dashboard
+- Designing attack scenarios based on real threats
+- Evaluating your security posture against technical simulations on endpoints
+- Enhancing team skills during exercises and simulations
+- Organizing Capture The Flag events with multiple challenges
+- Conducting atomic testing on assets
 
-The welcome page provides every OpenBAS platform visitor with a snapshot of the platform activity as well as an overview
-of your global security posture. You can find more information in [this section](evaluate/overview.md).
+---
 
-## Starter Pack
-Enabled by default, and in order to understand the value of OpenAEV, the Starter Pack will create and provide for you a set of items for a ready to use platform.
+## Players & Teams
 
-Will be created :
+Before running a simulation, define **who will participate**.
 
-- Three types of [scenarios](scenarios_and_simulations.md) available :
-    - [Tabletop](https://filigran.io/build-your-table-top-scenario-with-openbas/)
-    - Technical - Agentless
-    - [Technical - Agent-based](https://filigran.io/deploy-openbas-agents-and-validate-your-security-posture/)
-- Four [dashboards](dashboards/custom-dashboards/custom-dashboards.md) (Technical Home and Scenario, Technical Simulation, TTX Home and Scenario, TTX Simulation)
-    - Produces a summary of the different scenarios and simulations played on the platform
-- Ready to use [Injectors](injectors.md) ([NMAP](https://github.com/OpenAEV-Platform/injectors/tree/main/nmap) and [Nuclei](https://github.com/OpenAEV-Platform/injectors/tree/main/nuclei))
-    - Will provide the possibility to create agentless attacks
-- All Filigran [Collectors](collectors.md)
-    - Atomic Red Team : Will provide to you a set of payloads ([more info](https://www.atomicredteam.io/atomic-red-team))
-    - Mitre Attack : Will provide payloads and kill chain ([more info](https://docs.openbas.io/latest/administration/taxonomies/)) 
-    - OpenAEV : Will provide payloads validated by Filigran ([more info](https://github.com/OpenAEV-Platform/payloads))
-    - CVE by NVD Nist : Provide all known CVE ([more info](https://docs.openbas.io/latest/administration/taxonomies/))
-- One [Agentless Endpoint](assets.md) 
-    - Prepared agentless endpoint to be used by previous items 
-- One [Asset Group](assets.md) "All endpoint"
-    - Prepared assets group to get all endpoints
+- [Players](people.md#players) represent humans or roles (SOC analyst, sysadmin, end-user).
+- [Teams](people.md#teams) group players into units (SOC, IT Ops, HR).
 
-You can find configuration to disable it in [this section](../deployment/configuration.md).
+Creating players and teams lets you measure not only **technical outcomes** but also the **human response**: who reports
+an alert, who escalates, who reacts according to playbooks.
 
-## Your first Breach and Attack Simulation
+## Agents & Assets
 
-### Creating or Importing players and assets to play with
+[Assets](assets.md) are the systems you want to test: workstations, servers, VMs, or logical groups.
 
-First, you need to create or import Players and Assets that will participate in the simulation and be targeted by
-technical or strategical events. To do so, you can either create [players](people.md)
-and [teams](people.md) or deploy agent on [assets](assets.md).
+You can:
 
-### Building your Scenario
+- Deploy an **OpenAEV agent** for agent-based testing (executes payloads, reports telemetry, supports automated checks)
+- Use **agentless endpoints** when software installation is not possible
 
-Once integrations is done, you are ready to create your first Scenario!
+Assets are reused across scenarios and simulations — it’s worth naming and tagging them carefully (OS, owner,
+environment).
 
-[Scenarios](scenario.md) act as template for your Breach and Attack simulations. After establishing such a template, you
-will be able to schedule it as a one shot simulation, or as a recurring one.
+## Payloads & Injects
 
-You have two main options to create scenarios:
+[Payloads](payloads/payloads.md) are the technical actions: running a command, scanning a network, or checking for a
+vulnerability.
 
-#### Option 1: Import from XTM Hub
-- Navigate to the Scenarios menu and click on **"Import from Hub"** to access the library of pre-built scenarios
-- Browse scenarios by industry, attack type, or threat actor
-- Download and import ready-to-use scenarios that match your testing requirements
-- Customize the imported scenario for your specific environment
+[Injects](inject-overview.md) wrap payloads with context:
 
-#### Option 2: Create from scratch
-- Go to the Scenarios menu and create a new one with the + button.
-- Now go to the [Injects](injects.md) tab and add some to build the serie of events that will define the core of your
-  Scenario. If you want to stay strategical, you can select inject like "Send individual mails". If you want to go
-  technical, you can select injects linked to attack pattern (Caldera integration allows you to play hundreds of them).
-- Then, define [who or what will be targeted](targets.md) by those injects, customize them, and define what is expected
-  to happen. For example, you expect the targeted team to perform a specific action and the animation team will
-  validated this expectation manually. Or, you expect the technical event to be prevented and it will be automatically
-  checked through your integrations with your security systems.
-- Do not forget to define when the inject is played in the scenario chronology.
+- *who* is the target
+- *when* it should run
+- *what* is expected in return
 
-Optionally, you can enhance your scenario by
-adding [Documents](components/documents.md), [Media pressures](components/media_pressure.md), or even
-CTF [Challenges](components/challenges.md) to your injects.
+OpenAEV includes collectors with ready-to-use payloads: OpenAEV curated payloads and Atomic Red Team.
 
-### Play the simulation
+## Scenarios & Simulations
 
-You can now schedule your [Simulation](simulation.md) by hitting the blue "Simulate now" button. Choose your moment and
-hit start.
+A [scenario](scenario.md) is a blueprint: a sequence of injects that tell the story of an attack.
 
-On time, a Simulation based on your Scenario template is generated. It is listed in your Scenario overview and in the
-Simulations menu. From there, you can follow the course of the Simulation and interact with it, for example to validate
-manual expectations.
+You can:
 
-During the course of the simulation, results are updated and can be consulted in the Simulation overview.
+- Import pre-built scenarios from the **XTM Hub**
+- Create your own from scratch
 
-### Evaluate your security posture
+Once defined, a scenario can be turned into a [simulation](simulation.md): a live execution in your environment, either
+one-shot or scheduled regularly.
 
-Results in OpenBAS are based on expectations' results that are linked to injects played during Simulations. It is then
-important to manually validate expectations that need it.
+During simulations, [expectations](injects_and_expectations.md) are validated:
 
-Results are broken down by "Prevention", "Detection" and "Human response" metrics.
+- **Automatically**, via integrations with your stack
+- **Manually**, by observers validating human reactions
 
-- Prevention displays your ability to prevent the scenario's technical events to be completed
-- Detection displays your ability to detect the scenario's technical events
-- Human response displays how well players and teams react as expected facing the scenario's events
-- Vulnerability displays your ability to detect common vulnerabilities and exposures (CVEs) when the scenario's events happen.
+## Results & Dashboards
 
-!!! tip "Additional Resources"
+After a simulation, results are consolidated along four axes:
 
-    You can access additional Filigran resources and services through XTM Hub by clicking the 9-dot grid icon in the top navigation bar. This provides access to training materials, community resources, and other Filigran ecosystem services.
+- **Prevention** — were attack steps blocked?
+- **Detection** — were they detected?
+- **Vulnerability** — which exposures were identified?
+- **Human response** — how did players/teams react?
+
+[Dashboards](dashboards/custom-dashboards/custom-dashboards.md) let you explore these results at different levels: from
+a global overview of your posture to the detailed timeline of a simulation.
+
+---
+
+## The Starter Pack
+
+OpenAEV includes a **Starter Pack** to accelerate onboarding.  
+It provides:
+
+- Pre-built scenarios (tabletop, agentless, agent-based)
+- Four dashboards
+- Injectors (Nmap, Nuclei)
+- Collectors (Atomic Red Team, MITRE ATT&CK, OpenAEV payloads, CVE/NVD feed)
+- One agentless endpoint + an asset group
+
+With the Starter Pack, you can launch a complete simulation right after installation.
+
+---
+
+## An end-to-end atomic example (with agent)
+
+Let’s walk through the simplest possible scenario, using only an agent and an atomic payload.
+
+Imagine you deployed an OpenAEV agent on a Windows endpoint named `endpoint-win-01`.
+
+### Step 1 — Create the payload
+
+   ```bash
+   echo "OpenAEV Atomic Test" > C:\temp\atomic.txt
+   ````
+
+### Step 2 — Build the inject
+
+* Create an **atomic testing** in the UI
+* Use the created payload
+* Target `endpoint-win-01`
+
+### Step 3 — Run the simulation
+
+Click **Launch now**.
+The platform executes the payload via the agent.
+The result should appear in the atomic testing overview.
+
+## A more complete example
+
+Now imagine simulating a phishing attack followed by reconnaissance.
+
+**Assets**:
+
+* Windows workstation with an agent (`endpoint-win-01`)
+* Database server without agent (`srv-db-01`)
+
+**Injects**:
+
+1. **Phishing email** → expected to be reported (manual validation)
+
+2. **Initial access** → benign file creation on `endpoint-win-01`
+
+   ```bash
+   echo "pwned" > C:\temp\pwned.txt
+   ```
+
+3. **Network scan** → from the endpoint
+
+   ```bash
+   nmap -Pn -T4 10.0.0.0/24
+   ```
+
+4. **Exploit attempt** → non-destructive CVE check on the DB server
+
+**Outcome**:
+You can validate phishing reporting, check EDR blocking, IDS detection of the scan, and see vulnerability results.
+Dashboards consolidate both technical and human responses.
+
+---
+
+## Next steps
+
+* Create custom injects and payloads
+* Import threat-informed scenarios from the XTM Hub
+* Connect with [OpenCTI](https://filigran.io/solutions/open-cti/)
+* Track improvements over time in dashboards
+
+OpenAEV is more than running tests — it is about **continuously validating your exposure** and transforming insights
+into stronger defense.

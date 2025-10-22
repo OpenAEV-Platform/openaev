@@ -1,6 +1,6 @@
 # Custom dashboards
 
-OpenBAS provides an adaptable and entirely customizable dashboard functionality. The flexibility of OpenBAS's dashboard
+OpenAEV provides an adaptable and entirely customizable dashboard functionality. The flexibility of OpenAEV's dashboard
 ensures a tailored and insightful visualization of data, fostering a comprehensive understanding of the platform's
 live activity.
 

@@ -10,7 +10,7 @@
 
 #### Configuration
 
-All external collectors have to be able to access the OpenBAS API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENBAS_URL` and the `OPENBAS_TOKEN`. In addition to these 2 parameters, collectors have other mandatory parameters that need to be set in order to get them work.
+All external collectors have to be able to access the OpenAEV API. To allow this connection, they have 2 mandatory configuration parameters, the `OPENAEV_URL` and the `OPENAEV_TOKEN`. In addition to these 2 parameters, collectors have other mandatory parameters that need to be set in order to get them work.
 
 !!! info "Collector tokens"
 
@@ -18,8 +18,8 @@ All external collectors have to be able to access the OpenBAS API. To allow this
 
 Here is an example of a collector `docker-compose.yml` file:
 ```yaml
-- OPENBAS_URL=http://localhost
-- OPENBAS_TOKEN=ChangeMe
+- OPENAEV_URL=http://localhost
+- OPENAEV_TOKEN=ChangeMe
 - COLLECTOR_ID=ChangeMe # Specify a valid UUIDv4 of your choice 
 - "COLLECTOR_NAME=MITRE ATT&CK"
 - COLLECTOR_LOG_LEVEL=error
@@ -28,7 +28,7 @@ Here is an example of a collector `docker-compose.yml` file:
 Here is an example in a collector `config.yml` file:
 
 ```yaml
-openbas:
+openaev:
   url: 'http://localhost:3001'
   token: 'ChangeMe'
 
@@ -48,10 +48,10 @@ For instance, to enable the MITRE ATT&CK collector, you can add a new service to
 
 ```docker
   collector-mitre-attack:
-    image: openbas/collector-mitre-attack:1.0.0
+    image: openaev/collector-mitre-attack:1.0.0
     environment:
-      - OPENBAS_URL=http://localhost
-      - OPENBAS_TOKEN=ChangeMe
+      - OPENAEV_URL=http://localhost
+      - OPENAEV_TOKEN=ChangeMe
       - COLLECTOR_ID=ChangeMe
       - "COLLECTOR_NAME=MITRE ATT&CK"
       - COLLECTOR_LOG_LEVEL=error
@@ -60,10 +60,10 @@ For instance, to enable the MITRE ATT&CK collector, you can add a new service to
 
 ### Launch a standalone collector
 
-To launch standalone collector, you can use the `docker-compose.yml` file of the collector itself. Just download the latest [release](https://github.com/OpenBAS-Platform/collectors/releases) and start the collector:
+To launch standalone collector, you can use the `docker-compose.yml` file of the collector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/collectors/releases) and start the collector:
 
 ```
-$ wget https://github.com/OpenBAS-Platform/collectors/archive/{RELEASE_VERSION}.zip
+$ wget https://github.com/OpenAEV-Platform/collectors/archive/{RELEASE_VERSION}.zip
 $ unzip {RELEASE_VERSION}.zip
 $ cd collectors-{RELEASE_VERSION}/mitre-attack/
 ```
@@ -85,7 +85,7 @@ $ apt install python3 python3-pip
 Download the release of the collectors:
 
 ```
-$ wget <https://github.com/OpenBAS-Platform/collectors/archive/{RELEASE_VERSION}.zip>
+$ wget <https://github.com/OpenAEV-Platform/collectors/archive/{RELEASE_VERSION}.zip>
 $ unzip {RELEASE_VERSION}.zip
 $ cd collectors-{RELEASE_VERSION}/mitre-attack/src/
 ```
@@ -100,7 +100,7 @@ $ cp config.yml.sample config.yml
 Change the `config.yml` content according to the parameters of the platform and of the targeted service and launch the collector:
 
 ```
-$ python3 openbas_mitre.py
+$ python3 openaev_mitre.py
 ```
 
 ## Collectors status
@@ -108,7 +108,3 @@ $ python3 openbas_mitre.py
 The collector status can be displayed in the dedicated section of the platform available in Integration > collectors. You will be able to see the statistics of the RabbitMQ queue of the collector:
 
 ![collectors](../assets/collectors-status.png)
-
-!!! bug "Problem"
-
-    If you encounter problems deploying OpenBAS or collectors, you can consult the [troubleshooting page](../troubleshooting.md) page.

@@ -1,6 +1,6 @@
 # Filter knowledge
 
-In OpenBAS, you can filter data to focus on or display information with specific attributes.
+In OpenAEV, you can filter data to focus on or display information with specific attributes.
 
 ## Filters usages
 
@@ -39,7 +39,7 @@ click, changing the logic of your filtering.
 
 ## Filters format
 
-The OpenBAS platform uses a filter format called `FilterGroup`. The `FilterGroup` model enables
+The OpenAEV platform uses a filter format called `FilterGroup`. The `FilterGroup` model enables
 to do complex filters imbrication with different boolean operators, which extends greatly the filtering capabilities in
 every part of the platform.
 

@@ -1,6 +1,6 @@
 # Users
 
-You can manage users in `Settings > Security > Users`. If you are using Single Sign-On (SSO), user accounts in OpenBAS are automatically created upon login.
+You can manage users in `Settings > Security > Users`. If you are using Single Sign-On (SSO), user accounts in OpenAEV are automatically created upon login.
 
 ![User list](assets/user-list.png)
 

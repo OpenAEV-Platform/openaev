@@ -1,6 +1,6 @@
 # Challenges
 
-Challenges are integral to handling CTF (Capture The Flag) activities on the OpenBAS platform. You can define your
+Challenges are integral to handling CTF (Capture The Flag) activities on the OpenAEV platform. You can define your
 challenge and the flags that need to be found to complete it.
 
 ## Create a Challenge
@@ -13,7 +13,7 @@ To create a new challenge, follow these steps:
    explanation, context, steps), and attach any relevant documents.
 4. Manage your challenge by setting a score and a maximum number of attempts allowed for completing the challenge.
 
-![challenge-creation.png](../assets/components/challenge-creation.png)
+![challenge-creation.png](./assets/challenge-creation.png)
 
 Once completed, your new challenge will appear in the challenge list.
 

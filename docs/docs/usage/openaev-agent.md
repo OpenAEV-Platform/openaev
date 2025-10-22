@@ -1,35 +1,35 @@
-# OpenBAS Agent
+# OpenAEV Agent
 
 ## Introduction
 
-The OpenBAS Agent is an application whose main role is to enroll an Asset on the OpenBAS platform,
+The OpenAEV Agent is an application whose main role is to enroll an Asset on the OpenAEV platform,
 to retrieve jobs or scripts to be executed and to transmit this information to Implants (subject to come)
 for execution on the host Asset.
 
 The Agent will not perform direct actions on the Asset to remain neutral for antivirus and ensure the full run of the simulation.
 
-The OpenBAS Agent is compatible with different OS (Windows, Linux, macOS) and is developed in Rust.
+The OpenAEV Agent is compatible with different OS (Windows, Linux, macOS) and is developed in Rust.
 
 ## Installation
 
-Depending on the OS, several installations are at your disposal, you can find them on OpenBAS by clicking the blue icon on the right top corner :
+Depending on the OS, several installations are at your disposal, you can find them on OpenAEV by clicking the blue icon on the right top corner :
 ![Agents](../administration/assets/agents.png)
 
 !!! note
 
-    Since the release 1.14, several OpenBAS agents can be installed on a machine to try different configurations on Payload executions:<br/>
+    Since the release 1.14, several OpenAEV agents can be installed on a machine to try different configurations on Payload executions:<br/>
     - Example 1: with the standard installation, you can install two agents on your machine with different privileges (one standard and one administrator).<br/>
     - Example 2: with the advanced installation as system (installation before release 1.14), you have installed an agent with system user and privileges. It could be interesting to install an agent from the standard installation to compare the behavior like folders accesses, environment variables, privileges,...<br/><br/>
     **For more details, see the explanations below for each OS and each installation.** 
 
 !!! warning
 
-    The following documented antivirus exclusions are mandatory for OpenBAS to work properly. Please note that the AV exclusions are always only on the `runtimes` subfolder, which is important to ensure `payloads` (which land in another directory) will be detected / blocked if this is relevant.
+    The following documented antivirus exclusions are mandatory for OpenAEV to work properly. Please note that the AV exclusions are always only on the `runtimes` subfolder, which is important to ensure `payloads` (which land in another directory) will be detected / blocked if this is relevant.
 
 ### Windows
 
 - Requirements:
-  - Ensure access to the OpenBAS instance being used;
+  - Ensure access to the OpenAEV instance being used;
   - Ensure that the system environment variable "Path" contains the values "%SYSTEMROOT%\System32\" and "%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\";
   - For "Advanced installation as User (service)", you need to enable the "Service Logon" policy for the user you want to run the service as, follow [this tutorial](https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm?view=sc-sm-2025) to do it;
 - Compatibility → All major Windows versions
@@ -38,8 +38,8 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 | Installation mode                             | Installation                                                                                                                                                                                                                 | Installation type                                                                                                                   | Execution agent and payload                                                                                    | Verification/Start/Stop agent                                                                                                                                                                                                                                                | Folder path                                                                                                                    | AV exclusions                                                                                                                                    | Uninstallation                                                                                       |
 |:----------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges or admin privileges for the logged-in user                                                                                                                              | User session (standard privileges): start up app `WriteRegStr`<br/>OR<br/>User session (admin privileges): start up task `schtasks` | Background, only when user is logged in, with the user privilege from the powershell elevation and environment | `Get-Process openbas-agent \| Where-Object { $_.Path -eq "[FOLDER_PATH]\openbas-agent.exe" }`<br/>`Get-Process openbas-agent \| Where-Object { $_.Path -eq "[FOLDER_PATH]\openbas-agent.exe" } \| Stop-Process -Force`<br/>`Start-Process "[FOLDER_PATH]\openbas-agent.exe"` | `$HOME\.openbas\OBASAgent-Session-[UserSanitized]`<br/>OR<br/>`$HOME\.openbas\OBASAgent-Session-Administrator-[UserSanitized]` | `$HOME\.openbas\OBASAgent-Session-[UserSanitized]\runtimes`<br/>OR<br/>`$HOME\.openbas\OBASAgent-Session-Administrator-[UserSanitized]\runtimes` | Stop the agent in background and "uninstall.exe" from the path folder                                |
-| **Advanced installation as User (service)**   | Enable the "Service Logon" policy (see above)<br/>Terminal with admin privileges, replace params [USER] and [PASSWORD] in the<br/>bash snippet and in the following commands by the username with domain and password wanted | Service: `sc` (with user and password in service conf)                                                                              | Background, as soon as the machine powers on, with the user privilege and environment                          | `Get-Service -Name "OBASAgent-Service-[UserSanitized]"`<br/>`Start-Service -Name "OBASAgent-Service-[UserSanitized]"`<br/>`Stop-Service -Name "OBASAgent-Service-[UserSanitized]"`                                                                                           | `$HOME\.openbas\OBASAgent-Service-[UserSanitized]`                                                                             | `$HOME\.openbas\OBASAgent-Service-[UserSanitized]\runtimes`                                                                                      | "uninstall.exe" from the path folder<br/>Disable the "Service Logon" policy for the user (see above) |                             
+| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges or admin privileges for the logged-in user                                                                                                                              | User session (standard privileges): start up app `WriteRegStr`<br/>OR<br/>User session (admin privileges): start up task `schtasks` | Background, only when user is logged in, with the user privilege from the powershell elevation and environment | `Get-Process openaev-agent \| Where-Object { $_.Path -eq "[FOLDER_PATH]\openaev-agent.exe" }`<br/>`Get-Process openaev-agent \| Where-Object { $_.Path -eq "[FOLDER_PATH]\openaev-agent.exe" } \| Stop-Process -Force`<br/>`Start-Process "[FOLDER_PATH]\openaev-agent.exe"` | `$HOME\.openaev\OBASAgent-Session-[UserSanitized]`<br/>OR<br/>`$HOME\.openaev\OBASAgent-Session-Administrator-[UserSanitized]` | `$HOME\.openaev\OBASAgent-Session-[UserSanitized]\runtimes`<br/>OR<br/>`$HOME\.openaev\OBASAgent-Session-Administrator-[UserSanitized]\runtimes` | Stop the agent in background and "uninstall.exe" from the path folder                                |
+| **Advanced installation as User (service)**   | Enable the "Service Logon" policy (see above)<br/>Terminal with admin privileges, replace params [USER] and [PASSWORD] in the<br/>bash snippet and in the following commands by the username with domain and password wanted | Service: `sc` (with user and password in service conf)                                                                              | Background, as soon as the machine powers on, with the user privilege and environment                          | `Get-Service -Name "OBASAgent-Service-[UserSanitized]"`<br/>`Start-Service -Name "OBASAgent-Service-[UserSanitized]"`<br/>`Stop-Service -Name "OBASAgent-Service-[UserSanitized]"`                                                                                           | `$HOME\.openaev\OBASAgent-Service-[UserSanitized]`                                                                             | `$HOME\.openaev\OBASAgent-Service-[UserSanitized]\runtimes`                                                                                      | "uninstall.exe" from the path folder<br/>Disable the "Service Logon" policy for the user (see above) |                             
 | **Advanced installation as System (service)** | Terminal with admin privileges for the authority system user                                                                                                                                                                 | Service: `sc`                                                                                                                       | Background, as soon as the machine powers on, with the root privilege and environment                          | `Get-Service -Name "OBASAgentService"`<br/>`Start-Service -Name "OBASAgentService"`<br/>`Stop-Service -Name "OBASAgentService"`                                                                                                                                              | `C:\Program Files (x86)\Filigran\OBAS Agent`                                                                                   | `C:\Program Files (x86)\Filigran\OBAS Agent\runtimes`                                                                                            | "uninstall.exe" from the path folder                                                                 |
 
 !!! note
@@ -51,14 +51,14 @@ Depending on the OS, several installations are at your disposal, you can find th
 - Requirements :
     - systemd
     - curl
-    - access to the OpenBAS instance used
+    - access to the OpenAEV instance used
 - Compatibility → All systemd based linux distros
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                        | Folder path                                 | AV exclusions                                        | Uninstallation                                                                                                                                                                                                             |
 |:----------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------|:--------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------|:-----------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges for the logged-in user                                                                             | User service: `systemctl --user`                           | Background, only when user is logged in, with the user privilege and environment      | `systemctl --user enable openbas-agent-session`<br/>`systemctl --user start openbas-agent-session`<br/>`systemctl --user stop openbas-agent-session` | `$HOME/.local/openbas-agent-session`        | `$HOME/.local/openbas-agent-session/runtimes `       | `systemctl --user stop openbas-agent-session & systemctl --user disable openbas-agent-session & systemctl --user daemon-reload & systemctl --user reset-failed & rm -rf $HOME/.local/openbas-agent-session`                |
-| **Advanced installation as User (service)**   | Terminal with sudo privileges, replace params [USER] and [GROUP] in the bash<br/>snippet and in the following commands by the username and group wanted | Service: `systemctl` (with user and group in service conf) | Background, as soon as the machine powers on, with the user privilege and environment | `systemctl enable [USER]-openbas-agent`<br/>`systemctl start [USER]-openbas-agent`<br/>`systemctl stop [USER]-openbas-agent`                         | `$HOME/.local/openbas-agent-service-[USER]` | `$HOME/.local/openbas-agent-service-[USER]/runtimes` | `sudo systemctl stop [USER]-openbas-agent & sudo systemctl disable [USER]-openbas-agent & sudo systemctl daemon-reload & sudo systemctl reset-failed & sudo rm -rf $HOME/.local/openbas-agent-service-[USER]`              |                             
-| **Advanced installation as System (service)** | Terminal with sudo privileges                                                                                                                           | Service: `systemctl`                                       | Background, as soon as the machine powers on, with the root privilege and environment | `systemctl enable openbas-agent`<br/>`systemctl start openbas-agent`<br/>`systemctl stop openbas-agent`                                              | `/opt/openbas-agent`                        | `/opt/openbas-agent/runtimes`                        | `sudo systemctl stop openbas-agent & sudo systemctl disable openbas-agent & sudo systemctl daemon-reload & sudo systemctl reset-failed & sudo rm -rf /opt/openbas-agent`                                                   |
+| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges for the logged-in user                                                                             | User service: `systemctl --user`                           | Background, only when user is logged in, with the user privilege and environment      | `systemctl --user enable openaev-agent-session`<br/>`systemctl --user start openaev-agent-session`<br/>`systemctl --user stop openaev-agent-session` | `$HOME/.local/openaev-agent-session`        | `$HOME/.local/openaev-agent-session/runtimes `       | `systemctl --user stop openaev-agent-session & systemctl --user disable openaev-agent-session & systemctl --user daemon-reload & systemctl --user reset-failed & rm -rf $HOME/.local/openaev-agent-session`                |
+| **Advanced installation as User (service)**   | Terminal with sudo privileges, replace params [USER] and [GROUP] in the bash<br/>snippet and in the following commands by the username and group wanted | Service: `systemctl` (with user and group in service conf) | Background, as soon as the machine powers on, with the user privilege and environment | `systemctl enable [USER]-openaev-agent`<br/>`systemctl start [USER]-openaev-agent`<br/>`systemctl stop [USER]-openaev-agent`                         | `$HOME/.local/openaev-agent-service-[USER]` | `$HOME/.local/openaev-agent-service-[USER]/runtimes` | `sudo systemctl stop [USER]-openaev-agent & sudo systemctl disable [USER]-openaev-agent & sudo systemctl daemon-reload & sudo systemctl reset-failed & sudo rm -rf $HOME/.local/openaev-agent-service-[USER]`              |                             
+| **Advanced installation as System (service)** | Terminal with sudo privileges                                                                                                                           | Service: `systemctl`                                       | Background, as soon as the machine powers on, with the root privilege and environment | `systemctl enable openaev-agent`<br/>`systemctl start openaev-agent`<br/>`systemctl stop openaev-agent`                                              | `/opt/openaev-agent`                        | `/opt/openaev-agent/runtimes`                        | `sudo systemctl stop openaev-agent & sudo systemctl disable openaev-agent & sudo systemctl daemon-reload & sudo systemctl reset-failed & sudo rm -rf /opt/openaev-agent`                                                   |
 
 !!! note
 
@@ -68,14 +68,14 @@ Depending on the OS, several installations are at your disposal, you can find th
   - Requirements :
     - launchd
     - curl
-    - access to the OpenBAS instance used
+    - access to the OpenAEV instance used
   - Compatibility → All launchd based MacOS distros (10.4 Tiger or higher)
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                                                                                                               | Folder path                                 | AV exclusions                                          | Uninstallation                                                                                       |
 |:----------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------|:--------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------|:-------------------------------------------------------|:-----------------------------------------------------------------------------------------------------|
-| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges for the logged-in user                                                                             | User service: `launchctl user`                                             | Background, only when user is logged in, with the user privilege and environment      | `launchctl enable gui/$(id -u)/openbas-agent-session`<br/>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/openbas-agent-session.plist`<br/>`launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/openbas-agent-session.plist`     | `$HOME/.local/openbas-agent-session`        | `$HOME/.local/openbas-agent-session/runtimes`          | `launchctl remove openbas-agent-session & rm -rf $HOME/.local/openbas-agent-session`                 |
-| **Advanced installation as User (service)**   | Terminal with sudo privileges, replace params [USER] and [GROUP] in the<br/>bash snippet and in the following commands by the username and group wanted | Service: `launchctl user` (as agent, with user and group in service plist) | Background, as soon as the machine powers on, with the user privilege and environment | `launchctl enable gui/[USER-ID]/[USER]-openbas-agent`<br/>`launchctl bootstrap gui/[USER-ID] /Library/LaunchAgents/[USER]-openbas-agent.plist`<br/>`launchctl bootout gui/[USER-ID] ~/Library/LaunchAgents/[USER]-openbas-agent.plist`      | `$HOME/.local/openbas-agent-service-[USER]` | `$HOME/.local/openbas-agent-service-[USER]/runtimes`   | `sudo launchctl remove [USER]-openbas-agent & sudo rm -rf $HOME/.local/openbas-agent-service-[USER]` |                             
-| **Advanced installation as System (service)** | Terminal with sudo privileges                                                                                                                           | Service: `launchctl system`                                                | Background, as soon as the machine powers on, with the root privilege and environment | `launchctl enable system/openbas.agent`<br/>`launchctl bootstrap system /Library/LaunchDaemons/openbas-agent.plist`<br/>`launchctl bootout system/ ~/Library/LaunchDaemons/openbas-agent.plist`                                             | `/opt/openbas-agent`                        | `/opt/openbas-agent/runtimes`                          | `sudo launchctl remove openbas-agent & sudo rm -rf /opt/openbas-agent`                               |
+| **Standard installation (session)**           | Asset with GUI and terminal with standard privileges for the logged-in user                                                                             | User service: `launchctl user`                                             | Background, only when user is logged in, with the user privilege and environment      | `launchctl enable gui/$(id -u)/openaev-agent-session`<br/>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/openaev-agent-session.plist`<br/>`launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/openaev-agent-session.plist`     | `$HOME/.local/openaev-agent-session`        | `$HOME/.local/openaev-agent-session/runtimes`          | `launchctl remove openaev-agent-session & rm -rf $HOME/.local/openaev-agent-session`                 |
+| **Advanced installation as User (service)**   | Terminal with sudo privileges, replace params [USER] and [GROUP] in the<br/>bash snippet and in the following commands by the username and group wanted | Service: `launchctl user` (as agent, with user and group in service plist) | Background, as soon as the machine powers on, with the user privilege and environment | `launchctl enable gui/[USER-ID]/[USER]-openaev-agent`<br/>`launchctl bootstrap gui/[USER-ID] /Library/LaunchAgents/[USER]-openaev-agent.plist`<br/>`launchctl bootout gui/[USER-ID] ~/Library/LaunchAgents/[USER]-openaev-agent.plist`      | `$HOME/.local/openaev-agent-service-[USER]` | `$HOME/.local/openaev-agent-service-[USER]/runtimes`   | `sudo launchctl remove [USER]-openaev-agent & sudo rm -rf $HOME/.local/openaev-agent-service-[USER]` |                             
+| **Advanced installation as System (service)** | Terminal with sudo privileges                                                                                                                           | Service: `launchctl system`                                                | Background, as soon as the machine powers on, with the root privilege and environment | `launchctl enable system/openaev.agent`<br/>`launchctl bootstrap system /Library/LaunchDaemons/openaev-agent.plist`<br/>`launchctl bootout system/ ~/Library/LaunchDaemons/openaev-agent.plist`                                             | `/opt/openaev-agent`                        | `/opt/openaev-agent/runtimes`                          | `sudo launchctl remove openaev-agent & sudo rm -rf /opt/openaev-agent`                               |
 
 !!! note
 
@@ -97,27 +97,25 @@ Outbound rule
 
 ## Features
 
-The main features of the OpenBAS Agent are:
+The main features of the OpenAEV Agent are:
 
-- Agent registration on the OpenBAS platform
+- Agent registration on the OpenAEV platform
 
   The Agent is installed on the Asset using an agent-installer.exe file and runs as a service.
-  It communicates with the deployed OpenBAS instance in order to enroll the Asset. In some cases
-  like unsecured certificates or environment with proxy, the agent can't communicate with OpenBAS.
-  In order to fix those issues, look at "Network and security" chapter from [configuration](https://docs.openbas.io/latest/deployment/configuration)
+  It communicates with the deployed OpenAEV instance in order to enroll the Asset. In some cases
+  like unsecured certificates or environment with proxy, the agent can't communicate with OpenAEV.
+  In order to fix those issues, look at "Network and security" chapter from [configuration](https://docs.openaev.io/latest/deployment/configuration)
   to add the required attributes.
 
-  NB : An Asset can only have one OpenBAS agent installed thanks to a machine id calculated according
-  to the operating system and its parameters. If you try to install again an OpenBAS agent on a platform, it will
-  overwrite the actual one and you will always see one endpoint on the OpenBAS endpoint page.
-
-![Agent assets status](../administration/assets/agent_assets_status.png)
+  NB : An Asset can only have one OpenAEV agent installed thanks to a machine id calculated according
+  to the operating system and its parameters. If you try to install again an OpenAEV agent on a platform, it will
+  overwrite the actual one and you will always see one endpoint on the OpenAEV endpoint page.
 
 - Auto upgrade the Agent (on start-up and registration)
 
 - Retrieval of jobs to be executed
 
-  The Agent retrieves jobs to be executed from the OpenBAS instance every 30 seconds.
+  The Agent retrieves jobs to be executed from the OpenAEV instance every 30 seconds.
   For the moment, jobs are Implant to spawn and launch on the Asset, waiting to execute payloads of your Simulation's Injects.
   Each job execution logs is kept in a dedicated directory in order to have a trace of what happened (pid, executable).
 
@@ -127,7 +125,7 @@ The main features of the OpenBAS Agent are:
 
 - Health check
 
-  The Agent pings the OpenBAS instance every 2 minutes to notify it of its healthy status.
+  The Agent pings the OpenAEV instance every 2 minutes to notify it of its healthy status.
 
 - Cleanup
 
@@ -141,9 +139,9 @@ The main features of the OpenBAS Agent are:
 
 If you experience issues with your agent, the logs are available here (see the "Installation" section above to get the folder path) :
 
-- Linux -> [FOLDER_PATH]/openbas-agent.log
-- MacOS -> [FOLDER_PATH]/openbas-agent.log
-- Windows -> [FOLDER_PATH]\openbas-agent.log
+- Linux -> [FOLDER_PATH]/openaev-agent.log
+- MacOS -> [FOLDER_PATH]/openaev-agent.log
+- Windows -> [FOLDER_PATH]\openaev-agent.log
 
 If you see an error related to an inject not being executed, verify whether it was properly run by the agent.
 ![implant-troubleshooting](assets/agents/implant-troubleshooting.png)

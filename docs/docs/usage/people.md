@@ -2,13 +2,12 @@
 
 Breach and Attack Simulation involves testing your security posture, and people are an essential part of it!
 
-Players, teams, and organizations are where you organize the human aspect of your security posture within OpenBAS. These
+Players, teams, and organizations are where you organize the human aspect of your security posture within OpenAEV. These
 entities are the targets for injects during your [simulations](simulation.md) and [atomic testings](atomic.md).
 
 ## Players
 
-Players are the users that may take part into your scenarios, to be tested against attack or contextual events (
-i.e. [injects](injects.md)).
+Players are the users that may take part into your scenarios, to be tested against attack or contextual events.
 
 Players can be created manually with the + button at the bottom right, but we encourage you to activate an integration
 allowing to import them from your IT environment, like with Microsoft Entra integration.
@@ -55,6 +54,6 @@ Organization provides a straightforward method to segregate players and teams wi
 with an organization, even with the required rights to animate and planned scenarios and simulations, will never see
 players and teams from other organizations.
 
-This feature can be particularly useful if you are using OpenBAS to plan and execute simulations for various companies
+This feature can be particularly useful if you are using OpenAEV to plan and execute simulations for various companies
 or subsidiaries.
 

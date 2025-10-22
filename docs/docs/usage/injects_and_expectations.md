@@ -1,10 +1,10 @@
 # Injects and Expectations
 
-Evaluating security posture in OpenBAS is to confront events (aka [Injects](injects.md)) with [Expectations](expectations.md).
+Evaluating security posture in OpenAEV is to confront events (aka [Injects](inject-overview.md)) with [Expectations](expectations.md).
 
 ## Injects
 
-Threats are the results of actions by threat actors, and a combination of intent, capability and opportunity. In OpenBAS, simulating threats and their attack capabilities involves executing injects targeting [players](people.md) and [assets](assets.md).
+Threats are the results of actions by threat actors, and a combination of intent, capability and opportunity. In OpenAEV, simulating threats and their attack capabilities involves executing injects targeting [players](people.md) and [assets](assets.md).
 
 Injects can be technical, emulating action attackers might take on an endpoint, and non-technical, representing interactions with players or impactful contextual events during a crisis (such as media inquiries by phone following a data breach). They are always triggered at a specific point in time but it is possible to execute them only if one or multiple conditions are met.
 

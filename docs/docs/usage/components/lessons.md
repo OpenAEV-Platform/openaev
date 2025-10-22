@@ -1,6 +1,6 @@
 # Lessons
 
-Lessons in OpenBAS enable you to create customizable surveys for your simulations. These surveys can be composed of
+Lessons in OpenAEV enable you to create customizable surveys for your simulations. These surveys can be composed of
 various categories and questions within those categories. This feature helps in conducting the often overlooked part of
 a Breach and Attack Simulation involving real people, by automating the process and complementing your simulation
 results with qualitative feedback.
@@ -12,7 +12,7 @@ To create a new lesson template, follow these steps:
 1. Click the + button at the bottom right corner of the screen.
 2. Give your new lesson template a name.
 
-![lesson-creation.png](../assets/components/lesson-creation.png)
+![lesson-creation.png](./assets/lesson-creation.png)
 
 Once completed, your new lesson will appear in the lesson learned list.
 

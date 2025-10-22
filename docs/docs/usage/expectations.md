@@ -1,7 +1,7 @@
 # Expectations
 
 Expectations define what is expected from an [Asset (endpoint)](assets.md) or
-a [Players](people.md#players) when facing an [Inject](injects.md) in terms of
+a [Players](people.md#players) when facing an [Inject](inject-overview.md) in terms of
 security posture. Each expectation has a score representing how well it has been met by the target.
 
 ## Expectation types
@@ -109,7 +109,7 @@ Each expectation has a **default score value** at creation, configurable via env
 
 | Parameter                                      | Environment variable                           | Default value | Description                                |
 |:-----------------------------------------------|:-----------------------------------------------|:--------------|:-------------------------------------------|
-| openbas.expectation.manual.default-score-value | OPENBAS_EXPECTATION_MANUAL_DEFAULT-SCORE-VALUE | 50            | Default score value for manual expectation |
+| openaev.expectation.manual.default-score-value | OPENAEV_EXPECTATION_MANUAL_DEFAULT-SCORE-VALUE | 50            | Default score value for manual expectation |
 
 #### Expiration time
 
@@ -120,13 +120,13 @@ Expectations must be validated within a time limit. Defaults are set in the syst
 
 | Parameter                                      | Environment variable                           | Default value | Description                                                         |
 |:-----------------------------------------------|:-----------------------------------------------|:--------------|:--------------------------------------------------------------------|
-| openbas.expectation.technical.expiration-time  | OPENBAS_EXPECTATION_TECHNICAL_EXPIRATION-TIME  | 21600         | Expiration time for Technical expectation (detection & prevention)  |
-| openbas.expectation.detection.expiration-time  | OPENBAS_EXPECTATION_DETECTION_EXPIRATION-TIME  | 21600         | Expiration time for detection expectation                           |
-| openbas.expectation.prevention.expiration-time | OPENBAS_EXPECTATION_PREVENTION_EXPIRATION-TIME | 21600         | Expiration time for prevention expectation                          |
-| openbas.expectation.human.expiration-time      | OPENBAS_EXPECTATION_HUMAN_EXPIRATION-TIME      | 86400         | Expiration time for human expectation (manual, challenge & article) |
-| openbas.expectation.challenge.expiration-time  | OPENBAS_EXPECTATION_CHALLENGE_EXPIRATION-TIME  | 86400         | Expiration time for challenge expectation                           |
-| openbas.expectation.article.expiration-time    | OPENBAS_EXPECTATION_ARTICLE_EXPIRATION-TIME    | 86400         | Expiration time for article expectation                             |
-| openbas.expectation.manual.expiration-time     | OPENBAS_EXPECTATION_MANUAL_EXPIRATION-TIME     | 86400         | Expiration time for manual expectation                              |
+| openaev.expectation.technical.expiration-time  | OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME  | 21600         | Expiration time for Technical expectation (detection & prevention)  |
+| openaev.expectation.detection.expiration-time  | OPENAEV_EXPECTATION_DETECTION_EXPIRATION-TIME  | 21600         | Expiration time for detection expectation                           |
+| openaev.expectation.prevention.expiration-time | OPENAEV_EXPECTATION_PREVENTION_EXPIRATION-TIME | 21600         | Expiration time for prevention expectation                          |
+| openaev.expectation.human.expiration-time      | OPENAEV_EXPECTATION_HUMAN_EXPIRATION-TIME      | 86400         | Expiration time for human expectation (manual, challenge & article) |
+| openaev.expectation.challenge.expiration-time  | OPENAEV_EXPECTATION_CHALLENGE_EXPIRATION-TIME  | 86400         | Expiration time for challenge expectation                           |
+| openaev.expectation.article.expiration-time    | OPENAEV_EXPECTATION_ARTICLE_EXPIRATION-TIME    | 86400         | Expiration time for article expectation                             |
+| openaev.expectation.manual.expiration-time     | OPENAEV_EXPECTATION_MANUAL_EXPIRATION-TIME     | 86400         | Expiration time for manual expectation                              |
 
 A default expiration time is set for technical and human expectations. Users can override them for each type of
 expectations.

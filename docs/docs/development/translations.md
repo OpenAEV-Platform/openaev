@@ -1,7 +1,7 @@
 # Adding translations
 
 ### Introduction
-This guide explains how to add translations when developing with OpenBAS. We have 3 files to support the app’s languages: en.json (the reference file - for english), fr.json (for french) and zh.json (for chinese). We have set up some elements to streamline the translation process.
+This guide explains how to add translations when developing with OpenAEV. We have 3 files to support the app’s languages: en.json (the reference file - for english), fr.json (for french) and zh.json (for chinese). We have set up some elements to streamline the translation process.
 
 #### 1. Using scripts
 You can find translations management scripts in the package.json file.

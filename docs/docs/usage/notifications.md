@@ -1,4 +1,4 @@
-As of today, OpenBAS has only one notification type: scenario score degradation. his alert emails you when a scenario's simulation score drops below the previous score of the previous run.
+As of today, OpenAEV has only one notification type: scenario score degradation. his alert emails you when a scenario's simulation score drops below the previous score of the previous run.
 
 To enable the notification, open the scenario page and click this icon: ![Notification Icon](./assets/notification_icon.png).
 
