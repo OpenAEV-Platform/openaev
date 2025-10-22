@@ -7,7 +7,7 @@ import VideoPlayer from './VideoPlayer';
 const GettingStartedSummary = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const videoLink = "https://www.youtube.com/embed/wb_v7sa7y8w?rel=0&modestbranding=1&loop=1&playlist=wb_v7sa7y8w";
+  const videoLink = 'https://www.youtube.com/embed/wb_v7sa7y8w?rel=0&modestbranding=1&loop=1&playlist=wb_v7sa7y8w';
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
