@@ -32,6 +32,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -97,13 +98,15 @@ public class InjectExpectationService {
         expectationsForAgents.forEach(
             e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
         this.injectExpectationRepository.saveAll(expectationsForAgents);
-        propagateTechnicalExpectation(injectExpectation, isAgentless);
+        propagateTechnicalExpectation(
+            injectExpectation, isAgentless, (score) -> injectExpectation.getResults().getLast());
         return injectExpectation;
         // Computation on agent or asset agentless
       } else {
         computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input);
         InjectExpectation updated = this.injectExpectationRepository.save(injectExpectation);
-        propagateTechnicalExpectation(updated, isAgentless);
+        propagateTechnicalExpectation(
+            updated, isAgentless, (score) -> updated.getResults().getLast());
         return updated;
       }
     }
@@ -134,7 +137,7 @@ public class InjectExpectationService {
         throw new IllegalArgumentException(
             "Not possible to update Asset directly on Asset with Agent");
       }
-      propagateTechnicalExpectation(updated, isAgentless);
+      propagateTechnicalExpectation(updated, isAgentless, null);
     }
 
     return updated;
@@ -228,15 +231,17 @@ public class InjectExpectationService {
   }
 
   private void propagateTechnicalExpectation(
-      @NotNull final InjectExpectation injectExpectation, final boolean isAgentless) {
+      @NotNull final InjectExpectation injectExpectation,
+      final boolean isAgentless,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
     List<InjectExpectation> expectations = new ArrayList<>();
     // 1) Agent -> Asset
     if (!isAgentless) {
-      expectations.addAll(propagateToAsset(injectExpectation));
+      expectations.addAll(propagateToAsset(injectExpectation, addResult));
     }
 
     // 2) Asset -> Asset Group
-    expectations.addAll(propagateToAssetGroup(injectExpectation));
+    expectations.addAll(propagateToAssetGroup(injectExpectation, addResult));
 
     this.injectExpectationRepository.saveAll(expectations);
 
@@ -247,22 +252,24 @@ public class InjectExpectationService {
   }
 
   private List<InjectExpectation> propagateToAsset(
-      @NotNull final InjectExpectation injectExpectation) {
+      @NotNull final InjectExpectation injectExpectation,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
     List<InjectExpectation> expectationsForAgents =
         getExpectationsAgentsForAsset(injectExpectation);
     List<InjectExpectation> expectationsForAssets = getExpectationsAssets(injectExpectation);
-    computeScores(expectationsForAgents, expectationsForAssets, injectExpectation, null);
+    computeScores(expectationsForAgents, expectationsForAssets, injectExpectation, addResult);
     return expectationsForAssets;
   }
 
   private List<InjectExpectation> propagateToAssetGroup(
-      @NotNull final InjectExpectation injectExpectation) {
+      @NotNull final InjectExpectation injectExpectation,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
     if (injectExpectation.getAssetGroup() != null) {
       List<InjectExpectation> expectationsForAssets =
           getExpectationsAssetsForAssetGroup(injectExpectation);
       List<InjectExpectation> expectationForAssetGroups =
           getExpectationAssetGroups(injectExpectation);
-      computeScores(expectationsForAssets, expectationForAssetGroups, injectExpectation, null);
+      computeScores(expectationsForAssets, expectationForAssetGroups, injectExpectation, addResult);
       return expectationForAssetGroups;
     }
     return new ArrayList<>();
@@ -320,7 +327,7 @@ public class InjectExpectationService {
     injectExpectation =
         this.computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input, collector);
     InjectExpectation updated = this.injectExpectationRepository.save(injectExpectation);
-    propagateTechnicalExpectation(updated, false);
+    propagateTechnicalExpectation(updated, false, (score) -> updated.getResults().getLast());
   }
 
   // -- COMPUTE RESULTS FROM INJECT EXPECTATIONS --
