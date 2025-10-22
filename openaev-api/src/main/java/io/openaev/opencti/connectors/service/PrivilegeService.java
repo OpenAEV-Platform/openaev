@@ -30,13 +30,13 @@ public class PrivilegeService {
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole());
 
-    Optional<User> connectorUser = userService.findByToken(connector.getAuthToken());
+    Optional<User> connectorUser = userService.findByToken(connector.getToken());
     if (connectorUser.isEmpty()) {
       CreateUserInput input = new CreateUserInput();
       input.setAdmin(false);
       input.setFirstname(connector.getName());
       input.setLastname("OpenCTI Connector");
-      input.setToken(connector.getAuthToken());
+      input.setToken(connector.getToken());
       input.setEmail("connector-%s@openaev.invalid".formatted(connector.getId()));
       User u = userService.createUser(input, 1); // magic number; Active
       u.setGroups(new ArrayList<>(List.of(group)));

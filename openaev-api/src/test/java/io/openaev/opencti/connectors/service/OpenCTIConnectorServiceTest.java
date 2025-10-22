@@ -89,8 +89,6 @@ public class OpenCTIConnectorServiceTest {
     public void whenConnectorShouldNotRegister_theOtherConnectorWasSuccessfullyRegistered()
         throws IOException {
       // make is so it appears not correctly configured
-      getInstanceOfTestBeanConnector().get().setUrl(null);
-
       when(mockOpenCTIClient.execute(any(), any(), any()))
           .thenReturn(ResponseFixture.getOkResponse());
 
@@ -225,8 +223,6 @@ public class OpenCTIConnectorServiceTest {
       @DisplayName("throw exception")
       @DirtiesContext // we change a property
       public void whenConnectorIsNotRegistered_throwException() {
-        getInstanceOfSecurityCoverageConnector().get().setUrl(null);
-
         assertThatThrownBy(
                 () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
             .isInstanceOf(ConnectorError.class)

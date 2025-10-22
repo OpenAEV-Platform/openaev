@@ -1,16 +1,12 @@
 package io.openaev.opencti.connectors;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.openaev.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 
 @Data
 public abstract class ConnectorBase {
-  private String url;
-  private String authToken;
-  private String id;
   private List<String> scope = new ArrayList<>();
   private boolean auto = false;
   private boolean autoUpdate = false;
@@ -22,29 +18,15 @@ public abstract class ConnectorBase {
 
   public abstract ConnectorType getType();
 
+  public abstract String getUrl();
+
   public abstract String getApiUrl();
 
-  public boolean shouldRegister() {
-    return !StringUtils.isBlank(this.getUrl())
-        && !StringUtils.isBlank(this.getAuthToken())
-        && !StringUtils.isBlank(this.getId())
-        && !StringUtils.isBlank(this.getListenCallbackURI())
-        && !StringUtils.isBlank(this.getName())
-        && this.getType() != null;
-  }
+  public abstract String getId();
+
+  public abstract String getToken();
+
+  public abstract boolean shouldRegister();
 
   @JsonIgnore private boolean registered = false;
-
-  @Override
-  public boolean equals(Object obj) {
-    if (obj == null) {
-      return false;
-    }
-
-    if (obj.getClass() != this.getClass()) {
-      return false;
-    }
-
-    return this.getId().equals(((ConnectorBase) obj).getId());
-  }
 }

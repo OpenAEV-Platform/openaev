@@ -16,16 +16,33 @@ public class ConnectorFixture {
     private final ConnectorType type;
 
     @Override
+    public String getUrl() {
+      return "test opencti server url";
+    }
+
+    @Override
     public String getApiUrl() {
-      return getUrl();
+      return "test opencti server url";
+    }
+
+    @Override
+    public String getId() {
+      return UUID.randomUUID().toString();
+    }
+
+    @Override
+    public String getToken() {
+      return "";
+    }
+
+    @Override
+    public boolean shouldRegister() {
+      return true;
     }
   }
 
   public static ConnectorBase getDefaultConnector() {
     ConnectorBase cb = new TestConnector("Test connector", ConnectorType.INTERNAL_ENRICHMENT);
-    cb.setId(UUID.randomUUID().toString());
-    cb.setUrl("test opencti server url");
-    cb.setAuthToken(UUID.randomUUID().toString());
     cb.setAuto(false);
     cb.setAutoUpdate(false);
     cb.setOnlyContextual(false);

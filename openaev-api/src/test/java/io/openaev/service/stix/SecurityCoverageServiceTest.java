@@ -186,11 +186,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         Map.of(ExtendedProperties.COVERAGE.toString(), predictCoverageFromInjects(injects)));
   }
 
-  private List<DomainObject> getExpectedPlatformIdentities(
-      List<SecurityPlatform> securityPlatforms) {
-    return securityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
-  }
-
   @Nested
   @DisplayName("All Domain Objects are covered and all expectations are successul")
   class AllDomainObjectsCoveredAndAllExpectationsAreSuccessful {
@@ -220,7 +215,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
 
     private void assertMainAssessment(
         Bundle bundle, SecurityCoverage generatedCoverage, DomainObject expectedAssessment)
-        throws JsonProcessingException, ParsingException {
+        throws ParsingException {
 
       assertThatJson(
               bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
@@ -265,7 +260,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       assertThat(job).isNotEmpty();
 
       // act
-      Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
+      Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
 
       // assert
       SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
@@ -300,7 +295,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     CommonProperties.TYPE.toString(),
                     new StixString(ObjectTypes.RELATIONSHIP.toString()),
                     RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                    new StixString("has-assessed"),
+                    new StixString("has-covered"),
                     RelationshipObject.Properties.SOURCE_REF.toString(),
                     expectedAssessmentWithCoverage.getId(),
                     RelationshipObject.Properties.TARGET_REF.toString(),
@@ -349,7 +344,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     CommonProperties.TYPE.toString(),
                     new StixString(ObjectTypes.RELATIONSHIP.toString()),
                     RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                    new StixString("has-assessed"),
+                    new StixString("has-covered"),
                     RelationshipObject.Properties.SOURCE_REF.toString(),
                     expectedAssessmentWithCoverage.getId(),
                     RelationshipObject.Properties.TARGET_REF.toString(),
@@ -395,7 +390,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         assertThat(job).isNotEmpty();
 
         // act
-        Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.get()));
+        Bundle bundle =
+            securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
 
         // assert
         SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
@@ -422,7 +418,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                       CommonProperties.TYPE.toString(),
                       new StixString(ObjectTypes.RELATIONSHIP.toString()),
                       RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                      new StixString("has-assessed"),
+                      new StixString("has-covered"),
                       RelationshipObject.Properties.SOURCE_REF.toString(),
                       expectedAssessmentWithCoverage.getId(),
                       RelationshipObject.Properties.TARGET_REF.toString(),
@@ -574,7 +570,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
     List<Inject> generatedInjects = injectComposer.generatedItems;
     List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
-    List<AttackPattern> generatedAttackPatterns = attackPatternComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
         getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
@@ -606,7 +601,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   CommonProperties.TYPE.toString(),
                   new StixString(ObjectTypes.RELATIONSHIP.toString()),
                   RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                  new StixString("has-assessed"),
+                  new StixString("has-covered"),
                   RelationshipObject.Properties.SOURCE_REF.toString(),
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
@@ -654,7 +649,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   CommonProperties.TYPE.toString(),
                   new StixString(ObjectTypes.RELATIONSHIP.toString()),
                   RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
-                  new StixString("has-assessed"),
+                  new StixString("has-covered"),
                   RelationshipObject.Properties.SOURCE_REF.toString(),
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
@@ -863,7 +858,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
-    Instant sroStopTime = Instant.parse("2003-02-16T16:00:00Z");
     exerciseWrapper.get().setStart(sroStartTime);
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 

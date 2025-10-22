@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 public class OpenCTIConnectorService {
   @Getter private final List<ConnectorBase> connectors;
   private final OpenCTIService openCTIService;
-  private final PrivilegeService privilegeService;
 
   /**
    * Register or pings all loaded connectors. Does not crash if registering or pinging a connector
@@ -43,9 +42,8 @@ public class OpenCTIConnectorService {
         log.warn("An error occurred in the backend.", e);
       } catch (IOException e) {
         log.warn(
-            "A technical error occurred while registering connector {} with OpenCTI at {}",
+            "A technical error occurred while registering connector {} with OpenCTI",
             c.getName(),
-            c.getUrl(),
             e);
       }
     }

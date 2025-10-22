@@ -39,7 +39,9 @@ public class OpenCTIService {
 
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(), connector.getAuthToken(), new RegisterConnector(connector));
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new RegisterConnector(connector));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -72,7 +74,8 @@ public class OpenCTIService {
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
     Response r =
-        openCTIClient.execute(connector.getApiUrl(), connector.getAuthToken(), new Ping(connector));
+        openCTIClient.execute(
+            connector.getApiUrl(), classicOpenCTIConfig.getToken(), new Ping(connector));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -102,7 +105,7 @@ public class OpenCTIService {
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
-            connector.getAuthToken(),
+            classicOpenCTIConfig.getToken(),
             new PushStixBundle(connector, bundle.toStix(mapper)));
     if (r.isError()) {
       throw new ConnectorError(
@@ -127,7 +130,7 @@ public class OpenCTIService {
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createCase(
-      Execution execution, String name, String description, List<DataAttachment> attachments)
+      Execution execution, String name, String description, List<DataAttachment> ignoredAttachments)
       throws Exception {
     Mutation mut = new CreateCase(name, description);
     Response response =
@@ -144,7 +147,7 @@ public class OpenCTIService {
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createReport(
-      Execution execution, String name, String description, List<DataAttachment> attachments)
+      Execution execution, String name, String description, List<DataAttachment> ignoredAttachments)
       throws IOException {
     Mutation mut = new CreateReport(name, description, Instant.now());
     Response response =
