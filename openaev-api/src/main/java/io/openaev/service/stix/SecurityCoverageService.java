@@ -218,12 +218,7 @@ public class SecurityCoverageService {
       scenario.setRecurrence(cron);
     }
 
-    Set<Tag> tags = tagService.fetchTagsFromLabels(sa.getLabels());
-    TagCreateInput octiLabel = new TagCreateInput();
-    octiLabel.setName("opencti");
-    octiLabel.setColor("#001bda");
-    tags.add(this.tagService.upsertTag(octiLabel));
-    scenario.setTags(tags);
+    scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
   }
 
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)

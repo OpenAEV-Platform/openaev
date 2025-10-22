@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
@@ -25,7 +26,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class TagRuleService {
-  public static final String OPENCTI_TAG_NAME = "opencti";
 
   private final TagRuleRepository tagRuleRepository;
   private final TagRepository tagRepository;
