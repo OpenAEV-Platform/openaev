@@ -6,7 +6,8 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_44__Create_Dependencies_instead_of_fromStarterPack_Column extends BaseJavaMigration {
+public class V4_44__Create_Dependencies_instead_of_fromStarterPack_Column
+    extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
