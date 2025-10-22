@@ -21,10 +21,10 @@ const VideoPlayer = ({ videoLink }: VideoPlayerProps) => {
   const scriptLoadedRef = useRef(false);
 
   useEffect(() => {
-    const scriptId = 'storylane-embed';
+    const scriptId = 'oaev-demo-embed';
     if (!document.getElementById(scriptId)) {
       const script = document.createElement('script');
-      script.src = 'https://js.storylane.io/js/v2/storylane.js';
+      script.src = videoLink;
       script.async = true;
       script.id = scriptId;
       document.body.appendChild(script);
@@ -33,16 +33,16 @@ const VideoPlayer = ({ videoLink }: VideoPlayerProps) => {
   }, []);
 
   return (
-    <div className="sl-embed" style={iframeWrapperStyle}>
+    <div className="oaev-demo-embed" style={iframeWrapperStyle}>
       <iframe
         loading="lazy"
-        className="sl-demo"
+        className="oaev-demo"
         src={videoLink}
-        name="sl-embed"
+        name="oaev-demo-embed"
         allow="fullscreen"
         allowFullScreen
         style={iframeStyle}
-        title="Storylane Demo"
+        title="Video OpenAEV Demo"
       />
     </div>
   );

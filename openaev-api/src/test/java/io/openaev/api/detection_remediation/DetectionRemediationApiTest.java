@@ -14,19 +14,16 @@ import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
-import io.openaev.service.detection_remediation.DetectionRemediationAIResponse;
-import io.openaev.service.detection_remediation.DetectionRemediationCrowdstrikeResponse;
-import io.openaev.service.detection_remediation.DetectionRemediationSplunkResponse;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -91,7 +88,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<String> attackPatternsIds =
         payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(enterpriseEdition.getEncodedCertificate()).thenCallRealMethod();
@@ -120,7 +117,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<String> attackPatternsIds =
         payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     // -- EXECUTE --
     assertThatThrownBy(
@@ -138,6 +135,168 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   @Test
   @DisplayName(
+      "Generate AI rules detection remediation by payload with bad structured response webservice")
+  public void getDetectionRemediationRuleByPayloadWithBadDetectionRemediationAIResponse()
+      throws Exception {
+    // -- PREPARE -
+    Command payload =
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
+
+    List<String> attackPatternsIds =
+        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+
+    // -- MOCKING EXTERNAL WEBSERVICE CALL --
+    String detectionRemediationAIResponse = getBadDetectionRemediationAIResponse();
+    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClient.execute(
+            Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
+        .thenAnswer(inv -> detectionRemediationAIResponse);
+
+    // -- EXECUTE --
+    mockMvc
+        .perform(
+            post("/"
+                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    + "/rules/"
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isBadGateway());
+  }
+
+  @Test
+  @DisplayName(
+      "Generate AI rules detection remediation by payload with retry until service unavailable")
+  public void
+      getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseUnavailable()
+          throws Exception { // -- PREPARE -
+    Command payload =
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
+
+    List<String> attackPatternsIds =
+        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+
+    // -- MOCKING EXTERNAL WEBSERVICE CALL --
+    when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
+    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClient.execute(
+            Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            inv -> {
+              Object[] args = inv.getArguments();
+              Field f = args[1].getClass().getDeclaredField("arg$3");
+              f.setAccessible(true);
+              Integer retry = (Integer) f.get(args[1]);
+              return switch (retry) {
+                case 1, 2, 3 -> null;
+                case null, default -> throw new IllegalStateException("Not expected retry");
+              };
+            });
+
+    // -- EXECUTE --
+    mockMvc
+        .perform(
+            post("/"
+                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    + "/rules/"
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isServiceUnavailable());
+  }
+
+  @Test
+  @DisplayName(
+      "Generate AI rules detection remediation by payload with retry until bad gateway (platform issue)")
+  public void
+      getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseBadGateway()
+          throws Exception { // -- PREPARE -
+    Command payload =
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
+
+    List<String> attackPatternsIds =
+        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+
+    // -- MOCKING EXTERNAL WEBSERVICE CALL --
+    String detectionRemediationAIBadResponse = getBadDetectionRemediationAIResponse();
+    when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
+    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClient.execute(
+            Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            inv -> {
+              Object[] args = inv.getArguments();
+              Field f = args[1].getClass().getDeclaredField("arg$3");
+              f.setAccessible(true);
+              Integer retry = (Integer) f.get(args[1]);
+              return switch (retry) {
+                case 1, 2 -> null;
+                case 3 -> detectionRemediationAIBadResponse;
+                case null, default -> throw new IllegalStateException("Not expected retry");
+              };
+            });
+
+    // -- EXECUTE --
+    mockMvc
+        .perform(
+            post("/"
+                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    + "/rules/"
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isBadGateway());
+  }
+
+  @Test
+  @DisplayName(
+      "Generate AI rules detection remediation by payload with retry until service available")
+  public void getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponse()
+      throws Exception { // -- PREPARE -
+    Command payload =
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
+
+    List<String> attackPatternsIds =
+        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
+
+    // -- MOCKING EXTERNAL WEBSERVICE CALL --
+    String detectionRemediationAIGoodResponse =
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
+    when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
+    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClient.execute(
+            Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            inv -> {
+              Object[] args = inv.getArguments();
+              Field f = args[1].getClass().getDeclaredField("arg$3");
+              f.setAccessible(true);
+              Integer retry = (Integer) f.get(args[1]);
+              return switch (retry) {
+                case 1, 2 -> null;
+                case 3 -> detectionRemediationAIGoodResponse;
+                case null, default -> throw new IllegalStateException("Not expected retry");
+              };
+            });
+
+    // -- EXECUTE --
+    mockMvc
+        .perform(
+            post("/"
+                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    + "/rules/"
+                    + CROWDSTRIKE_FRONTEND_NAME)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName(
       "Generate AI rules detection remediation for CrowdStrike using a payload of type command with rules")
   public void getDetectionRemediationRuleBasedPayloadCommandCrowdStrikeWithRules() {
 
@@ -147,7 +306,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<String> attackPatternsIds =
         payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     DetectionRemediationInput detectionRemediationInput = new DetectionRemediationInput();
     detectionRemediationInput.setValues("I have a rule");
@@ -184,13 +343,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<String> attackPatternsIds =
         payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -255,13 +413,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         attackPatterns, payloadArguments))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -326,13 +483,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         attackPatterns, payloadArguments))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -380,13 +536,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         attackPatterns, payloadArguments))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -451,13 +606,12 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         attackPatterns, payloadArguments))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -507,7 +661,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     // -- EXECUTE --
     ResultActions output =
@@ -545,7 +699,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         DocumentFixture.getDocument(FileFixture.getPlainTextFileContent())))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     // -- EXECUTE --
     ResultActions output =
@@ -583,7 +737,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     // -- EXECUTE --
     ResultActions output =
@@ -621,7 +775,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
                 .get();
 
-    PayloadInput input = getPayloadInput(payload, attackPatternsIds);
+    PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
 
     // -- EXECUTE --
     ResultActions output =
@@ -749,8 +903,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -785,8 +938,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -854,8 +1006,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -908,8 +1059,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -979,8 +1129,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -1032,8 +1181,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -1069,8 +1217,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -1107,8 +1254,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.CROWDSTRIKE);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -1144,8 +1290,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     // -- MOCKING EXTERNAL WEBSERVICE CALL --
     String detectionRemediationAIResponse =
-        mapper.writeValueAsString(
-            getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK));
+        getDetectionRemediationAIResponseByCollector(CollectorsUtils.SPLUNK);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute(
             Mockito.any(ClassicHttpRequest.class), Mockito.any(HttpClientResponseHandler.class)))
@@ -1364,36 +1509,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         .get();
   }
 
-  private PayloadInput getPayloadInput(Payload payload, List<String> attackPatternsIds) {
-
-    PayloadInput input = new PayloadInput();
-    input.setType(payload.getType());
-    input.setName(payload.getName());
-    input.setPlatforms(payload.getPlatforms());
-    input.setDescription(payload.getDescription());
-    input.setExecutionArch(payload.getExecutionArch());
-    input.setArguments(payload.getArguments());
-    input.setPrerequisites(payload.getPrerequisites());
-    input.setCleanupExecutor(payload.getCleanupExecutor());
-    input.setCleanupCommand(payload.getCleanupCommand());
-    input.setTagIds(new ArrayList<>());
-    input.setDetectionRemediations(new ArrayList<>());
-    input.setOutputParsers(new HashSet<>());
-    input.setAttackPatternsIds(attackPatternsIds);
-    switch (payload) {
-      case Command command -> {
-        input.setExecutor(command.getExecutor());
-        input.setContent(command.getContent());
-      }
-      case DnsResolution dnsResolution -> input.setHostname(dnsResolution.getHostname());
-      case Executable executable -> executable.setExecutableFile(executable.getExecutableFile());
-      case FileDrop fileDrop -> fileDrop.setFileDropFile(fileDrop.getFileDropFile());
-      default -> {}
-    }
-
-    return input;
-  }
-
   private List<PayloadArgument> getPayloadArguments() {
     PayloadArgument payloadArgumentText =
         PayloadFixture.createPayloadArgument("guest_user", ContractFieldType.Text, "guest", null);
@@ -1420,12 +1535,27 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     return new ArrayList<>(Arrays.asList(attackPattern1, attackPattern2, attackPattern3));
   }
 
-  private DetectionRemediationAIResponse getDetectionRemediationAIResponseByCollector(
-      String collectorType) throws JsonProcessingException {
+  private String getBadDetectionRemediationAIResponse() {
+    return """
+              <html>
+              <head><title>Service Temporarily Unavailable</title></head>
+              <body style="background-color: #070d19; font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif; font-size: 16px;">
+              <div style="margin: 0 auto; width: 30%; margin-top: 300px; font-size: huge; color: #FFFFFF"><img
+                      style="margin-bottom: 10px; width: 150px;" src="https://filigran.io/app/themes/filigran/src/images/logo.svg"/>
+                  <p style="line-height: 32px;">The server encountered a temporary error and could not complete your request.<br/>Please
+                      try again in a few minutes.</p>
+                  <p style="margin-top: 10px; font-size: 14px;"><a href="https://status.filigran.io" style="color: #0fbcff">Infrastructure
+                      Status</a> - <a href="https://support.filigran.io" style="color: #0fbcff">Technical Support</a></div>
+              <span style="position: absolute; right: 20px; bottom: 20px; font-size: 12px; color: #616161">HTTP 503 Service Unavailable</span></p>
+              </body>
+              </html>
+              """;
+  }
+
+  private String getDetectionRemediationAIResponseByCollector(String collectorType) {
     switch (collectorType) {
       case CollectorsUtils.CROWDSTRIKE -> {
-        String jsonResponse =
-            """
+        return """
                                                {
                                                  "success": true,
                                                  "rules": [
@@ -1456,18 +1586,15 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                                                  "message": "Rules generated successfully"
                                                }
                         """;
-        return mapper.readValue(jsonResponse, DetectionRemediationCrowdstrikeResponse.class);
       }
       case CollectorsUtils.SPLUNK -> {
-        String jsonResponse =
-            """
+        return """
                         {
                           "success": true,
                           "spl_query": "index=windows EventCode=4688 CommandLine=\\"*Invoke-WebRequest*\\" CommandLine=\\"*AnyDesk*\\" | stats count by Computer, User, CommandLine | sort -count",
                           "message": "SPL query generated successfully"
                         }
                         """;
-        return mapper.readValue(jsonResponse, DetectionRemediationSplunkResponse.class);
       }
       default ->
           throw new IllegalStateException("Collector :\"" + collectorType + "\" unsupported");

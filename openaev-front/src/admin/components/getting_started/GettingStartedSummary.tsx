@@ -7,6 +7,7 @@ import VideoPlayer from './VideoPlayer';
 const GettingStartedSummary = () => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const videoLink = 'https://www.youtube.com/embed/wb_v7sa7y8w?rel=0&modestbranding=1&loop=1&playlist=wb_v7sa7y8w';
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
@@ -20,6 +21,7 @@ const GettingStartedSummary = () => {
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
+          gap: theme.spacing(1),
         }}
         >
           <Box style={{
@@ -41,7 +43,7 @@ const GettingStartedSummary = () => {
             </List>
             {t('getting_started_description_conclusion_text')}
           </Box>
-          <VideoPlayer videoLink="https://app.storylane.io/demo/bxqijbtlfklz" />
+          <VideoPlayer videoLink={videoLink} />
         </Box>
       </Paper>
     </Box>
