@@ -37,7 +37,6 @@ const EnterpriseEditionAgreementDialog = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [enterpriseLicense, setEnterpriseLicense] = useState('');
-    console.log('enterpriseLicense',enterpriseLicense);
     const onCloseEnterpriseEditionDialog = () => {
     closeDialog();
     setEEFeatureDetectedInfo('');
