@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -23,6 +24,10 @@ public class DetectionRemediationRequest {
       description =
           "Concatenated payload string containing: Name, Type, optional Hostname/Command details, Description, Platform, Attack patterns, Architecture, Arguments")
   private String payload;
+
+  @Setter
+  @Schema(description = "Client Id and timestamps use to monitored AI usage from webservice")
+  private String sessionId;
 
   public DetectionRemediationRequest(
       PayloadInput payloadInput, List<AttackPattern> attackPatterns) {
