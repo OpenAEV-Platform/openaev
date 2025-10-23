@@ -42,9 +42,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
     },
   );
 
-  const handleOpenEdit = () => {
-    setOpenEdit(true);
-  };
+  const handleOpenEdit = () => setOpenEdit(true);
 
   const handleCloseEdit = () => setOpenEdit(false);
 
@@ -56,11 +54,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
     };
 
     return dispatch(updateUser(user.user_id, inputValues)).then((result: UserResult) => {
-      if (!result?.entities?.users) {
-        return result;
-      }
-
-      if (onUpdate) {
+      if (result?.entities?.users && onUpdate) {
         const userUpdated = result.entities.users[result.result];
 
         const orgId = userUpdated.user_organization;
@@ -78,19 +72,13 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
     });
   };
 
-  const handleOpenEditPassword = () => {
-    setOpenEditPassword(true);
-  };
+  const handleOpenEditPassword = () => setOpenEditPassword(true);
 
   const handleCloseEditPassword = () => setOpenEditPassword(false);
 
-  const onSubmitEditPassword = (data: ChangePasswordInput) => {
-    dispatch(updateUserPassword(user.user_id, data)).then(() => handleCloseEditPassword());
-  };
+  const onSubmitEditPassword = (data: ChangePasswordInput) => dispatch(updateUserPassword(user.user_id, data)).then(() => handleCloseEditPassword());
 
-  const handleOpenDelete = () => {
-    setOpenDelete(true);
-  };
+  const handleOpenDelete = () => setOpenDelete(true);
 
   const handleCloseDelete = () => setOpenDelete(false);
 

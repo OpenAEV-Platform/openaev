@@ -38,11 +38,7 @@ const CreateUser = ({ onCreate }: CreateUserProps) => {
     };
 
     return dispatch(addUser(inputValues)).then((result: UserResult) => {
-      if (!result?.entities?.users) {
-        return result;
-      }
-
-      if (onCreate) {
+      if (result?.entities?.users && onCreate) {
         const userCreated = result.entities.users[result.result];
 
         const orgId = userCreated.user_organization;
