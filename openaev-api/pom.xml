@@ -14,7 +14,7 @@
     <description>OpenAEV api</description>
 
     <properties>
-        <bcpg-jdk18on.version>1.81</bcpg-jdk18on.version>
+        <bcpg-jdk18on.version>1.82</bcpg-jdk18on.version>
         <commons-collections4.version>4.5.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
         <springdoc.version>2.6.0</springdoc.version>
