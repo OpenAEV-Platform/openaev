@@ -30,8 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockSecurityCoverageConnectorConfig(
     url = "some-url",
-    authToken = "68949a7b-c1c2-4649-b3de-7db804ba02bb",
-    id = "a0f2d50c-3712-47bd-8305-e2412769eb86")
+    token = "68949a7b-c1c2-4649-b3de-7db804ba02bb")
 public class OpenCTIConnectorServiceTest {
   @MockBean private OpenCTIClient mockOpenCTIClient;
   @Autowired OpenCTIConnectorService openCTIConnectorService;
