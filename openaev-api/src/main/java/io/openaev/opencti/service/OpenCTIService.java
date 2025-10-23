@@ -46,6 +46,7 @@ public class OpenCTIService {
       throw new ConnectorError(
           """
         Failed to register connector %s with OpenCTI at %s
+        OpenCTI >= 6.8.9 is required with valid authentication token
         Errors: %s
         """
               .formatted(

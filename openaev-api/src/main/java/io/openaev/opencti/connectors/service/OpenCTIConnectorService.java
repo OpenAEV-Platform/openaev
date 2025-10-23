@@ -38,13 +38,8 @@ public class OpenCTIConnectorService {
         } else {
           openCTIService.pingConnector(c);
         }
-      } catch (ConnectorError e) {
-        log.warn("An error occurred in the backend.", e);
-      } catch (IOException e) {
-        log.warn(
-            "A technical error occurred while registering connector {} with OpenCTI",
-            c.getName(),
-            e);
+      } catch (Exception e) {
+        log.error("Error at OpenCTI connector registration or ping", e);
       }
     }
   }

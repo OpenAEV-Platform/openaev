@@ -55,7 +55,11 @@ public class StixApi extends RestBehavior {
     try {
       JsonNode root = objectMapper.readTree(ctiEvent);
       String stixJson = root.get("event").get("stix_objects").asText(); // As text is required here
+      // Create scenario from stix bundle
       Scenario scenario = stixService.processBundle(stixJson);
+      // TODO Schedule or not, start directly on execution after create/update
+      // If no simulation for this scenario is in progress, start an execution right away
+      // Generate response
       String summary = stixService.generateBundleImportReport(scenario);
       BundleImportReport importReport = new BundleImportReport(scenario.getId(), summary);
       return ResponseEntity.ok(importReport);
