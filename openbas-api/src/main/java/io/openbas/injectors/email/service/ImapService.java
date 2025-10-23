@@ -195,6 +195,7 @@ public class ImapService {
     props.setProperty("mail.imap.starttls.enable", sslStartTLS);
     props.setProperty("mail.debug", debug);
     props.setProperty("mail.debug.auth.password", "true");
+    props.setProperty("mail.debug.auth", "true");
     return props;
   }
 
