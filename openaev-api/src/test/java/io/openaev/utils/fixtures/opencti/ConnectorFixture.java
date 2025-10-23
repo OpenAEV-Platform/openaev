@@ -32,7 +32,7 @@ public class ConnectorFixture {
 
     @Override
     public String getToken() {
-      return "";
+      return UUID.randomUUID().toString();
     }
 
     @Override

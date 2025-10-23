@@ -119,7 +119,7 @@ public class SecurityCoverageInjectService {
 
     // 3. Create placeholders for vulnerabilities
     List<String> foundVulnerabilities =
-        requiredVulnerabilities.stream().map(Cve::getExternalId).toList();
+        requiredVulnerabilities.stream().map(Vulnerability::getExternalId).toList();
     List<String> missingVulnerabilities =
         vulnerabilityRefs.stream()
             .map(StixRefToExternalRef::getExternalRef)
