@@ -16,9 +16,20 @@
             "period_start": "2025-08-04T14:00:00Z",
             "scheduling": "d",
             "spec_version": "2.1",
-            "threat_context_ref": "report--453a2ac1-e111-57bf-8277-dbec448cd851",
             "type": "security-coverage",
-            "x_opencti_type": "security-coverage"
+            "extensions": {
+              "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+                "extension_type": "new-sdo",
+                "id": "b19abcdf-01f7-48a4-a7b9-a2e7ddde1763",
+                "type": "Security-Coverage",
+                "created_at": "2025-10-23T13:57:52.403Z",
+                "updated_at": "2025-10-23T18:56:25.487Z",
+                "is_inferred": false,
+                "creator_ids": [
+                  "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+                ]
+              }
+            }
         }
     ]
 }}}

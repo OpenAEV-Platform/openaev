@@ -12,18 +12,24 @@
             "covered_ref": "64f9b3ef-cca7-4820-9230-8594ddeeccb5",
             "modified": "2025-08-04T14:00:00Z",
             "name": "Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED",
-            "object_refs": [
-                "vulnerability--f3e6ad4a-0d91-575b-ac6b-9299d038804a",
-                "attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1",
-                "attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9"
-            ],
             "period_end": "2025-09-04T14:00:00Z",
             "period_start": "2025-08-04T14:00:00Z",
             "scheduling": "d",
             "spec_version": "2.1",
-            "threat_context_ref": "report--453a2ac1-e111-57bf-8277-dbec448cd851",
             "type": "security-coverage",
-            "x_opencti_type": "security-coverage"
+            "extensions": {
+              "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+                "extension_type": "new-sdo",
+                "id": "b19abcdf-01f7-48a4-a7b9-a2e7ddde1763",
+                "type": "Security-Coverage",
+                "created_at": "2025-10-23T13:57:52.403Z",
+                "updated_at": "2025-10-23T18:56:25.487Z",
+                "is_inferred": false,
+                "creator_ids": [
+                  "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+                ]
+              }
+            }
         },
         {
             "aliases": [
