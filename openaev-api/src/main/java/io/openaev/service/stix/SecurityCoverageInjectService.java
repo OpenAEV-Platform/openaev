@@ -7,10 +7,10 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.cve.service.CveService;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,7 +32,7 @@ public class SecurityCoverageInjectService {
   private final InjectService injectService;
   private final InjectAssistantService injectAssistantService;
   private final AttackPatternService attackPatternService;
-  private final CveService vulnerabilityService;
+  private final VulnerabilityService vulnerabilityService;
   private final AssetGroupService assetGroupService;
   private final InjectorContractService injectorContractService;
 
@@ -108,11 +108,11 @@ public class SecurityCoverageInjectService {
       InjectorContract contractForPlaceholder) {
 
     // 1. Fetch internal Ids for Vulnerabilities
-    Set<Cve> requiredVulnerabilities =
+    Set<Vulnerability> requiredVulnerabilities =
         vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
 
     // 2. Fetch covered vulnerabilities and endpoints
-    Map<Cve, Set<Inject>> currentlyCoveredCveInjectsMap =
+    Map<Vulnerability, Set<Inject>> currentlyCoveredCveInjectsMap =
         buildCoveredCveInjectsMap(scenario.getInjects());
 
     // 3. remove obsolete injects
@@ -120,8 +120,8 @@ public class SecurityCoverageInjectService {
         findObsoleteInjects(currentlyCoveredCveInjectsMap, requiredVulnerabilities));
 
     // 4. Identify missing injects
-    Set<Cve> missingVulns = new HashSet<>();
-    for (Cve key : requiredVulnerabilities) {
+    Set<Vulnerability> missingVulns = new HashSet<>();
+    for (Vulnerability key : requiredVulnerabilities) {
       if (!currentlyCoveredCveInjectsMap.containsKey(key)) {
         missingVulns.add(key);
       }
@@ -139,7 +139,7 @@ public class SecurityCoverageInjectService {
     }
   }
 
-  private Map<Cve, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
+  private Map<Vulnerability, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
     return coveredInjects.stream()
         // Keep only injects that have a contract and vulnerabilities
         .filter(
@@ -156,11 +156,12 @@ public class SecurityCoverageInjectService {
   }
 
   private List<Inject> findObsoleteInjects(
-      Map<Cve, Set<Inject>> coveredCveEndpointsMap, Set<Cve> requiredVulnerabilities) {
+      Map<Vulnerability, Set<Inject>> coveredCveEndpointsMap,
+      Set<Vulnerability> requiredVulnerabilities) {
     List<Inject> injectsToRemove = new ArrayList<>();
 
-    for (Map.Entry<Cve, Set<Inject>> entry : coveredCveEndpointsMap.entrySet()) {
-      Cve coveredVuln = entry.getKey();
+    for (Map.Entry<Vulnerability, Set<Inject>> entry : coveredCveEndpointsMap.entrySet()) {
+      Vulnerability coveredVuln = entry.getKey();
       Set<Inject> injects = entry.getValue();
 
       for (Inject inject : injects) {

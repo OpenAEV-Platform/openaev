@@ -17,10 +17,10 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.cve.service.CveService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioService;
@@ -71,7 +71,7 @@ public class SecurityCoverageService {
   private final Parser stixParser;
 
   private final ObjectMapper objectMapper;
-  private final CveService cveService;
+  private final VulnerabilityService vulnerabilityService;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -363,9 +363,9 @@ public class SecurityCoverageService {
     return getCoverage(
         externalRef,
         exercise,
-        id -> cveService.getVulnerabilitiesByExternalIds(Set.of(id)),
+        id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
         InjectorContract::getVulnerabilities,
-        Cve::getId);
+        Vulnerability::getId);
   }
 
   private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {

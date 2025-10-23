@@ -70,15 +70,15 @@ public interface InjectorContractRepository
         FROM (
             SELECT ic.*,
                    ROW_NUMBER() OVER (
-                       PARTITION BY cve.cve_external_id
+                       PARTITION BY vulnerability.vulnerability_external_id
                        ORDER BY ic.injector_contract_updated_at DESC
                    ) AS rn
             FROM injectors_contracts ic
             JOIN injectors_contracts_vulnerabilities icv
               ON ic.injector_contract_id = icv.injector_contract_id
-            JOIN cves cve
-              ON icv.vulnerability_id = cve.cve_id
-            WHERE LOWER(cve.cve_external_id) IN (:externalIds)
+            JOIN vulnerabilities vulnerability
+              ON icv.vulnerability_id = vulnerability.vulnerability_id
+            WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,

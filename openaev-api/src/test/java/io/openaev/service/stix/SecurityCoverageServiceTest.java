@@ -46,7 +46,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobComposer securityCoverageSendJobComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private AttackPatternComposer attackPatternComposer;
-  @Autowired private CveComposer vulnerabilityComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
@@ -78,17 +78,17 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
    */
   private ExerciseComposer.Composer createExerciseWrapperWithInjectsForDomainObjects(
       Map<AttackPatternComposer.Composer, java.lang.Boolean> attackPatternWrappers,
-      Map<CveComposer.Composer, java.lang.Boolean> vulnWrappers) {
+      Map<VulnerabilityComposer.Composer, java.lang.Boolean> vulnWrappers) {
 
     // ensure attack patterns have IDs
     attackPatternWrappers.keySet().forEach(AttackPatternComposer.Composer::persist);
     // ensure vulns have IDs
-    vulnWrappers.keySet().forEach(CveComposer.Composer::persist);
+    vulnWrappers.keySet().forEach(VulnerabilityComposer.Composer::persist);
 
     List<AttackPattern> attackPatternList =
         attackPatternWrappers.keySet().stream().map(AttackPatternComposer.Composer::get).toList();
-    List<Cve> vulnerabilities =
-        vulnWrappers.keySet().stream().map(CveComposer.Composer::get).toList();
+    List<Vulnerability> vulnerabilities =
+        vulnWrappers.keySet().stream().map(VulnerabilityComposer.Composer::get).toList();
 
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
@@ -131,7 +131,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       }
     }
 
-    for (Map.Entry<CveComposer.Composer, java.lang.Boolean> vulnw : vulnWrappers.entrySet()) {
+    for (Map.Entry<VulnerabilityComposer.Composer, java.lang.Boolean> vulnw :
+        vulnWrappers.entrySet()) {
       if (vulnw.getValue()) { // this vuln should be covered
         exerciseWrapper.withInject(
             injectComposer
@@ -377,8 +378,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           "When all vulnerabilities are covered and all expectations are successful, bundle is correct")
       public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
           throws ParsingException, JsonProcessingException {
-        CveComposer.Composer vuln1 =
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+        VulnerabilityComposer.Composer vuln1 =
+            vulnerabilityComposer.forVulnerability(
+                VulnerabilityFixture.createVulnerabilityInput("CVE-1234-5678"));
         // create exercise cover all TTPs
         ExerciseComposer.Composer exerciseWrapper =
             createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));
@@ -445,8 +447,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           "When all vulnerabilities are covered and all expectations are successful, bundle is correct")
       public void whenAllVulnerabilitiesAreCoveredAndAllExpectationsAreSuccessful_bundleIsCorrect()
           throws ParsingException, JsonProcessingException {
-        CveComposer.Composer vuln1 =
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-1234-5678"));
+        VulnerabilityComposer.Composer vuln1 =
+            vulnerabilityComposer.forVulnerability(
+                VulnerabilityFixture.createVulnerabilityInput("CVE-1234-5678"));
         // create exercise cover all TTPs
         ExerciseComposer.Composer exerciseWrapper =
             createExerciseWrapperWithInjectsForDomainObjects(Map.of(), Map.of(vuln1, true));

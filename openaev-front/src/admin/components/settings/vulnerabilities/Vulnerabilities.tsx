@@ -4,7 +4,7 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchCves } from '../../../../actions/cve-actions';
+import { searchVulnerabilities } from '../../../../actions/vulnerability-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import Drawer from '../../../../components/common/Drawer';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -17,13 +17,13 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import CVSSBadge from '../../../../components/CvssBadge';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { type CveSimple, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type SearchPaginationInput, type VulnerabilitySimple } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TaxonomiesMenu from '../TaxonomiesMenu';
-import CreateCve from './CreateCve';
-import CveDetail from './CveDetail';
-import CvePopover from './CvePopover';
+import CreateVulnerability from './CreateVulnerability';
+import VulnerabilityDetail from './VulnerabilityDetail';
+import VulnerabilityPopover from './VulnerabilityPopover';
 
 const useStyles = makeStyles()({
   itemHead: { textTransform: 'uppercase' },
@@ -31,56 +31,56 @@ const useStyles = makeStyles()({
 });
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  cve_external_id: { width: '20%' },
-  cve_cvss_v31: { width: '20%' },
-  cve_published: { width: '60%' },
+  vulnerability_external_id: { width: '20%' },
+  vulnerability_cvss_v31: { width: '20%' },
+  vulnerability_published: { width: '60%' },
 });
 
-const Cves = () => {
+const Vulnerabilities = () => {
   const { fldt, t } = useFormatter();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedCve, setSelectedCve] = useState<CveSimple | null>(null);
+  const [selectedVulnerability, setSelectedVulnerability] = useState<VulnerabilitySimple | null>(null);
   // Filter
   const availableFilterNames = [
-    'cve_external_id',
+    'vulnerability_external_id',
   ];
-  const [cves, setCves] = useState<CveSimple[]>([]);
+  const [vulnerabilities, setVulnerabilities] = useState<VulnerabilitySimple[]>([]);
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('cve', buildSearchPagination({
-    sorts: initSorting('cve_created_at', 'DESC'),
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('vulnerability', buildSearchPagination({
+    sorts: initSorting('vulnerability_created_at', 'DESC'),
     textSearch: search,
   }));
 
-  const searchCvesToload = (input: SearchPaginationInput) => {
+  const searchVulnerabilitiesToload = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchCves(input).finally(() => {
+    return searchVulnerabilities(input).finally(() => {
       setLoading(false);
     });
   };
 
   const headers: Header[] = useMemo(() => [
     {
-      field: 'cve_external_id',
-      label: 'CVE ID',
+      field: 'vulnerability_external_id',
+      label: 'VULNERABILITY ID',
       isSortable: true,
-      value: (cve: CveSimple) => cve.cve_external_id,
+      value: (vulnerability: VulnerabilitySimple) => vulnerability.vulnerability_external_id,
     },
     {
-      field: 'cve_cvss_v31',
+      field: 'vulnerability_cvss_v31',
       label: 'CVSS',
       isSortable: true,
-      value: (cve: CveSimple) => (
-        <CVSSBadge score={cve.cve_cvss_v31}></CVSSBadge>
+      value: (vulnerability: VulnerabilitySimple) => (
+        <CVSSBadge score={vulnerability.vulnerability_cvss_v31}></CVSSBadge>
       ),
     },
     {
-      field: 'cve_published',
+      field: 'vulnerability_published',
       label: 'NVD Published Date',
       isSortable: true,
-      value: (cve: CveSimple) => fldt(cve.cve_published),
+      value: (vulnerability: VulnerabilitySimple) => fldt(vulnerability.vulnerability_published),
     },
   ], []);
 
@@ -95,12 +95,12 @@ const Cves = () => {
           }]}
         />
         <PaginationComponentV2
-          fetch={searchCvesToload}
+          fetch={searchVulnerabilitiesToload}
           searchPaginationInput={searchPaginationInput}
-          setContent={setCves}
+          setContent={setVulnerabilities}
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
-          entityPrefix="cve"
+          entityPrefix="vulnerability"
         />
         <List>
           <ListItem
@@ -120,22 +120,22 @@ const Cves = () => {
             />
           </ListItem>
 
-          {loading ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} /> : cves.map(cve => (
+          {loading ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} /> : vulnerabilities.map(vulnerability => (
             <ListItem
-              key={cve.cve_id}
+              key={vulnerability.vulnerability_id}
               divider
               disablePadding
               secondaryAction={(
-                <CvePopover
-                  cve={cve}
-                  onUpdate={(result: CveSimple) => setCves(cves.map(a => (a.cve_id !== result.cve_id ? a : result)))}
-                  onDelete={(result: string) => setCves(cves.filter(a => (a.cve_id !== result)))}
+                <VulnerabilityPopover
+                  vulnerability={vulnerability}
+                  onUpdate={(result: VulnerabilitySimple) => setVulnerabilities(vulnerabilities.map(a => (a.vulnerability_id !== result.vulnerability_id ? a : result)))}
+                  onDelete={(result: string) => setVulnerabilities(vulnerabilities.filter(a => (a.vulnerability_id !== result)))}
                 />
               )}
             >
               <ListItemButton
                 classes={{ root: classes.item }}
-                onClick={() => setSelectedCve(cve)}
+                onClick={() => setSelectedVulnerability(vulnerability)}
               >
                 <ListItemIcon>
                   <ReportProblemOutlined />
@@ -151,7 +151,7 @@ const Cves = () => {
                             ...inlineStyles[header.field],
                           }}
                         >
-                          {header.value && header.value(cve)}
+                          {header.value && header.value(vulnerability)}
                         </div>
                       ))}
                     </div>
@@ -162,20 +162,20 @@ const Cves = () => {
           ))}
         </List>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-          <CreateCve
-            onCreate={(result: CveSimple) => setCves([result, ...cves])}
+          <CreateVulnerability
+            onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
           />
         </Can>
         <Drawer
-          open={!!selectedCve}
-          handleClose={() => setSelectedCve(null)}
-          title={selectedCve?.cve_external_id ?? ''}
-          additionalTitle={selectedCve?.cve_cvss_v31 ? 'CVSS' : undefined}
-          additionalChipLabel={selectedCve?.cve_cvss_v31.toFixed(1)}
+          open={!!selectedVulnerability}
+          handleClose={() => setSelectedVulnerability(null)}
+          title={selectedVulnerability?.vulnerability_external_id ?? ''}
+          additionalTitle={selectedVulnerability?.vulnerability_cvss_v31 ? 'CVSS' : undefined}
+          additionalChipLabel={selectedVulnerability?.vulnerability_cvss_v31.toFixed(1)}
         >
-          {selectedCve && (
-            <CveDetail
-              selectedCve={selectedCve}
+          {selectedVulnerability && (
+            <VulnerabilityDetail
+              selectedVulnerability={selectedVulnerability}
             />
           )}
         </Drawer>
@@ -185,4 +185,4 @@ const Cves = () => {
   );
 };
 
-export default Cves;
+export default Vulnerabilities;

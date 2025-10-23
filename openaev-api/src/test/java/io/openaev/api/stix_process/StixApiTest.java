@@ -5,7 +5,7 @@ import static io.openaev.injector_contract.InjectorContractContentUtilsTest.crea
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.service.TagRuleService.OPENCTI_TAG_NAME;
-import static io.openaev.utils.fixtures.CveFixture.CVE_2023_48788;
+import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -56,7 +56,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
 
   @Autowired private AttackPatternComposer attackPatternComposer;
-  @Autowired private CveComposer vulnerabilityComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private TagRuleComposer tagRuleComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -139,7 +139,8 @@ class StixApiTest extends IntegrationTest {
             InjectorContractFixture.createInjectorContract(createContentWithFieldAsset()))
         .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
         .withVulnerability(
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56785")))
+            vulnerabilityComposer.forVulnerability(
+                VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56785")))
         .persist();
 
     injectorContractComposer
@@ -147,7 +148,8 @@ class StixApiTest extends IntegrationTest {
             InjectorContractFixture.createInjectorContract(createContentWithFieldAssetGroup()))
         .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
         .withVulnerability(
-            vulnerabilityComposer.forCve(CveFixture.createDefaultCve("CVE-2025-56786")))
+            vulnerabilityComposer.forVulnerability(
+                VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56786")))
         .persist();
 
     tagRuleComposer

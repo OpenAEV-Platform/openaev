@@ -3,7 +3,6 @@ package io.openaev.rest.injector_contract;
 import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonUtils.asJsonString;
-import static io.openaev.utils.fixtures.CveFixture.getRandomExternalVulnerabilityId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
@@ -28,14 +27,14 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.CveFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.VulnerabilityFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
-import io.openaev.utils.fixtures.composers.CveComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.VulnerabilityComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -71,7 +70,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
-  @Autowired private CveComposer cveComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadComposer payloadComposer;
 
@@ -85,7 +84,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     payloadComposer.reset();
-    cveComposer.reset();
+    vulnerabilityComposer.reset();
     userComposer.reset();
     groupComposer.reset();
     roleComposer.reset();
@@ -168,15 +167,18 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+          vulnerabilityComposer
+              .forVulnerability(
+                  VulnerabilityFixture.createVulnerabilityInput(
+                      VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
         em.clear();
 
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(cveComposer.generatedItems.stream().map(Cve::getId).toList());
+        input.setVulnerabilityIds(
+            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL
@@ -279,9 +281,11 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
-        CveComposer.Composer vulnWrapper =
-            cveComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+        VulnerabilityComposer.Composer vulnWrapper =
+            vulnerabilityComposer
+                .forVulnerability(
+                    VulnerabilityFixture.createVulnerabilityInput(
+                        VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
@@ -317,13 +321,17 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract succeeds with external vuln IDs")
       void updateContractWithExtVulnIdsSucceeds() throws Exception {
-        CveComposer.Composer vulnWrapper =
-            cveComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+        VulnerabilityComposer.Composer vulnWrapper =
+            vulnerabilityComposer
+                .forVulnerability(
+                    VulnerabilityFixture.createVulnerabilityInput(
+                        VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
-        CveComposer.Composer otherVulnWrapper =
-            cveComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+        VulnerabilityComposer.Composer otherVulnWrapper =
+            vulnerabilityComposer
+                .forVulnerability(
+                    VulnerabilityFixture.createVulnerabilityInput(
+                        VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer
@@ -556,8 +564,10 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities, creating contract succeeds")
       void withExistingVulnerabilitiesCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+          vulnerabilityComposer
+              .forVulnerability(
+                  VulnerabilityFixture.createVulnerabilityInput(
+                      VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
@@ -565,7 +575,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
-        input.setVulnerabilityIds(cveComposer.generatedItems.stream().map(Cve::getId).toList());
+        input.setVulnerabilityIds(
+            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
         input.setContent("{\"fields\":[]}");
 
@@ -603,7 +614,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                     injectorContractInternalId,
                     String.join(
                         ",",
-                        cveComposer.generatedItems.stream()
+                        vulnerabilityComposer.generatedItems.stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
                             .toList())));
       }
@@ -612,8 +623,10 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("With existing vulnerabilities by external ID, creating contract succeeds")
       void withExistingVulnerabilitiesByExternalIdCreateContractSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+          vulnerabilityComposer
+              .forVulnerability(
+                  VulnerabilityFixture.createVulnerabilityInput(
+                      VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
@@ -623,7 +636,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setVulnerabilityExternalIds(
             // force converting the ids to lower case; it must work in case-insensitive mode
-            cveComposer.generatedItems.stream()
+            vulnerabilityComposer.generatedItems.stream()
                 .map(vuln -> vuln.getExternalId().toLowerCase())
                 .toList());
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
@@ -663,7 +676,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                     injectorContractInternalId,
                     String.join(
                         ",",
-                        cveComposer.generatedItems.stream()
+                        vulnerabilityComposer.generatedItems.stream()
                             .map(vuln -> String.format("\"" + vuln.getId() + "\""))
                             .toList())));
       }
@@ -807,15 +820,18 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating vulnerability mappings succeeds")
       void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
-          cveComposer
-              .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+          vulnerabilityComposer
+              .forVulnerability(
+                  VulnerabilityFixture.createVulnerabilityInput(
+                      VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
         em.flush();
         em.clear();
 
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(cveComposer.generatedItems.stream().map(Cve::getId).toList());
+        input.setVulnerabilityIds(
+            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
@@ -904,9 +920,11 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
-        CveComposer.Composer vulnWrapper =
-            cveComposer
-                .forCve(CveFixture.createDefaultCve(getRandomExternalVulnerabilityId()))
+        VulnerabilityComposer.Composer vulnWrapper =
+            vulnerabilityComposer
+                .forVulnerability(
+                    VulnerabilityFixture.createVulnerabilityInput(
+                        VulnerabilityFixture.getRandomExternalVulnerabilityId()))
                 .persist();
         AttackPatternComposer.Composer attackPatternWrapper =
             attackPatternComposer

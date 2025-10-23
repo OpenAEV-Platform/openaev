@@ -1187,48 +1187,7 @@ export interface CveSimple {
   cve_published?: string;
 }
 
-/** Payload to update a CVE */
-export interface CveUpdateInput {
-  /**
-   * Date when action is due by CISA
-   * @format date-time
-   */
-  cve_cisa_action_due?: string;
-  /**
-   * Date when CISA added the CVE to the exploited list
-   * @format date-time
-   */
-  cve_cisa_exploit_add?: string;
-  /** Action required by CISA */
-  cve_cisa_required_action?: string;
-  /** Vulnerability name used by CISA */
-  cve_cisa_vulnerability_name?: string;
-  /** List of linked CWEs */
-  cve_cwes?: CweInput[];
-  /** Description of the CVE */
-  cve_description?: string;
-  /**
-   * Publication date of the CVE
-   * @format date-time
-   */
-  cve_published?: string;
-  /** List of reference URLs */
-  cve_reference_urls?: string[];
-  /** Suggested remediation */
-  cve_remediation?: string;
-  /**
-   * Identifier of the CVE source
-   * @example "MITRE"
-   */
-  cve_source_identifier?: string;
-  /**
-   * Vulnerability status
-   * @example "ANALYZED"
-   */
-  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
-}
-
-/** CWE input used in CVE creation/update */
+/** CWE input used in vulnerability creation/update */
 export interface CweInput {
   /**
    * External CWE identifier
@@ -4551,6 +4510,25 @@ export interface PageUserOutput {
   totalPages?: number;
 }
 
+export interface PageVulnerabilitySimple {
+  content?: VulnerabilitySimple[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageableObject {
   /** @format int64 */
   offset?: number;
@@ -6264,6 +6242,180 @@ export interface ViolationErrorBag {
   message?: string;
   /** The type of error */
   type?: string;
+}
+
+export interface VulnerabilityBulkInsertInput {
+  initial_dataset_completed?: boolean;
+  /** @format int32 */
+  last_index?: number;
+  /** @format date-time */
+  last_modified_date_fetched?: string;
+  source_identifier: string;
+  vulnerabilities: VulnerabilityCreateInput[];
+}
+
+/** Payload to create a Vulnerabilty */
+export interface VulnerabilityCreateInput {
+  /**
+   * CVSS score
+   * @min 0
+   * @exclusiveMin false
+   * @max 10
+   * @exclusiveMax false
+   * @example 7.5
+   */
+  vulnerability_cvss_v31: number;
+  /**
+   * Date when action is due by CISA
+   * @format date-time
+   */
+  vulnerability_cisa_action_due?: string;
+  /**
+   * Date when CISA added the vulnerability to the exploited list
+   * @format date-time
+   */
+  vulnerability_cisa_exploit_add?: string;
+  /** Action required by CISA */
+  vulnerability_cisa_required_action?: string;
+  /** Vulnerability name used by CISA */
+  vulnerability_cisa_vulnerability_name?: string;
+  /** List of linked CWEs */
+  vulnerability_cwes?: CweInput[];
+  /** Description of the vulnerability */
+  vulnerability_description?: string;
+  /**
+   * External Unique Vulnerabilty Identifier
+   * @example "CVE-2024-0001"
+   */
+  vulnerability_external_id: string;
+  /**
+   * Publication date of the vulnerability
+   * @format date-time
+   */
+  vulnerability_published?: string;
+  /** List of reference URLs */
+  vulnerability_reference_urls?: string[];
+  /** Suggested remediation */
+  vulnerability_remediation?: string;
+  /**
+   * Identifier of the vulnerability source
+   * @example "MITRE"
+   */
+  vulnerability_source_identifier?: string;
+  /**
+   * Vulnerability status
+   * @example "ANALYZED"
+   */
+  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+/** Full vulnerability output including references and CWEs */
+export interface VulnerabilityOutput {
+  /**
+   * CVSS score
+   * @example 7.8
+   */
+  vulnerability_cvss_v31: number;
+  /**
+   * CISA required action due date
+   * @format date-time
+   */
+  vulnerability_cisa_action_due?: string;
+  /**
+   * CISA exploit addition date
+   * @format date-time
+   */
+  vulnerability_cisa_exploit_add?: string;
+  /** Action required by CISA */
+  vulnerability_cisa_required_action?: string;
+  /** Name used by CISA for the vulnerability */
+  vulnerability_cisa_vulnerability_name?: string;
+  /** List of CWE outputs */
+  vulnerability_cwes?: CweOutput[];
+  /** Detailed vulnerability description */
+  vulnerability_description?: string;
+  /**
+   * External Vulnerability identifier
+   * @example "CVE-2024-0001"
+   */
+  vulnerability_external_id: string;
+  /** Id */
+  vulnerability_id: string;
+  /**
+   * Vulnerability published date
+   * @format date-time
+   */
+  vulnerability_published?: string;
+  /** External references */
+  vulnerability_reference_urls?: string[];
+  /** Remediation suggestions */
+  vulnerability_remediation?: string;
+  /** Source identifier */
+  vulnerability_source_identifier?: string;
+  /** Status of the vulnerability */
+  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+/** Simplified Vulnerability representation */
+export interface VulnerabilitySimple {
+  /**
+   * CVSS score
+   * @example 7.8
+   */
+  vulnerability_cvss_v31: number;
+  /**
+   * External Vulnerability identifier
+   * @example "CVE-2024-0001"
+   */
+  vulnerability_external_id: string;
+  /** Id */
+  vulnerability_id: string;
+  /**
+   * Vulnerability published date
+   * @format date-time
+   */
+  vulnerability_published?: string;
+}
+
+/** Payload to update a vulnerability */
+export interface VulnerabilityUpdateInput {
+  /**
+   * Date when action is due by CISA
+   * @format date-time
+   */
+  vulnerability_cisa_action_due?: string;
+  /**
+   * Date when CISA added the vulnerability to the exploited list
+   * @format date-time
+   */
+  vulnerability_cisa_exploit_add?: string;
+  /** Action required by CISA */
+  vulnerability_cisa_required_action?: string;
+  /** Vulnerability name used by CISA */
+  vulnerability_cisa_vulnerability_name?: string;
+  /** List of linked CWEs */
+  vulnerability_cwes?: CweInput[];
+  /** Description of the vulnerability */
+  vulnerability_description?: string;
+  /**
+   * Publication date of the vulnerability
+   * @format date-time
+   */
+  vulnerability_published?: string;
+  /** List of reference URLs */
+  vulnerability_reference_urls?: string[];
+  /** Suggested remediation */
+  vulnerability_remediation?: string;
+  /**
+   * Identifier of the vulnerability source
+   * @example "MITRE"
+   */
+  vulnerability_source_identifier?: string;
+  /**
+   * Vulnerability status
+   * @example "ANALYZED"
+   */
+  vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
 export interface Widget {

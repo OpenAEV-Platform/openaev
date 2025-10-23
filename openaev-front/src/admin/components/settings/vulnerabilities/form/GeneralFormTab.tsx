@@ -17,11 +17,11 @@ const GeneralFormTab = ({ editing = false }: Props) => {
 
   const { fields: cwesFields, append: cwesAppend, remove: cwesRemove } = useFieldArray({
     control,
-    name: 'cve_cwes',
+    name: 'vulnerability_cwes',
   });
   const { fields: referencesFields, append: referencesAppend, remove: referencesRemove } = useFieldArray({
     control,
-    name: 'cve_reference_urls',
+    name: 'vulnerability_reference_urls',
   });
 
   const vulnerabilityStatus = [
@@ -39,29 +39,29 @@ const GeneralFormTab = ({ editing = false }: Props) => {
 
   return (
     <>
-      <TextFieldController name="cve_external_id" label={t('CVE ID')} required disabled={editing} />
-      <TextFieldController name="cve_cvss_v31" label={t('CVSS Version 3.1')} required type="number" disabled={editing} />
+      <TextFieldController name="vulnerability_external_id" label={t('VULNERABILITY ID')} required disabled={editing} />
+      <TextFieldController name="vulnerability_cvss_v31" label={t('CVSS Version 3.1')} required type="number" disabled={editing} />
 
-      <TextFieldController variant="standard" name="cve_description" label={t('Description')} multiline rows={5} />
+      <TextFieldController variant="standard" name="vulnerability_description" label={t('Description')} multiline rows={5} />
 
       {/* QUICK INFO */}
       <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Quick Info')}</Typography>
-      <DateTimeFieldController name="cve_published" label={t('NVD Published Date')} />
-      <TextFieldController name="cve_source_identifier" label={t('Source')} />
-      <SelectFieldController name="cve_vuln_status" label={t('Vulnerability status')} items={vulnerabilityStatus} />
+      <DateTimeFieldController name="vulnerability_published" label={t('NVD Published Date')} />
+      <TextFieldController name="vulnerability_source_identifier" label={t('Source')} />
+      <SelectFieldController name="vulnerability_vuln_status" label={t('Vulnerability status')} items={vulnerabilityStatus} />
 
       {/* CISA */}
       <Typography variant="h5" marginTop={theme.spacing(3)}>{t('CISA\'s Known Exploited Vulnerabilities Catalog')}</Typography>
-      <TextFieldController name="cve_cisa_vulnerability_name" label={t('Vulnerability Name')} />
-      <TextFieldController name="cve_cisa_required_action" label={t('Required Action')} />
+      <TextFieldController name="vulnerability_cisa_vulnerability_name" label={t('Vulnerability Name')} />
+      <TextFieldController name="vulnerability_cisa_required_action" label={t('Required Action')} />
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: theme.spacing(2),
       }}
       >
-        <DateTimeFieldController name="cve_cisa_exploit_add" label={t('Date Added')} />
-        <DateTimeFieldController name="cve_cisa_action_due" label={t('Due Date')} />
+        <DateTimeFieldController name="vulnerability_cisa_exploit_add" label={t('Date Added')} />
+        <DateTimeFieldController name="vulnerability_cisa_action_due" label={t('Due Date')} />
       </div>
 
       {/* CWES */}
@@ -74,8 +74,8 @@ const GeneralFormTab = ({ editing = false }: Props) => {
           }}
           key={cwesField.id}
         >
-          <TextFieldController name={`cve_cwes.${cwesIndex}.cwe_external_id` as const} label={t('CWE')} />
-          <TextFieldController name={`cve_cwes.${cwesIndex}.cwe_source` as const} label={t('Source')} />
+          <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_external_id` as const} label={t('CWE')} />
+          <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_source` as const} label={t('Source')} />
           <IconButton
             onClick={() => cwesRemove(cwesIndex)}
             size="small"
@@ -112,7 +112,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
           }}
           key={referencesField.id}
         >
-          <TextFieldController name={`cve_reference_urls.${referencesIndex}` as const} label={t('Url')} />
+          <TextFieldController name={`vulnerability_reference_urls.${referencesIndex}` as const} label={t('Url')} />
           <IconButton
             onClick={() => referencesRemove(referencesIndex)}
             size="small"

@@ -2,11 +2,11 @@ import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
-import type { CveOutput } from '../../../../utils/api-types';
+import type { VulnerabilityOutput } from '../../../../utils/api-types';
 
-interface Props { cve: CveOutput }
+interface Props { vulnerability: VulnerabilityOutput }
 
-const RemediationInfoTab = ({ cve }: Props) => {
+const RemediationInfoTab = ({ vulnerability }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -17,7 +17,7 @@ const RemediationInfoTab = ({ cve }: Props) => {
       </Typography>
       <pre>
         <Typography variant="body2" gutterBottom>
-          {cve?.cve_remediation ?? t('There is no information yet on a vulnerability remediation for this vulnerability.')}
+          {vulnerability?.vulnerability_remediation ?? t('There is no information yet on a vulnerability remediation for this vulnerability.')}
         </Typography>
       </pre>
     </div>
