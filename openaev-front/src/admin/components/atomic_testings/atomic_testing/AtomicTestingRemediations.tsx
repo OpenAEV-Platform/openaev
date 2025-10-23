@@ -235,10 +235,13 @@ const AtomicTestingRemediations = () => {
                           alignItems: 'center',
                         }}
                         >
-                          <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                            {t('No detection rule available for this security platform yet.')}
-                          </Typography>
+                          {!(snapshot?.get(tabs[activeTab].collector_type)?.isLoading) && (
+                            <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
+                              {t('No detection rule available for this security platform yet.')}
+                            </Typography>
+                          )}
                           <DetectionRemediationUseAriane
+                            key={tabs[activeTab].collector_type}
                             collectorType={tabs[activeTab].collector_type}
                             detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
                             onSubmit={onClickUseAriane}

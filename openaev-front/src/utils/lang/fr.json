@@ -74,6 +74,7 @@
   "Aggressive": "Agressif",
   "AI Powered": "Alimenté par l'IA",
   "AI remediation may be outdated: payload updated after remediation": "La remédiation de l'IA peut être obsolète :\n charge utile mise à jour après la remédiation",
+  "AI in progress" : "Génération des règles par IA en cours. Cela peut prendre du temps. Merci de ne pas quitter la page.",
   "Alerts": "Alertes",
   "All assets (per group) must validate the expectation": "Tous les actifs (par groupe) doivent valider l'attente",
   "All categories": "Toutes les catégories",
