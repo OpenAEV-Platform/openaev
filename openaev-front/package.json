@@ -15,7 +15,7 @@
     "@fontsource/geologica": "5.2.6",
     "@fontsource/ibm-plex-sans": "5.2.6",
     "@hello-pangea/dnd": "18.0.1",
-    "@hookform/resolvers": "5.1.1",
+    "@hookform/resolvers": "5.2.2",
     "@microsoft/fetch-event-source": "2.0.1",
     "@mui/icons-material": "7.2.0",
     "@mui/lab": "7.0.0-beta.14",
