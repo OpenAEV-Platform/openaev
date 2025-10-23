@@ -2,7 +2,7 @@ import { useContext, useState } from 'react';
 
 import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
 import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
-import { type UserInputForm } from '../../../../actions/users/users-helper';
+import { type UserInputForm, type UserResult } from '../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -55,10 +55,11 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
       user_tags: data.user_tags?.map((tag: Option) => tag.id),
     };
 
-    return dispatch(updateUser(user.user_id, inputValues)).then((result: {
-      result: string;
-      entities: { users: Record<string, User> };
-    }) => {
+    return dispatch(updateUser(user.user_id, inputValues)).then((result: UserResult) => {
+      if (!result?.entities?.users) {
+        return result;
+      }
+
       if (onUpdate) {
         const userUpdated = result.entities.users[result.result];
 
@@ -73,7 +74,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
 
         onUpdate(userToUpdate);
       }
-      handleCloseEdit();
+      return result.result ? handleCloseEdit() : result;
     });
   };
 

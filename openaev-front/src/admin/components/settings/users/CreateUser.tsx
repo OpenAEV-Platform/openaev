@@ -38,6 +38,10 @@ const CreateUser = ({ onCreate }: CreateUserProps) => {
     };
 
     return dispatch(addUser(inputValues)).then((result: UserResult) => {
+      if (!result?.entities?.users) {
+        return result;
+      }
+
       if (onCreate) {
         const userCreated = result.entities.users[result.result];
 

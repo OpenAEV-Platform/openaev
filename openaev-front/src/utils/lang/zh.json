@@ -1298,6 +1298,7 @@
   "Phase short name": "阶段简称",
   "Phone number (landline)": "电话号码(有线)",
   "Phone number (mobile)": "电话号码(移动)",
+  "Phone number must start with + and contain only digits": "电话号码必须以 + 开头，且只包含数字",
   "phone_number_tooltip": "电话号码应以加号 ( + )开头. 它可以包含空格、连字符( - ) 或括号.",
   "Pipe": "管道",
   "Planning": "计划",

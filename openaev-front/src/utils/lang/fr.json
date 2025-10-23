@@ -1298,6 +1298,7 @@
   "Phase short name": "Nom court de la phase",
   "Phone number (landline)": "Numéro de téléphone (fixe)",
   "Phone number (mobile)": "Numéro de téléphone (mobile)",
+  "Phone number must start with + and contain only digits": "Le numéro de téléphone doit commencer par + et ne contenir que des chiffres",
   "phone_number_tooltip": "Le numéro de téléphone devrait commencer par un signe plus ( + ). Il peut contenir des espaces ou des tirets ( – ) ou des parenthèses.",
   "Pipe": "Tuyau",
   "Planning": "Planification",

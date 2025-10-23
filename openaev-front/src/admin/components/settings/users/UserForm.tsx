@@ -24,6 +24,8 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
     ? ['user_email']
     : ['user_email', 'user_plain_password'];
 
+  const phoneRegex = /^\+\d+$/;
+
   const userFormSchemaValidation = z.object({
     user_email: z
       .string()
@@ -34,6 +36,23 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
         .string()
         .nonempty(t('This field is required.')),
     }),
+    user_phone: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        val => !val || phoneRegex.test(val),
+        t('Phone number must start with + and contain only digits'),
+      ),
+
+    user_phone2: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        val => !val || phoneRegex.test(val),
+        t('Phone number must start with + and contain only digits'),
+      ),
   });
 
   return (
