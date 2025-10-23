@@ -29,4 +29,17 @@ public abstract class ConnectorBase {
   public abstract boolean shouldRegister();
 
   @JsonIgnore private boolean registered = false;
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    }
+
+    if (obj.getClass() != this.getClass()) {
+      return false;
+    }
+
+    return this.getId().equals(((ConnectorBase) obj).getId());
+  }
 }

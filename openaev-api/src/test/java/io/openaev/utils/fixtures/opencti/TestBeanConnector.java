@@ -42,6 +42,6 @@ public class TestBeanConnector extends ConnectorBase {
 
   @Override
   public boolean shouldRegister() {
-    return true;
+    return false;
   }
 }
