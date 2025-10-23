@@ -91,7 +91,7 @@
     "@types/react-dom": "19.1.6",
     "@types/react-grid-layout": "^1",
     "@types/react-syntax-highlighter": "15",
-    "@typescript-eslint/utils": "8.38.0",
+    "@typescript-eslint/utils": "8.46.2",
     "@vitejs/plugin-react": "4.7.0",
     "@vitest/eslint-plugin": "1.3.26",
     "chokidar": "4.0.3",
@@ -115,7 +115,7 @@
     "monocart-reporter": "2.9.23",
     "swagger-typescript-api": "13.2.7",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.38.0",
+    "typescript-eslint": "8.46.2",
     "vite": "7.0.5",
     "vitest": "3.2.4"
   },
