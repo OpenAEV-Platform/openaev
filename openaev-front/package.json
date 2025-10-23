@@ -112,7 +112,7 @@
     "i18n-auto-translation": "2.2.1",
     "jsdom": "26.1.0",
     "monocart-coverage-reports": "2.12.9",
-    "monocart-reporter": "2.9.21",
+    "monocart-reporter": "2.9.23",
     "swagger-typescript-api": "13.2.7",
     "typescript": "5.8.3",
     "typescript-eslint": "8.38.0",
