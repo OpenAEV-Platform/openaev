@@ -27,6 +27,7 @@ const useStyles = makeStyles()(theme => ({
   eeDialogContainer: {
     display: 'grid',
     gap: theme.spacing(2),
+    marginTop: 15
   },
 }));
 
@@ -36,8 +37,8 @@ const EnterpriseEditionAgreementDialog = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [enterpriseLicense, setEnterpriseLicense] = useState('');
-
-  const onCloseEnterpriseEditionDialog = () => {
+    console.log('enterpriseLicense',enterpriseLicense);
+    const onCloseEnterpriseEditionDialog = () => {
     closeDialog();
     setEEFeatureDetectedInfo('');
   };
@@ -74,39 +75,21 @@ const EnterpriseEditionAgreementDialog = () => {
             {EEFeatureDetectedInfo}
           </Alert>
         )}
+            <Alert severity="info">
+                {t('OpenAEV Enterprise Edition requires a license key to be enabled. Filigran provides a free-to-use license for development and research purposes as well as for charity organizations.')}
+                <br/><br/>
+                {t('To obtain a license, please')}  <a href="https://filigran.io/contact/" target="_blank" rel="noreferrer">{t('reach out to the Filigran team')}</a>.
+                <br />
+                {t('You just need to try? Get right now')} Get right now <a href="https://filigran.io/enterprise-editions-trial/" target="_blank" rel="noreferrer">{t('your trial license online')}</a>.
+            </Alert>
         <div>
-          {t('OpenAEV Enterprise Edition requires a license key to be enabled. Filigran provides a free-to-use license for development and research purposes as well as for charity organizations.')}
-          <ul>
-            <li>
-              {`${t('To obtain a license, please')} `}
-              <a
-                href="https://filigran.io/contact/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t('reach out to the Filigran team')}
-              </a>
-            </li>
-            <li>
-              {`${t('You just need to try? Get right now')} `}
-              <a
-                href="https://filigran.io/enterprise-editions-trial/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t('your trial license online')}
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div>
-          {t('Paste your Filigran OpenAEV Enterprise Edition license')}
           <TextField
             onChange={event => setEnterpriseLicense(event.target.value)}
             multiline={true}
             fullWidth={true}
             minRows={5}
             variant="outlined"
+            placeholder={t('Paste your Filigran OpenAEV Enterprise Edition license')}
           />
         </div>
         <div>
