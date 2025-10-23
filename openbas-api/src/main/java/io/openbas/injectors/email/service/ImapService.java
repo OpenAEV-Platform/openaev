@@ -187,11 +187,13 @@ public class ImapService {
     String sslTrust = env.getProperty("openbas.mail.imap.ssl.trust");
     String sslAuth = env.getProperty("openbas.mail.imap.auth");
     String sslStartTLS = env.getProperty("openbas.mail.imap.starttls.enable");
+    String debug = env.getProperty("mail.debug");
     Properties props = new Properties();
     props.setProperty("mail.imap.ssl.enable", sslEnable);
     props.setProperty("mail.imap.ssl.trust", sslTrust);
     props.setProperty("mail.imap.auth", sslAuth);
     props.setProperty("mail.imap.starttls.enable", sslStartTLS);
+    props.setProperty("mail.debug", debug);
     return props;
   }
 
