@@ -4,7 +4,6 @@ import static io.openaev.rest.cve.CveApi.CVE_API;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2025_5678;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.VULNERABILITY_EXTERNAL_ID;
-import static io.openaev.utils.fixtures.VulnerabilityInputFixture.createDefaultVulnerabilityInput;
 import static java.time.Instant.now;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -16,7 +15,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.VulnerabilityRepository;
-import io.openaev.rest.vulnerability.form.VulnerabilityBulkInsertInput;
+import io.openaev.rest.cve.form.CVEBulkInsertInput;
+import io.openaev.rest.cve.form.CveCreateInput;
 import io.openaev.rest.vulnerability.form.VulnerabilityCreateInput;
 import io.openaev.rest.vulnerability.form.VulnerabilityUpdateInput;
 import io.openaev.utils.fixtures.CollectorFixture;
@@ -141,20 +141,25 @@ class CveApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should bulk insert multiple CVEs")
     void shouldBulkInsertCVEs() throws Exception {
-      // -- PREPARE -
-      VulnerabilityCreateInput input = createDefaultVulnerabilityInput();
-      VulnerabilityBulkInsertInput inputs = new VulnerabilityBulkInsertInput();
-      inputs.setSourceIdentifier(collector.getId());
-      inputs.setLastModifiedDateFetched(now());
-      inputs.setLastIndex(1234);
-      inputs.setInitialDatasetCompleted(false);
-      inputs.setVulnerabilities(List.of(input));
 
-      // -- EXECUTE --
+      CveCreateInput cveInput = new CveCreateInput();
+      cveInput.setExternalId(VULNERABILITY_EXTERNAL_ID);
+      cveInput.setSourceIdentifier(collector.getId());
+      cveInput.setCvssV31(BigDecimal.valueOf(7.8));
+      cveInput.setPublished(now());
+      cveInput.setDescription("Sample CVE for testing");
+      cveInput.setReferenceUrls(List.of("https://example.com/cve"));
+
+      CVEBulkInsertInput input = new CVEBulkInsertInput();
+      input.setSourceIdentifier(collector.getId());
+      input.setLastModifiedDateFetched(now());
+      input.setLastIndex(1234);
+      input.setInitialDatasetCompleted(false);
+      input.setCves(List.of(cveInput));
 
       mvc.perform(
               post(CVE_API + "/bulk")
-                  .content(asJsonString(inputs))
+                  .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
@@ -162,7 +167,6 @@ class CveApiTest extends IntegrationTest {
           .getResponse()
           .getContentAsString();
 
-      // -- ASSERT --
       Assertions.assertTrue(
           vulnerabilityRepository.findByExternalId(VULNERABILITY_EXTERNAL_ID).isPresent());
     }
