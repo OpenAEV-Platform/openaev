@@ -8,6 +8,7 @@ import static io.openaev.utils.constants.StixConstants.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
@@ -32,9 +33,11 @@ import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.types.*;
+import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -65,7 +68,7 @@ public class SecurityCoverageService {
   private final SecurityCoverageRepository securityCoverageRepository;
 
   private final Parser stixParser;
-
+  @Resource private OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
   private final VulnerabilityService vulnerabilityService;
 
@@ -263,6 +266,10 @@ public class SecurityCoverageService {
     SecurityCoverage assessment = exercise.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
     coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
+    coverage.setProperty(CommonProperties.AUTO_ENRICHMENT_DISABLE.toString(), new Boolean(false));
+    String scenarioLink =
+        openAEVConfig.getBaseUrl() + "/admin/scenarios/" + exercise.getScenario().getId();
+    coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(scenarioLink));
     coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(exercise));
     objects.add(coverage);
 
