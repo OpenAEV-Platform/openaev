@@ -14,7 +14,7 @@
             "name": "Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED",
             "period_end": "2025-09-04T14:00:00Z",
             "period_start": "2025-08-04T14:00:00Z",
-            "scheduling": "d",
+            "periodicity": "P1D",
             "spec_version": "2.1",
             "type": "security-coverage",
             "extensions": {
@@ -22,8 +22,8 @@
                 "extension_type": "new-sdo",
                 "id": "b19abcdf-01f7-48a4-a7b9-a2e7ddde1763",
                 "type": "Security-Coverage",
-                "created_at": "2025-10-23T13:57:52.403Z",
-                "updated_at": "2025-10-23T18:56:25.487Z",
+                "created_at": "2025-08-04T14:00:00Z",
+                "updated_at": "2025-08-04T14:00:00Z",
                 "is_inferred": false,
                 "creator_ids": [
                   "88ec0c6a-13ce-5e39-b486-354fe4a7084f"

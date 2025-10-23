@@ -12,6 +12,8 @@ public class ConnectorFixture {
   @Getter
   @RequiredArgsConstructor
   private static class TestConnector extends ConnectorBase {
+    private final String id = UUID.randomUUID().toString();
+    private final String token = UUID.randomUUID().toString();
     private final String name;
     private final ConnectorType type;
 
@@ -27,12 +29,12 @@ public class ConnectorFixture {
 
     @Override
     public String getId() {
-      return UUID.randomUUID().toString();
+      return id;
     }
 
     @Override
     public String getToken() {
-      return UUID.randomUUID().toString();
+      return token;
     }
 
     @Override
