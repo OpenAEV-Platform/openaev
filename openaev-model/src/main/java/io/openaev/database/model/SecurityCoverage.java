@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
-import io.openaev.cron.ScheduleFrequency;
-import io.openaev.cron.ScheduleFrequencyConverter;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -55,8 +53,7 @@ public class SecurityCoverage implements Base {
 
   @Column(name = "security_coverage_scheduling", nullable = false)
   @JsonProperty("security_coverage_scheduling")
-  @Convert(converter = ScheduleFrequencyConverter.class)
-  private ScheduleFrequency scheduling;
+  private String scheduling; // duration
 
   @Column(name = "security_coverage_period_start")
   @JsonProperty("security_coverage_period_start")

@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
@@ -16,7 +15,7 @@ public class SecurityCoverageFixture {
     SecurityCoverage securityCoverage = new SecurityCoverage();
     securityCoverage.setName("Security coverage for tests");
     securityCoverage.setExternalId("security-coverage--%s".formatted(UUID.randomUUID()));
-    securityCoverage.setScheduling(ScheduleFrequency.DAILY);
+    securityCoverage.setScheduling("PT1H");
     securityCoverage.setContent(
         "{\"type\": \"security-coverage\", \"id\": \"%s\"}"
             .formatted(securityCoverage.getExternalId()));

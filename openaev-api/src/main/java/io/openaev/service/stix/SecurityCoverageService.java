@@ -1,6 +1,5 @@
 package io.openaev.service.stix;
 
-import static io.openaev.cron.ScheduleFrequency.ONESHOT;
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
@@ -33,6 +32,7 @@ import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.types.*;
+import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import java.io.IOException;
@@ -123,12 +123,17 @@ public class SecurityCoverageService {
         extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY)));
 
     // Default Fields
-    String scheduling = stixCoverageObj.getOptionalProperty(STIX_SCHEDULING, ONESHOT.toString());
-    securityCoverage.setScheduling(ScheduleFrequency.fromString(scheduling));
+    String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
+    securityCoverage.setScheduling(scheduling);
 
-    // Period Start & End
-    stixCoverageObj.setInstantIfPresent(STIX_PERIOD_START, securityCoverage::setPeriodStart);
-    stixCoverageObj.setInstantIfPresent(STIX_PERIOD_END, securityCoverage::setPeriodEnd);
+    // Period Start
+    String createdAt =
+        (String)
+            ((Dictionary)
+                    stixCoverageObj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION))
+                .get(STIX_CREATED_AT)
+                .getValue();
+    securityCoverage.setPeriodStart(Instant.parse(createdAt));
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
     return save(securityCoverage);
@@ -211,15 +216,23 @@ public class SecurityCoverageService {
     scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
-
-    if (!sa.getScheduling().equals(ScheduleFrequency.ONESHOT)) {
-      Instant start = sa.getPeriodStart() != null ? sa.getPeriodStart() : Instant.now();
-      Instant end = sa.getPeriodEnd();
-
+    Instant start = sa.getPeriodStart() != null ? sa.getPeriodStart() : Instant.now();
+    if (sa.getScheduling() != null && !sa.getScheduling().isEmpty()) {
       scenario.setRecurrenceStart(start);
-      scenario.setRecurrenceEnd(end);
-
-      String cron = cronService.getCronExpression(sa.getScheduling(), start);
+      ScheduleFrequency frequency = ScheduleFrequency.DAILY;
+      if (sa.getScheduling().contains("W")) {
+        frequency = ScheduleFrequency.WEEKLY;
+      } else if (sa.getScheduling().contains("M")) {
+        frequency = ScheduleFrequency.MONTHLY;
+      }
+      // TODO cron should be generated from start-date + iso duration
+      // Currently UI is not able to support any cron expression
+      // Parsing is limited to same case like 1 day at 9h00.
+      // Monthly option is not supported yet back in the UI.
+      String cron = cronService.getCronExpression(frequency, start);
+      scenario.setRecurrence(cron);
+    } else {
+      String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, start);
       scenario.setRecurrence(cron);
     }
 
