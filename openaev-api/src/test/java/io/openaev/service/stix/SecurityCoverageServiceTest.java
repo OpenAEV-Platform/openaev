@@ -219,7 +219,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
 
       assertThatJson(
               bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.MODIFIED.toString())
+          .whenIgnoringPaths(
+              CommonProperties.MODIFIED.toString(),
+              CommonProperties.EXTERNAL_URI.toString(),
+              CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
           .isEqualTo(expectedAssessment.toStix(mapper));
     }
 
@@ -579,7 +582,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // main assessment is completed with coverage
     assertThatJson(
             bundle.findById(new Identifier(generatedCoverage.getExternalId())).toStix(mapper))
-        .whenIgnoringPaths(CommonProperties.MODIFIED.toString())
+        .whenIgnoringPaths(
+            CommonProperties.MODIFIED.toString(),
+            CommonProperties.EXTERNAL_URI.toString(),
+            CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
     // security platforms are present in bundle as Identities

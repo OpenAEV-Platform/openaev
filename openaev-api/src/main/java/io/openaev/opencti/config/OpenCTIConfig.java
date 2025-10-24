@@ -2,7 +2,6 @@ package io.openaev.opencti.config;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,9 +28,19 @@ public class OpenCTIConfig {
   private String token;
 
   public String getApiUrl() {
+    // Case 1: apiUrl defined
+    if (apiUrl != null && !apiUrl.isBlank()) {
+      return apiUrl;
+    }
+    // Case 2: fallback to url
+    if (url == null || url.isBlank()) {
+      return null;
+    }
     String urlStripped = StringUtils.stripEnd(url, "/");
-    return (apiUrl != null && !apiUrl.isBlank())
-        ? apiUrl
-        : String.join("/", List.of(urlStripped, GRAPHQL_ENDPOINT_URI));
+    if (urlStripped.toLowerCase().contains("/graphql")) {
+      return urlStripped;
+    }
+
+    return String.join("/", urlStripped, GRAPHQL_ENDPOINT_URI);
   }
 }

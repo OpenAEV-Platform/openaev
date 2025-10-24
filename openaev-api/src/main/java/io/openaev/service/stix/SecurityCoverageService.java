@@ -267,9 +267,16 @@ public class SecurityCoverageService {
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
     coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
     coverage.setProperty(CommonProperties.AUTO_ENRICHMENT_DISABLE.toString(), new Boolean(false));
-    String scenarioLink =
-        openAEVConfig.getBaseUrl() + "/admin/scenarios/" + exercise.getScenario().getId();
-    coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(scenarioLink));
+
+    String externalLink;
+    if (exercise.getScenario() != null) {
+      externalLink =
+          openAEVConfig.getBaseUrl() + "/admin/scenarios/" + exercise.getScenario().getId();
+    } else {
+      externalLink = openAEVConfig.getBaseUrl() + "/admin/simulations/" + exercise.getId();
+    }
+
+    coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
     coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(exercise));
     objects.add(coverage);
 

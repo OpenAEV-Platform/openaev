@@ -59,6 +59,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
     }
 
     @Nested
+    @WithMockSecurityCoverageConnectorConfig(url = "")
     @SpringBootTest
     @DisplayName("With OpenCTI URL not defined")
     public class WithNullUrl {
