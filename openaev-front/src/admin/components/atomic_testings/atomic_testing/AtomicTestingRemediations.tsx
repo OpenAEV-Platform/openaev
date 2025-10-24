@@ -160,23 +160,18 @@ const AtomicTestingRemediations = () => {
   }, []);
 
   function addOrUpdateRemediation(newRemediation: DetectionRemediationOutput) {
-    if (detectionRemediations.length === 0) {
-      setDetectionRemediations([newRemediation]);
-    } else {
-      setDetectionRemediations((prev) => {
-        const index = prev.findIndex(item => item.detection_remediation_collector === newRemediation.detection_remediation_collector);
+    setDetectionRemediations((prev) => {
+      const index = prev.findIndex(item => item.detection_remediation_collector === newRemediation.detection_remediation_collector);
+      if (index === -1) {
+        return [...prev, newRemediation];
+      } else {
+        const update = [...prev];
+        update[index] = newRemediation;
+        return update;
+      }
+    },
+    );
 
-        if (index === -1) {
-          return [...prev, newRemediation];
-        } else {
-          const update = [...prev];
-          update[index].detection_remediation_values = newRemediation.detection_remediation_values;
-          update[index].detection_remediation_author_rule = newRemediation.detection_remediation_author_rule;
-          return update;
-        }
-      },
-      );
-    }
     let i = 0;
     const text = newRemediation.detection_remediation_values;
     const interval = setInterval(() => {
@@ -266,7 +261,9 @@ const AtomicTestingRemediations = () => {
                       </>
                     ) : (
                       activeCollectorRemediations.map((rem) => {
-                        const content = rem.detection_remediation_values?.trim();
+                        const content = (snapshot?.get(tabs[activeTab].collector_type)?.AIRules) != null
+                          ? (snapshot?.get(tabs[activeTab].collector_type)?.AIRules)
+                          : rem.detection_remediation_values?.trim();
 
                         return (
                           <div key={'paper.' + rem.detection_remediation_id}>
@@ -286,11 +283,11 @@ const AtomicTestingRemediations = () => {
                                       const collector = rem?.detection_remediation_collector;
                                       const entry = collector ? snapshot?.get?.(collector) : undefined;
                                       const aiRules = entry?.AIRules;
-                                      const isLoading = entry?.isLoading;
                                       let raw: string;
+
                                       if (typing) {
                                         raw = displayedText ?? '';
-                                      } else if (isLoading && aiRules != null) {
+                                      } else if (aiRules != null) {
                                         raw = String(aiRules);
                                       } else {
                                         raw = rem?.detection_remediation_values ?? '';
