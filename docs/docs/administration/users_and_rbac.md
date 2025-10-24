@@ -126,11 +126,11 @@ Beyond global **capabilities** defined in roles, OpenAEV also allows assigning m
 
 There are three levels of granularity:
 
-| Grant   | Rights included                           |
-|---------|-------------------------------------------|
-| Access  | View only                                 |
-| Manage  | View, edit, delete                        |
-| Launch  | Manage rights + ability to launch tests   |
+| Grant   | Rights included                       |
+|---------|---------------------------------------|
+| Access  | View only                             |
+| Manage  | Access + edit and delete              |
+| Launch  | Manage + ability to launch tests      |
 
 ---
 
