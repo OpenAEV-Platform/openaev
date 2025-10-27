@@ -1,13 +1,14 @@
 package io.openaev.collectors.expectations_expiration_manager.service;
 
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeFailedMessage;
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.isExpired;
+import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.*;
+import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
@@ -29,6 +30,8 @@ public class ExpectationsExpirationManagerService {
   private final InjectExpectationService injectExpectationService;
   private final ExpectationsExpirationManagerConfig config;
   private final CollectorService collectorService;
+
+  public static final String EXPIRED = "Expired";
 
   @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
@@ -58,9 +61,15 @@ public class ExpectationsExpirationManagerService {
         expectation -> {
           if (isExpired(expectation)) {
             InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-            input.setIsSuccess(false);
-            input.setResult(computeFailedMessage(expectation.getType()));
-            expireEmptyResults(expectation.getResults());
+            if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
+              input.setIsSuccess(true);
+              input.setResult(computeSuccessMessage(expectation.getType()));
+              expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
+            } else {
+              input.setIsSuccess(false);
+              input.setResult(computeFailedMessage(expectation.getType()));
+              expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+            }
             this.injectExpectationService.computeTechnicalExpectation(
                 expectation, collector, input, true);
           }
@@ -79,7 +88,7 @@ public class ExpectationsExpirationManagerService {
             InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
             input.setIsSuccess(false);
             input.setResult(computeFailedMessage(expectation.getType()));
-            expireEmptyResults(expectation.getResults());
+            expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
             if (HUMAN_EXPECTATION.contains(expectation.getType())) {
               updated.add(
                   injectExpectationService.computeInjectExpectationForHumanResponse(

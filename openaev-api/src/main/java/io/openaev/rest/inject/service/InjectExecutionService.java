@@ -8,6 +8,7 @@ import static io.openaev.utils.inject_expectation_result.InjectExpectationResult
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -82,7 +83,8 @@ public class InjectExecutionService {
   }
 
   /** Processes the execution of an inject by updating its status and extracting findings. */
-  private void processInjectExecution(
+  @VisibleForTesting
+  public void processInjectExecution(
       Inject inject,
       @Nullable Agent agent,
       InjectExecutionInput input,
@@ -99,7 +101,9 @@ public class InjectExecutionService {
             structuredOutputUtils
                 .computeStructuredOutputFromOutputParsers(outputParsers, input.getMessage())
                 .orElse(null);
-        checkCveExpectation(outputParsers, structured, inject, agent);
+        if (ExecutionTraceStatus.SUCCESS.toString().equals(input.getStatus())) {
+          checkCveExpectation(outputParsers, structured, inject, agent);
+        }
       }
 
       injectStatusService.updateInjectStatus(agent, inject, input, structured);
@@ -125,7 +129,8 @@ public class InjectExecutionService {
    * @param agent the agent for which to add the end date signature
    * @param input the input containing the action and duration
    */
-  private void addEndDateInjectExpectationTimeSignatureIfNeeded(
+  @VisibleForTesting
+  public void addEndDateInjectExpectationTimeSignatureIfNeeded(
       Inject inject, Agent agent, InjectExecutionInput input) {
     if (agent != null
         && ExecutionTraceAction.COMPLETE.equals(convertExecutionAction(input.getAction()))) {

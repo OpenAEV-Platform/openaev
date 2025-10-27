@@ -2,8 +2,7 @@ package io.openaev.rest.inject_expectation;
 
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
-import static io.openaev.utils.fixtures.ExpectationFixture.createDetectionExpectations;
-import static io.openaev.utils.fixtures.ExpectationFixture.createTechnicalDetectionExpectationForAsset;
+import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -385,6 +384,39 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, injectExpectations.getFirst().getScore());
+    }
+
+    @Test
+    @DisplayName("Vulnerability expectation with an agent gets expired")
+    @WithMockUser(isAdmin = true)
+    void vulnerableExpectationIsExpired() {
+      // -- PREPARE --
+      // Build and save an expectation for an asset and one agent
+      ExecutableInject executableInject = newExecutableInjectWithTargets();
+      Expectation expectation =
+          createTechnicalVulnerabilityExpectationForAgent(
+              savedAgent1, savedEndpoint, null, EXPIRATION_TIME_1_s, null);
+
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, List.of(expectation));
+
+      // -- VERIFY --
+      List<InjectExpectation> injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      assertEquals(null, injectExpectations.getFirst().getScore());
+
+      // -- EXECUTE --
+      expectationsExpirationManagerService.computeExpectations();
+
+      // -- ASSERT --
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      assertEquals(100.0, injectExpectations.getFirst().getScore());
+      assertEquals(
+          InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+          injectExpectations.getFirst().getResponse());
     }
   }
 

@@ -1,8 +1,5 @@
 package io.openaev.collectors.expectations_expiration_manager.utils;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.DETECTION;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.PREVENTION;
-
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.expectation.ExpectationType;
@@ -24,6 +21,7 @@ public class ExpectationUtils {
     return switch (expectationType) {
       case DETECTION -> ExpectationType.DETECTION.successLabel;
       case PREVENTION -> ExpectationType.PREVENTION.successLabel;
+      case VULNERABILITY -> ExpectationType.VULNERABILITY.successLabel;
       default -> ExpectationType.HUMAN_RESPONSE.successLabel;
     };
   }
