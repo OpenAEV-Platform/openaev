@@ -8,9 +8,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.service.InjectExecutionService;
+import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -33,6 +37,11 @@ class InjectExecutionServiceTest extends IntegrationTest {
   private Agent agent;
 
   @Spy private ObjectMapper mapper = new ObjectMapper();
+  @Mock private InjectExpectationService injectExpectationService;
+  @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private StructuredOutputUtils structuredOutputUtils;
+  @Mock private InjectStatusService injectStatusService;
+  @Mock private FindingService findingService;
 
   @BeforeEach
   void setUp() {
