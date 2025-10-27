@@ -1,5 +1,6 @@
 package io.openaev.service.detection_remediation;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,6 +28,7 @@ public class DetectionRemediationRequest {
 
   @Setter
   @Schema(description = "Client Id and timestamps use to monitored AI usage from webservice")
+  @JsonProperty("session_id")
   private String sessionId;
 
   public DetectionRemediationRequest(
