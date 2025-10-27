@@ -68,6 +68,9 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     sseClient.addEventListener('ping', () => {
       lastPingDate = new Date().getTime();
     });
+    sseClient.addEventListener('poc', (event) => {
+      console.log(event.data);
+    });
     sseClient.onerror = () => {
       clearInterval(autoReConnect);
       if (sseClient != null) {

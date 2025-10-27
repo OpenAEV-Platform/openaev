@@ -64,6 +64,8 @@ public class StreamApi extends RestBehavior {
     ServerSentEvent<BaseEvent> message =
         ServerSentEvent.builder(event).event(EVENT_TYPE_MESSAGE).build();
     flux.next(message);
+    ServerSentEvent<BaseEvent> message2 = ServerSentEvent.builder(event).event("poc").build();
+    flux.next(message2);
   }
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
