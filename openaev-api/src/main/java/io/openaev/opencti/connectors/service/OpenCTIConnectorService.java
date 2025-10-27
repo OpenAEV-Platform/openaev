@@ -11,6 +11,7 @@ import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +20,16 @@ import org.springframework.stereotype.Service;
 public class OpenCTIConnectorService {
   @Getter private final List<ConnectorBase> connectors;
   private final OpenCTIService openCTIService;
+
+  @NotNull
+  private Optional<ConnectorBase> getConnectorBase() {
+    // don't examine the bundle
+    // pick the first occurrence of the correct connector type
+    // it's not supported yet to have more than one active connector of each type
+    return connectors.stream()
+        .filter(c -> c instanceof SecurityCoverageConnector && c.shouldRegister())
+        .findFirst();
+  }
 
   /**
    * Register or pings all loaded connectors. Does not crash if registering or pinging a connector
@@ -45,13 +56,7 @@ public class OpenCTIConnectorService {
   }
 
   public void pushSecurityCoverageStixBundle(Bundle bundle) throws ConnectorError, IOException {
-    // don't examine the bundle
-    // pick the first occurrence of the correct connector type
-    // it's not supported yet to have more than one active connector of each type
-    Optional<ConnectorBase> connector =
-        connectors.stream()
-            .filter(c -> c instanceof SecurityCoverageConnector && c.shouldRegister())
-            .findFirst();
+    Optional<ConnectorBase> connector = getConnectorBase();
 
     if (connector.isEmpty()) {
       throw new ConnectorError(
@@ -59,5 +64,29 @@ public class OpenCTIConnectorService {
     }
 
     openCTIService.pushStixBundle(bundle, connector.get());
+  }
+
+  public void acknowledgeReceivedOfCoverage(String workId, String message) {
+    Optional<ConnectorBase> connector = getConnectorBase();
+
+    if (connector.isPresent()) {
+      try {
+        openCTIService.workToReceived(connector.get(), workId, message);
+      } catch (Exception e) {
+        log.error("workToReceived processing error", e);
+      }
+    }
+  }
+
+  public void acknowledgeProcessedOfCoverage(String workId, String message, Boolean inError) {
+    Optional<ConnectorBase> connector = getConnectorBase();
+
+    if (connector.isPresent()) {
+      try {
+        openCTIService.workToProcessed(connector.get(), workId, message, inError);
+      } catch (Exception e) {
+        log.error("workToProcessed processing error", e);
+      }
+    }
   }
 }

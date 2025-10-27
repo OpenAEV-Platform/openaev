@@ -1,11 +1,13 @@
 package io.openaev.api.stix_process;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.stix.StixService;
 import io.openaev.stix.parsing.ParsingException;
@@ -34,6 +36,7 @@ public class StixApi extends RestBehavior {
   public static final String STIX_URI = "/api/stix";
   private final ObjectMapper objectMapper;
   private final StixService stixService;
+  private final OpenCTIConnectorService openCTIService;
 
   @PostMapping(
       value = "/process-bundle",
@@ -51,20 +54,29 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent) {
+  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent)
+      throws JsonProcessingException {
+    JsonNode root = objectMapper.readTree(ctiEvent);
+    String workId = root.get("internal").get("work_id").asText();
     try {
-      JsonNode root = objectMapper.readTree(ctiEvent);
       String stixJson = root.get("event").get("stix_objects").asText(); // As text is required here
+      // Acknowledge the scenario creation / enrichment by sending back the security coverage
+      openCTIService.acknowledgeReceivedOfCoverage(
+          workId, "OpenAEV ready to process the operation");
       // Create scenario from stix bundle
       Scenario scenario = stixService.processBundle(stixJson);
       // TODO Schedule or not, start directly on execution after create/update
       // If no simulation for this scenario is in progress, start an execution right away
+      openCTIService.acknowledgeProcessedOfCoverage(
+          workId, "Coverage successfully created or updated", false);
       // Generate response
       String summary = stixService.generateBundleImportReport(scenario);
       BundleImportReport importReport = new BundleImportReport(scenario.getId(), summary);
       return ResponseEntity.ok(importReport);
     } catch (ParsingException | IOException e) {
       log.error(String.format("Parsing error while processing STIX bundle: %s", e.getMessage()), e);
+      openCTIService.acknowledgeProcessedOfCoverage(
+          workId, "Parsing error while processing STIX bundle", true);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
           .body("Parsing error while processing STIX bundle.");
     } catch (Exception e) {
@@ -72,6 +84,8 @@ public class StixApi extends RestBehavior {
           String.format(
               "An unexpected server error occurred. Please contact support: %s", e.getMessage()),
           e);
+      openCTIService.acknowledgeProcessedOfCoverage(
+          workId, "An unexpected server error occurred", true);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }

@@ -95,6 +95,75 @@ public class OpenCTIService {
     }
   }
 
+  public WorkToReceived.ResponsePayload workToReceived(
+      ConnectorBase connector, String workId, String message) throws IOException, ConnectorError {
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot workToReceived via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getApiUrl()));
+    }
+
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new WorkToReceived(workId, message));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+                  Failed to acknowledge received %s with OpenCTI at %s
+                  Errors: %s
+                  """
+              .formatted(
+                  connector.getName(),
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      WorkToReceived.ResponsePayload payload =
+          mapper.convertValue(r.getData(), WorkToReceived.ResponsePayload.class);
+      log.info(
+          "WorkToReceived connector {} with OpenCTI at {}",
+          connector.getName(),
+          connector.getApiUrl());
+      return payload;
+    }
+  }
+
+  public WorkToProcessed.ResponsePayload workToProcessed(
+      ConnectorBase connector, String workId, String message, Boolean inError)
+      throws IOException, ConnectorError {
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot workToProcessed via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getApiUrl()));
+    }
+
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new WorkToProcessed(workId, message, inError));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+                            Failed to acknowledge processed %s with OpenCTI at %s
+                            Errors: %s
+                            """
+              .formatted(
+                  connector.getName(),
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      WorkToProcessed.ResponsePayload payload =
+          mapper.convertValue(r.getData(), WorkToProcessed.ResponsePayload.class);
+      log.info(
+          "WorkToProcessed connector {} with OpenCTI at {}",
+          connector.getName(),
+          connector.getApiUrl());
+      return payload;
+    }
+  }
+
   public PushStixBundle.ResponsePayload pushStixBundle(Bundle bundle, ConnectorBase connector)
       throws IOException, ConnectorError {
     if (!connector.isRegistered()) {
