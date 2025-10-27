@@ -1936,7 +1936,7 @@
   "You dont have the right access. Please contact your administrator.": "You dont have the right access. Please contact your administrator.",
   "You have canceled the registration process": "You have canceled the registration process",
   "You have canceled the unregistration process": "You have canceled the unregistration process",
-  "You just need to try? Get right now": "You just need to try ? Get right now {url}.",
+  "You just need to try ? Get right now {url}.": "You just need to try ? Get right now {url}.",
   "You must be logged to access this page": "You must be logged to access this page",
   "You must set a simulation": "You must set a simulation",
   "You probably need a public email in your github account": "You probably need a public email in your github account",

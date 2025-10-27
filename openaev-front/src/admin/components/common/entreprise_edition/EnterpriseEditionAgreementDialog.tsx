@@ -91,7 +91,7 @@ const EnterpriseEditionAgreementDialog = () => {
             })}
           </p>
           <p>
-            {t('You just need to try ? Get right now', {
+            {t('You just need to try ? Get right now {url}.', {
               url: (
                 <Link
                   href="https://filigran.io/enterprise-editions-trial/"

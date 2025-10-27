@@ -1936,7 +1936,7 @@
   "You dont have the right access. Please contact your administrator.": "您没有正确的访问权限。请联系您的管理员。",
   "You have canceled the registration process": "您已取消注册过程",
   "You have canceled the unregistration process": "您已取消取消注册程序",
-  "You just need to try? Get right now": "您只需试试？现在就来 {{url}.",
+  "You just need to try ? Get right now {url}.": "您只需尝试一下 ?马上获取 {url}.",
   "You must be logged to access this page": "你必须登录后查看本页",
   "You must set a simulation": "您必须设置模拟",
   "You probably need a public email in your github account": "你可能需要在GitHub中有一个公开邮件地址",

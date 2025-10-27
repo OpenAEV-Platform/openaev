@@ -1936,7 +1936,7 @@
   "You dont have the right access. Please contact your administrator.": "Vous n'avez pas le bon accès. Veuillez contacter votre administrateur.",
   "You have canceled the registration process": "Vous avez annulé la procédure d'inscription",
   "You have canceled the unregistration process": "Vous avez annulé la procédure de désinscription",
-  "You just need to try? Get right now": "Vous n'avez qu'à essayer ? Obtenir tout de suite {url}.",
+  "You just need to try ? Get right now {url}.": "Il vous suffit d'essayer ? Obtenir tout de suite {url}.",
   "You must be logged to access this page": "Vous devez être connecté pour accéder à cette page",
   "You must set a simulation": "Vous devez définir une simulation",
   "You probably need a public email in your github account": "Vous avez probablement besoin d'une adresse e-mail publique dans votre compte github",
