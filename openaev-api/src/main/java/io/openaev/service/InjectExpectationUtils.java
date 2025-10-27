@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
 import static java.util.Optional.ofNullable;
@@ -176,7 +177,7 @@ public class InjectExpectationUtils {
             // no result to expired
             if (ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
                 newResultToAdd.getSourceId())) {
-              expireEmptyResults(expectation.getResults());
+              expireEmptyResults(expectation.getResults(),FAILED_SCORE_VALUE,EXPIRED);
             }
           }
         });
