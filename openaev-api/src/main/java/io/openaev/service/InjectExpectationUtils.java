@@ -177,7 +177,7 @@ public class InjectExpectationUtils {
             // no result to expired
             if (ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
                 newResultToAdd.getSourceId())) {
-              expireEmptyResults(expectation.getResults(),FAILED_SCORE_VALUE,EXPIRED);
+              expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
             }
           }
         });
