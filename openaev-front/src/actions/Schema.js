@@ -382,7 +382,7 @@ export const storeHelper = state => ({
     return state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
   },
   getPlatformName: () => {
-    return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenAEV - Breach and Attack Simulation Platform';
+    return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenAEV - Open Adversary Exposure Validation Platform';
   },
   // kill chain phases
   getKillChainPhase: id => entity(id, 'killchainphases', state),
