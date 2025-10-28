@@ -4,7 +4,6 @@ import io.openaev.config.SessionHelper;
 import io.openaev.database.model.User;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -19,7 +18,15 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Aspect
 @Component
@@ -43,6 +50,11 @@ public class RBACAspect {
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
     String[] parameterNames = signature.getParameterNames();
     Object[] args = joinPoint.getArgs();
+    Map<String, Object> paramMap = IntStream.range(0, parameterNames.length)
+      .boxed()
+      .collect(Collectors.toMap(i -> parameterNames[i], i -> args[i]));
+    Method method = signature.getMethod();
+    Optional<HttpMappingInfo> httpMappingInfo = getHttpMappingInfo(method, paramMap);
 
     // Create SpEL evaluation context to retrieve the resource ID if it exists
     EvaluationContext context = new StandardEvaluationContext();
@@ -78,7 +90,7 @@ public class RBACAspect {
     // Perform your RBAC check with the extracted value
     boolean allowed =
         permissionService.hasPermission(
-            principal, resourceId, rbac.resourceType(), rbac.actionPerformed());
+          principal, httpMappingInfo, resourceId, rbac.resourceType(), rbac.actionPerformed());
 
     if (!allowed) {
       log.warn(
@@ -90,5 +102,32 @@ public class RBACAspect {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getName()) {};
     }
+  }
+
+  public record HttpMappingInfo(
+    RequestMethod httpMethod,
+    String[] paths,
+    Map<String, Object> args
+  ) {
+  }
+
+  private Optional<HttpMappingInfo> getHttpMappingInfo(Method method, Map<String, Object> args) {
+    if (method.isAnnotationPresent(GetMapping.class)) {
+      GetMapping ann = method.getAnnotation(GetMapping.class);
+      return Optional.of(new HttpMappingInfo(RequestMethod.GET, ann.value(), args));
+    } else if (method.isAnnotationPresent(PostMapping.class)) {
+      PostMapping ann = method.getAnnotation(PostMapping.class);
+      return Optional.of(new HttpMappingInfo(RequestMethod.POST, ann.value(), args));
+    } else if (method.isAnnotationPresent(PutMapping.class)) {
+      PutMapping ann = method.getAnnotation(PutMapping.class);
+      return Optional.of(new HttpMappingInfo(RequestMethod.PUT, ann.value(), args));
+    } else if (method.isAnnotationPresent(DeleteMapping.class)) {
+      DeleteMapping ann = method.getAnnotation(DeleteMapping.class);
+      return Optional.of(new HttpMappingInfo(RequestMethod.DELETE, ann.value(), args));
+    } else if (method.isAnnotationPresent(PatchMapping.class)) {
+      PatchMapping ann = method.getAnnotation(PatchMapping.class);
+      return Optional.of(new HttpMappingInfo(RequestMethod.PATCH, ann.value(), args));
+    }
+    return Optional.empty();
   }
 }
