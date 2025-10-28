@@ -1,57 +1,64 @@
-{ "event": { "stix_objects": {
-    "id": "bundle--c038a34d-411d-4a12-8f5e-fb957dbe9dc2",
-    "type": "bundle",
-    "objects": [
+{
+  "internal": {
+    "work_id": "work_68949a7b-c1c2-4649-b3de-7db804ba02bb_2025-10-27T23:29:34.933Z"
+  },
+  "event": {
+    "stix_objects": {
+      "id": "bundle--c038a34d-411d-4a12-8f5e-fb957dbe9dc2",
+      "type": "bundle",
+      "objects": [
         {
-            "created": "2025-08-04T14:00:00Z",
-            "description": "Security coverage test plan for threat context XYZ.",
-            "id": "security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1",
-            "labels": [
-                "opencti"
-            ],
-            "covered_ref": "64f9b3ef-cca7-4820-9230-8594ddeeccb5",
-            "modified": "2025-08-04T14:00:00Z",
-            "name": "Security Coverage Q3 2025 - Threat Report XYZ",
-            "period_end": "2025-09-04T14:00:00Z",
-            "period_start": "2025-08-04T14:00:00Z",
-            "periodicity": "P1D",
-            "spec_version": "2.1",
-            "type": "security-coverage",
-            "extensions": {
-              "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
-                "extension_type": "new-sdo",
-                "id": "b19abcdf-01f7-48a4-a7b9-a2e7ddde1763",
-                "type": "Security-Coverage",
-                "created_at": "2025-08-04T14:00:00Z",
-                "updated_at": "2025-08-04T14:00:00Z",
-                "is_inferred": false,
-                "creator_ids": [
-                  "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
-                ]
-              }
+          "created": "2025-08-04T14:00:00Z",
+          "description": "Security coverage test plan for threat context XYZ.",
+          "id": "security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1",
+          "labels": [
+            "opencti"
+          ],
+          "covered_ref": "64f9b3ef-cca7-4820-9230-8594ddeeccb5",
+          "modified": "2025-08-04T14:00:00Z",
+          "name": "Security Coverage Q3 2025 - Threat Report XYZ",
+          "period_end": "2025-09-04T14:00:00Z",
+          "period_start": "2025-08-04T14:00:00Z",
+          "periodicity": "P1D",
+          "spec_version": "2.1",
+          "type": "security-coverage",
+          "extensions": {
+            "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+              "extension_type": "new-sdo",
+              "id": "b19abcdf-01f7-48a4-a7b9-a2e7ddde1763",
+              "type": "Security-Coverage",
+              "created_at": "2025-08-04T14:00:00Z",
+              "updated_at": "2025-08-04T14:00:00Z",
+              "is_inferred": false,
+              "creator_ids": [
+                "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+              ]
             }
+          }
         },
         {
-            "id": "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975",
-            "spec_version": "2.1",
-            "revoked": false,
-            "confidence": 100,
-            "created": "2025-09-08T10:48:57.905Z",
-            "modified": "2025-09-08T10:48:57.961Z",
-            "name": "CVE-2025-56785",
-            "x_opencti_cisa_kev": false,
-            "x_opencti_workflow_id": "4c52b960-bb81-4285-974b-7b5aecc3b62c",
-            "external_references": [
-                {
-                    "source_name": "Aruba Networks Inc.",
-                    "description": "CVE-2021-44228 - Apache log4j library vulnerability",
-                    "url": "https://www.arubanetworks.com/assets/alert/ARUBA-PSA-2021-019.txt",
-                    "external_id": "ARUBA-PSA-2021-019"
-                }
-            ],
-            "x_opencti_id": "50e82364-5bce-453e-9e79-b9743774d310",
-            "x_opencti_type": "Vulnerability",
-            "type": "vulnerability"
+          "id": "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975",
+          "spec_version": "2.1",
+          "revoked": false,
+          "confidence": 100,
+          "created": "2025-09-08T10:48:57.905Z",
+          "modified": "2025-09-08T10:48:57.961Z",
+          "name": "CVE-2025-56785",
+          "x_opencti_cisa_kev": false,
+          "x_opencti_workflow_id": "4c52b960-bb81-4285-974b-7b5aecc3b62c",
+          "external_references": [
+            {
+              "source_name": "Aruba Networks Inc.",
+              "description": "CVE-2021-44228 - Apache log4j library vulnerability",
+              "url": "https://www.arubanetworks.com/assets/alert/ARUBA-PSA-2021-019.txt",
+              "external_id": "ARUBA-PSA-2021-019"
+            }
+          ],
+          "x_opencti_id": "50e82364-5bce-453e-9e79-b9743774d310",
+          "x_opencti_type": "Vulnerability",
+          "type": "vulnerability"
         }
-    ]
-}}}
+      ]
+    }
+  }
+}
