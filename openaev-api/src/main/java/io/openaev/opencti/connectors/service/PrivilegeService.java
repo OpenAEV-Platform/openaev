@@ -50,6 +50,7 @@ public class PrivilegeService {
                     List.of(
                         userService.createUserToken(
                             existingEmailUser.get(), connector.getToken()))));
+        existingEmailUser.get().setGroups(new ArrayList<>(List.of(group)));
         userService.updateUser(existingEmailUser.get());
         return;
       }
