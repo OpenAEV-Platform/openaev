@@ -92,12 +92,12 @@ public class UserService {
     createUserToken(user, UUID.randomUUID().toString());
   }
 
-  private void createUserToken(User user, String discreteToken) {
+  public Token createUserToken(User user, String discreteToken) {
     Token token = new Token();
     token.setUser(user);
     token.setCreated(now());
     token.setValue(discreteToken);
-    tokenRepository.save(token);
+    return tokenRepository.save(token);
   }
 
   public User updateUser(User user) {
@@ -190,5 +190,9 @@ public class UserService {
         },
         "",
         roles);
+  }
+
+  public Optional<User> findByEmailIgnoreCase(String email) {
+    return userRepository.findByEmailIgnoreCase(email);
   }
 }
