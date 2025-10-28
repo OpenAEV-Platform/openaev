@@ -4,6 +4,12 @@ import io.openaev.config.SessionHelper;
 import io.openaev.database.model.User;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -20,13 +26,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 @Aspect
 @Component
@@ -50,9 +49,10 @@ public class RBACAspect {
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
     String[] parameterNames = signature.getParameterNames();
     Object[] args = joinPoint.getArgs();
-    Map<String, Object> paramMap = IntStream.range(0, parameterNames.length)
-      .boxed()
-      .collect(Collectors.toMap(i -> parameterNames[i], i -> args[i]));
+    Map<String, Object> paramMap =
+        IntStream.range(0, parameterNames.length)
+            .boxed()
+            .collect(Collectors.toMap(i -> parameterNames[i], i -> args[i]));
     Method method = signature.getMethod();
     Optional<HttpMappingInfo> httpMappingInfo = getHttpMappingInfo(method, paramMap);
 
@@ -90,7 +90,7 @@ public class RBACAspect {
     // Perform your RBAC check with the extracted value
     boolean allowed =
         permissionService.hasPermission(
-          principal, httpMappingInfo, resourceId, rbac.resourceType(), rbac.actionPerformed());
+            principal, httpMappingInfo, resourceId, rbac.resourceType(), rbac.actionPerformed());
 
     if (!allowed) {
       log.warn(
@@ -105,11 +105,7 @@ public class RBACAspect {
   }
 
   public record HttpMappingInfo(
-    RequestMethod httpMethod,
-    String[] paths,
-    Map<String, Object> args
-  ) {
-  }
+      RequestMethod httpMethod, String[] paths, Map<String, Object> args) {}
 
   private Optional<HttpMappingInfo> getHttpMappingInfo(Method method, Map<String, Object> args) {
     if (method.isAnnotationPresent(GetMapping.class)) {

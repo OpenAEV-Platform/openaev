@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -98,6 +99,7 @@ public class StreamApi extends RestBehavior {
           FluxSink<Object> fluxSink = tupleFlux.getT2();
           if (!permissionService.hasPermission(
               user,
+              Optional.empty(),
               event.getInstance().getId(),
               event.getInstance().getResourceType(),
               Action.READ)) {

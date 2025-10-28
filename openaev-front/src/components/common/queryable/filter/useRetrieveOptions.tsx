@@ -20,7 +20,11 @@ import { AbilityContext } from '../../../../utils/permissions/PermissionsProvide
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
 
-interface RetrieveOptionsConfig { defaultValues?: GroupOption[] | undefined }
+interface RetrieveOptionsConfig {
+  defaultValues?: GroupOption[] | undefined,
+  contextId?: string;
+  filterKey: string;
+}
 
 const useRetrieveOptions = () => {
   const [options, setOptions] = useState<Option[]>([]);
@@ -37,7 +41,8 @@ const useRetrieveOptions = () => {
     }
   };
 
-  const searchOptions = (filterKey: string, ids: string[], config: RetrieveOptionsConfig) => {
+  const searchOptions = ( ids: string[], config: RetrieveOptionsConfig) => {
+    const { filterKey, contextId = '' } = config;
     const filterDefaultValues = (config.defaultValues ?? []).filter(v => ids.includes(v.id));
     switch (filterKey) {
       case SIMULATIONS:
@@ -48,7 +53,7 @@ const useRetrieveOptions = () => {
         break;
       case 'injector_contract_injector':
       case 'inject_injector_contract':
-        searchInjectorByIdAsOptions(ids).then((response) => {
+        searchInjectorByIdAsOptions(ids, contextId).then((response) => {
           setOptions(response.data);
         });
         break;

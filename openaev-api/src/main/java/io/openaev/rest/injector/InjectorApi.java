@@ -220,7 +220,8 @@ public class InjectorApi extends RestBehavior {
   @GetMapping(INJECT0R_URI + "/options")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      @RequestParam(required = false) final String searchText,
+      @RequestParam(required = false) final String sourceId) {
     return fromIterable(
             this.injectorRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -231,7 +232,8 @@ public class InjectorApi extends RestBehavior {
 
   @PostMapping(INJECT0R_URI + "/options")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(
+      @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
     return fromIterable(this.injectorRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

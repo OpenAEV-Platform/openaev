@@ -64,6 +64,7 @@ const FilterChip: FunctionComponent<Props> = ({
                 propertySchema={propertySchema}
                 isTooltip
                 handleOpen={handleOpen}
+                contextId={contextId}
               />
             )}
           >
@@ -72,6 +73,7 @@ const FilterChip: FunctionComponent<Props> = ({
                 filter={filter}
                 propertySchema={propertySchema}
                 handleOpen={handleOpen}
+                contextId={contextId}
               />
             </span>
           </Tooltip>
