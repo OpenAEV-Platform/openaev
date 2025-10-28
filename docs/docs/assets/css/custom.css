@@ -81,6 +81,16 @@
   background-color: #09101e !important;
 }
 
+.md-banner {
+  background-color: #ffff99 !important;
+  color: #212115 !important;
+}
+
+.md-banner a {
+  background-color: #ffff99 !important;
+  color: #212115;
+}
+
 /* Cards */
 .md-typeset .grid.cards>ol>li,.md-typeset .grid.cards>ul>li,.md-typeset .grid>.card {
   border: none !important;

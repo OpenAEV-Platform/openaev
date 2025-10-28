@@ -22,6 +22,7 @@ theme:
     - content.code.annotate
     - content.code.copy
     - search.highlight
+    - announce.dismiss
   palette:
     scheme: filigran
   font:
