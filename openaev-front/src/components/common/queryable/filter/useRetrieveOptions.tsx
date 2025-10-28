@@ -21,7 +21,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
 
 interface RetrieveOptionsConfig {
-  defaultValues?: GroupOption[] | undefined,
+  defaultValues?: GroupOption[] | undefined;
   contextId?: string;
   filterKey: string;
 }
@@ -41,7 +41,7 @@ const useRetrieveOptions = () => {
     }
   };
 
-  const searchOptions = ( ids: string[], config: RetrieveOptionsConfig) => {
+  const searchOptions = (ids: string[], config: RetrieveOptionsConfig) => {
     const { filterKey, contextId = '' } = config;
     const filterDefaultValues = (config.defaultValues ?? []).filter(v => ids.includes(v.id));
     switch (filterKey) {

@@ -12,8 +12,7 @@ export const searchInjectorsByNameAsOption = (searchText: string = '', sourceId:
 
 export const searchInjectorByIdAsOptions = (ids: string[], sourceId: string = '') => {
   const url = sourceId
-      ? `${INJECTOR_URI}/options?sourceId=${sourceId}`
-      : `${INJECTOR_URI}/options`;
-
+    ? `${INJECTOR_URI}/options?sourceId=${sourceId}`
+    : `${INJECTOR_URI}/options`;
   return simplePostCall(url, ids);
 };

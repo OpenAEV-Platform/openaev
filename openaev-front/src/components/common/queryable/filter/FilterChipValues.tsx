@@ -8,7 +8,7 @@ import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { convertOperatorToIcon } from './FilterUtils';
 import useRetrieveOptions from './useRetrieveOptions';
-import type {SearchOptionsConfig} from "./useSearchOptions";
+import type { SearchOptionsConfig } from './useSearchOptions';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
@@ -44,7 +44,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
   propertySchema,
   isTooltip = false,
   handleOpen,
-  contextId
+  contextId,
 }) => {
   // Standard hooks
   const { t, fldt } = useFormatter();
@@ -52,12 +52,14 @@ const FilterChipValues: FunctionComponent<Props> = ({
 
   const { options, searchOptions } = useRetrieveOptions();
   const { defaultValues } = useContext(FilterContext);
+
   useEffect(() => {
     const searchOptionsConfig: SearchOptionsConfig = {
       filterKey: filter.key,
       contextId: contextId ?? '',
       defaultValues: defaultValues?.get(filter.key),
     };
+
     if (filter.values) {
       searchOptions(filter.values, searchOptionsConfig);
     }
