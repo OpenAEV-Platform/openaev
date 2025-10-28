@@ -54,7 +54,7 @@ const useSearchOptions = () => {
         break;
       case 'injector_contract_injector':
       case 'inject_injector_contract':
-        searchInjectorsByNameAsOption(search).then((response) => {
+        searchInjectorsByNameAsOption(search, contextId).then((response) => {
           setOptions(response.data);
         });
         break;

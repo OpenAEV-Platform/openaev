@@ -64,10 +64,10 @@ export const searchEndpointsFromAssetGroup = (searchPaginationInput: SearchPagin
   return simplePostCall(uri, data);
 };
 
-export const searchAssetGroupAsOption = (searchText: string = '', simulationOrScenarioId: string = '', inputFilterOption: string = '') => {
+export const searchAssetGroupAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {
   const params = {
     searchText,
-    simulationOrScenarioId,
+    sourceId,
     inputFilterOption,
   };
   return simpleCall(`${ASSET_GROUP_URI}/options`, { params });

@@ -172,7 +172,7 @@ public class AssetGroupApi extends RestBehavior {
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
-      @RequestParam(required = false) final String simulationOrScenarioId,
+      @RequestParam(required = false) final String sourceId,
       @RequestParam(required = false) final String inputFilterOption) {
     List<FilterUtilsJpa.Option> options = List.of();
     InputFilterOptions injectFilterOptionEnum;
@@ -181,7 +181,7 @@ public class AssetGroupApi extends RestBehavior {
     } catch (Exception e) {
       if (StringUtils.isEmpty(inputFilterOption)) {
         log.warn("InputFilterOption is null, fall back to backwards compatible case");
-        if (StringUtils.isNotEmpty(simulationOrScenarioId)) {
+        if (StringUtils.isNotEmpty(sourceId)) {
           injectFilterOptionEnum = InputFilterOptions.SIMULATION_OR_SCENARIO;
         } else {
           injectFilterOptionEnum = InputFilterOptions.ATOMIC_TESTING;
@@ -205,7 +205,7 @@ public class AssetGroupApi extends RestBehavior {
         }
       case SIMULATION_OR_SCENARIO:
         {
-          if (StringUtils.isEmpty(simulationOrScenarioId)) {
+          if (StringUtils.isEmpty(sourceId)) {
             throw new BadRequestException("Missing simulation or scenario id");
           }
         }
@@ -214,8 +214,7 @@ public class AssetGroupApi extends RestBehavior {
           options =
               assetGroupRepository
                   .findAllBySimulationOrScenarioIdAndName(
-                      StringUtils.trimToNull(simulationOrScenarioId),
-                      StringUtils.trimToNull(searchText))
+                      StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText))
                   .stream()
                   .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
                   .toList();
