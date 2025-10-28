@@ -51,6 +51,7 @@ public class PrivilegeService {
                         userService.createUserToken(
                             existingEmailUser.get(), connector.getToken()))));
         userService.updateUser(existingEmailUser.get());
+        return;
       }
 
       CreateUserInput input = new CreateUserInput();
