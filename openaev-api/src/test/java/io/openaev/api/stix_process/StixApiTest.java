@@ -210,7 +210,12 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return 400 when STIX JSON is malformed")
     void shouldReturnBadRequestWhenStixJsonIsInvalid() throws Exception {
-      String invalidJson = "{ not-a-valid-json }";
+      String invalidJson =
+          """
+             {
+               "not-a-valid-json":
+             }
+             """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
@@ -227,7 +232,6 @@ class StixApiTest extends IntegrationTest {
               {
                 "type": "bundle",
                 "id": "bundle--1234"
-                // Missing "objects" field
               }
               """;
 

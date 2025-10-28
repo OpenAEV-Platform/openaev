@@ -1,6 +1,5 @@
 package io.openaev.api.stix_process;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
@@ -54,12 +53,13 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent)
-      throws JsonProcessingException {
-    JsonNode root = objectMapper.readTree(ctiEvent);
-    String workId = root.get("internal").get("work_id").asText();
+  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent) {
+    String workId = null;
     try {
-      String stixJson = root.get("event").get("stix_objects").asText(); // As text is required here
+      JsonNode root = objectMapper.readTree(ctiEvent);
+      workId = root.path("internal").path("work_id").asText();
+      String stixJson =
+          root.path("event").path("stix_objects").asText(); // As text is required here
       // Acknowledge the scenario creation / enrichment by sending back the security coverage
       openCTIService.acknowledgeReceivedOfCoverage(
           workId, "OpenAEV ready to process the operation");
