@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,8 @@ class XtmHubServiceTest {
   @Mock private PlatformSettingsService platformSettingsService;
 
   @Mock private XtmHubClient xtmHubClient;
+
+  @Mock private XtmHubConfig xtmHubConfig;
 
   @Mock private XtmHubEmailService xtmHubEmailService;
 
@@ -166,10 +169,44 @@ class XtmHubServiceTest {
   }
 
   @Test
+  @DisplayName("Should not send connectivity email when email is disabled from configuration")
+  void refreshConnectivity_WhenEmailDisabledFromConfig_ShouldNotSendEmail() {
+    // Given
+    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn("false");
+    String token = "valid-token";
+    LocalDateTime lastCheck = now.minusHours(25);
+
+    mockSettings.setXtmHubToken(token);
+    mockSettings.setPlatformId("platform-123");
+    mockSettings.setPlatformVersion("1.0.0");
+    mockSettings.setXtmHubRegistrationDate(registrationDate.toString());
+    mockSettings.setXtmHubRegistrationUserId("user-123");
+    mockSettings.setXtmHubRegistrationUserName("John Doe");
+    mockSettings.setXtmHubLastConnectivityCheck(lastCheck.toString());
+    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+
+    PlatformSettings updatedSettings = new PlatformSettings();
+
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.refreshRegistrationStatus(anyString(), anyString(), anyString()))
+        .thenReturn(XtmHubConnectivityStatus.INACTIVE);
+    when(platformSettingsService.updateXTMHubRegistration(any(), any(), any(), any(), any(), any()))
+        .thenReturn(updatedSettings);
+
+    // When
+    PlatformSettings result = xtmHubService.refreshConnectivity();
+
+    // Then
+    assertEquals(updatedSettings, result);
+    verifyNoInteractions(xtmHubEmailService);
+  }
+
+  @Test
   @DisplayName(
       "Should send connectivity email when connectivity is lost for more than 24 hours and email sending is enabled")
   void refreshConnectivity_WhenConnectivityLostMoreThan24HoursAndEmailEnabled_ShouldSendEmail() {
     // Given
+    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn("true");
     String token = "valid-token";
     LocalDateTime lastCheck = now.minusHours(25);
 
@@ -290,6 +327,7 @@ class XtmHubServiceTest {
   @DisplayName("Should handle exactly 24 hours difference")
   void refreshConnectivity_WhenExactly24HoursPassed_ShouldSendEmail() {
     // Given
+    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn("true");
     String token = "valid-token";
     LocalDateTime lastCheck = now.minusHours(24);
 

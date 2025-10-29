@@ -23,6 +23,10 @@ public class XtmHubConfig {
   @Value("${openbas.xtm.hub.override-api-url:${openaev.xtm.hub.override-api-url:#{null}}}")
   private String override_api_url;
 
+  @JsonProperty("connectivity-email-enable")
+  @Value("${openaev.xtm.hub.connectivity-email-enable}:#{true}")
+  private String connectivityEmailEnable;
+
   public String getApiUrl() {
     if (StringUtils.isNotBlank(this.override_api_url)) {
       return this.override_api_url;

@@ -4,6 +4,7 @@ import io.openaev.database.model.User;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -19,6 +20,7 @@ public class XtmHubService {
 
   private final PlatformSettingsService platformSettingsService;
   private final UserService userService;
+  private final XtmHubConfig xtmHubConfig;
   private final XtmHubClient xtmHubClient;
   private final XtmHubEmailService xtmHubEmailService;
 
@@ -91,7 +93,8 @@ public class XtmHubService {
   }
 
   private boolean isEmailNotificationEnabled(PlatformSettings settings) {
-    return Boolean.parseBoolean(settings.getXtmHubShouldSendConnectivityEmail());
+    return Boolean.parseBoolean(settings.getXtmHubShouldSendConnectivityEmail())
+        && Boolean.parseBoolean(xtmHubConfig.getConnectivityEmailEnable());
   }
 
   private PlatformSettings updateRegistrationStatus(
