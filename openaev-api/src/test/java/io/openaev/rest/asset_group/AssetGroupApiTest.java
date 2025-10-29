@@ -352,8 +352,7 @@ class AssetGroupApiTest extends IntegrationTest {
         mvc.perform(
                 get(ASSET_GROUP_URI + "/options")
                     .queryParam("searchText", searchText)
-                    .queryParam(
-                        "simulationOrScenarioId", simulationOrScenarioId ? exercise.getId() : null)
+                    .queryParam("sourceId", simulationOrScenarioId ? exercise.getId() : null)
                     .accept(MediaType.APPLICATION_JSON))
             .andReturn()
             .getResponse()

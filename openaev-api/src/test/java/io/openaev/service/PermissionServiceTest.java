@@ -6,23 +6,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Action;
-import io.openaev.database.model.Capability;
-import io.openaev.database.model.Group;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.Role;
-import io.openaev.database.model.User;
+import io.openaev.aop.RBACAspect;
+import io.openaev.database.model.*;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.UserFixture;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 @SpringBootTest
 public class PermissionServiceTest extends IntegrationTest {
@@ -38,7 +31,11 @@ public class PermissionServiceTest extends IntegrationTest {
   public void test_hasPermission_WHEN_admin() {
     assertTrue(
         permissionService.hasPermission(
-            getUser(USER_ID, true), RESOURCE_ID, ResourceType.SCENARIO, Action.WRITE));
+            getUser(USER_ID, true),
+            Optional.empty(),
+            RESOURCE_ID,
+            ResourceType.SCENARIO,
+            Action.WRITE));
   }
 
   @Test
@@ -46,7 +43,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SCENARIO, Action.READ));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ));
   }
 
   @Test
@@ -54,7 +52,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SIMULATION, Action.WRITE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.WRITE));
   }
 
   @Test
@@ -63,7 +62,8 @@ public class PermissionServiceTest extends IntegrationTest {
     user.setGroups(List.of(getGroup(Capability.ACCESS_ASSESSMENT)));
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SIMULATION, Action.READ));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.READ));
   }
 
   @Test
@@ -71,7 +71,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SIMULATION, Action.DELETE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.DELETE));
   }
 
   @Test
@@ -79,14 +80,16 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasLaunchGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SCENARIO, Action.LAUNCH));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.LAUNCH));
   }
 
   @Test
   public void test_hasPermission_search_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SCENARIO, Action.SEARCH));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.SEARCH));
   }
 
   @Test
@@ -94,7 +97,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
   }
 
   @Test
@@ -102,7 +106,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.BYPASS)));
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
   }
 
   @Test
@@ -110,34 +115,40 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.CHANNEL, Action.WRITE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_read_player_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.PLAYER, Action.READ));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.PLAYER, Action.READ));
   }
 
   @Test
   public void test_hasPermission_read_team_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
-    assertTrue(permissionService.hasPermission(user, RESOURCE_ID, ResourceType.TEAM, Action.READ));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.READ));
   }
 
   @Test
   public void test_hasPermission_write_player_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.PLAYER, Action.WRITE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.PLAYER, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_write_team_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.TEAM, Action.WRITE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.WRITE));
   }
 
   @Test
@@ -145,7 +156,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     assertTrue(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
   }
 
   @Test
@@ -155,14 +167,15 @@ public class PermissionServiceTest extends IntegrationTest {
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
         permissionService.hasPermission(
-            user, RESOURCE_ID, ResourceType.SCENARIO, Action.DUPLICATE));
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.DUPLICATE));
   }
 
   @Test
   public void test_hasPermission_create_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
   }
 
   @Test
@@ -175,7 +188,9 @@ public class PermissionServiceTest extends IntegrationTest {
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
-    assertTrue(permissionService.hasPermission(user, injectId, ResourceType.INJECT, Action.WRITE));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), injectId, ResourceType.INJECT, Action.WRITE));
   }
 
   @Test
@@ -188,41 +203,101 @@ public class PermissionServiceTest extends IntegrationTest {
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
-    assertFalse(permissionService.hasPermission(user, injectId, ResourceType.INJECT, Action.WRITE));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), injectId, ResourceType.INJECT, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_search_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.SEARCH));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.SEARCH));
   }
 
   @Test
   public void test_hasPermission_duplicate_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.DUPLICATE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.DUPLICATE));
   }
 
   @Test
   public void test_hasPermission_read_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
-    assertFalse(permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.READ));
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.READ));
   }
 
   @Test
   public void test_hasPermission_write_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.WRITE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_create_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission(user, RESOURCE_ID, ResourceType.USER, Action.CREATE));
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.CREATE));
+  }
+
+  @Test
+  public void test_hasPermission_search_options_WHEN_has_write_grant() {
+    String injectId = "injectId";
+    Inject inject = mock(Inject.class);
+    when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
+    when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
+    RBACAspect.HttpMappingInfo mappingInfo =
+        new RBACAspect.HttpMappingInfo(
+            RequestMethod.GET, new String[] {"api/injector/options"}, Map.of("sourceId", injectId));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.of(mappingInfo), null, ResourceType.INJECTOR, Action.SEARCH));
+  }
+
+  @Test
+  public void test_hasNOPermission_search_options_WHEN_has_write_grant() {
+    String injectId = "injectId";
+    Inject inject = mock(Inject.class);
+    when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
+    when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), null, ResourceType.INJECTOR, Action.SEARCH));
+  }
+
+  @Test
+  public void
+      test_hasNOPermission_search_options_WHEN_has_write_grant_AND_incomplete_mapping_info_no_sourceId() {
+    String injectId = "injectId";
+    Inject inject = mock(Inject.class);
+    when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
+    when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
+    RBACAspect.HttpMappingInfo mappingInfo =
+        new RBACAspect.HttpMappingInfo(
+            RequestMethod.GET, new String[] {"api/injector/options"}, Map.of());
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.of(mappingInfo), null, ResourceType.INJECTOR, Action.SEARCH));
   }
 
   private User getUser(final String id, final boolean isAdmin) {

@@ -3,7 +3,8 @@ package io.openaev.rest;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
-import static io.openaev.utils.fixtures.AssetGroupFixture.*;
+import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
+import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTag;
@@ -473,8 +474,7 @@ class EndpointApiTest extends IntegrationTest {
         mvc.perform(
                 get(ENDPOINT_URI + "/options")
                     .queryParam("searchText", searchText)
-                    .queryParam(
-                        "simulationOrScenarioId", simulationOrScenarioId ? exercise.getId() : null)
+                    .queryParam("sourceId", simulationOrScenarioId ? exercise.getId() : null)
                     .accept(MediaType.APPLICATION_JSON))
             .andReturn()
             .getResponse()

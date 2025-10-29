@@ -18,6 +18,7 @@ import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -76,7 +77,8 @@ public class StreamApiTest {
   public void test_listenDatabaseUpdate_WHEN_user_has_permission() {
 
     // mock PermissionService method
-    when(permissionService.hasPermission(mockUser, RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
         .thenReturn(true);
 
     Scenario scenario = ScenarioFixture.getScenario();
@@ -103,7 +105,8 @@ public class StreamApiTest {
     when(mapper.createObjectNode()).thenReturn(mock(ObjectNode.class));
 
     // mock PermissionService method
-    when(permissionService.hasPermission(mockUser, RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
         .thenReturn(false);
 
     Scenario scenario = ScenarioFixture.getScenario();

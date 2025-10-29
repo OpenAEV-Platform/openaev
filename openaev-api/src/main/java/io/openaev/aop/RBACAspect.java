@@ -5,11 +5,10 @@ import io.openaev.database.model.User;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -49,10 +48,15 @@ public class RBACAspect {
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
     String[] parameterNames = signature.getParameterNames();
     Object[] args = joinPoint.getArgs();
-    Map<String, Object> paramMap =
-        IntStream.range(0, parameterNames.length)
-            .boxed()
-            .collect(Collectors.toMap(i -> parameterNames[i], i -> args[i]));
+    Map<String, Object> paramMap;
+    if (parameterNames == null || parameterNames.length == 0) {
+      paramMap = Map.of();
+    } else {
+      paramMap = new HashMap<>();
+      for (int i = 0; i < parameterNames.length; i++) {
+        paramMap.put(parameterNames[i], args[i]);
+      }
+    }
     Method method = signature.getMethod();
     Optional<HttpMappingInfo> httpMappingInfo = getHttpMappingInfo(method, paramMap);
 
