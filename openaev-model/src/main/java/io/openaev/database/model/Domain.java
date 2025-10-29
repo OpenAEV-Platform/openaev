@@ -11,6 +11,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "domains")
 @EntityListeners(ModelBaseListener.class)
@@ -21,14 +23,24 @@ import org.hibernate.annotations.UuidGenerator;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Domain implements Base {
 
-  @Id
-  @Column(name = "domain_id")
-  @JsonProperty("domain_id")
-  @GeneratedValue(generator = "UUID")
-  @UuidGenerator
-  @EqualsAndHashCode.Include
-  @NotBlank
-  private String id;
+  public enum DomainName {
+        ENDPOINT,
+        NETWORK,
+        WEB_APPLICATION,
+        EMAIL_INFILTRATION,
+        DATA_EXFILTRATION,
+        URL_FILTERING,
+        CLOUD,
+    }
+
+    @Id
+    @Column(name = "domain_id")
+    @JsonProperty("domain_id")
+    @GeneratedValue(generator = "UUID")
+    @UuidGenerator
+    @EqualsAndHashCode.Include
+    @NotBlank
+    private String id;
 
   @Column(name = "domain_name")
   @JsonProperty("domain_name")
