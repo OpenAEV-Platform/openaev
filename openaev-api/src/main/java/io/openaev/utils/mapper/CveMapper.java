@@ -3,10 +3,11 @@ package io.openaev.utils.mapper;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.Cve;
 import io.openaev.database.model.Cwe;
+import io.openaev.database.model.Vulnerability;
 import io.openaev.ee.Ee;
 import io.openaev.rest.cve.form.CveOutput;
 import io.openaev.rest.cve.form.CveSimple;
-import io.openaev.rest.cve.form.CweOutput;
+import io.openaev.rest.vulnerability.form.CweOutput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,37 +24,44 @@ public class CveMapper {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
 
-  public CveSimple toCveSimple(final Cve cve) {
-    if (cve == null) {
+  private Cve.VulnerabilityStatus mapVulnerabilityStatus(Vulnerability.VulnerabilityStatus status) {
+    if (status == null) {
+      return null;
+    }
+    return Cve.VulnerabilityStatus.valueOf(status.name());
+  }
+
+  public CveSimple toCveSimple(final Vulnerability vulnerability) {
+    if (vulnerability == null) {
       return null;
     }
     return CveSimple.builder()
-        .id(cve.getId())
-        .externalId(cve.getExternalId())
-        .cvssV31(cve.getCvssV31())
-        .published(cve.getPublished())
+        .id(vulnerability.getId())
+        .externalId(vulnerability.getExternalId())
+        .cvssV31(vulnerability.getCvssV31())
+        .published(vulnerability.getPublished())
         .build();
   }
 
-  public CveOutput toCveOutput(final Cve cve) {
-    if (cve == null) {
+  public CveOutput toCveOutput(final Vulnerability vulnerability) {
+    if (vulnerability == null) {
       return null;
     }
     return CveOutput.builder()
-        .id(cve.getId())
-        .externalId(cve.getExternalId())
-        .cvssV31(cve.getCvssV31())
-        .published(cve.getPublished())
-        .sourceIdentifier(cve.getSourceIdentifier())
-        .description(cve.getDescription())
-        .vulnStatus(cve.getVulnStatus())
-        .cisaActionDue(cve.getCisaActionDue())
-        .cisaExploitAdd(cve.getCisaExploitAdd())
-        .cisaRequiredAction(cve.getCisaRequiredAction())
-        .cisaVulnerabilityName(cve.getCisaVulnerabilityName())
-        .remediation(getRemediationIfLicensed(cve))
-        .referenceUrls(new ArrayList<>(cve.getReferenceUrls()))
-        .cwes(toCweOutputs(cve.getCwes()))
+        .id(vulnerability.getId())
+        .externalId(vulnerability.getExternalId())
+        .cvssV31(vulnerability.getCvssV31())
+        .published(vulnerability.getPublished())
+        .sourceIdentifier(vulnerability.getSourceIdentifier())
+        .description(vulnerability.getDescription())
+        .vulnStatus(mapVulnerabilityStatus(vulnerability.getVulnStatus()))
+        .cisaActionDue(vulnerability.getCisaActionDue())
+        .cisaExploitAdd(vulnerability.getCisaExploitAdd())
+        .cisaRequiredAction(vulnerability.getCisaRequiredAction())
+        .cisaVulnerabilityName(vulnerability.getCisaVulnerabilityName())
+        .remediation(getRemediationIfLicensed(vulnerability))
+        .referenceUrls(new ArrayList<>(vulnerability.getReferenceUrls()))
+        .cwes(toCweOutputs(vulnerability.getCwes()))
         .build();
   }
 
@@ -71,9 +79,9 @@ public class CveMapper {
     return CweOutput.builder().externalId(cwe.getExternalId()).source(cwe.getSource()).build();
   }
 
-  private String getRemediationIfLicensed(final Cve cve) {
+  private String getRemediationIfLicensed(final Vulnerability vulnerability) {
     if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
-      return cve.getRemediation();
+      return vulnerability.getRemediation();
     } else {
       log.debug("Enterprise Edition license inactive - omitting remediation field");
       return null;

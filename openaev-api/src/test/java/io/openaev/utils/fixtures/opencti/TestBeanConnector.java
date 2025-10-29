@@ -13,13 +13,35 @@ public class TestBeanConnector extends ConnectorBase {
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
 
   public TestBeanConnector() {
-    this.setId(UUID.randomUUID().toString());
-    this.setUrl("test opencti server url");
-    this.setAuthToken(UUID.randomUUID().toString());
     this.setAuto(false);
     this.setOnlyContextual(false);
     this.setPlaybookCompatible(false);
     this.setScope(null);
     this.setListenCallbackURI("test callback uri");
+  }
+
+  @Override
+  public String getUrl() {
+    return "test opencti server url";
+  }
+
+  @Override
+  public String getApiUrl() {
+    return "test opencti server url";
+  }
+
+  @Override
+  public String getId() {
+    return UUID.randomUUID().toString();
+  }
+
+  @Override
+  public String getToken() {
+    return UUID.randomUUID().toString();
+  }
+
+  @Override
+  public boolean shouldRegister() {
+    return false;
   }
 }

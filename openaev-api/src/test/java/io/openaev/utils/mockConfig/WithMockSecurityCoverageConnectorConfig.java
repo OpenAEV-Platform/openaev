@@ -5,13 +5,13 @@ import java.lang.annotation.RetentionPolicy;
 import org.springframework.boot.test.autoconfigure.properties.PropertyMapping;
 
 @Retention(RetentionPolicy.RUNTIME)
-@PropertyMapping("openaev.xtm.opencti.connector.security-coverage")
+@PropertyMapping("openaev.xtm.opencti")
 public @interface WithMockSecurityCoverageConnectorConfig {
+  boolean enable() default false;
+
   String url() default "";
 
-  String authToken() default "";
-
-  String id() default "";
+  String token() default "";
 
   String listenCallbackURI() default "";
 }

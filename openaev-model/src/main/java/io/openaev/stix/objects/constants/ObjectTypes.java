@@ -8,6 +8,7 @@ public enum ObjectTypes {
   IDENTITY("identity"),
   ATTACK_PATTERN("attack-pattern"),
   VULNERABILITY("vulnerability"),
+  SECURITY_COVERAGE("security-coverage"),
   DEFAULT("__default__");
 
   private final String value;

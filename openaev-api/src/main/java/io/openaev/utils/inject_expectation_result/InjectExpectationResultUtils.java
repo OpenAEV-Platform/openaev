@@ -3,7 +3,6 @@ package io.openaev.utils.inject_expectation_result;
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.*;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
-import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
@@ -20,8 +19,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class InjectExpectationResultUtils {
-
-  public static final String EXPIRED = "Expired";
 
   private InjectExpectationResultUtils() {}
 
@@ -179,13 +176,16 @@ public class InjectExpectationResultUtils {
 
   // -- CLOSE --
 
-  public static void expireEmptyResults(@NotNull final List<InjectExpectationResult> results) {
+  public static void expireEmptyResults(
+      @NotNull final List<InjectExpectationResult> results,
+      final Double score,
+      final String result) {
     results.stream()
         .filter(r -> !hasText(r.getResult()))
         .forEach(
             r -> {
-              r.setScore(FAILED_SCORE_VALUE);
-              r.setResult(EXPIRED);
+              r.setScore(score);
+              r.setResult(result);
             });
   }
 

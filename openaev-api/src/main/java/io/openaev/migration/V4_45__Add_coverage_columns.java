@@ -1,0 +1,20 @@
+package io.openaev.migration;
+
+import java.sql.Statement;
+import org.flywaydb.core.api.migration.BaseJavaMigration;
+import org.flywaydb.core.api.migration.Context;
+import org.springframework.stereotype.Component;
+
+@Component
+public class V4_45__Add_coverage_columns extends BaseJavaMigration {
+
+  @Override
+  public void migrate(Context context) throws Exception {
+    try (Statement select = context.getConnection().createStatement()) {
+      select.execute(
+          """
+              ALTER TABLE security_coverages ADD COLUMN security_coverage_external_url TEXT;
+              """);
+    }
+  }
+}

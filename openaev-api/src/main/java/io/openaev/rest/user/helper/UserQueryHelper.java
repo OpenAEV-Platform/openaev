@@ -32,6 +32,7 @@ public class UserQueryHelper {
             userRoot.get("email").alias("user_email"),
             userRoot.get("admin").alias("user_admin"),
             organizationJoin.get("name").alias("user_organization_name"),
+            organizationJoin.get("id").alias("user_organization_id"),
             tagIdsExpression.alias("user_tags"))
         .distinct(true);
 
@@ -52,6 +53,7 @@ public class UserQueryHelper {
                     .email(tuple.get("user_email", String.class))
                     .admin(tuple.get("user_admin", boolean.class))
                     .organizationName(tuple.get("user_organization_name", String.class))
+                    .organizationId(tuple.get("user_organization_id", String.class))
                     .tags(Set.of((tuple.get("user_tags", String[].class))))
                     .build())
         .toList();

@@ -85,4 +85,9 @@ public class OutputParser implements Base {
   public int hashCode() {
     return Objects.hash(id);
   }
+
+  @Override
+  public String toString() {
+    return "OutputParser{" + "id='" + id + '\'' + ", type=" + type + ", mode=" + mode + '}';
+  }
 }

@@ -14,6 +14,7 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
+import io.openaev.opencti.client.mutations.PushStixBundle;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
@@ -22,6 +23,8 @@ import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
 import io.openaev.service.UserService;
+import io.openaev.stix.objects.Bundle;
+import io.openaev.stix.types.Identifier;
 import io.openaev.utils.fixtures.GroupFixture;
 import io.openaev.utils.fixtures.RoleFixture;
 import io.openaev.utils.fixtures.TokenFixture;
@@ -77,7 +80,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
     public class ForRegisteringConnectors {
       @Test
       @DisplayName("When request crashes, throw exception")
-      public void whenRequestCrashes_throwException() throws IOException, ConnectorError {
+      public void whenRequestCrashes_throwException() throws IOException {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenThrow(IOException.class);
@@ -88,7 +91,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
       @Test
       @DisplayName("When response has errors in it, throw exception")
-      public void whenResponseHasErrorsInIt_throwException() throws IOException, ConnectorError {
+      public void whenResponseHasErrorsInIt_throwException() throws IOException {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         Response errorResponse = ResponseFixture.getErrorResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
@@ -96,7 +99,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThatThrownBy(() -> openCTIService.registerConnector(testConnector))
             .isInstanceOf(ConnectorError.class)
-            .hasMessageContaining(errorResponse.getErrors().get(0).getMessage())
+            .hasMessageContaining(errorResponse.getErrors().getFirst().getMessage())
             .hasMessageContaining(
                 "Failed to register connector %s with OpenCTI at %s"
                     .formatted(testConnector.getName(), testConnector.getUrl()));
@@ -151,7 +154,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
     public class ForPingingConnectors {
       @Test
       @DisplayName("When response has errors in it, throw exception")
-      public void whenResponseHasErrorsInIt_throwException() throws IOException, ConnectorError {
+      public void whenResponseHasErrorsInIt_throwException() throws IOException {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         testConnector.setRegistered(true); // so it can ping!
         Response errorResponse = ResponseFixture.getErrorResponse();
@@ -159,7 +162,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThatThrownBy(() -> openCTIService.pingConnector(testConnector))
             .isInstanceOf(ConnectorError.class)
-            .hasMessageContaining(errorResponse.getErrors().get(0).getMessage())
+            .hasMessageContaining(errorResponse.getErrors().getFirst().getMessage())
             .hasMessageContaining(
                 "Failed to ping connector %s with OpenCTI at %s"
                     .formatted(testConnector.getName(), testConnector.getUrl()));
@@ -167,7 +170,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
       @Test
       @DisplayName("When request crashes, throw exception")
-      public void whenRequestCrashes_throwException() throws IOException, ConnectorError {
+      public void whenRequestCrashes_throwException() throws IOException {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         testConnector.setRegistered(true); // so it can ping!
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenThrow(IOException.class);
@@ -211,7 +214,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
       @Test
       @DisplayName("When connector not yet registered, throw exception")
-      public void wheConnectorNotYetRegistered_throwException() throws IOException, ConnectorError {
+      public void wheConnectorNotYetRegistered_throwException() throws IOException {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class)))
             .thenReturn(ResponseFixture.getOkResponse());
@@ -223,24 +226,86 @@ public class OpenCTIServiceTest extends IntegrationTest {
                     .formatted(testConnector.getName(), testConnector.getUrl()));
       }
     }
+
+    @Nested
+    @DisplayName("For pushing STIX bundle")
+    public class ForPushingSTIXBundle {
+      private Bundle createBundle() {
+        return new Bundle(new Identifier("titi"), List.of());
+      }
+
+      @Test
+      @DisplayName("When request crashes, throw exception")
+      public void whenRequestCrashes_throwException() throws IOException {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        testConnector.setRegistered(true); // so it can push!
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenThrow(IOException.class);
+
+        assertThatThrownBy(() -> openCTIService.pushStixBundle(createBundle(), testConnector))
+            .isInstanceOf(IOException.class);
+      }
+
+      @Test
+      @DisplayName("When response has errors in it, throw exception")
+      public void whenResponseHasErrorsInIt_throwException() throws IOException {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        testConnector.setRegistered(true); // so it can push!
+        Response errorResponse = ResponseFixture.getErrorResponse();
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenReturn(errorResponse);
+
+        assertThatThrownBy(() -> openCTIService.pushStixBundle(createBundle(), testConnector))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessageContaining(errorResponse.getErrors().getFirst().getMessage())
+            .hasMessageContaining(
+                "Failed to push STIX bundle via connector %s to OpenCTI at %s"
+                    .formatted(testConnector.getName(), testConnector.getUrl()));
+      }
+
+      @Test
+      @DisplayName("When response is valid, return correct payload")
+      public void whenResponseIsValid_returnCorrectPayload() throws IOException, ConnectorError {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        testConnector.setRegistered(true); // so it can push!
+        Response okResponse = ResponseFixture.getOkResponse();
+        String payloadText =
+            """
+              {
+                "stixBundlePush": true
+              }
+              """;
+        okResponse.setData((ObjectNode) mapper.readTree(payloadText));
+
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenReturn(okResponse);
+
+        PushStixBundle.ResponsePayload payload =
+            openCTIService.pushStixBundle(createBundle(), testConnector);
+
+        assertThatJson(mapper.valueToTree(payload)).isEqualTo(payloadText);
+        assertThat(testConnector.isRegistered()).isTrue();
+      }
+
+      @Test
+      @DisplayName("When connector not yet registered, throw exception")
+      public void wheConnectorNotYetRegistered_throwException() throws IOException {
+        ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
+        when(mockOpenCTIClient.execute(any(), any(), any(PushStixBundle.class)))
+            .thenReturn(ResponseFixture.getOkResponse());
+
+        assertThatThrownBy(() -> openCTIService.pushStixBundle(createBundle(), testConnector))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessage(
+                "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
+                    .formatted(testConnector.getName(), testConnector.getUrl()));
+      }
+    }
   }
 
   @Nested
   @DisplayName("Automated privileges provisioning")
   public class AutomatedPrivilegesProvisioning {
-    private Role createProvisionedRole() {
-      Role specificRole = RoleFixture.getRole();
-      specificRole.setId(Constants.PROCESS_STIX_ROLE_ID);
-      specificRole.setName(Constants.PROCESS_STIX_ROLE_NAME);
-      specificRole.setDescription(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
-      specificRole.setCapabilities(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-
-      Role saved = roleComposer.forRole(specificRole).persist().get();
-      entityManager.flush();
-      entityManager.clear();
-      return saved;
-    }
-
     @Nested
     @DisplayName("On register()")
     public class OnRegister {
@@ -261,7 +326,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Optional<Role> role = roleService.findById(Constants.PROCESS_STIX_ROLE_ID);
 
         assertThat(role).isNotEmpty();
-        assertThat(role.get().getCapabilities())
+        assertThat(role.orElseThrow().getCapabilities())
             .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
         assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
         assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
@@ -368,7 +433,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getAuthToken());
+        Optional<User> user = userService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -392,8 +457,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         userComposer
             .forUser(specificUser)
             .withToken(
-                tokenComposer.forToken(
-                    TokenFixture.getTokenWithValue(testConnector.getAuthToken())))
+                tokenComposer.forToken(TokenFixture.getTokenWithValue(testConnector.getToken())))
             .persist();
         entityManager.flush();
         entityManager.clear();
@@ -406,7 +470,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getAuthToken());
+        Optional<User> user = userService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -544,7 +608,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getAuthToken());
+        Optional<User> user = userService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -569,8 +633,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         userComposer
             .forUser(specificUser)
             .withToken(
-                tokenComposer.forToken(
-                    TokenFixture.getTokenWithValue(testConnector.getAuthToken())))
+                tokenComposer.forToken(TokenFixture.getTokenWithValue(testConnector.getToken())))
             .persist();
         entityManager.flush();
         entityManager.clear();
@@ -582,7 +645,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getAuthToken());
+        Optional<User> user = userService.findByToken(testConnector.getToken());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())

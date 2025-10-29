@@ -13,7 +13,7 @@ public enum SettingKeys {
       "platform_login_message",
       "This platform is dedicated to Filigran team testing. **Sandbox running the latest rolling release.**"),
   PLATFORM_WHITEMARK("platform_whitemark", "false"),
-  PLATFORM_NAME("platform_name", "OpenAEV - Breach and Attack Simulation Platform"),
+  PLATFORM_NAME("platform_name", "OpenAEV - Open Adversary Exposure Validation Platform"),
   PLATFORM_BANNER("platform_banner", ""),
   PLATFORM_INSTANCE("instance_id", ""),
   PLATFORM_INSTANCE_CREATION("instance_creation_date", ""),

@@ -38,7 +38,7 @@ public class Cwe implements Base {
   private String source;
 
   @ManyToMany(mappedBy = "cwes")
-  private List<Cve> cves;
+  private List<Vulnerability> vulnerabilities;
 
   // -- AUDIT --
 
