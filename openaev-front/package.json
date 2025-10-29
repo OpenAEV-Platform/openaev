@@ -24,7 +24,7 @@
     "@mui/x-date-pickers": "8.9.0",
     "@redux-devtools/extension": "3.3.0",
     "@uiw/react-md-editor": "4.0.8",
-    "@xyflow/react": "12.8.2",
+    "@xyflow/react": "12.9.1",
     "apexcharts": "4.7.0",
     "axios": "1.11.0",
     "ckeditor5": "45.2.2",
