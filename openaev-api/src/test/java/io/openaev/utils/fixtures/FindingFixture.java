@@ -32,7 +32,7 @@ public class FindingFixture {
             .formatted(Math.round(Math.random() * 1000), Math.round(Math.random() * 1000000));
     Finding finding = new Finding();
     finding.setType(ContractOutputType.CVE);
-    finding.setName("cve");
+    finding.setName("vulnerability");
     finding.setField(TEXT_FIELD);
     finding.setValue(cveName);
     finding.setLabels(new String[] {"reconnaissance phase"});

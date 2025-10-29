@@ -21,7 +21,7 @@ public abstract class ContractElement {
 
   private List<String> mandatoryConditionFields;
 
-  private Map<String, String> mandatoryConditionValues;
+  private Map<String, Object> mandatoryConditionValues; // Can hold String or List<String>
 
   private List<String> visibleConditionFields;
 

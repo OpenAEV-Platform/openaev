@@ -32,7 +32,6 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
@@ -42,7 +41,6 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioSimple;
-import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
@@ -119,7 +117,6 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
-  private final CollectorService collectorService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -156,6 +153,19 @@ public class ScenarioService {
       scenarios = fromIterable(this.scenarioRepository.rawAll());
     } else {
       scenarios = this.scenarioRepository.rawAllGranted(currentUser().getId());
+    }
+    return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
+  }
+
+  public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
+    List<RawScenario> scenarios;
+    User currentUser = userService.currentUser();
+    if (currentUser.isAdminOrBypass()
+        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
+      scenarios = fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds));
+    } else {
+      scenarios =
+          this.scenarioRepository.rawGrantedByScenarioIds(currentUser().getId(), scenarioIds);
     }
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
@@ -909,52 +919,31 @@ public class ScenarioService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<HealthCheck> healthChecks = new ArrayList<>();
 
     Scenario scenario = this.scenario(scenarioId);
-    ScenarioOutput scenarioOutput = scenarioMapper.toScenarioOutput(scenario);
-    scenarioOutput.setInjects(
+
+    // get the healthcheck for each injects, remove duplicate from injects HealthCheck results and
+    // add them to the result
+    List<HealthCheck> injectsHealthChecksNoDuplicate =
         scenario.getInjects().stream()
-            .map(inject -> injectService.runChecks(inject, collectors))
-            .toList());
+            .flatMap(inject -> injectService.runChecks(inject).stream())
+            .collect(
+                Collectors.toMap(
+                    hc -> hc.getType() + "_" + hc.getDetail(),
+                    hc -> hc,
+                    (a, b) ->
+                        HealthCheck.Status.ERROR.equals(a.getStatus())
+                            ? a
+                            : HealthCheck.Status.ERROR.equals(b.getStatus()) ? b : a))
+            .values()
+            .stream()
+            .toList();
+    healthChecks.addAll(injectsHealthChecksNoDuplicate);
 
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.SMTP,
-                HealthCheck.Detail.SERVICE_UNAVAILABLE,
-                HealthCheck.Status.ERROR));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.IMAP,
-                HealthCheck.Detail.SERVICE_UNAVAILABLE,
-                HealthCheck.Status.WARNING));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.AGENT_OR_EXECUTOR,
-                HealthCheck.Detail.EMPTY,
-                HealthCheck.Status.ERROR));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runInjectsInErrorChecks(
-                scenarioOutput,
-                HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
-                HealthCheck.Detail.EMPTY,
-                HealthCheck.Status.ERROR));
-    scenarioOutput
-        .getHealthchecks()
-        .addAll(healthCheckUtils.runMissingContentChecks(scenarioOutput));
-    scenarioOutput.getHealthchecks().addAll(healthCheckUtils.runTeamsChecks(scenarioOutput));
+    healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
+    healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
-    return scenarioOutput.getHealthchecks();
+    return healthChecks;
   }
 }

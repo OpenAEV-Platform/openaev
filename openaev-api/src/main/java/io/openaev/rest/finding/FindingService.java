@@ -161,6 +161,11 @@ public class FindingService {
   // Outputs and with that the injector generate this structure output--
 
   public void extractFindingsFromInjectorContract(Inject inject, ObjectNode structuredOutput) {
+
+    if (structuredOutput == null) {
+      return;
+    }
+
     // Get the contract
     InjectorContract injectorContract = inject.getInjectorContract().orElseThrow();
     List<InjectorContractContentOutputElement> contractOutputs =
@@ -275,6 +280,10 @@ public class FindingService {
   /** Extracts findings from structured output that was generated using output parsers. */
   public void extractFindingsFromOutputParsers(
       Inject inject, Agent agent, Set<OutputParser> outputParsers, JsonNode structuredOutput) {
+
+    if (structuredOutput == null) {
+      return;
+    }
 
     List<ContractOutputElement> contractOutputElements =
         this.getAllIsFindingContractOutputElementsOfOutputParser(outputParsers);

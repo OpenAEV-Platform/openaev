@@ -8,9 +8,9 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Cve;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
@@ -36,7 +36,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     private final InjectorContract injectorContract;
     private final List<AttackPatternComposer.Composer> attackPatternComposer = new ArrayList<>();
-    private final List<CveComposer.Composer> vulnerabilityComposer = new ArrayList<>();
+    private final List<VulnerabilityComposer.Composer> vulnerabilityComposer = new ArrayList<>();
     private Optional<PayloadComposer.Composer> payloadComposer = Optional.empty();
     private final List<ChallengeComposer.Composer> challengeComposers = new ArrayList<>();
     private final List<ArticleComposer.Composer> articleComposers = new ArrayList<>();
@@ -62,9 +62,9 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       return this;
     }
 
-    public Composer withVulnerability(CveComposer.Composer cveComposer) {
+    public Composer withVulnerability(VulnerabilityComposer.Composer cveComposer) {
       this.vulnerabilityComposer.add(cveComposer);
-      Set<Cve> tempVulnerability = this.injectorContract.getVulnerabilities();
+      Set<Vulnerability> tempVulnerability = this.injectorContract.getVulnerabilities();
       tempVulnerability.add(cveComposer.get());
       this.injectorContract.setVulnerabilities(tempVulnerability);
       return this;
@@ -141,7 +141,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       challengeComposers.forEach(ChallengeComposer.Composer::persist);
       articleComposers.forEach(ArticleComposer.Composer::persist);
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
-      vulnerabilityComposer.forEach(CveComposer.Composer::persist);
+      vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
         entityManager.persist(injectorContract.getInjector());
         injectorRepository.save(injectorContract.getInjector());
@@ -158,7 +158,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       challengeComposers.forEach(ChallengeComposer.Composer::delete);
       articleComposers.forEach(ArticleComposer.Composer::delete);
       attackPatternComposer.forEach(AttackPatternComposer.Composer::delete);
-      vulnerabilityComposer.forEach(CveComposer.Composer::delete);
+      vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::delete);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
         injectorContractRepository.delete(injectorContract);
       }

@@ -87,6 +87,32 @@ public interface ExerciseRepository
   List<RawExerciseSimple> rawAll();
 
   /**
+   * Get the raw version of the exercises in the list in param
+   *
+   * @param exerciseIds the list of exercise ids
+   * @return the list of exercises
+   */
+  @Query(
+      value =
+          " SELECT ex.exercise_id, "
+              + "ex.exercise_status, "
+              + "ex.exercise_start_date, "
+              + "ex.exercise_updated_at, "
+              + "ex.exercise_end_date, "
+              + "ex.exercise_name, "
+              + "ex.exercise_category, "
+              + "ex.exercise_subtitle, "
+              + " array_agg(distinct ie.inject_id) FILTER ( WHERE ie.inject_id IS NOT NULL ) as inject_ids, "
+              + " array_agg(distinct et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags "
+              + "FROM exercises ex "
+              + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
+              + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
+              + "WHERE ex.exercise_id IN (:exerciseIds) "
+              + "GROUP BY ex.exercise_id ;",
+      nativeQuery = true)
+  List<RawExerciseSimple> rawByExerciseIds(List<String> exerciseIds);
+
+  /**
    * Get the raw version of the exercises a user can see
    *
    * @param userId the id of the user
@@ -115,6 +141,39 @@ public interface ExerciseRepository
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllGranted(@Param("userId") String userId);
+
+  /**
+   * Get the raw version of the exercises a user can see by exercise ids
+   *
+   * @param userId the id of the user
+   * @param exerciseIds the list of exercise ids
+   * @return the list of exercises
+   */
+  @Query(
+      value =
+          " SELECT ex.exercise_id, "
+              + "ex.exercise_status, "
+              + "ex.exercise_start_date, "
+              + "ex.exercise_updated_at, "
+              + "ex.exercise_end_date, "
+              + "ex.exercise_name, "
+              + "ex.exercise_category, "
+              + "ex.exercise_subtitle, "
+              + " array_agg(et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags, "
+              + " array_agg(injects.inject_id) FILTER ( WHERE injects.inject_id IS NOT NULL ) as inject_ids "
+              + "FROM exercises ex "
+              + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
+              + "LEFT JOIN injects ON ie.inject_id = injects.inject_id "
+              + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
+              + "INNER JOIN grants ON grants.grant_resource = ex.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
+              + "INNER JOIN groups ON grants.grant_group = groups.group_id "
+              + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
+              + "WHERE users_groups.user_id = :userId "
+              + "AND ex.exercise_id IN (:exerciseIds) "
+              + "GROUP BY ex.exercise_id ;",
+      nativeQuery = true)
+  List<RawExerciseSimple> rawGrantedByExerciseIds(
+      @Param("userId") String userId, @Param("exerciseIds") List<String> exerciseIds);
 
   /**
    * Get the raw version of the exercises a user can see

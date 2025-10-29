@@ -33,13 +33,13 @@ import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.security.SecurityExpression;
@@ -88,10 +88,12 @@ public class InjectService {
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
+  private final CollectorService collectorService;
   private final Ee eeService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
@@ -403,7 +405,7 @@ public class InjectService {
     Inject duplicatedInject = findAndDuplicateInject(id);
     this.throwIfInjectNotLaunchable(duplicatedInject);
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
-    delete(id);
+    deleteForRelaunch(id);
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
@@ -411,6 +413,12 @@ public class InjectService {
   public void delete(String id) {
     injectDocumentRepository.deleteDocumentsFromInject(id);
     injectRepository.deleteById(id);
+  }
+
+  @Transactional
+  public void deleteForRelaunch(String id) {
+    injectDocumentRepository.deleteDocumentsFromInject(id);
+    injectRepository.deleteByIdNative(id);
   }
 
   /**
@@ -1254,36 +1262,35 @@ public class InjectService {
    * @param inject to verify
    * @return converted inject to InjectOutput with healthcheck values
    */
-  public InjectOutput runChecks(Inject inject, List<Collector> collectors) {
+  public List<HealthCheck> runChecks(final Inject inject) {
     if (inject == null) {
       return null;
     }
 
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runMailServiceChecks(
-                inject,
-                ExternalServiceDependency.SMTP,
-                smtpService.isServiceAvailable(),
-                HealthCheck.Type.SMTP,
-                HealthCheck.Status.ERROR));
-    injectOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runMailServiceChecks(
-                inject,
-                ExternalServiceDependency.IMAP,
-                imapService.isServiceAvailable(),
-                HealthCheck.Type.IMAP,
-                HealthCheck.Status.WARNING));
-    injectOutput
-        .getHealthchecks()
-        .addAll(
-            healthCheckUtils.runExecutorChecks(
-                inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
-    injectOutput.getHealthchecks().addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
-    return injectOutput;
+    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Injector> injectors = this.injectorService.findAll();
+    List<HealthCheck> healthChecks = new ArrayList<>();
+
+    healthChecks.addAll(
+        healthCheckUtils.runMailServiceChecks(
+            inject,
+            ExternalServiceDependency.SMTP,
+            smtpService.isServiceAvailable(),
+            HealthCheck.Type.SMTP,
+            HealthCheck.Status.ERROR));
+    healthChecks.addAll(
+        healthCheckUtils.runMailServiceChecks(
+            inject,
+            ExternalServiceDependency.IMAP,
+            imapService.isServiceAvailable(),
+            HealthCheck.Type.IMAP,
+            HealthCheck.Status.WARNING));
+    healthChecks.addAll(
+        healthCheckUtils.runExecutorChecks(
+            inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+    healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
+    healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
+
+    return healthChecks;
   }
 }

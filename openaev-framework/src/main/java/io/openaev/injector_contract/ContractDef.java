@@ -84,12 +84,22 @@ public class ContractDef {
    */
   public ContractDef mandatoryOnConditionValue(
       ContractElement element, ContractElement conditionalElement, String value) {
+    return setMandatoryOnCondition(element, conditionalElement, value);
+  }
+
+  public ContractDef mandatoryOnConditionValue(
+      ContractElement element, ContractElement conditionalElement, List<String> values) {
+    return setMandatoryOnCondition(element, conditionalElement, values);
+  }
+
+  private ContractDef setMandatoryOnCondition(
+      ContractElement element, ContractElement conditionalElement, Object values) {
     if (element == null || conditionalElement == null) {
       throw new IllegalArgumentException("Fields cannot be null");
     }
 
     element.setMandatoryConditionFields(List.of(conditionalElement.getKey()));
-    element.setMandatoryConditionValues(Map.of(conditionalElement.getKey(), value));
+    element.setMandatoryConditionValues(Map.of(conditionalElement.getKey(), values));
     element.setMandatory(false);
     this.fields.add(element);
     return this;

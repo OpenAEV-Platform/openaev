@@ -131,36 +131,6 @@ const AtomicTestingRemediations = () => {
     }));
   }, [tabs, activeTab, detectionRemediations]);
 
-  function addOrUpdateRemediation(newRemediation: DetectionRemediationOutput) {
-    if (detectionRemediations.length === 0) {
-      setDetectionRemediations([newRemediation]);
-    } else {
-      setDetectionRemediations((prev) => {
-        const index = prev.findIndex(item => item.detection_remediation_collector === newRemediation.detection_remediation_collector);
-
-        if (index === -1) {
-          return [...prev, newRemediation];
-        } else {
-          const update = [...prev];
-          update[index].detection_remediation_values = newRemediation.detection_remediation_values;
-          update[index].detection_remediation_author_rule = newRemediation.detection_remediation_author_rule;
-          return update;
-        }
-      },
-      );
-    }
-    let i = 0;
-    const text = newRemediation.detection_remediation_values;
-    const interval = setInterval(() => {
-      setDisplayedText(() => i === 0 ? (text[i]) : text.slice(0, i - 10) + (text[i]));
-      i += 10;
-      if (i >= text.length) {
-        clearInterval(interval);
-        setTyping(false);
-      }
-    }, 10);
-  }
-
   const updateSnapshot = useCallback((tabsData: Collector[], activeTabIndex: number, isLoading?: boolean) => {
     setSnapshot((prev) => {
       const map = new Map(prev || []);
@@ -175,10 +145,51 @@ const AtomicTestingRemediations = () => {
     });
   }, []);
 
+  const updateSnapshotNewRemediation = useCallback((tabsData: Collector[], collectorType: string, AIRules: string, isLoading: boolean) => {
+    setSnapshot((prev) => {
+      const map = new Map(prev || []);
+      if (!tabsData) return map;
+      map.set(collectorType, {
+        ...map.get(collectorType) || {},
+        isLoading: isLoading,
+        AIRules: AIRules,
+      } as SnapshotEditionRemediationType);
+
+      return map;
+    });
+  }, []);
+
+  function addOrUpdateRemediation(newRemediation: DetectionRemediationOutput) {
+    setDetectionRemediations((prev) => {
+      const index = prev.findIndex(item => item.detection_remediation_collector === newRemediation.detection_remediation_collector);
+      if (index === -1) {
+        return [...prev, newRemediation];
+      } else {
+        const update = [...prev];
+        update[index] = newRemediation;
+        return update;
+      }
+    },
+    );
+
+    let i = 0;
+    const text = newRemediation.detection_remediation_values;
+    const interval = setInterval(() => {
+      setDisplayedText(() => i === 0 ? (text[i]) : text.slice(0, i - 10) + (text[i]));
+      i += 10;
+      if (i >= text.length) {
+        clearInterval(interval);
+        setTyping(false);
+      }
+    }, 10);
+  }
+
   async function onClickUseAriane() {
     updateSnapshot(tabs, activeTab, true);
     setTyping(true);
+    const collectorType = tabs[activeTab].collector_type;
     return postDetectionRemediationAIRulesByInject(injectId, tabs[activeTab].collector_type).then((value) => {
+      updateSnapshotNewRemediation(tabs, collectorType, value.data.detection_remediation_values, true);
       addOrUpdateRemediation(value.data);
     }).finally(() => {
       updateSnapshot(tabs, activeTab, false);
@@ -235,10 +246,13 @@ const AtomicTestingRemediations = () => {
                           alignItems: 'center',
                         }}
                         >
-                          <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                            {t('No detection rule available for this security platform yet.')}
-                          </Typography>
+                          {!(snapshot?.get(tabs[activeTab].collector_type)?.isLoading) && (
+                            <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
+                              {t('No detection rule available for this security platform yet.')}
+                            </Typography>
+                          )}
                           <DetectionRemediationUseAriane
+                            key={tabs[activeTab].collector_type}
                             collectorType={tabs[activeTab].collector_type}
                             detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
                             onSubmit={onClickUseAriane}
@@ -247,7 +261,9 @@ const AtomicTestingRemediations = () => {
                       </>
                     ) : (
                       activeCollectorRemediations.map((rem) => {
-                        const content = rem.detection_remediation_values?.trim();
+                        const content = (snapshot?.get(tabs[activeTab].collector_type)?.AIRules) != null
+                          ? (snapshot?.get(tabs[activeTab].collector_type)?.AIRules)
+                          : rem.detection_remediation_values?.trim();
 
                         return (
                           <div key={'paper.' + rem.detection_remediation_id}>
@@ -262,20 +278,26 @@ const AtomicTestingRemediations = () => {
                                   >
                                     {`${t('Detection Rule')}: `}
                                   </Typography>
-                                  <p>{typing}</p>
-                                  {typing
-                                    ? (
-                                        <div
-                                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(displayedText?.replace(/\n/g, '')) }}
-                                        >
-                                        </div>
-                                      )
-                                    : (
-                                        <div
-                                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rem.detection_remediation_values.replace(/\n/g, '')) }}
-                                        >
-                                        </div>
-                                      )}
+                                  {
+                                    (() => {
+                                      const collector = rem?.detection_remediation_collector;
+                                      const entry = collector ? snapshot?.get?.(collector) : undefined;
+                                      const aiRules = entry?.AIRules;
+                                      let raw: string;
+
+                                      if (typing) {
+                                        raw = displayedText ?? '';
+                                      } else if (aiRules != null) {
+                                        raw = String(aiRules);
+                                      } else {
+                                        raw = rem?.detection_remediation_values ?? '';
+                                      }
+
+                                      const html = DOMPurify.sanitize(raw.replace(/\n/g, ''));
+
+                                      return <div dangerouslySetInnerHTML={{ __html: html }} />;
+                                    })()
+                                  }
                                 </Box>
                               </>
                             ) : (
@@ -286,9 +308,11 @@ const AtomicTestingRemediations = () => {
                                   alignItems: 'center',
                                 }}
                                 >
-                                  <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                                    {t('No detection rule available for this security platform yet.')}
-                                  </Typography>
+                                  {!(snapshot?.get(tabs[activeTab].collector_type)?.isLoading) && (
+                                    <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
+                                      {t('No detection rule available for this security platform yet.')}
+                                    </Typography>
+                                  )}
 
                                   <DetectionRemediationUseAriane
                                     collectorType={tabs[activeTab].collector_type}

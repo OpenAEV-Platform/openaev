@@ -27,19 +27,20 @@ public class RegisterConnectorTest {
     assertThatJson(registerConnector.getVariables())
         .isEqualTo(
             """
-                      {
-                        "input": {
-                          "id": "%s",
-                          "name": "%s",
-                          "type": "%s",
-                          "scope": [%s],
-                          "auto": %b,
-                          "only_contextual": %b,
-                          "playbook_compatible": %b,
-                          "listen_callback_uri": "%s"
-                        }
-                      }
-                      """
+          {
+            "input": {
+              "id": "%s",
+              "name": "%s",
+              "type": "%s",
+              "scope": [%s],
+              "auto": %b,
+              "auto_update": %b,
+              "only_contextual": %b,
+              "playbook_compatible": %b,
+              "listen_callback_uri": "%s"
+            }
+          }
+          """
                 .formatted(
                     testConnector.getId(),
                     testConnector.getName(),
@@ -48,6 +49,7 @@ public class RegisterConnectorTest {
                         .map("\"%s\""::formatted)
                         .collect(Collectors.joining(",")),
                     testConnector.isAuto(),
+                    testConnector.isAutoUpdate(),
                     testConnector.isOnlyContextual(),
                     testConnector.isPlaybookCompatible(),
                     testConnector.getListenCallbackURI()));

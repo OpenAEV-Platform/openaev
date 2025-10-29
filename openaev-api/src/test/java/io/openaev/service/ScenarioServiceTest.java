@@ -19,16 +19,12 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
-import io.openaev.utils.fixtures.AssetGroupFixture;
-import io.openaev.utils.fixtures.ScenarioFixture;
-import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mapper.ExerciseMapper;
-import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -53,7 +49,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
-  @Autowired private InjectMapper injectMapper;
 
   @Mock Ee eeService;
   @Mock GrantService grantService;
@@ -99,7 +94,6 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            collectorService,
             injectRepository,
             lessonsCategoryRepository,
             healthCheckUtils,
@@ -127,7 +121,6 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            collectorService,
             injectRepository,
             lessonsCategoryRepository,
             healthCheckUtils,
@@ -342,12 +335,9 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -380,12 +370,9 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
             HealthCheck.Status.WARNING,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -418,12 +405,8 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
-
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -456,12 +439,8 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
-
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -494,12 +473,8 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Detail.NOT_READY,
             HealthCheck.Status.WARNING,
             now());
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setHealthchecks(List.of(healthCheck));
-
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
@@ -521,24 +496,22 @@ class ScenarioServiceTest extends IntegrationTest {
   @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
-    Inject inject = new Inject();
     Scenario scenario = new Scenario();
-    scenario.setInjects(new HashSet<>(List.of(inject)));
 
     Injector injector = new Injector();
     injector.setDependencies(
         new ExternalServiceDependency[] {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP
         });
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
     injectorContract.setInjector(injector);
-    InjectOutput injectOutput = injectMapper.toInjectOuput(inject);
-    injectOutput.setInjectorContract(injectorContract);
+
+    Inject inject = InjectFixture.createInject(injectorContract, "test");
+    scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
     // MOCK
-    when(this.collectorService.securityPlatformCollectors()).thenReturn(new ArrayList<>());
-    when(this.injectService.runChecks(any(), any())).thenReturn(injectOutput);
+    when(this.injectService.runChecks(any())).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());

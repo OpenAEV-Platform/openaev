@@ -113,4 +113,19 @@ public class ContractOutputElement implements Base {
   public int hashCode() {
     return Objects.hash(id);
   }
+
+  @Override
+  public String toString() {
+    return "ContractOutputElement{"
+        + "id='"
+        + id
+        + '\''
+        + ", name='"
+        + name
+        + '\''
+        + ", rule='"
+        + rule
+        + '\''
+        + '}';
+  }
 }

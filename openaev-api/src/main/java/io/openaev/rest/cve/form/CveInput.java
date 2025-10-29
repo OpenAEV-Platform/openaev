@@ -1,7 +1,8 @@
 package io.openaev.rest.cve.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.Cve;
+import io.openaev.database.model.Vulnerability;
+import io.openaev.rest.vulnerability.form.CweInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -30,7 +31,7 @@ public class CveInput {
   @Enumerated(EnumType.STRING)
   @JsonProperty("cve_vuln_status")
   @Schema(description = "Vulnerability status", example = "ANALYZED")
-  private Cve.VulnerabilityStatus vulnStatus;
+  private Vulnerability.VulnerabilityStatus vulnStatus;
 
   @JsonProperty("cve_cisa_exploit_add")
   @Schema(description = "Date when CISA added the CVE to the exploited list")

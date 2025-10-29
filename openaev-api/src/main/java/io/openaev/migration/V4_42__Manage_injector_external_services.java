@@ -39,7 +39,7 @@ public class V4_42__Manage_injector_external_services extends BaseJavaMigration 
                     UPDATE injectors
                     SET injector_dependencies = array_append(injector_dependencies, 'SMTP')
                     WHERE
-                     injector_type IN ('openeav_email', 'openeav_challenge', 'openeav_channel') AND
+                     injector_type IN ('openaev_email', 'openaev_challenge', 'openaev_channel') AND
                      ('SMTP' != ALL(injector_dependencies) OR injector_dependencies IS NULL);
                 """);
       statement.execute(
@@ -47,7 +47,7 @@ public class V4_42__Manage_injector_external_services extends BaseJavaMigration 
                     UPDATE injectors
                     SET injector_dependencies = array_append(injector_dependencies, 'IMAP')
                     WHERE
-                     injector_type IN ('openeav_email', 'openeav_challenge', 'openeav_channel') AND
+                     injector_type IN ('openaev_email', 'openaev_challenge', 'openaev_channel') AND
                      ('IMAP' != ALL(injector_dependencies) OR injector_dependencies IS NULL);
                 """);
       statement.execute(

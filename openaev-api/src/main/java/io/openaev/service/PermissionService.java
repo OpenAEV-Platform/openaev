@@ -21,7 +21,7 @@ public class PermissionService {
           ResourceType.PLAYER,
           ResourceType.TEAM,
           ResourceType.PLATFORM_SETTING,
-          ResourceType.CVE,
+          ResourceType.VULNERABILITY,
           ResourceType.TAG,
           ResourceType.ATTACK_PATTERN,
           ResourceType.KILL_CHAIN_PHASE,

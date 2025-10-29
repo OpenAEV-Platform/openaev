@@ -10,6 +10,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointOverviewOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointSimple;
+import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.stream.Collectors;
@@ -37,6 +38,19 @@ public class EndpointMapper {
 
   public EndpointSimple toEndpointSimple(Asset asset) {
     return EndpointSimple.builder().id(asset.getId()).name(asset.getName()).build();
+  }
+
+  public EndpointTargetOutput toEndpointTargetOutput(Endpoint endpoint) {
+    return EndpointTargetOutput.builder()
+        .id(endpoint.getId())
+        .hostname(endpoint.getHostname())
+        .seenIp(endpoint.getSeenIp())
+        .ips(
+            endpoint.getIps() != null
+                ? new HashSet<>(Arrays.asList(setIps(endpoint.getIps())))
+                : emptySet())
+        .agents(agentMapper.toAgentOutputs(endpoint.getAgents()))
+        .build();
   }
 
   public EndpointOverviewOutput toEndpointOverviewOutput(Endpoint endpoint) {

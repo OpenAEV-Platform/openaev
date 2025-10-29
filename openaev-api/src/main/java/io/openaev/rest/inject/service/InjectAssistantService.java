@@ -5,7 +5,6 @@ import static java.util.Collections.emptyList;
 
 import io.openaev.database.helper.InjectorContractRepositoryHelper;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
@@ -35,7 +34,6 @@ public class InjectAssistantService {
   private final AttackPatternService attackPatternService;
   private final InjectorContractService injectorContractService;
 
-  private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
 
   // -- Used in Assistance AI
@@ -267,7 +265,7 @@ public class InjectAssistantService {
    */
   public List<Inject> generateInjectsWithTargetsByVulnerabilities(
       Scenario scenario,
-      Set<Cve> vulnerabilities,
+      Set<Vulnerability> vulnerabilities,
       Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       int injectsPerVulnerability,
       InjectorContract contractForPlaceholder) {
@@ -290,10 +288,10 @@ public class InjectAssistantService {
   }
 
   private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
-      Set<Cve> vulnerabilities, int injectsPerVulnerability) {
+      Set<Vulnerability> vulnerabilities, int injectsPerVulnerability) {
     Set<String> vulnerabilityExternalIds =
         vulnerabilities.stream()
-            .map(Cve::getExternalId)
+            .map(Vulnerability::getExternalId)
             .map(String::toLowerCase)
             .collect(Collectors.toSet());
 
@@ -320,14 +318,14 @@ public class InjectAssistantService {
   /**
    * Builds a set of {@link Inject} objects for a given vulnerability
    *
-   * @param vulnerability the {@link Cve} vulnerability to generate injects for
+   * @param vulnerability the {@link Vulnerability} vulnerability to generate injects for
    * @param injectorContracts related to this vulnerability
    * @param assetGroupListMap assets and associated endpoints involved in the automatic assignment
    * @param contractForPlaceholder contract to use for placeholder injects
    * @return a set of generated {@link Inject} objects, never {@code null}
    */
   private Set<Inject> buildInjectsWithTargetsByVulnerability(
-      Cve vulnerability,
+      Vulnerability vulnerability,
       Set<InjectorContract> injectorContracts,
       Map<AssetGroup, List<Endpoint>> assetGroupListMap,
       InjectorContract contractForPlaceholder) {
@@ -336,7 +334,6 @@ public class InjectAssistantService {
       return Set.of(
           buildManualInject(contractForPlaceholder, vulnerability.getExternalId(), null, null));
     }
-
     Set<Inject> injects = new HashSet<>();
     for (InjectorContract ic : injectorContracts) {
       Inject inject =

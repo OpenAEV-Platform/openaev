@@ -219,7 +219,8 @@ public class InjectImportService {
                                     exerciseTeamUser.setExercise(exercise);
                                     exerciseTeamUser.setTeam(team);
                                     exerciseTeamUser.setUser(user);
-                                    exerciseTeamUserRepository.save(exerciseTeamUser);
+                                    exerciseTeamUser =
+                                        exerciseTeamUserRepository.save(exerciseTeamUser);
                                     exercise.getTeamUsers().add(exerciseTeamUser);
                                   }
                                 }
@@ -260,7 +261,8 @@ public class InjectImportService {
                                     scenarioTeamUser.setScenario(scenario);
                                     scenarioTeamUser.setTeam(team);
                                     scenarioTeamUser.setUser(user);
-                                    scenarioTeamUserRepository.save(scenarioTeamUser);
+                                    scenarioTeamUser =
+                                        scenarioTeamUserRepository.save(scenarioTeamUser);
                                     scenario.getTeamUsers().add(scenarioTeamUser);
                                   }
                                 }
@@ -881,7 +883,7 @@ public class InjectImportService {
                   Team team = new Team();
                   team.setName(teamName);
                   team.setContextual(true);
-                  teamRepository.save(team);
+                  team = teamRepository.save(team);
                   mapTeamByName.put(team.getName(), team);
                   inject.getTeams().add(team);
 

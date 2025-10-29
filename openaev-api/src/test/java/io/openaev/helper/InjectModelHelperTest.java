@@ -347,6 +347,34 @@ class InjectModelHelperTest {
     }
 
     @Test
+    void given_mandatory_on_condition_with_specific_values_when_condition_matches_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(
+          injectorContract,
+          mapper,
+          buildMandatoryOnConditionValue(List.of("assetGroupId", "assetGroupId2")));
+      boolean allTeams = false;
+      List<String> teams = new ArrayList<>();
+      List<String> assets = List.of("assetId");
+      List<String> assetGroups = List.of("assetGroupId2");
+
+      // -- EXECUTE --
+      boolean isReady =
+          isReady(
+              injectorContract,
+              injectorContract.getConvertedContent(),
+              allTeams,
+              teams,
+              assets,
+              assetGroups);
+
+      // -- ASSERT --
+      assertTrue(isReady);
+    }
+
+    @Test
     void
         given_mandatory_on_condition_with_specific_value_when_condition_not_matches_should_not_be_ready()
             throws JsonProcessingException {
@@ -379,6 +407,35 @@ class InjectModelHelperTest {
       // -- PREPARE --
       InjectorContract injectorContract = prepareInjectorContract();
       addField(injectorContract, mapper, buildMandatoryOnConditionValue("assetGroupId"));
+      boolean allTeams = false;
+      List<String> teams = new ArrayList<>();
+      List<String> assets = List.of();
+      List<String> assetGroups = List.of("assetGroupId2");
+
+      // -- EXECUTE --
+      boolean isReady =
+          isReady(
+              injectorContract,
+              injectorContract.getConvertedContent(),
+              allTeams,
+              teams,
+              assets,
+              assetGroups);
+
+      // -- ASSERT --
+      assertTrue(isReady);
+    }
+
+    @Test
+    void
+        given_mandatory_on_condition_with_not_specific_values_when_condition_not_matches_should_be_ready()
+            throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(
+          injectorContract,
+          mapper,
+          buildMandatoryOnConditionValue(List.of("assetGroupId", "assetGroupId3")));
       boolean allTeams = false;
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of();

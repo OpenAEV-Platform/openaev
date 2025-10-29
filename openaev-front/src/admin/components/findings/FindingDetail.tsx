@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 
-import { fetchCveByExternalId } from '../../../actions/cve-actions';
+import { fetchVulnerabilityByExternalId } from '../../../actions/vulnerability-actions';
 import type { Page } from '../../../components/common/queryable/Page';
 import { type Header } from '../../../components/common/SortHeadersList';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type AggregatedFindingOutput, type CveOutput, type RelatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPaginationInput, type VulnerabilityOutput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { type CveStatus } from '../settings/cves/CveDetail';
-import CveTabPanel from '../settings/cves/CveTabPanel';
-import GeneralVulnerabilityInfoTab from '../settings/cves/GeneralVulnerabilityInfoTab';
-import RelatedInjectsTab from '../settings/cves/RelatedInjectsTab';
-import RemediationInfoTab from '../settings/cves/RemediationInfoTab';
-import TabLabelWithEE from '../settings/cves/TabLabelWithEE';
+import GeneralVulnerabilityInfoTab from '../settings/vulnerabilities/GeneralVulnerabilityInfoTab';
+import RelatedInjectsTab from '../settings/vulnerabilities/RelatedInjectsTab';
+import RemediationInfoTab from '../settings/vulnerabilities/RemediationInfoTab';
+import TabLabelWithEE from '../settings/vulnerabilities/TabLabelWithEE';
+import { type VulnerabilityStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
+import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
@@ -42,24 +42,24 @@ const FindingDetail = ({
 
   const isCVE = selectedFinding.finding_type === 'cve';
 
-  const [cve, setCve] = useState<CveOutput | null>(null);
-  const [cveStatus, setCveStatus] = useState<CveStatus>('loading');
+  const [vulnerability, setVulnerability] = useState<VulnerabilityOutput | null>(null);
+  const [vulnerabilityStatus, setVulnerabilityStatus] = useState<VulnerabilityStatus>('loading');
 
   useEffect(() => {
     if (!isCVE || !selectedFinding.finding_value) return;
 
-    setCveStatus('loading');
+    setVulnerabilityStatus('loading');
 
-    fetchCveByExternalId(selectedFinding.finding_value)
+    fetchVulnerabilityByExternalId(selectedFinding.finding_value)
       .then((res) => {
-        setCve(res.data);
-        if (res.data?.cve_cvss_v31 && onCvssScore) {
-          onCvssScore(res.data.cve_cvss_v31);
+        setVulnerability(res.data);
+        if (res.data?.vulnerability_cvss_v31 && onCvssScore) {
+          onCvssScore(res.data.vulnerability_cvss_v31);
         }
 
-        setCveStatus(res.data ? 'loaded' : 'notAvailable');
+        setVulnerabilityStatus(res.data ? 'loaded' : 'notAvailable');
       })
-      .catch(() => setCveStatus('notAvailable'));
+      .catch(() => setVulnerabilityStatus('notAvailable'));
   }, [selectedFinding, isCVE]);
 
   const tabEntries: TabsEntry[] = isCVE
@@ -83,9 +83,9 @@ const FindingDetail = ({
     switch (currentTab) {
       case 'General':
         return (
-          <CveTabPanel status={cveStatus} cve={cve}>
-            <GeneralVulnerabilityInfoTab cve={cve!} />
-          </CveTabPanel>
+          <VulnerabilityTabPanel status={vulnerabilityStatus} vulnerability={vulnerability}>
+            <GeneralVulnerabilityInfoTab vulnerability={vulnerability!} />
+          </VulnerabilityTabPanel>
         );
       case 'Related Injects':
         return (
@@ -100,9 +100,9 @@ const FindingDetail = ({
       case 'Remediation':
         return isEE
           ? (
-              <CveTabPanel status={cveStatus} cve={cve}>
-                <RemediationInfoTab cve={cve!} />
-              </CveTabPanel>
+              <VulnerabilityTabPanel status={vulnerabilityStatus} vulnerability={vulnerability}>
+                <RemediationInfoTab vulnerability={vulnerability!} />
+              </VulnerabilityTabPanel>
             )
           : null;
       default:

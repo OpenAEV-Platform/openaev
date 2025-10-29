@@ -6,7 +6,7 @@ enum ContractOutputElementType {
   ipv4 = 'IPv4',
   ipv6 = 'IPv6',
   credentials = 'Credentials',
-  cve = 'CVE',
+  vulnerability = 'CVE',
 };
 
 export default ContractOutputElementType;

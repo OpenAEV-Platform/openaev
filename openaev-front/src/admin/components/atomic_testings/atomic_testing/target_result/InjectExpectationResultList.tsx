@@ -28,7 +28,6 @@ import TargetResultAlertNumber from './TargetResultAlertNumber';
 interface Props {
   injectExpectationId: InjectExpectation['inject_expectation_id'];
   injectExpectationResults: InjectExpectationResult[];
-  injectExpectationStatus: InjectExpectation['inject_expectation_status'];
   injectExpectationAgent: InjectExpectation['inject_expectation_agent'];
   injectorContractPayload?: PayloadSimple;
   injectType: Inject['inject_type'];
@@ -40,7 +39,6 @@ interface Props {
 const InjectExpectationResultList = ({
   injectExpectationId,
   injectExpectationResults,
-  injectExpectationStatus,
   injectExpectationAgent,
   injectorContractPayload,
   injectType,
@@ -124,7 +122,6 @@ const InjectExpectationResultList = ({
           {injectExpectationResults.map((expectationResult, index) => {
             const isResultSecurityPlatform: boolean = !!(
               injectExpectationAgent
-              && injectExpectationStatus === 'SUCCESS'
               && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected')
               && expectationResult.sourceType === 'collector'
             );

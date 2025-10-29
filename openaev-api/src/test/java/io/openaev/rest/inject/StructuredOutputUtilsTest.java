@@ -126,7 +126,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Should get cve from raw output command")
+  @DisplayName("Should get vulnerability from raw output command")
   void given_raw_output_tasklist_should_return_cve() {
     // username:RID:LM_Hash:NTLM_Hash:::
     String rawOutput =
@@ -134,8 +134,8 @@ class StructuredOutputUtilsTest extends IntegrationTest {
             + "  \"severity\": \"critical\",\n"
             + "  \"host\": \"192.168.56.23\",\n"
             + "  \"classification\": {\n"
-            + "    \"cve-id\": [\n"
-            + "      \"cve-2023-35078\"\n"
+            + "    \"vulnerability-id\": [\n"
+            + "      \"vulnerability-2023-35078\"\n"
             + "    ]\n"
             + "  }\n"
             + "}";
@@ -157,7 +157,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
     String regex =
         "\"severity\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]*?"
             + "\"host\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]*?"
-            + "\"cve-id\"\\s*:\\s*\\[\\s*((?:\"[^\"]+\"\\s*,?\\s*)+)";
+            + "\"vulnerability-id\"\\s*:\\s*\\[\\s*((?:\"[^\"]+\"\\s*,?\\s*)+)";
 
     this.testRegexExtraction(
         rawOutput,
@@ -165,7 +165,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
         ContractOutputType.CVE,
         "CVE",
         regex,
-        "[{\"asset_id\":null,\"id\":\"\\\"cve-2023-35078\\\"\",\"host\":\"192.168.56.23\",\"severity\":\"critical\"}]");
+        "[{\"asset_id\":null,\"id\":\"\\\"vulnerability-2023-35078\\\"\",\"host\":\"192.168.56.23\",\"severity\":\"critical\"}]");
   }
 
   @Test

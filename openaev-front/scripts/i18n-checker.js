@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
+
 const __filename = fileURLToPath(import.meta.url);
 
 const __dirname = `${path.dirname(__filename)}/../src`;
@@ -15,15 +17,19 @@ const escapeString = (inputString) => {
 // -- Retrieve i18n lang keys --
 
 const computeLangKeys = (lang) => {
-  let data;
-  if (lang === 'en') {
-    data = fs.readFileSync(`${__dirname}/utils/lang/en.json`, { encoding: 'utf8' });
-  } else if (lang === 'fr') {
-    data = fs.readFileSync(`${__dirname}/utils/lang/fr.json`, { encoding: 'utf8' });
-  } else if (lang === 'zh') {
-    data = fs.readFileSync(`${__dirname}/utils/lang/zh.json`, { encoding: 'utf8' });
+  const basePath = path.join(__dirname, 'utils', 'lang');
+
+  // fallback to English if unsupported
+  const targetLang = supportedLanguages.includes(lang) ? lang : DEFAULT_LANG;
+  const filePath = path.join(basePath, `${targetLang}.json`);
+
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to read language file for "${targetLang}":`, err);
+    return null;
   }
-  return data;
 };
 
 // -- Match missing keys --
@@ -67,10 +73,9 @@ const checkLanguageSupport = (lang) => {
 };
 
 const run = () => {
-  const languages = ['en', 'fr', 'zh'];
   const missingKeys = {};
 
-  languages.forEach((lang) => {
+  supportedLanguages.forEach((lang) => {
     const keys = checkLanguageSupport(lang);
     if (keys.length > 0) {
       missingKeys[lang] = keys;

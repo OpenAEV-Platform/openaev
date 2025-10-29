@@ -69,6 +69,9 @@ public class RegisterConnector implements Mutation {
     @JsonProperty("auto")
     private boolean auto;
 
+    @JsonProperty("auto_update")
+    private boolean autoUpdate;
+
     @JsonProperty("only_contextual")
     private boolean onlyContextual;
 
@@ -152,6 +155,7 @@ public class RegisterConnector implements Mutation {
     input.setType(connector.getType());
     input.setScope(connector.getScope());
     input.setAuto(connector.isAuto());
+    input.setAutoUpdate(connector.isAuto());
     input.setOnlyContextual(connector.isOnlyContextual());
     input.setPlaybookCompatible(connector.isPlaybookCompatible());
     input.setListenCallbackURI(connector.getListenCallbackURI());

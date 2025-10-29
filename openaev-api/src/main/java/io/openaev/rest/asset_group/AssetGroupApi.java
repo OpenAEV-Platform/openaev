@@ -87,7 +87,7 @@ public class AssetGroupApi extends RestBehavior {
       @PathVariable @NotBlank final String assetGroupId) {
 
     Page<Endpoint> endpointPage =
-        endpointService.searchManagedEndpoints(assetGroupId, searchPaginationInput);
+        endpointService.searchManagedEndpointsByAssetGroup(assetGroupId, searchPaginationInput);
     // Convert the Page of Endpoint to a Page of EndpointOutput
     List<EndpointOutput> endpointOutputs =
         endpointPage.getContent().stream()

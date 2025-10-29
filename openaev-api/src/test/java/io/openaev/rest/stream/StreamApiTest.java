@@ -126,8 +126,8 @@ public class StreamApiTest {
 
   @Test
   public void test_given_databaseEvent_when_eventIsCVE_then_doNothing() {
-    Cve cve = new Cve();
-    BaseEvent event = new BaseEvent(DATA_UPDATE, cve, mock(ObjectMapper.class));
+    Vulnerability vulnerability = new Vulnerability();
+    BaseEvent event = new BaseEvent(DATA_UPDATE, vulnerability, mock(ObjectMapper.class));
 
     streamApi.listenDatabaseUpdate(event);
 

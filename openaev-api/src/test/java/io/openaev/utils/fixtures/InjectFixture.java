@@ -17,7 +17,7 @@ public class InjectFixture {
   public static final String INJECT_EMAIL_NAME = "Test email inject";
   public static final String INJECT_CHALLENGE_NAME = "Test challenge inject";
 
-  private static Inject createInject(InjectorContract injectorContract, String title) {
+  public static Inject createInject(InjectorContract injectorContract, String title) {
     Inject inject = createInjectWithTitle(title);
     inject.setInjectorContract(injectorContract);
     inject.setEnabled(true);

@@ -7,13 +7,14 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.cve.service.CveService;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,7 +33,7 @@ public class SecurityCoverageInjectService {
   private final InjectService injectService;
   private final InjectAssistantService injectAssistantService;
   private final AttackPatternService attackPatternService;
-  private final CveService vulnerabilityService;
+  private final VulnerabilityService vulnerabilityService;
   private final AssetGroupService assetGroupService;
   private final InjectorContractService injectorContractService;
 
@@ -107,27 +108,51 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap,
       InjectorContract contractForPlaceholder) {
 
-    // 1. Fetch internal Ids for Vulnerabilities
-    Set<Cve> requiredVulnerabilities =
+    // 1. Remove Inject with contract related to vulnerabilities if vulnerabilityRefs is empty
+    if (vulnerabilityRefs.isEmpty()) {
+      injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
+    }
+
+    // 2. Fetch internal Ids for Vulnerabilities
+    Set<Vulnerability> requiredVulnerabilities =
         vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
 
-    // 2. Fetch covered vulnerabilities and endpoints
-    Map<Cve, Set<Inject>> currentlyCoveredCveInjectsMap =
+    // 3. Create placeholders for vulnerabilities
+    List<String> foundVulnerabilities =
+        requiredVulnerabilities.stream().map(Vulnerability::getExternalId).toList();
+    List<String> missingVulnerabilities =
+        vulnerabilityRefs.stream()
+            .map(StixRefToExternalRef::getExternalRef)
+            .filter(ref -> !foundVulnerabilities.contains(ref))
+            .toList();
+    List<Inject> placeholdersInject =
+        missingVulnerabilities.stream()
+            .flatMap(
+                vulnerabilityId ->
+                    Stream.of(
+                        injectAssistantService.buildManualInject(
+                            contractForPlaceholder, vulnerabilityId, null, null)))
+            .peek(inject -> inject.setScenario(scenario))
+            .toList();
+    injectService.saveAll(placeholdersInject);
+
+    // 4. Fetch covered vulnerabilities and endpoints
+    Map<Vulnerability, Set<Inject>> currentlyCoveredCveInjectsMap =
         buildCoveredCveInjectsMap(scenario.getInjects());
 
-    // 3. remove obsolete injects
+    // 5. remove obsolete injects
     injectService.deleteAll(
         findObsoleteInjects(currentlyCoveredCveInjectsMap, requiredVulnerabilities));
 
-    // 4. Identify missing injects
-    Set<Cve> missingVulns = new HashSet<>();
-    for (Cve key : requiredVulnerabilities) {
+    // 6. Identify missing injects
+    Set<Vulnerability> missingVulns = new HashSet<>();
+    for (Vulnerability key : requiredVulnerabilities) {
       if (!currentlyCoveredCveInjectsMap.containsKey(key)) {
         missingVulns.add(key);
       }
     }
 
-    // 5. Generate injects for missing vulnerabilities
+    // 7. Generate injects for missing vulnerabilities
     if (!missingVulns.isEmpty()) {
       injectService.saveAll(
           injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
@@ -139,7 +164,7 @@ public class SecurityCoverageInjectService {
     }
   }
 
-  private Map<Cve, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
+  private Map<Vulnerability, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
     return coveredInjects.stream()
         // Keep only injects that have a contract and vulnerabilities
         .filter(
@@ -156,11 +181,12 @@ public class SecurityCoverageInjectService {
   }
 
   private List<Inject> findObsoleteInjects(
-      Map<Cve, Set<Inject>> coveredCveEndpointsMap, Set<Cve> requiredVulnerabilities) {
+      Map<Vulnerability, Set<Inject>> coveredCveEndpointsMap,
+      Set<Vulnerability> requiredVulnerabilities) {
     List<Inject> injectsToRemove = new ArrayList<>();
 
-    for (Map.Entry<Cve, Set<Inject>> entry : coveredCveEndpointsMap.entrySet()) {
-      Cve coveredVuln = entry.getKey();
+    for (Map.Entry<Vulnerability, Set<Inject>> entry : coveredCveEndpointsMap.entrySet()) {
+      Vulnerability coveredVuln = entry.getKey();
       Set<Inject> injects = entry.getValue();
 
       for (Inject inject : injects) {
@@ -199,17 +225,36 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       InjectorContract contractForPlaceholder) {
 
-    // 1. Fetch internal Ids for AttackPatterns
-    Map<String, AttackPattern> attackPatterns =
-        attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
-
-    // 2. Remove Inject with contract related to attack patterns if attackPattern is empty
-    if (attackPatterns.isEmpty()) {
+    // 1. Remove Inject with contract related to attack patterns if attackPattern is empty
+    if (attackPatternRefs.isEmpty()) {
       injectRepository.deleteAllInjectsWithAttackPatternContractsByScenarioId(scenario.getId());
       return;
     }
 
-    // 3. Fetch Inject coverage
+    // 2. Fetch internal Ids for AttackPatterns
+    Map<String, AttackPattern> attackPatterns =
+        attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
+
+    // 3. Create placeholders for missing patterns
+    List<String> foundAttackPatterns =
+        attackPatterns.values().stream().map(AttackPattern::getExternalId).toList();
+    List<String> missingPatterns =
+        attackPatternRefs.stream()
+            .map(StixRefToExternalRef::getExternalRef)
+            .filter(ref -> !foundAttackPatterns.contains(ref))
+            .toList();
+    List<Inject> placeholdersInject =
+        missingPatterns.stream()
+            .flatMap(
+                attackPatternId ->
+                    Stream.of(
+                        injectAssistantService.buildManualInject(
+                            contractForPlaceholder, attackPatternId, null, null)))
+            .peek(inject -> inject.setScenario(scenario))
+            .toList();
+    injectService.saveAll(placeholdersInject);
+
+    // 4. Fetch Inject coverage
     Map<Inject, Set<Triple<String, Endpoint.PLATFORM_TYPE, String>>> injectCoverageMap =
         injectService.extractCombinationAttackPatternPlatformArchitecture(scenario);
 

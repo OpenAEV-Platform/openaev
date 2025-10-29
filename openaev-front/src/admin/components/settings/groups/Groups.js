@@ -9,7 +9,7 @@ import { searchGroups } from '../../../../actions/Group';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { fetchRoles } from '../../../../actions/roles/roles-actions.js';
 import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
-import { fetchUsers } from '../../../../actions/User';
+import { fetchUsers } from '../../../../actions/users/User.js';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';

@@ -17,6 +17,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
+import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
@@ -193,6 +194,19 @@ public class EndpointApi extends RestBehavior {
         endpointPage.getContent().stream().map(endpointMapper::toEndpointOutput).toList();
     return new PageImpl<>(
         endpointOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
+  }
+
+  @LogExecutionTime
+  @PostMapping(ENDPOINT_URI + "/targets")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public Page<EndpointTargetOutput> targetEndpoints(
+      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+
+    Page<Endpoint> endpointPage = endpointService.searchManagedEndpoints(searchPaginationInput);
+    List<EndpointTargetOutput> endpointTargetOutputs =
+        endpointPage.getContent().stream().map(endpointMapper::toEndpointTargetOutput).toList();
+    return new PageImpl<>(
+        endpointTargetOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
   }
 
   @LogExecutionTime

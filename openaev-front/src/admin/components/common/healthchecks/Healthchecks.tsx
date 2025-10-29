@@ -12,7 +12,7 @@ interface Props {
 }
 
 const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
-  const documentationRootUrl = 'https://docs.openbas.io';
+  const documentationRootUrl = 'https://docs.openaev.io';
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
@@ -50,6 +50,11 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
       }
       case 'TEAMS': {
         navigate(`/admin/scenarios/${scenarioId}/definition`);
+        break;
+      }
+      case 'NMAP':
+      case 'NUCLEI': {
+        window.open(`${documentationRootUrl}/latest/usage/injectors`);
         break;
       }
       default:

@@ -8,8 +8,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.inject.output.InjectOutput;
-import io.openaev.rest.scenario.response.ScenarioOutput;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -102,15 +101,72 @@ public class HealthCheckUtils {
   }
 
   /**
+   * Launch all the injector checks on one inject
+   *
+   * @param inject to test
+   * @param injectors all available injectors
+   * @return list of the healthcheck result
+   */
+  public List<HealthCheck> runAllInjectorChecks(
+      @NotNull final Inject inject, @NotNull final List<Injector> injectors) {
+
+    List<HealthCheck> results = new ArrayList<>();
+    results.addAll(
+        runInjectorCheck(inject, injectors, ExternalServiceDependency.NMAP, HealthCheck.Type.NMAP));
+    results.addAll(
+        runInjectorCheck(
+            inject, injectors, ExternalServiceDependency.NUCLEI, HealthCheck.Type.NUCLEI));
+    return results;
+  }
+
+  /**
+   * Verify whether an injector contract depends on an injector and whether that injector is
+   * registered; if not, add an error to the health check.
+   *
+   * @param inject
+   * @param injectors
+   * @param externalServiceDependency
+   * @param type
+   * @return
+   */
+  public List<HealthCheck> runInjectorCheck(
+      @NotNull final Inject inject,
+      @NotNull final List<Injector> injectors,
+      @NotNull final ExternalServiceDependency externalServiceDependency,
+      @NotNull final HealthCheck.Type type) {
+    List<HealthCheck> result = new ArrayList<>();
+    InjectorContract contract = inject.getInjectorContract().orElse(null);
+    if (contract != null
+        && contract.getInjector() != null
+        && contract.getInjector().getDependencies() != null
+        && Arrays.asList(contract.getInjector().getDependencies())
+            .contains(externalServiceDependency)) {
+      boolean isInjectorRegistered =
+          injectors.stream()
+              .anyMatch(
+                  injector ->
+                      Objects.equals(injector.getType(), externalServiceDependency.getValue()));
+
+      // if the injector is not registered we add an error in the health check
+      if (!isInjectorRegistered) {
+        result.add(
+            new HealthCheck(
+                type, HealthCheck.Detail.SERVICE_UNAVAILABLE, HealthCheck.Status.ERROR, now()));
+      }
+    }
+    return result;
+  }
+
+  /**
    * Run all missing content checks for one scenario
    *
-   * @param scenarioOutput to test
+   * @param scenario to test
    * @return all found missing content issues
    */
-  public List<HealthCheck> runMissingContentChecks(ScenarioOutput scenarioOutput) {
+  public List<HealthCheck> runMissingContentChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean atLeastOneInjectIsNotReady =
-        scenarioOutput.getInjects().stream().anyMatch(inject -> !inject.isReady());
+        scenario.getInjects().stream().anyMatch(inject -> !inject.isReady());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(
@@ -127,21 +183,24 @@ public class HealthCheckUtils {
   /**
    * Run all teams checks for one scenario
    *
-   * @param scenarioOutput to test
+   * @param scenario to test
    * @return all found teams issues
    */
-  public List<HealthCheck> runTeamsChecks(ScenarioOutput scenarioOutput) {
+  public List<HealthCheck> runTeamsChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean isMailSender =
-        scenarioOutput.getInjects().stream()
+        scenario.getInjects().stream()
             .filter(
                 inject ->
                     inject.getInjectorContract() != null
-                        && inject.getInjectorContract().getInjector() != null
-                        && inject.getInjectorContract().getInjector().getDependencies() != null)
+                        && inject.getInjectorContract().isPresent()
+                        && inject.getInjectorContract().get().getInjector() != null
+                        && inject.getInjectorContract().get().getInjector().getDependencies()
+                            != null)
             .flatMap(
                 inject ->
-                    Arrays.stream(inject.getInjectorContract().getInjector().getDependencies()))
+                    Arrays.stream(
+                        inject.getInjectorContract().get().getInjector().getDependencies()))
             .anyMatch(
                 dependency ->
                     ExternalServiceDependency.SMTP.equals(dependency)
@@ -149,9 +208,9 @@ public class HealthCheckUtils {
 
     if (isMailSender) {
       boolean isMissingTeamsOrEnabledPlayers =
-          scenarioOutput.getTeams().isEmpty()
-              || scenarioOutput.getTeams().stream().allMatch(team -> team.getUsers().isEmpty())
-              || scenarioOutput.getTeamUsers().isEmpty();
+          scenario.getTeams().isEmpty()
+              || scenario.getTeams().stream().allMatch(team -> team.getUsers().isEmpty())
+              || scenario.getTeamUsers().isEmpty();
 
       if (isMissingTeamsOrEnabledPlayers) {
         result.add(
@@ -164,59 +223,5 @@ public class HealthCheckUtils {
     }
 
     return result;
-  }
-
-  /**
-   * Run checks to find if at least one inject have the search error type into scenario
-   *
-   * @param scenarioOutput to test
-   * @return all found agent or executor issues
-   */
-  /**
-   * Run checks to find if at least one inject have the search error type into scenario
-   *
-   * @param scenarioOutput to test
-   * @param type to find into injects
-   * @param detail to set in case of error detection
-   * @param status to set in case of error detection
-   * @return found healthchecks
-   */
-  public List<HealthCheck> runInjectsInErrorChecks(
-      ScenarioOutput scenarioOutput,
-      HealthCheck.Type type,
-      HealthCheck.Detail detail,
-      HealthCheck.Status status) {
-    List<HealthCheck> allInjectsHealthChecks = getAllInjectHealthChecks(scenarioOutput);
-    List<HealthCheck> result = new ArrayList<>();
-
-    if (!allInjectsHealthChecks.isEmpty() && anyMatch(allInjectsHealthChecks, type)) {
-      result.add(new HealthCheck(type, detail, status, now()));
-    }
-
-    return result;
-  }
-
-  /**
-   * Verify if an healthcheck type is found in a list of healthchecks
-   *
-   * @param healthChecks to test
-   * @param type to found
-   * @return true if type is found, false if not
-   */
-  private boolean anyMatch(List<HealthCheck> healthChecks, HealthCheck.Type type) {
-    return healthChecks.stream().anyMatch(healthCheck -> type.equals(healthCheck.getType()));
-  }
-
-  /**
-   * Return all Healthchecks of all the inject on a scenario
-   *
-   * @param scenarioOutput to get all injects healthchecks
-   * @return a list of all the founded healthchecks
-   */
-  private List<HealthCheck> getAllInjectHealthChecks(ScenarioOutput scenarioOutput) {
-    return scenarioOutput.getInjects().stream()
-        .map(InjectOutput::getHealthchecks)
-        .flatMap(List::stream)
-        .toList();
   }
 }

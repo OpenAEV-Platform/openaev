@@ -234,8 +234,20 @@ const InjectForm = ({
     defaultValues: defaultValues,
   });
 
-  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, formState: { isSubmitting } } = methods;
+  const cleanInvisibleFields = (injectValues: InjectInput) => {
+    injectorContractContent?.fields.forEach((fieldContract) => {
+      if (isVisibleField(fieldContract, injectorContractContent.fields, injectValues)) {
+        return;
+      }
 
+      const isNotDynamic = notDynamicFields.includes(fieldContract.key);
+      const targetObj = (isNotDynamic ? injectValues : injectValues.inject_content) as Record<string, unknown>;
+      const keyProp = isNotDynamic ? `inject_${fieldContract.key}` : fieldContract.key;
+      targetObj[keyProp] = Array.isArray(targetObj[keyProp]) ? [] : '';
+    });
+  };
+
+  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, formState: { isSubmitting } } = methods;
   const onSubmit: SubmitHandler<InjectInputForm> = async (data) => {
     // we cannot save, even in draft, without title
     if (!data.inject_title?.length) {
@@ -260,6 +272,7 @@ const InjectForm = ({
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
       } as InjectInput;
+      cleanInvisibleFields(values);
       await onSubmitInject(values);
     }
     handleClose();

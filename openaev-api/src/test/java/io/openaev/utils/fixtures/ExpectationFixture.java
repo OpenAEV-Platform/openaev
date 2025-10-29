@@ -1,14 +1,15 @@
 package io.openaev.utils.fixtures;
 
-import static io.openaev.expectation.ExpectationBuilderService.DETECTION_NAME;
-import static io.openaev.expectation.ExpectationBuilderService.PREVENTION_NAME;
+import static io.openaev.expectation.ExpectationBuilderService.*;
 import static io.openaev.model.expectation.DetectionExpectation.*;
 import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAgent;
 import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAsset;
+import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 
 import io.openaev.database.model.*;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
+import io.openaev.model.expectation.VulnerabilityExpectation;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import jakarta.validation.constraints.NotNull;
@@ -161,5 +162,23 @@ public class ExpectationFixture {
           createPreventionExpectationForAssetGroup(assetGroup, expirationTime));
     }
     return preventionExpectations;
+  }
+
+  // --- VULNERABILITY EXPECTATION-----
+  public static VulnerabilityExpectation createTechnicalVulnerabilityExpectationForAgent(
+      Agent agent,
+      Asset asset,
+      AssetGroup assetGroup,
+      Long expirationTime,
+      List<InjectExpectationSignature> signatures) {
+    return vulnerabilityExpectationForAgent(
+        SCORE,
+        VULNERABILITY_NAME,
+        "Vulnerability Expectation",
+        agent,
+        asset,
+        assetGroup,
+        expirationTime,
+        signatures);
   }
 }

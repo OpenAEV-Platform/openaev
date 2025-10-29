@@ -29,7 +29,7 @@ public enum ResourceType {
   KILL_CHAIN_PHASE,
   ATTACK_PATTERN,
   ASSET_GROUP,
-  CVE,
+  VULNERABILITY,
   USER_GROUP,
   INJECTOR,
   INJECTOR_CONTRACT,
@@ -46,6 +46,9 @@ public enum ResourceType {
 
   public static ResourceType fromString(@NotNull String name) {
     try {
+      if ("CVE".equals(name)) {
+        return VULNERABILITY;
+      }
       return ResourceType.valueOf(name.toUpperCase());
     } catch (IllegalArgumentException e) {
       return UNKNOWN;

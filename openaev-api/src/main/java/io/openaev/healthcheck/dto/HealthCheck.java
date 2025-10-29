@@ -31,6 +31,8 @@ public class HealthCheck {
     SECURITY_SYSTEM_COLLECTOR,
     INJECT,
     TEAMS,
+    NMAP,
+    NUCLEI,
   }
 
   @Schema(description = "Type of the check, could be a service, an attribute, etc")

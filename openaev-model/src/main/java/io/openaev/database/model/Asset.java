@@ -83,6 +83,7 @@ public class Asset implements Base {
 
   @JsonIgnore
   @ManyToMany(mappedBy = "assets")
+  @Queryable(filterable = true, dynamicValues = true, path = "assetGroups.id")
   private Set<AssetGroup> assetGroups = new HashSet<>();
 
   // -- AUDIT --

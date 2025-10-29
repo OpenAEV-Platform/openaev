@@ -1,8 +1,11 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.Team;
@@ -16,6 +19,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -159,7 +163,22 @@ public class InjectExpectationUtils {
           }
           expectation.setScore(score);
           if (addResult != null) {
-            expectation.getResults().add(addResult.apply(score));
+            InjectExpectationResult newResultToAdd = addResult.apply(score);
+            Optional<InjectExpectationResult> existingResult =
+                expectation.getResults().stream()
+                    .filter(result -> newResultToAdd.getSourceId().equals(result.getSourceId()))
+                    .findFirst();
+            existingResult.ifPresent(
+                injectExpectationResult ->
+                    expectation.getResults().remove(injectExpectationResult));
+            expectation.getResults().add(newResultToAdd);
+
+            // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with
+            // no result to expired
+            if (ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                newResultToAdd.getSourceId())) {
+              expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+            }
           }
         });
   }

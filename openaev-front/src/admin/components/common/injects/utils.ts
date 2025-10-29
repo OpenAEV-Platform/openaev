@@ -32,26 +32,34 @@ export const isRequiredField = (field: ContractElement, fields: ContractElement[
 };
 
 export const isVisibleField = (field: ContractElement, fields: ContractElement[], values: FieldValues) => {
-  if (field.visibleConditionFields?.length) {
-    let visible = true;
-    field.visibleConditionFields.forEach((fieldVisibleConditionField) => {
-      let value;
-      const fieldVisibleConditionFieldType = fields.find(f => f.key === fieldVisibleConditionField)?.type;
+  if (!field.visibleConditionFields?.length) return true;
 
-      if (fieldVisibleConditionFieldType && isInjectContentType(fieldVisibleConditionFieldType)) {
-        value = values.inject_content[fieldVisibleConditionField];
-      } else {
-        value = values[fieldVisibleConditionField];
-      }
-      if (!field.visibleConditionValues?.[fieldVisibleConditionField] && (value === undefined || value === null || value.length === 0)) {
+  let visible = true;
+  field.visibleConditionFields.forEach((fieldVisibleConditionField) => {
+    let value;
+    const fieldVisibleConditionFieldType = fields.find(f => f.key === fieldVisibleConditionField)?.type;
+
+    if (fieldVisibleConditionFieldType && isInjectContentType(fieldVisibleConditionFieldType)) {
+      value = values.inject_content[fieldVisibleConditionField];
+    } else {
+      value = values[fieldVisibleConditionField];
+    }
+
+    const conditionValues = field.visibleConditionValues?.[fieldVisibleConditionField];
+
+    if (!conditionValues && (value === undefined || value === null || value.length === 0)) {
+      visible = false;
+    } else if (conditionValues) {
+      if (Array.isArray(conditionValues)) {
+        if (!conditionValues.includes(value)) {
+          visible = false;
+        }
+      } else if (String(value) !== String(conditionValues)) {
         visible = false;
-      } else if (field.visibleConditionValues?.[fieldVisibleConditionField] && String(value) !== String(field.visibleConditionValues?.[fieldVisibleConditionField])) {
-        visible = false;
       }
-    });
-    return visible;
-  }
-  return true;
+    }
+  });
+  return visible;
 };
 
 export const getValidatingRule = (field: ContractElement, t: Translate) => {

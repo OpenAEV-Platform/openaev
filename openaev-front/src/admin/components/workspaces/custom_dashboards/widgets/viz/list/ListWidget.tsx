@@ -1,5 +1,6 @@
 import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import {
+  Box,
   List as MuiList,
   ListItem as MuiListItem,
   ListItemButton,
@@ -91,57 +92,62 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
   }
 
   return (
-    <MuiList>
-      <MuiListItem
-        classes={{ root: classes.itemHead }}
-        style={{ paddingTop: 0 }}
-        secondaryAction={(<>&nbsp;</>)}
-      >
-        <ListItemIcon />
-        <ListItemText
-          primary={(
-            <SortHeadersComponentV2
-              headers={headersFromColumns}
-              inlineStylesHeaders={stylesFromEntityType(elements)}
-              sortHelpers={queryableHelpers.sortHelpers}
-            />
-          )}
-        />
-      </MuiListItem>
-      {elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
-      {elements.map(e => (
-        <MuiListItem key={e.base_id} divider disablePadding secondaryAction={getSecondaryActionByBaseEntity(e)}>
-          <ListItemButton
-            key={e.base_id}
-            onClick={() => onListItemClick(e)}
-            classes={{ root: classes.item }}
-            className="noDrag"
-          >
-            <ListItemIcon>
-              <DevicesOtherOutlined color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  {widgetConfig.columns.map(col => (
-                    <div
-                      key={col}
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...stylesFromEntityType(elements)[col],
-                      }}
-                    >
-                      {elementsFromColumn(col, e)}
-                    </div>
-                  ))}
-                </div>
-              )}
-            />
-          </ListItemButton>
+    <Box
+      style={{ overflow: 'auto' }}
+    >
+      <MuiList>
+        <MuiListItem
+          classes={{ root: classes.itemHead }}
+          style={{ paddingTop: 0 }}
+          secondaryAction={(<>&nbsp;</>)}
+        >
+          <ListItemIcon />
+          <ListItemText
+            primary={(
+              <SortHeadersComponentV2
+                headers={headersFromColumns}
+                inlineStylesHeaders={stylesFromEntityType(elements)}
+                sortHelpers={queryableHelpers.sortHelpers}
+              />
+            )}
+          />
         </MuiListItem>
-      ),
-      )}
-    </MuiList>
+        {elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
+        {elements.map(e => (
+          <MuiListItem key={e.base_id} divider disablePadding secondaryAction={getSecondaryActionByBaseEntity(e)}>
+            <ListItemButton
+              key={e.base_id}
+              onClick={() => onListItemClick(e)}
+              classes={{ root: classes.item }}
+              className="noDrag"
+            >
+              <ListItemIcon>
+                <DevicesOtherOutlined color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <div style={bodyItemsStyles.bodyItems}>
+                    {widgetConfig.columns.map(col => (
+                      <div
+                        key={col}
+                        style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...stylesFromEntityType(elements)[col],
+                        }}
+                      >
+                        {elementsFromColumn(col, e)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              />
+            </ListItemButton>
+          </MuiListItem>
+        ),
+        )}
+      </MuiList>
+    </Box>
+
   );
 };
 

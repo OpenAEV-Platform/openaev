@@ -1,13 +1,9 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.*;
 import io.openaev.database.model.*;
-import io.openaev.rest.inject.form.InjectExecutionInput;
 import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.logging.Level;
@@ -39,29 +35,6 @@ public class StructuredOutputUtils {
       return Collections.emptySet();
     }
     return outputParsers;
-  }
-
-  /**
-   * Computes the structured output from the injection execution input.
-   *
-   * <p>Initially, it verifies if the structured output is already available. If it is not, and the
-   * input pertains to an execution action, the method attempts to generate the structured output
-   * from the raw execution output using the output parsers defined in the payload used for the
-   * injection.
-   */
-  public Optional<ObjectNode> computeStructuredOutput(
-      Set<OutputParser> outputParsers, InjectExecutionInput input) throws JsonProcessingException {
-    // Return pre-computed structured output if available
-    if (input.getOutputStructured() != null) {
-      return Optional.ofNullable(mapper.readValue(input.getOutputStructured(), ObjectNode.class));
-    }
-
-    // Only compute if the action is actual execution
-    if (ExecutionTraceAction.EXECUTION.equals(convertExecutionAction(input.getAction()))) {
-      return computeStructuredOutputFromOutputParsers(outputParsers, input.getMessage());
-    }
-
-    return Optional.empty();
   }
 
   public Optional<ObjectNode> computeStructuredOutputFromOutputParsers(

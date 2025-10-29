@@ -11,8 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class ExpectationsExpirationManagerConfig {
 
+  public static final String COLLECTOR_ID = "96e476e0-b9c4-4660-869c-98585adf754d";
+
   private boolean enable = true;
-  private String id = "96e476e0-b9c4-4660-869c-98585adf754d";
+  private String id = COLLECTOR_ID;
   private int interval = 60;
   private int expirationTimeForAsset = 3600; // 1 hour
   private int expirationTime = 21600; // 6 hours

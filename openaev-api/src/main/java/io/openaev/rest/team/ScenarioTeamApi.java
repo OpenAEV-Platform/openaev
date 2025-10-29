@@ -11,6 +11,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.TeamService;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +35,16 @@ public class ScenarioTeamApi extends RestBehavior {
   public Page<TeamOutput> teams(
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
-      @RequestParam final boolean contextualOnly) {
+      @RequestParam
+          @Schema(
+              description =
+                  "Controls which teams to retrieve - true: Only teams that are part of the scenario")
+          final boolean contextualOnly) {
     Specification<Team> teamSpecification;
     if (!contextualOnly) {
-      teamSpecification = contextual(false).or(fromScenario(scenarioId).and(contextual(true)));
+      teamSpecification = contextual(false).or(fromScenario(scenarioId));
+      // contextual(false) => Teams that exist independently, not created from a specific context
+      // (scenario or simulation)
     } else {
       teamSpecification = fromScenario(scenarioId);
     }

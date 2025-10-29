@@ -1,14 +1,14 @@
 import { DescriptionOutlined, HelpOutlineOutlined, RowingOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
 import * as R from 'ramda';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchDocuments } from '../../../../actions/Document';
-import { fetchExercises } from '../../../../actions/Exercise';
-import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
+import { fetchExercisesById } from '../../../../actions/Exercise';
+import { fetchScenariosById } from '../../../../actions/scenarios/scenario-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
@@ -18,7 +18,6 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader.js';
 import { useHelper } from '../../../../store';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import CreateDocument from './CreateDocument';
@@ -77,10 +76,6 @@ const Documents = () => {
     exercisesMap: helper.getExercisesMap(),
     scenariosMap: helper.getScenariosMap(),
   }));
-  useDataLoader(() => {
-    dispatch(fetchExercises());
-    dispatch(fetchScenarios());
-  });
 
   // Headers
   const headers = [
@@ -118,6 +113,29 @@ const Documents = () => {
 
   const [documents, setDocuments] = useState([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState({ sorts: initSorting('document_name') });
+  const [loadingDocuments, setLoadingDocuments] = useState(true);
+  const [loadingExercisesAndScenarios, setLoadingExercisesAndScenarios] = useState(false);
+
+  useEffect(() => {
+    documents.forEach((document) => {
+      document.displayed_scenarios = R.take(3, document.document_scenarios);
+      document.displayed_exercises = R.take(3, document.document_exercises);
+    });
+
+    setLoadingExercisesAndScenarios(true);
+    let neededPromises = [];
+    let exerciseIds = new Set(documents.map(document => document.displayed_exercises).flat());
+    let scenarioIds = new Set(documents.map(document => document.displayed_scenarios).flat());
+    if (exerciseIds.size > 0) {
+      neededPromises.push(dispatch(fetchExercisesById({ exercise_ids: [...exerciseIds] })));
+    }
+    if (scenarioIds.size > 0) {
+      neededPromises.push(dispatch(fetchScenariosById({ scenario_ids: [...scenarioIds] })));
+    }
+    Promise.all(neededPromises).finally(() => {
+      setLoadingExercisesAndScenarios(false);
+    });
+  }, [documents]);
 
   /**
    * Callback when a new document has been created or an previous one updated with a new version
@@ -142,10 +160,9 @@ const Documents = () => {
     exportFileName: `${t('Documents')}.csv`,
   };
 
-  const [loading, setLoading] = useState(true);
   const searchDocumentsToLoad = (input) => {
-    setLoading(true);
-    return searchDocuments(input).finally(() => setLoading(false));
+    setLoadingDocuments(true);
+    return searchDocuments(input).finally(() => setLoadingDocuments(false));
   };
 
   return (
@@ -192,7 +209,7 @@ const Documents = () => {
           />
           <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
         </ListItem>
-        {loading
+        {(loadingDocuments || loadingExercisesAndScenarios)
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
           : documents.map(document => (
               <ListItem
@@ -242,7 +259,7 @@ const Documents = () => {
                             ...inlineStyles.document_exercises,
                           }}
                         >
-                          {R.take(3, document.document_exercises).map((e, i) => {
+                          {document.displayed_exercises && R.take(3, document.displayed_exercises).map((e, i) => {
                             const exercise = exercisesMap[e];
                             if (exercise === undefined) return <div key={i} />;
                             return (
@@ -275,7 +292,7 @@ const Documents = () => {
                             ...inlineStyles.document_scenarios,
                           }}
                         >
-                          {R.take(3, document.document_scenarios).map((e, i) => {
+                          {document.displayed_scenarios && R.take(3, document.displayed_scenarios).map((e, i) => {
                             const scenario = scenariosMap[e];
                             if (scenario === undefined) return <div key={i} />;
                             return (

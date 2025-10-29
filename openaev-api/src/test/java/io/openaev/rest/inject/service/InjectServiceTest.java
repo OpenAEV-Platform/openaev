@@ -18,16 +18,17 @@ import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -89,6 +90,10 @@ class InjectServiceTest {
   @Mock private SmtpService smtpService;
 
   @Mock private ImapService imapService;
+
+  @Mock private CollectorService collectorService;
+
+  @Mock private InjectorService injectorService;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
@@ -600,11 +605,12 @@ class InjectServiceTest {
 
   @Test
   public void testRunChecksWhenInjectIsNull() {
+
     // RUN
-    InjectOutput injectOutput = injectService.runChecks(null, List.of());
+    List<HealthCheck> healtchChecks = injectService.runChecks(null);
 
     // VERIFY
-    assertNull(injectOutput);
+    assertNull(healtchChecks);
   }
 
   @Test
@@ -622,16 +628,18 @@ class InjectServiceTest {
 
     // MOCK
     when(smtpService.isServiceAvailable()).thenReturn(false);
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
-    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+    List<HealthCheck> healtchChecks = injectService.runChecks(inject);
 
     // VERIFY
-    assertNotNull(injectOutput);
-    assertFalse(injectOutput.getHealthchecks().isEmpty());
+    assertNotNull(healtchChecks);
+    assertFalse(healtchChecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        injectOutput.getHealthchecks().stream()
+        healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -655,16 +663,17 @@ class InjectServiceTest {
 
     // MOCK
     when(imapService.isServiceAvailable()).thenReturn(false);
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
-    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
-
+    List<HealthCheck> healtchChecks = injectService.runChecks(inject);
     // VERIFY
-    assertNotNull(injectOutput);
-    assertFalse(injectOutput.getHealthchecks().isEmpty());
+    assertNotNull(healtchChecks);
+    assertFalse(healtchChecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        injectOutput.getHealthchecks().stream()
+        healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -682,15 +691,19 @@ class InjectServiceTest {
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
     inject.getInjectorContract().get().setNeedsExecutor(true);
 
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
     // RUN
-    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+    List<HealthCheck> healtchChecks = injectService.runChecks(inject);
 
     // VERIFY
-    assertNotNull(injectOutput);
-    assertFalse(injectOutput.getHealthchecks().isEmpty());
+    assertNotNull(healtchChecks);
+    assertFalse(healtchChecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        injectOutput.getHealthchecks().stream()
+        healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
@@ -723,20 +736,118 @@ class InjectServiceTest {
     content.put("expectations", expectationsArray);
     inject.setContent(content);
 
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
     // RUN
-    InjectOutput injectOutput = injectService.runChecks(inject, List.of());
+    List<HealthCheck> healtchChecks = injectService.runChecks(inject);
 
     // VERIFY
-    assertNotNull(injectOutput);
-    assertFalse(injectOutput.getHealthchecks().isEmpty());
+    assertNotNull(healtchChecks);
+    assertFalse(healtchChecks.isEmpty());
 
     HealthCheck healthCheckToVerify =
-        injectOutput.getHealthchecks().stream()
+        healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
             .findFirst()
             .orElse(new HealthCheck(null, null, null, null));
     assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void given_injectorDependenciesOnNmap_when_nmapIsRegistered_then_noHealtchCheck()
+      throws JsonProcessingException {
+
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
+
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    Injector nmapInjector = new Injector();
+    nmapInjector.setId("testNmap");
+    nmapInjector.setType("openaev_nmap");
+    when(injectorService.findAll()).thenReturn(List.of(nmapInjector));
+
+    // RUN
+    List<HealthCheck> healtchChecks = injectService.runChecks(inject);
+    // VERIFY
+    assertTrue(healtchChecks.isEmpty());
+  }
+
+  @Test
+  public void given_injectorDependenciesOnNmap_when_nmapIsRegistered_then_healtchCheckCreated()
+      throws JsonProcessingException {
+
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
+
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // RUN
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // VERIFY
+    HealthCheck healthCheckToVerify =
+        healthChecks.stream()
+            .filter(hc -> HealthCheck.Type.NMAP.equals(hc.getType()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(HealthCheck.Type.NMAP, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
+    assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  public void given_injectorDependenciesOnNuclei_when_nucleiIsRegistered_then_healtchCheckCreated()
+      throws JsonProcessingException {
+
+    // PREPARE
+    Inject inject =
+        InjectFixture.getInjectForEmailContract(
+            InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+                InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject
+        .getInjectorContract()
+        .get()
+        .getInjector()
+        .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
+
+    // MOCK
+    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(injectorService.findAll()).thenReturn(List.of());
+
+    // RUN
+    List<HealthCheck> healthChecks = injectService.runChecks(inject);
+
+    // VERIFY
+    HealthCheck healthCheckToVerify =
+        healthChecks.stream()
+            .filter(hc -> HealthCheck.Type.NUCLEI.equals(hc.getType()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(HealthCheck.Type.NUCLEI, healthCheckToVerify.getType());
+    assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
   }
 }

@@ -13,6 +13,7 @@ import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -38,22 +39,25 @@ public class OpenCTIService {
 
     Response r =
         openCTIClient.execute(
-            connector.getUrl(), connector.getAuthToken(), new RegisterConnector(connector));
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new RegisterConnector(connector));
     if (r.isError()) {
       throw new ConnectorError(
           """
         Failed to register connector %s with OpenCTI at %s
+        OpenCTI >= 6.8.9 is required with valid authentication token
         Errors: %s
         """
               .formatted(
                   connector.getName(),
-                  connector.getUrl(),
+                  connector.getApiUrl(),
                   r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
     } else {
       RegisterConnector.ResponsePayload payload =
           mapper.convertValue(r.getData(), RegisterConnector.ResponsePayload.class);
       log.info(
-          "Registered connector {} with OpenCTI at {}", connector.getName(), connector.getUrl());
+          "Registered connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
       // side effect on transient state
       connector.setRegistered(true);
       return payload;
@@ -65,13 +69,14 @@ public class OpenCTIService {
     if (!connector.isRegistered()) {
       throw new ConnectorError(
           "Cannot ping connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
-              .formatted(connector.getName(), connector.getUrl()));
+              .formatted(connector.getName(), connector.getApiUrl()));
     }
 
     privilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
     Response r =
-        openCTIClient.execute(connector.getUrl(), connector.getAuthToken(), new Ping(connector));
+        openCTIClient.execute(
+            connector.getApiUrl(), classicOpenCTIConfig.getToken(), new Ping(connector));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -80,18 +85,122 @@ public class OpenCTIService {
         """
               .formatted(
                   connector.getName(),
-                  connector.getUrl(),
+                  connector.getApiUrl(),
                   r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
     } else {
       Ping.ResponsePayload payload = mapper.convertValue(r.getData(), Ping.ResponsePayload.class);
-      log.info("Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getUrl());
+      log.info(
+          "Pinged connector {} with OpenCTI at {}", connector.getName(), connector.getApiUrl());
+      return payload;
+    }
+  }
+
+  public WorkToReceived.ResponsePayload workToReceived(
+      ConnectorBase connector, String workId, String message) throws IOException, ConnectorError {
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot workToReceived via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getApiUrl()));
+    }
+
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new WorkToReceived(workId, message));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+                  Failed to acknowledge received %s with OpenCTI at %s
+                  Errors: %s
+                  """
+              .formatted(
+                  connector.getName(),
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      WorkToReceived.ResponsePayload payload =
+          mapper.convertValue(r.getData(), WorkToReceived.ResponsePayload.class);
+      log.info(
+          "WorkToReceived connector {} with OpenCTI at {}",
+          connector.getName(),
+          connector.getApiUrl());
+      return payload;
+    }
+  }
+
+  public WorkToProcessed.ResponsePayload workToProcessed(
+      ConnectorBase connector, String workId, String message, Boolean inError)
+      throws IOException, ConnectorError {
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot workToProcessed via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getApiUrl()));
+    }
+
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new WorkToProcessed(workId, message, inError));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+                            Failed to acknowledge processed %s with OpenCTI at %s
+                            Errors: %s
+                            """
+              .formatted(
+                  connector.getName(),
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      WorkToProcessed.ResponsePayload payload =
+          mapper.convertValue(r.getData(), WorkToProcessed.ResponsePayload.class);
+      log.info(
+          "WorkToProcessed connector {} with OpenCTI at {}",
+          connector.getName(),
+          connector.getApiUrl());
+      return payload;
+    }
+  }
+
+  public PushStixBundle.ResponsePayload pushStixBundle(Bundle bundle, ConnectorBase connector)
+      throws IOException, ConnectorError {
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getApiUrl()));
+    }
+
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            classicOpenCTIConfig.getToken(),
+            new PushStixBundle(connector, bundle.toStix(mapper)));
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+            Failed to push STIX bundle via connector %s to OpenCTI at %s
+            Errors: %s
+            """
+              .formatted(
+                  connector.getName(),
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    } else {
+      PushStixBundle.ResponsePayload payload =
+          mapper.convertValue(r.getData(), PushStixBundle.ResponsePayload.class);
+      log.info(
+          "Pushed STIX bundle via connector {} to OpenCTI at {}",
+          connector.getName(),
+          connector.getApiUrl());
       return payload;
     }
   }
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createCase(
-      Execution execution, String name, String description, List<DataAttachment> attachments)
+      Execution execution, String name, String description, List<DataAttachment> ignoredAttachments)
       throws Exception {
     Mutation mut = new CreateCase(name, description);
     Response response =
@@ -108,7 +217,7 @@ public class OpenCTIService {
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createReport(
-      Execution execution, String name, String description, List<DataAttachment> attachments)
+      Execution execution, String name, String description, List<DataAttachment> ignoredAttachments)
       throws IOException {
     Mutation mut = new CreateReport(name, description, Instant.now());
     Response response =
