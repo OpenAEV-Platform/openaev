@@ -19,7 +19,8 @@ public interface AssetAgentJobRepository
   Optional<AssetAgentJob> findById(@NotNull String id);
 
   @Modifying
-  @Query( value ="DELETE FROM asset_agent_jobs j WHERE j.asset_agent_id = :assetAgentJobId",
-          nativeQuery = true)
+  @Query(
+      value = "DELETE FROM asset_agent_jobs j WHERE j.asset_agent_id = :assetAgentJobId",
+      nativeQuery = true)
   void deleteById(@Param("assetAgentJobId") @NotBlank String assetAgentJobId);
 }
