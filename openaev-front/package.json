@@ -95,7 +95,7 @@
     "@vitejs/plugin-react": "4.7.0",
     "@vitest/eslint-plugin": "1.3.26",
     "chokidar": "4.0.3",
-    "cross-env": "7.0.3",
+    "cross-env": "10.1.0",
     "esbuild": "0.25.11",
     "eslint": "9.29.0",
     "eslint-import-resolver-oxc": "0.14.0",
