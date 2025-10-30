@@ -49,6 +49,14 @@ const XtmHubRegisteredSection: React.FC = () => {
               status={false}
             />
           </ListItem>
+          <ListItem divider={true}>
+            <ListItemText primary={t('Last successful check')} />
+            <ItemBoolean
+              variant="xlarge"
+              neutralLabel={fd(settings.xtm_hub_last_connectivity_check)}
+              status={null}
+            />
+          </ListItem>
         </>
       )}
     </List>
