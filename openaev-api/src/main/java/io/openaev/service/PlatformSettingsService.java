@@ -318,6 +318,8 @@ public class PlatformSettingsService {
 
     // XTM Hub
     platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
+    platformSettings.setXtmHubConnectivityEmailEnable(
+        Boolean.parseBoolean(xtmHubConfig.getConnectivityEmailEnable()));
     platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
     platformSettings.setXtmHubReachable(xtmHubConnectivityService.isReachable());
     platformSettings.setXtmHubToken(getValueFromMapOfSettings(dbSettings, XTM_HUB_TOKEN.key()));
