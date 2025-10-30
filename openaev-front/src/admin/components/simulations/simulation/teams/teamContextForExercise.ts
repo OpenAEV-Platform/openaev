@@ -52,8 +52,8 @@ const teamContextForExercise = (exerciseId: Exercise['exercise_id'], exerciseTea
         dispatch(enableExerciseTeamPlayers(exerciseId, teamId, { exercise_team_players: [userId] }));
       }
     },
-    searchTeams(input: SearchPaginationInput, contextualOnly?: boolean): Promise<{ data: Page<TeamOutput> }> {
-      return searchExerciseTeams(exerciseId, input, contextualOnly);
+    searchTeams(input: SearchPaginationInput, contextualOnly?: boolean, includes?: string[]): Promise<{ data: Page<TeamOutput> }> {
+      return searchExerciseTeams(exerciseId, input, contextualOnly, includes);
     },
   };
 };

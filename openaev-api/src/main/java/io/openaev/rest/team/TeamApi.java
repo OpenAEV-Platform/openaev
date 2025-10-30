@@ -4,6 +4,7 @@ import static io.openaev.database.specification.TeamSpecification.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.ALL;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.time.Instant.now;
@@ -25,7 +26,6 @@ import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InputFilterOptions;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -37,6 +37,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -70,7 +71,6 @@ public class TeamApi extends RestBehavior {
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
   private final TeamService teamService;
-  private final UserService userService;
 
   @LogExecutionTime
   @GetMapping(TEAM_URI)
@@ -96,7 +96,8 @@ public class TeamApi extends RestBehavior {
   public Page<TeamOutput> searchTeams(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     final Specification<Team> teamSpecification = contextual(false);
-    return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
+    return this.teamService.teamPagination(
+        searchPaginationInput, teamSpecification, EnumSet.of(ALL));
   }
 
   @LogExecutionTime

@@ -2,6 +2,7 @@ package io.openaev.rest.team;
 
 import static io.openaev.database.specification.TeamSpecification.contextual;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.ALL;
 
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
@@ -12,6 +13,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.TeamService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
+import java.util.EnumSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,6 +34,7 @@ public class AtomicTestingTeamApi extends RestBehavior {
   public Page<TeamOutput> searchTeams(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     final Specification<Team> teamSpecification = contextual(false);
-    return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
+    return this.teamService.teamPagination(
+        searchPaginationInput, teamSpecification, EnumSet.of(ALL));
   }
 }

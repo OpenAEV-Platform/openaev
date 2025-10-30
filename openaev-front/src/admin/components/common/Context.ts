@@ -139,7 +139,7 @@ export type TeamContextType = {
   onToggleUser?: (teamId: Team['team_id'], userId: UserStore['user_id'], userEnabled: boolean) => void;
   checkUserEnabled?: (teamId: Team['team_id'], userId: UserStore['user_id']) => boolean;
   computeTeamUsersEnabled?: (teamId: Team['team_id']) => number;
-  searchTeams: (input: SearchPaginationInput, contextualOnly?: boolean) => Promise<{ data: Page<TeamOutput> }>;
+  searchTeams: (input: SearchPaginationInput, contextualOnly?: boolean, includes?: string[]) => Promise<{ data: Page<TeamOutput> }>;
   allUsersEnabledNumber?: number;
   allUsersNumber?: number;
 };

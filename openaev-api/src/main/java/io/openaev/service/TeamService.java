@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.ALL;
 import static io.openaev.rest.team.TeamQueryHelper.execution;
 import static io.openaev.rest.team.TeamQueryHelper.select;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -11,16 +12,18 @@ import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeam;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.team.TeamQueryHelper.TeamQueryField;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
@@ -30,6 +33,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +41,7 @@ public class TeamService {
 
   @PersistenceContext private EntityManager entityManager;
 
-  private final UserRepository userRepository;
   private final TeamRepository teamRepository;
-
-  private final UserService userService;
 
   public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
     List<RawTeam> rawTeams =
@@ -63,9 +64,11 @@ public class TeamService {
     return newTeam;
   }
 
+  @Transactional(readOnly = true)
   public Page<TeamOutput> teamPagination(
       @NotNull SearchPaginationInput searchPaginationInput,
-      @NotNull final Specification<Team> teamSpecification) {
+      @NotNull final Specification<Team> teamSpecification,
+      @Nullable final EnumSet<TeamQueryField> includes) {
     TriFunction<Specification<Team>, Specification<Team>, Pageable, Page<TeamOutput>> teamsFunction;
 
     teamsFunction =
@@ -75,7 +78,8 @@ public class TeamService {
             this.paginate(
                 teamSpecification.and(specification),
                 teamSpecification.and(specificationCount),
-                pageable);
+                pageable,
+                includes);
 
     return buildPaginationCriteriaBuilder(teamsFunction, searchPaginationInput, Team.class);
   }
@@ -83,12 +87,13 @@ public class TeamService {
   private Page<TeamOutput> paginate(
       Specification<Team> specification,
       Specification<Team> specificationCount,
-      Pageable pageable) {
+      Pageable pageable,
+      @Nullable final EnumSet<TeamQueryField> includes) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
     Root<Team> teamRoot = cq.from(Team.class);
-    select(cb, cq, teamRoot);
+    select(cb, cq, teamRoot, includes);
 
     // -- Specification --
     if (specification != null) {
@@ -110,7 +115,7 @@ public class TeamService {
     query.setMaxResults(pageable.getPageSize());
 
     // -- EXECUTION --
-    List<TeamOutput> teams = execution(query);
+    List<TeamOutput> teams = execution(query, includes);
 
     // -- Count Query --
     Long total = countQuery(cb, this.entityManager, Team.class, specificationCount);
@@ -123,7 +128,7 @@ public class TeamService {
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
     Root<Team> teamRoot = cq.from(Team.class);
-    select(cb, cq, teamRoot);
+    select(cb, cq, teamRoot, EnumSet.of(ALL));
 
     if (specification != null) {
       Predicate predicate = specification.toPredicate(teamRoot, cq, cb);
@@ -133,6 +138,6 @@ public class TeamService {
     }
 
     TypedQuery<Tuple> query = entityManager.createQuery(cq);
-    return execution(query);
+    return execution(query, EnumSet.of(ALL));
   }
 }

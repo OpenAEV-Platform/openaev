@@ -5,8 +5,8 @@ import { type ExerciseUpdateTeamsInput, type Scenario, type SearchPaginationInpu
 import * as schema from '../Schema';
 import { EXERCISE_URI } from './exercise-action';
 
-export const searchExerciseTeams = (exerciseId: Scenario['scenario_id'], paginationInput: SearchPaginationInput, contextualOnly: boolean = false) => {
-  const uri = `${EXERCISE_URI}/${exerciseId}/teams/search?contextualOnly=${contextualOnly}`;
+export const searchExerciseTeams = (exerciseId: Scenario['scenario_id'], paginationInput: SearchPaginationInput, contextualOnly: boolean = false, includes: string[] = []) => {
+  const uri = `${EXERCISE_URI}/${exerciseId}/teams/search?contextualOnly=${contextualOnly}&include=${includes.join(',')}`;
   return simplePostCall(uri, paginationInput);
 };
 

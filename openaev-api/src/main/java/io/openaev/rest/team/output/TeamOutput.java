@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 import lombok.Builder;
 import lombok.Data;
@@ -63,6 +65,6 @@ public class TeamOutput {
   @JsonProperty("team_users_number")
   @Schema(description = "Number of users of the team")
   public long getUsersNumber() {
-    return getUsers().size();
+    return Optional.ofNullable(getUsers()).map(Collection::size).orElse(0);
   }
 }

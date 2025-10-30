@@ -2,6 +2,7 @@ package io.openaev.rest.team;
 
 import static io.openaev.database.specification.TeamSpecification.*;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.ALL;
 
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
@@ -14,6 +15,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.EnumSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -48,6 +50,7 @@ public class ScenarioTeamApi extends RestBehavior {
     } else {
       teamSpecification = fromScenario(scenarioId);
     }
-    return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
+    return this.teamService.teamPagination(
+        searchPaginationInput, teamSpecification, EnumSet.of(ALL));
   }
 }
