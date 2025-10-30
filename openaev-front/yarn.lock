@@ -293,13 +293,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/js-api@npm:1.0.0":
-  version: 1.0.0
-  resolution: "@biomejs/js-api@npm:1.0.0"
+"@biomejs/js-api@npm:3.0.0":
+  version: 3.0.0
+  resolution: "@biomejs/js-api@npm:3.0.0"
   peerDependencies:
-    "@biomejs/wasm-bundler": ^2.0.0
-    "@biomejs/wasm-nodejs": ^2.0.0
-    "@biomejs/wasm-web": ^2.0.0
+    "@biomejs/wasm-bundler": ^2.2.0
+    "@biomejs/wasm-nodejs": ^2.2.0
+    "@biomejs/wasm-web": ^2.2.0
   peerDependenciesMeta:
     "@biomejs/wasm-bundler":
       optional: true
@@ -307,14 +307,14 @@ __metadata:
       optional: true
     "@biomejs/wasm-web":
       optional: true
-  checksum: 10c0/589d2a8e8b02c4dc27d52a424870d95a812e2194ab05979c1fc59a9d00f83739f63e23ea0a4cee904ed3a7f357034b094e2c68cf917a7740db6596cc1695d87a
+  checksum: 10c0/079763051b26d01b7a4ff4a65f3a4ce3788829d0e068964bba8aced2a2d75c359fb8cdd8f51e272431ee1398c48353eb25b5a522426fdc7f648a02459df351e2
   languageName: node
   linkType: hard
 
-"@biomejs/wasm-nodejs@npm:2.0.5":
-  version: 2.0.5
-  resolution: "@biomejs/wasm-nodejs@npm:2.0.5"
-  checksum: 10c0/083f4412120e3e96c576e9de5cf1525ce2bdc6e632d2d340d1609e10e6a1d63868f8ccda2445ce4aa31adb55601aeecdabf51b5bd781e19ec0b4395dfdbffa5b
+"@biomejs/wasm-nodejs@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@biomejs/wasm-nodejs@npm:2.2.6"
+  checksum: 10c0/f58c1f2c21fc7df30f851adc50582fa1b403330959c0aff665272bb12bc9811fbe80803488f1596018f39319e6ad0399c290e143daf3b872c0c1c62c5812e4fc
   languageName: node
   linkType: hard
 
@@ -3441,6 +3441,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/lodash@npm:^4.17.20":
+  version: 4.17.20
+  resolution: "@types/lodash@npm:4.17.20"
+  checksum: 10c0/98cdd0faae22cbb8079a01a3bb65aa8f8c41143367486c1cbf5adc83f16c9272a2a5d2c1f541f61d0d73da543c16ee1d21cf2ef86cb93cd0cc0ac3bced6dd88f
+  languageName: node
+  linkType: hard
+
 "@types/marked@npm:4.3.2":
   version: 4.3.2
   resolution: "@types/marked@npm:4.3.2"
@@ -4599,7 +4606,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"c12@npm:^3.0.4":
+"c12@npm:^3.3.0":
   version: 3.3.1
   resolution: "c12@npm:3.3.1"
   dependencies:
@@ -6411,10 +6418,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eta@npm:^2.2.0":
-  version: 2.2.0
-  resolution: "eta@npm:2.2.0"
-  checksum: 10c0/643b54d9539d2761bf6c5f4f48df1a5ea2d46c7f5a5fdc47a7d4802a8aa2b6262d4d61f724452e226c18cf82db02d48e65293fcc548f26a3f9d75a5ba7c3b859
+"eta@npm:^3.5.0":
+  version: 3.5.0
+  resolution: "eta@npm:3.5.0"
+  checksum: 10c0/28ffc23658e3d77c1ab2660d0158b979688457659fc190d0edca26c186ab34039bec9d6745d975e5f0543981e285cd757bff85b47ea2374ab11444e2b7271dd0
   languageName: node
   linkType: hard
 
@@ -9541,7 +9548,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:^5.1.5":
+"nanoid@npm:^5.1.6":
   version: 5.1.6
   resolution: "nanoid@npm:5.1.6"
   bin:
@@ -9990,7 +9997,7 @@ __metadata:
     remark-gfm: "npm:4.0.1"
     remark-parse: "npm:11.0.0"
     rxjs: "npm:7.8.2"
-    swagger-typescript-api: "npm:13.2.7"
+    swagger-typescript-api: "npm:13.2.16"
     tss-react: "npm:4.9.19"
     typescript: "npm:5.9.3"
     typescript-eslint: "npm:8.38.0"
@@ -10002,6 +10009,13 @@ __metadata:
     zustand: "npm:5.0.8"
   languageName: unknown
   linkType: soft
+
+"openapi-types@npm:^12.1.3":
+  version: 12.1.3
+  resolution: "openapi-types@npm:12.1.3"
+  checksum: 10c0/4ad4eb91ea834c237edfa6ab31394e87e00c888fc2918009763389c00d02342345195d6f302d61c3fd807f17723cd48df29b47b538b68375b3827b3758cd520f
+  languageName: node
+  linkType: hard
 
 "optionator@npm:^0.9.3":
   version: 0.9.4
@@ -12108,27 +12122,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"swagger-typescript-api@npm:13.2.7":
-  version: 13.2.7
-  resolution: "swagger-typescript-api@npm:13.2.7"
+"swagger-typescript-api@npm:13.2.16":
+  version: 13.2.16
+  resolution: "swagger-typescript-api@npm:13.2.16"
   dependencies:
-    "@biomejs/js-api": "npm:1.0.0"
-    "@biomejs/wasm-nodejs": "npm:2.0.5"
+    "@biomejs/js-api": "npm:3.0.0"
+    "@biomejs/wasm-nodejs": "npm:2.2.6"
+    "@types/lodash": "npm:^4.17.20"
     "@types/swagger-schema-official": "npm:^2.0.25"
-    c12: "npm:^3.0.4"
+    c12: "npm:^3.3.0"
     citty: "npm:^0.1.6"
     consola: "npm:^3.4.2"
-    eta: "npm:^2.2.0"
-    js-yaml: "npm:^4.1.0"
+    eta: "npm:^3.5.0"
     lodash: "npm:^4.17.21"
-    nanoid: "npm:^5.1.5"
+    nanoid: "npm:^5.1.6"
+    openapi-types: "npm:^12.1.3"
     swagger-schema-official: "npm:2.0.0-bab6bed"
     swagger2openapi: "npm:^7.0.8"
-    typescript: "npm:~5.8.3"
+    typescript: "npm:~5.9.3"
+    yaml: "npm:^2.8.1"
   bin:
     sta: ./dist/cli.js
     swagger-typescript-api: ./dist/cli.js
-  checksum: 10c0/b60c6609edfea4d3034ffc23d4e0b26e18d900f3edbe78434d6b3dfdf080336c4cd004c74e2a74368d3acc041e69287911bb6b6ef515f2f555ea85036bd6324d
+  checksum: 10c0/20ff4c9d84960e55661400548a9df36f74822fc4b9867660cc722bfe8f7874d272b179f3600afe1ce71c1b2b9b2fa9ca0c623e27b46df1e1ec7773859d222727
   languageName: node
   linkType: hard
 
@@ -12511,7 +12527,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:5.9.3":
+"typescript@npm:5.9.3, typescript@npm:~5.9.3":
   version: 5.9.3
   resolution: "typescript@npm:5.9.3"
   bin:
@@ -12521,33 +12537,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:~5.8.3":
-  version: 5.8.3
-  resolution: "typescript@npm:5.8.3"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/5f8bb01196e542e64d44db3d16ee0e4063ce4f3e3966df6005f2588e86d91c03e1fb131c2581baf0fb65ee79669eea6e161cd448178986587e9f6844446dbb48
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A~5.9.3#optional!builtin<compat/typescript>":
   version: 5.9.3
   resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A~5.8.3#optional!builtin<compat/typescript>":
-  version: 5.8.3
-  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/39117e346ff8ebd87ae1510b3a77d5d92dae5a89bde588c747d25da5c146603a99c8ee588c7ef80faaf123d89ed46f6dbd918d534d641083177d5fac38b8a1cb
   languageName: node
   linkType: hard
 
@@ -13335,6 +13331,15 @@ __metadata:
   version: 1.10.2
   resolution: "yaml@npm:1.10.2"
   checksum: 10c0/5c28b9eb7adc46544f28d9a8d20c5b3cb1215a886609a2fd41f51628d8aaa5878ccd628b755dbcd29f6bb4921bd04ffbc6dcc370689bb96e594e2f9813d2605f
+  languageName: node
+  linkType: hard
+
+"yaml@npm:^2.8.1":
+  version: 2.8.1
+  resolution: "yaml@npm:2.8.1"
+  bin:
+    yaml: bin.mjs
+  checksum: 10c0/7c587be00d9303d2ae1566e03bc5bc7fe978ba0d9bf39cc418c3139d37929dfcb93a230d9749f2cb578b6aa5d9ebebc322415e4b653cb83acd8bc0bc321707f3
   languageName: node
   linkType: hard
 
