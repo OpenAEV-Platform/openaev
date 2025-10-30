@@ -9467,7 +9467,7 @@ __metadata:
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:3.1.4"
     react-grid-layout: "npm:1.5.2"
-    react-hook-form: "npm:7.60.0"
+    react-hook-form: "npm:7.65.0"
     react-intl: "npm:7.1.14"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.2.0"
@@ -10156,12 +10156,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:7.60.0":
-  version: 7.60.0
-  resolution: "react-hook-form@npm:7.60.0"
+"react-hook-form@npm:7.65.0":
+  version: 7.65.0
+  resolution: "react-hook-form@npm:7.65.0"
   peerDependencies:
     react: ^16.8.0 || ^17 || ^18 || ^19
-  checksum: 10c0/eb8518d42a074d9e115d4b414bac18ae72708b2d047a9453dcc7588b00df300b32cebf6ecb7f2c8aa534808b3dc54bde4124af95c1e432b6691f9aba07c93b11
+  checksum: 10c0/119afeaf33510d1ed6c12109f03d22d9e88f9eb01b8e4fb3cd8f40d5fc113cbcfc6154789d1d143151de8119bd08ffc7214d504e0e550ea28a9051ed6a30ae28
   languageName: node
   linkType: hard
 
