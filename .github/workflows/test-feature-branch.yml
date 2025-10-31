@@ -93,9 +93,11 @@ jobs:
           awx --conf.host ${{ secrets.AWX_URL }} \
             --conf.username ${{ secrets.AWX_USER }} \
             --conf.password ${{ secrets.AWX_PASSWORD }} \
-            -f human job_templates launch 'Deploy OpenAEV feature branch for testing' \
+            -f human \
+          job_templates launch 'Deploy OpenAEV feature branch for testing' \
+            --wait \
             --inventory eu-west-staging \
-            --extra_vars "{\"openaev_version\":\"${{steps.meta.outputs.version}}\",\"openaev_config\":${{ inputs.openaev_config }},\"image_digest\":\"${{ needs.openaev-platform.outputs.dockerBuildDigest }}\"}"
+            --extra_vars '"{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}"'
 
       - name: Forge URL to match playbook limitations
         id: urlforge
