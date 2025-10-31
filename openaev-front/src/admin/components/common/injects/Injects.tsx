@@ -572,7 +572,7 @@ const Injects: FunctionComponent<Props> = ({
         </div>
       )}
       {viewModeContext === 'list' && (
-        <List>
+        <List data-testid="injects-list-section">
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}

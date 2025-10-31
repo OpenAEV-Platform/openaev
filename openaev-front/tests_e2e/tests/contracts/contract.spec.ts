@@ -1,10 +1,11 @@
 // import { expect, test } from '@playwright/test';
-// import appUrl from '../../utils/url';
+//
 // import ContractPage from '../../model/contracts/contract.page';
-// import LeftMenuPage from '../../model/left-menu.page';
-// import ContractFormPage from '../../model/contracts/contract-form.page';
 // import ContractApiMock from '../../model/contracts/contract-api';
-// FIXME: should be re enabled
+// import ContractFormPage from '../../model/contracts/contract-form.page';
+// import LeftMenuComponent from '../../model/left-menu.page';
+// import appUrl from '../../utils/url';
+// // FIXME: should be re enabled
 // test.describe('Contracts', () => {
 //   test('get first page of contract of contracts with searchtext empty and sort by type,label asc', async ({ page }) => {
 //     const contractFormPage = new ContractFormPage(page);
@@ -14,7 +15,7 @@
 //
 //     await page.goto(appUrl());
 //
-//     const leftMenuPage = new LeftMenuPage(page);
+//     const leftMenuPage = new LeftMenuComponent(page);
 //     await leftMenuPage.goToContracts();
 //
 //     const contractTitles = contractFormPage.getContractTitles();
@@ -29,7 +30,7 @@
 //
 //     await page.goto(appUrl());
 //
-//     const leftMenuPage = new LeftMenuPage(page);
+//     const leftMenuPage = new LeftMenuComponent(page);
 //     await leftMenuPage.goToContracts();
 //
 //     await contractPage.goToNextPage();

@@ -48,7 +48,7 @@ const ScenarioTeams: FunctionComponent<Props> = ({ scenarioTeamsUsers }) => {
               />
             )}
         </Typography>
-        <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
+        <Paper data-testid="teams-list-section" sx={{ padding: theme.spacing(2) }} variant="outlined">
           <ContextualTeams teams={teamsStore} />
         </Paper>
       </div>
