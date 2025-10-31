@@ -1,16 +1,15 @@
 package io.openaev.healthcheck.dto;
 
+import static java.time.Instant.now;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
 @Slf4j
 public class HealthCheck {
@@ -83,5 +82,5 @@ public class HealthCheck {
   @Schema(description = "Date when the failure have been found")
   @JsonProperty("creation_date")
   @NotNull
-  private Instant creationDate;
+  private final Instant creationDate = now();
 }

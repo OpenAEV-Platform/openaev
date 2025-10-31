@@ -191,7 +191,7 @@ public class InjectImportService {
       importTestSummary.setInjectOutputs(
           importTestSummary.getInjects().stream()
               .limit(5)
-              .map(inject -> injectMapper.toInjectOutput(inject, injectService.runChecks(inject)))
+              .map(inject -> injectMapper.toInjectOutput(inject, Collections.emptyList()))
               .toList());
     }
 

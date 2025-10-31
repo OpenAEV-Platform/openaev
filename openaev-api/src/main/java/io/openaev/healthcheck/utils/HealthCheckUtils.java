@@ -5,7 +5,6 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS;
-import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
 
@@ -57,7 +56,7 @@ public class HealthCheckUtils {
     if (injector != null
         && ArrayUtils.contains(injector.getDependencies(), service)
         && !isServiceAvailable) {
-      result.add(new HealthCheck(type, HealthCheck.Detail.SERVICE_UNAVAILABLE, status, now()));
+      result.add(new HealthCheck(type, HealthCheck.Detail.SERVICE_UNAVAILABLE, status));
     }
 
     return result;
@@ -83,8 +82,7 @@ public class HealthCheckUtils {
           new HealthCheck(
               HealthCheck.Type.AGENT_OR_EXECUTOR,
               HealthCheck.Detail.EMPTY,
-              HealthCheck.Status.ERROR,
-              now()));
+              HealthCheck.Status.ERROR));
     }
 
     return result;
@@ -107,8 +105,7 @@ public class HealthCheckUtils {
           new HealthCheck(
               HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
               HealthCheck.Detail.EMPTY,
-              HealthCheck.Status.ERROR,
-              now()));
+              HealthCheck.Status.ERROR));
     }
 
     return result;
@@ -165,7 +162,7 @@ public class HealthCheckUtils {
       if (!isInjectorRegistered) {
         result.add(
             new HealthCheck(
-                type, HealthCheck.Detail.SERVICE_UNAVAILABLE, HealthCheck.Status.ERROR, now()));
+                type, HealthCheck.Detail.SERVICE_UNAVAILABLE, HealthCheck.Status.ERROR));
       }
     }
     return result;
@@ -193,7 +190,7 @@ public class HealthCheckUtils {
                 Objects.equals(type, healthCheck.getType())
                     && Objects.equals(detail, healthCheck.getDetail())
                     && Objects.equals(status, healthCheck.getStatus()))) {
-      result.add(new HealthCheck(type, detail, status, now()));
+      result.add(new HealthCheck(type, detail, status));
     }
 
     return result;
@@ -231,10 +228,7 @@ public class HealthCheckUtils {
     if (atLeastOneInjectIsNotReady) {
       result.add(
           new HealthCheck(
-              HealthCheck.Type.INJECT,
-              HealthCheck.Detail.NOT_READY,
-              HealthCheck.Status.WARNING,
-              now()));
+              HealthCheck.Type.INJECT, HealthCheck.Detail.NOT_READY, HealthCheck.Status.WARNING));
     }
 
     return result;
@@ -275,10 +269,7 @@ public class HealthCheckUtils {
       if (isMissingTeamsOrEnabledPlayers) {
         result.add(
             new HealthCheck(
-                HealthCheck.Type.TEAMS,
-                HealthCheck.Detail.EMPTY,
-                HealthCheck.Status.WARNING,
-                now()));
+                HealthCheck.Type.TEAMS, HealthCheck.Detail.EMPTY, HealthCheck.Status.WARNING));
       }
     }
 
@@ -332,8 +323,7 @@ public class HealthCheckUtils {
           new HealthCheck(
               HealthCheck.Type.INJECTOR_CONTRACT,
               HealthCheck.Detail.MANDATORY_CONTENT,
-              HealthCheck.Status.ERROR,
-              now()));
+              HealthCheck.Status.ERROR));
       return result;
     }
 
@@ -364,8 +354,7 @@ public class HealthCheckUtils {
             new HealthCheck(
                 HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
                 HealthCheck.Detail.MANDATORY_CONTENT,
-                HealthCheck.Status.ERROR,
-                now()));
+                HealthCheck.Status.ERROR));
       }
 
       // If field is mandatory group
@@ -402,8 +391,7 @@ public class HealthCheckUtils {
                   new HealthCheck(
                       HealthCheck.Type.fromValue(mandatoryFieldKey.asText()),
                       HealthCheck.Detail.MANDATORY_CONTENT,
-                      HealthCheck.Status.ERROR,
-                      now()));
+                      HealthCheck.Status.ERROR));
             }
           }
         }
@@ -479,8 +467,7 @@ public class HealthCheckUtils {
                         HealthCheck.Type.fromValue(
                             fieldOpt.get().get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
                         HealthCheck.Detail.MANDATORY_CONTENT,
-                        HealthCheck.Status.ERROR,
-                        now()));
+                        HealthCheck.Status.ERROR));
               }
             }
           }
