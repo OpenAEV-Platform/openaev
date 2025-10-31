@@ -63,17 +63,21 @@ test.describe('Payload form', () => {
 
     test.describe('Architecture Field Behavior', () => {
       ArchitectureConfigs.forEach(({ commandType, expectedOptions, defaultValue }) => {
-        test(`${commandType} - architecture configuration`, async () => {
-          await payloadForm.switchToCommandsTab();
-          await payloadForm.selectCommandType(commandType);
-          if (expectedOptions) {
+        if (expectedOptions) {
+          test(`${commandType} - architecture configuration with options`, async () => {
+            await payloadForm.switchToCommandsTab();
+            await payloadForm.selectCommandType(commandType);
             const actualOptions = await payloadForm.getArchitectureOptions();
             expect(actualOptions).toEqual(expectedOptions);
-          } else {
+          });
+        } else {
+          test(`${commandType} - architecture configuration disabled`, async () => {
+            await payloadForm.switchToCommandsTab();
+            await payloadForm.selectCommandType(commandType);
             await expect(payloadForm.architectureField).toBeDisabled();
             await expect(payloadForm.architectureField).toContainText(defaultValue);
-          }
-        });
+          });
+        }
       });
 
       test('should reset architecture when switching from Executable to DNS Resolution', async () => {
