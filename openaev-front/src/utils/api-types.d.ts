@@ -1213,7 +1213,7 @@ export interface CweOutput {
 }
 
 export type DateHistogramWidget = UtilRequiredKeys<
-  WidgetConfiguration,
+  BaseWidgetConfiguration,
   "widget_configuration_type"
 > & {
   display_legend?: boolean;
@@ -2473,7 +2473,7 @@ export interface FlagInput {
 }
 
 export type FlatConfiguration = UtilRequiredKeys<
-  WidgetConfiguration,
+  BaseWidgetConfiguration,
   "widget_configuration_type"
 >;
 
@@ -3661,7 +3661,7 @@ export interface License {
 }
 
 export type ListConfiguration = UtilRequiredKeys<
-  WidgetConfiguration,
+  BaseWidgetConfiguration,
   "widget_configuration_type"
 > & {
   columns?: string[];
@@ -5688,7 +5688,7 @@ export interface StatusPayloadOutput {
 }
 
 export type StructuralHistogramWidget = UtilRequiredKeys<
-  WidgetConfiguration,
+  BaseWidgetConfiguration,
   "widget_configuration_type"
 > & {
   display_legend?: boolean;
