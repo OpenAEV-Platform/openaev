@@ -76,7 +76,7 @@
     "zustand": "5.0.8"
   },
   "devDependencies": {
-    "@eslint/js": "9.29.0",
+    "@eslint/js": "9.38.0",
     "@faker-js/faker": "10.1.0",
     "@playwright/test": "1.54.1",
     "@stylistic/eslint-plugin": "4.4.1",
@@ -97,7 +97,7 @@
     "chokidar": "4.0.3",
     "cross-env": "10.1.0",
     "esbuild": "0.25.11",
-    "eslint": "9.29.0",
+    "eslint": "9.38.0",
     "eslint-import-resolver-oxc": "0.14.0",
     "eslint-plugin-custom-rules": "workspace:*",
     "eslint-plugin-i18next": "6.1.3",
