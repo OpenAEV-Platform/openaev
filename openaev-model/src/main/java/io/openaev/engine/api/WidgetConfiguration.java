@@ -21,23 +21,23 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@Schema(
-    discriminatorProperty = "widget_configuration_type",
-    oneOf = {HistogramWidget.class, ListConfiguration.class, FlatConfiguration.class},
-    discriminatorMapping = {
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.FLAT,
-          schema = FlatConfiguration.class),
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.LIST,
-          schema = ListConfiguration.class),
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.TEMPORAL_HISTOGRAM,
-          schema = DateHistogramWidget.class),
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.STRUCTURAL_HISTOGRAM,
-          schema = StructuralHistogramWidget.class),
-    })
+//@Schema(
+//    discriminatorProperty = "widget_configuration_type",
+//    oneOf = {HistogramWidget.class, ListConfiguration.class, FlatConfiguration.class},
+//    discriminatorMapping = {
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.FLAT,
+//          schema = FlatConfiguration.class),
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.LIST,
+//          schema = ListConfiguration.class),
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.TEMPORAL_HISTOGRAM,
+//          schema = DateHistogramWidget.class),
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.STRUCTURAL_HISTOGRAM,
+//          schema = StructuralHistogramWidget.class),
+//    })
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,

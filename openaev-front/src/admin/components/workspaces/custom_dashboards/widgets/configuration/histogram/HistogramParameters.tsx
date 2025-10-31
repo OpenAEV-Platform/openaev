@@ -4,8 +4,7 @@ import { type Control, Controller, useFormContext, type UseFormSetValue, useWatc
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
 import { useFormatter } from '../../../../../../../components/i18n';
-import { type PropertySchemaDTO } from '../../../../../../../utils/api-types';
-import { type Widget } from '../../../../../../../utils/api-types-custom';
+import { type PropertySchemaDTO, type Widget } from '../../../../../../../utils/api-types';
 import { type GroupOption } from '../../../../../../../utils/Option';
 import { getAvailableModes, getBaseEntities, getLimit, type WidgetInputWithoutLayout } from '../../WidgetUtils';
 import WidgetConfigDateAttributeController from '../common/WidgetConfigDateAttributeController';

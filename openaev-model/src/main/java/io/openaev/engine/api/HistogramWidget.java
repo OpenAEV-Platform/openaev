@@ -16,10 +16,6 @@ public abstract class HistogramWidget extends WidgetConfiguration {
   @NotNull
   private final String mode;
 
-  @NotBlank
-  @JsonProperty("date_attribute")
-  private String dateAttribute;
-
   private boolean stacked;
 
   @JsonProperty("display_legend")

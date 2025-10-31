@@ -3,7 +3,7 @@ import { type CSSProperties, type FunctionComponent, useContext, useEffect, useS
 import RGL, { type Layout, WidthProvider } from 'react-grid-layout';
 
 import { updateCustomDashboardWidgetLayout } from '../../../../actions/custom_dashboards/customdashboardwidget-action';
-import { type Widget } from '../../../../utils/api-types-custom';
+import { type Widget } from '../../../../utils/api-types';
 import { CustomDashboardContext } from './CustomDashboardContext';
 import WidgetWrapper from './widgets/WidgetWrapper';
 

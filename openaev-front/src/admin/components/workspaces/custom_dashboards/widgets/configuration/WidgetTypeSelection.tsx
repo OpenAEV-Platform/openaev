@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import { type Widget } from '../../../../../../utils/api-types-custom';
+import { type Widget } from '../../../../../../utils/api-types';
 import { renderWidgetIcon, widgetVisualizationTypes } from '../WidgetUtils';
 
 const WidgetTypeSelection: FunctionComponent<{

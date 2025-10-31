@@ -1,8 +1,7 @@
 import { memo } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { type EsSeries, type ListConfiguration } from '../../../../../utils/api-types';
-import { type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types-custom';
+import { type EsSeries, type ListConfiguration, type StructuralHistogramWidget, type Widget } from '../../../../../utils/api-types';
 import AttackPathContextLayer from './viz/attack_paths/AttackPathContextLayer';
 import DonutChart from './viz/DonutChart';
 import HorizontalBarChart from './viz/HorizontalBarChart';
@@ -111,7 +110,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
       return (
         <DonutChart
           widgetId={widget.widget_id}
-          widgetConfig={widget.widget_config}
+          widgetConfig={widget.widget_config as StructuralHistogramWidget}
           datas={data}
         />
       );

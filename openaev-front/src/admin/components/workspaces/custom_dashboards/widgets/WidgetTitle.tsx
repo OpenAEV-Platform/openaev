@@ -10,7 +10,7 @@ import { useTheme } from '@mui/material/styles';
 import { memo, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { type Widget } from '../../../../../utils/api-types-custom';
+import { type Widget } from '../../../../../utils/api-types';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import { ALL_TIME_TIME_RANGE, getTimeRangeFromDashboard, getTimeRangeItem } from './configuration/common/TimeRangeUtils';
 import WidgetPopover from './WidgetPopover';
