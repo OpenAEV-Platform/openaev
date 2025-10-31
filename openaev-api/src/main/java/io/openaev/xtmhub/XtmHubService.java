@@ -94,7 +94,7 @@ public class XtmHubService {
 
   private boolean isEmailNotificationEnabled(PlatformSettings settings) {
     return Boolean.parseBoolean(settings.getXtmHubShouldSendConnectivityEmail())
-        && settings.getXtmHubConnectivityEmailEnable();
+        && Boolean.parseBoolean(xtmHubConfig.getConnectivityEmailEnable());
   }
 
   private PlatformSettings updateRegistrationStatus(

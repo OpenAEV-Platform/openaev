@@ -261,10 +261,6 @@ public class PlatformSettings {
   @Schema(description = "True if connection with XTM Hub is enabled")
   private Boolean xtmHubEnable;
 
-  @JsonProperty("xtm_hub_connectivity_email_enable")
-  @Schema(description = "True if connectivity check email is enabled")
-  private Boolean xtmHubConnectivityEmailEnable;
-
   @JsonProperty("xtm_hub_url")
   @Schema(description = "Url of XTM Hub")
   private String xtmHubUrl;
