@@ -172,7 +172,7 @@ class XtmHubServiceTest {
   @DisplayName("Should not send connectivity email when email is disabled from configuration")
   void refreshConnectivity_WhenEmailDisabledFromConfig_ShouldNotSendEmail() {
     // Given
-    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn("false");
+    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn(false);
     String token = "valid-token";
     LocalDateTime lastCheck = now.minusHours(25);
 
@@ -206,7 +206,7 @@ class XtmHubServiceTest {
       "Should send connectivity email when connectivity is lost for more than 24 hours and email sending is enabled")
   void refreshConnectivity_WhenConnectivityLostMoreThan24HoursAndEmailEnabled_ShouldSendEmail() {
     // Given
-    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn("true");
+    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn(true);
     String token = "valid-token";
     LocalDateTime lastCheck = now.minusHours(25);
 
@@ -327,7 +327,7 @@ class XtmHubServiceTest {
   @DisplayName("Should handle exactly 24 hours difference")
   void refreshConnectivity_WhenExactly24HoursPassed_ShouldSendEmail() {
     // Given
-    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn("true");
+    when(xtmHubConfig.getConnectivityEmailEnable()).thenReturn(true);
     String token = "valid-token";
     LocalDateTime lastCheck = now.minusHours(24);
 
