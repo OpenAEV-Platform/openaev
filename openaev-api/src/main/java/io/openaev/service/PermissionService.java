@@ -111,13 +111,13 @@ public class PermissionService {
     if (httpMappingInfo.isEmpty()) {
       return false;
     }
-    RBACAspect.HttpMappingInfo mappingIno = httpMappingInfo.get();
+    RBACAspect.HttpMappingInfo mappingInfo = httpMappingInfo.get();
     boolean endsWithOptions =
-        Arrays.stream(mappingIno.paths()).anyMatch(path -> path.endsWith("/options"));
+        Arrays.stream(mappingInfo.paths()).anyMatch(path -> path.endsWith("/options"));
     if (endsWithOptions) {
       // Retrieve the request param to check if a source ID is provided
-      if (mappingIno.args().containsKey("sourceId")) {
-        String sourceId = mappingIno.args().get("sourceId").toString();
+      if (mappingInfo.args().containsKey("sourceId")) {
+        String sourceId = mappingInfo.args().get("sourceId").toString();
         return hasGrantPermission(user, sourceId, resourceType, action);
       }
     }
