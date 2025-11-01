@@ -108,7 +108,7 @@
     "eslint-plugin-simple-import-sort": "12.1.1",
     "express": "5.1.0",
     "fs-extra": "11.3.2",
-    "globals": "16.3.0",
+    "globals": "16.5.0",
     "i18n-auto-translation": "2.2.3",
     "jsdom": "27.0.1",
     "monocart-coverage-reports": "2.12.9",
