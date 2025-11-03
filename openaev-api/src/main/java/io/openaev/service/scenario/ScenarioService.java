@@ -974,6 +974,9 @@ public class ScenarioService {
                 .flatMap(inject -> injectService.runChecks(inject).stream())
                 .toList());
 
+    // Since Injects healthchecks now have the "Missing Content" (and maybe others) checks details,
+    // we dont want them into the Scenario checks.
+    // That's why we have to verify if there is existing checks necessary to the scenario onto the injects checks.
     healthChecks.addAll(
         healthCheckUtils.runInjectsChecksFor(
             HealthCheck.Type.SMTP,

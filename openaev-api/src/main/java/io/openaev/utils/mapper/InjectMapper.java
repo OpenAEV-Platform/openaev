@@ -244,80 +244,80 @@ public class InjectMapper {
   public InjectOutput toInjectOutput(
       String id,
       String title,
-      String description,
-      String country,
-      String city,
+//      String description,
+//      String country,
+//      String city,
       boolean enabled,
-      Instant triggerNowDate,
+//      Instant triggerNowDate,
       ObjectNode content,
-      Instant createdAt,
-      Instant updatedAt,
-      boolean allTeams,
+//      Instant createdAt,
+//      Instant updatedAt,
+//      boolean allTeams,
       Exercise exercise,
       Scenario scenario,
       List<InjectDependency> dependsOn,
       Long dependsDuration,
       InjectorContract injectorContract,
-      User user,
-      InjectStatus status,
-      CollectExecutionStatus collectExecutionStatus,
+//      User user,
+//      InjectStatus status,
+//      CollectExecutionStatus collectExecutionStatus,
       Set<Tag> tags,
       List<Team> teams,
       List<Asset> assets,
       List<AssetGroup> assetGroups,
-      List<InjectDocument> documents,
-      List<Communication> communications,
-      List<InjectExpectation> expectations,
-      boolean isListened,
-      String header,
-      String footer,
-      Long numberOfTargetUsers,
-      Instant date,
-      Long communicationsNumber,
-      Long communicationsNotAckNumber,
-      Instant sentAt,
-      List<KillChainPhase> killChainPhases,
-      List<AttackPattern> attackPatterns,
-      String type,
+//      List<InjectDocument> documents,
+//      List<Communication> communications,
+//      List<InjectExpectation> expectations,
+//      boolean isListened,
+//      String header,
+//      String footer,
+//      Long numberOfTargetUsers,
+//      Instant date,
+//      Long communicationsNumber,
+//      Long communicationsNotAckNumber,
+//      Instant sentAt,
+//      List<KillChainPhase> killChainPhases,
+//      List<AttackPattern> attackPatterns,
+//      String type,
       List<HealthCheck> healthchecks) {
     InjectOutput injectOutput = new InjectOutput();
     injectOutput.setId(id);
     injectOutput.setTitle(title);
-    injectOutput.setDescription(description);
-    injectOutput.setCountry(country);
-    injectOutput.setCity(city);
+//    injectOutput.setDescription(description);
+//    injectOutput.setCountry(country);
+//    injectOutput.setCity(city);
     injectOutput.setEnabled(enabled);
-    injectOutput.setTriggerNowDate(triggerNowDate);
+//    injectOutput.setTriggerNowDate(triggerNowDate);
     injectOutput.setContent(content);
-    injectOutput.setCreatedAt(createdAt);
-    injectOutput.setUpdatedAt(updatedAt);
-    injectOutput.setAllTeams(allTeams);
+//    injectOutput.setCreatedAt(createdAt);
+//    injectOutput.setUpdatedAt(updatedAt);
+//    injectOutput.setAllTeams(allTeams);
     injectOutput.setExercise(exercise);
     injectOutput.setScenario(scenario);
     injectOutput.setDependsOn(dependsOn);
     injectOutput.setDependsDuration(dependsDuration);
     injectOutput.setInjectorContract(injectorContract);
-    injectOutput.setUser(user);
-    injectOutput.setStatus(status);
-    injectOutput.setCollectExecutionStatus(collectExecutionStatus);
+//    injectOutput.setUser(user);
+//    injectOutput.setStatus(status);
+//    injectOutput.setCollectExecutionStatus(collectExecutionStatus);
     injectOutput.setTags(tags);
     injectOutput.setTeams(teams);
     injectOutput.setAssets(assets);
     injectOutput.setAssetGroups(assetGroups);
-    injectOutput.setDocuments(documents);
-    injectOutput.setCommunications(communications);
-    injectOutput.setExpectations(expectations);
-    injectOutput.setListened(isListened);
-    injectOutput.setHeader(header);
-    injectOutput.setFooter(footer);
-    injectOutput.setNumberOfTargetUsers(numberOfTargetUsers);
-    injectOutput.setDate(date);
-    injectOutput.setCommunicationsNumber(communicationsNumber);
-    injectOutput.setCommunicationsNotAckNumber(communicationsNotAckNumber);
-    injectOutput.setSentAt(sentAt);
-    injectOutput.setKillChainPhases(killChainPhases);
-    injectOutput.setAttackPatterns(attackPatterns);
-    injectOutput.setType(type);
+//    injectOutput.setDocuments(documents);
+//    injectOutput.setCommunications(communications);
+//    injectOutput.setExpectations(expectations);
+//    injectOutput.setListened(isListened);
+//    injectOutput.setHeader(header);
+//    injectOutput.setFooter(footer);
+//    injectOutput.setNumberOfTargetUsers(numberOfTargetUsers);
+//    injectOutput.setDate(date);
+//    injectOutput.setCommunicationsNumber(communicationsNumber);
+//    injectOutput.setCommunicationsNotAckNumber(communicationsNotAckNumber);
+//    injectOutput.setSentAt(sentAt);
+//    injectOutput.setKillChainPhases(killChainPhases);
+//    injectOutput.setAttackPatterns(attackPatterns);
+//    injectOutput.setType(type);
     injectOutput.setHealthchecks(healthchecks);
     return injectOutput;
   }
@@ -326,41 +326,41 @@ public class InjectMapper {
     return toInjectOutput(
         inject.getId(),
         inject.getTitle(),
-        inject.getDescription(),
-        inject.getCountry(),
-        inject.getCity(),
+//        inject.getDescription(),
+//        inject.getCountry(),
+//        inject.getCity(),
         inject.isEnabled(),
-        inject.getTriggerNowDate(),
+//        inject.getTriggerNowDate(),
         inject.getContent(),
-        inject.getCreatedAt(),
-        inject.getUpdatedAt(),
-        inject.isAllTeams(),
+//        inject.getCreatedAt(),
+//        inject.getUpdatedAt(),
+//        inject.isAllTeams(),
         inject.getExercise(),
         inject.getScenario(),
         inject.getDependsOn(),
         inject.getDependsDuration(),
         inject.getInjectorContract().orElse(null),
-        inject.getUser(),
-        inject.getStatus().orElse(null),
-        inject.getCollectExecutionStatus(),
+//        inject.getUser(),
+//        inject.getStatus().orElse(null),
+//        inject.getCollectExecutionStatus(),
         inject.getTags(),
         inject.getTeams(),
         inject.getAssets(),
         inject.getAssetGroups(),
-        inject.getDocuments(),
-        inject.getCommunications(),
-        inject.getExpectations(),
-        inject.isListened(),
-        inject.getHeader(),
-        inject.getFooter(),
-        inject.getNumberOfTargetUsers(),
-        inject.getDate().orElse(null),
-        inject.getCommunicationsNumber(),
-        inject.getCommunicationsNotAckNumber(),
-        inject.getSentAt(),
-        inject.getKillChainPhases(),
-        inject.getAttackPatterns(),
-        inject.getType(),
+//        inject.getDocuments(),
+//        inject.getCommunications(),
+//        inject.getExpectations(),
+//        inject.isListened(),
+//        inject.getHeader(),
+//        inject.getFooter(),
+//        inject.getNumberOfTargetUsers(),
+//        inject.getDate().orElse(null),
+//        inject.getCommunicationsNumber(),
+//        inject.getCommunicationsNotAckNumber(),
+//        inject.getSentAt(),
+//        inject.getKillChainPhases(),
+//        inject.getAttackPatterns(),
+//        inject.getType(),
         healthchecks);
   }
 }

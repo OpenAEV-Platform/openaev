@@ -227,6 +227,21 @@ export interface ArticleUpdateInput {
   article_shares?: number;
 }
 
+/** Assets of the inject */
+export interface Asset {
+  /** @format date-time */
+  asset_created_at: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_id: string;
+  asset_name: string;
+  asset_tags?: string[];
+  asset_type?: string;
+  /** @format date-time */
+  asset_updated_at: string;
+  listened?: boolean;
+}
+
 export interface AssetAgentJob {
   asset_agent_agent?: string;
   /** @deprecated */
@@ -237,13 +252,13 @@ export interface AssetAgentJob {
   listened?: boolean;
 }
 
+/** Asset groups of the inject */
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
   asset_group_created_at: string;
   asset_group_description?: string;
   asset_group_dynamic_assets?: string[];
-  /** Filter object to search within filterable attributes */
   asset_group_dynamic_filter: FilterGroup;
   asset_group_external_reference?: string;
   asset_group_id: string;
@@ -256,7 +271,6 @@ export interface AssetGroup {
 
 export interface AssetGroupInput {
   asset_group_description?: string;
-  /** Filter object to search within filterable attributes */
   asset_group_dynamic_filter?: FilterGroup;
   asset_group_name: string;
   asset_group_tags?: string[];
@@ -266,7 +280,6 @@ export interface AssetGroupOutput {
   /** @uniqueItems true */
   asset_group_assets?: string[];
   asset_group_description?: string;
-  /** Filter object to search within filterable attributes */
   asset_group_dynamic_filter?: FilterGroup;
   asset_group_id: string;
   asset_group_name: string;
@@ -357,7 +370,6 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
-/** Attack pattern of the inject */
 export interface AttackPattern {
   /** @format date-time */
   attack_pattern_created_at?: string;
@@ -842,9 +854,11 @@ export interface ChannelCreateInput {
 
 export interface ChannelReader {
   channel_articles?: Article[];
+  /** Simulation ID of the inject */
   channel_exercise?: Exercise;
   channel_id?: string;
   channel_information?: Channel;
+  /** Scenario ID of the inject */
   channel_scenario?: Scenario;
 }
 
@@ -2486,6 +2500,7 @@ export interface ExecutorUpdateInput {
   executor_last_execution?: string;
 }
 
+/** Simulation ID of the inject */
 export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
@@ -2761,7 +2776,6 @@ export interface Filter {
   values?: string[];
 }
 
-/** Filter object to search within filterable attributes */
 export interface FilterGroup {
   filters?: Filter[];
   mode: "and" | "or";
@@ -2779,7 +2793,9 @@ export interface Finding {
   /** @deprecated */
   finding_labels?: string[];
   finding_name?: string;
+  /** Scenario ID of the inject */
   finding_scenario?: Scenario;
+  /** Simulation ID of the inject */
   finding_simulation?: Exercise;
   finding_tags?: string[];
   finding_teams?: string[];
@@ -2906,7 +2922,7 @@ export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
 
-/** Healthcheck of the inject */
+/** Healthchecks of the inject */
 export interface HealthCheck {
   /**
    * Date when the failure have been found
@@ -3029,7 +3045,6 @@ export interface Inject {
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;
-  /** Status of the inject */
   inject_status?: InjectStatus;
   inject_tags?: string[];
   inject_teams?: string[];
@@ -3082,7 +3097,7 @@ export interface InjectBulkUpdateOperation {
   values?: string[];
 }
 
-/** Dependency of the inject */
+/** Inject dependencies of the inject */
 export interface InjectDependency {
   dependency_condition?: InjectDependencyCondition;
   /** @format date-time */
@@ -3355,43 +3370,9 @@ export interface InjectInput {
 }
 
 export interface InjectOutput {
-  /** Footer of the inject */
-  footer?: string;
-  /** Header of the inject */
-  header?: string;
-  /** All teams value of the inject */
-  inject_all_teams?: boolean;
-  inject_asset_groups?: string[];
-  inject_assets?: string[];
-  inject_attack_patterns?: AttackPattern[];
-  /** City of the inject */
-  inject_city?: string;
-  /** Collect execution status of the inject */
-  inject_collect_status?: "COLLECTING" | "COMPLETED";
-  inject_communications?: string[];
-  /**
-   * Communications not ack count of the inject
-   * @format int64
-   */
-  inject_communications_not_ack_number?: number;
-  /**
-   * Communications count of the inject
-   * @format int64
-   */
-  inject_communications_number?: number;
+  inject_asset_groups?: AssetGroup[];
+  inject_assets?: Asset[];
   inject_content?: object;
-  /** Country of the inject */
-  inject_country?: string;
-  /**
-   * Creation date of the inject
-   * @format date-time
-   */
-  inject_created_at: string;
-  /**
-   * Date of the inject
-   * @format date-time
-   */
-  inject_date?: string;
   /**
    * Domain of the inject
    * @uniqueItems true
@@ -3404,58 +3385,28 @@ export interface InjectOutput {
    */
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
-  /** Description of the inject */
-  inject_description?: string;
-  inject_documents?: string[];
   /** Enabled state of the inject */
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
-  inject_exercise?: string;
-  inject_expectations?: string[];
+  inject_exercise?: Exercise;
   inject_healthchecks?: HealthCheck[];
   /** ID of the inject */
   inject_id: string;
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
-  inject_kill_chain_phases?: KillChainPhase[];
   /** Ready state of the inject */
   inject_ready?: boolean;
   /** Scenario ID of the inject */
-  inject_scenario?: string;
-  /**
-   * Sent date of the inject
-   * @format date-time
-   */
-  inject_sent_at?: string;
-  /** Status of the inject */
-  inject_status?: InjectStatus;
-  inject_tags?: string[];
-  inject_teams?: string[];
+  inject_scenario?: Scenario;
+  /** @uniqueItems true */
+  inject_tags?: Tag[];
+  inject_teams?: Team[];
   /** Testable state of the inject */
   inject_testable?: boolean;
   /** Title of the inject */
   inject_title: string;
-  /**
-   * Trigger date of the inject
-   * @format date-time
-   */
-  inject_trigger_now_date?: string;
   /** Type of the inject */
   inject_type?: string;
-  /**
-   * Update date of the inject
-   * @format date-time
-   */
-  inject_updated_at: string;
-  /** User of the inject */
-  inject_user?: string;
-  /**
-   * Count of users targeted by the inject
-   * @format int64
-   */
-  inject_users_number?: number;
-  /** Stream listener value of the inject */
-  listened?: boolean;
 }
 
 export interface InjectReceptionInput {
@@ -3537,7 +3488,6 @@ export interface InjectSimple {
   inject_title: string;
 }
 
-/** Status of the inject */
 export interface InjectStatus {
   listened?: boolean;
   status_id?: string;
@@ -3791,7 +3741,6 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
-  /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   include_full_details?: boolean;
   /**
@@ -3918,7 +3867,6 @@ export interface JsonApiDocumentResourceObject {
 
 export type JsonNode = object;
 
-/** Kill chain phase of the inject */
 export interface KillChainPhase {
   listened?: boolean;
   /** @format date-time */
@@ -4195,7 +4143,6 @@ export type ListConfiguration = UtilRequiredKeys<
 };
 
 export interface ListPerspective {
-  /** Filter object to search within filterable attributes */
   filter?: FilterGroup;
   name?: string;
 }
@@ -5867,6 +5814,7 @@ export interface RuleAttributeUpdateInput {
   rule_attribute_name: string;
 }
 
+/** Scenario ID of the inject */
 export interface Scenario {
   listened?: boolean;
   /** @format int64 */
@@ -6074,7 +6022,6 @@ export interface ScenarioUpdateTeamsInput {
 }
 
 export interface SearchPaginationInput {
-  /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /**
    * Page number to get
@@ -6137,7 +6084,6 @@ export interface SecurityPlatformUpsertInput {
 }
 
 export interface Series {
-  /** Filter object to search within filterable attributes */
   filter?: FilterGroup;
   name?: string;
 }
@@ -6318,6 +6264,7 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
   stacked?: boolean;
 };
 
+/** Tags of the inject */
 export interface Tag {
   listened?: boolean;
   /** Color of the tag */
@@ -6374,6 +6321,7 @@ export interface TargetSimple {
     | "ENDPOINTS";
 }
 
+/** Teams of the inject */
 export interface Team {
   listened?: boolean;
   /** List of communications of this team */

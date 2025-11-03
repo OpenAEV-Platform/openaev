@@ -121,10 +121,8 @@ public class InjectApi extends RestBehavior {
 
   @GetMapping(INJECT_URI + "/{injectId}")
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
-  public InjectOutput inject(@PathVariable @NotBlank final String injectId) {
-    Inject inject =
-        this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-    return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
+  public Inject inject(@PathVariable @NotBlank final String injectId) {
+    return this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
   @LogExecutionTime
@@ -343,8 +341,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
-      throws IOException {
+      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input) {
     injectExecutionCallback(null, injectId, input);
   }
 
@@ -373,23 +370,8 @@ public class InjectApi extends RestBehavior {
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
       @PathVariable String injectId,
-      @Valid @RequestBody InjectExecutionInput input)
-      throws IOException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
-        && injectTraceQueueService != null) {
-      InjectExecutionCallback injectExecutionCallback =
-          InjectExecutionCallback.builder()
-              .injectExecutionInput(input)
-              .agentId(agentId)
-              .injectId(injectId)
-              .emissionDate(Instant.now().toEpochMilli())
-              .build();
-
-      // Publishing the parameters into a queue for later ingestion
-      injectTraceQueueService.publish(injectExecutionCallback);
-    } else {
-      injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
-    }
+      @Valid @RequestBody InjectExecutionInput input) {
+    injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
   }
 
   @GetMapping(INJECT_URI + "/{injectId}/{agentId}/executable-payload")
@@ -469,7 +451,8 @@ public class InjectApi extends RestBehavior {
   @PutMapping(INJECT_URI)
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
+  public List<Inject> bulkUpdateInject(
+      @RequestBody @Valid final InjectBulkUpdateInputs input) {
 
     // Control and format inputs
     List<Inject> injectsToUpdate =
@@ -585,10 +568,5 @@ public class InjectApi extends RestBehavior {
     }
 
     return documentService.documentsForPayload(payloadId);
-  }
-
-  @VisibleForTesting
-  public BatchQueueService<InjectExecutionCallback> getInjectTraceQueueService() {
-    return injectTraceQueueService;
   }
 }
