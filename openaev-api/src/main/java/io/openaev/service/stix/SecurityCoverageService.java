@@ -130,13 +130,12 @@ public class SecurityCoverageService {
     securityCoverage.setScheduling(scheduling);
 
     // Period Start
-    String createdAt =
-        (String)
-            ((Dictionary)
-                    stixCoverageObj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION))
-                .get(STIX_CREATED_AT)
-                .getValue();
-    securityCoverage.setPeriodStart(Instant.parse(createdAt));
+    Dictionary extensionObj =
+        (Dictionary) stixCoverageObj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+    if (extensionObj.has(STIX_CREATED_AT)) {
+      String createdAt = (String) extensionObj.get(STIX_CREATED_AT).getValue();
+      securityCoverage.setPeriodStart(Instant.parse(createdAt));
+    }
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
     return save(securityCoverage);

@@ -125,6 +125,31 @@
           "x_opencti_id": "50e82364-5bce-453e-9e79-b9743774d310",
           "x_opencti_type": "Vulnerability",
           "type": "vulnerability"
+        },
+        {
+          "aliases": [
+            "T1531"
+          ],
+          "confidence": 100,
+          "created": "2019-10-09T18:48:31.906Z",
+          "created_by_ref": "identity--be52eaf9-be82-46db-92b2-9e808fad3f86",
+          "description": "Non-MITRE attack pattern",
+          "id": "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1",
+          "modified": "2025-01-31T14:04:33.112Z",
+          "name": "Attack!",
+          "object_marking_refs": [
+            "marking-definition--5ec5c3bd-99b6-45c1-b47d-4a74661af0f1",
+            "marking-definition--d79c734e-0d18-405c-92f1-8b4ebb1a6e4f"
+          ],
+          "revoked": false,
+          "spec_version": "2.1",
+          "type": "attack-pattern",
+          "x_opencti_id": "1cd1b639-8b8a-4620-bc73-cfd6fdf0e588",
+          "x_opencti_type": "Attack-Pattern",
+          "extensions": {
+            "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b": {
+            }
+          }
         }
       ]
     }
