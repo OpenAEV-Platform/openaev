@@ -26,7 +26,7 @@ const WidgetDataDrawer = () => {
 
   const [open, setOpen] = useState(false);
   const [listDatas, setListDatas] = useState<EsBase[]>([]);
-  const [listConfig, setListConfig] = useState<ListConfiguration | null>(null);
+  const [listConfig, setListConfig] = useState<ListConfiguration | null | undefined>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

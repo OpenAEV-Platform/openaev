@@ -8,8 +8,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.ee.Ee;
+import io.openaev.service.PlatformSettingsService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
+import java.util.Date;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -45,12 +47,15 @@ public class DetectionRemediationAIService {
   private final Ee ee;
   private final HttpClientFactory httpClientFactory;
   @Resource protected ObjectMapper mapper;
+  private final PlatformSettingsService platformSettingsService;
 
   public DetectionRemediationAIResponse callRemediationDetectionAIWebservice(
       DetectionRemediationRequest payload, String collectorType) {
     // Check if account has EE licence
     String certificate = ee.getEncodedCertificate();
 
+    payload.setSessionId(
+        platformSettingsService.findSettings().getPlatformId() + "-" + new Date().getTime());
     String url;
     Class<? extends DetectionRemediationAIResponse> classResponse;
     switch (collectorType) {

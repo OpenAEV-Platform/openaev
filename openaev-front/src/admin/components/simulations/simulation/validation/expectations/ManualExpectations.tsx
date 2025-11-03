@@ -5,7 +5,7 @@ import { type FunctionComponent, type SyntheticEvent, useContext, useState } fro
 import { makeStyles } from 'tss-react/mui';
 
 import { type UserHelper } from '../../../../../../actions/helper';
-import { fetchPlayers } from '../../../../../../actions/User';
+import { fetchPlayers } from '../../../../../../actions/users/User';
 import colorStyles from '../../../../../../components/Color';
 import Drawer from '../../../../../../components/common/Drawer';
 import ExpandableText from '../../../../../../components/common/ExpendableText';

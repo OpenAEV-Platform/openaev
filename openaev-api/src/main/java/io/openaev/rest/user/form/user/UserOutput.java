@@ -37,6 +37,10 @@ public class UserOutput {
   @Schema(description = "Organization of the user")
   private String organizationName;
 
+  @JsonProperty("user_organization_id")
+  @Schema(description = "Organization of the user")
+  private String organizationId;
+
   @JsonProperty("user_tags")
   @Schema(description = "Tags of the user")
   private Set<String> tags;

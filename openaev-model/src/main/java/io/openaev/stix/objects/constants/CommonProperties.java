@@ -9,6 +9,8 @@ public enum CommonProperties {
   CREATED_BY_REF("created_by_ref"),
   CREATED("created"),
   MODIFIED("modified"),
+  AUTO_ENRICHMENT_DISABLE("auto_enrichment_disable"),
+  EXTERNAL_URI("external_uri"),
   REVOKED("revoked"),
   LABELS("labels"),
   CONFIDENCE("confidence"),

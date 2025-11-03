@@ -26,7 +26,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
       @Test
       @DisplayName("it appends the graphql endpoint to the url")
       public void itAppendsTheGraphQLEndpointToTheURL() {
-        assertThat(connector.getUrl()).isEqualTo("https://opencti/graphql");
+        assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
       }
     }
 
@@ -40,7 +40,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
       @Test
       @DisplayName("it appends the graphql endpoint to the url")
       public void itAppendsTheGraphQLEndpointToTheURL() {
-        assertThat(connector.getUrl()).isEqualTo("https://opencti/graphql");
+        assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
       }
     }
 
@@ -54,11 +54,12 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
       @Test
       @DisplayName("it appends the graphql endpoint to the url")
       public void itAppendsTheGraphQLEndpointToTheURL() {
-        assertThat(connector.getUrl()).isEqualTo("https://opencti/graphql");
+        assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
       }
     }
 
     @Nested
+    @WithMockSecurityCoverageConnectorConfig(url = "")
     @SpringBootTest
     @DisplayName("With OpenCTI URL not defined")
     public class WithNullUrl {
@@ -67,7 +68,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
       @Test
       @DisplayName("it is null")
       public void itAppendsTheGraphQLEndpointToTheURL() {
-        assertThat(connector.getUrl()).isNull();
+        assertThat(connector.getApiUrl()).isNull();
       }
     }
   }

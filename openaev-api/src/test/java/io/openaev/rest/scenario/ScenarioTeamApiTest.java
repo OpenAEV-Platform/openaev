@@ -6,10 +6,11 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.ScenarioFixture.getScenario;
 import static io.openaev.utils.fixtures.TeamFixture.TEAM_NAME;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -27,13 +28,16 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -263,5 +267,90 @@ class ScenarioTeamApiTest extends IntegrationTest {
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromScenario(scenarioCreated.getId()));
     assertTrue(teams.isEmpty());
+  }
+
+  @DisplayName("Scenario team search")
+  @Nested
+  @WithMockUser(isAdmin = true)
+  class SearchScenarioTeams {
+    @Test
+    @DisplayName("Returns global and scenario teams when searching teams")
+    void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndScenarioTeams()
+        throws Exception {
+      Team team = new Team();
+      String teamName = "Team test";
+      team.setName(teamName);
+
+      Team contextualTeam = new Team();
+      contextualTeam.setName(teamName + " 2");
+      contextualTeam.setContextual(true);
+      List<Team> savedTeams = teamRepository.saveAll(List.of(team, contextualTeam));
+
+      Scenario scenario = getScenario();
+      scenario.setTeams(savedTeams.stream().filter(Team::getContextual).toList());
+      Scenario scenarioCreated = scenarioRepository.save(scenario);
+
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
+      searchPaginationInput.setTextSearch(teamName);
+
+      mvc.perform(
+              post(SCENARIO_URI
+                      + "/"
+                      + scenarioCreated.getId()
+                      + "/teams/search?contextualOnly=false")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(searchPaginationInput)))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.content.size()").value(2))
+          .andExpect(
+              jsonPath(
+                  "$.content[*].team_id",
+                  containsInAnyOrder(savedTeams.stream().map(Team::getId).toArray(String[]::new))));
+    }
+
+    @Test
+    @DisplayName("Returns only scenario teams")
+    void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyScenarioTeams()
+        throws Exception {
+      Team team = new Team();
+      String teamName = "Team test";
+      team.setName(teamName);
+
+      Team team1 = new Team();
+      team1.setName(teamName + "1");
+
+      Team contextualTeam = new Team();
+      contextualTeam.setName(teamName + "3");
+      contextualTeam.setContextual(true);
+
+      Team contextualTeam1 = new Team();
+      contextualTeam1.setName(teamName + "4");
+      contextualTeam1.setContextual(true);
+
+      teamRepository.saveAll(List.of(team, contextualTeam));
+      List<Team> scenarioTeams = teamRepository.saveAll(List.of(team1, contextualTeam1));
+
+      Scenario scenario = getScenario();
+      scenario.setTeams(scenarioTeams);
+      Scenario scenarioCreated = scenarioRepository.save(scenario);
+
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
+      searchPaginationInput.setTextSearch(teamName);
+
+      mvc.perform(
+              post(SCENARIO_URI
+                      + "/"
+                      + scenarioCreated.getId()
+                      + "/teams/search?contextualOnly=true")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(searchPaginationInput)))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.content.size()").value(2))
+          .andExpect(
+              jsonPath(
+                  "$.content[*].team_id",
+                  containsInAnyOrder(
+                      scenarioTeams.stream().map(Team::getId).toArray(String[]::new))));
+    }
   }
 }

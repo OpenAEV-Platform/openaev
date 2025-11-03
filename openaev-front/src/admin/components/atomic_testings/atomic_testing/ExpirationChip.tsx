@@ -54,7 +54,7 @@ const ExpirationChipCountdown: FunctionComponent<{
 const ExpirationChip: FunctionComponent<Props> = ({ expirationTime, startDate }) => {
   const remainingSeconds = moment.utc().unix() - moment.utc(startDate).unix();
 
-  if (remainingSeconds <= 0) {
+  if (expirationTime < remainingSeconds) {
     return <ExpirationChipExpired />;
   }
 

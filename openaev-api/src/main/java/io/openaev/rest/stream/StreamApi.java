@@ -67,7 +67,7 @@ public class StreamApi extends RestBehavior {
   }
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
-      EnumSet.of(ResourceType.CVE, ResourceType.PAYLOAD);
+      EnumSet.of(ResourceType.VULNERABILITY, ResourceType.PAYLOAD);
 
   @Async
   @Transactional

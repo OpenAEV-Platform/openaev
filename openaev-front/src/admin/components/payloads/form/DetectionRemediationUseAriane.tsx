@@ -1,4 +1,4 @@
-import { Button, SvgIcon } from '@mui/material';
+import { Button, SvgIcon, Typography } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useState } from 'react';
 
@@ -74,7 +74,22 @@ const DetectionRemediationUseAriane = ({
     <EETooltip forAi title={btnLabel}>
       <span>
         {(loading || snapshot?.get(collectorType)?.isLoading) ? (
-          <Loader />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginRight: '10px',
+          }}
+          >
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              sx={{ padding: 2 }}
+              gutterBottom
+            >
+              {t('AI in progress')}
+            </Typography>
+            <Loader />
+          </div>
         ) : (
           <Button
             type="button"

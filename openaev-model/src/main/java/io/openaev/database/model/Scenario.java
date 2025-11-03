@@ -123,7 +123,7 @@ public class Scenario implements GrantableBase {
   @Column(name = "scenario_recurrence")
   @JsonProperty("scenario_recurrence")
   @Queryable(filterable = true)
-  private String recurrence;
+  private String recurrence; // cron expression
 
   @Column(name = "scenario_recurrence_start")
   @JsonProperty("scenario_recurrence_start")

@@ -18,7 +18,6 @@ import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.cve.service.CveService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
@@ -26,6 +25,7 @@ import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
@@ -58,7 +58,7 @@ public class InjectorContractService {
 
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternService attackPatternService;
-  private final CveService cveService;
+  private final VulnerabilityService vulnerabilityService;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
@@ -244,11 +244,11 @@ public class InjectorContractService {
 
   private void setVulnerabilitiesFromExternalOrInternalIds(
       List<String> externalIds, List<String> internalIds, InjectorContract injectorContract) {
-    Set<Cve> vulns = new HashSet<>();
+    Set<Vulnerability> vulns = new HashSet<>();
     if (!externalIds.isEmpty()) {
-      vulns = cveService.findAllByExternalIdsOrThrowIfMissing(new HashSet<>(externalIds));
+      vulns = vulnerabilityService.findAllByExternalIdsOrThrowIfMissing(new HashSet<>(externalIds));
     } else if (!internalIds.isEmpty()) {
-      vulns = cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(internalIds));
+      vulns = vulnerabilityService.findAllByIdsOrThrowIfMissing(new HashSet<>(internalIds));
     }
     injectorContract.setVulnerabilities(vulns);
   }
@@ -263,7 +263,8 @@ public class InjectorContractService {
         attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
     injectorContract.setVulnerabilities(
-        cveService.findAllByIdsOrThrowIfMissing(new HashSet<>(input.getVulnerabilityIds())));
+        vulnerabilityService.findAllByIdsOrThrowIfMissing(
+            new HashSet<>(input.getVulnerabilityIds())));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }

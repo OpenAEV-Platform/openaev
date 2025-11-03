@@ -20,7 +20,7 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
-import { fetchPlayers } from '../../../../actions/User';
+import { fetchPlayers } from '../../../../actions/users/User';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';

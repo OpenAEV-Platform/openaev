@@ -16,11 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PrivilegeService {
   private final RoleService roleService;
   private final GroupService groupService;
@@ -30,13 +32,34 @@ public class PrivilegeService {
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole());
 
-    Optional<User> connectorUser = userService.findByToken(connector.getAuthToken());
+    Optional<User> connectorUser = userService.findByToken(connector.getToken());
+    Optional<User> existingEmailUser =
+        userService.findByEmailIgnoreCase(
+            "connector-%s@openaev.invalid".formatted(connector.getId()));
+
     if (connectorUser.isEmpty()) {
+
+      if (existingEmailUser.isPresent()) {
+        log.warn(
+            "User with email {} already exists, but no token found. Reusing existing user.",
+            existingEmailUser.get().getEmail());
+        existingEmailUser
+            .get()
+            .setTokens(
+                new ArrayList<>(
+                    List.of(
+                        userService.createUserToken(
+                            existingEmailUser.get(), connector.getToken()))));
+        existingEmailUser.get().setGroups(new ArrayList<>(List.of(group)));
+        userService.updateUser(existingEmailUser.get());
+        return;
+      }
+
       CreateUserInput input = new CreateUserInput();
       input.setAdmin(false);
       input.setFirstname(connector.getName());
       input.setLastname("OpenCTI Connector");
-      input.setToken(connector.getAuthToken());
+      input.setToken(connector.getToken());
       input.setEmail("connector-%s@openaev.invalid".formatted(connector.getId()));
       User u = userService.createUser(input, 1); // magic number; Active
       u.setGroups(new ArrayList<>(List.of(group)));

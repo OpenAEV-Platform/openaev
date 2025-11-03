@@ -26,13 +26,13 @@ import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -98,13 +98,13 @@ public class InjectExpectationService {
         expectationsForAgents.forEach(
             e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
         this.injectExpectationRepository.saveAll(expectationsForAgents);
-        propagateTechnicalExpectation(injectExpectation, isAgentless);
+        propagateTechnicalExpectation(injectExpectation, isAgentless, null);
         return injectExpectation;
         // Computation on agent or asset agentless
       } else {
         computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input);
         InjectExpectation updated = this.injectExpectationRepository.save(injectExpectation);
-        propagateTechnicalExpectation(updated, isAgentless);
+        propagateTechnicalExpectation(updated, isAgentless, null);
         return updated;
       }
     }
@@ -135,7 +135,7 @@ public class InjectExpectationService {
         throw new IllegalArgumentException(
             "Not possible to update Asset directly on Asset with Agent");
       }
-      propagateTechnicalExpectation(updated, isAgentless);
+      propagateTechnicalExpectation(updated, isAgentless, null);
     }
 
     return updated;
@@ -229,15 +229,17 @@ public class InjectExpectationService {
   }
 
   private void propagateTechnicalExpectation(
-      @NotNull final InjectExpectation injectExpectation, final boolean isAgentless) {
+      @NotNull final InjectExpectation injectExpectation,
+      final boolean isAgentless,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
     List<InjectExpectation> expectations = new ArrayList<>();
     // 1) Agent -> Asset
     if (!isAgentless) {
-      expectations.addAll(propagateToAsset(injectExpectation));
+      expectations.addAll(propagateToAsset(injectExpectation, addResult));
     }
 
     // 2) Asset -> Asset Group
-    expectations.addAll(propagateToAssetGroup(injectExpectation));
+    expectations.addAll(propagateToAssetGroup(injectExpectation, addResult));
 
     this.injectExpectationRepository.saveAll(expectations);
 
@@ -248,22 +250,24 @@ public class InjectExpectationService {
   }
 
   private List<InjectExpectation> propagateToAsset(
-      @NotNull final InjectExpectation injectExpectation) {
+      @NotNull final InjectExpectation injectExpectation,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
     List<InjectExpectation> expectationsForAgents =
         getExpectationsAgentsForAsset(injectExpectation);
     List<InjectExpectation> expectationsForAssets = getExpectationsAssets(injectExpectation);
-    computeScores(expectationsForAgents, expectationsForAssets, injectExpectation, null);
+    computeScores(expectationsForAgents, expectationsForAssets, injectExpectation, addResult);
     return expectationsForAssets;
   }
 
   private List<InjectExpectation> propagateToAssetGroup(
-      @NotNull final InjectExpectation injectExpectation) {
+      @NotNull final InjectExpectation injectExpectation,
+      @Nullable final Function<Double, InjectExpectationResult> addResult) {
     if (injectExpectation.getAssetGroup() != null) {
       List<InjectExpectation> expectationsForAssets =
           getExpectationsAssetsForAssetGroup(injectExpectation);
       List<InjectExpectation> expectationForAssetGroups =
           getExpectationAssetGroups(injectExpectation);
-      computeScores(expectationsForAssets, expectationForAssetGroups, injectExpectation, null);
+      computeScores(expectationsForAssets, expectationForAssetGroups, injectExpectation, addResult);
       return expectationForAssetGroups;
     }
     return new ArrayList<>();
@@ -276,7 +280,7 @@ public class InjectExpectationService {
     InjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
     Collector collector = this.collectorService.collector(input.getCollectorId());
 
-    computeTechnicalExpectation(injectExpectation, collector, input);
+    computeTechnicalExpectation(injectExpectation, collector, input, false);
 
     return injectExpectation;
   }
@@ -309,19 +313,25 @@ public class InjectExpectationService {
         log.error("Inject expectation not found for ID: {}", injectExpectationId);
         continue;
       }
-      computeTechnicalExpectation(injectExpectation, collector, input);
+      computeTechnicalExpectation(injectExpectation, collector, input, false);
     }
   }
 
   public void computeTechnicalExpectation(
       InjectExpectation injectExpectation,
       Collector collector,
-      InjectExpectationUpdateInput input) {
+      InjectExpectationUpdateInput input,
+      boolean shouldPropagateLastInjectExpectationResult) {
     // Update inject expectation at agent level
     injectExpectation =
         this.computeInjectExpectationForAgentOrAssetAgentless(injectExpectation, input, collector);
     InjectExpectation updated = this.injectExpectationRepository.save(injectExpectation);
-    propagateTechnicalExpectation(updated, false);
+    propagateTechnicalExpectation(
+        updated,
+        false,
+        shouldPropagateLastInjectExpectationResult
+            ? (score) -> updated.getResults().getLast()
+            : null);
   }
 
   // -- COMPUTE RESULTS FROM INJECT EXPECTATIONS --
@@ -346,18 +356,15 @@ public class InjectExpectationService {
 
   public Page<InjectExpectation> expectationsNotFill() {
     return this.injectExpectationRepository.findAll(
-        (root, query, criteriaBuilder) -> {
-          if (query.getResultType() != Long.class) {
-            root.fetch("agent", JoinType.LEFT);
-          }
-          return criteriaBuilder.and(
-              criteriaBuilder.equal(
-                  criteriaBuilder.function("json_array_length", Integer.class, root.get("results")),
-                  Integer.valueOf(0)),
-              criteriaBuilder.or(
-                  criteriaBuilder.isNotNull(root.get("agent")),
-                  criteriaBuilder.isNull(root.get("score"))));
-        },
+        (root, query, criteriaBuilder) ->
+            criteriaBuilder.and(
+                criteriaBuilder.isNull(root.get("score")),
+                criteriaBuilder.or(
+                    criteriaBuilder.equal(
+                        criteriaBuilder.function(
+                            "json_array_length", Integer.class, root.get("results")),
+                        0),
+                    criteriaBuilder.isNotNull(root.get("agent")))),
         PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
   }
 

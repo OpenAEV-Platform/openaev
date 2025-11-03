@@ -18,8 +18,7 @@ import useBodyItemsStyles from '../../../../../../../components/common/queryable
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
-import { type EsBase } from '../../../../../../../utils/api-types';
-import { type ListConfiguration } from '../../../../../../../utils/api-types-custom';
+import { type EsBase, type ListConfiguration } from '../../../../../../../utils/api-types';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -127,7 +126,7 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
               <ListItemText
                 primary={(
                   <div style={bodyItemsStyles.bodyItems}>
-                    {widgetConfig.columns.map(col => (
+                    {(widgetConfig.columns ?? []).map(col => (
                       <div
                         key={col}
                         style={{

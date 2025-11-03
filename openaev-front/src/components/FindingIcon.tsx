@@ -24,7 +24,7 @@ const renderIcon = (findingType: string) => {
       return <IpOutline color="primary" />;
     case 'credentials':
       return <KeyOutline color="primary" />;
-    case 'cve':
+    case 'vulnerability':
       return <ReportProblemOutlined color="primary" />;
     default:
       return <TagSearchOutline color="primary" />;

@@ -6,8 +6,7 @@ import { type ExercisesHelper } from '../../../../../../../actions/exercises/exe
 import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
 import { useHelper } from '../../../../../../../store';
-import { type EsAttackPath } from '../../../../../../../utils/api-types';
-import type { StructuralHistogramWidget } from '../../../../../../../utils/api-types-custom';
+import type { EsAttackPath, StructuralHistogramWidget } from '../../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../../utils/hooks/useDataLoader';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';

@@ -14,6 +14,7 @@ import { store } from '../store';
 import { MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import enOpenAEV from './lang/en.json';
+import esOpenAEV from './lang/es.json';
 import frOpenAEV from './lang/fr.json';
 import zhOpenAEV from './lang/zh.json';
 
@@ -25,6 +26,7 @@ const cache = createIntlCache();
 
 const langOpenAEV = {
   en: enOpenAEV,
+  es: esOpenAEV,
   fr: frOpenAEV,
   zh: zhOpenAEV,
 };

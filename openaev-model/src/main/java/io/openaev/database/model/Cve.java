@@ -127,5 +127,5 @@ public class Cve implements Base {
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
-  private final ResourceType resourceType = ResourceType.CVE;
+  private final ResourceType resourceType = ResourceType.VULNERABILITY;
 }

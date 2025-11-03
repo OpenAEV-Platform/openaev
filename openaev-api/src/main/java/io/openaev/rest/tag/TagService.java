@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class TagService {
 
+  public static final String OPENCTI_TAG_NAME = "opencti";
+
   private final TagRepository tagRepository;
 
   // -- CRUD --
