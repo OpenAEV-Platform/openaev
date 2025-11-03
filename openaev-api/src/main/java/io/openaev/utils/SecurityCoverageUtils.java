@@ -51,11 +51,11 @@ public class SecurityCoverageUtils {
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         if (obj.hasExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION)) {
-          refId =
-              (String)
-                  ((Dictionary) obj.getExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION))
-                      .get(CommonProperties.ID.toString())
-                      .getValue();
+          Dictionary extensionObj =
+              (Dictionary) obj.getExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION);
+          if (extensionObj.has(CommonProperties.ID.toString())) {
+            refId = (String) extensionObj.get(CommonProperties.ID.toString()).getValue();
+          }
         }
       } else if (obj.hasProperty(STIX_NAME)) {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
