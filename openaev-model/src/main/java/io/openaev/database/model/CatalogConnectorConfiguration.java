@@ -1,0 +1,1 @@
+package io.openaev.database.model;public class CatalogConnectorConfiguration {}
