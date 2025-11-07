@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
@@ -71,7 +72,7 @@ public class CatalogConnector implements Base {
   @Column(name = "connector_last_verified_date")
   @JsonProperty("connector_last_verified_date")
   @Schema(description = "Connector last verified date")
-  private String connectorLastVerifiedDate;
+  private Instant connectorLastVerifiedDate;
 
   @Column(name = "connector_playbook_supported")
   @JsonProperty("connector_playbook_supported")
@@ -126,4 +127,13 @@ public class CatalogConnector implements Base {
   @JsonProperty("catalog_connector_configuration")
   @NotNull
   private Set<CatalogConnectorConfiguration> catalogConnectorConfigurations = new HashSet<>();
+
+  @OneToMany(
+      mappedBy = "catalogConnector",
+      fetch = FetchType.LAZY,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
+  @JsonProperty("catalog_connector_instances")
+  @NotNull
+  private Set<ConnectorInstance> configurations = new HashSet<>();
 }
