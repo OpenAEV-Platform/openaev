@@ -120,6 +120,23 @@ public class InjectService {
 
   // -- CRUD --
 
+  public Inject createAndSaveInject(
+      @Nullable final Exercise exercise,
+      @Nullable final Scenario scenario,
+      @NotNull final InjectInput input) {
+    return injectRepository.save(createInject(exercise, scenario, input));
+  }
+
+  public List<Inject> createAndSaveInjectList(
+      @Nullable final Exercise exercise,
+      @Nullable final Scenario scenario,
+      List<InjectInput> injectInputs) {
+
+    List<Inject> injects = new ArrayList<>();
+    injectInputs.forEach(injectInput -> injects.add(createInject(exercise, scenario, injectInput)));
+    return injectRepository.saveAll(injects);
+  }
+
   public Inject createInject(
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
@@ -202,7 +219,7 @@ public class InjectService {
           injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     }
 
-    return injectRepository.save(inject);
+    return inject;
   }
 
   public Inject inject(@NotBlank final String injectId) {
