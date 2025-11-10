@@ -17,8 +17,8 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     connector_id VARCHAR(255) NOT NULL CONSTRAINT catalog_connectors_pkey PRIMARY KEY,
                     connector_title VARCHAR(255) NOT NULL,
                     connector_slug VARCHAR(255) NOT NULL UNIQUE,
-                    connector_description VARCHAR(255),
-                    connector_short_description VARCHAR(255),
+                    connector_description TEXT,
+                    connector_short_description TEXT,
                     connector_logo_url VARCHAR(255),
                     connector_use_cases text[],
                     connector_verified BOOLEAN,
@@ -39,11 +39,11 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
       select.execute(
           """
                 CREATE TABLE catalog_connectors_configuration (
-                    connector_id VARCHAR(255) NOT NULL CONSTRAINT connectors_configuration_pkey PRIMARY KEY,
+                    connector_configuration_id VARCHAR(255) NOT NULL CONSTRAINT connectors_configuration_pkey PRIMARY KEY,
                     connector_configuration_catalog varchar(255) constraint catalog_connectors_pkey references catalog_connectors,
                     connector_configuration_key VARCHAR(255) NOT NULL,
                     connector_configuration_default VARCHAR(255),
-                    connector_configuration_description VARCHAR(255),
+                    connector_configuration_description TEXT,
                     connector_configuration_type VARCHAR(255) NOT NULL,
                     connector_configuration_format VARCHAR(255),
                     connector_configuration_enum VARCHAR(255),
