@@ -47,7 +47,7 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     connector_configuration_format VARCHAR(255),
                     connector_configuration_enum VARCHAR(255),
                     connector_configuration_writeonly BOOLEAN,
-                    connector_configuration_required BOOLEAN,
+                    connector_configuration_required BOOLEAN
                   );
                 """);
             select.execute(

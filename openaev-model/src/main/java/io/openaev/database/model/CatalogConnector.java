@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
-import org.checkerframework.common.aliasing.qual.Unique;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -31,9 +30,8 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector ID")
   private String id;
 
-  @Unique
   @NotBlank
-  @Column(name = "connector_title")
+  @Column(name = "connector_title", unique = true)
   @JsonProperty("connector_title")
   @Schema(description = "Connector title")
   private String connectorTitle;
