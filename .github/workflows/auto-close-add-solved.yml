@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Get linked issues from PR Development tab and matches with issues in PR description
         id: get_linked_issues
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Add "solved" label to issues
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -80,7 +80,7 @@ jobs:
             }
       - name: Close the issues
         if: startsWith(github.event.pull_request.base.ref, 'release/')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
