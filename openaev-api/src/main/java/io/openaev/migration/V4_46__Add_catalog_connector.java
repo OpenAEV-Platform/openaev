@@ -32,11 +32,24 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     connector_container_version VARCHAR(50),
                     connector_container_image VARCHAR(255),
                     connector_container_type VARCHAR(255),
-                    catalog_connectors_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-                    catalog_connectors_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    catalog_connector_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                    catalog_connector_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                   );
                 """);
-
+            select.execute("""
+                CREATE TABLE catalog_connectors_configuration (
+                    connector_id VARCHAR(255) NOT NULL CONSTRAINT connectors_configuration_pkey PRIMARY KEY,
+                    connector_configuration_catalog varchar(255) constraint catalog_connectors_pkey references catalog_connectors,
+                    connector_configuration_key VARCHAR(255) NOT NULL,
+                    connector_configuration_default VARCHAR(255),
+                    connector_configuration_description VARCHAR(255),
+                    connector_configuration_type VARCHAR(255) NOT NULL,
+                    connector_configuration_format VARCHAR(255),
+                    connector_configuration_enum VARCHAR(255),
+                    connector_configuration_writeonly BOOLEAN,
+                    connector_configuration_required BOOLEAN,
+                  );
+                """);
             select.execute(
             """
                 CREATE TABLE connector_instances (
