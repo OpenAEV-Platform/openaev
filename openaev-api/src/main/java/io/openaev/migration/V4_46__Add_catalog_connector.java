@@ -1,18 +1,18 @@
 package io.openaev.migration;
 
+import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-import java.sql.Statement;
-
 @Component
 public class V4_46__Add_catalog_connector extends BaseJavaMigration {
 
-    @Override
-    public void migrate(Context context) throws Exception {
-        try (Statement select = context.getConnection().createStatement()) {
-            select.execute("""
+  @Override
+  public void migrate(Context context) throws Exception {
+    try (Statement select = context.getConnection().createStatement()) {
+      select.execute(
+          """
                 CREATE TABLE catalog_connectors (
                     connector_id VARCHAR(255) NOT NULL CONSTRAINT catalog_connectors_pkey PRIMARY KEY,
                     connector_title VARCHAR(255) NOT NULL,
@@ -36,7 +36,8 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     catalog_connector_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                   );
                 """);
-            select.execute("""
+      select.execute(
+          """
                 CREATE TABLE catalog_connectors_configuration (
                     connector_id VARCHAR(255) NOT NULL CONSTRAINT connectors_configuration_pkey PRIMARY KEY,
                     connector_configuration_catalog varchar(255) constraint catalog_connectors_pkey references catalog_connectors,
@@ -50,8 +51,8 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     connector_configuration_required BOOLEAN
                   );
                 """);
-            select.execute(
-            """
+      select.execute(
+          """
                 CREATE TABLE connector_instances (
                     connector_instance_id VARCHAR(255) NOT NULL CONSTRAINT connector_instances_pkey PRIMARY KEY,
                     connector_instance_hash VARCHAR(255) NOT NULL,
@@ -65,8 +66,8 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     connector_instance_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                   );
                 """);
-            select.execute(
-            """
+      select.execute(
+          """
                 CREATE TABLE connector_instance_configurations (
                     connector_instance_configuration_id VARCHAR(255) NOT NULL CONSTRAINT connector_instance_configuration_pkey PRIMARY KEY,
                     connector_instance_configuration_key VARCHAR(255) NOT NULL,
@@ -76,6 +77,6 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
                     connector_instance_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                   );
                 """);
-        }
     }
+  }
 }

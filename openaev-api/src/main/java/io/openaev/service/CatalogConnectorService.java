@@ -1,12 +1,12 @@
 package io.openaev.service;
 
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.repository.CatalogConnectorRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.repository.CatalogConnectorRepository;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
@@ -17,4 +17,3 @@ public class CatalogConnectorService {
     return fromIterable(catalogConnectorRepository.saveAll(connectors));
   }
 }
-
