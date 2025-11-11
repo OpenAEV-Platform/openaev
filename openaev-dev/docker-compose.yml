@@ -81,7 +81,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
   openaev-dev-elasticsearch:
     container_name: openaev-dev-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1
     volumes:
       - esdata:/usr/share/elasticsearch/data
       - essnapshots:/usr/share/elasticsearch/snapshots
@@ -128,7 +128,7 @@ services:
       - 9600:9600
   openaev-test-elasticsearch:
     container_name: openaev-test-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1
     environment:
       - discovery.type=single-node
       - xpack.ml.enabled=false
