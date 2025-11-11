@@ -149,7 +149,7 @@ services:
       - 9301:9300
   openaev-dev-kibana:
     container_name: openaev-dev-kibana
-    image: docker.elastic.co/kibana/kibana:8.18.3
+    image: docker.elastic.co/kibana/kibana:9.2.1
     environment:
       - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9200
     restart: unless-stopped
@@ -159,7 +159,7 @@ services:
       - openaev-dev-elasticsearch
   openaev-test-kibana:
     container_name: openaev-test-kibana
-    image: docker.elastic.co/kibana/kibana:8.18.3
+    image: docker.elastic.co/kibana/kibana:9.2.1
     environment:
       - ELASTICSEARCH_HOSTS=http://openaev-test-elasticsearch:9200
     restart: unless-stopped
