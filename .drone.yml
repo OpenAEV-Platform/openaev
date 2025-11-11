@@ -188,7 +188,7 @@ services:
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
   - name: elastic
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.7
     environment:
       discovery.type: single-node
       xpack.security.enabled: false
