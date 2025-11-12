@@ -1,6 +1,5 @@
 package io.openaev.database.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
@@ -11,6 +10,7 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
@@ -21,6 +21,8 @@ public class ConnectorInstance implements Base {
 
   @Id
   @Column(name = "connector_instance_id")
+  @GeneratedValue(generator = "UUID")
+  @UuidGenerator
   @JsonProperty("connector_instance_id")
   @NotBlank
   private String id;

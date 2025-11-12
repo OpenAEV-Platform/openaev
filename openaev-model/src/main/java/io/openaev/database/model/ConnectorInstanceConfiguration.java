@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
@@ -20,8 +21,11 @@ import org.hibernate.annotations.Type;
 @Table(name = "connector_instance_configurations")
 @EntityListeners(ModelBaseListener.class)
 public class ConnectorInstanceConfiguration implements Base {
+
   @Id
   @Column(name = "connector_instance_configuration_id")
+  @GeneratedValue(generator = "UUID")
+  @UuidGenerator
   @JsonProperty("connector_instance_configuration_id")
   @NotBlank
   private String id;
