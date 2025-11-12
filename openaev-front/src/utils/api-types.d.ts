@@ -227,21 +227,6 @@ export interface ArticleUpdateInput {
   article_shares?: number;
 }
 
-/** Assets of the inject */
-export interface Asset {
-  /** @format date-time */
-  asset_created_at: string;
-  asset_description?: string;
-  asset_external_reference?: string;
-  asset_id: string;
-  asset_name: string;
-  asset_tags?: string[];
-  asset_type?: string;
-  /** @format date-time */
-  asset_updated_at: string;
-  listened?: boolean;
-}
-
 export interface AssetAgentJob {
   asset_agent_agent?: string;
   /** @deprecated */
@@ -252,13 +237,13 @@ export interface AssetAgentJob {
   listened?: boolean;
 }
 
-/** Asset groups of the inject */
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
   asset_group_created_at: string;
   asset_group_description?: string;
   asset_group_dynamic_assets?: string[];
+  /** Filter object to search within filterable attributes */
   asset_group_dynamic_filter: FilterGroup;
   asset_group_external_reference?: string;
   asset_group_id: string;
@@ -271,6 +256,7 @@ export interface AssetGroup {
 
 export interface AssetGroupInput {
   asset_group_description?: string;
+  /** Filter object to search within filterable attributes */
   asset_group_dynamic_filter?: FilterGroup;
   asset_group_name: string;
   asset_group_tags?: string[];
@@ -280,6 +266,7 @@ export interface AssetGroupOutput {
   /** @uniqueItems true */
   asset_group_assets?: string[];
   asset_group_description?: string;
+  /** Filter object to search within filterable attributes */
   asset_group_dynamic_filter?: FilterGroup;
   asset_group_id: string;
   asset_group_name: string;
@@ -854,7 +841,6 @@ export interface ChannelCreateInput {
 
 export interface ChannelReader {
   channel_articles?: Article[];
-  /** Simulation ID of the inject */
   channel_exercise?: Exercise;
   channel_id?: string;
   channel_information?: Channel;
@@ -2500,7 +2486,6 @@ export interface ExecutorUpdateInput {
   executor_last_execution?: string;
 }
 
-/** Simulation ID of the inject */
 export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
@@ -2776,6 +2761,7 @@ export interface Filter {
   values?: string[];
 }
 
+/** Filter object to search within filterable attributes */
 export interface FilterGroup {
   filters?: Filter[];
   mode: "and" | "or";
@@ -2795,7 +2781,6 @@ export interface Finding {
   finding_name?: string;
   /** Scenario ID of the inject */
   finding_scenario?: Scenario;
-  /** Simulation ID of the inject */
   finding_simulation?: Exercise;
   finding_tags?: string[];
   finding_teams?: string[];
@@ -3370,8 +3355,8 @@ export interface InjectInput {
 }
 
 export interface InjectOutput {
-  inject_asset_groups?: AssetGroup[];
-  inject_assets?: Asset[];
+  inject_asset_groups?: string[];
+  inject_assets?: string[];
   inject_content?: object;
   /**
    * Domain of the inject
@@ -3388,7 +3373,7 @@ export interface InjectOutput {
   /** Enabled state of the inject */
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
-  inject_exercise?: Exercise;
+  inject_exercise?: string;
   inject_healthchecks?: HealthCheck[];
   /** ID of the inject */
   inject_id: string;
@@ -3400,7 +3385,7 @@ export interface InjectOutput {
   inject_scenario?: Scenario;
   /** @uniqueItems true */
   inject_tags?: Tag[];
-  inject_teams?: Team[];
+  inject_teams?: string[];
   /** Testable state of the inject */
   inject_testable?: boolean;
   /** Title of the inject */
@@ -3741,6 +3726,7 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
+  /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   include_full_details?: boolean;
   /**
@@ -4143,6 +4129,7 @@ export type ListConfiguration = UtilRequiredKeys<
 };
 
 export interface ListPerspective {
+  /** Filter object to search within filterable attributes */
   filter?: FilterGroup;
   name?: string;
 }
@@ -6022,6 +6009,7 @@ export interface ScenarioUpdateTeamsInput {
 }
 
 export interface SearchPaginationInput {
+  /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /**
    * Page number to get
@@ -6084,6 +6072,7 @@ export interface SecurityPlatformUpsertInput {
 }
 
 export interface Series {
+  /** Filter object to search within filterable attributes */
   filter?: FilterGroup;
   name?: string;
 }
@@ -6321,7 +6310,6 @@ export interface TargetSimple {
     | "ENDPOINTS";
 }
 
-/** Teams of the inject */
 export interface Team {
   listened?: boolean;
   /** List of communications of this team */

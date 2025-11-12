@@ -44,7 +44,7 @@ public class InjectOutput {
 
   @JsonProperty("inject_exercise")
   @JsonSerialize(using = MonoIdDeserializer.class)
-  @Schema(description = "Simulation ID of the inject")
+  @Schema(description = "Simulation ID of the inject", type = "string")
   private Exercise exercise;
 
   @JsonProperty("inject_scenario")
@@ -77,17 +77,17 @@ public class InjectOutput {
 
   @JsonProperty("inject_teams")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "Teams of the inject"))
+  @ArraySchema(schema = @Schema(description = "Teams of the inject", type = "string"))
   private List<Team> teams;
 
   @JsonProperty("inject_assets")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "Assets of the inject"))
+  @ArraySchema(schema = @Schema(description = "Assets of the inject", type = "string"))
   private List<Asset> assets;
 
   @JsonProperty("inject_asset_groups")
   @JsonSerialize(using = MultiIdListDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "Asset groups of the inject"))
+  @ArraySchema(schema = @Schema(description = "Asset groups of the inject", type = "string"))
   private List<AssetGroup> assetGroups;
 
   @JsonProperty("inject_content")
