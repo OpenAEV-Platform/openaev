@@ -976,7 +976,8 @@ public class ScenarioService {
 
     // Since Injects healthchecks now have the "Missing Content" (and maybe others) checks details,
     // we dont want them into the Scenario checks.
-    // That's why we have to verify if there is existing checks necessary to the scenario onto the injects checks.
+    // That's why we have to verify if there is existing checks necessary to the scenario into the
+    // injects checks.
     healthChecks.addAll(
         healthCheckUtils.runInjectsChecksFor(
             HealthCheck.Type.SMTP,

@@ -28,7 +28,6 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
-import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
@@ -451,8 +450,7 @@ public class InjectApi extends RestBehavior {
   @PutMapping(INJECT_URI)
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public List<Inject> bulkUpdateInject(
-      @RequestBody @Valid final InjectBulkUpdateInputs input) {
+  public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
 
     // Control and format inputs
     List<Inject> injectsToUpdate =

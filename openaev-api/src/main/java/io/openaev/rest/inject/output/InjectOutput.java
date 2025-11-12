@@ -28,71 +28,71 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class InjectOutput {
 
-    @JsonProperty("inject_id")
-    @NotBlank
-    @Schema(description = "ID of the inject")
-    private String id;
+  @JsonProperty("inject_id")
+  @NotBlank
+  @Schema(description = "ID of the inject")
+  private String id;
 
-    @JsonProperty("inject_title")
-    @NotBlank
-    @Schema(description = "Title of the inject")
-    private String title;
+  @JsonProperty("inject_title")
+  @NotBlank
+  @Schema(description = "Title of the inject")
+  private String title;
 
-    @JsonProperty("inject_enabled")
-    @Schema(description = "Enabled state of the inject")
-    private boolean enabled;
+  @JsonProperty("inject_enabled")
+  @Schema(description = "Enabled state of the inject")
+  private boolean enabled;
 
-    @JsonProperty("inject_exercise")
-    @JsonSerialize(using = MonoIdDeserializer.class)
-    @Schema(description = "Simulation ID of the inject")
-    private Exercise exercise;
+  @JsonProperty("inject_exercise")
+  @JsonSerialize(using = MonoIdDeserializer.class)
+  @Schema(description = "Simulation ID of the inject")
+  private Exercise exercise;
 
-    @JsonProperty("inject_scenario")
-    @JsonSerialize(using = MonoIdDeserializer.class)
-    @Schema(description = "Scenario ID of the inject")
-    private Scenario scenario;
+  @JsonProperty("inject_scenario")
+  @JsonSerialize(using = MonoIdDeserializer.class)
+  @Schema(description = "Scenario ID of the inject")
+  private Scenario scenario;
 
-    @JsonProperty("inject_depends_duration")
-    @NotNull
-    @Min(value = 0L, message = "The value must be positive")
-    @Schema(description = "Depend duration of the inject")
-    private Long dependsDuration;
+  @JsonProperty("inject_depends_duration")
+  @NotNull
+  @Min(value = 0L, message = "The value must be positive")
+  @Schema(description = "Depend duration of the inject")
+  private Long dependsDuration;
 
-    @JsonProperty("inject_depends_on")
-    @ArraySchema(schema = @Schema(description = "Inject dependencies of the inject"))
-    private List<InjectDependency> dependsOn;
+  @JsonProperty("inject_depends_on")
+  @ArraySchema(schema = @Schema(description = "Inject dependencies of the inject"))
+  private List<InjectDependency> dependsOn;
 
-    @JsonProperty("inject_injector_contract")
-    @Schema(description = "Injector contract of the inject")
-    private InjectorContract injectorContract;
+  @JsonProperty("inject_injector_contract")
+  @Schema(description = "Injector contract of the inject")
+  private InjectorContract injectorContract;
 
-    @JsonProperty("inject_tags")
-    @JsonSerialize(using = MultiIdSetDeserializer.class)
-    @ArraySchema(schema = @Schema(description = "Tags of the inject"))
-    private Set<Tag> tags;
+  @JsonProperty("inject_tags")
+  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @ArraySchema(schema = @Schema(description = "Tags of the inject"))
+  private Set<Tag> tags;
 
-    @JsonProperty("inject_type")
-    @Schema(description = "Type of the inject")
-    public String injectType;
+  @JsonProperty("inject_type")
+  @Schema(description = "Type of the inject")
+  public String injectType;
 
-    @JsonProperty("inject_teams")
-    @JsonSerialize(using = MultiIdListDeserializer.class)
-    @ArraySchema(schema = @Schema(description = "Teams of the inject"))
-    private List<Team> teams;
+  @JsonProperty("inject_teams")
+  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @ArraySchema(schema = @Schema(description = "Teams of the inject"))
+  private List<Team> teams;
 
-    @JsonProperty("inject_assets")
-    @JsonSerialize(using = MultiIdListDeserializer.class)
-    @ArraySchema(schema = @Schema(description = "Assets of the inject"))
-    private List<Asset> assets;
+  @JsonProperty("inject_assets")
+  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @ArraySchema(schema = @Schema(description = "Assets of the inject"))
+  private List<Asset> assets;
 
-    @JsonProperty("inject_asset_groups")
-    @JsonSerialize(using = MultiIdListDeserializer.class)
-    @ArraySchema(schema = @Schema(description = "Asset groups of the inject"))
-    private List<AssetGroup> assetGroups;
+  @JsonProperty("inject_asset_groups")
+  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @ArraySchema(schema = @Schema(description = "Asset groups of the inject"))
+  private List<AssetGroup> assetGroups;
 
-    @JsonProperty("inject_content")
-    @Schema(description = "Content of the inject")
-    private ObjectNode content;
+  @JsonProperty("inject_content")
+  @Schema(description = "Content of the inject")
+  private ObjectNode content;
 
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelDeserializer.class)
