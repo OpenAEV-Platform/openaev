@@ -1,10 +1,6 @@
 package io.openaev.healthcheck.utils;
 
 import static io.openaev.database.model.InjectorContract.*;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
 

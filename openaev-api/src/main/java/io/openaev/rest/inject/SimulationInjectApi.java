@@ -124,10 +124,9 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<InjectOutput> exerciseInjects(@PathVariable @NotBlank final String exerciseId) {
+  public Iterable<Inject> exerciseInjects(@PathVariable @NotBlank final String exerciseId) {
     return injectRepository.findByExerciseId(exerciseId).stream()
         .sorted(Inject.executionComparator)
-        .map(inject -> injectMapper.toInjectOutput(inject, injectService.runChecks(inject)))
         .toList();
   }
 
@@ -199,12 +198,11 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public InjectOutput createInjectForExercise(
+  public Inject createInjectForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    Inject createdInject = this.injectService.createInject(exercise, null, input);
-    return injectMapper.toInjectOutput(createdInject, injectService.runChecks(createdInject));
+    return this.injectService.createInject(exercise, null, input);
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")
@@ -225,13 +223,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public InjectOutput duplicateInjectForExercise(
+  public Inject duplicateInjectForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
-    Inject duplicatedInject =
-        injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
+      return injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
             exerciseId, injectId);
-    return injectMapper.toInjectOutput(duplicatedInject, injectService.runChecks(duplicatedInject));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -300,12 +296,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public InjectOutput updateInjectActivationForExercise(
+  public Inject updateInjectActivationForExercise(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
-    Inject updatedInject = injectService.updateInjectActivation(injectId, input);
-    return injectMapper.toInjectOutput(updatedInject, injectService.runChecks(updatedInject));
+      return injectService.updateInjectActivation(injectId, input);
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger")
@@ -313,13 +308,12 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public InjectOutput updateInjectTrigger(
+  public Inject updateInjectTrigger(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     inject.setTriggerNowDate(now());
     inject.setUpdatedAt(now());
-    Inject savedInject = injectRepository.save(inject);
-    return injectMapper.toInjectOutput(savedInject, injectService.runChecks(savedInject));
+    return injectRepository.save(inject);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -328,12 +322,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public InjectOutput setInjectStatus(
+  public Inject setInjectStatus(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
-    Inject updatedInject = injectStatusService.updateInjectStatus(injectId, input);
-    return injectMapper.toInjectOutput(updatedInject, injectService.runChecks(updatedInject));
+    return injectStatusService.updateInjectStatus(injectId, input);
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")
@@ -341,14 +334,13 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public InjectOutput updateInjectTeams(
+  public Inject updateInjectTeams(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Iterable<Team> injectTeams = teamRepository.findAllById(input.getTeamIds());
     inject.setTeams(fromIterable(injectTeams));
-    Inject savedInject = injectRepository.save(inject);
-    return injectMapper.toInjectOutput(savedInject, injectService.runChecks(savedInject));
+    return injectRepository.save(inject);
   }
 }

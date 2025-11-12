@@ -89,11 +89,10 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
-  public InjectOutput createInjectForScenario(
+  public Inject createInjectForScenario(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    Inject createdInject = this.injectService.createInject(null, scenario, input);
-    return injectMapper.toInjectOutput(createdInject, injectService.runChecks(createdInject));
+    return this.injectService.createInject(null, scenario, input);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
@@ -118,14 +117,13 @@ public class ScenarioInjectApi extends RestBehavior {
   @Operation(
       summary = "Assistant to generate injects for scenario",
       description = "Generates injects based on the provided attack pattern and targets.")
-  public List<InjectOutput> generateInjectsForScenario(
+  public List<Inject> generateInjectsForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     return injectService
         .saveAll(this.injectAssistantService.generateInjectsForScenario(scenario, input))
         .stream()
-        .map(inject -> injectMapper.toInjectOutput(inject, injectService.runChecks(inject)))
         .toList();
   }
 
@@ -137,10 +135,8 @@ public class ScenarioInjectApi extends RestBehavior {
   public Inject duplicateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    Inject duplicatedInject =
-        injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
+      return injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
             scenarioId, injectId);
-    return injectMapper.toInjectOutput(duplicatedInject, injectService.runChecks(duplicatedInject));
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects")
@@ -148,10 +144,9 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<InjectOutput> scenarioInjects(@PathVariable @NotBlank final String scenarioId) {
+  public Iterable<Inject> scenarioInjects(@PathVariable @NotBlank final String scenarioId) {
     return this.injectRepository.findByScenarioId(scenarioId).stream()
         .sorted(Inject.executionComparator)
-        .map(inject -> injectMapper.toInjectOutput(inject, injectService.runChecks(inject)))
         .toList();
   }
 
@@ -160,13 +155,12 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public InjectOutput scenarioInject(
+  public Inject scenarioInject(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     assert scenarioId.equals(scenario.getId());
-    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-    return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
+    return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -175,7 +169,7 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  public InjectOutput updateInjectForScenario(
+  public Inject updateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
@@ -198,8 +192,7 @@ public class ScenarioInjectApi extends RestBehavior {
               }
             });
     this.scenarioService.updateScenario(scenario);
-    Inject savedInject = injectRepository.save(inject);
-    return injectMapper.toInjectOutput(savedInject, injectService.runChecks(savedInject));
+    return injectRepository.save(inject);
   }
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation")
@@ -207,12 +200,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  public InjectOutput updateInjectActivationForScenario(
+  public Inject updateInjectActivationForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
-    Inject updatedInject = injectService.updateInjectActivation(injectId, input);
-    return injectMapper.toInjectOutput(updatedInject, injectService.runChecks(updatedInject));
+    return injectService.updateInjectActivation(injectId, input);
   }
 
   @Transactional(rollbackFor = Exception.class)
