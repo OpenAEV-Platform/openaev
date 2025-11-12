@@ -57,7 +57,6 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
           """
         CREATE TABLE connector_instances (
             connector_instance_id VARCHAR(255) NOT NULL CONSTRAINT connector_instances_pkey PRIMARY KEY,
-            connector_instance_hash VARCHAR(255) NOT NULL,
             connector_instance_catalog_id VARCHAR(255) NOT NULL REFERENCES catalog_connectors(connector_id) ON DELETE CASCADE,
             connector_instance_current_status VARCHAR(255) NOT NULL,
             connector_instance_requested_status VARCHAR(255),

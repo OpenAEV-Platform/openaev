@@ -33,11 +33,6 @@ public class ConnectorInstance implements Base {
   @NotNull
   private CatalogConnector catalogConnector;
 
-  @Column(name = "connector_instance_hash")
-  @JsonProperty("connector_instance_hash")
-  @NotBlank
-  private String hash;
-
   @Column(name = "connector_instance_current_status")
   @JsonProperty("connector_instance_current_status")
   @NotBlank
