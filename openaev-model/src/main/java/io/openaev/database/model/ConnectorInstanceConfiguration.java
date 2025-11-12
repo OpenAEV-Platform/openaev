@@ -3,10 +3,13 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.helper.MonoIdDeserializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Type;
@@ -35,7 +38,9 @@ public class ConnectorInstanceConfiguration implements Base {
   private JsonNode value;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "connector_instance", nullable = false)
+  @JoinColumn(name = "connector_instance_id", nullable = false)
   @JsonIgnore
+  @NotNull
+  @JsonSerialize(using = MonoIdDeserializer.class)
   private ConnectorInstance connectorInstance;
 }

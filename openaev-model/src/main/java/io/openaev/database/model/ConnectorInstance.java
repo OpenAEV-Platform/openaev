@@ -26,8 +26,9 @@ public class ConnectorInstance implements Base {
   private String id;
 
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "connector_instance_catalog", nullable = false)
-  @JsonIgnore
+  @JoinColumn(name = "connector_instance_catalog_id", nullable = false)
+  @JsonProperty("connector_instance_catalog")
+  @NotNull
   private CatalogConnector catalogConnector;
 
   @Column(name = "connector_instance_hash")
@@ -54,7 +55,7 @@ public class ConnectorInstance implements Base {
 
   @Column(name = "connector_instance_is_in_reboot_loop")
   @JsonProperty("connector_instance_is_in_reboot_loop")
-  private Boolean isInRebootLoop;
+  private boolean isInRebootLoop;
 
   @OneToMany(
       mappedBy = "connectorInstance",
