@@ -1055,9 +1055,10 @@ public class V1_DataImporter implements Importer {
           }
 
           if (injectorContractId == null) {
-            if (Arrays.asList(scenario.getDependencies())
-                .contains(Scenario.Dependency.STARTERPACK)) {
-              // if the we are importing starter pack, we will create the injector contract so the
+            if (scenario.getDependencies() != null
+                && Arrays.asList(scenario.getDependencies())
+                    .contains(Scenario.Dependency.STARTERPACK)) {
+              // if we are importing the starter pack, we will create the injector contract so the
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
               // provided by the injector
