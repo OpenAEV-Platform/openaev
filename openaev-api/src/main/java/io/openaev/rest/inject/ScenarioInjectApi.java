@@ -135,8 +135,8 @@ public class ScenarioInjectApi extends RestBehavior {
   public Inject duplicateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-      return injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-            scenarioId, injectId);
+    return injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
+        scenarioId, injectId);
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects")

@@ -844,7 +844,6 @@ export interface ChannelReader {
   channel_exercise?: Exercise;
   channel_id?: string;
   channel_information?: Channel;
-  /** Scenario ID of the inject */
   channel_scenario?: Scenario;
 }
 
@@ -2779,7 +2778,6 @@ export interface Finding {
   /** @deprecated */
   finding_labels?: string[];
   finding_name?: string;
-  /** Scenario ID of the inject */
   finding_scenario?: Scenario;
   finding_simulation?: Exercise;
   finding_tags?: string[];
@@ -3382,7 +3380,7 @@ export interface InjectOutput {
   /** Ready state of the inject */
   inject_ready?: boolean;
   /** Scenario ID of the inject */
-  inject_scenario?: Scenario;
+  inject_scenario?: string;
   /** @uniqueItems true */
   inject_tags?: Tag[];
   inject_teams?: string[];
@@ -5801,7 +5799,6 @@ export interface RuleAttributeUpdateInput {
   rule_attribute_name: string;
 }
 
-/** Scenario ID of the inject */
 export interface Scenario {
   listened?: boolean;
   /** @format int64 */

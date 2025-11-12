@@ -49,7 +49,7 @@ public class InjectOutput {
 
   @JsonProperty("inject_scenario")
   @JsonSerialize(using = MonoIdDeserializer.class)
-  @Schema(description = "Scenario ID of the inject")
+  @Schema(description = "Scenario ID of the inject", type = "string")
   private Scenario scenario;
 
   @JsonProperty("inject_depends_duration")

@@ -226,8 +226,8 @@ public class SimulationInjectApi extends RestBehavior {
   public Inject duplicateInjectForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
-      return injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
-            exerciseId, injectId);
+    return injectDuplicateService.duplicateInjectForExerciseWithDuplicateWordInTitle(
+        exerciseId, injectId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -300,7 +300,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
-      return injectService.updateInjectActivation(injectId, input);
+    return injectService.updateInjectActivation(injectId, input);
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger")
