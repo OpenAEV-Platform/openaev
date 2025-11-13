@@ -193,6 +193,7 @@ const CKEditor = (props: CKEditorProps<ClassicEditor> & { toolbarDropdownSize?: 
   const config: EditorConfig = {
     ...CKEDITOR_DEFAULT_CONFIG,
     language: locale.slice(0, 2),
+    link: { defaultProtocol: 'https://' },
   };
 
   useEffect(() => {
