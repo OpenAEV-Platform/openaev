@@ -108,16 +108,40 @@ public interface UserRepository
   @Query(
       value =
           "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname, "
-              + "coalesce(array_agg(DISTINCT exercises_teams.exercise_id) FILTER (WHERE exercises_teams.exercise_id IS NOT NULL), '{}') AS teams_exercises "
+              + "us.user_firstname, us.user_lastname "
               + "FROM users us "
               + "JOIN users_teams ON us.user_id = users_teams.user_id "
               + "JOIN teams ON users_teams.team_id = teams.team_id "
               + "JOIN exercises_teams ON teams.team_id = exercises_teams.team_id "
               + "WHERE exercises_teams.exercise_id = :exerciseId "
-              + "GROUP BY us.user_id;",
+              + "UNION "
+              + "SELECT us.user_id, us.user_email, "
+              + "us.user_firstname, us.user_lastname "
+              + "FROM users us "
+              + "JOIN evaluations ev ON us.user_id = ev.evaluation_user "
+              + "JOIN objectives ob ON ob.objective_id = ev.evaluation_objective "
+              + "WHERE ob.objective_exercise = :exerciseId;",
       nativeQuery = true)
   List<RawPlayer> rawPlayersByExerciseId(@Param("exerciseId") String exerciseId);
+
+  @Query(
+      value =
+          "SELECT us.user_id, us.user_email, "
+              + "us.user_firstname, us.user_lastname "
+              + "FROM users us "
+              + "JOIN users_teams ON us.user_id = users_teams.user_id "
+              + "JOIN teams ON users_teams.team_id = teams.team_id "
+              + "JOIN scenarios_teams ON teams.team_id = scenarios_teams.team_id "
+              + "WHERE scenarios_teams.scenario_id = :scenarioId "
+              + "UNION "
+              + "SELECT us.user_id, us.user_email, "
+              + "us.user_firstname, us.user_lastname "
+              + "FROM users us "
+              + "JOIN evaluations ev ON us.user_id = ev.evaluation_user "
+              + "JOIN objectives ob ON ob.objective_id = ev.evaluation_objective "
+              + "WHERE ob.objective_scenario = :scenarioId;",
+      nativeQuery = true)
+  List<RawPlayer> rawPlayersByScenarioId(@Param("scenarioId") String scenarioId);
 
   @Query(
       value =
