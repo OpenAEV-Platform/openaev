@@ -1,22 +1,14 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForVulnerabilityManager;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
-import io.openaev.rest.inject.form.InjectExecutionInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
-import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -36,17 +28,18 @@ import org.springframework.stereotype.Service;
 public class BatchingInjectStatusService {
 
   private final InjectRepository injectRepository;
-  private final InjectExpectationRepository injectExpectationRepository;
-  private final InjectExpectationService injectExpectationService;
   private final AgentRepository agentRepository;
-  private final InjectStatusService injectStatusService;
-  private final FindingService findingService;
   private final StructuredOutputUtils structuredOutputUtils;
+  private final InjectExecutionService injectExecutionService;
 
   @Resource protected ObjectMapper mapper;
 
+  @LogExecutionTime
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public void handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
+
+    Instant start = Instant.now();
 
     Map<String, Inject> mapInjectsById =
         injectRepository
@@ -56,6 +49,8 @@ public class BatchingInjectStatusService {
                     .toList())
             .stream()
             .collect(Collectors.toMap(Inject::getId, Function.identity()));
+
+    Instant postGetInject = Instant.now();
 
     Map<String, Agent> mapAgentsById =
         StreamSupport.stream(
@@ -67,6 +62,34 @@ public class BatchingInjectStatusService {
                     .spliterator(),
                 false)
             .collect(Collectors.toMap(Agent::getId, Function.identity()));
+
+    Instant postGetAgent = Instant.now();
+
+    Map<String, List<Long>> mapTimeSpent =
+        Map.of(
+            "ExtractOutput",
+            new ArrayList<>(),
+            "ComputeOutput",
+            new ArrayList<>(),
+            "Process",
+            new ArrayList<>(),
+            "HandleError",
+            new ArrayList<>());
+
+    Map<String, List<Long>> mapTimeSpentProcess =
+        Map.of(
+            "structured",
+            new ArrayList<>(),
+            "computeStructured",
+            new ArrayList<>(),
+            "checkCveExpectation",
+            new ArrayList<>(),
+            "updateInjectStatus",
+            new ArrayList<>(),
+            "addEndDate",
+            new ArrayList<>(),
+            "extractFindings",
+            new ArrayList<>());
 
     injectExecutionCallbacks.forEach(
         callback -> {
@@ -117,158 +140,84 @@ public class BatchingInjectStatusService {
                             new ElementNotFoundException(
                                 "Agent not found: " + callback.getAgentId()));
 
+            Instant beforeExtract = Instant.now();
             Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-            Optional<ObjectNode> structuredOutput =
-                structuredOutputUtils.computeStructuredOutput(
-                    outputParsers, callback.getInjectExecutionInput());
+            Instant afterExtract = Instant.now();
 
-            processInjectExecution(
-                inject, agent, callback.getInjectExecutionInput(), outputParsers, structuredOutput);
-          } catch (ElementNotFoundException | JsonProcessingException e) {
-            handleInjectExecutionError(inject, e);
+            Map<String, Long> results =
+                injectExecutionService.processInjectExecution(
+                    inject, agent, callback.getInjectExecutionInput(), outputParsers);
+            mapTimeSpentProcess.forEach(
+                (s, longs) -> {
+                  longs.add(results.get(s));
+                });
+            Instant afterProcess = Instant.now();
+            mapTimeSpent
+                .get("ExtractOutput")
+                .add(afterExtract.toEpochMilli() - beforeExtract.toEpochMilli());
+            mapTimeSpent
+                .get("Process")
+                .add(afterProcess.toEpochMilli() - afterExtract.toEpochMilli());
+          } catch (ElementNotFoundException e) {
+            Instant beforeError = Instant.now();
+            injectExecutionService.handleInjectExecutionError(inject, e);
+            Instant afterError = Instant.now();
+            mapTimeSpent
+                .get("HandleError")
+                .add(afterError.toEpochMilli() - beforeError.toEpochMilli());
           }
         });
-  }
 
-  /** Processes the execution of an inject by updating its status and extracting findings. */
-  private void processInjectExecution(
-      Inject inject,
-      @Nullable Agent agent,
-      InjectExecutionInput input,
-      Set<OutputParser> outputParsers,
-      Optional<ObjectNode> structuredOutput) {
-    ObjectNode structured = structuredOutput.orElse(null);
-    injectStatusService.updateInjectStatus(agent, inject, input, structured);
-    addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
+    Instant totalTime = Instant.now();
+    log.warn(
+        String.format(
+            "Time spent breakdown on one cycle of insertion %d processed :%n total : %d ms%n - time to get injects : %d ms %n - time to get agents : %d ms %n - time to process all the injectCallbacks : %d ms %n - mean time to extract output : %f ms %n - mean time to compute output : %f ms %n - mean time to process : %f ms %n - mean time to deal with errors : %f ms %n",
+            injectExecutionCallbacks.size(),
+            totalTime.toEpochMilli() - start.toEpochMilli(),
+            postGetInject.toEpochMilli() - start.toEpochMilli(),
+            postGetAgent.toEpochMilli() - postGetInject.toEpochMilli(),
+            totalTime.toEpochMilli() - postGetAgent.toEpochMilli(),
+            mapTimeSpent.get("ExtractOutput").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpent.get("ComputeOutput").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpent.get("Process").stream().mapToLong(value -> value).average().orElse(0),
+            mapTimeSpent.get("HandleError").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0)));
 
-    if (structured == null) {
-      return;
-    }
-
-    if (agent != null) {
-      // validate vulnerability expectations
-      checkCveExpectation(outputParsers, structured, inject, agent);
-
-      // Extract findings from structured outputs generated by the output parsers specified in the
-      // payload, typically derived from the raw output of the implant execution.
-      findingService.extractFindingsFromOutputParsers(inject, agent, outputParsers, structured);
-    } else {
-      // Structured output directly provided (e.g., from injectors)
-      findingService.extractFindingsFromInjectorContract(inject, structured);
-    }
-  }
-
-  /**
-   * Adds an end date signature to inject expectations if the action is COMPLETE.
-   *
-   * @param inject the inject for which to add the end date signature
-   * @param agent the agent for which to add the end date signature
-   * @param input the input containing the action and duration
-   */
-  private void addEndDateInjectExpectationTimeSignatureIfNeeded(
-      Inject inject, Agent agent, InjectExecutionInput input) {
-    if (agent != null
-        && ExecutionTraceAction.COMPLETE.equals(convertExecutionAction(input.getAction()))) {
-      InjectStatus injectStatus = inject.getStatus().orElseThrow();
-      Instant endDate =
-          injectStatusService.getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
-              injectStatus, agent.getId(), input.getDuration());
-      injectExpectationService.addEndDateSignatureToInjectExpectationsByAgent(
-          inject.getId(), agent.getId(), endDate);
-    }
-  }
-
-  /**
-   * Checks output parsers of an agent and updates the scores of vulnerability expectations
-   * accordingly
-   *
-   * @param outputParsers
-   * @param structuredOutput
-   * @param inject
-   * @param agent
-   */
-  public void checkCveExpectation(
-      Set<OutputParser> outputParsers, ObjectNode structuredOutput, Inject inject, Agent agent) {
-    List<InjectExpectation> injectExpectations = new ArrayList<>();
-
-    inject.getExpectations().stream()
-        .filter(injectExpectation -> injectExpectation.getAgent() != null)
-        .filter(injectExpectation -> injectExpectation.getAgent().getId().equals(agent.getId()))
-        .forEach(
-            expectation -> {
-              if (expectation.getType() == InjectExpectation.EXPECTATION_TYPE.VULNERABILITY) {
-                injectExpectations.add(expectation);
-              }
-            });
-
-    if (!injectExpectations.isEmpty()) {
-      InjectExpectationResult injectExpectationResult = buildForVulnerabilityManager();
-      outputParsers.forEach(
-          outputParser -> {
-            outputParser
-                .getContractOutputElements()
-                .forEach(
-                    contractOutputElement -> {
-                      if (contractOutputElement.getType().equals(ContractOutputType.CVE)) {
-                        JsonNode jsonNode = structuredOutput.get(contractOutputElement.getKey());
-                        if (jsonNode != null) {
-                          if (!jsonNode.isEmpty()) {
-                            injectExpectations.forEach(
-                                expectation -> {
-                                  expectation.setScore(0.0);
-                                  expectation.setResults(List.of(injectExpectationResult));
-                                });
-                          } else {
-                            injectExpectations.forEach(
-                                expectation -> {
-                                  expectation.setScore(expectation.getExpectedScore());
-                                  injectExpectationResult.setResult("Not vulnerable");
-                                  injectExpectationResult.setScore(expectation.getExpectedScore());
-                                  expectation.setResults(List.of(injectExpectationResult));
-                                });
-                          }
-                          injectExpectationRepository.saveAll(injectExpectations);
-                          validateResultForAsset(injectExpectations, injectExpectationResult);
-                        }
-                      }
-                    });
-          });
-    }
-  }
-
-  public void validateResultForAsset(
-      List<InjectExpectation> injectExpectations, InjectExpectationResult injectExpectationResult) {
-    injectExpectations.forEach(
-        injectExpectation -> {
-          injectExpectationService.updateInjectExpectation(
-              injectExpectation.getId(),
-              InjectExpectationUpdateInput.builder()
-                  .collectorId(injectExpectationResult.getSourceId())
-                  .result(injectExpectationResult.getResult())
-                  .isSuccess(injectExpectationResult.getScore() != 0.0)
-                  .build());
-        });
-  }
-
-  private void handleInjectExecutionError(Inject inject, Exception e) {
-    log.error(e.getMessage(), e);
-    if (inject != null) {
-      inject
-          .getStatus()
-          .ifPresent(
-              status -> {
-                ExecutionTrace trace =
-                    new ExecutionTrace(
-                        status,
-                        ExecutionTraceStatus.ERROR,
-                        null,
-                        e.getMessage(),
-                        ExecutionTraceAction.COMPLETE,
-                        null,
-                        Instant.now());
-                status.addTrace(trace);
-              });
-      injectRepository.save(inject);
-    }
+    log.warn(
+        String.format(
+            "Time spent on process breakdown on one cycle of insertion %d processed :%n - Time on structured : %f ms %n - Time on computeStructured : %f ms %n - Time on checkCveExpectation : %f ms %n - Time on updateInjectStatus : %f ms %n - Time on addEndDate : %f ms %n - Time on extractFindings : %f ms %n",
+            injectExecutionCallbacks.size(),
+            mapTimeSpentProcess.get("structured").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpentProcess.get("computeStructured").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpentProcess.get("checkCveExpectation").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpentProcess.get("updateInjectStatus").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpentProcess.get("addEndDate").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0),
+            mapTimeSpentProcess.get("extractFindings").stream()
+                .mapToLong(value -> value)
+                .average()
+                .orElse(0)));
   }
 }

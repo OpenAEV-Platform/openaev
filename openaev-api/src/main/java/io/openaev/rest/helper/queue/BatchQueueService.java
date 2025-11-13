@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class BatchQueueService<T> {
+public class BatchQueueService<T extends Queueable> {
 
   private final Class<T> clazz;
   private final QueueExecution<T> queueExecution;
@@ -31,7 +31,7 @@ public class BatchQueueService<T> {
   private final String exchangeName;
   private final String queueName;
 
-  private final BlockingQueue<T> queue;
+  private final Map<Integer, BlockingQueue<T>> queue;
 
   private final Map<T, DeliveryContext> deliveryTable = new HashMap<>();
 
@@ -40,7 +40,8 @@ public class BatchQueueService<T> {
   private final ShutdownListener shutdownListener;
 
   private final List<Channel> consumerChannels = new ArrayList<>();
-  private final AtomicBoolean insertInProgress = new AtomicBoolean(false);
+  private final Map<Integer, AtomicBoolean> insertInProgress = new HashMap<>();
+  private final ExecutorService executor;
 
   /**
    * Public constructor of the BatchQueueService
@@ -77,17 +78,22 @@ public class BatchQueueService<T> {
             + String.format(BatchQueueService.QUEUE_NAME, queueConfig.getQueueName());
 
     // The queue that will contain the object we need to process
-    queue = new LinkedBlockingQueue<>();
+    queue = new HashMap<>();
+    for(int i = 0; i < queueConfig.getWorkerNumber(); i++) {
+      queue.put(i, new LinkedBlockingQueue<>());
+    }
 
     establishConnection();
 
     // A scheduler to handle batches that did not reached the critical mass
     ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
     scheduledExecutor.scheduleAtFixedRate(
-        this::processBufferedBatch,
+        () -> queue.keySet().forEach(this::processBufferedBatch),
         this.queueConfig.getConsumerFrequency(),
         this.queueConfig.getConsumerFrequency(),
         TimeUnit.MILLISECONDS);
+
+    executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
 
     // Reconnection executor that we will start if we ever lose connection
     this.reconnectionExecutor = Executors.newScheduledThreadPool(1);
@@ -152,8 +158,11 @@ public class BatchQueueService<T> {
 
               // Unmarshalling of our object and setting it in the queue for processing
               T element = mapper.readValue(message, clazz);
+              int elementKey = groupByKey(element);
               try {
-                queue.put(element);
+                queue
+                    .computeIfAbsent(elementKey, integer -> new LinkedBlockingQueue<>())
+                    .put(element);
               } catch (InterruptedException e) {
                 log.error(String.format("Error processing message: %s", e.getMessage()), e);
                 // Nack the message and sending it back to the queue
@@ -172,7 +181,7 @@ public class BatchQueueService<T> {
 
               // If we reach a critical mass, we take care of it immediately
               if (queue.size() > this.queueConfig.getMaxSize()) {
-                processBufferedBatch();
+                processBufferedBatch(elementKey);
               }
             };
 
@@ -268,39 +277,44 @@ public class BatchQueueService<T> {
    * Process messages in the queue buffer. It will only process as many messages as what's
    * configures in openbas.queue-config.<name of the queue>.max-size
    */
-  public void processBufferedBatch() {
-    if (insertInProgress.compareAndSet(false, true)) {
-      do {
-        // Draining the queue into the list with a max size
-        List<T> currentBatch = new ArrayList<>();
-        queue.drainTo(currentBatch);
+  public void processBufferedBatch(int workerId) {
+    if (insertInProgress
+        .computeIfAbsent(workerId, integer -> new AtomicBoolean(false))
+        .compareAndSet(false, true)) {
+      executor.execute(
+          () -> {
+            do {
+              // Draining the queue into the list with a max size
+              List<T> currentBatch = new ArrayList<>();
+              queue.get(workerId).drainTo(currentBatch);
 
-        // If the list is not empty, we process it
-        if (!currentBatch.isEmpty()) {
-          log.info("Processing batch of {}", currentBatch.size());
-          try {
-            queueExecution.perform(currentBatch);
-          } catch (Exception e) {
-            log.error("Error processing batch - Error during ingestion", e);
-          }
-        }
+              // If the list is not empty, we process it
+              if (!currentBatch.isEmpty()) {
+                log.info("Processing batch of {}", currentBatch.size());
+                try {
+                  queueExecution.perform(currentBatch);
+                } catch (Exception e) {
+                  log.error("Error processing batch - Error during ingestion", e);
+                }
+              }
 
-        // Sending Ack for all the processed element in the batch
-        for (T element : currentBatch) {
-          try {
-            DeliveryContext elementToAck = deliveryTable.remove(element);
-            if (elementToAck != null) {
-              elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
-            }
-          } catch (IOException e) {
-            log.error(
-                String.format(
-                    "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
-                e);
-          }
-        }
-      } while (!queue.isEmpty());
-      insertInProgress.set(false);
+              // Sending Ack for all the processed element in the batch
+              for (T element : currentBatch) {
+                try {
+                  DeliveryContext elementToAck = deliveryTable.remove(element);
+                  if (elementToAck != null) {
+                    elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
+                  }
+                } catch (IOException e) {
+                  log.error(
+                      String.format(
+                          "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
+                      e);
+                }
+              }
+            } while (queue.get(workerId).size() > (queueConfig.getMaxSize() * 0.75));
+            insertInProgress.get(workerId).set(false);
+          });
     }
   }
 
@@ -317,5 +331,12 @@ public class BatchQueueService<T> {
       log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
       throw e;
     }
+  }
+
+  private int groupByKey(T element) {
+    if (element.getKey() != null && !element.getKey().isEmpty()) {
+      return element.getKey().hashCode() % queueConfig.getWorkerNumber();
+    }
+    return 0;
   }
 }

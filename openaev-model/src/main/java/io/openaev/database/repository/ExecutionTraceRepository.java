@@ -1,8 +1,10 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.ExecutionTrace;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -54,4 +56,49 @@ public interface ExecutionTraceRepository
       nativeQuery = true)
   List<ExecutionTrace> findByInjectIdAndPlayerId(
       @Param("injectId") String injectId, @Param("targetId") String targetId);
+
+  @Modifying
+  @Query(
+      value =
+          """
+        INSERT INTO execution_traces (
+            execution_trace_id,
+            execution_inject_status_id,
+            execution_inject_test_status_id,
+            execution_agent_id,
+            execution_message,
+            execution_structured_output,
+            execution_action,
+            execution_status,
+            execution_time,
+            execution_context_identifiers,
+            execution_created_at,
+            execution_updated_at
+        ) VALUES (
+            gen_random_uuid(),
+            :injectStatusId,
+            :injectTestStatusId,
+            :agentId,
+            :message,
+            :structuredOutput,
+            :action,
+            :status,
+            :time,
+            :identifiers,
+            :now,
+            :now
+        )
+        """,
+      nativeQuery = true)
+  void simpleSave(
+      @Param("injectStatusId") String injectStatusId,
+      @Param("injectTestStatusId") String injectTestStatusId,
+      @Param("agentId") String agentId,
+      @Param("message") String message,
+      @Param("structuredOutput") String structuredOutput,
+      @Param("action") String action,
+      @Param("status") String status,
+      @Param("time") Instant time,
+      @Param("identifiers") List<String> identifiers,
+      @Param("now") Instant now);
 }

@@ -1,6 +1,7 @@
 package io.openaev.rest.inject.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.rest.helper.queue.Queueable;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class InjectExecutionCallback {
+public class InjectExecutionCallback implements Queueable {
 
   private String id = UUID.randomUUID().toString();
 
@@ -33,5 +34,10 @@ public class InjectExecutionCallback {
       return id != null && id.equals(((InjectExecutionCallback) o).getId());
     }
     return false;
+  }
+
+  @Override
+  public String getKey() {
+    return injectId + agentId;
   }
 }

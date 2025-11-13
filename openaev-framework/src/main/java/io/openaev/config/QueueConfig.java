@@ -8,6 +8,9 @@ public class QueueConfig {
   @JsonProperty("consumer-number")
   private int consumerNumber;
 
+  @JsonProperty("worker-number")
+  private int workerNumber;
+
   @JsonProperty("consumer-frequency")
   private int consumerFrequency;
 

@@ -33,7 +33,9 @@ import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectImportService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -94,6 +96,8 @@ public class InjectApi extends RestBehavior {
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
+
+  private final PreviewFeatureService previewFeatureService;
 
   // For testing purpose, we add a setter
   @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
@@ -366,17 +370,22 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    var injectExecutionCallbackAsString =
-        mapper.writeValueAsString(
-            InjectExecutionCallback.builder()
-                .injectExecutionInput(input)
-                .agentId(agentId)
-                .injectId(injectId)
-                .emissionDate(Instant.now().toEpochMilli())
-                .build());
+    if (previewFeatureService.isFeatureEnabled(
+        PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)) {
+      var injectExecutionCallbackAsString =
+          mapper.writeValueAsString(
+              InjectExecutionCallback.builder()
+                  .injectExecutionInput(input)
+                  .agentId(agentId)
+                  .injectId(injectId)
+                  .emissionDate(Instant.now().toEpochMilli())
+                  .build());
 
-    // Publishing the parameters into a queue for later ingestion
-    injectTraceQueueService.publish(injectExecutionCallbackAsString);
+      // Publishing the parameters into a queue for later ingestion
+      injectTraceQueueService.publish(injectExecutionCallbackAsString);
+    } else {
+      injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
+    }
   }
 
   @GetMapping(INJECT_URI + "/{injectId}/{agentId}/executable-payload")

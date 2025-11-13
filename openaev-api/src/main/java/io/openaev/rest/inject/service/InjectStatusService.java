@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -36,6 +38,8 @@ public class InjectStatusService {
   private final InjectService injectService;
   private final InjectUtils injectUtils;
   private final InjectStatusRepository injectStatusRepository;
+  private final ExecutionTraceRepository executionTraceRepository;
+  private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
 
   public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
     return this.injectStatusRepository.pendingForInjectType(injectType);
@@ -177,21 +181,50 @@ public class InjectStatusService {
 
   public void updateInjectStatus(
       Agent agent, Inject inject, InjectExecutionInput input, ObjectNode structuredOutput) {
+    Instant start = Instant.now();
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
+    Instant getInjectStatus = Instant.now();
 
     ExecutionTrace executionTrace =
         createExecutionTrace(injectStatus, input, agent, structuredOutput);
+    Instant createExecutionTrace = Instant.now();
     computeExecutionTraceStatusIfNeeded(injectStatus, executionTrace, agent);
+    Instant computeExecutionTrace = Instant.now();
     injectStatus.addTrace(executionTrace);
+    executionTraceRepositoryHelper.saveExecutionTrace(executionTrace);
 
+    Instant addTrace = Instant.now();
+
+    Instant updateFinalStatus = Instant.now();
+    Instant changeUpdateDate = Instant.now();
     if (executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
         && (agent == null || isAllInjectAgentsExecuted(inject))) {
       updateFinalInjectStatus(injectStatus);
+      updateFinalStatus = Instant.now();
+      executionTraceRepositoryHelper.updateDateUltraFast(
+          injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
+      changeUpdateDate = Instant.now();
+      executionTraceRepositoryHelper.updateStatusUltraFast(
+          injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());
       log.debug("Successfully updated inject final status: " + inject.getId());
     }
+    Instant saveStatus = Instant.now();
 
-    injectRepository.save(inject);
     log.debug("Successfully updated inject: " + inject.getId());
+
+    /*if (saveStatus.toEpochMilli() - start.toEpochMilli() > 20) {
+      log.warn(
+          String.format(
+              "Time spent breakdown on updateInjectStatus :%n total : %d ms%n - time to get injects status : %d ms %n - time to create execution trace : %d ms %n - time to compute execution trace : %d ms %n - time to add trace : %d ms %n - time to update final status : %d ms %n - time to change update date : %d ms %n - time to save status : %d ms %n",
+              saveStatus.toEpochMilli() - start.toEpochMilli(),
+              getInjectStatus.toEpochMilli() - start.toEpochMilli(),
+              createExecutionTrace.toEpochMilli() - getInjectStatus.toEpochMilli(),
+              computeExecutionTrace.toEpochMilli() - createExecutionTrace.toEpochMilli(),
+              addTrace.toEpochMilli() - computeExecutionTrace.toEpochMilli(),
+              updateFinalStatus.toEpochMilli() - addTrace.toEpochMilli(),
+              changeUpdateDate.toEpochMilli() - updateFinalStatus.toEpochMilli(),
+              saveStatus.toEpochMilli() - changeUpdateDate.toEpochMilli()));
+    }*/
   }
 
   public ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
