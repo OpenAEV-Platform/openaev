@@ -1,5 +1,7 @@
 package io.openaev.rest.asset.security_platforms.form;
 
+import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.asset.form.AssetInput;
@@ -7,8 +9,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-
-import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
