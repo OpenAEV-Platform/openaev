@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, MenuItem, TextField } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent } from 'react';
+import { type FunctionComponent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -57,14 +57,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
     defaultValues: initialValues,
   });
 
-  const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleSubmit(onSubmit)(e);
-  };
-
   return (
-    <form id="securityPlatformForm" onSubmit={handleSubmitWithoutPropagation}>
+    <form id="securityPlatformForm" onSubmit={handleSubmit(onSubmit)}>
       <TextField
         variant="standard"
         fullWidth
@@ -72,12 +66,13 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         style={{ marginTop: 10 }}
         error={!!errors.asset_name}
         helperText={errors.asset_name?.message}
-        inputProps={register('asset_name')}
-        InputLabelProps={{ required: true }}
+        {...register('asset_name')}
+        required
       />
       <Controller
         control={control}
         name="security_platform_type"
+        rules={{ required: true }}
         render={({ field }) => (
           <TextField
             select
@@ -88,8 +83,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
             style={{ marginTop: 20 }}
             error={!!errors.security_platform_type}
             helperText={errors.security_platform_type?.message}
-            inputProps={register('security_platform_type')}
-            InputLabelProps={{ required: true }}
+            {...register('security_platform_type')}
+            required
           >
             <MenuItem value="EDR">{t('EDR')}</MenuItem>
             <MenuItem value="XDR">{t('XDR')}</MenuItem>
@@ -109,7 +104,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.asset_description}
         helperText={errors.asset_description?.message}
-        inputProps={register('asset_description')}
+        {...register('asset_description')}
       />
       <Controller
         control={control}
@@ -122,7 +117,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
             setFieldValue={(_name, document) => {
               onChange(document?.id);
             }}
-            initialValue={{ id: value == null ? undefined : value }}
+            initialValue={{ id: value ?? undefined }}
             parentResourceType="security_platform"
             parentResourceId={securityPlatformId}
           />
@@ -139,7 +134,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
             setFieldValue={(_name, document) => {
               onChange(document?.id);
             }}
-            initialValue={{ id: value == null ? undefined : value }}
+            initialValue={{ id: value ?? undefined }}
             parentResourceType="security_platform"
             parentResourceId={securityPlatformId}
           />
