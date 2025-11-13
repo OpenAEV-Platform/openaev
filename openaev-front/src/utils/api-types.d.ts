@@ -5471,8 +5471,8 @@ export interface SecurityPlatformInput {
   asset_external_reference?: string;
   asset_name: string;
   asset_tags?: string[];
-  security_platform_logo_dark?: string;
-  security_platform_logo_light?: string;
+  security_platform_logo_dark?: string | null;
+  security_platform_logo_light?: string | null;
   security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
 }
 

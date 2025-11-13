@@ -29,6 +29,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
     security_platform_logo_light: undefined,
     security_platform_logo_dark: undefined,
     asset_tags: [],
+    asset_external_reference: undefined,
   },
   securityPlatformId,
 }) => {
@@ -47,8 +48,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         asset_name: z.string().min(1, { message: t('Should not be empty') }),
         security_platform_type: z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM']),
         asset_description: z.string().optional(),
-        security_platform_logo_light: z.string().optional(),
-        security_platform_logo_dark: z.string().optional(),
+        security_platform_logo_light: z.string().optional().nullable(),
+        security_platform_logo_dark: z.string().optional().nullable(),
         asset_tags: z.string().array().optional(),
         asset_external_reference: z.string().optional(),
       }),
@@ -121,7 +122,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
             setFieldValue={(_name, document) => {
               onChange(document?.id);
             }}
-            initialValue={{ id: value }}
+            initialValue={{ id: value == null ? undefined : value }}
             parentResourceType="security_platform"
             parentResourceId={securityPlatformId}
           />
@@ -138,7 +139,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
             setFieldValue={(_name, document) => {
               onChange(document?.id);
             }}
-            initialValue={{ id: value }}
+            initialValue={{ id: value == null ? undefined : value }}
             parentResourceType="security_platform"
             parentResourceId={securityPlatformId}
           />
