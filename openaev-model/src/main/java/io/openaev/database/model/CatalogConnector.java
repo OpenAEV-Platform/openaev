@@ -23,7 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 public class CatalogConnector implements Base {
 
   @Id
-  @Column(name = "connector_id")
+  @Column(name = "catalog_connector_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @JsonProperty("connector_id")
@@ -31,91 +31,101 @@ public class CatalogConnector implements Base {
   private String id;
 
   @NotBlank
-  @Column(name = "connector_title", unique = true)
+  @Column(name = "catalog_connector_title", unique = true)
   @JsonProperty("connector_title")
   @Schema(description = "Connector title")
-  private String connectorTitle;
+  private String title;
 
-  @Column(name = "connector_slug")
-  @JsonProperty("connector_slug")
+  @Column(name = "catalog_connector_slug")
+  @JsonProperty("catalog_connector_slug")
   @Schema(description = "Connector slug")
-  private String connectorSlug;
+  private String slug;
 
-  @Column(name = "connector_description")
-  @JsonProperty("connector_description")
+  @Column(name = "catalog_connector_description")
+  @JsonProperty("catalog_connector_description")
   @Schema(description = "Connector description")
-  private String connectorDescription;
+  private String description;
 
-  @Column(name = "connector_short_description")
-  @JsonProperty("connector_short_description")
+  @Column(name = "catalog_connector_short_description")
+  @JsonProperty("catalog_connector_short_description")
   @Schema(description = "Connector description")
-  private String connectorShortDescription;
+  private String shortDescription;
 
-  @Column(name = "connector_logo")
-  @JsonProperty("connector_logo")
+  @Column(name = "catalog_connector_logo_url")
+  @JsonProperty("catalog_connector_logo_url")
   @Schema(description = "Connector logo")
-  private String connectorLogo;
+  private String logoUrl;
 
   @Type(StringArrayType.class)
-  @Column(name = "connector_use_cases")
-  @JsonProperty("connector_use_cases")
+  @Column(name = "catalog_connector_use_cases")
+  @JsonProperty("catalog_connector_use_cases")
   @Schema(description = "Connector use_cases")
-  private String[] connectorUseCases;
+  private String[] useCases;
 
-  @Column(name = "connector_verified")
-  @JsonProperty("connector_verified")
+  @Column(name = "catalog_connector_verified")
+  @JsonProperty("catalog_connector_verified")
   @Schema(description = "Connector verified")
-  private boolean connectorVerified;
+  private boolean isVerified;
 
-  @Column(name = "connector_last_verified_date")
-  @JsonProperty("connector_last_verified_date")
+  @Column(name = "catalog_connector_last_verified_date")
+  @JsonProperty("catalog_connector_last_verified_date")
   @Schema(description = "Connector last verified date")
-  private Instant connectorLastVerifiedDate;
+  private Instant lastVerifiedDate;
 
-  @Column(name = "connector_playbook_supported")
-  @JsonProperty("connector_playbook_supported")
+  @Column(name = "catalog_connector_playbook_supported")
+  @JsonProperty("catalog_connector_playbook_supported")
   @Schema(description = "Connector playbook supported")
-  private boolean connectorPlaybookSupported;
+  private boolean isPlaybookSupported;
 
-  @Column(name = "connector_max_confidence_level")
-  @JsonProperty("connector_max_confidence_level")
+  @Column(name = "catalog_connector_max_confidence_level")
+  @JsonProperty("catalog_connector_max_confidence_level")
   @Schema(description = "Connector max confidence level")
-  private Integer connectorMaxConfidenceLevel;
+  private Integer maxConfidenceLevel;
 
-  @Column(name = "connector_support_version")
-  @JsonProperty("connector_support_version")
+  @Column(name = "catalog_connector_support_version")
+  @JsonProperty("catalog_connector_support_version")
   @Schema(description = "Connector support version")
-  private String connectorSupportVersion;
+  private String supportVersion;
 
-  @Column(name = "connector_subscription_link")
-  @JsonProperty("connector_subscription_link")
+  @Column(name = "catalog_connector_subscription_link")
+  @JsonProperty("catalog_connector_subscription_link")
   @Schema(description = "Connector subscription link")
-  private String connectorSubscriptionLink;
+  private String subscriptionLink;
 
-  @Column(name = "connector_source_code")
-  @JsonProperty("connector_source_code")
+  @Column(name = "catalog_connector_source_code")
+  @JsonProperty("catalog_connector_source_code")
   @Schema(description = "Connector source code")
-  private String connectorSourceCode;
+  private String sourceCode;
 
-  @Column(name = "connector_manager_supported")
-  @JsonProperty("connector_manager_supported")
+  @Column(name = "catalog_connector_manager_supported")
+  @JsonProperty("catalog_connector_manager_supported")
   @Schema(description = "Connector manager supported")
-  private boolean connectorManagerSupported;
+  private boolean isManagerSupported;
 
-  @Column(name = "connector_container_version")
-  @JsonProperty("connector_container_version")
+  @Column(name = "catalog_connector_container_version")
+  @JsonProperty("catalog_connector_container_version")
   @Schema(description = "Connector container version")
-  private String connectorContainerVersion;
+  private String containerVersion;
 
-  @Column(name = "connector_container_image")
-  @JsonProperty("connector_container_image")
+  @Column(name = "catalog_connector_container_image")
+  @JsonProperty("catalog_connector_container_image")
   @Schema(description = "Connector container image")
-  private String connectorContainerImage;
+  private String containerImage;
 
-  @Column(name = "connector_container_type")
-  @JsonProperty("connector_container_type")
-  @Schema(description = "Connector container type")
-  private String connectorContainerType;
+  @Column(name = "catalog_connector_type")
+  @JsonProperty("catalog_connector_type")
+  @Schema(description = "Connector type")
+  private String containerType;
+
+  @Column(name = "catalog_connector_class_name")
+  @JsonProperty("catalog_connector_class_name")
+  @Schema(description = "Connector class name")
+  private String className;
+
+  @Column(name = "catalog_connector_deleted_at")
+  @JsonProperty("catalog_connector_deleted_at")
+  @Schema(description = "Connector deleted at")
+  private Instant deletedAt;
 
   @OneToMany(
       mappedBy = "catalogConnector",
