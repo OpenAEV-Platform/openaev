@@ -13,6 +13,7 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
     try (Statement select = context.getConnection().createStatement()) {
       select.execute(
           """
+        CREATE TYPE connector_type AS ENUM ('COLLECTOR', 'INJECTOR', 'EXECUTOR');
         CREATE TABLE catalog_connectors (
             catalog_connector_id VARCHAR(255) NOT NULL CONSTRAINT catalog_connectors_pkey PRIMARY KEY,
             catalog_connector_title VARCHAR(255) NOT NULL UNIQUE,
@@ -31,7 +32,7 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
             catalog_connector_manager_supported BOOLEAN DEFAULT false,
             catalog_connector_container_version VARCHAR(50),
             catalog_connector_container_image VARCHAR(255),
-            catalog_connector_type VARCHAR(255),
+            catalog_connector_type connector_type,
             catalog_connector_class_name VARCHAR(255),
             catalog_connector_deleted_at TIMESTAMP WITH TIME ZONE,
             catalog_connector_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
@@ -42,7 +43,7 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
           """
         CREATE TABLE catalog_connectors_configuration (
             connector_configuration_id VARCHAR(255) NOT NULL CONSTRAINT connectors_configuration_pkey PRIMARY KEY,
-            connector_configuration_catalog_id VARCHAR(255) NOT NULL REFERENCES catalog_connectors(connector_id) ON DELETE CASCADE,
+            connector_configuration_catalog_id VARCHAR(255) NOT NULL REFERENCES catalog_connectors(catalog_connector_id) ON DELETE CASCADE,
             connector_configuration_key VARCHAR(255) NOT NULL,
             connector_configuration_default VARCHAR(255),
             connector_configuration_description TEXT,
@@ -59,7 +60,7 @@ public class V4_46__Add_catalog_connector extends BaseJavaMigration {
           """
         CREATE TABLE connector_instances (
             connector_instance_id VARCHAR(255) NOT NULL CONSTRAINT connector_instances_pkey PRIMARY KEY,
-            connector_instance_catalog_id VARCHAR(255) NOT NULL REFERENCES catalog_connectors(connector_id) ON DELETE CASCADE,
+            connector_instance_catalog_id VARCHAR(255) NOT NULL REFERENCES catalog_connectors(catalog_connector_id) ON DELETE CASCADE,
             connector_instance_current_status VARCHAR(255) NOT NULL,
             connector_instance_requested_status VARCHAR(255),
             connector_instance_restart_count INTEGER,

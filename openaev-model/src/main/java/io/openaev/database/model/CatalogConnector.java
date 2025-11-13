@@ -21,6 +21,11 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "catalog_connectors")
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnector implements Base {
+  public enum CONNECTOR_TYPE {
+    COLLECTOR,
+    INJECTOR,
+    EXECUTOR
+  }
 
   @Id
   @Column(name = "catalog_connector_id")
@@ -115,7 +120,7 @@ public class CatalogConnector implements Base {
   @Column(name = "catalog_connector_type")
   @JsonProperty("catalog_connector_type")
   @Schema(description = "Connector type")
-  private String containerType;
+  private CONNECTOR_TYPE containerType;
 
   @Column(name = "catalog_connector_class_name")
   @JsonProperty("catalog_connector_class_name")
