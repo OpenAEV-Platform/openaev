@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CatalogConnectorRepository
     extends CrudRepository<CatalogConnector, String>, JpaSpecificationExecutor<CatalogConnector> {
-  Optional<CatalogConnector> findByTitle(String connector_title);
+  Optional<CatalogConnector> findByTitle(String title);
 }
