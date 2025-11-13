@@ -12,11 +12,11 @@ public class V4_46__Rename_platform_title_openaev extends BaseJavaMigration {
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       String[][] patterns = {
-          {"OPENBAS", "OPENAEV"},
-          {"OpenBAS", "OpenAEV"},
-          {"openbas", "openaev"},
-          {"Openbas", "Openaev"},
-          {"Breach & Attack Simulation", "Adversarial Exposure Validation"}
+        {"OPENBAS", "OPENAEV"},
+        {"OpenBAS", "OpenAEV"},
+        {"openbas", "openaev"},
+        {"Openbas", "Openaev"},
+        {"Breach & Attack Simulation", "Adversarial Exposure Validation"}
       };
 
       // Build nested REGEXP_REPLACE calls
@@ -27,8 +27,8 @@ public class V4_46__Rename_platform_title_openaev extends BaseJavaMigration {
 
       // Wrap each pattern in a REGEXP_REPLACE
       for (String[] pattern : patterns) {
-        current = String.format("REGEXP_REPLACE(%s, '%s', '%s', 'g')",
-            current, pattern[0], pattern[1]);
+        current =
+            String.format("REGEXP_REPLACE(%s, '%s', '%s', 'g')", current, pattern[0], pattern[1]);
       }
 
       sql.append(current);
