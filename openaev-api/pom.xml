@@ -111,6 +111,10 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
@@ -209,6 +213,11 @@
             <artifactId>guava</artifactId>
             <version>33.5.0-jre</version>
         </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
         <!-- OpenTelemetry -->
         <dependency>
             <groupId>io.opentelemetry</groupId>

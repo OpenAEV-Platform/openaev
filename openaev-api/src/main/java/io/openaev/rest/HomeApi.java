@@ -32,7 +32,7 @@ public class HomeApi {
   private String contextPath;
 
   @GetMapping(
-      path = {"/", "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|static$|swagger-ui$).*$}/**"},
+      path = {"/", "/{path:^(?!api$|login$|logout$|oauth2$|saml2$|static$|swagger-ui$|actuator).*$}/**"},
       produces = MediaType.TEXT_HTML_VALUE)
   @RBAC(skipRBAC = true) // No RBAC check for home endpoint
   public ResponseEntity<String> home() {
