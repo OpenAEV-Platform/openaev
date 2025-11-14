@@ -1,7 +1,7 @@
-import { HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Avatar, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
+import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
@@ -24,6 +24,12 @@ import { isNotEmptyField } from '../../../../utils/utils';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
+import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
+import * as R from 'ramda';
+import BulkToolBar from '../toolBar/BulkToolBar';
+import { ToolTasks } from '../toolBar/BulkToolBar-model';
+import { InjectOutputType, InjectStore } from '../../../../actions/injects/Inject';
+import { InjectContext } from '../Context';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -78,6 +84,9 @@ const CreateInject: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const theme = useTheme();
   const { t, tPick } = useFormatter();
+  const injectContext = useContext(InjectContext);
+  const { injects, setInjects } = injectContext;
+
 
   // Fetching data
   const { attackPatterns, attackPatternsMap, killChainPhasesMap } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & InjectorHelper) => ({
@@ -182,6 +191,99 @@ const CreateInject: FunctionComponent<Props> = ({
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(isAtomic ? 'injector-contracts-atomic' : 'injector-contracts', initSearchPaginationInput());
 
+  // Toolbar
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<InjectorContractFullOutput>('injector_contract', contracts, queryableHelpers.paginationHelpers.getTotalElements());
+  const onRowShiftClick = (currentIndex: number, currentEntity: { injector_contract_id: string }, event: SyntheticEvent | null = null) => {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (selectedElements && !R.isEmpty(selectedElements)) {
+      // Find the indexes of the first and last selected entities
+      let firstIndex = R.findIndex(
+        (n: InjectorContractFullOutput) => n.injector_contract_id === R.head(R.values(selectedElements)).injector_contract_id,
+        contracts,
+      );
+      if (currentIndex > firstIndex) {
+        let entities: InjectorContractFullOutput[] = [];
+        while (firstIndex <= currentIndex) {
+          entities = [...entities, contracts[firstIndex]];
+
+          firstIndex++;
+        }
+        const forcedRemove = R.values(selectedElements).filter(
+          (n: InjectorContractFullOutput) => !entities.map(o => o.injector_contract_id).includes(n.injector_contract_id),
+        );
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        return onToggleEntity(entities, event, forcedRemove);
+      }
+      let entities: InjectorContractFullOutput[] = [];
+      while (firstIndex >= currentIndex) {
+        entities = [...entities, contracts[firstIndex]];
+
+        firstIndex--;
+      }
+      const forcedRemove = R.values(selectedElements).filter(
+        (n: InjectorContractFullOutput) => !entities.map(o => o.injector_contract_id).includes(n.injector_contract_id),
+      );
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      return onToggleEntity(entities, event, forcedRemove);
+    }
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    return onToggleEntity(currentEntity, event);
+  };
+
+  const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
+    await injectContext.onAddMultipleInjects(data).then((result: {
+      result: string[];
+      entities: { injects: Record<string, InjectStore> };
+    }) => {
+      onCreateAll(result);
+      handleCloseDrawer();
+    });
+  };
+
+  const onCreateAll = (result: {
+    result: string[];
+    entities: { injects: Record<string, InjectStore> };
+  }) => {
+    if (result.entities) {
+      const created: InjectOutputType[] = [];
+      result.result.map((r:string) => {
+        created.push(result.entities.injects[r]);
+      });
+      setInjects([...created, ...injects]);
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + created.length);
+    }
+  };
+
+  const buildQuickInject = (elements: Record<string, InjectorContractFullOutput>)=> {
+    const quickInjects: InjectInput[] = [];
+    for(const [_k,v] of Object.entries(elements)){
+      let quickInject: InjectInput = {inject_title: tPick(v.injector_contract_labels),inject_injector_contract:v.injector_contract_id,inject_depends_duration:presetInjectDuration}
+      quickInjects.push(quickInject);
+    }
+    onCreateMultipleInjectsInject(quickInjects);
+  };
+
+  const toolTasks: ToolTasks[] = [
+    {
+      icon: () => (<Add />),
+      function: ()=> buildQuickInject(selectedElements),
+    }
+  ];
+
   const [selectedContract, setSelectedContract] = useState<Omit<InjectorContractFullOutput, 'injector_contract_content'> & { injector_contract_content: InjectorContractConverted['convertedContent'] } | null>(null);
   const selectContract = (contract: InjectorContractFullOutput) => {
     const parsedContract: Omit<InjectorContractFullOutput, 'injector_contract_content'> & { injector_contract_content: InjectorContractConverted['convertedContent'] } = {
@@ -216,7 +318,7 @@ const CreateInject: FunctionComponent<Props> = ({
       disableEnforceFocus
       containerStyle={{
         display: 'grid',
-        gridTemplateColumns: `60% calc(40% - ${theme.spacing(2)})`,
+        gridTemplateColumns: selectedContract ? `60% calc(40% - ${theme.spacing(2)})` : '1fr' ,
         gap: theme.spacing(2),
       }}
     >
@@ -237,6 +339,15 @@ const CreateInject: FunctionComponent<Props> = ({
               classes={{ root: classes.itemHead }}
               divider={false}
             >
+              {!isAtomic && <ListItemIcon style={{ minWidth: 40 }}>
+                <Checkbox
+                  edge="start"
+                  disableRipple
+                  checked={selectAll}
+                  onChange={handleToggleSelectAll}
+                  disabled={typeof handleToggleSelectAll !== 'function'}
+                />
+              </ListItemIcon>}
               <ListItemIcon />
               <ListItemText
                 primary={(
@@ -247,9 +358,9 @@ const CreateInject: FunctionComponent<Props> = ({
                   />
                 )}
               />
-              <ListItemIcon />
+
             </ListItem>
-            {contracts.map((contract) => {
+            {contracts.map((contract: InjectorContractFullOutput,index) => {
               const contractAttackPatterns = computeAttackPatterns(contract.injector_contract_attack_patterns, attackPatternsMap);
               const contractKillChainPhase = contractAttackPatterns
                 .flatMap((contractAttackPattern: AttackPattern) => contractAttackPattern.attack_pattern_kill_chain_phases ?? [])
@@ -259,10 +370,29 @@ const CreateInject: FunctionComponent<Props> = ({
                 <ListItemButton
                   key={contract.injector_contract_id}
                   divider
-                  onClick={() => selectContract(contract)}
+                  onClick={() => {
+                    selectContract(contract);
+                    handleClearSelectedElements();
+                  }}
                   selected={selectedContract?.injector_contract_id === contract.injector_contract_id}
                   disabled={(selectedContract?.injector_contract_id === contract.injector_contract_id)}
                 >
+                  {!isAtomic && <ListItemIcon
+                    style={{ minWidth: 40 }}
+                    onClick={event => (event.shiftKey
+                      ? onRowShiftClick(index, contract, event)
+                      : onToggleEntity(contract, event))}
+                  >
+                    <Checkbox
+                      edge="start"
+                      checked={
+                        (selectAll && !(contract.injector_contract_id
+                          in (deSelectedElements || {})))
+                        || contract.injector_contract_id in (selectedElements || {})
+                      }
+                      disableRipple
+                    />
+                  </ListItemIcon>}
                   <ListItemIcon>
                     <InjectIcon
                       variant="list"
@@ -287,64 +417,75 @@ const CreateInject: FunctionComponent<Props> = ({
             })}
           </List>
         </div>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: theme.spacing(2),
-        }}
-        >
-          <InjectCardComponent
-            avatar={selectedContract ? (
-              <InjectIcon
-                type={selectedContract.injector_contract_payload_type ?? selectedContract.injector_contract_injector_type}
-                isPayload={isNotEmptyField(selectedContract?.injector_contract_payload_type)}
-              />
-            ) : (
-              <Avatar sx={{
-                width: 24,
-                height: 24,
+        {selectedContract && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: theme.spacing(2),
+          }}
+          >
+            <InjectCardComponent
+              avatar={selectedContract ? (
+                <InjectIcon
+                  type={selectedContract.injector_contract_payload_type ?? selectedContract.injector_contract_injector_type}
+                  isPayload={isNotEmptyField(selectedContract?.injector_contract_payload_type)}
+                />
+              ) : (
+                <Avatar sx={{
+                  width: 24,
+                  height: 24,
+                }}
+                >
+                  <HelpOutlined />
+                </Avatar>
+              )}
+              title={selectedContractKillChainPhase || selectedContract?.injector_contract_injector_name || ''}
+              action={(
+                <IconButton aria-label="delete" disabled={!selectedContract} onClick={() => setSelectedContract(null)}>
+                  <HighlightOffOutlined />
+                </IconButton>
+              )}
+              content={selectedContract?.injector_contract_labels ? tPick(selectedContract?.injector_contract_labels) : t('Select an inject in the left panel')}
+            />
+            <InjectForm
+              handleClose={handleClose}
+              disabled={!selectedContract}
+              isAtomic={isAtomic}
+              isCreation
+              defaultInject={{
+                inject_id: '',
+                inject_title: tPick(selectedContract?.injector_contract_labels),
+                inject_description: '',
+                inject_depends_duration: presetInjectDuration,
+                inject_injector_contract: {
+                  injector_contract_id: selectedContract?.injector_contract_id ?? '',
+                  injector_contract_arch: selectedContract?.injector_contract_arch,
+                  injector_contract_platforms: selectedContract?.injector_contract_platforms,
+                } as InjectorContract,
+                inject_type: selectedContract?.injector_contract_content?.config?.type,
+                inject_teams: [],
+                inject_assets: [],
+                inject_asset_groups: [],
+                inject_documents: [],
+                inject_content: { expectations: selectedContract?.injector_contract_content.fields.find(f => f.type == 'expectation')?.predefinedExpectations },
               }}
-              >
-                <HelpOutlined />
-              </Avatar>
-            )}
-            title={selectedContractKillChainPhase || selectedContract?.injector_contract_injector_name || ''}
-            action={(
-              <IconButton aria-label="delete" disabled={!selectedContract} onClick={() => setSelectedContract(null)}>
-                <HighlightOffOutlined />
-              </IconButton>
-            )}
-            content={selectedContract?.injector_contract_labels ? tPick(selectedContract?.injector_contract_labels) : t('Select an inject in the left panel')}
-          />
-          <InjectForm
-            handleClose={handleClose}
-            disabled={!selectedContract}
-            isAtomic={isAtomic}
-            isCreation
-            defaultInject={{
-              inject_id: '',
-              inject_title: tPick(selectedContract?.injector_contract_labels),
-              inject_description: '',
-              inject_depends_duration: presetInjectDuration,
-              inject_injector_contract: {
-                injector_contract_id: selectedContract?.injector_contract_id ?? '',
-                injector_contract_arch: selectedContract?.injector_contract_arch,
-                injector_contract_platforms: selectedContract?.injector_contract_platforms,
-              } as InjectorContract,
-              inject_type: selectedContract?.injector_contract_content?.config?.type,
-              inject_teams: [],
-              inject_assets: [],
-              inject_asset_groups: [],
-              inject_documents: [],
-              inject_content: { expectations: selectedContract?.injector_contract_content.fields.find(f => f.type == 'expectation')?.predefinedExpectations },
-            }}
-            injectorContractContent={selectedContract?.injector_contract_content}
-            onSubmitInject={onCreateInject}
-            articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
-            uriVariable={uriVariable}
-            variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
-          />
-        </div>
+              injectorContractContent={selectedContract?.injector_contract_content}
+              onSubmitInject={onCreateInject}
+              articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
+              uriVariable={uriVariable}
+              variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+            />
+          </div>
+        )}
+        {
+          numberOfSelectedElements > 0 && (
+            <BulkToolBar info={'Bulk select lets you addd multiple injects. They will appear as "missing content" until configured'}
+                         numberOfSelectedElements={numberOfSelectedElements}
+                         handleClearSelectedElements={handleClearSelectedElements}
+                         toolTasks={toolTasks}
+            />
+          )
+        }
       </>
     </Drawer>
   );
