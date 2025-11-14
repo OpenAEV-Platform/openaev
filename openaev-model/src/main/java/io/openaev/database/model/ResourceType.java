@@ -38,6 +38,8 @@ public enum ResourceType {
   ORGANIZATION,
   COLLECTOR,
   STIX_BUNDLE,
+  OBJECTIVE,
+  EVALUATION,
 
   // Special resource types
   UNKNOWN,

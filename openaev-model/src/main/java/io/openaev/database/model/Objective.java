@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
@@ -83,6 +84,10 @@ public class Objective implements Base {
     return getEvaluations().stream().mapToDouble(Evaluation::getScore).average().orElse(0D);
   }
 
+  @Getter(onMethod_ = @JsonIgnore)
+  @Transient
+  private final ResourceType resourceType = ResourceType.OBJECTIVE;
+
   // endregion
 
   @Override
@@ -101,5 +106,19 @@ public class Objective implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  @JsonIgnore
+  public String getParentResourceId() {
+    return this.getScenario() != null
+        ? this.getScenario().getId()
+        : this.getExercise() != null ? this.getExercise().getId() : this.getId();
+  }
+
+  @JsonIgnore
+  public ResourceType getParentResourceType() {
+    return this.getScenario() != null
+        ? ResourceType.SCENARIO
+        : this.getExercise() != null ? ResourceType.SIMULATION : ResourceType.OBJECTIVE;
   }
 }
