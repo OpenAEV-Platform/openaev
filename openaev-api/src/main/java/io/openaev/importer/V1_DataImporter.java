@@ -155,8 +155,7 @@ public class V1_DataImporter implements Importer {
       Scenario scenario,
       Asset asset,
       AssetGroup assetGroup,
-      String suffix,
-      boolean isFromStarterPack) {
+      String suffix) {
     Map<String, Base> baseIds = new HashMap<>();
 
     String prefix = "inject_";
@@ -171,8 +170,7 @@ public class V1_DataImporter implements Importer {
     Exercise savedExercise =
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, suffix, isFromStarterPack))
-            .orElse(scenario);
+        Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
     importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
     importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
 
@@ -189,15 +187,7 @@ public class V1_DataImporter implements Importer {
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
     importObjectives(importNode, prefix, savedExercise, savedScenario, baseIds);
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
-    importInjects(
-        importNode,
-        prefix,
-        savedExercise,
-        savedScenario,
-        asset,
-        assetGroup,
-        baseIds,
-        isFromStarterPack);
+    importInjects(importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
     importVariables(importNode, savedExercise, savedScenario, baseIds);
   }
 
@@ -349,8 +339,7 @@ public class V1_DataImporter implements Importer {
 
   // -- SCENARIO --
 
-  private Scenario importScenario(
-      JsonNode importNode, Map<String, Base> baseIds, String suffix, boolean isFromStarterPack) {
+  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
@@ -382,7 +371,15 @@ public class V1_DataImporter implements Importer {
             .map(baseIds::get)
             .map(Tag.class::cast)
             .collect(Collectors.toSet()));
-    scenario.setFromStarterPack(isFromStarterPack);
+    scenario.setDependencies(
+        ofNullable(scenarioNode.get("scenario_dependencies"))
+            .filter(JsonNode::isArray)
+            .map(
+                dependencies ->
+                    StreamSupport.stream(dependencies.spliterator(), false)
+                        .map(node -> Scenario.Dependency.valueOf(node.textValue()))
+                        .toArray(Scenario.Dependency[]::new))
+            .orElse(new Scenario.Dependency[0]));
 
     return scenarioService.createScenario(scenario);
   }
@@ -946,8 +943,7 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Asset asset,
       AssetGroup assetGroup,
-      Map<String, Base> baseIds,
-      boolean isFromStarterPack) {
+      Map<String, Base> baseIds) {
     Supplier<Stream<JsonNode>> injectsStream =
         () ->
             importNode.has(prefix + "injects")
@@ -992,8 +988,7 @@ public class V1_DataImporter implements Importer {
         asset,
         assetGroup,
         injectsNoParent.toList(),
-        injectsStream.get().toList(),
-        isFromStarterPack);
+        injectsStream.get().toList());
   }
 
   private void importInjects(
@@ -1003,8 +998,7 @@ public class V1_DataImporter implements Importer {
       Asset asset,
       AssetGroup assetGroup,
       List<JsonNode> injectsToAdd,
-      List<JsonNode> allInjects,
-      boolean isFromStarterPack) {
+      List<JsonNode> allInjects) {
     List<String> originalIds = new ArrayList<>();
     injectsToAdd.forEach(
         injectNode -> {
@@ -1061,8 +1055,10 @@ public class V1_DataImporter implements Importer {
           }
 
           if (injectorContractId == null) {
-            if (isFromStarterPack) {
-              // if the we are importing starter pack, we will create the injector contract so the
+            if (scenario.getDependencies() != null
+                && Arrays.asList(scenario.getDependencies())
+                    .contains(Scenario.Dependency.STARTERPACK)) {
+              // if we are importing the starter pack, we will create the injector contract so the
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
               // provided by the injector
@@ -1221,15 +1217,7 @@ public class V1_DataImporter implements Importer {
                 })
             .toList();
     if (!childInjects.isEmpty()) {
-      importInjects(
-          baseIds,
-          exercise,
-          scenario,
-          asset,
-          assetGroup,
-          childInjects,
-          allInjects,
-          isFromStarterPack);
+      importInjects(baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects);
     }
   }
 

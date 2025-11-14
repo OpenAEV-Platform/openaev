@@ -24,8 +24,7 @@ public interface Importer {
       Scenario scenario,
       Asset asset,
       AssetGroup assetGroup,
-      String suffix,
-      boolean isFromStarterPack);
+      String suffix);
 
   default Stream<JsonNode> resolveJsonElements(JsonNode node, String key) {
     JsonNode dataNode = node.get(key);

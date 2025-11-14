@@ -176,7 +176,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "", true);
+                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());

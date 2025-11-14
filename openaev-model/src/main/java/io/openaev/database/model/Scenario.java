@@ -6,9 +6,9 @@ import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
@@ -16,6 +16,8 @@ import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,10 +26,7 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Data
 @Entity
@@ -44,6 +43,11 @@ public class Scenario implements GrantableBase {
   public enum RECURRENCE_STATUS {
     SCHEDULED,
     NOT_PLANNED,
+  }
+
+  public enum Dependency {
+    @JsonProperty("STARTERPACK")
+    STARTERPACK;
   }
 
   public enum SEVERITY {
@@ -156,11 +160,6 @@ public class Scenario implements GrantableBase {
   @Column(name = "scenario_reply_to", nullable = false)
   @JsonProperty("scenario_mails_reply_to")
   private List<String> replyTos = new ArrayList<>();
-
-  @Column(name = "from_starter_pack", nullable = false)
-  @JsonProperty("from_starter_pack")
-  @Queryable(filterable = true)
-  private boolean fromStarterPack = false;
 
   // -- AUDIT --
 
@@ -401,6 +400,12 @@ public class Scenario implements GrantableBase {
         .distinct()
         .toList();
   }
+
+  @Type(StringArrayType.class)
+  @Column(name = "scenario_dependencies", columnDefinition = "text[]")
+  @JsonProperty("scenario_dependencies")
+  @Queryable(filterable = true, searchable = true, sortable = true)
+  private Dependency[] dependencies;
 
   @Override
   public int hashCode() {
