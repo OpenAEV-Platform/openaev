@@ -527,6 +527,9 @@ public class ExerciseApi extends RestBehavior {
   public SimulationDetails exercise(@PathVariable String exerciseId) {
     // We get the raw exercise
     RawSimulation rawSimulation = exerciseRepository.rawDetailsById(exerciseId);
+    if (rawSimulation == null) {
+      throw new ElementNotFoundException("Simulation not found");
+    }
     // We get the injects linked to this exercise
     List<RawInject> rawInjects =
         injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
