@@ -99,7 +99,7 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
 
   // Retrieve data
   const getInjectsPerTeam = (teamId: string) => {
-    return injects.filter(i => i.inject_teams?.includes(teamId));
+    return injects.filter(i => i.inject_teams?.includes(teamId) || i.inject_all_teams);
   };
 
   const injectsPerTeam = R.mergeAll(
