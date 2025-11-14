@@ -73,12 +73,12 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
     const hasAssetIds = data.asset_ids && data.asset_ids.length > 0;
     if (!hasAssetGroupIds && !hasAssetIds) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: t('Should have at least one asset or one asset group'),
         path: ['asset_group_ids'],
       });
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: t('Should have at least one asset or one asset group'),
         path: ['asset_ids'],
       });

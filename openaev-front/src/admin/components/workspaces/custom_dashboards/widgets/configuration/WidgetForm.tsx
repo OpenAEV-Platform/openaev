@@ -66,7 +66,9 @@ const WidgetForm: FunctionComponent<Props> = ({
       widget_configuration_type: z.literal('flat'),
       series: z.array(z.object({
         name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
+        filter: z.any().refine(val => val !== undefined, {
+            error: 'Filter cannot be undefined'
+        }),
       })),
       date_attribute: z.string().min(1, { message: t('Should not be empty') }),
       time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
@@ -100,7 +102,9 @@ const WidgetForm: FunctionComponent<Props> = ({
       display_legend: z.boolean().optional(),
       series: z.array(z.object({
         name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
+        filter: z.any().refine(val => val !== undefined, {
+            error: 'Filter cannot be undefined'
+        }),
       })),
     }),
     // StructuralHistogramConfiguration
@@ -121,7 +125,9 @@ const WidgetForm: FunctionComponent<Props> = ({
       widget_configuration_type: z.literal('structural-histogram'),
       series: z.array(z.object({
         name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
+        filter: z.any().refine(val => val !== undefined, {
+            error: 'Filter cannot be undefined'
+        }),
       })),
     }),
     // ListConfiguration
@@ -143,7 +149,9 @@ const WidgetForm: FunctionComponent<Props> = ({
       columns: z.array(z.string()),
       perspective: z.object({
         name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
+        filter: z.any().refine(val => val !== undefined, {
+            error: 'Filter cannot be undefined'
+        }),
       }),
     }),
   ]);
