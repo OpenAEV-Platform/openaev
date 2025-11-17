@@ -7,6 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
+import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -19,16 +20,15 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import { type Article, type AtomicTestingInput, type AttackPattern, type FilterGroup, type InjectInput, type InjectorContract, type InjectorContractFullOutput, type KillChainPhase, type Variable } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
+import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
+import { InjectContext } from '../Context';
+import BulkToolBar from '../toolBar/BulkToolBar';
+import { type ToolTasks } from '../toolBar/BulkToolBar-model';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
-import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import BulkToolBar from '../toolBar/BulkToolBar';
-import { ToolTasks } from '../toolBar/BulkToolBar-model';
-import { InjectOutputType, InjectStore } from '../../../../actions/injects/Inject';
-import { InjectContext } from '../Context';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -85,7 +85,6 @@ const CreateInject: FunctionComponent<Props> = ({
   const { t, tPick } = useFormatter();
   const injectContext = useContext(InjectContext);
   const { injects, setInjects } = injectContext;
-
 
   // Fetching data
   const { attackPatterns, attackPatternsMap, killChainPhasesMap } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & InjectorHelper) => ({
@@ -207,8 +206,8 @@ const CreateInject: FunctionComponent<Props> = ({
     }
     if (selectedElements && Object.entries(selectedElements).length > 0) {
       // Find the indexes of the first and last selected entities
-      let values = Object.values(selectedElements);
-      let firstIndex = contracts.findIndex(c => c.injector_contract_id === values[0].injector_contract_id );
+      const values = Object.values(selectedElements);
+      let firstIndex = contracts.findIndex(c => c.injector_contract_id === values[0].injector_contract_id);
       if (currentIndex > firstIndex) {
         let entities: InjectorContractFullOutput[] = [];
         while (firstIndex <= currentIndex) {
@@ -241,24 +240,13 @@ const CreateInject: FunctionComponent<Props> = ({
     return onToggleEntity(currentEntity, event);
   };
 
-
-  const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
-    await injectContext.onAddMultipleInjects(data).then((result: {
-      result: string[];
-      entities: { injects: Record<string, InjectStore> };
-    }) => {
-      onCreateAll(result);
-      handleCloseDrawer();
-    });
-  };
-
   const onCreateAll = (result: {
     result: string[];
     entities: { injects: Record<string, InjectStore> };
   }) => {
     if (result.entities) {
       const created: InjectOutputType[] = [];
-      result.result.map((r:string) => {
+      result.result.map((r: string) => {
         created.push(result.entities.injects[r]);
       });
       setInjects([...created, ...injects]);
@@ -266,24 +254,7 @@ const CreateInject: FunctionComponent<Props> = ({
     }
   };
 
-  const buildQuickInject = (elements: Record<string, InjectorContractFullOutput>)=> {
-    const quickInjects: InjectInput[] = [];
-    for(const [_k,v] of Object.entries(elements)){
-      let quickInject: InjectInput = {inject_title: tPick(v.injector_contract_labels),inject_injector_contract:v.injector_contract_id,inject_depends_duration:presetInjectDuration}
-      quickInjects.push(quickInject);
-    }
-    onCreateMultipleInjectsInject(quickInjects);
-  };
-
-  const toolTasks: ToolTasks[] = [
-    {
-      icon: () => (<Add />),
-      function: ()=> buildQuickInject(selectedElements),
-    }
-  ];
-
-
-  //Slider
+  // Slider
   const [checked, setChecked] = useState<boolean>(false);
   const handleSlide = () => {
     setChecked(true);
@@ -303,6 +274,37 @@ const CreateInject: FunctionComponent<Props> = ({
     setSelectedContract(null);
     handleClose();
   };
+
+  const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
+    await injectContext.onAddMultipleInjects(data).then((result: {
+      result: string[];
+      entities: { injects: Record<string, InjectStore> };
+    }) => {
+      onCreateAll(result);
+      handleCloseDrawer();
+    });
+  };
+
+  const buildQuickInject = (elements: Record<string, InjectorContractFullOutput>) => {
+    const quickInjects: InjectInput[] = [];
+    for (const [_k, v] of Object.entries(elements)) {
+      const quickInject: InjectInput = {
+        inject_title: tPick(v.injector_contract_labels),
+        inject_injector_contract: v.injector_contract_id,
+        inject_depends_duration: presetInjectDuration,
+      };
+      quickInjects.push(quickInject);
+    }
+    onCreateMultipleInjectsInject(quickInjects);
+  };
+
+  const toolTasks: ToolTasks[] = [
+    {
+      type: 'info',
+      icon: () => (<Add />),
+      function: () => buildQuickInject(selectedElements),
+    },
+  ];
 
   let selectedContractKillChainPhase = null;
   if (selectedContract) {
@@ -324,7 +326,7 @@ const CreateInject: FunctionComponent<Props> = ({
       disableEnforceFocus
       containerStyle={{
         display: 'grid',
-        gridTemplateColumns: (numberOfSelectedElements > 0 || (numberOfSelectedElements === 0 && !selectedContract) || (numberOfSelectedElements > 0 && selectedContract)) ? '1fr' : `60% calc(40% - ${theme.spacing(2)})` ,
+        gridTemplateColumns: (numberOfSelectedElements > 0 || (numberOfSelectedElements === 0 && !selectedContract) || (numberOfSelectedElements > 0 && selectedContract)) ? '1fr' : `60% calc(40% - ${theme.spacing(2)})`,
         gap: theme.spacing(2),
       }}
     >
@@ -345,15 +347,17 @@ const CreateInject: FunctionComponent<Props> = ({
               classes={{ root: classes.itemHead }}
               divider={false}
             >
-              {!isAtomic && <ListItemIcon style={{ minWidth: 40 }}>
-                <Checkbox
-                  edge="start"
-                  disableRipple
-                  checked={selectAll}
-                  onChange={handleToggleSelectAll}
-                  disabled={typeof handleToggleSelectAll !== 'function'}
-                />
-              </ListItemIcon>}
+              {!isAtomic && (
+                <ListItemIcon style={{ minWidth: 40 }}>
+                  <Checkbox
+                    edge="start"
+                    disableRipple
+                    checked={selectAll}
+                    onChange={handleToggleSelectAll}
+                    disabled={typeof handleToggleSelectAll !== 'function'}
+                  />
+                </ListItemIcon>
+              )}
               <ListItemIcon />
               <ListItemText
                 primary={(
@@ -366,7 +370,7 @@ const CreateInject: FunctionComponent<Props> = ({
               />
 
             </ListItem>
-            {contracts.map((contract: InjectorContractFullOutput,index) => {
+            {contracts.map((contract: InjectorContractFullOutput, index) => {
               const contractAttackPatterns = computeAttackPatterns(contract.injector_contract_attack_patterns, attackPatternsMap);
               const contractKillChainPhase = contractAttackPatterns
                 .flatMap((contractAttackPattern: AttackPattern) => contractAttackPattern.attack_pattern_kill_chain_phases ?? [])
@@ -383,22 +387,24 @@ const CreateInject: FunctionComponent<Props> = ({
                   selected={selectedContract?.injector_contract_id === contract.injector_contract_id}
                   disabled={(selectedContract?.injector_contract_id === contract.injector_contract_id)}
                 >
-                  {!isAtomic && <ListItemIcon
-                    style={{ minWidth: 40 }}
-                    onClick={event => (event.shiftKey
-                      ? onRowShiftClick(index, contract, event)
-                      : onToggleEntity(contract, event))}
-                  >
-                    <Checkbox
-                      edge="start"
-                      checked={
-                        (selectAll && !(contract.injector_contract_id
-                          in (deSelectedElements || {})))
-                        || contract.injector_contract_id in (selectedElements || {})
-                      }
-                      disableRipple
-                    />
-                  </ListItemIcon>}
+                  {!isAtomic && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => (event.shiftKey
+                        ? onRowShiftClick(index, contract, event)
+                        : onToggleEntity(contract, event))}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (selectAll && !(contract.injector_contract_id
+                            in (deSelectedElements || {})))
+                            || contract.injector_contract_id in (selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
                   <ListItemIcon>
                     <InjectIcon
                       variant="list"
@@ -488,10 +494,11 @@ const CreateInject: FunctionComponent<Props> = ({
         )}
         {
           numberOfSelectedElements > 0 && (
-            <BulkToolBar info={'Bulk select lets you addd multiple injects. They will appear as "missing content" until configured'}
-                         numberOfSelectedElements={numberOfSelectedElements}
-                         handleClearSelectedElements={handleClearSelectedElements}
-                         toolTasks={toolTasks}
+            <BulkToolBar
+              info={'Bulk select lets you addd multiple injects. They will appear as "missing content" until configured'}
+              numberOfSelectedElements={numberOfSelectedElements}
+              handleClearSelectedElements={handleClearSelectedElements}
+              toolTasks={toolTasks}
             />
           )
         }

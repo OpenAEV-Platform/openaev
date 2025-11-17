@@ -14,7 +14,7 @@ import {
   type ImportTestSummary,
   type Inject,
   type InjectBulkProcessingInput,
-  type InjectBulkUpdateInputs, InjectInput,
+  type InjectBulkUpdateInputs, type InjectInput,
   type InjectsImportInput,
   type InjectTestStatusOutput,
   type LessonsAnswer,

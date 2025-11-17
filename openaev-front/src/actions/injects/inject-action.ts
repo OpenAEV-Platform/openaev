@@ -5,7 +5,7 @@ import {
   type Exercise,
   type InjectExportFromSearchRequestInput,
   type InjectExportRequestInput,
-  type InjectIndividualExportRequestInput, InjectInput,
+  type InjectIndividualExportRequestInput, type InjectInput,
   type Scenario,
   type SearchPaginationInput,
 } from '../../utils/api-types';
@@ -60,10 +60,10 @@ export const importInjectsForSimulation = (simulationId: Exercise['exercise_id']
   });
 };
 
-export const createInjectsForSimulation = (simulationId: Exercise['exercise_id'],inputs: InjectInput[]) => (dispatch:Dispatch) =>{
+export const createInjectsForSimulation = (simulationId: Exercise['exercise_id'], inputs: InjectInput[]) => (dispatch: Dispatch) => {
   const uri = `/api/exercises/${simulationId}/injects/bulk`;
-  return postReferential(schema.arrayOfInjects,uri,inputs)(dispatch);
-}
+  return postReferential(schema.arrayOfInjects, uri, inputs)(dispatch);
+};
 
 // -- SCENARIOS --
 
@@ -87,11 +87,10 @@ export const importInjectsForScenario = (scenarioId: Scenario['scenario_id'], fi
   });
 };
 
-
-export const createInjectsForScenario = (scenarioId: Scenario['scenario_id'], inputs:InjectInput[])  => (dispatch: Dispatch) =>{
+export const createInjectsForScenario = (scenarioId: Scenario['scenario_id'], inputs: InjectInput[]) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects/bulk`;
-  return postReferential(schema.arrayOfInjects,uri,inputs)(dispatch);
-}
+  return postReferential(schema.arrayOfInjects, uri, inputs)(dispatch);
+};
 
 // -- TARGETS --
 
