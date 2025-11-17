@@ -25,7 +25,7 @@ jobs:
           if [[ ! "$TITLE" =~ $PATTERN ]]; then
             echo "❌ Invalid PR title."
             echo "Required format:"
-            echo "[category] type(scope?): description (#123?)"
+            echo "[category] type(scope?): description (#123)"
             exit 1
           fi
           
