@@ -495,7 +495,7 @@ const CreateInject: FunctionComponent<Props> = ({
         {
           numberOfSelectedElements > 0 && (
             <BulkToolBar
-              info={'Bulk select lets you addd multiple injects. They will appear as "missing content" until configured'}
+              info={t('Bulk select lets you addd multiple injects. They will appear as "missing content" until configured')}
               numberOfSelectedElements={numberOfSelectedElements}
               handleClearSelectedElements={handleClearSelectedElements}
               toolTasks={toolTasks}
