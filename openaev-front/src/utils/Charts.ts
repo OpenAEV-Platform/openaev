@@ -493,8 +493,6 @@ export const horizontalBarsChartOptions = ({
   xaxis: {
     categories: categories ?? [],
     labels: {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // apexcharts typescript do not handle horizontal bar chart well
       formatter: (value: number) => (xFormatter ? xFormatter(value) : value.toString()),
       style: { fontFamily: '"IBM Plex Sans", sans-serif' },
     },
