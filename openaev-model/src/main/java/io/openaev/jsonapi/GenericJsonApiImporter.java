@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 /* Based on https://jsonapi.org/ */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class GenericJsonApiImporter<T extends Base> {
 
   private final EntityManager entityManager;
@@ -56,7 +58,12 @@ public class GenericJsonApiImporter<T extends Base> {
     // Cache keyed by id, with a boolean indicating whether the entity should be persisted or not at
     // the end
     Map<String, Pair<T, Boolean>> entityCache = new HashMap<>();
-    T entity = buildEntity(doc.data(), includedMap, entityCache, includeOptions, true);
+    List<CanRemapWeakRelationships> entitiesNeedingRemapping = new ArrayList<>();
+
+    T entity =
+        buildEntity(
+            doc.data(), includedMap, entityCache, entitiesNeedingRemapping, includeOptions, true);
+    T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
 
     // Persist included entities that not inner relationship
     for (Pair<T, Boolean> value : entityCache.values()) {
@@ -73,10 +80,21 @@ public class GenericJsonApiImporter<T extends Base> {
     // Validate constraint
     entityManager.flush();
 
-    // Persist root entity
-    T entityToMerge =
-        Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
-    return entityManager.merge(entityToMerge);
+    // persists a first time to obtain generated IDs for all db-bound entities
+    // to enable establishing a map from exported ID to new ID
+    entityManager.persist(toPersist);
+
+    Map<String, String> swappedIds =
+        entityCache.entrySet().stream()
+            .collect(
+                Collectors.toMap(Map.Entry::getKey, (entry) -> entry.getValue().getLeft().getId()));
+
+    for (CanRemapWeakRelationships crwr : entitiesNeedingRemapping) {
+      crwr.remap(swappedIds);
+    }
+    // persist a second time to account for remappedIds
+    entityManager.persist(toPersist);
+    return entity;
   }
 
   public void handleImportDocument(
@@ -116,10 +134,19 @@ public class GenericJsonApiImporter<T extends Base> {
     return map;
   }
 
+  private void addToRemapping(
+      List<CanRemapWeakRelationships> entitiesNeedingRemapping, Object obj) {
+    if (!(obj instanceof CanRemapWeakRelationships) || entitiesNeedingRemapping.contains(obj)) {
+      return;
+    }
+    entitiesNeedingRemapping.add((CanRemapWeakRelationships) obj);
+  }
+
   private T buildEntity(
       ResourceObject resource,
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
+      List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions,
       boolean rootEntity) {
     // Sanity check
@@ -182,14 +209,25 @@ public class GenericJsonApiImporter<T extends Base> {
       entityCache.put(id, Pair.of(entity, clazz.isAnnotationPresent(InnerRelationship.class)));
     }
 
+    this.addToRemapping(entitiesNeedingRemapping, entity);
+
     // Populate
-    applyAttributes(entity, resource.attributes());
-    applyRelationships(entity, resource.relationships(), includedMap, entityCache, includeOptions);
+    applyAttributes(entity, entitiesNeedingRemapping, resource.attributes());
+    applyRelationships(
+        entity,
+        resource.relationships(),
+        includedMap,
+        entityCache,
+        entitiesNeedingRemapping,
+        includeOptions);
 
     return entity;
   }
 
-  private void applyAttributes(T entity, Map<String, Object> attributes) {
+  private void applyAttributes(
+      T entity,
+      List<CanRemapWeakRelationships> entitiesNeedingRemapping,
+      Map<String, Object> attributes) {
     if (entity == null || attributes == null || attributes.isEmpty()) {
       return;
     }
@@ -201,6 +239,7 @@ public class GenericJsonApiImporter<T extends Base> {
       }
       Object cast = safeConvert(e.getValue(), f.getType());
       setField(entity, f, cast);
+      this.addToRemapping(entitiesNeedingRemapping, cast);
     }
   }
 
@@ -209,6 +248,7 @@ public class GenericJsonApiImporter<T extends Base> {
       Map<String, Relationship> rels,
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
+      List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions) {
     if (entity == null || rels == null || rels.isEmpty()) {
       return;
@@ -232,7 +272,9 @@ public class GenericJsonApiImporter<T extends Base> {
 
         Collection<Object> target = instantiateCollection(f);
         for (ResourceIdentifier ri : ids) {
-          Object child = resolveOrBuildEntity(ri, includedMap, entityCache, includeOptions);
+          Object child =
+              resolveOrBuildEntity(
+                  ri, includedMap, entityCache, entitiesNeedingRemapping, includeOptions);
           if (child != null) {
             target.add(child);
             setInverseRelation(child, entity);
@@ -244,7 +286,8 @@ public class GenericJsonApiImporter<T extends Base> {
         ResourceIdentifier ri = rel.asOne();
         Object child =
             (ri != null)
-                ? resolveOrBuildEntity(ri, includedMap, entityCache, includeOptions)
+                ? resolveOrBuildEntity(
+                    ri, includedMap, entityCache, entitiesNeedingRemapping, includeOptions)
                 : null;
         setField(entity, f, child);
         if (child != null) {
@@ -258,6 +301,7 @@ public class GenericJsonApiImporter<T extends Base> {
       ResourceIdentifier resourceIdentifier,
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
+      List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions) {
     if (resourceIdentifier == null) {
       return null;
@@ -269,7 +313,8 @@ public class GenericJsonApiImporter<T extends Base> {
     // Available in the bundle
     ResourceObject included = includedMap.get(id);
     if (included != null) {
-      return buildEntity(included, includedMap, entityCache, includeOptions, false);
+      return buildEntity(
+          included, includedMap, entityCache, entitiesNeedingRemapping, includeOptions, false);
     }
 
     // Not present in the bundle, resolve it
