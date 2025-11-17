@@ -9,6 +9,11 @@ import org.springframework.stereotype.Component;
 public class V4_46__Convert_expectations_to_jsonb extends BaseJavaMigration {
 
   @Override
+  public boolean canExecuteInTransaction() {
+    return false;
+  }
+
+  @Override
   public void migrate(Context context) throws Exception {
     try (Statement select = context.getConnection().createStatement()) {
       select.execute(
