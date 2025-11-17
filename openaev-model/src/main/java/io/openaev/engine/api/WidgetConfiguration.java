@@ -9,8 +9,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.openaev.database.model.Filters;
 import io.openaev.jsonapi.CanRemapWeakRelationships;
 import io.openaev.utils.CustomDashboardTimeRange;
-import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
