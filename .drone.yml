@@ -16,9 +16,9 @@ steps:
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
     commands:
+      - mvn spotless:check
       - sleep 60
       - mvn clean install -q -DskipTests
-      - mvn spotless:check
       - cd openaev-api
       - mvn test
       - cd ../openaev-framework
