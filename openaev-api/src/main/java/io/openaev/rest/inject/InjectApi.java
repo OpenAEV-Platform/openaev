@@ -370,8 +370,7 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    if (previewFeatureService.isFeatureEnabled(
-        PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)) {
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)) {
       var injectExecutionCallbackAsString =
           mapper.writeValueAsString(
               InjectExecutionCallback.builder()

@@ -79,7 +79,7 @@ public class BatchQueueService<T extends Queueable> {
 
     // The queue that will contain the object we need to process
     queue = new HashMap<>();
-    for(int i = 0; i < queueConfig.getWorkerNumber(); i++) {
+    for (int i = 0; i < queueConfig.getWorkerNumber(); i++) {
       queue.put(i, new LinkedBlockingQueue<>());
     }
 
