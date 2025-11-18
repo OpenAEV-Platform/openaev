@@ -1,7 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -61,11 +61,11 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector logo")
   private String logoUrl;
 
-  @Type(StringArrayType.class)
+  @Type(ListArrayType.class)
   @Column(name = "catalog_connector_use_cases")
   @JsonProperty("catalog_connector_use_cases")
   @Schema(description = "Connector use_cases")
-  private String[] useCases;
+  private Set<String> useCases = new HashSet<>();
 
   @Column(name = "catalog_connector_verified")
   @JsonProperty("catalog_connector_verified")
@@ -117,6 +117,7 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector container image")
   private String containerImage;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "catalog_connector_type")
   @JsonProperty("catalog_connector_type")
   @Schema(description = "Connector type")
@@ -148,5 +149,5 @@ public class CatalogConnector implements Base {
       orphanRemoval = true)
   @JsonProperty("catalog_connector_instances")
   @NotNull
-  private Set<ConnectorInstance> configurations = new HashSet<>();
+  private Set<ConnectorInstance> instances = new HashSet<>();
 }

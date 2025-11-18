@@ -47,4 +47,8 @@ public class ConnectorInstanceConfiguration implements Base {
   @NotNull
   @JsonSerialize(using = MonoIdDeserializer.class)
   private ConnectorInstance connectorInstance;
+
+  @Column(name = "connector_instance_configuration_is_encrypted")
+  @JsonProperty("connector_instance_configuration_is_encrypted")
+  private boolean isEncrypted = false;
 }
