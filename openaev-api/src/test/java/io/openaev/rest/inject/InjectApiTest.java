@@ -40,10 +40,12 @@ import io.openaev.service.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,6 +62,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -82,6 +85,7 @@ class InjectApiTest extends IntegrationTest {
   static Agent AGENT;
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
+  @Autowired private ApplicationContext applicationContext;
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
@@ -105,6 +109,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
@@ -116,6 +121,9 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
   @MockBean private JavaMailSender javaMailSender;
+
+  @Autowired private EntityManager entityManager;
+  @Autowired private InjectTestHelper injectTestHelper;
 
   @BeforeAll
   void beforeAll() {
@@ -798,17 +806,8 @@ class InjectApiTest extends IntegrationTest {
   class handleInjectExecutionCallback {
 
     private Inject getPendingInjectWithAssets() {
-      return injectComposer
-          .forInject(InjectFixture.getDefaultInject())
-          .withEndpoint(
-              endpointComposer
-                  .forEndpoint(EndpointFixture.createEndpoint())
-                  .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
-                  .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentSession())))
-          .withInjectStatus(
-              injectStatusComposer.forInjectStatus(InjectStatusFixture.createPendingInjectStatus()))
-          .persist()
-          .get();
+      return injectTestHelper.getPendingInjectWithAssets(
+          injectComposer, endpointComposer, agentComposer, injectStatusComposer);
     }
 
     private void performCallbackRequest(String agentId, String injectId, InjectExecutionInput input)
@@ -838,6 +837,8 @@ class InjectApiTest extends IntegrationTest {
         input.setAction(InjectExecutionAction.command_execution);
         input.setStatus("SUCCESS");
         Inject inject = getPendingInjectWithAssets();
+
+        entityManager.flush();
 
         // -- EXECUTE --
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
