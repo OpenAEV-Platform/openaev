@@ -1,5 +1,40 @@
 package io.openaev.rest;
 
+import com.jayway.jsonpath.JsonPath;
+import io.openaev.IntegrationTest;
+import io.openaev.database.model.Grant;
+import io.openaev.database.model.Group;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.*;
+import io.openaev.helper.StreamHelper;
+import io.openaev.rest.user.form.login.LoginUserInput;
+import io.openaev.rest.user.form.login.ResetUserInput;
+import io.openaev.rest.user.form.user.CreateUserInput;
+import io.openaev.rest.user.form.user.UpdateUserInput;
+import io.openaev.service.MailingService;
+import io.openaev.utils.fixtures.OrganizationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.OrganizationComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
+import net.javacrumbs.jsonunit.core.Option;
+import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.UserFixture.EMAIL;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -13,39 +48,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.database.model.Grant;
-import io.openaev.database.model.Group;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.User;
-import io.openaev.database.repository.*;
-import io.openaev.rest.user.form.login.LoginUserInput;
-import io.openaev.rest.user.form.login.ResetUserInput;
-import io.openaev.rest.user.form.user.CreateUserInput;
-import io.openaev.rest.user.form.user.UpdateUserInput;
-import io.openaev.service.MailingService;
-import io.openaev.utils.fixtures.OrganizationFixture;
-import io.openaev.utils.fixtures.ScenarioFixture;
-import io.openaev.utils.fixtures.TagFixture;
-import io.openaev.utils.fixtures.UserFixture;
-import io.openaev.utils.fixtures.composers.OrganizationComposer;
-import io.openaev.utils.fixtures.composers.TagComposer;
-import io.openaev.utils.fixtures.composers.UserComposer;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import net.javacrumbs.jsonunit.core.Option;
-import org.junit.jupiter.api.*;
-import org.mockito.ArgumentCaptor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-
 @TestInstance(PER_CLASS)
+@Transactional
 class UserApiTest extends IntegrationTest {
 
   private User savedUser;
@@ -65,27 +69,13 @@ class UserApiTest extends IntegrationTest {
   @Autowired private OrganizationComposer organisationComposer;
   @Autowired private TagRepository tagRepository;
 
-  @BeforeAll
+  @BeforeEach
   public void setup() {
     // Create user
     User user = new User();
     user.setEmail(EMAIL);
     user.setPassword(UserFixture.ENCODED_PASSWORD);
-    if (this.userRepository.findByEmailIgnoreCase(EMAIL).isEmpty()) {
-      savedUser = this.userRepository.save(user);
-    } else {
-      savedUser = this.userRepository.findByEmailIgnoreCase(EMAIL).get();
-    }
-  }
-
-  @AfterAll
-  public void teardown() {
-    this.scenarioRepository.deleteAll();
-    this.userRepository.deleteAll();
-    this.groupRepository.deleteAll();
-    this.grantRepository.deleteAll();
-    this.organizationRepository.deleteAll();
-    tagRepository.deleteAll(this.tagComposer.generatedItems);
+    savedUser = this.userRepository.save(user);
   }
 
   @Nested
@@ -175,6 +165,7 @@ class UserApiTest extends IntegrationTest {
     @Test
     @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
     void given_known_create_user_in_uppercase_input_should_return_conflict() throws Exception {
+
       CreateUserInput input = new CreateUserInput();
       input.setEmail(EMAIL.toUpperCase());
 
@@ -341,15 +332,19 @@ class UserApiTest extends IntegrationTest {
     grantPlanner.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
     grantPlanner.setGroup(group);
     grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
-    grantRepository.saveAll(List.of(grantObserver, grantPlanner));
-    group.setGrants(List.of(grantObserver, grantPlanner));
-    group.setUsers(List.of(user));
+    Iterable<Grant> grants = grantRepository.saveAll(List.of(grantObserver, grantPlanner));
+    group.getGrants().addAll(StreamHelper.fromIterable(grants));
+    group.getUsers().add(user);
     group = groupRepository.save(group);
+
+    Iterable<Group> g = groupRepository.findAll();
 
     UpdateUserInput updateUserInput = new UpdateUserInput();
     updateUserInput.setFirstname(user.getFirstname());
     updateUserInput.setLastname(user.getLastname());
     updateUserInput.setEmail(user.getEmail());
+
+    Iterable<Grant> grantss = grantRepository.findAll();
 
     String response =
         mvc.perform(
@@ -361,8 +356,8 @@ class UserApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-    Map<String, Object> grants = JsonPath.read(response, "$.user_grants");
-    assertEquals(1, grants.size(), 1);
-    assertEquals(Grant.GRANT_TYPE.PLANNER.name(), grants.get(scenario.getId()));
+    Map<String, Object> grantsResults = JsonPath.read(response, "$.user_grants");
+    assertEquals(1, grantsResults.size(), 1);
+    assertEquals(Grant.GRANT_TYPE.PLANNER.name(), grantsResults.get(scenario.getId()));
   }
 }
