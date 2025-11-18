@@ -5,7 +5,9 @@ import { arrayOfDomains } from './domain-schema';
 
 const DOMAIN_URI = '/api/domains';
 
-// @ts-ignore
-export const fetchDomains = () => (dispatch: Dispatch) => {
+
+const fetchDomains = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfDomains, DOMAIN_URI)(dispatch);
 };
+
+export default fetchDomains;
