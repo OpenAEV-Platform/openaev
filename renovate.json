@@ -15,7 +15,6 @@
     "release/current",
     "master"
   ],
-  "semanticCommits": "enabled",
   "packageRules": [
     {
       "matchUpdateTypes": [
@@ -28,20 +27,20 @@
         "npm",
         "node-version"
       ],
-      "commitMessagePrefix": "[frontend]"
+      "commitMessagePrefix": "[frontend] chore(deps):"
     },
     {
       "matchDatasources": [
         "maven"
       ],
-      "commitMessagePrefix": "[backend]"
+      "commitMessagePrefix": "[backend] chore(deps):"
     },
     {
       "matchDatasources": [
         "docker",
         "orb"
       ],
-      "commitMessagePrefix": "[tool]"
+      "commitMessagePrefix": "[tool] chore(deps):"
     },
     {
       "matchPackageNames": [
