@@ -73,11 +73,11 @@ public class V4_48__Implement_Domains_notion extends BaseJavaMigration {
   }
 }
 
-//Rollback script
+// Rollback script
 
-//DROP INDEX IF EXISTS idx_payloads_domains_domain_id;
-//DROP INDEX IF EXISTS idx_payloads_domains_payload_id;
-//DROP TABLE IF EXISTS payloads_domains;
-//DROP INDEX IF EXISTS idx_injectors_contracts_domains_domain_id;
-//DROP INDEX IF EXISTS idx_injectors_contracts_domains_injector_contract_id;
-//DROP TABLE IF EXISTS injectors_contracts_domains;
+// DROP INDEX IF EXISTS idx_payloads_domains_domain_id;
+// DROP INDEX IF EXISTS idx_payloads_domains_payload_id;
+// DROP TABLE IF EXISTS payloads_domains;
+// DROP INDEX IF EXISTS idx_injectors_contracts_domains_domain_id;
+// DROP INDEX IF EXISTS idx_injectors_contracts_domains_injector_contract_id;
+// DROP TABLE IF EXISTS injectors_contracts_domains;
