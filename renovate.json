@@ -15,7 +15,6 @@
     "release/current",
     "master"
   ],
-  test
   "packageRules": [
     {
       "matchUpdateTypes": [
