@@ -85,8 +85,6 @@ public class DomainService {
                     null)));
   }
 
-  public Set<Domain> upserts(final Set<Domain> domains) {
-    return domains.stream().map(this::upsert).collect(Collectors.toSet());
   }
 
   // -- OPTION --
