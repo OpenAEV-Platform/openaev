@@ -45,8 +45,18 @@ public class AgentService {
     return this.agentRepository.save(agent);
   }
 
-  public Iterable<Agent> saveAllAgents(List<Agent> agents) {
-    return agentRepository.saveAll(agents);
+  public List<Agent> saveAllAgents(List<Agent> agents) {
+    List<Agent> agentsSaved = new ArrayList<>();
+    // Improve perfs for save all
+    for (int i = 0; i < agents.size(); i++) {
+      agentsSaved.add(agentRepository.save(agents.get(i)));
+      // Flush and clear the session every 250 (batch_size property) inserts
+      if (i % 250 == 0) {
+        entityManager.flush();
+        entityManager.clear();
+      }
+    }
+    return agentsSaved;
   }
 
   public void deleteAgent(@NotBlank final String agentId) {
