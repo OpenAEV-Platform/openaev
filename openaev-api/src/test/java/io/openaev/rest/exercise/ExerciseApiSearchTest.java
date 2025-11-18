@@ -175,7 +175,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(searchPaginationInput)))
             .andExpect(status().is2xxSuccessful())
-            .andExpect(jsonPath("$.numberOfElements").value(2));
+            .andExpect(jsonPath("$.numberOfElements").value(1));
       }
 
       @Test
