@@ -24,6 +24,7 @@ public class FileService {
   public static final String COLLECTORS_IMAGES_BASE_PATH = "/collectors/images/";
   public static final String EXECUTORS_IMAGES_ICONS_BASE_PATH = "/executors/images/icons/";
   public static final String EXECUTORS_IMAGES_BANNERS_BASE_PATH = "/executors/images/banners/";
+  public static final String CONNECTORS_LOGO_PATH = "/connectors/logos/";
   public static final String EXT_PNG = ".png";
   private MinioConfig minioConfig;
   private MinioClient minioClient;

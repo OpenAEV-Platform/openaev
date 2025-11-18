@@ -83,7 +83,7 @@ public class ConnectorInstance implements Base {
 
   @OneToMany(
       mappedBy = "connectorInstance",
-      fetch = FetchType.EAGER,
+      fetch = FetchType.LAZY,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("connector_instance_configurations")

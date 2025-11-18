@@ -40,7 +40,7 @@ public enum ResourceType {
   STIX_BUNDLE,
   OBJECTIVE,
   EVALUATION,
-
+    CATALOG,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.
