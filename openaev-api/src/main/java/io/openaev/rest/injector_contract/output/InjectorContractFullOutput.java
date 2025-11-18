@@ -1,11 +1,8 @@
 package io.openaev.rest.injector_contract.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.*;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Payload;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -43,22 +40,27 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   @JsonProperty("injector_contract_attack_patterns")
   private List<String> attackPatterns;
 
+  @Schema(description = "Domain IDs")
+  @JsonProperty("injector_contract_domains")
+  private List<String> domains;
+
   @JsonProperty("injector_contract_arch")
   private Payload.PAYLOAD_EXECUTION_ARCH arch;
 
   public InjectorContractFullOutput(
-      String id,
-      String externalId,
-      Map<String, String> labels,
-      String content,
-      PLATFORM_TYPE[] platforms,
-      String payloadType,
-      String injectorName,
-      String collectorType,
-      String injectorType,
-      String[] attackPatterns,
-      Instant updatedAt,
-      Payload.PAYLOAD_EXECUTION_ARCH arch) {
+          String id,
+          String externalId,
+          Map<String, String> labels,
+          String content,
+          PLATFORM_TYPE[] platforms,
+          String payloadType,
+          String injectorName,
+          String collectorType,
+          String injectorType,
+          String[] attackPatterns,
+          List<String> domains,
+          Instant updatedAt,
+          Payload.PAYLOAD_EXECUTION_ARCH arch) {
     super(id, externalId, updatedAt);
     this.setLabels(labels);
     this.setContent(content);
@@ -70,6 +72,8 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         attackPatterns != null
             ? new ArrayList<>(Arrays.asList(attackPatterns))
             : new ArrayList<>());
+      this.setDomains(domains != null ? new ArrayList<>(domains) : new ArrayList<>());
+
     this.setArch(arch);
     this.setHasFullDetails(true);
   }
@@ -89,9 +93,23 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
             .map(AttackPattern::getId)
             .toList()
             .toArray(new String[0]),
+            resolveEffectiveDomains(sourceContract.getDomains().stream().map(Domain::getId).toArray(String[]::new), sourceContract.getPayload() != null
+                    ? sourceContract.getPayload().getDomains().stream().map(Domain::getId).toArray(String[]::new)
+                    : new String[0]),
         sourceContract.getUpdatedAt(),
         sourceContract.getPayload() == null
             ? null
             : sourceContract.getPayload().getExecutionArch());
   }
+
+    private static List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
+        String[] effectiveDomains = (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
+        if (effectiveDomains == null) {
+            return List.of();
+        }
+        return Arrays.stream(effectiveDomains)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
 }
