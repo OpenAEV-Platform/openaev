@@ -1,7 +1,7 @@
 package io.openaev.helper;
 
 import io.openaev.database.model.InjectExpectation.EXPECTATION_STATUS;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 public class InjectExpectationHelper {
 

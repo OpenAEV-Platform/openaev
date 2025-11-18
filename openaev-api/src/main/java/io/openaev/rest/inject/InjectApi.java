@@ -122,7 +122,8 @@ public class InjectApi extends RestBehavior {
     User currentUser = userService.currentUser();
     List<Inject> injects =
         injectRepository.findAll(
-            Specification.where(SpecificationUtils.<Inject>hasIdIn(targetIds))
+            Specification.<Inject>unrestricted()
+                .and(SpecificationUtils.hasIdIn(targetIds))
                 .and(
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),

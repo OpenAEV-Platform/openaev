@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.database.model.*;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.*;

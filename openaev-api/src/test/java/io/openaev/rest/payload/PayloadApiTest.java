@@ -35,9 +35,9 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
@@ -56,7 +56,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @Resource private ObjectMapper objectMapper;
 
-  @MockBean private Ee eeService;
+  @MockitoBean private Ee eeService;
 
   @BeforeAll
   void beforeAll() {

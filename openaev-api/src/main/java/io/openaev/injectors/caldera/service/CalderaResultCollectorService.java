@@ -1,7 +1,6 @@
 package io.openaev.injectors.caldera.service;
 
 import io.openaev.database.model.*;
-import io.openaev.database.model.InjectStatus;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.caldera.CalderaContract;
 import io.openaev.injectors.caldera.model.ResultStatus;

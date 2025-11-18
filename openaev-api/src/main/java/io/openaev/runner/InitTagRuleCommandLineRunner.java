@@ -1,13 +1,11 @@
 package io.openaev.runner;
 
-import static io.openaev.database.model.User.*;
-
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,7 +1,7 @@
 package io.openaev.database.specification;
 
 import io.openaev.database.model.Variable;
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class VariableSpecification {

@@ -10,10 +10,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
-import io.openaev.stix.types.*;
+import io.openaev.stix.types.BaseType;
+import io.openaev.stix.types.Complex;
 import io.openaev.stix.types.Dictionary;
+import io.openaev.stix.types.Identifier;
 import java.util.*;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -85,9 +86,7 @@ public class Parser {
   private Map<String, BaseType<?>> jsonObjectToPropertyMap(JsonNode propertyNode)
       throws JsonProcessingException, ParsingException {
     Map<String, BaseType<?>> properties = new HashMap<>();
-    Iterator<Map.Entry<String, JsonNode>> iterator = propertyNode.fields();
-    while (iterator.hasNext()) {
-      Map.Entry<String, JsonNode> entry = iterator.next();
+    for (Map.Entry<String, JsonNode> entry : propertyNode.properties()) {
       properties.put(entry.getKey(), parseProperty(entry.getKey(), entry.getValue()));
     }
     return properties;

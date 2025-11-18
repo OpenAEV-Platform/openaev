@@ -240,27 +240,24 @@ public class LadeService {
                   dependencySelectField("source", "Source", "workzone", workzoneHostsMap));
             }
             JsonNode parameters = specs.get("parameters");
-            Iterator<Map.Entry<String, JsonNode>> fields = parameters.fields();
-            fields.forEachRemaining(
-                entry -> {
-                  String key = entry.getKey();
-                  JsonNode parameter = entry.getValue();
-                  JsonNode nameNode = parameter.get("name");
-                  String name = nameNode != null ? nameNode.asText() : key;
-                  List<String> types =
-                      asStream(parameter.get("types").elements()).map(JsonNode::asText).toList();
-                  if (types.contains("host.nics.ip")) {
-                    builder.mandatory(
-                        dependencySelectField(key, name, "workzone", workzoneHostsIps));
-                  } else if (types.contains("boolean")) {
-                    JsonNode defaultNode = parameter.get("default");
-                    builder.optional(checkboxField(key, name, defaultNode.booleanValue()));
-                  } else if (types.contains("string")) {
-                    JsonNode defaultNode = parameter.get("default");
-                    builder.optional(
-                        textField(key, name, defaultNode != null ? defaultNode.asText() : ""));
-                  }
-                });
+            for (Map.Entry<String, JsonNode> entry : parameters.properties()) {
+              String key = entry.getKey();
+              JsonNode parameter = entry.getValue();
+              JsonNode nameNode = parameter.get("name");
+              String name = nameNode != null ? nameNode.asText() : key;
+              List<String> types =
+                  asStream(parameter.get("types").elements()).map(JsonNode::asText).toList();
+              if (types.contains("host.nics.ip")) {
+                builder.mandatory(dependencySelectField(key, name, "workzone", workzoneHostsIps));
+              } else if (types.contains("boolean")) {
+                JsonNode defaultNode = parameter.get("default");
+                builder.optional(checkboxField(key, name, defaultNode.booleanValue()));
+              } else if (types.contains("string")) {
+                JsonNode defaultNode = parameter.get("default");
+                builder.optional(
+                    textField(key, name, defaultNode != null ? defaultNode.asText() : ""));
+              }
+            }
             Contract contractInstance =
                 executableContract(
                     contractConfig,

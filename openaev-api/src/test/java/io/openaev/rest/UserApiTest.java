@@ -39,9 +39,9 @@ import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -60,7 +60,7 @@ class UserApiTest extends IntegrationTest {
   @Autowired private GrantRepository grantRepository;
   @Autowired private TagComposer tagComposer;
 
-  @MockBean private MailingService mailingService;
+  @MockitoBean private MailingService mailingService;
   @Autowired private UserComposer userComposer;
   @Autowired private OrganizationComposer organisationComposer;
   @Autowired private TagRepository tagRepository;

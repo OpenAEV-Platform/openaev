@@ -1,8 +1,8 @@
 package io.openaev.database.specification;
 
 import io.openaev.database.model.Challenge;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class ChallengeSpecification {
