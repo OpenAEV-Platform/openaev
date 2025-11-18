@@ -331,7 +331,11 @@ const CreateInject: FunctionComponent<Props> = ({
       }}
     >
       <>
-        <div style={{overflowY: 'auto', maxHeight: theme.spacing(120)}}>
+        <div style={{
+          overflowY: 'auto',
+          maxHeight: theme.spacing(120),
+        }}
+        >
           <PaginationComponentV2
             fetch={searchInjectorContracts}
             searchPaginationInput={searchPaginationInput}
