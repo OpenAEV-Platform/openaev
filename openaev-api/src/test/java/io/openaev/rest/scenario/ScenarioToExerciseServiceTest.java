@@ -8,7 +8,7 @@ import static io.openaev.utils.fixtures.DocumentFixture.getDocumentJpeg;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.ObjectiveFixture.OBJECTIVE_NAME;
 import static io.openaev.utils.fixtures.ObjectiveFixture.getObjective;
-import static io.openaev.utils.fixtures.TagFixture.getTag;
+import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.*;
@@ -111,7 +111,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
         });
 
     // Tag
-    Tag tag = getTag();
+    Tag tag = getTagNoId();
     Tag tagSaved = this.tagRepository.save(tag);
     TAG_ID = tagSaved.getId();
     scenario.setTags(

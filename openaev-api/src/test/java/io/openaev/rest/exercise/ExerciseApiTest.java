@@ -228,7 +228,7 @@ public class ExerciseApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    io.openaev.database.model.Tag tag2 = TagFixture.getTag();
+    io.openaev.database.model.Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
 
@@ -265,7 +265,7 @@ public class ExerciseApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    Tag tag2 = TagFixture.getTag();
+    Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
     CheckExerciseRulesInput input = new CheckExerciseRulesInput();

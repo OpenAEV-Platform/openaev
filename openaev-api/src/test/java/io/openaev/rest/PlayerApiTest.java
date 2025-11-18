@@ -7,9 +7,7 @@ import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -252,7 +250,7 @@ class PlayerApiTest extends IntegrationTest {
   private PlayerInput buildPlayerInput() {
     Organization organization =
         organizationRepository.save(OrganizationFixture.createOrganization());
-    Tag tag = tagRepository.save(TagFixture.getTag());
+    Tag tag = tagRepository.save(TagFixture.getTagNoId());
     PlayerInput player = PlayerFixture.createPlayerInput();
     player.setOrganizationId(organization.getId());
     player.setTagIds(List.of(tag.getId()));
