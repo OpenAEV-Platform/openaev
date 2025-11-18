@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 
 public class FilterUtilsJpa {
