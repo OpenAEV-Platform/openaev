@@ -345,6 +345,7 @@ export const storeHelper = state => ({
   getTag: id => entity(id, 'tags', state),
   getTags: () => entities('tags', state),
   getTagsMap: () => maps('tags', state),
+
   // injects
   getInject: id => entity(id, 'injects', state),
   getAtomicTesting: id => entity(id, 'atomics', state),
@@ -479,4 +480,6 @@ export const storeHelper = state => ({
     l => l.get('lessons_question_scenario') === id,
   ),
   getAgents: () => entities('agents', state),
+  // domains
+  getDomains: () => entities('domains', state),
 });
