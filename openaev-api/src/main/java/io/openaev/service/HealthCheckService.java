@@ -10,6 +10,7 @@ import io.openaev.config.MinioConfig;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.repository.HealthCheckRepository;
 import io.openaev.driver.MinioDriver;
+import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.service.exception.HealthCheckFailureException;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -18,7 +19,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Service containing the logic related to service health checks */
@@ -27,11 +27,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class HealthCheckService {
 
-  @Autowired private HealthCheckRepository healthCheckRepository;
+  private final HealthCheckRepository healthCheckRepository;
 
-  @Autowired private MinioConfig minioConfig;
+  private final MinioConfig minioConfig;
 
-  @Autowired private MinioDriver minioDriver;
+  private final MinioDriver minioDriver;
+
+  private final SmtpService smtpService;
 
   @Resource private RabbitmqConfig rabbitmqConfig;
 
@@ -43,6 +45,7 @@ public class HealthCheckService {
    */
   public void runHealthCheck() throws HealthCheckFailureException {
     runDatabaseCheck();
+    runSmtpCheck();
     runRabbitMQCheck(createRabbitMQConnectionFactory());
     runFileStorageCheck();
   }
@@ -105,6 +108,14 @@ public class HealthCheckService {
         | ServerException
         | XmlParserException e) {
       throw new HealthCheckFailureException("FileStorage check failure", e);
+    }
+  }
+
+  protected void runSmtpCheck() throws HealthCheckFailureException {
+    try {
+      this.smtpService.testConnection();
+    } catch (Exception e) {
+      throw new HealthCheckFailureException("Smtp check failure", e);
     }
   }
 }

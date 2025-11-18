@@ -3,6 +3,7 @@ package io.openaev.injectors.email.service;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.utils.base.ExternalServiceBase;
 import jakarta.annotation.PostConstruct;
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class SmtpService extends ExternalServiceBase {
 
   @PostConstruct
   private void init() {
-    this.testConnection();
+    this.testConnectionAndSetState();
   }
 
   public MimeMessage createMimeMessage() {
@@ -41,22 +42,27 @@ public class SmtpService extends ExternalServiceBase {
   // Check connection every 10 seconds
   @Scheduled(fixedDelay = 10000, initialDelay = 10000)
   public void connectionListener() {
-    this.testConnection();
+    this.testConnectionAndSetState();
   }
 
-  private void testConnection() {
+  private void testConnectionAndSetState() {
     if (enabled) {
       try {
-        if (mailSender instanceof JavaMailSenderImpl javaMailSender) {
-          javaMailSender.testConnection();
-          this.saveServiceState(SMTP_SETTINGS_KEY, true);
-        } else {
-          this.saveServiceState(SMTP_SETTINGS_KEY, false);
-        }
+        testConnection();
+        this.saveServiceState(SMTP_SETTINGS_KEY, true);
       } catch (Exception e) {
         log.warn(e.getMessage());
         this.saveServiceState(SMTP_SETTINGS_KEY, false);
       }
+    }
+  }
+
+  public void testConnection() throws MessagingException, IllegalStateException {
+    if (enabled) {
+      if (!(mailSender instanceof JavaMailSenderImpl javaMailSender)) {
+        throw new IllegalStateException("Mail sender is not JavaMailSenderImpl");
+      }
+      javaMailSender.testConnection();
     }
   }
 

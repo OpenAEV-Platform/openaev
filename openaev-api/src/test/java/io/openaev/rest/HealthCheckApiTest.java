@@ -20,7 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @SpringBootTest
 @TestInstance(PER_CLASS)
-public class HealthCheckApiTest extends IntegrationTest {
+class HealthCheckApiTest extends IntegrationTest {
 
   private static final String KEY = "KEY";
 
