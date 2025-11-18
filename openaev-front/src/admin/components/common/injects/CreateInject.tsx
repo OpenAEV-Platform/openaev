@@ -30,7 +30,6 @@ import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
 
-
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
   bodyItems: { display: 'flex' },
