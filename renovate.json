@@ -15,6 +15,7 @@
     "release/current",
     "master"
   ],
+  "semanticCommits": "enabled",
   "packageRules": [
     {
       "matchUpdateTypes": [
