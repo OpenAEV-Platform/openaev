@@ -318,6 +318,9 @@ public class InjectorContractService {
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
 
+    Expression<String[]> domainsIdsExpression =
+        createJoinArrayAggOnId(cb, injectorContractRoot, "domains");
+
     Expression<String[]> payloadDomainsIdsExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractPayloadJoin, "domains");
 
@@ -334,6 +337,7 @@ public class InjectorContractService {
             injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
             attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
             payloadDomainsIdsExpression.alias("payload_domains"),
+            domainsIdsExpression.alias("injector_contract_domains"),
             injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
             injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"))
         .distinct(true);
@@ -371,14 +375,12 @@ public class InjectorContractService {
   }
 
   private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
-      String[] effectiveDomains = (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
-      if (effectiveDomains == null) {
-          return List.of();
-      }
-      return Arrays.stream(effectiveDomains)
-              .filter(Objects::nonNull)
-              .distinct()
-              .toList();
+    String[] effectiveDomains =
+        (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
+    if (effectiveDomains == null) {
+      return List.of();
+    }
+    return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
   }
 
   private void selectForInjectorContractBase(

@@ -134,11 +134,11 @@ public class InjectorContract implements Base {
 
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
-      name = "payloads_domains",
-      joinColumns = @JoinColumn(name = "payload_id"),
+      name = "injectors_contracts_domains",
+      joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
   @JsonSerialize(using = MultiIdSetDeserializer.class)
-  @JsonProperty("payload_domains")
+  @JsonProperty("injectors_domains")
   private Set<Domain> domains = new HashSet<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
