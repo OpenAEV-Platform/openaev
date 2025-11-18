@@ -5,12 +5,11 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "domains")
@@ -22,45 +21,35 @@ import java.time.Instant;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Domain implements Base {
 
-    public enum DomainName {
-        ENDPOINT,
-        NETWORK,
-        WEB_APPLICATION,
-        EMAIL_INFILTRATION,
-        DATA_EXFILTRATION,
-        URL_FILTERING,
-        CLOUD,
-    }
+  @Id
+  @Column(name = "domain_id")
+  @JsonProperty("domain_id")
+  @GeneratedValue(generator = "UUID")
+  @UuidGenerator
+  @EqualsAndHashCode.Include
+  @NotBlank
+  private String id;
 
-    @Id
-    @Column(name = "domain_id")
-    @JsonProperty("domain_id")
-    @GeneratedValue(generator = "UUID")
-    @UuidGenerator
-    @EqualsAndHashCode.Include
-    @NotBlank
-    private String id;
+  @Column(name = "domain_name")
+  @JsonProperty("domain_name")
+  @NotBlank
+  @Queryable(searchable = true, filterable = true, sortable = true)
+  private String name;
 
-    @Column(name = "domain_name")
-    @JsonProperty("domain_name")
-    @NotBlank
-    @Queryable(searchable = true, filterable = true, sortable = true)
-    private DomainName name;
+  @Column(name = "domain_color")
+  @JsonProperty("domain_color")
+  @NotBlank
+  private String color;
 
-    @Column(name = "domain_color")
-    @JsonProperty("domain_color")
-    @NotBlank
-    private String color;
+  @CreationTimestamp
+  @Queryable(filterable = true, sortable = true, label = "created at")
+  @Column(name = "domain_created_at", updatable = false)
+  @JsonProperty("domain_created_at")
+  private Instant creationDate;
 
-    @CreationTimestamp
-    @Queryable(filterable = true, sortable = true, label = "created at")
-    @Column(name = "domain_created_at", updatable = false)
-    @JsonProperty("domain_created_at")
-    private Instant creationDate;
-
-    @UpdateTimestamp
-    @Queryable(filterable = true, sortable = true, label = "updated at")
-    @Column(name = "domain_updated_at")
-    @JsonProperty("domain_updated_at")
-    private Instant updateDate;
+  @UpdateTimestamp
+  @Queryable(filterable = true, sortable = true, label = "updated at")
+  @Column(name = "domain_updated_at")
+  @JsonProperty("domain_updated_at")
+  private Instant updateDate;
 }
