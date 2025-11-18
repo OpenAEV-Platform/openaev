@@ -18,6 +18,7 @@
  import lombok.extern.slf4j.Slf4j;
  import org.springframework.boot.CommandLineRunner;
  import org.springframework.stereotype.Component;
+ import org.springframework.transaction.annotation.Transactional;
 
  @Slf4j
  @RequiredArgsConstructor
@@ -52,35 +53,29 @@
   }
 
   private List<CatalogConnector> extractCatalog(JsonNode rootNode) {
-    List<CatalogConnector> catalogConnectors = new ArrayList<>();
-
-    JsonNode contracts = rootNode.get("contracts");
-    if (contracts != null && contracts.isArray()) {
-      for (JsonNode contract : contracts) {
-          Optional<CatalogConnector> catalog = buildCatalogConnector(contract);
-          catalog.ifPresent(catalogConnectors::add);
+      JsonNode contracts = rootNode.get("contracts");
+      if (contracts == null) {
+          // TODO throw error ?
+          return List.of();
       }
-    }
-    List<CatalogConnector> savedConnectors = catalogConnectorService.upsertAll(catalogConnectors);
 
-    if (contracts != null && contracts.isArray()) {
-      int index = 0;
+    List<CatalogConnector> catalogConnectorList = new ArrayList<>();
+
       for (JsonNode contract : contracts) {
-        CatalogConnector savedConnector = savedConnectors.get(index);
-
-        List<CatalogConnectorConfiguration> configs = buildConnectorConfigurations(contract,
- savedConnector);
-        catalogConnectorConfigurationService.upsertAll(configs);
-
-        index++;
+          CatalogConnector catalogConnector = buildCatalogConnector(contract);
+          catalogConnectorList.add(catalogConnector);
       }
-    }
+      List<CatalogConnector> savedConnectors = catalogConnectorService.saveAll(catalogConnectorList);
 
     return savedConnectors;
   }
 
-  private Optional<CatalogConnector> buildCatalogConnector(JsonNode contract) {
-    CatalogConnector connector = new CatalogConnector();
+  private CatalogConnector buildCatalogConnector(JsonNode contract) {
+
+      CatalogConnector connector = catalogConnectorService
+              .findBySlug(contract.get("slug").asText())
+              .orElseGet(CatalogConnector::new);
+
 
     List<String> useCases = new ArrayList<>();
     JsonNode arrUseCases = contract.get("use_cases");
@@ -125,14 +120,18 @@
         connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.valueOf(containerType.trim().toUpperCase()));
     } else{
         log.error("container_type is null");
-        return Optional.empty();
+        //TODO : return empty
+        connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
     }
-    return Optional.of(connector);
+
+  Set<CatalogConnectorConfiguration> conf = buildConnectorConfigurations(contract, connector);
+  connector.setCatalogConnectorConfigurations(conf);
+
+    return connector;
   }
 
-  private List<CatalogConnectorConfiguration> buildConnectorConfigurations(JsonNode contract,
- CatalogConnector connector) {
-    List<CatalogConnectorConfiguration> configs = new ArrayList<>();
+  private Set<CatalogConnectorConfiguration> buildConnectorConfigurations(JsonNode contract, CatalogConnector connector) {
+    Set<CatalogConnectorConfiguration> configs = new HashSet<>();
 
     JsonNode schema = contract.get("config_schema");
     if (schema == null || schema.isNull()) return configs;
@@ -146,7 +145,9 @@
       String key = it.next();
       JsonNode prop = properties.get(key);
 
-      CatalogConnectorConfiguration conf = new CatalogConnectorConfiguration();
+        CatalogConnectorConfiguration conf = connector.getCatalogConnectorConfigurations().stream()
+                .filter(c ->key.equals(c.getConnectorConfigurationKey())).findFirst()
+                .orElse( new CatalogConnectorConfiguration());
       conf.setCatalogConnector(connector);
       conf.setConnectorConfigurationKey(key);
 
