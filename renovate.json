@@ -65,19 +65,19 @@
     },
     {
       "matchJsonata": [
-        "$exists(isVulnerabilityAlert)"
+        "updateType = 'major' and !$exists(vulnerabilityFixVersion)"
       ],
       "matchBaseBranches": [
-        "release/current"
+        "master"
       ],
       "enabled": false
     },
     {
       "matchJsonata": [
-        "$not($exists(isVulnerabilityAlert))"
+        "updateType != 'major' or $exists(vulnerabilityFixVersion)"
       ],
       "matchBaseBranches": [
-        "master"
+        "release/current"
       ],
       "enabled": false
     }
