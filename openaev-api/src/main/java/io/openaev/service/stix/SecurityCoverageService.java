@@ -463,7 +463,9 @@ public class SecurityCoverageService {
       List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults) {
     List<Complex<?>> coverageValues = new ArrayList<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
-      CoverageResult cov = new CoverageResult(result.type().name(), result.getSuccessRate());
+      CoverageResult cov =
+          new CoverageResult(
+              result.type().name(), result.getSuccessRate() * 100); // force percentage points
       coverageValues.add(new Complex<>(cov));
     }
     return new io.openaev.stix.types.List<>(coverageValues);
