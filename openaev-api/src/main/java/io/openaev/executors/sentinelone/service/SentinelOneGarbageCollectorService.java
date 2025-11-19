@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class SentinelOneGarbageCollectorService implements Runnable {
+    // TODO refacto with other GarbageCollector
   // Clean payloads older than 24 hours
   private static final String WINDOWS_COMMAND_LINE =
       "Get-ChildItem -Path \"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\payloads\",\"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\runtimes\" -Directory -Recurse | Where-Object {$_.CreationTime -lt (Get-Date).AddHours(-24)} | Remove-Item -Recurse -Force";

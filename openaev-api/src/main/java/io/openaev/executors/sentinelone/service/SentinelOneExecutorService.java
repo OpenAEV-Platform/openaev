@@ -95,13 +95,16 @@ public class SentinelOneExecutorService implements Runnable {
   }
 
   @Override
+  // TODO refacto
   public void run() {
     log.info("Running SentinelOne executor endpoints gathering...");
+    // TODO set or filter api or ?
     List<SentinelOneAgent> sentinelOneAgents = this.client.agents();
     Map<String, List<SentinelOneAgent>> siteAgentMap = new HashMap<>();
     Map<String, List<SentinelOneAgent>> accountAgentMap = new HashMap<>();
     Map<String, List<SentinelOneAgent>> groupAgentMap = new HashMap<>();
     if (!sentinelOneAgents.isEmpty()) {
+        // TODO record with id, name and agents list then for each record
       // Create map for each asset group
       for (SentinelOneAgent agent : sentinelOneAgents) {
         siteAgentMap.computeIfAbsent(agent.getSiteId(), k -> new ArrayList<>()).add(agent);
@@ -109,6 +112,7 @@ public class SentinelOneExecutorService implements Runnable {
         groupAgentMap.computeIfAbsent(agent.getGroupId(), k -> new ArrayList<>()).add(agent);
       }
       // Manage agents for site
+        // TODO account first ?
       for (String siteId : siteAgentMap.keySet()) {
         Optional<AssetGroup> existingAssetGroup;
         existingAssetGroup = assetGroupService.findByExternalReference(siteId);
