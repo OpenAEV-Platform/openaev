@@ -18,12 +18,14 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.scenario.form.GetScenariosInput;
-import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -264,7 +266,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
         group.setGrants(List.of(grantObserver, grantPlanner));
-        group.setUsers(List.of(user));
+        group.setUsers(Set.of(user));
         groupRepository.save(group);
         SCENARIO_IDS.add(scenarioGranted.getId());
 

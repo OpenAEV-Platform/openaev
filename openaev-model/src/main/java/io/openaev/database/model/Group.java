@@ -7,6 +7,7 @@ import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MultiIdSetDeserializer;
 import io.openaev.helper.MultiModelDeserializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -58,15 +59,11 @@ public class Group implements Base {
   private List<Grant> grants = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
-  @ManyToMany(fetch = FetchType.EAGER)
-  @JoinTable(
-      name = "users_groups",
-      joinColumns = @JoinColumn(name = "group_id"),
-      inverseJoinColumns = @JoinColumn(name = "user_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @ManyToMany(mappedBy = "groups", fetch = FetchType.EAGER)
+  @JsonSerialize(using = MultiIdSetDeserializer.class)
   @JsonProperty("group_users")
   @Fetch(value = FetchMode.SUBSELECT)
-  private List<User> users = new ArrayList<>();
+  private Set<User> users = new HashSet<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.EAGER)
@@ -89,12 +86,19 @@ public class Group implements Base {
     return users.contains(user);
   }
 
+  //  @Override
+  //  public boolean equals(Object o) {
+  //    if (this == o) return true;
+  //    if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
+  //    Base base = (Base) o;
+  //    return id.equals(base.getId());
+  //  }
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
-    Base base = (Base) o;
-    return id.equals(base.getId());
+    if (o == null || getClass() != o.getClass()) return false;
+    Group group = (Group) o;
+    return Objects.equals(id, group.id);
   }
 
   @Override

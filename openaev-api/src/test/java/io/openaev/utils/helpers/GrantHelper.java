@@ -6,8 +6,8 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.UserRepository;
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +16,7 @@ public class GrantHelper {
   @Autowired private GrantRepository grantRepository;
   @Autowired private UserRepository userRepository;
 
-  private List<Group> getAmbientSecurityContextGroups() {
+  private Set<Group> getAmbientSecurityContextGroups() {
     OpenAEVPrincipal principal = currentUser();
     Optional<User> user = this.userRepository.findById(principal.getId());
 

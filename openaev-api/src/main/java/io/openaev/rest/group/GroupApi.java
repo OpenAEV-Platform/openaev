@@ -1,7 +1,6 @@
 package io.openaev.rest.group;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
 import io.openaev.aop.RBAC;
@@ -11,7 +10,10 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.group.form.*;
+import io.openaev.rest.group.form.GroupCreateInput;
+import io.openaev.rest.group.form.GroupGrantInput;
+import io.openaev.rest.group.form.GroupUpdateRolesInput;
+import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.GrantService;
 import io.openaev.service.GroupService;
@@ -23,6 +25,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.Spliterator;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -78,7 +81,7 @@ public class GroupApi extends RestBehavior {
     Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     Spliterator<User> userSpliterator =
         userRepository.findAllById(input.getUserIds()).spliterator();
-    group.setUsers(stream(userSpliterator, false).collect(toList()));
+    group.setUsers(stream(userSpliterator, false).collect(Collectors.toSet()));
     return groupRepository.save(group);
   }
 

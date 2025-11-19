@@ -1,5 +1,11 @@
 package io.openaev.service;
 
+import static io.openaev.database.model.User.ROLE_ADMIN;
+import static io.openaev.database.model.User.ROLE_USER;
+import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static java.time.Instant.now;
+
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
@@ -14,6 +20,7 @@ import io.openaev.rest.user.form.user.UpdateUserInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
@@ -25,14 +32,6 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.util.*;
-
-import static io.openaev.database.model.User.ROLE_ADMIN;
-import static io.openaev.database.model.User.ROLE_USER;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static java.time.Instant.now;
 
 @Service
 public class UserService {
@@ -122,8 +121,8 @@ public class UserService {
     user.setOrganization(
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     // Find automatic groups to assign
-    List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignable());
+    Set<Group> assignableGroups =
+        new HashSet<>(groupRepository.findAll(GroupSpecification.defaultUserAssignable()));
     user.setGroups(assignableGroups);
     // Save the user
     User savedUser = userRepository.save(user);

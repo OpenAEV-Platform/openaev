@@ -1,5 +1,18 @@
 package io.openaev.rest;
 
+import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.fixtures.UserFixture.EMAIL;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Grant;
@@ -20,6 +33,9 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
@@ -30,23 +46,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static io.openaev.utils.JsonUtils.asJsonString;
-import static io.openaev.utils.fixtures.UserFixture.EMAIL;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -317,10 +316,14 @@ class UserApiTest extends IntegrationTest {
       throws Exception {
 
     Scenario scenario = scenarioRepository.save(ScenarioFixture.createDefaultCrisisScenario());
-    User user = userRepository.save(UserFixture.getUser("test", "test", "test3@gmail.com"));
+
     Group group = new Group();
     group.setName("test");
     group = groupRepository.save(group);
+
+    User userToSave = UserFixture.getUser("test", "test", "test3@gmail.com");
+    userToSave.getGroups().add(group);
+    User user = userRepository.save(userToSave);
 
     Grant grantObserver = new Grant();
     grantObserver.setResourceId(scenario.getId());
@@ -334,17 +337,12 @@ class UserApiTest extends IntegrationTest {
     grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
     Iterable<Grant> grants = grantRepository.saveAll(List.of(grantObserver, grantPlanner));
     group.getGrants().addAll(StreamHelper.fromIterable(grants));
-    group.getUsers().add(user);
     group = groupRepository.save(group);
-
-    Iterable<Group> g = groupRepository.findAll();
 
     UpdateUserInput updateUserInput = new UpdateUserInput();
     updateUserInput.setFirstname(user.getFirstname());
     updateUserInput.setLastname(user.getLastname());
     updateUserInput.setEmail(user.getEmail());
-
-    Iterable<Grant> grantss = grantRepository.findAll();
 
     String response =
         mvc.perform(

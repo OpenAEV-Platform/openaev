@@ -453,7 +453,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         User specificUser = UserFixture.getUser();
         specificUser.setFirstname("bad firstname");
         specificUser.setEmail("bad_email@domain.invalid");
-        specificUser.setGroups(List.of());
+        specificUser.setGroups(Set.of());
         userComposer
             .forUser(specificUser)
             .withToken(
@@ -629,7 +629,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         User specificUser = UserFixture.getUser();
         specificUser.setFirstname("bad firstname");
         specificUser.setEmail("bad_email@domain.invalid");
-        specificUser.setGroups(List.of());
+        specificUser.setGroups(Set.of());
         userComposer
             .forUser(specificUser)
             .withToken(

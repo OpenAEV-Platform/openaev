@@ -190,9 +190,9 @@ public class User implements Base {
       name = "users_groups",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "group_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdSetDeserializer.class)
   @JsonProperty("user_groups")
-  private List<Group> groups = new ArrayList<>();
+  private Set<Group> groups = new HashSet<>();
 
   @ArraySchema(schema = @Schema(description = "Team IDs of the user", type = "string"))
   @Setter
@@ -355,15 +355,21 @@ public class User implements Base {
   }
 
   @Override
+  //  public boolean equals(Object o) {
+  //    if (this == o) {
+  //      return true;
+  //    }
+  //    if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
+  //      return false;
+  //    }
+  //    Base base = (Base) o;
+  //    return this.id.equals(base.getId());
+  //  }
   public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
-      return false;
-    }
-    Base base = (Base) o;
-    return this.id.equals(base.getId());
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    User user = (User) o;
+    return Objects.equals(id, user.id);
   }
 
   @Override

@@ -23,21 +23,23 @@ import io.openaev.utils.fixtures.ScenarioFixture;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Transactional
 class ScenarioToExerciseServiceTest extends IntegrationTest {
 
   @Autowired private ScenarioToExerciseService scenarioToExerciseService;
   @Autowired private LoadService loadService;
 
   @Autowired private ScenarioService scenarioService;
+  @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private TagRepository tagRepository;
@@ -52,37 +54,6 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
 
-  private static String SCENARIO_ID;
-  private static String EXERCISE_ID;
-  private static String USER_ID;
-  private static String TEAM_ID;
-  private static String TEAM_CONTEXTUAL_ID;
-  private static String TAG_ID;
-  private static String DOCUMENT_ARTICLE_ID;
-  private static String CHANNEL_ID;
-  private static String LESSON_CATEGORY_ID;
-  private static String LESSON_QUESTION_ID;
-  private static String INJECT_ID;
-  private static String DOCUMENT_ID;
-  private static String VARIABLE_ID;
-
-  @AfterAll
-  public void teardown() {
-    this.scenarioService.deleteScenario(SCENARIO_ID);
-    this.exerciseRepository.deleteById(EXERCISE_ID);
-    this.userRepository.deleteById(USER_ID);
-    this.teamRepository.deleteById(TEAM_ID);
-    this.teamRepository.deleteById(TEAM_CONTEXTUAL_ID);
-    this.tagRepository.deleteById(TAG_ID);
-    this.documentRepository.deleteById(DOCUMENT_ARTICLE_ID);
-    this.channelRepository.deleteById(CHANNEL_ID);
-    this.lessonsCategoryRepository.deleteById(LESSON_CATEGORY_ID);
-    this.lessonsQuestionRepository.deleteById(LESSON_QUESTION_ID);
-    this.injectRepository.deleteById(INJECT_ID);
-    this.documentRepository.deleteById(DOCUMENT_ID);
-    this.variableRepository.deleteById(VARIABLE_ID);
-  }
-
   @DisplayName("Scenario to Exercise test")
   @Test
   void scenarioToExerciseTest() {
@@ -93,15 +64,12 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // User & Teams
     User user = getUser();
     User userSaved = this.userRepository.save(user);
-    USER_ID = userSaved.getId();
     Team team = getTeam(user);
     Team teamSaved = this.teamRepository.save(team);
-    TEAM_ID = teamSaved.getId();
     Team contextualTeam = getTeam(user);
     contextualTeam.setName("Contextual team");
     contextualTeam.setContextual(true);
     Team contextualTeamSaved = this.teamRepository.save(contextualTeam);
-    TEAM_CONTEXTUAL_ID = contextualTeamSaved.getId();
     scenario.setTeams(
         new ArrayList<>() {
           {
@@ -113,7 +81,6 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // Tag
     Tag tag = getTagNoId();
     Tag tagSaved = this.tagRepository.save(tag);
-    TAG_ID = tagSaved.getId();
     scenario.setTags(
         new HashSet<>() {
           {
@@ -122,7 +89,6 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
         });
 
     Scenario scenarioSaved = this.scenarioService.createScenario(scenario);
-    SCENARIO_ID = scenarioSaved.getId();
 
     // Team Users
     ScenarioTeamUser scenarioTeamUser = new ScenarioTeamUser();
@@ -148,7 +114,6 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // Document
     Document document = getDocumentJpeg();
     Document documentSaved = this.documentRepository.save(document);
-    DOCUMENT_ID = documentSaved.getId();
     scenario.setDocuments(
         new ArrayList<>() {
           {
@@ -162,11 +127,9 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     documentArticle.setName(documentArticleName);
     documentArticle.setType("image/jpeg");
     Document documentArticleSaved = this.documentRepository.save(documentArticle);
-    DOCUMENT_ARTICLE_ID = documentArticleSaved.getId();
     Channel channel = new Channel();
     channel.setName("A channel");
     Channel channelSaved = this.channelRepository.save(channel);
-    CHANNEL_ID = channelSaved.getId();
     Article article = getArticle(channelSaved);
     article.setDocuments(
         new ArrayList<>() {
@@ -193,12 +156,10 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
           }
         });
     LessonsCategory lessonsCategorySaved = this.lessonsCategoryRepository.save(lessonsCategory);
-    LESSON_CATEGORY_ID = lessonsCategorySaved.getId();
     LessonsQuestion lessonsQuestion = new LessonsQuestion();
     lessonsQuestion.setContent("Content of my question");
     lessonsQuestion.setCategory(lessonsCategory);
     LessonsQuestion lessonsQuestionSaved = this.lessonsQuestionRepository.save(lessonsQuestion);
-    LESSON_QUESTION_ID = lessonsQuestionSaved.getId();
 
     lessonsCategory.setQuestions(
         new ArrayList<>() {
@@ -226,7 +187,6 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
         });
     inject.setScenario(scenarioSaved);
     Inject injectSaved = this.injectRepository.save(inject);
-    INJECT_ID = injectSaved.getId();
     scenario.setInjects(
         new HashSet<>() {
           {
@@ -240,7 +200,6 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     variable.setValue("keyvalue");
     variable.setScenario(scenarioSaved);
     Variable variableSaved = this.variableRepository.save(variable);
-    VARIABLE_ID = variableSaved.getId();
 
     // Default Simulation dashboard
     CustomDashboard defaultDashboard = new CustomDashboard();
@@ -259,8 +218,9 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
                     new Setting(DEFAULT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId())));
     // -- EXECUTE --
     Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false);
-    EXERCISE_ID = exercise.getId();
-    Exercise exerciseSaved = this.loadService.exercise(EXERCISE_ID);
+    entityManager.flush();
+    entityManager.clear();
+    Exercise exerciseSaved = this.loadService.exercise(exercise.getId());
 
     // -- ASSERT --
     assertNotNull(exerciseSaved);
@@ -279,7 +239,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     assertEquals(1, exerciseSaved.getObjectives().size());
     assertEquals(OBJECTIVE_NAME, exerciseSaved.getObjectives().getFirst().getTitle());
     // Documents
-    assertEquals(1, exerciseSaved.getDocuments().size());
+    assertEquals(2, exerciseSaved.getDocuments().size());
     // Articles
     assertEquals(1, exerciseSaved.getArticles().size());
     assertEquals(ARTICLE_NAME, exerciseSaved.getArticles().getFirst().getName());

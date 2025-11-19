@@ -1,5 +1,15 @@
 package io.openaev.rest;
 
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
+import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
+import static io.openaev.utils.fixtures.TeamFixture.getTeam;
+import static io.openaev.utils.fixtures.UserFixture.getUser;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
@@ -13,6 +23,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -21,18 +32,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
-import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
-import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
-import static io.openaev.utils.fixtures.TeamFixture.getTeam;
-import static io.openaev.utils.fixtures.UserFixture.getUser;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -70,18 +69,18 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
     // -- EXECUTE --
     mvc.perform(
-        post(EXERCISE_URI + "/" + lessonsCategory.getExercise().getId() + "/lessons_send")
-          .content(asJsonString(lessonsSendInput))
-          .contentType(MediaType.APPLICATION_JSON)
-          .accept(MediaType.APPLICATION_JSON))
-      .andExpect(status().is2xxSuccessful());
+            post(EXERCISE_URI + "/" + lessonsCategory.getExercise().getId() + "/lessons_send")
+                .content(asJsonString(lessonsSendInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
     verify(mailingService)
-      .sendEmail(
-        lessonSubject,
-        lessonBody,
-        List.of(user),
-        exerciseRepository.findById(lessonsCategory.getExercise().getId()));
+        .sendEmail(
+            lessonSubject,
+            lessonBody,
+            List.of(user),
+            exerciseRepository.findById(lessonsCategory.getExercise().getId()));
   }
 }

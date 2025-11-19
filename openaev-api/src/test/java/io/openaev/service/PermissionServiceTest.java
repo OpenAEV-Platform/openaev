@@ -59,7 +59,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_write_WHEN_has_no_grant_but_Capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.ACCESS_ASSESSMENT)));
+    user.setGroups(Set.of(getGroup(Capability.ACCESS_ASSESSMENT)));
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
     assertTrue(
         permissionService.hasPermission(
@@ -95,7 +95,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_read_WHEN_has_read_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
+    user.setGroups(Set.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
@@ -104,7 +104,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_read_WHEN_has_bypass_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.BYPASS)));
+    user.setGroups(Set.of(getGroup(Capability.BYPASS)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
@@ -113,7 +113,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_write_WHEN_has_read_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
+    user.setGroups(Set.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertFalse(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.WRITE));
@@ -154,7 +154,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_create_WHEN_has_create_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
+    user.setGroups(Set.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
@@ -163,7 +163,7 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_duplicate_WHEN_has_manage_capa() {
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
+    user.setGroups(Set.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
         permissionService.hasPermission(
