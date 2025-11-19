@@ -405,7 +405,7 @@ public class InjectService {
     Inject duplicatedInject = findAndDuplicateInject(id);
     this.throwIfInjectNotLaunchable(duplicatedInject);
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
-    deleteForRelaunch(id);
+    deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
@@ -416,9 +416,9 @@ public class InjectService {
   }
 
   @Transactional
-  public void deleteForRelaunch(String id) {
-    injectDocumentRepository.deleteDocumentsFromInject(id);
-    injectRepository.deleteByIdNative(id);
+  public void deleteForRelaunch(String oldId, String newId) {
+    injectDocumentRepository.updateInjectId(newId, oldId);
+    injectRepository.deleteByIdNative(oldId);
   }
 
   /**
