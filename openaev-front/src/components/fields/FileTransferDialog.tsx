@@ -1,6 +1,6 @@
 import { DescriptionOutlined } from '@mui/icons-material';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import {type FunctionComponent, useEffect, useState} from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type DocumentHelper, type UserHelper } from '../../actions/helper';
@@ -69,13 +69,24 @@ const FileTransferDialog: FunctionComponent<Props> = ({
   const { documents }: { documents: [RawDocument] } = useHelper((helper: DocumentHelper & UserHelper) => ({ documents: helper.getDocuments() }));
 
   useEffect(() => {
-    if (initialDocumentIds.length > 0) {
-      setSelectedDocuments(documents.filter((document) => {
-        const docId = document.document_id;
-        return docId && initialDocumentIds.includes(docId);
-      }));
-    }
+    // If initial data hasn't arrived yet or selectedDocuments already matches it, do nothing
+    if (initialDocumentIds.length === 0) return;
+    const selectedIds = selectedDocuments.map(d => d.document_id);
+
+    const sameArray =
+        selectedIds.length === initialDocumentIds.length &&
+        initialDocumentIds.every(id => selectedIds.includes(id));
+
+    if (sameArray) return;
+
+    // Otherwise, update selectedDocuments
+    setSelectedDocuments(
+        documents.filter(doc =>
+            doc.document_id && initialDocumentIds.includes(doc.document_id)
+        )
+    );
   }, [initialDocumentIds]);
+
 
   const handleSearchDocuments = (value?: string) => {
     setKeyword(value || '');
@@ -137,9 +148,11 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     return tags.length === 0 || tags.every(tag => document.document_tags?.includes(tag.id));
   };
 
+  const selectedIds = selectedDocuments.map(d => d.document_id);
+
   const filteredDocuments = documents.filter((document) => {
-    const isInitialValue = document.document_id && initialDocumentIds?.includes(document.document_id);
-    return !isInitialValue
+    const isSelected = document.document_id && selectedIds.includes(document.document_id);
+    return !isSelected
       && filterByExtensions(document)
       && filterByKeyword(document)
       && filterByTag(document);

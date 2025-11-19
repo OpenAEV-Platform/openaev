@@ -1,7 +1,7 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import {useFieldArray, useForm, useFormContext} from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DocumentHelper } from '../../../../../../actions/helper';
@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../../components/i18n';
 import ItemBoolean from '../../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../../components/ItemTags';
 import { useHelper } from '../../../../../../store';
-import { type Document } from '../../../../../../utils/api-types';
+import {type Document, InjectDocumentInput} from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import DocumentPopover from '../../../../components/documents/DocumentPopover';
@@ -92,9 +92,31 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
     document_attached: boolean;
   }[]) => {
     const docIds = injectDocuments.map(d => d.document_id);
-    const newDocs = documents.filter(d => !docIds.includes(d.document_id));
-    appendInjectDocuments(newDocs);
+    const selectedIds = documents.map(d => d.document_id);
+
+    //Add only documents that are not already present
+    const newDocs = documents
+        .filter(d => !docIds.includes(d.document_id))
+        .map(d => ({
+          document_id: d.document_id,
+          document_attached: hasAttachments,
+        }));
+
+    if (newDocs.length > 0) {
+      appendInjectDocuments(newDocs);
+    }
+
+    //Remove documents that are currently stored but no longer selected
+    const idsToRemove = docIds.filter(id => !selectedIds.includes(id));
+
+    idsToRemove.forEach(id => {
+      const index = injectDocuments.findIndex(d => d.document_id === id);
+      if (index !== -1) {
+        removeInjectDocuments(index);
+      }
+    });
   };
+
 
   return (
     <>
