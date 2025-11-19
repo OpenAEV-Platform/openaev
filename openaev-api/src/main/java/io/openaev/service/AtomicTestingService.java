@@ -19,6 +19,7 @@ import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.form.InjectDocumentInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.mapper.InjectMapper;
@@ -60,7 +61,6 @@ public class AtomicTestingService {
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
   private final GrantService grantService;
-  private final InjectDocumentRepository injectDocumentRepository;
 
   // -- CRUD --
 
@@ -120,25 +120,42 @@ public class AtomicTestingService {
     injectToSave.setAssetGroups(
         fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
 
+    List<String> previousDocumentIds =
+        injectToSave.getDocuments().stream()
+            .map(InjectDocument::getDocument)
+            .map(Document::getId)
+            .toList();
+    List<String> inputDocumentIds =
+        input.getDocuments().stream().map(InjectDocumentInput::getDocumentId).toList();
+
     Inject finalInjectToSave = injectToSave;
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
             .map(
                 i -> {
-                  InjectDocument injectDocument = new InjectDocument();
-                  injectDocument.setInject(finalInjectToSave);
-                  injectDocument.setDocument(
-                      documentRepository.findById(i.getDocumentId()).orElseThrow());
-                  injectDocument.setAttached(i.isAttached());
-                  return injectDocument;
+                  if (!previousDocumentIds.contains(i.getDocumentId())) {
+                    InjectDocument injectDocument = new InjectDocument();
+                    injectDocument.setInject(finalInjectToSave);
+                    injectDocument.setDocument(
+                        documentRepository.findById(i.getDocumentId()).orElseThrow());
+                    injectDocument.setAttached(i.isAttached());
+                    return injectDocument;
+                  }
+                  return null;
                 })
+            .filter(Objects::nonNull)
             .toList();
-    injectToSave.getDocuments().clear();
+    // TODO manage attached attribute updated
+    // Manage documents if they are removed from the inject
+    injectToSave
+        .getDocuments()
+        .removeIf(
+            injectDocument ->
+                previousDocumentIds.contains(injectDocument.getDocument().getId())
+                    && !inputDocumentIds.contains(injectDocument.getDocument().getId()));
     injectToSave.getDocuments().addAll(injectDocuments);
     if (injectId == null) {
       actionMetricCollector.addAtomicTestingCreatedCount();
-    } else {
-      injectDocumentRepository.deleteDocumentsFromInject(injectId);
     }
     Inject inject = injectRepository.save(injectToSave);
     return injectMapper.toInjectResultOverviewOutput(inject);
