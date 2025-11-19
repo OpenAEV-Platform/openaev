@@ -19,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Service containing the logic related to service health checks */
@@ -27,13 +28,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class HealthCheckService {
 
-  private final HealthCheckRepository healthCheckRepository;
+  @Autowired private HealthCheckRepository healthCheckRepository;
 
-  private final MinioConfig minioConfig;
+  @Autowired private MinioConfig minioConfig;
 
-  private final MinioDriver minioDriver;
+  @Autowired private MinioDriver minioDriver;
 
-  private final SmtpService smtpService;
+  @Autowired private SmtpService smtpService;
 
   @Resource private RabbitmqConfig rabbitmqConfig;
 
