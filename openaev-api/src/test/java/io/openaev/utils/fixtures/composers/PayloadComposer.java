@@ -21,6 +21,7 @@ public class PayloadComposer extends ComposerBase<Payload> {
     private final List<OutputParserComposer.Composer> outputParserComposers = new ArrayList<>();
     private final List<DetectionRemediationComposer.Composer> detectionRemediationComposers =
         new ArrayList<>();
+    private final List<AttackPatternComposer.Composer> attackPatternComposers = new ArrayList<>();
 
     public Composer(Payload payload) {
       this.payload = payload;
@@ -61,6 +62,14 @@ public class PayloadComposer extends ComposerBase<Payload> {
       return this;
     }
 
+    public Composer withAttackPattern(AttackPatternComposer.Composer attackPatternWrapper) {
+      attackPatternComposers.add(attackPatternWrapper);
+      List<AttackPattern> tempList = new ArrayList<>(payload.getAttackPatterns());
+      tempList.add(attackPatternWrapper.get());
+      payload.setAttackPatterns(tempList);
+      return this;
+    }
+
     public Composer withOutputParser(OutputParserComposer.Composer outputParserComposer) {
       outputParserComposers.add(outputParserComposer);
       Set<OutputParser> outputParsers = payload.getOutputParsers();
@@ -74,6 +83,7 @@ public class PayloadComposer extends ComposerBase<Payload> {
       documentComposer.ifPresent(DocumentComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
       detectionRemediationComposers.forEach(DetectionRemediationComposer.Composer::persist);
+      attackPatternComposers.forEach(AttackPatternComposer.Composer::persist);
       payload.setId(null);
       payloadRepository.save(payload);
       return this;
@@ -85,6 +95,7 @@ public class PayloadComposer extends ComposerBase<Payload> {
       tagComposers.forEach(TagComposer.Composer::delete);
       payloadRepository.delete(payload);
       detectionRemediationComposers.forEach(DetectionRemediationComposer.Composer::delete);
+      attackPatternComposers.forEach(AttackPatternComposer.Composer::delete);
       return this;
     }
 

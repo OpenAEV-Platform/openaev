@@ -110,12 +110,19 @@ public class SecurityCoverageService {
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
-    stixCoverageObj.setIfSetPresent(
-        CommonProperties.LABELS.toString(),
-        labels -> {
-          labels.add(OPENCTI_TAG_NAME);
-          securityCoverage.setLabels(labels);
-        });
+
+    // labels
+    Set<String> labels = new HashSet<>();
+    if (stixCoverageObj.hasProperty(CommonProperties.LABELS)
+        && stixCoverageObj.getProperty(CommonProperties.LABELS).getValue() != null) {
+      for (StixString stixString :
+          (List<StixString>) stixCoverageObj.getProperty(CommonProperties.LABELS).getValue()) {
+        labels.add(stixString.getValue());
+      }
+    }
+    // force opencti
+    labels.add(OPENCTI_TAG_NAME);
+    securityCoverage.setLabels(labels);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
