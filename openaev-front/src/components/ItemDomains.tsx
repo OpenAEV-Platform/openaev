@@ -1,11 +1,9 @@
 import { Chip, Tooltip } from '@mui/material';
 import PropTypes from 'prop-types';
-import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type DomainHelper } from '../actions/helper';
-import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
+import { truncate } from '../utils/String';
 import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(() => ({
@@ -30,7 +28,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface ItemsDomainsProps {
-  domains: string[];
+  domains: Domain[];
   variant: string;
 }
 
@@ -38,47 +36,69 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
 
-  const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
-    return helper.getDomains();
-  });
-
-  const resolvedDomains = useMemo(() => allDomains.filter(domain => (domains ?? []).includes(domain.domain_id)), [allDomains, domains]);
-
-  const visibleDomain = resolvedDomains[0];
-  const remainingCount = resolvedDomains.length - 1;
-
+  let truncateLimit = 20;
   let style = classes.domainChip;
-  if (variant === 'reduced-view') {
+
+  if (variant === 'list') {
     style = `${classes.domainChip} ${classes.domainChipInList}`;
   }
+  if (variant === 'reduced-view') {
+    style = `${classes.domainChip} ${classes.domainChipInList}`;
+    truncateLimit = 12;
+  }
 
-  return (
-    <div className={classes.inline}>
-      {visibleDomain ? (
-        <>
-          <Tooltip title={visibleDomain.domain_name}>
+  const renderList = () =>
+    domains
+      .filter(d => d.domain_name !== 'Unclassified')
+      .map(domain => (
+        <Tooltip key={domain.domain_id} title={domain.domain_name}>
+          <Chip
+            variant="outlined"
+            classes={{ root: style }}
+            label={truncate(domain.domain_name, truncateLimit)}
+            style={{
+              color: domain.domain_color,
+              borderColor: domain.domain_color,
+              backgroundColor: 'transparent',
+            }}
+          />
+        </Tooltip>
+      ));
+
+  const renderSingle = () => {
+    const primaryDomain = domains[0];
+    if (!primaryDomain || primaryDomain.domain_name === 'Unclassified') return null;
+
+    return (
+      <>
+        <Tooltip title={primaryDomain.domain_name}>
+          <Chip
+            variant="outlined"
+            classes={{ root: style }}
+            label={truncate(primaryDomain.domain_name, truncateLimit)}
+            style={{
+              color: primaryDomain.domain_color,
+              borderColor: primaryDomain.domain_color,
+              backgroundColor: 'transparent',
+            }}
+          />
+        </Tooltip>
+        {domains.length > 1 && (
+          <Tooltip title={t('Additional domains')}>
             <Chip
               variant="outlined"
               classes={{ root: style }}
-              label={visibleDomain.domain_name}
-              style={{
-                color: visibleDomain.domain_color,
-                borderColor: visibleDomain.domain_color,
-                backgroundColor: 'transparent',
-              }}
+              label={`+${domains.length - 1}`}
             />
           </Tooltip>
-          {remainingCount > 0 && (
-            <Tooltip title={t('Additional domains')}>
-              <Chip
-                variant="outlined"
-                classes={{ root: style }}
-                label={`+${remainingCount}`}
-              />
-            </Tooltip>
-          )}
-        </>
-      ) : null}
+        )}
+      </>
+    );
+  };
+
+  return (
+    <div className={classes.inline}>
+      {variant === 'list' ? renderList() : renderSingle()}
     </div>
   );
 };

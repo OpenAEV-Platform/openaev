@@ -124,6 +124,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     payload_cleanup_executor: payload.payload_cleanup_executor === null ? '' : payload.payload_cleanup_executor,
     payload_cleanup_command: payload.payload_cleanup_command === null ? '' : payload.payload_cleanup_command,
     remediations: {},
+    payload_domains: payload.payload_domains,
   };
   payload.payload_detection_remediations?.forEach((remediation) => {
     initialValues.remediations[remediation.detection_remediation_collector_type] = {

@@ -125,7 +125,13 @@ const Payloads = () => {
       field: 'payload_domains',
       label: 'Domains',
       isSortable: true,
-      value: (payload: Payload) => <ItemDomains domains={payload.payload_domains} variant="reduced-view" />,
+      value: (payload: Payload) => {
+        return payload.payload_domains && payload.payload_domains.length > 0
+          ? (
+              <ItemDomains domains={payload.payload_domains} variant="reduced-view" />
+            )
+          : <></>;
+      },
     },
     {
       field: 'payload_platforms',
