@@ -53,7 +53,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -701,27 +703,28 @@ class InjectApiTest extends IntegrationTest {
       Command payloadCommand =
           PayloadFixture.createCommand(
               "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
-      Payload payloadSaved = payloadRepository.save(payloadCommand);
+        Payload payloadSaved = injectTestHelper.properlySavePayload(payloadCommand);
 
-      Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
+        Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContract(injector, payloadSaved);
-      InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+      InjectorContract injectorContractSaved =
+          injectTestHelper.properlySaveInjectorContract(injectorContract);
 
       Inject inject =
           InjectFixture.createInjectWithPayloadArg(injectorContractSaved, new HashMap<>());
-      Inject injectSaved = injectRepository.save(inject);
+      Inject injectSaved = injectTestHelper.properlySaveInject(inject);
 
       // Prepare injectExpectation on specific agent
       Endpoint endpoint = EndpointFixture.createEndpoint();
       endpoint.setSeenIp("seen-ip-endpoint");
-      Endpoint endpointSaved = endpointRepository.save(endpoint);
+      Endpoint endpointSaved = injectTestHelper.properlySaveEndpoint(endpoint);
       Agent agent = AgentFixture.createDefaultAgentService();
       agent.setAsset(endpointSaved);
-      Agent agentSaved = agentRepository.save(agent);
+      Agent agentSaved = injectTestHelper.properlySaveAgent(agent);
       InjectExpectation detectionExpectation =
           InjectExpectationFixture.createDetectionInjectExpectation(injectSaved, agentSaved);
-      injectExpectationRepository.save(detectionExpectation);
+      injectTestHelper.properlySaveInjectExpectation(detectionExpectation);
 
       doNothing()
           .when(injectStatusService)
@@ -739,14 +742,23 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      List<InjectExpectation> injectExpectationSaved =
-          injectExpectationRepository.findAllByInjectAndAgent(injectSaved.getId(), agent.getId());
-      assertEquals(1, injectExpectationSaved.size());
-      assertEquals(
-          1,
-          injectExpectationSaved.getFirst().getSignatures().stream()
-              .filter(s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType()))
-              .count());
+      Awaitility.await()
+          .atMost(15, TimeUnit.SECONDS)
+          .with()
+          .pollInterval(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                List<InjectExpectation> injectExpectationSaved =
+                    injectExpectationRepository.findAllByInjectAndAgent(
+                        injectSaved.getId(), agent.getId());
+                if (injectExpectationSaved.isEmpty()) {
+                  return false;
+                }
+                return injectExpectationSaved.getFirst().getSignatures().stream()
+                        .filter(s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType()))
+                        .count()
+                    > 0;
+              });
     }
 
     @DisplayName("Get obfuscate command")
@@ -844,6 +856,22 @@ class InjectApiTest extends IntegrationTest {
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
         performCallbackRequest(agentId, inject.getId(), input);
 
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
+                      .isPresent();
+                });
+
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
@@ -877,6 +905,22 @@ class InjectApiTest extends IntegrationTest {
         input2.setAction(InjectExecutionAction.complete);
         input2.setStatus("INFO");
         performCallbackRequest(agentId, inject.getId(), input2);
+
+        Awaitility.await()
+            .atMost(180, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> injectStatus.getTraces().size() > 1)
+                      .isPresent();
+                });
 
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
@@ -923,6 +967,22 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(firstAgentId, inject.getId(), input2);
         performCallbackRequest(secondAgentId, inject.getId(), input2);
 
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
+                      .isPresent();
+                });
+
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
@@ -941,7 +1001,7 @@ class InjectApiTest extends IntegrationTest {
         // create expectation
         InjectExpectation detectionExpectation =
             InjectExpectationFixture.createDetectionInjectExpectation(inject, agent);
-        injectExpectationRepository.save(detectionExpectation);
+        injectTestHelper.properlySaveInjectExpectation(detectionExpectation);
 
         InjectExecutionInput input = new InjectExecutionInput();
         input.setMessage("Complete log received");
@@ -950,6 +1010,23 @@ class InjectApiTest extends IntegrationTest {
         input.setDuration(1000);
 
         performCallbackRequest(agent.getId(), inject.getId(), input);
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<InjectExpectation> injectExpectationSaved =
+                      injectExpectationRepository.findAllByInjectAndAgent(
+                          inject.getId(), agent.getId());
+                  List<InjectExpectationSignature> endDatesignatures =
+                      injectExpectationSaved.getFirst().getSignatures().stream()
+                          .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
+                          .toList();
+                  return endDatesignatures.size() > 0;
+                });
+
+        // -- ASSERT --
         List<InjectExpectation> injectExpectationSaved =
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
@@ -987,6 +1064,22 @@ class InjectApiTest extends IntegrationTest {
         input.setAction(InjectExecutionAction.complete);
         input.setStatus("INFO");
         performCallbackRequest(firstAgentId, inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
+                      .isPresent();
+                });
 
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
@@ -1050,7 +1143,7 @@ class InjectApiTest extends IntegrationTest {
         Command payloadCommand =
             PayloadFixture.createCommand("bash", "command", null, null, domains);
         payloadCommand.setOutputParsers(Set.of(outputParser));
-        Payload payloadSaved = payloadRepository.save(payloadCommand);
+        Payload payloadSaved = injectTestHelper.properlySavePayload(payloadCommand);
 
         // Create injectorContract with targeted asset field
         Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -1059,22 +1152,33 @@ class InjectApiTest extends IntegrationTest {
                 injector, payloadSaved, List.of());
         InjectorContractFixture.addTargetedAssetFields(
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
-        InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+        InjectorContract injectorContractSaved =
+            injectTestHelper.properlySaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
 
         // Set targeted inject on inject
         Endpoint endpoint = EndpointFixture.createEndpoint();
         endpoint.setSeenIp("seen-ip-endpoint");
-        Endpoint endpointSaved = endpointRepository.save(endpoint);
+        Endpoint endpointSaved = injectTestHelper.properlySaveEndpoint(endpoint);
         ObjectNode content = objectMapper.createObjectNode();
         content.set(
             "asset-key", objectMapper.convertValue(List.of(endpointSaved.getId()), JsonNode.class));
         inject.setContent(content);
-        injectRepository.save(inject);
+        injectTestHelper.properlySaveInject(inject);
 
         // -- EXECUTE --
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
         performCallbackRequest(agentId, inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+                  return findings.size() > 1;
+                });
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(2, findings.size());

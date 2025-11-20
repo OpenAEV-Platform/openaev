@@ -37,8 +37,6 @@ public class BatchingInjectStatusService {
   public void handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
 
-    Instant start = Instant.now();
-
     Map<String, Inject> mapInjectsById =
         injectRepository
             .findAllByIdWithExpectations(
@@ -47,8 +45,6 @@ public class BatchingInjectStatusService {
                     .toList())
             .stream()
             .collect(Collectors.toMap(Inject::getId, Function.identity()));
-
-    Instant postGetInject = Instant.now();
 
     Map<String, Agent> mapAgentsById =
         StreamSupport.stream(
@@ -60,34 +56,6 @@ public class BatchingInjectStatusService {
                     .spliterator(),
                 false)
             .collect(Collectors.toMap(Agent::getId, Function.identity()));
-
-    Instant postGetAgent = Instant.now();
-
-    Map<String, List<Long>> mapTimeSpent =
-        Map.of(
-            "ExtractOutput",
-            new ArrayList<>(),
-            "ComputeOutput",
-            new ArrayList<>(),
-            "Process",
-            new ArrayList<>(),
-            "HandleError",
-            new ArrayList<>());
-
-    Map<String, List<Long>> mapTimeSpentProcess =
-        Map.of(
-            "structured",
-            new ArrayList<>(),
-            "computeStructured",
-            new ArrayList<>(),
-            "checkCveExpectation",
-            new ArrayList<>(),
-            "updateInjectStatus",
-            new ArrayList<>(),
-            "addEndDate",
-            new ArrayList<>(),
-            "extractFindings",
-            new ArrayList<>());
 
     injectExecutionCallbacks.forEach(
         callback -> {
@@ -138,84 +106,13 @@ public class BatchingInjectStatusService {
                             new ElementNotFoundException(
                                 "Agent not found: " + callback.getAgentId()));
 
-            Instant beforeExtract = Instant.now();
             Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-            Instant afterExtract = Instant.now();
 
-            Map<String, Long> results =
-                injectExecutionService.processInjectExecution(
+            injectExecutionService.processInjectExecution(
                     inject, agent, callback.getInjectExecutionInput(), outputParsers);
-            mapTimeSpentProcess.forEach(
-                (s, longs) -> {
-                  longs.add(results.get(s));
-                });
-            Instant afterProcess = Instant.now();
-            mapTimeSpent
-                .get("ExtractOutput")
-                .add(afterExtract.toEpochMilli() - beforeExtract.toEpochMilli());
-            mapTimeSpent
-                .get("Process")
-                .add(afterProcess.toEpochMilli() - afterExtract.toEpochMilli());
           } catch (ElementNotFoundException e) {
-            Instant beforeError = Instant.now();
             injectExecutionService.handleInjectExecutionError(inject, e);
-            Instant afterError = Instant.now();
-            mapTimeSpent
-                .get("HandleError")
-                .add(afterError.toEpochMilli() - beforeError.toEpochMilli());
           }
         });
-
-    Instant totalTime = Instant.now();
-    log.warn(
-        String.format(
-            "Time spent breakdown on one cycle of insertion %d processed :%n total : %d ms%n - time to get injects : %d ms %n - time to get agents : %d ms %n - time to process all the injectCallbacks : %d ms %n - mean time to extract output : %f ms %n - mean time to compute output : %f ms %n - mean time to process : %f ms %n - mean time to deal with errors : %f ms %n",
-            injectExecutionCallbacks.size(),
-            totalTime.toEpochMilli() - start.toEpochMilli(),
-            postGetInject.toEpochMilli() - start.toEpochMilli(),
-            postGetAgent.toEpochMilli() - postGetInject.toEpochMilli(),
-            totalTime.toEpochMilli() - postGetAgent.toEpochMilli(),
-            mapTimeSpent.get("ExtractOutput").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpent.get("ComputeOutput").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpent.get("Process").stream().mapToLong(value -> value).average().orElse(0),
-            mapTimeSpent.get("HandleError").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0)));
-
-    log.warn(
-        String.format(
-            "Time spent on process breakdown on one cycle of insertion %d processed :%n - Time on structured : %f ms %n - Time on computeStructured : %f ms %n - Time on checkCveExpectation : %f ms %n - Time on updateInjectStatus : %f ms %n - Time on addEndDate : %f ms %n - Time on extractFindings : %f ms %n",
-            injectExecutionCallbacks.size(),
-            mapTimeSpentProcess.get("structured").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpentProcess.get("computeStructured").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpentProcess.get("checkCveExpectation").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpentProcess.get("updateInjectStatus").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpentProcess.get("addEndDate").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0),
-            mapTimeSpentProcess.get("extractFindings").stream()
-                .mapToLong(value -> value)
-                .average()
-                .orElse(0)));
   }
 }

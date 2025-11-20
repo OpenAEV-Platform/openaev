@@ -46,7 +46,7 @@ public class ExecutionTraceRepositoryHelper {
             ?
         )""";
 
-  public void saveExecutionTrace(ExecutionTrace executionTrace) {
+  public String saveExecutionTrace(ExecutionTrace executionTrace) {
     try (Connection conn = dataSource.getConnection()) {
 
       try (PreparedStatement ps = conn.prepareStatement(INSERT_EXECUTION_TRACE)) {
@@ -63,8 +63,9 @@ public class ExecutionTraceRepositoryHelper {
         if (executionTrace.getStructuredOutput() != null) {
           structuredOutputAsText = executionTrace.getStructuredOutput().asText();
         }
+        String id = UUID.randomUUID().toString();
 
-        ps.setString(1, UUID.randomUUID().toString());
+        ps.setString(1, id);
         ps.setString(2, injectStatusId);
         ps.setString(3, injectTestStatusId);
         ps.setString(4, executionTrace.getAgent().getId());
@@ -78,6 +79,8 @@ public class ExecutionTraceRepositoryHelper {
         ps.setTimestamp(12, Timestamp.from(executionTrace.getUpdateDate()));
 
         ps.executeUpdate();
+
+        return id;
       }
     } catch (SQLException e) {
       throw new RuntimeException(e);

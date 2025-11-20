@@ -1,6 +1,7 @@
 package io.openaev.utils.helpers;
 
-import io.openaev.database.model.Inject;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.*;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -9,12 +10,21 @@ import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@RequiredArgsConstructor
 public class InjectTestHelper {
+
+  private final InjectExpectationRepository injectExpectationRepository;
+  private final PayloadRepository payloadRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final AgentRepository agentRepository;
+  private final EndpointRepository endpointRepository;
+  private final InjectRepository injectRepository;
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
@@ -33,5 +43,35 @@ public class InjectTestHelper {
             injectStatusComposer.forInjectStatus(InjectStatusFixture.createPendingInjectStatus()))
         .persist()
         .get();
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public InjectExpectation properlySaveInjectExpectation(InjectExpectation expectation) {
+    return injectExpectationRepository.save(expectation);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Payload properlySavePayload(Payload payload) {
+    return payloadRepository.save(payload);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public InjectorContract properlySaveInjectorContract(InjectorContract injectorContract) {
+    return injectorContractRepository.save(injectorContract);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Inject properlySaveInject(Inject inject) {
+    return injectRepository.save(inject);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Agent properlySaveAgent(Agent agent) {
+    return agentRepository.save(agent);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Endpoint properlySaveEndpoint(Endpoint endpoint) {
+    return endpointRepository.save(endpoint);
   }
 }
