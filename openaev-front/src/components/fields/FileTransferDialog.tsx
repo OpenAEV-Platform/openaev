@@ -1,6 +1,6 @@
 import { DescriptionOutlined } from '@mui/icons-material';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import {type FunctionComponent, useEffect, useState} from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type DocumentHelper, type UserHelper } from '../../actions/helper';
@@ -73,20 +73,19 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     if (initialDocumentIds.length === 0) return;
     const selectedIds = selectedDocuments.map(d => d.document_id);
 
-    const sameArray =
-        selectedIds.length === initialDocumentIds.length &&
-        initialDocumentIds.every(id => selectedIds.includes(id));
+    const sameArray
+        = selectedIds.length === initialDocumentIds.length
+          && initialDocumentIds.every(id => selectedIds.includes(id));
 
     if (sameArray) return;
 
     // Otherwise, update selectedDocuments
     setSelectedDocuments(
-        documents.filter(doc =>
-            doc.document_id && initialDocumentIds.includes(doc.document_id)
-        )
+      documents.filter(doc =>
+        doc.document_id && initialDocumentIds.includes(doc.document_id),
+      ),
     );
   }, [initialDocumentIds]);
-
 
   const handleSearchDocuments = (value?: string) => {
     setKeyword(value || '');
