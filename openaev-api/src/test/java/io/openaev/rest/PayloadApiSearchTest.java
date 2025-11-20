@@ -29,8 +29,10 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
+@Transactional
 public class PayloadApiSearchTest extends IntegrationTest {
 
   private static final List<String> PAYLOAD_COMMAND_IDS = new ArrayList<>();
@@ -41,10 +43,12 @@ public class PayloadApiSearchTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
     Payload command = createDefaultCommand();
+    command.setId(null);
     Payload commandSaved = this.payloadRepository.save(command);
     PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
     Payload dnsResolution = createDefaultDnsResolution();
+    dnsResolution.setId(null);
     Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
     PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
@@ -52,6 +56,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
     Document documentSaved = this.documentRepository.save(document);
 
     Payload executable = createDefaultExecutable(documentSaved);
+    executable.setId(null);
     Payload executableSaved = this.payloadRepository.save(executable);
     PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
   }
