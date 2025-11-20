@@ -21,6 +21,8 @@ steps:
       - mvn clean install -q -DskipTests
       - cd openaev-api
       - mvn test
+      - echo "Running coverage validation..."
+      - mvn jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
       - cd ../openaev-framework
       - mvn test
 
