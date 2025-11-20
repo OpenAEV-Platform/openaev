@@ -237,6 +237,7 @@ public class Payload implements GrantableBase {
   private List<Grant> grants = new ArrayList<>();
 
   @ManyToMany(fetch = FetchType.EAGER)
+  @NotEmpty
   @Queryable(sortable = true)
   @JoinTable(
       name = "payloads_domains",

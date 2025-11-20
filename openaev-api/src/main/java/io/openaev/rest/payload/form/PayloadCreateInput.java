@@ -122,7 +122,7 @@ public class PayloadCreateInput {
   private Set<OutputParserInput> outputParsers = new HashSet<>();
 
   @NotNull(message = MANDATORY_MESSAGE)
-    @JsonProperty("payload_domains")
-    @Schema(description = "Set list of domains")
-    private List<Domain> domains = new ArrayList<>();
+  @JsonProperty("payload_domains")
+  @Schema(description = "Set list of domains")
+  private List<Domain> domains = new ArrayList<>();
 }

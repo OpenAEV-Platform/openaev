@@ -484,7 +484,7 @@ interface BasePayload {
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
-  payload_domains?: Domain[];
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -820,7 +820,7 @@ export interface Command {
   payload_created_at: string;
   payload_description?: string;
   /** @uniqueItems true */
-  payload_domains?: Domain[];
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -1310,7 +1310,7 @@ export interface DnsResolution {
   payload_created_at: string;
   payload_description?: string;
   /** @uniqueItems true */
-  payload_domains?: Domain[];
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -1411,7 +1411,7 @@ export interface Domain {
   /** @format date-time */
   domain_created_at?: string;
   domain_id: string;
-  domain_name?: string;
+  domain_name: string;
   /** @format date-time */
   domain_updated_at?: string;
   listened?: boolean;
@@ -2029,7 +2029,7 @@ export interface Executable {
   payload_created_at: string;
   payload_description?: string;
   /** @uniqueItems true */
-  payload_domains?: Domain[];
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -2373,7 +2373,7 @@ export interface FileDrop {
   payload_created_at: string;
   payload_description?: string;
   /** @uniqueItems true */
-  payload_domains?: Domain[];
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -3763,7 +3763,7 @@ export interface NetworkTraffic {
   payload_created_at: string;
   payload_description?: string;
   /** @uniqueItems true */
-  payload_domains?: Domain[];
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
