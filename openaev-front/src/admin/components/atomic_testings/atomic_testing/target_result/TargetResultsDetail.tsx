@@ -3,7 +3,7 @@ import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchTargetResultMerged } from '../../../../../actions/atomic_testings/atomic-testing-actions';
+import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
@@ -32,6 +32,11 @@ const useStyles = makeStyles()(theme => ({
   },
   allWidth: { gridColumn: 'span 3' },
   paddingTop: { paddingTop: theme.spacing(2) },
+  gap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+  },
 }));
 
 const TargetResultsDetail = ({ inject, target }: Props) => {
@@ -82,7 +87,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
   };
 
   useEffect(() => {
-    fetchTargetResultMerged(inject.inject_id, target.target_id!, target.target_type!)
+    fetchTargetResult(inject.inject_id, target.target_id!, target.target_type!)
       .then((result: { data: InjectExpectationsStore[] }) => {
         setSortedGroupedTargetResults(transformToSortedGroupedResults(result.data ?? []));
       });
@@ -132,7 +137,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
         {canShowExecutionTab && <Tab label={t('Execution')} />}
       </Tabs>
 
-      <div className={`${classes.allWidth} ${classes.paddingTop}`}>
+      <div className={`${classes.allWidth} ${classes.paddingTop} ${classes.gap}`}>
         {Object.entries(sortedGroupedTargetResults).length > 0
           && Object.entries(sortedGroupedTargetResults).length > activeTab
           && Object.entries(sortedGroupedTargetResults)[activeTab][1].map(expectationResult => (
@@ -143,7 +148,6 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
               onUpdateInjectExpectationResult={updateInjectResultOverviewOutput}
             />
           ))}
-
         {(activeTab === Object.keys(sortedGroupedTargetResults).length && canShowExecutionTab) && (
           <ExecutionStatusDetail
             target={{
