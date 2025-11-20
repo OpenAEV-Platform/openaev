@@ -1,26 +1,37 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "docker:enableMajor",
+    ":semanticCommits"
   ],
   "labels": [
     "dependencies",
     "filigran team"
   ],
-  "ignorePaths": [
-    "**/node_modules/**"
+  "minimumReleaseAge": "3 days",
+  "prHourlyLimit": 2,
+  "timezone": "Europe/Paris",
+  "schedule": [
+    "* 0-4,22-23 * * 1-5",
+    "* * * * 0,6"
   ],
-  "prConcurrentLimit": 10,
-  "baseBranchPatterns": [
-    "release/current",
-    "master"
-  ],
+  "updateNotScheduled": false,
+  "rebaseWhen": "conflicted",
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "minor"
+      "description": "Disable updates of images intentionally pinned to older versions for compatibility testing",
+      "matchFileNames": [
+        "^\\.drone\\.yml$"
       ],
-      "prPriority": 5
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "matchCurrentVersion": "^3\\.(9|10|11|12)$",
+      "enabled": false
     },
     {
       "matchDatasources": [
@@ -43,49 +54,28 @@
       "commitMessagePrefix": "[tool] chore(deps):"
     },
     {
-      "matchPackageNames": [
-        "react-apexcharts"
+      "groupName": "devDependencies (non-major)",
+      "groupSlug": "dev-dependencies-non-major",
+      "description": "Batch auto merge and batch on sunday morning, non-major update of dev dependencies once a week (Sunday 03:00)",
+      "schedule": "* 3 * * 0",
+      "matchDepTypes": [
+        "devDependencies"
       ],
-      "commitMessagePrefix": "[DANGER]",
-      "commitMessageSuffix": "(react-apexcharts has a yarn patch)"
-    },
-    {
-      "matchPackageNames": [
-        "html-to-image"
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
       ],
-      "commitMessagePrefix": "[DANGER]",
-      "commitMessageSuffix": "(html-to-image has a yarn patch)"
-    },
-    {
-      "matchPackageNames": [
-        "cronstrue"
-      ],
-      "commitMessagePrefix": "[DANGER]",
-      "commitMessageSuffix": "(cronstrue will remove a functionality we use on a future release https://github.com/bradymholt/cRonstrue/pull/336)"
-    },
-    {
-      "matchJsonata": [
-        "updateType = 'major' and !$exists(vulnerabilityFixVersion)"
-      ],
-      "matchBaseBranches": [
-        "master"
-      ],
-      "enabled": false
-    },
-    {
-      "matchJsonata": [
-        "updateType != 'major' or $exists(vulnerabilityFixVersion)"
-      ],
-      "matchBaseBranches": [
-        "release/current"
-      ],
-      "enabled": false
+      "rebaseWhen": "always",
+      "automerge": false
     }
   ],
-  "schedule": [
-    "after 10pm every weekday",
-    "every weekend",
-    "before 5am every weekday"
-  ],
-  "updateNotScheduled": false
+  "lockFileMaintenance": {
+    "schedule": "* 5 * * 0",
+    "rebaseWhen": "always",
+    "automerge": false,
+    "enabled": true
+  }
 }
+
