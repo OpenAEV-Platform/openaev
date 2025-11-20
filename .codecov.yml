@@ -10,13 +10,3 @@ coverage:
         target: 50%
         threshold: 0
         informational: false
-
-comments:
-  layout: "reach, diff, flags, files"
-  require_changes: false
-  behavior: comment
-  after_n_builds: 1
-
-  before:
-    - "### 🚨 Coverage Threshold"
-    - "This project requires **50%** minimum coverage."
