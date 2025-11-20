@@ -275,6 +275,11 @@ const CreateInject: FunctionComponent<Props> = ({
     handleClose();
   };
 
+  const handleToggle = (contract:InjectorContractFullOutput,event:SyntheticEvent) => {
+    onToggleEntity(contract,event);
+    setSelectedContract(null);
+  }
+
   const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
     await injectContext.onAddMultipleInjects(data).then((result: {
       result: string[];
@@ -326,8 +331,10 @@ const CreateInject: FunctionComponent<Props> = ({
       disableEnforceFocus
       containerStyle={{
         display: 'grid',
-        gridTemplateColumns: (numberOfSelectedElements > 0 || (numberOfSelectedElements === 0 && !selectedContract) || (numberOfSelectedElements > 0 && selectedContract)) ? '1fr' : `60% calc(40% - ${theme.spacing(2)})`,
+        gridTemplateColumns: selectedContract ? `60% calc(40% - ${theme.spacing(2)})` : '1fr',
         gap: theme.spacing(2),
+        overflow: 'hidden',
+        padding:0
       }}
     >
       <>
@@ -396,7 +403,7 @@ const CreateInject: FunctionComponent<Props> = ({
                       style={{ minWidth: 40 }}
                       onClick={event => (event.shiftKey
                         ? onRowShiftClick(index, contract, event)
-                        : onToggleEntity(contract, event))}
+                        : handleToggle(contract, event))}
                     >
                       <Checkbox
                         edge="start"
@@ -436,9 +443,12 @@ const CreateInject: FunctionComponent<Props> = ({
         {selectedContract && numberOfSelectedElements === 0 && (
           <Slide direction="left" in={checked} mountOnEnter unmountOnExit>
             <div style={{
-              display: 'flex',
+             /* display: 'flex',
               flexDirection: 'column',
-              gap: theme.spacing(2),
+              gap: theme.spacing(2),*/
+              overflowY: 'auto',
+              overflowX:'hidden',
+              maxHeight: theme.spacing(120),
             }}
             >
               <InjectCardComponent
