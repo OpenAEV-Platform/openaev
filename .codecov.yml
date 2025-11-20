@@ -10,7 +10,3 @@ coverage:
         target: 50%
         threshold: 0
         informational: true
-comment:
-  layout: "diff"
-  comment: |
-    #### TEST COMMENT
