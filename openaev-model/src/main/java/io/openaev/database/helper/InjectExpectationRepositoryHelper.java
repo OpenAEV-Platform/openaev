@@ -13,7 +13,7 @@ public class InjectExpectationRepositoryHelper {
   @Autowired private DataSource dataSource;
 
   public void insertSignatureForAgentAndInject(
-      String type, String value, String injectId, String agentId) {
+      String injectId, String agentId, String type, String value) {
     try (Connection conn = dataSource.getConnection()) {
 
       try (PreparedStatement ps =
