@@ -3,8 +3,19 @@ coverage:
     project:
       default:
         target: 50%
-        threshold: 0
+        threshold: 50%
+        informative: true
     patch:
       default:
         target: 50%
-        threshold: 0
+        threshold: 50%
+        informative: true
+
+comment:
+  layout: "reach, diff, flags, files"
+  require_changes: false
+  behavior: default
+  after_n_builds: 1
+  before:
+    - "### 🚨 Coverage Threshold"
+    - "This project requires **50%** minimum coverage."
