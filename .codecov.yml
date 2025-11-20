@@ -11,10 +11,6 @@ coverage:
         threshold: 0
         informational: true
 comment:
-  behavior: default
-  require_changes: false
-  require_base: false
-  after_n_builds: 1
+  layout: "diff"
   comment: |
-    Coverage for this PR: **${coverage.prc}%**
-    Expected project target: **50%**
+    #### TEST COMMENT
