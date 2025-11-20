@@ -61,6 +61,7 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
   useEffect(() => {
     const test = (injectDocuments || [])
       .map(d => ({
+        ...d,
         ...documentsMap[d.document_id],
         document_attached: d.document_attached,
       }))
@@ -117,6 +118,9 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
     });
   };
 
+  useEffect(() => {
+    console.log(sortedDocuments)
+  }, [sortedDocuments]);
 
   return (
     <>
