@@ -14,7 +14,7 @@ coverage:
 comments:
   layout: "reach, diff, flags, files"
   require_changes: false
-  behavior: default
+  behavior: comment
   after_n_builds: 1
 
   before:
