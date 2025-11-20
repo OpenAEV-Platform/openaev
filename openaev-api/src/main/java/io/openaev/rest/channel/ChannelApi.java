@@ -145,10 +145,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/channels/{exerciseId}/{channelId}")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,

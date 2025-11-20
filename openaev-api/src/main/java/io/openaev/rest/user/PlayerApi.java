@@ -59,7 +59,7 @@ public class PlayerApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/{userId}/communications")
-  @RBAC(resourceId = "#userId", actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
+  @RBAC(skipRBAC = true)
   public Iterable<Communication> playerCommunications(@PathVariable String userId) {
     return communicationRepository.findByUser(userId);
   }
