@@ -335,7 +335,7 @@
                                 <limit>
                                     <counter>LINE</counter>
                                     <value>COVEREDRATIO</value>
-                                    <minimum>0.50</minimum> <!-- 50% minimum coverage -->
+                                    <minimum>0.90</minimum> <!-- 50% minimum coverage -->
                                 </limit>
                                 <limit>
                                     <counter>BRANCH</counter>
