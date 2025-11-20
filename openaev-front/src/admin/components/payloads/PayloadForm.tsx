@@ -128,18 +128,14 @@ const PayloadForm = ({
     payload_arguments: z.array(payloadArgumentZodObject).optional().describe('Commands-tab'),
     payload_prerequisites: z.array(payloadPrerequisiteZodObject).optional().describe('Commands-tab'),
     payload_output_parsers: z.array(outputParserObject).optional().describe('Output-tab'),
-    remediations: z.any(),
+    remediations: z.any().optional(),
   };
 
   const commandSchema = z.object({
     ...baseSchema,
     payload_type: z.literal('Command').describe('Commands-tab'),
-    command_executor: z.string().min(1, {
-        error: 'Should not be empty'
-    }).describe('Commands-tab'),
-    command_content: z.string().min(1, {
-        error: 'Should not be empty'
-    }).describe('Commands-tab'),
+    command_executor: z.string().min(1, { error: 'Should not be empty' }).describe('Commands-tab'),
+    command_content: z.string().min(1, { error: 'Should not be empty' }).describe('Commands-tab'),
   });
   const executableSchema = z.object({
     ...baseSchema,
@@ -160,7 +156,7 @@ const PayloadForm = ({
   const schema = z.discriminatedUnion('payload_type', [commandSchema, executableSchema, fileDropSchema, dnsResolutionSchema])
     .refine(data => !(data.payload_cleanup_command && !data.payload_cleanup_executor), {
       path: ['payload_cleanup_executor'],
-        error: 'Should not be empty'
+      error: 'Should not be empty',
     });
 
   const methods = useForm<PayloadCreateInput>({

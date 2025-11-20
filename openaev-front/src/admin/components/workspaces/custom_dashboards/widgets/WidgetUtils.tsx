@@ -2,17 +2,24 @@ import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
 import {
-  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, type EsAvgs, type EsBase, type EsCountInterval, type EsSeries,
+  type CustomDashboardParameters,
+  type DateHistogramWidget,
+  type EsAttackPath,
+  type EsAvgs, type EsBase,
+  type EsCountInterval,
+  type EsSeries,
   type Exercise,
   type Filter,
   type FilterGroup,
-  type InjectExpectation, type Series, type StructuralHistogramWidget,
+  type InjectExpectation,
+  type Series,
+  type StructuralHistogramWidget,
   type Widget,
-  type WidgetInput,
 } from '../../../../../utils/api-types';
+import { type WidgetInputCustom } from '../../../../../utils/api-types-custom';
 import { createGroupOption, type GroupOption } from '../../../../../utils/Option';
 
-export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;
+export type WidgetInputWithoutLayout = Omit<WidgetInputCustom, 'widget_layout'>;
 export type StepType = ('type' | 'series' | 'parameters');
 export const steps: StepType[] = ['type', 'series', 'parameters'];
 export const lastStepIndex = steps.length - 1;
