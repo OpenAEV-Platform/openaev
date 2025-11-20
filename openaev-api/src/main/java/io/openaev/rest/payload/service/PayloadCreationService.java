@@ -7,13 +7,13 @@ import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.Ee;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
-import io.openaev.service.GrantService;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +28,12 @@ public class PayloadCreationService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
-  private final GrantService grantService;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
 
   private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
+  private final DomainRepository domainRepository;
   private final PayloadRepository payloadRepository;
   private final DocumentService documentService;
 
@@ -56,6 +56,7 @@ public class PayloadCreationService {
 
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    payload.setDomains(iterableToSet(domainRepository.findAllById(input.getDomains().stream().map(Domain::getId).toList())));
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));

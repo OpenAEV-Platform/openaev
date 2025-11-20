@@ -540,6 +540,8 @@ interface BasePayloadCreateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /** Set list of domains */
+  payload_domains: Domain[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -1409,7 +1411,7 @@ export interface Domain {
   /** @format date-time */
   domain_created_at?: string;
   domain_id: string;
-  domain_name: string;
+  domain_name?: string;
   /** @format date-time */
   domain_updated_at?: string;
   listened?: boolean;
@@ -4594,6 +4596,8 @@ export interface PayloadInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /** Update list of domains */
+  payload_domains: Domain[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -4652,6 +4656,8 @@ export interface PayloadUpdateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /** Update list of domains */
+  payload_domains: Domain[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
