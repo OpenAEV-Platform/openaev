@@ -107,7 +107,9 @@ public class PayloadUpsertService {
       payload.setCollector(collector);
     }
 
-    payload.setDomains(input.getDomains());
+      final Set<Domain> existingDomains = this.domainService.upserts(payload.getDomains());
+      final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains());
+    payload.setDomains(this.domainService.mergeDomains(existingDomains, domainsToAdd));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

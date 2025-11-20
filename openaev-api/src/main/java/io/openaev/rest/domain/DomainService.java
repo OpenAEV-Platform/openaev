@@ -61,30 +61,48 @@ public class DomainService {
   }
 
   public Iterable<Domain> findAllById(final List<String> domainIds) {
-    return domainRepository.findAllById(domainIds);
+      return domainRepository.findAllById(domainIds);
   }
 
+  @Transactional
   public Domain upsertDomain(final DomainBaseInput input) {
     return this.upsert(input.getName(), input.getColor());
   }
 
+  @Transactional
   public Domain upsert(final Domain domainToUpsert) {
     return this.upsert(domainToUpsert.getName(), domainToUpsert.getColor());
   }
 
-  public Domain upsert(final String name, final String color) {
-    Optional<Domain> existingDomain = domainRepository.findByName(name);
-    return existingDomain.orElseGet(
-        () ->
-            domainRepository.save(
-                new Domain(
-                    null,
-                    name,
-                    color != null ? color : generateRandomColor(),
-                    Instant.now(),
-                    null)));
+  @Transactional
+  public Set<Domain> upserts(final Set<Domain> domains) {
+    return domains.stream().map(this::upsert).collect(Collectors.toSet());
   }
 
+    public Domain upsert(final String name, final String color) {
+        Optional<Domain> existingDomain = domainRepository.findByName(name);
+        return existingDomain.orElseGet(
+                () ->
+                        domainRepository.save(
+                                new Domain(
+                                        null,
+                                        name,
+                                        color != null ? color : generateRandomColor(),
+                                        Instant.now(),
+                                        null)));
+    }
+
+  public Set<Domain> mergeDomains(
+      final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
+    if (existingDomains == null
+        || existingDomains.isEmpty()
+        || (existingDomains.size() == 1
+            && UNCLASSIFIED.equals(existingDomains.iterator().next().getName()))) {
+      return addedDomains;
+    }
+
+    return Stream.concat(existingDomains.stream(), addedDomains.stream())
+        .collect(Collectors.toSet());
   }
 
   // -- OPTION --
