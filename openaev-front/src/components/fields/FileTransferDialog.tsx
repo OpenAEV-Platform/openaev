@@ -69,20 +69,16 @@ const FileTransferDialog: FunctionComponent<Props> = ({
   const { documents }: { documents: [RawDocument] } = useHelper((helper: DocumentHelper & UserHelper) => ({ documents: helper.getDocuments() }));
 
   useEffect(() => {
-    // If initial data hasn't arrived yet or selectedDocuments already matches it, do nothing
+    // If initial data hasn't arrived yet, do nothing
     if (initialDocumentIds.length === 0) return;
-    const selectedIds = selectedDocuments.map(d => d.document_id);
 
-    const sameArray
-        = selectedIds.length === initialDocumentIds.length
-          && initialDocumentIds.every(id => selectedIds.includes(id));
+    // If we already have selected documents, don't override user changes
+    if (selectedDocuments.length > 0) return;
 
-    if (sameArray) return;
-
-    // Otherwise, update selectedDocuments
+    // Initialize selectedDocuments from initialDocumentIds (only once)
     setSelectedDocuments(
-      documents.filter(doc =>
-        doc.document_id && initialDocumentIds.includes(doc.document_id),
+      documents.filter(
+        doc => doc.document_id && initialDocumentIds.includes(doc.document_id),
       ),
     );
   }, [initialDocumentIds]);
