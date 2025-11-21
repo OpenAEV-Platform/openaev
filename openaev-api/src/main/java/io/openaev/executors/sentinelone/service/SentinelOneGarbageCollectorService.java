@@ -1,5 +1,8 @@
 package io.openaev.executors.sentinelone.service;
 
+import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
+import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
+
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -15,12 +18,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class SentinelOneGarbageCollectorService implements Runnable {
-    // TODO refacto with other GarbageCollector
-  // Clean payloads older than 24 hours
-  private static final String WINDOWS_COMMAND_LINE =
-      "Get-ChildItem -Path \"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\payloads\",\"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\runtimes\" -Directory -Recurse | Where-Object {$_.CreationTime -lt (Get-Date).AddHours(-24)} | Remove-Item -Recurse -Force";
-  private static final String UNIX_COMMAND_LINE =
-      "find /opt/openaev-agent/payloads /opt/openaev-agent/runtimes -type d -mmin +1440 -exec rm -rf {} + 2>/dev/null";
+
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
   private final AgentService agentService;
@@ -52,7 +50,8 @@ public class SentinelOneGarbageCollectorService implements Runnable {
                   List.of(agent.getExternalReference()),
                   this.config.getWindowsScriptId(),
                   Base64.getEncoder()
-                      .encodeToString(WINDOWS_COMMAND_LINE.getBytes(StandardCharsets.UTF_16LE)));
+                      .encodeToString(
+                          WINDOWS_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_16LE)));
             }
             case Linux, MacOS -> {
               log.info("Sending Unix command line to " + endpoint.getName());
@@ -60,7 +59,8 @@ public class SentinelOneGarbageCollectorService implements Runnable {
                   List.of(agent.getExternalReference()),
                   this.config.getUnixScriptId(),
                   Base64.getEncoder()
-                      .encodeToString(UNIX_COMMAND_LINE.getBytes(StandardCharsets.UTF_8)));
+                      .encodeToString(
+                          UNIX_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_8)));
             }
           }
         });

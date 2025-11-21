@@ -8,10 +8,7 @@ import io.openaev.executors.sentinelone.model.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -38,13 +35,13 @@ public class SentinelOneExecutorClient {
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final HttpClientFactory httpClientFactory;
 
-  public List<SentinelOneAgent> agents() {
-    List<SentinelOneAgent> agents = new ArrayList<>();
-    if (this.config.getSiteId() != null && !this.config.getSiteId().isBlank()) {
-      agents.addAll(getAllAgentsFromFilter(SITE_FILTER + this.config.getSiteId(), agents));
-    }
+  public Set<SentinelOneAgent> agents() {
+    Set<SentinelOneAgent> agents = new HashSet<>();
     if (this.config.getAccountId() != null && !this.config.getAccountId().isBlank()) {
       agents.addAll(getAllAgentsFromFilter(ACCOUNT_FILTER + this.config.getAccountId(), agents));
+    }
+    if (this.config.getSiteId() != null && !this.config.getSiteId().isBlank()) {
+      agents.addAll(getAllAgentsFromFilter(SITE_FILTER + this.config.getSiteId(), agents));
     }
     if (this.config.getGroupId() != null && !this.config.getGroupId().isBlank()) {
       agents.addAll(getAllAgentsFromFilter(GROUP_FILTER + this.config.getGroupId(), agents));
@@ -52,11 +49,11 @@ public class SentinelOneExecutorClient {
     return agents;
   }
 
-  private List<SentinelOneAgent> getAllAgentsFromFilter(
-      String filter, List<SentinelOneAgent> agents) {
+  private Set<SentinelOneAgent> getAllAgentsFromFilter(
+      String filter, Set<SentinelOneAgent> agents) {
     ResponseAgent responseAgent = getSentinelOneAgents(filter);
     if (responseAgent.getErrors() != null && !responseAgent.getErrors().isEmpty()) {
-      logErrors(responseAgent.getErrors(), "url: " + this.config.getApiUrl() + AGENTS_URI + filter);
+      logErrors(responseAgent.getErrors(), "uri: " + AGENTS_URI + filter);
     } else if (responseAgent.getData() == null || responseAgent.getData().isEmpty()) {
       return agents;
     } else {
@@ -72,7 +69,7 @@ public class SentinelOneExecutorClient {
   private ResponseAgent getSentinelOneAgents(String filter) {
     String jsonResponse;
     try {
-      jsonResponse = this.get(this.config.getApiUrl() + AGENTS_URI + filter);
+      jsonResponse = this.get(AGENTS_URI + filter);
       return this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
     } catch (Exception e) {
       log.error(
@@ -113,7 +110,7 @@ public class SentinelOneExecutorClient {
       ResponseScriptExecute response =
           this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
       if (response.getErrors() != null && !response.getErrors().isEmpty()) {
-        logErrors(response.getErrors(), "url: " + EXECUTE_SCRIPT_URI + " body: " + bodyCommand);
+        logErrors(response.getErrors(), "uri: " + EXECUTE_SCRIPT_URI + " body: " + bodyCommand);
       }
     } catch (IOException e) {
       log.error(
@@ -130,7 +127,6 @@ public class SentinelOneExecutorClient {
       HttpGet httpGet = new HttpGet(this.config.getApiUrl() + uri);
       // Headers
       httpGet.addHeader("Authorization", "Bearer " + this.config.getApiKey());
-      httpGet.addHeader("content-type", "application/json");
       return httpClient.execute(httpGet, response -> EntityUtils.toString(response.getEntity()));
     } catch (IOException e) {
       throw new ClientProtocolException(

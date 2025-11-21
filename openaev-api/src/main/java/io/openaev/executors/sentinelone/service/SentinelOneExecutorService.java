@@ -10,9 +10,10 @@ import io.openaev.executors.sentinelone.model.SentinelOneNetwork;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
-import io.openaev.utils.TimeUtils;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -95,101 +96,63 @@ public class SentinelOneExecutorService implements Runnable {
   }
 
   @Override
-  // TODO refacto
   public void run() {
     log.info("Running SentinelOne executor endpoints gathering...");
-    // TODO set or filter api or ?
-    List<SentinelOneAgent> sentinelOneAgents = this.client.agents();
-    Map<String, List<SentinelOneAgent>> siteAgentMap = new HashMap<>();
-    Map<String, List<SentinelOneAgent>> accountAgentMap = new HashMap<>();
-    Map<String, List<SentinelOneAgent>> groupAgentMap = new HashMap<>();
+    Set<SentinelOneAgent> sentinelOneAgents = this.client.agents();
     if (!sentinelOneAgents.isEmpty()) {
-        // TODO record with id, name and agents list then for each record
-      // Create map for each asset group
+      // Put sentinel one agents into two maps: account/site/group id with agents ids +
+      // account/site/group id with account/site/group name
+      Map<String, List<String>> assetGroupIdAgentIdsMap = new HashMap<>();
+      Map<String, String> assetGroupIdNameMap = new HashMap<>();
       for (SentinelOneAgent agent : sentinelOneAgents) {
-        siteAgentMap.computeIfAbsent(agent.getSiteId(), k -> new ArrayList<>()).add(agent);
-        accountAgentMap.computeIfAbsent(agent.getAccountId(), k -> new ArrayList<>()).add(agent);
-        groupAgentMap.computeIfAbsent(agent.getGroupId(), k -> new ArrayList<>()).add(agent);
+        String accountName = agent.getAccountName();
+        String siteName = accountName + "_" + agent.getSiteName();
+        String groupName = siteName + "_" + agent.getGroupName();
+        String agentId = agent.getUuid();
+        assetGroupIdAgentIdsMap
+            .computeIfAbsent(agent.getAccountId(), k -> new ArrayList<>())
+            .add(agentId);
+        assetGroupIdNameMap.putIfAbsent(agent.getAccountId(), accountName);
+        assetGroupIdAgentIdsMap
+            .computeIfAbsent(agent.getSiteId(), k -> new ArrayList<>())
+            .add(agentId);
+        assetGroupIdNameMap.putIfAbsent(agent.getSiteId(), siteName);
+        assetGroupIdAgentIdsMap
+            .computeIfAbsent(agent.getGroupId(), k -> new ArrayList<>())
+            .add(agentId);
+        assetGroupIdNameMap.putIfAbsent(agent.getGroupId(), groupName);
       }
-      // Manage agents for site
-        // TODO account first ?
-      for (String siteId : siteAgentMap.keySet()) {
-        Optional<AssetGroup> existingAssetGroup;
-        existingAssetGroup = assetGroupService.findByExternalReference(siteId);
-        AssetGroup assetGroup;
+      // Sync all sentinel one agents to become OpenAEV agents/endpoints
+      List<Agent> agents =
+          endpointService.syncAgentsEndpoints(
+              toAgentEndpoint(sentinelOneAgents),
+              agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE));
+      // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
+      Optional<AssetGroup> existingAssetGroup;
+      AssetGroup assetGroup;
+      for (Map.Entry<String, List<String>> assetGroupIdAgentIds :
+          assetGroupIdAgentIdsMap.entrySet()) {
+        String assetGroupId = assetGroupIdAgentIds.getKey();
+        List<String> agentIds = assetGroupIdAgentIds.getValue();
+        existingAssetGroup = assetGroupService.findByExternalReference(assetGroupId);
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
-          assetGroup.setExternalReference(siteId);
+          assetGroup.setExternalReference(assetGroupId);
         }
-        List<SentinelOneAgent> agentsForSite = siteAgentMap.get(siteId);
-        String siteName = agentsForSite.getFirst().getSiteName();
-        assetGroup.setName(siteName);
-        log.debug(
-            "SentinelOne executor provisioning based on "
-                + agentsForSite.size()
-                + " agents for the site "
-                + siteName);
-        List<Agent> agents =
-            endpointService.syncAgentsEndpoints(
-                toAgentEndpoint(agentsForSite),
-                agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE));
-        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+        assetGroup.setName(assetGroupIdNameMap.get(assetGroupId));
+        assetGroup.setAssets(
+            agents.stream()
+                .filter(agent -> agentIds.contains(agent.getId()))
+                .map(Agent::getAsset)
+                .toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
-        // Manage agents for account
-        for (String accountId : accountAgentMap.keySet()) {
-          List<SentinelOneAgent> agentsForAccount =
-              agentsForSite.stream()
-                  .filter(agent -> accountId.equals(agent.getAccountId()))
-                  .toList();
-          existingAssetGroup = assetGroupService.findByExternalReference(accountId);
-          if (existingAssetGroup.isPresent()) {
-            assetGroup = existingAssetGroup.get();
-          } else {
-            assetGroup = new AssetGroup();
-            assetGroup.setExternalReference(accountId);
-          }
-          String accountName = siteName + "_" + agentsForAccount.getFirst().getAccountName();
-          assetGroup.setName(accountName);
-          List<String> agentsIdsForAccount =
-              agentsForAccount.stream().map(SentinelOneAgent::getUuid).toList();
-          assetGroup.setAssets(
-              agents.stream()
-                  .filter(agent -> agentsIdsForAccount.contains(agent.getId()))
-                  .map(Agent::getAsset)
-                  .toList());
-          assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
-          // Manage agents for group
-          for (String groupId : groupAgentMap.keySet()) {
-            List<SentinelOneAgent> agentsForGroup =
-                agentsForAccount.stream()
-                    .filter(agent -> groupId.equals(agent.getGroupId()))
-                    .toList();
-            existingAssetGroup = assetGroupService.findByExternalReference(groupId);
-            if (existingAssetGroup.isPresent()) {
-              assetGroup = existingAssetGroup.get();
-            } else {
-              assetGroup = new AssetGroup();
-              assetGroup.setExternalReference(groupId);
-            }
-            String groupName = accountName + "_" + agentsForGroup.getFirst().getGroupName();
-            assetGroup.setName(groupName);
-            List<String> agentsIdsForGroup =
-                agentsForGroup.stream().map(SentinelOneAgent::getUuid).toList();
-            assetGroup.setAssets(
-                agents.stream()
-                    .filter(agent -> agentsIdsForGroup.contains(agent.getId()))
-                    .map(Agent::getAsset)
-                    .toList());
-            assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
-          }
-        }
       }
     }
   }
 
-  private List<AgentRegisterInput> toAgentEndpoint(List<SentinelOneAgent> agents) {
+  private List<AgentRegisterInput> toAgentEndpoint(Set<SentinelOneAgent> agents) {
     return agents.stream()
         .map(
             sentinelOneAgent -> {
@@ -219,9 +182,9 @@ public class SentinelOneExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(input.getPlatform())
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              input.setLastSeen(TimeUtils.toInstant(sentinelOneAgent.getLastActiveDate()));
+              input.setLastSeen(Instant.parse(sentinelOneAgent.getLastActiveDate()));
               return input;
             })
-        .toList();
+        .collect(Collectors.toList());
   }
 }

@@ -428,8 +428,7 @@ public class EndpointService {
     }
     // Save all in database
     assetService.saveAllAssets(endpointsToSave);
-    List<Agent> agents = agentService.saveAllAgents(agentsToSave);
-    return agents;
+    return agentService.saveAllAgents(agentsToSave);
   }
 
   @Transactional

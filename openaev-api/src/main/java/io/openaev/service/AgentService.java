@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -45,6 +46,7 @@ public class AgentService {
     return this.agentRepository.save(agent);
   }
 
+  @Transactional
   public List<Agent> saveAllAgents(List<Agent> agents) {
     List<Agent> agentsSaved = new ArrayList<>();
     // Improve perfs for save all
