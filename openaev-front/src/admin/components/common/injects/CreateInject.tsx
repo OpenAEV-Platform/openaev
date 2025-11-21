@@ -275,10 +275,10 @@ const CreateInject: FunctionComponent<Props> = ({
     handleClose();
   };
 
-  const handleToggle = (contract:InjectorContractFullOutput,event:SyntheticEvent) => {
-    onToggleEntity(contract,event);
+  const handleToggle = (contract: InjectorContractFullOutput, event: SyntheticEvent) => {
+    onToggleEntity(contract, event);
     setSelectedContract(null);
-  }
+  };
 
   const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
     await injectContext.onAddMultipleInjects(data).then((result: {
@@ -334,7 +334,7 @@ const CreateInject: FunctionComponent<Props> = ({
         gridTemplateColumns: selectedContract ? `60% calc(40% - ${theme.spacing(2)})` : '1fr',
         gap: theme.spacing(2),
         overflow: 'hidden',
-        padding:0
+        padding: 0,
       }}
     >
       <>
@@ -443,11 +443,11 @@ const CreateInject: FunctionComponent<Props> = ({
         {selectedContract && numberOfSelectedElements === 0 && (
           <Slide direction="left" in={checked} mountOnEnter unmountOnExit>
             <div style={{
-             /* display: 'flex',
+              /* display: 'flex',
               flexDirection: 'column',
-              gap: theme.spacing(2),*/
+              gap: theme.spacing(2), */
               overflowY: 'auto',
-              overflowX:'hidden',
+              overflowX: 'hidden',
               maxHeight: theme.spacing(120),
             }}
             >
