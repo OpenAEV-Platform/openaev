@@ -19,15 +19,15 @@ import ItemDomains from '../../../../components/ItemDomains';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import {
-    type Article,
-    type AtomicTestingInput,
-    type AttackPattern,
-    type FilterGroup,
-    type InjectInput,
-    type InjectorContract,
-    type InjectorContractFullOutput,
-    type KillChainPhase,
-    type Variable
+  type Article,
+  type AtomicTestingInput,
+  type AttackPattern,
+  type FilterGroup,
+  type InjectInput,
+  type InjectorContract,
+  type InjectorContractFullOutput,
+  type KillChainPhase,
+  type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';

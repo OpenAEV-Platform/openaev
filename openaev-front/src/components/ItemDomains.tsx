@@ -1,13 +1,12 @@
 import { Chip, Tooltip } from '@mui/material';
 import PropTypes from 'prop-types';
+import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { type DomainHelper } from '../actions/helper';
+import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { truncate } from '../utils/String';
-import { useFormatter } from './i18n';
-import {useHelper} from "../store";
-import {DomainHelper} from "../actions/helper";
-import {useMemo} from "react";
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -36,26 +35,25 @@ interface ItemsDomainsProps {
 }
 
 const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
-  const { t } = useFormatter();
   const { classes } = useStyles();
 
-    const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
-        return helper.getDomains();
-    });
+  const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
+    return helper.getDomains();
+  });
 
-    const resolvedDomains: Domain[] = useMemo(() => {
-        if (!domains) return [];
+  const resolvedDomains: Domain[] = useMemo(() => {
+    if (!domains) return [];
 
-        const isArrayOfIds = typeof domains[0] === "string";
+    const isArrayOfIds = typeof domains[0] === 'string';
 
-        if (isArrayOfIds) {
-            return allDomains.filter(d =>
-                (domains as string[]).includes(d.domain_id)
-            );
-        }
+    if (isArrayOfIds) {
+      return allDomains.filter(d =>
+        (domains as string[]).includes(d.domain_id),
+      );
+    }
 
-        return domains as Domain[];
-    }, [domains, allDomains]);
+    return domains as Domain[];
+  }, [domains, allDomains]);
 
   let truncateLimit = 20;
   let style = classes.domainChip;
@@ -69,7 +67,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   }
 
   const renderList = () =>
-      resolvedDomains
+    resolvedDomains
       .filter(d => d.domain_name !== 'Unclassified')
       .map(domain => (
         <Tooltip key={domain.domain_id} title={domain.domain_name}>
@@ -106,7 +104,8 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
         </Tooltip>
         {resolvedDomains.length > 1 && (
           <Tooltip title={resolvedDomains.filter((_, index) => index !== 0)
-              .map(d => d.domain_name).join(' | ')}>
+            .map(d => d.domain_name).join(' | ')}
+          >
             <Chip
               variant="outlined"
               classes={{ root: style }}
