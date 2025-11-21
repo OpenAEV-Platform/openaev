@@ -10,6 +10,7 @@ import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractTextArea.textareaField;
 
 import io.openaev.database.model.Endpoint;
+import io.openaev.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.Contractor;
@@ -21,6 +22,8 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -71,7 +74,8 @@ public class OvhSmsContract extends Contractor {
             Map.of(en, "Send a SMS", fr, "Envoyer un SMS"),
             instance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false));
+            false,
+            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain())));
   }
 
   @Override

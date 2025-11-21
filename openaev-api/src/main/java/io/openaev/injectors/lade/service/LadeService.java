@@ -18,6 +18,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
+import io.openaev.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.ContractDef;
@@ -268,7 +269,8 @@ public class LadeService {
                     Map.of(en, contractName),
                     builder.build(),
                     List.of(Endpoint.PLATFORM_TYPE.Service),
-                    false);
+                    false,
+                    Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
             contractInstance.addContext("lade_type", "action");
             contractInstance.addContext("bundle_identifier", bundleIdentifier);
             contracts.add(contractInstance);
@@ -296,7 +298,8 @@ public class LadeService {
                   Map.of(en, contractName + qualifier),
                   builder.build(),
                   List.of(Endpoint.PLATFORM_TYPE.Service),
-                  false);
+                  false,
+                  Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
           contractInstance.addContext("lade_type", "scenario");
           contractInstance.addContext("bundle_identifier", bundleIdentifier);
           contracts.add(contractInstance);

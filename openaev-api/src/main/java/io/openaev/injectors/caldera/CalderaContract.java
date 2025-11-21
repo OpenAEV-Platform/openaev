@@ -12,6 +12,7 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
+import io.openaev.domain.enums.DefaultDomain;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.*;
@@ -26,6 +27,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -151,7 +153,8 @@ public class CalderaContract extends Contractor {
                       Map.of(en, ability.getName(), fr, ability.getName()),
                       builder.build(),
                       platforms,
-                      true);
+                      true,
+                      Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
               contract.addAttackPattern(ability.getTechnique_id());
               return contract;
             }))

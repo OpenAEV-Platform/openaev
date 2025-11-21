@@ -17,6 +17,7 @@ import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
@@ -61,6 +62,7 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
+  private final DomainService domainService;
 
   @Value("${openaev.xls.import.mail.enable}")
   private boolean mailImportEnabled;
@@ -424,6 +426,9 @@ public class InjectorContractService {
       injectorContract.setAttackPatterns(attackPatterns);
     } else {
       injectorContract.setAttackPatterns(new ArrayList<>());
+    }
+    if (!injector.isPayloads()) {
+        injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
     }
     return injectorContract;
   }

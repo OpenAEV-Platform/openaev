@@ -9,6 +9,7 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 
 import io.openaev.database.model.Endpoint;
+import io.openaev.domain.enums.DefaultDomain;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
@@ -18,6 +19,9 @@ import io.openaev.injector_contract.fields.ContractElement;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import io.openaev.rest.domain.DomainService;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -48,7 +52,8 @@ public class ManualContract extends Contractor {
                 Map.of(en, "Manual", fr, "Manuel"),
                 instance,
                 List.of(Endpoint.PLATFORM_TYPE.Internal),
-                false));
+                false,
+                Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain())));
   }
 
   @Override

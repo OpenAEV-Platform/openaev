@@ -196,7 +196,8 @@ public class PayloadService {
         Map.of(en, payload.getName(), fr, payload.getName()),
         builder.build(),
         Arrays.asList(payload.getPlatforms()),
-        true);
+        true,
+        payload.getDomains());
   }
 
   private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {

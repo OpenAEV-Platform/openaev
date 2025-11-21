@@ -6,10 +6,12 @@ import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -20,16 +22,17 @@ import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class InjectorService {
+
+  private static final String UNCLASSIFIED = "Unclassified";
 
   @Resource protected ObjectMapper mapper;
 
@@ -40,6 +43,8 @@ public class InjectorService {
   private InjectorContractRepository injectorContractRepository;
 
   private AttackPatternRepository attackPatternRepository;
+
+  private DomainRepository domainRepository;
 
   @Resource
   public void setFileService(FileService fileService) {
@@ -59,6 +64,11 @@ public class InjectorService {
   @Autowired
   public void setInjectorContractRepository(InjectorContractRepository injectorContractRepository) {
     this.injectorContractRepository = injectorContractRepository;
+  }
+
+  @Autowired
+  public void setDomainRepository(DomainRepository domainRepository) {
+    this.domainRepository = domainRepository;
   }
 
   @Transactional
@@ -148,6 +158,13 @@ public class InjectorService {
                       contractDB.setAttackPatterns(attackPatterns);
                     }
                   }
+                  // Manage the update for domains by doing a merge, if payloads, domains will be hold by payloads
+                  if (!isPayloads) {
+                    //TODO Update domains, do an upsert and merge the domains
+                      Set<Domain> currentDomains = this.upserts(current.get().getDomains());
+                      Set<Domain> domainsToAdd = this.upserts(contractDB.getDomains());
+                      contractDB.setDomains(this.mergeDomains(currentDomains, domainsToAdd));
+                  }
                   try {
                     contractDB.setContent(mapper.writeValueAsString(current.get()));
                   } catch (JsonProcessingException e) {
@@ -190,6 +207,9 @@ public class InjectorService {
                       injectorContract.setContent(mapper.writeValueAsString(in));
                     } catch (JsonProcessingException e) {
                       throw new RuntimeException(e);
+                    }
+                    if (!isPayloads) {
+                        injectorContract.setDomains(this.upserts(in.getDomains()));
                     }
                     return injectorContract;
                   })
@@ -239,6 +259,9 @@ public class InjectorService {
                     } catch (JsonProcessingException e) {
                       throw new RuntimeException(e);
                     }
+                    if (!isPayloads) {
+                        injectorContract.setDomains(this.upserts(in.getDomains()));
+                    }
                     return injectorContract;
                   })
               .toList();
@@ -248,5 +271,34 @@ public class InjectorService {
 
   public Iterable<Injector> injectors() {
     return injectorRepository.findAll();
+  }
+
+  public Set<Domain> upserts(final Set<Domain> domains) {
+      return domains.stream().map(this::upsert).collect(Collectors.toSet());
+  }
+
+  private Domain upsert(final Domain domain) {
+      Optional<Domain> existingDomain = domainRepository.findByName(domain.getName());
+      return existingDomain.
+              orElseGet(() ->
+                      domainRepository.save(new Domain(domain.getName(), domain.getColor() != null ? domain.getColor() : randomColor())));
+  }
+
+  private String randomColor() {
+      Random rand = new Random();
+      return String.format("#%06x", rand.nextInt(0xffffff + 1));
+  }
+
+  public Set<Domain> mergeDomains(
+          final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
+      if (existingDomains == null
+              || existingDomains.isEmpty()
+              || (existingDomains.size() == 1
+              && UNCLASSIFIED.equals(existingDomains.iterator().next().getName()))) {
+          return addedDomains;
+      }
+
+      return Stream.concat(existingDomains.stream(), addedDomains.stream())
+              .collect(Collectors.toSet());
   }
 }
