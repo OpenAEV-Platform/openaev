@@ -1,35 +1,61 @@
 import { Grid } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
-import { useOutletContext } from 'react-router';
+import { makeStyles } from 'tss-react/mui';
 
-import { type CatalogConnectorOutput } from '../../../../utils/api-types';
+import { fetchCatalogConnectors } from '../../../../actions/catalog/catalog-actions';
+import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
+import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { useFormatter } from '../../../../components/i18n';
+import { useHelper } from '../../../../store';
+import { type CatalogConnector } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import CatalogFilters from './CatalogFilters';
 import ConnectorCard from './ConnectorCard';
 
-type CatalogContextType = { catalogConnectors: CatalogConnectorOutput[] };
+const useStyles = makeStyles()(theme => ({
+  content: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(3),
+  },
+}));
 
 const Catalog = () => {
   // Standard hooks
-  const theme = useTheme();
+  const { t } = useFormatter();
+  const dispatch = useAppDispatch();
+  const { classes } = useStyles();
 
-  const { catalogConnectors } = useOutletContext<CatalogContextType>();
+  const { catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({ catalogConnectors: helper.getCatalogConnectors() }));
+  const [filteredConnectors, setFilteredConnectors] = useState(catalogConnectors);
 
-  const [filteredConnectors, setFilteredConnectors] = useState<CatalogConnectorOutput[]>(catalogConnectors);
+  useDataLoader(() => {
+    dispatch(fetchCatalogConnectors());
+  });
 
   return (
     <>
-      <CatalogFilters
-        connectors={catalogConnectors}
-        onFiltered={setFilteredConnectors}
+      <Breadcrumbs
+        variant="list"
+        elements={[{ label: t('Catalog') }, {
+          label: t('Connectors'),
+          current: true,
+        }]}
       />
-      <Grid container={true} spacing={3} style={{ marginTop: theme.spacing(2) }}>
-        {filteredConnectors.map((connector: CatalogConnectorOutput) => {
-          return (
-            <ConnectorCard key={connector.catalog_connector_id} connector={connector} />
-          );
-        })}
-      </Grid>
+      <div className={classes.content}>
+        <CatalogFilters
+          connectors={catalogConnectors}
+          onFiltered={setFilteredConnectors}
+        />
+        <Grid container={true} spacing={3}>
+          {filteredConnectors.map((connector: CatalogConnector) => {
+            return (
+              <ConnectorCard key={connector.connector_id} connector={connector} />
+            );
+          })}
+        </Grid>
+      </div>
     </>
   );
 };
