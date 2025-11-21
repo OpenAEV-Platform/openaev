@@ -44,8 +44,8 @@ export const fileUri = fileImport => `${APP_BASE_PATH}${fileImport}`; // No slas
 
 // Export
 const escape = value => value?.toString()
-    .replaceAll('"', '""')
-    .replaceAll('\n', '\\n');
+  .replaceAll('"', '""')
+  .replaceAll('\n', '\\n');
 export const exportData = (
   type,
   keys,
