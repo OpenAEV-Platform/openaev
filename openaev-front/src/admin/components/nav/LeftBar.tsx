@@ -162,6 +162,12 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
           subItems: [
             {
+              link: '/admin/integrations/catalog',
+              label: 'Catalog',
+              icon: () => (<SmartButtonOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+            },
+            {
               link: '/admin/integrations/injectors',
               label: 'Injectors',
               icon: () => (<SmartButtonOutlined fontSize="small" />),

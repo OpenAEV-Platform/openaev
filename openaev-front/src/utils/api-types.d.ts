@@ -594,6 +594,90 @@ export interface CVEBulkInsertInput {
   source_identifier: string;
 }
 
+export interface CatalogConnector {
+  /** Connector class name */
+  catalog_connector_class_name?: string;
+  /** @uniqueItems true */
+  catalog_connector_configuration: CatalogConnectorConfiguration[];
+  /** Connector container image */
+  catalog_connector_container_image?: string;
+  /** Connector container version */
+  catalog_connector_container_version?: string;
+  /**
+   * Connector deleted at
+   * @format date-time
+   */
+  catalog_connector_deleted_at?: string;
+  /** Connector description */
+  catalog_connector_description?: string;
+  /** @uniqueItems true */
+  catalog_connector_instances: ConnectorInstance[];
+  /**
+   * Connector last verified date
+   * @format date-time
+   */
+  catalog_connector_last_verified_date?: string;
+  /** Connector logo */
+  catalog_connector_logo_url?: string;
+  /** Connector manager supported */
+  catalog_connector_manager_supported?: boolean;
+  /**
+   * Connector max confidence level
+   * @format int32
+   */
+  catalog_connector_max_confidence_level?: number;
+  /** Connector playbook supported */
+  catalog_connector_playbook_supported?: boolean;
+  /** Connector description */
+  catalog_connector_short_description?: string;
+  /** Connector slug */
+  catalog_connector_slug?: string;
+  /** Connector source code */
+  catalog_connector_source_code?: string;
+  /** Connector subscription link */
+  catalog_connector_subscription_link?: string;
+  /** Connector support version */
+  catalog_connector_support_version?: string;
+  /** Connector type */
+  catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  /**
+   * Connector use_cases
+   * @uniqueItems true
+   */
+  catalog_connector_use_cases?: string[];
+  /** Connector verified */
+  catalog_connector_verified?: boolean;
+  /** Connector ID */
+  connector_id: string;
+  /** Connector title */
+  connector_title: string;
+  listened?: boolean;
+}
+
+export interface CatalogConnectorConfiguration {
+  connector_configuration_default?: JsonNode;
+  /** Connector configuration description */
+  connector_configuration_description?: string;
+  /**
+   * Connector configuration enum
+   * @uniqueItems true
+   */
+  connector_configuration_enum?: string[];
+  /** Connector configuration format */
+  connector_configuration_format?: string;
+  /** Connector ID */
+  connector_configuration_id?: string;
+  /** Connector configuration key */
+  connector_configuration_key?: string;
+  /** Connector configuration required */
+  connector_configuration_required?: boolean;
+  /** Connector configuration type */
+  connector_configuration_type?: string;
+  /** Connector configuration write only */
+  connector_configuration_writeonly?: boolean;
+  listened?: boolean;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -889,6 +973,29 @@ export interface Condition {
   key: string;
   operator: "eq";
   value?: boolean;
+}
+
+export interface ConnectorInstance {
+  connector_instance_catalog: CatalogConnector;
+  /** @uniqueItems true */
+  connector_instance_configurations: ConnectorInstanceConfiguration[];
+  connector_instance_current_status: string;
+  connector_instance_id: string;
+  connector_instance_is_in_reboot_loop?: boolean;
+  connector_instance_requested_status?: string;
+  /** @format int32 */
+  connector_instance_restart_count?: number;
+  /** @format date-time */
+  connector_instance_started_at?: string;
+  listened?: boolean;
+}
+
+export interface ConnectorInstanceConfiguration {
+  connector_instance_configuration_id: string;
+  connector_instance_configuration_is_encrypted?: boolean;
+  connector_instance_configuration_key: string;
+  connector_instance_configuration_value: JsonNode;
+  listened?: boolean;
 }
 
 export interface ContractOutputElement {

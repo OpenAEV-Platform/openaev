@@ -7,11 +7,9 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 
 @RequiredArgsConstructor
 @Service
@@ -26,10 +24,13 @@ public class CatalogConnectorService {
     return fromIterable(catalogConnectorRepository.saveAll(connectors));
   }
 
-  public Optional<CatalogConnector> findBySlug(String slug){
+  public Optional<CatalogConnector> findBySlug(String slug) {
     return catalogConnectorRepository.findBySlugWithConfigurations(slug);
   }
 
+  public Optional<CatalogConnector> findById(String id) {
+    return catalogConnectorRepository.findById(id);
+  }
 
   @Transactional
   public List<CatalogConnector> upsertAll(List<CatalogConnector> connectors) {

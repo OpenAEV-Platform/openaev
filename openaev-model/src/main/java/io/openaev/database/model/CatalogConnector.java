@@ -30,6 +30,7 @@ public class CatalogConnector implements Base {
   }
 
   @Id
+  @NotNull
   @Column(name = "catalog_connector_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator

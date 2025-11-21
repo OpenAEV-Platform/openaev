@@ -1,29 +1,26 @@
- package io.openaev.runner;
+package io.openaev.runner;
 
- import com.fasterxml.jackson.databind.JsonNode;
- import com.fasterxml.jackson.databind.ObjectMapper;
- import io.openaev.database.model.CatalogConnectorConfiguration;
- import io.openaev.service.CatalogConnectorConfigurationService;
- import io.openaev.service.CatalogConnectorService;
- import io.openaev.database.model.CatalogConnector;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.service.CatalogConnectorConfigurationService;
+import io.openaev.service.CatalogConnectorService;
+import io.openaev.service.FileService;
+import io.openaev.utils.TimeUtils;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
 
- import java.io.ByteArrayInputStream;
- import java.io.IOException;
- import java.io.InputStream;
- import java.util.*;
-
- import io.openaev.service.FileService;
- import io.openaev.utils.TimeUtils;
- import lombok.RequiredArgsConstructor;
- import lombok.extern.slf4j.Slf4j;
- import org.springframework.boot.CommandLineRunner;
- import org.springframework.stereotype.Component;
- import org.springframework.transaction.annotation.Transactional;
-
- @Slf4j
- @RequiredArgsConstructor
- @Component
- public class CatalogConnectorIngestionRunner implements CommandLineRunner {
+@Slf4j
+@RequiredArgsConstructor
+@Component
+public class CatalogConnectorIngestionRunner implements CommandLineRunner {
   private final CatalogConnectorService catalogConnectorService;
   private static final ObjectMapper mapper = new ObjectMapper();
   private final CatalogConnectorConfigurationService catalogConnectorConfigurationService;
@@ -33,49 +30,46 @@
   public void run(String... args) {
     String resourcePath = "/catalog/catalog-integrators.json";
 
-    try (InputStream is = CatalogConnectorIngestionRunner.class.getResourceAsStream(resourcePath))
- {
+    try (InputStream is = CatalogConnectorIngestionRunner.class.getResourceAsStream(resourcePath)) {
       if (is == null) {
-        throw new IOException("Fichier non trouvé : " + resourcePath);
+        throw new IOException("File not found : " + resourcePath);
       }
 
       JsonNode rootNode = mapper.readTree(is);
 
       List<CatalogConnector> catalog = extractCatalog(rootNode);
 
-      System.out.println("Catalogue construit :");
+      System.out.println("Build catalog:");
       for (CatalogConnector connector : catalog) {
         System.out.println("  • " + connector.getTitle());
       }
     } catch (IOException e) {
-      System.err.println("Erreur de lecture du fichier : " + e.getMessage());
+      System.err.println("Error while reading file : " + e.getMessage());
     }
   }
 
   private List<CatalogConnector> extractCatalog(JsonNode rootNode) {
-      JsonNode contracts = rootNode.get("contracts");
-      if (contracts == null) {
-          // TODO throw error ?
-          return List.of();
-      }
+    JsonNode contracts = rootNode.get("contracts");
+    if (contracts == null) {
+      throw new IllegalArgumentException("contracts is null");
+    }
 
     List<CatalogConnector> catalogConnectorList = new ArrayList<>();
 
-      for (JsonNode contract : contracts) {
-          CatalogConnector catalogConnector = buildCatalogConnector(contract);
-          catalogConnectorList.add(catalogConnector);
-      }
-      List<CatalogConnector> savedConnectors = catalogConnectorService.saveAll(catalogConnectorList);
+    for (JsonNode contract : contracts) {
+      CatalogConnector catalogConnector = buildCatalogConnector(contract);
+      catalogConnectorList.add(catalogConnector);
+    }
 
-    return savedConnectors;
+    return catalogConnectorService.saveAll(catalogConnectorList);
   }
 
   private CatalogConnector buildCatalogConnector(JsonNode contract) {
 
-      CatalogConnector connector = catalogConnectorService
-              .findBySlug(contract.get("slug").asText())
-              .orElseGet(CatalogConnector::new);
-
+    CatalogConnector connector =
+        catalogConnectorService
+            .findBySlug(contract.get("slug").asText())
+            .orElseGet(CatalogConnector::new);
 
     List<String> useCases = new ArrayList<>();
     JsonNode arrUseCases = contract.get("use_cases");
@@ -101,8 +95,9 @@
 
     if (lastVerifiedDateNode != null && !lastVerifiedDateNode.isNull()) {
       String lastVerifiedDate = lastVerifiedDateNode.asText();
-      if (lastVerifiedDate != null && !lastVerifiedDate.isBlank() &&
- !"null".equals(lastVerifiedDate)) {
+      if (lastVerifiedDate != null
+          && !lastVerifiedDate.isBlank()
+          && !"null".equals(lastVerifiedDate)) {
         connector.setLastVerifiedDate(TimeUtils.toInstantFlexible(lastVerifiedDate));
       }
     }
@@ -117,20 +112,20 @@
     connector.setContainerImage(contract.get("container_image").asText());
     String containerType = contract.path("container_type").asText(null);
     if (containerType != null) {
-        connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.valueOf(containerType.trim().toUpperCase()));
-    } else{
-        log.error("container_type is null");
-        //TODO : return empty
-        connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
+      connector.setContainerType(
+          CatalogConnector.CONNECTOR_TYPE.valueOf(containerType.trim().toUpperCase()));
+    } else {
+      log.error("container_type is null");
     }
 
-  Set<CatalogConnectorConfiguration> conf = buildConnectorConfigurations(contract, connector);
-  connector.setCatalogConnectorConfigurations(conf);
+    Set<CatalogConnectorConfiguration> conf = buildConnectorConfigurations(contract, connector);
+    connector.setCatalogConnectorConfigurations(conf);
 
     return connector;
   }
 
-  private Set<CatalogConnectorConfiguration> buildConnectorConfigurations(JsonNode contract, CatalogConnector connector) {
+  private Set<CatalogConnectorConfiguration> buildConnectorConfigurations(
+      JsonNode contract, CatalogConnector connector) {
     Set<CatalogConnectorConfiguration> configs = new HashSet<>();
 
     JsonNode schema = contract.get("config_schema");
@@ -141,13 +136,15 @@
 
     if (properties == null || properties.isNull()) return configs;
 
-    for (Iterator<String> it = properties.fieldNames(); it.hasNext();) {
+    for (Iterator<String> it = properties.fieldNames(); it.hasNext(); ) {
       String key = it.next();
       JsonNode prop = properties.get(key);
 
-        CatalogConnectorConfiguration conf = connector.getCatalogConnectorConfigurations().stream()
-                .filter(c ->key.equals(c.getConnectorConfigurationKey())).findFirst()
-                .orElse( new CatalogConnectorConfiguration());
+      CatalogConnectorConfiguration conf =
+          connector.getCatalogConnectorConfigurations().stream()
+              .filter(c -> key.equals(c.getConnectorConfigurationKey()))
+              .findFirst()
+              .orElse(new CatalogConnectorConfiguration());
       conf.setCatalogConnector(connector);
       conf.setConnectorConfigurationKey(key);
 
@@ -160,8 +157,8 @@
 
       // default
       JsonNode defaultNode = prop.get("default");
-      conf.setConnectorConfigurationDefault(defaultNode != null && !defaultNode.isNull() ?
- defaultNode : null);
+      conf.setConnectorConfigurationDefault(
+          defaultNode != null && !defaultNode.isNull() ? defaultNode : null);
 
       // enum
       if (prop.has("enum") && prop.get("enum").isArray()) {
@@ -207,12 +204,12 @@
 
       String fileName = connectorSlug + "-logo.png";
 
-      return fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
+       fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
 
+       return fileName;
     } catch (Exception e) {
       log.error("Error upload image MinIO", e);
       return null;
     }
   }
-
- }
+}
