@@ -177,13 +177,7 @@ public class PayloadUtils {
       throw new IllegalArgumentException("Input payload cannot be null");
     }
     BeanUtils.copyProperties(
-        payloadInput,
-        target,
-        "outputParsers",
-        "tags",
-        "attackPatterns",
-        "detectionRemediations",
-        "domains");
+        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations");
 
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, false);
