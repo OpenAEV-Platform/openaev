@@ -61,21 +61,26 @@
       "matchDepTypes": [
         "devDependencies"
       ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
+      "commitMessagePrefix": "[DANGER]",
+      "commitMessageSuffix": "(html-to-image has a yarn patch)"
+    },
+    {
+      "matchJsonata": [
+        "$exists(isVulnerabilityAlert)"
       ],
-      "rebaseWhen": "always",
-      "automerge": false
+      "matchBaseBranches": [
+        "release/current"
+      ],
+      "enabled": false
+    },
+    {
+      "matchJsonata": [
+        "$not($exists(isVulnerabilityAlert))"
+      ],
+      "matchBaseBranches": [
+        "master"
+      ],
+      "enabled": false
     }
-  ],
-  "lockFileMaintenance": {
-    "schedule": "* 5 * * 0",
-    "rebaseWhen": "always",
-    "automerge": false,
-    "enabled": true
-  }
+  ]
 }
-

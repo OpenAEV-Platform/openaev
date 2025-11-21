@@ -78,9 +78,16 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
     if (noRepeat) {
       sentence = `${fld(scenario.scenario_recurrence_start)} ${t('recurrence_at')} ${ft(new Date().setUTCHours(parsedCronExpression.h, parsedCronExpression.m, 0))}`;
     } else {
-      sentence = cronstrue.toString(cronExpression, {
+      const base = new Date();
+      base.setUTCHours(parsedCronExpression.h, parsedCronExpression.m, 0, 0);
+
+      const localHour = base.getHours();
+      const localMinute = base.getMinutes();
+
+      const rest = cronExpression.split(' ').slice(3).join(' ');
+
+      sentence = cronstrue.toString(`0 ${localMinute} ${localHour} ${rest}`, {
         verbose: true,
-        tzOffset: -new Date().getTimezoneOffset() / 60,
         locale,
       });
       if (scenario.scenario_recurrence_end) {
