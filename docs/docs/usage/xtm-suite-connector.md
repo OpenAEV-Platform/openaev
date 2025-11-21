@@ -24,7 +24,7 @@ Once the OpenCTI instance is up and running, make sure to obtain these two setti
 * A valid API Token associated with an account with sufficient privileges (refer to: [Configuring the Connector API token](https://docs.opencti.io/latest/deployment/connectors/#connector-token))
 
 ### Enabling the Security Coverage connector in OpenAEV
-Make sure you set a value for all mandatory configuration keys, following the [Configuration documentation for the Security Coverage Connector](/deployment/configuration#xtm-suite-opencti-connector).
+Make sure you set a value for all mandatory configuration keys, following the [Configuration documentation for the Security Coverage Connector](../../deployment/configuration#xtm-suite-opencti).
 
 ### Use OpenCTI to trigger security coverage enrichments seamlessly
 The connector is now up and running and should be visible in OpenCTI as _OpenAEV Coverage_.

@@ -148,9 +148,10 @@ nav:
       - Dashboards:
         - Custom Dashboards: usage/dashboards/custom-dashboards/custom-dashboards.md
         - Widgets: usage/dashboards/widgets/widgets.md
-      - Security Coverage enrichment (XTM Suite): usage/xtm_suite_connector.md
+      - Security Coverage enrichment (XTM Suite): usage/xtm-suite-connector.md
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
+      - Scenario Generation from OpenCTI Security Coverage: usage/scenario/security-coverage.md
       - Default Asset Rules: usage/default_asset_rules.md
       - Importing injects into a Scenario: usage/scenario_import.md
       - Assets: usage/assets.md

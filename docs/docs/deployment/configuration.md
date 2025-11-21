@@ -69,7 +69,7 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 
 ### Dependencies
 
-#### XTM Suite: OpenCTI (Classic API)
+#### XTM Suite: OpenCTI
 
 | Parameter                           | Environment variable                | Default value | Description                                                                                                                           |
 |:------------------------------------|:------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------------|
@@ -79,29 +79,16 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 | openaev.xtm.opencti.token           | OPENAEV_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                                                         |
 | openaev.xtm.opencti.disable-display | OPENAEV_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                                                             |
 
-#### XTM Suite: OpenCTI (Connector)
-
-You can configure connectors individually, on the basis of a single connector per connector type per OpenAEV instance.
-
-Currently, the only supported connector is "OpenAEV Coverage" (aka Security Coverage).
-
-| Parameter                                                           | Environment variable                                                | Default value | Description                                                                                                   |
-|:--------------------------------------------------------------------|:--------------------------------------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------|
-| openaev.xtm.opencti.connector.security-coverage.url                 | OPENAEV_XTM_OPENCTI_CONNECTOR_SECURITY-COVERAGE_URL                 |               | Root URL (FQDN) to the OpenCTI instance to connect with the Connector. Example: `https://opencti.example`     |
-| openaev.xtm.opencti.connector.security-coverage.id                  | OPENAEV_XTM_OPENCTI_CONNECTOR_SECURITY-COVERAGE_ID                  |               | Unique ID for the Connector. Will be visible to the target OpenCTI instance.                                  |
-| openaev.xtm.opencti.connector.security-coverage.auth-token          | OPENAEV_XTM_OPENCTI_CONNECTOR_SECURITY-COVERAGE_AUTH-TOKEN          |               | An OpenCTI API token that is valid on the configured OpenCTI instance. Ask the OpenCTI administrator for one. |
-
-
 #### XTM Suite: XTM Hub
 
-| Parameter                        | Environment variable             | Default value | Description                                                         |
-|:-------------------------------------------------------|:------------------------------------------------------|:-------------------------------------|:----------------------------------------------------------------------|
-| openaev.xtm.hub.enable                                 | OPENAEV_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                     |
-| openaev.xtm.hub.url                                    | OPENAEV_XTM_HUB_URL              |               | XTM Hub URL                                                         |
-| openaev.xtm.hub.override-api-url                       | OPENAEV_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openaev.xtm.hub.url` during backend calls |
-| openaev.xtm.hub.collector.enable                       | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
-| openaev.xtm.hub.collector.id                           | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
-| openaev.xtm.hub.collector.connectivity-check-internval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
+| Parameter                                             | Environment variable             | Default value | Description                                                         |
+|:------------------------------------------------------|:------------------------------------------------------|:-------------------------------------|:----------------------------------------------------------------------|
+| openaev.xtm.hub.enable                                | OPENAEV_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                     |
+| openaev.xtm.hub.url                                   | OPENAEV_XTM_HUB_URL              |               | XTM Hub URL                                                         |
+| openaev.xtm.hub.override-api-url                      | OPENAEV_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openaev.xtm.hub.url` during backend calls |
+| openaev.xtm.hub.collector.enable                      | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
+| openaev.xtm.hub.collector.id                          | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
+| openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
 
 #### PostgreSQL
 

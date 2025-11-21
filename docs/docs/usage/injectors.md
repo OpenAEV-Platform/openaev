@@ -58,7 +58,8 @@ Some of them :
   the [Airbus website](https://www.cyber.airbus.com/cyberrange/).
 - HTTP query: Executes HTTP requests on external services, facilitating interactions with external systems. To find more
   information about the related inject, please refer to the [dedicated documentation section](inject-types.md#http-requests).
-- OpenCTI: Integration with an OpenCTI platform, enhancing simulation capabilities with access to threat intelligence.
+- OpenCTI: Integration with an OpenCTI platform, enhancing simulation capabilities with access to threat intelligence
+  and [automatic scenario generation](scenario/security-coverage.md) based on observed threat activities.
 
 ## Agents
 
