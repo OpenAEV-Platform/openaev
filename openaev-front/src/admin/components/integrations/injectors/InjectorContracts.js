@@ -13,6 +13,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import CreateInjectorContract from './injector_contracts/CreateInjectorContract';
 import InjectorContractPopover from './injector_contracts/InjectorContractPopover';
+import ItemDomains from "../../../../components/ItemDomains.tsx";
 
 const useStyles = makeStyles()(() => ({
   container: { marginTop: 20 },
@@ -41,24 +42,32 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const headerStyles = {
-  injector_contract_labels: { width: '35%' },
-  kill_chains: { width: '20%' },
-  attack_patterns: { width: '30%' },
+  injector_contract_labels: { width: '30%' },
+    injector_contract_domains: { width: '10%' },
+  kill_chains: { width: '13%' },
+  attack_patterns: { width: '35%' },
   injector_contract_updated_at: { width: '12%' },
 };
 
 const inlineStyles = {
   injector_contract_labels: {
     float: 'left',
-    width: '35%',
+    width: '30%',
     height: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-  },
+  },  injector_contract_domains: {
+        float: 'left',
+        width: '10%',
+        height: 20,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+    },
   kill_chains: {
     float: 'left',
-    width: '20%',
+    width: '13%',
     height: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -66,7 +75,7 @@ const inlineStyles = {
   },
   attack_patterns: {
     float: 'left',
-    width: '30%',
+    width: '35%',
     height: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -105,6 +114,9 @@ const InjectorContracts = () => {
       label: 'Kill chains',
       isSortable: false,
     },
+      {      field: 'injector_contract_domains',
+          label: t('Domains'),
+          isSortable: true,},
     {
       field: 'attack_patterns',
       label: 'Attack patterns',
@@ -220,6 +232,13 @@ const InjectorContracts = () => {
                       })
                     }
                   </div>
+                    <div
+                        className={classes.bodyItem}
+                        style={inlineStyles.injector_contract_domains}
+                    >
+                    <ItemDomains domains={injectorContract.injector_contract_domains} variant="reduced-view"/>
+                    </div>
+
                   <div
                     className={classes.bodyItem}
                     style={inlineStyles.attack_patterns}
