@@ -137,7 +137,6 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
   @JsonProperty("injectors_domains")
   private Set<Domain> domains = new HashSet<>();
 

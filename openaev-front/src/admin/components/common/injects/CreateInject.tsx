@@ -15,9 +15,20 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
+import ItemDomains from '../../../../components/ItemDomains';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
-import { type Article, type AtomicTestingInput, type AttackPattern, type FilterGroup, type InjectInput, type InjectorContract, type InjectorContractFullOutput, type KillChainPhase, type Variable } from '../../../../utils/api-types';
+import {
+    type Article,
+    type AtomicTestingInput,
+    type AttackPattern,
+    type FilterGroup,
+    type InjectInput,
+    type InjectorContract,
+    type InjectorContractFullOutput,
+    type KillChainPhase,
+    type Variable
+} from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
@@ -45,9 +56,10 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  kill_chain_phase: { width: '20%' },
-  injector_contract_labels: { width: '45%' },
-  injector_contract_platforms: { width: '15%' },
+  kill_chain_phase: { width: '15%' },
+  injector_contract_labels: { width: '40%' },
+  injector_contract_domains: { width: '15%' },
+  injector_contract_platforms: { width: '10%' },
   attack_patterns: { width: '20%' },
 };
 
@@ -105,6 +117,21 @@ const CreateInject: FunctionComponent<Props> = ({
           <span>{tPick(contract.injector_contract_labels)}</span>
         </Tooltip>
       ),
+    },
+    {
+      field: 'injector_contract_domains',
+      label: t('Domains'),
+      isSortable: false,
+      value: (contract: InjectorContractFullOutput, _: KillChainPhase, __: Record<string, AttackPattern>) => {
+        return contract.injector_contract_domains && contract.injector_contract_domains.length > 0
+          ? (
+              <ItemDomains
+                domains={contract.injector_contract_domains}
+                variant="reduced-view"
+              />
+            )
+          : <></>;
+      },
     },
     {
       field: 'injector_contract_platforms',

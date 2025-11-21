@@ -1,4 +1,4 @@
-import { FormControl, FormHelperText, InputLabel, ListItemText, MenuItem, Select } from '@mui/material';
+import {Autocomplete, Box, FormControl, FormHelperText, InputLabel, ListItemText, MenuItem, Select, TextField } from '@mui/material';
 import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -24,51 +24,47 @@ const DomainFieldController = ({
 
   const filteredDomains = domains.filter(d => d.domain_name !== 'Unclassified');
 
-  return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState: { error } }) => {
-        const { value, onChange, ...restField } = field;
-        const selectedIds = Array.isArray(value)
-          ? value.map(d => d.domain_id)
-          : [];
-
-        return (
-          <FormControl fullWidth error={!!error}>
-            <InputLabel id={`select-label-${name}`} error={!!error}>
-              {`${label}${required ? ' *' : ''}`}
-            </InputLabel>
-
-            <Select
-              {...restField}
-              value={selectedIds}
-              multiple
-              disabled={disabled}
-              onChange={(e) => {
-                const ids = e.target.value as string[];
-                const selectedDomains = filteredDomains.filter(d => ids.includes(d.domain_id));
-                onChange(selectedDomains);
-              }}
-              renderValue={selectedIds =>
-                filteredDomains
-                  .filter(domain => selectedIds.includes(domain.domain_id))
-                  .map(domain => domain.domain_name)
-                  .join(', ')}
-            >
-              {filteredDomains.map(domain => (
-                <MenuItem key={domain.domain_id} value={domain.domain_id}>
-                  <ListItemText primary={domain.domain_name} />
-                </MenuItem>
-              ))}
-            </Select>
-
-            {error && <FormHelperText>{error.message}</FormHelperText>}
-          </FormControl>
-        );
-      }}
-    />
-  );
+    return (
+        <Controller
+            name={name}
+            control={control}
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                    <Autocomplete
+                        size="small"
+                        multiple
+                        options={filteredDomains}
+                        getOptionLabel={(option) => option.domain_name}
+                        isOptionEqualToValue={(option, val) => option.domain_id === val.domain_id}
+                        disableClearable={false}
+                        openOnFocus
+                        autoHighlight
+                        noOptionsText="No available options"
+                        value={Array.isArray(value) ? value : []}
+                        onChange={(_event, selectedOptions) => {
+                            onChange(selectedOptions);
+                        }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label={`${label}${required ? ' *' : ''}`}
+                                variant="standard"
+                                size="small"
+                                fullWidth
+                                error={!!error}
+                                helperText={error ? error.message : null}
+                            />
+                        )}
+                        renderOption={(props, option) => (
+                            <Box component="li" {...props} key={option.domain_id}>
+                                {option.domain_name}
+                            </Box>
+                        )}
+                    />
+                </>
+            )}
+        />
+    );
 };
 
 export default DomainFieldController;
