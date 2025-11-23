@@ -9,7 +9,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -109,7 +108,7 @@ public class BatchingInjectStatusService {
             Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
 
             injectExecutionService.processInjectExecution(
-                    inject, agent, callback.getInjectExecutionInput(), outputParsers);
+                inject, agent, callback.getInjectExecutionInput(), outputParsers);
           } catch (ElementNotFoundException e) {
             injectExecutionService.handleInjectExecutionError(inject, e);
           }
