@@ -179,7 +179,8 @@ services:
       POSTGRES_USER: openaev
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
-    command: postgres -c 'max_connections=250'
+    commands: 
+      - postgres -c 'max_connections=250'
   - name: rabbitmq
     image: rabbitmq:4.1-management
     environment:
@@ -197,7 +198,8 @@ services:
       POSTGRES_USER: openaev
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
-    command: postgres -c 'max_connections=250'
+    commands: 
+      - postgres -c 'max_connections=250'
   - name: rabbitmq-e2e
     image: rabbitmq:4.1-management
     environment:
