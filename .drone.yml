@@ -180,7 +180,7 @@ services:
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
     commands: 
-      - postgres -c 'max_connections=250'
+      - docker-entrypoint.sh -c 'max_connections=250'
   - name: rabbitmq
     image: rabbitmq:4.1-management
     environment:
@@ -199,7 +199,7 @@ services:
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
     commands: 
-      - postgres -c 'max_connections=250'
+      - docker-entrypoint.sh -c 'max_connections=250'
   - name: rabbitmq-e2e
     image: rabbitmq:4.1-management
     environment:
