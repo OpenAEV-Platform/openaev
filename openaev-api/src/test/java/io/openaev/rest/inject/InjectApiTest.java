@@ -979,7 +979,7 @@ class InjectApiTest extends IntegrationTest {
                   }
                   Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
                   return injectStatusSaved
-                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
+                      .filter(injectStatus -> injectStatus.getTraces().size() > 1)
                       .isPresent();
                 });
 
@@ -1152,6 +1152,7 @@ class InjectApiTest extends IntegrationTest {
                 injector, payloadSaved, List.of());
         InjectorContractFixture.addTargetedAssetFields(
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
+        injectorContract.setContent(injectorContract.getConvertedContent().toString());
         InjectorContract injectorContractSaved =
             injectTestHelper.properlySaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
