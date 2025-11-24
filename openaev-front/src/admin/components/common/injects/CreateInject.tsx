@@ -443,12 +443,9 @@ const CreateInject: FunctionComponent<Props> = ({
         {selectedContract && numberOfSelectedElements === 0 && (
           <Slide direction="left" in={checked} mountOnEnter unmountOnExit>
             <div style={{
-              /* display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing(2), */
               overflowY: 'auto',
               overflowX: 'hidden',
-              maxHeight: theme.spacing(120),
+
             }}
             >
               <InjectCardComponent

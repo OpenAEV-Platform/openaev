@@ -21,6 +21,7 @@ import { splitDuration } from '../../../../../utils/Time';
 import { PermissionsContext } from '../../Context';
 import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
+import { useTheme } from '@mui/material/styles';
 
 const useStyles = makeStyles()(theme => ({
   injectFormContainer: {
@@ -103,6 +104,7 @@ const InjectForm = ({
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
   const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
@@ -502,7 +504,7 @@ const InjectForm = ({
           />
         )}
 
-        <div className={classes.injectFormButtonsContainer}>
+        <div className={classes.injectFormButtonsContainer} style={{ marginBottom:theme.spacing(2), marginRight: theme.spacing(2) }}>
           <Button
             variant="contained"
             onClick={handleClose}

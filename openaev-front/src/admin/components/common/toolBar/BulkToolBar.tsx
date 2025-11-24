@@ -10,10 +10,10 @@ import { type ToolTasks } from './BulkToolBar-model';
 const useStyles = makeStyles()(theme => ({
   title: {
     flex: '1',
-    fontSize: '12px',
+    fontSize: theme.typography.pxToRem(12),
   },
   numberOfSelectedElements: {
-    padding: '2px 5px 2px 5px',
+    padding: theme.spacing(0.5,1,0.5,1),
     marginRight: 5,
     backgroundColor: theme.palette.background.accent,
   },
@@ -40,7 +40,7 @@ const BulkToolBar: FunctionComponent<Props> = ({ info, numberOfSelectedElements,
         bottom: 0,
       }}
     >
-      <Toolbar style={{ minHeight: 54 }}>
+      <Toolbar style={{ minHeight: theme.spacing(7) }}>
         <Typography
           className={classes.title}
           color="inherit"
@@ -74,7 +74,7 @@ const BulkToolBar: FunctionComponent<Props> = ({ info, numberOfSelectedElements,
           </span>
         </Typography>
 
-        <div style={{ marginLeft: 20 }}>
+        <div style={{ marginLeft: theme.spacing(2.5) }}>
           {toolTasks.map((toolTask) => {
             return (
               <IconButton

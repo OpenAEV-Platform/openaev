@@ -124,7 +124,7 @@ public class InjectService {
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
-    return injectRepository.save(createInject(exercise, scenario, input));
+    return injectRepository.save(buildInject(exercise, scenario, input));
   }
 
   public List<Inject> createAndSaveInjectList(
@@ -133,11 +133,11 @@ public class InjectService {
       List<InjectInput> injectInputs) {
 
     List<Inject> injects = new ArrayList<>();
-    injectInputs.forEach(injectInput -> injects.add(createInject(exercise, scenario, injectInput)));
+    injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
     return injectRepository.saveAll(injects);
   }
 
-  public Inject createInject(
+  private Inject buildInject(
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
