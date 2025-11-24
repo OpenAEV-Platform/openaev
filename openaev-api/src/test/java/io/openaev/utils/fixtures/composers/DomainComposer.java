@@ -5,13 +5,19 @@ import io.openaev.database.repository.DomainRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.util.Optional;
+import java.util.Set;
+
 @Component
 public class DomainComposer extends ComposerBase<Domain> {
+
+  public static final Domain UNCLASSIFIED = new Domain(null, "Unclassified", "#000000", Instant.now(), null);
 
   @Autowired private DomainRepository domainRepository;
 
   public class Composer extends InnerComposerBase<Domain> {
-    private final Domain domain;
+    private Domain domain;
 
     public Composer(Domain domain) {
       this.domain = domain;
@@ -34,13 +40,23 @@ public class DomainComposer extends ComposerBase<Domain> {
 
     @Override
     public Composer persist() {
-      domainRepository.save(domain);
+      Optional<Domain> domainOpt = domainRepository.findByName(domain.getName());
+      if (domainOpt.isEmpty()) {
+          this.domain = domainRepository.save(domain);
+          return this;
+      }
+
+      this.domain = domainOpt.get();
       return this;
     }
 
     @Override
     public Domain get() {
       return domain;
+    }
+
+    public Set<Domain> getSet() {
+        return Set.of(domain);
     }
 
     @Override
@@ -52,5 +68,9 @@ public class DomainComposer extends ComposerBase<Domain> {
 
   public Composer forDomain(Domain domain) {
     return new Composer(domain != null ? domain : new Domain());
+  }
+
+  public Composer forDefaultUnclassifiedDomain() {
+    return new Composer(UNCLASSIFIED);
   }
 }

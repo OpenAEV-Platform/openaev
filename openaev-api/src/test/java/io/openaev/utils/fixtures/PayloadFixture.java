@@ -8,8 +8,11 @@ import static io.openaev.database.model.Payload.PAYLOAD_STATUS.VERIFIED;
 import io.openaev.database.model.*;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import jakarta.annotation.Nullable;
+
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class PayloadFixture {
@@ -84,7 +87,7 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultDnsResolutionWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
 
     final DnsResolution dnsResolution =
         new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
@@ -93,6 +96,7 @@ public class PayloadFixture {
     dnsResolution.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     dnsResolution.setAttackPatterns(attackPatterns);
     dnsResolution.setArguments(arguments);
+    dnsResolution.setDomains(domains);
 
     return dnsResolution;
   }
@@ -115,13 +119,14 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultExecutableWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments) {
+      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(executable, MACOS_PLATFORM);
     executable.setAttackPatterns(attackPatterns);
     executable.setArguments(arguments);
+    executable.setDomains(domains);
     return executable;
   }
 

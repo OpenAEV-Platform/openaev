@@ -69,6 +69,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   @Autowired private AttackPatternComposer attackPatternComposer;
 
+  @Autowired private DomainComposer domainComposer;
+
   @Autowired private EntityManager entityManager;
 
   @Resource protected ObjectMapper mapper;
@@ -76,7 +78,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   private static final String CROWDSTRIKE_FRONTEND_NAME = "openaev_crowdstrike";
   private static final String SPLUNK_FRONTEND_NAME = "openaev_splunk_es";
 
-  // -- TEST API : POST api/detection-remediations/ai/rules/{collectorType} --
+    // -- TEST API : POST api/detection-remediations/ai/rules/{collectorType} --
 
   @Test
   @DisplayName("Generate AI rules detection remediation by payload , EE not available")
@@ -528,12 +530,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultDnsResolutionWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments))
+                        attackPatterns, payloadArguments, domains))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
@@ -598,12 +601,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultDnsResolutionWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments))
+                        attackPatterns, payloadArguments, domains))
                 .get();
 
     PayloadInput input = payloadComposer.forPayloadInput(payload, attackPatternsIds);
@@ -726,12 +730,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     Executable payload =
         (Executable)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments))
+                        attackPatterns, payloadArguments, domains))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
@@ -764,12 +769,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     Executable payload =
         (Executable)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments))
+                        attackPatterns, payloadArguments, domains))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
@@ -1413,12 +1419,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultDnsResolutionWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments))
+                        attackPatterns, payloadArguments, domains))
                 .persist()
                 .get();
 
@@ -1479,13 +1486,14 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       throws JsonProcessingException {
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     List<PayloadArgument> payloadArguments = getPayloadArguments();
     Executable payload =
         (Executable)
             payloadComposer
                 .forPayload(
                     PayloadFixture.createDefaultExecutableWithAttackPatternAndArguments(
-                        attackPatterns, payloadArguments))
+                        attackPatterns, payloadArguments, domains))
                 .withExecutable(
                     documentComposer.forDocument(
                         DocumentFixture.getDocument(FileFixture.getPngGridFileContent())))
