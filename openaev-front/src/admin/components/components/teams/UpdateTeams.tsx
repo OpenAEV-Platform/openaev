@@ -74,7 +74,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
 
   const paginationComponent = (
     <PaginationComponentV2
-      fetch={input => searchTeams(input, false, ['tags'])}
+      fetch={input => searchTeams(input)}
       searchPaginationInput={searchPaginationInput}
       setContent={setTeamValues}
       setLoading={setIsLoading}

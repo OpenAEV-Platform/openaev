@@ -1,15 +1,5 @@
 package io.openaev.rest.team;
 
-import static io.openaev.database.specification.TeamSpecification.*;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.ALL;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.time.Instant.now;
-import static org.springframework.util.StringUtils.hasText;
-
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.aop.UserRoleDescription;
@@ -24,7 +14,8 @@ import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
-import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.rest.team.output.TeamWithTagsAndUsersOutput;
+import io.openaev.rest.team.output.TeamWithTagsOutput;
 import io.openaev.service.TeamService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InputFilterOptions;
@@ -37,9 +28,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -47,6 +35,22 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+
+import static io.openaev.database.specification.TeamSpecification.contextual;
+import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.TAGS;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.USERS;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.time.Instant.now;
+import static org.springframework.util.StringUtils.hasText;
 
 @RestController
 @RequiredArgsConstructor
@@ -56,10 +60,10 @@ import org.springframework.web.bind.annotation.*;
     name = "Teams management",
     description = "Endpoints to manage teams",
     externalDocs =
-        @ExternalDocumentation(
-            description = "Documentation about teams",
-            url =
-                "https://docs.openaev.io/latest/usage/teams_and_players_and_organizations/#teams"))
+    @ExternalDocumentation(
+        description = "Documentation about teams",
+        url =
+            "https://docs.openaev.io/latest/usage/teams_and_players_and_organizations/#teams"))
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
@@ -93,11 +97,11 @@ public class TeamApi extends RestBehavior {
   @Operation(
       summary = "Search teams",
       description = "Search the teams corresponding to the criteria")
-  public Page<TeamOutput> searchTeams(
+  public Page<TeamWithTagsAndUsersOutput> searchTeams(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     final Specification<Team> teamSpecification = contextual(false);
-    return this.teamService.teamPagination(
-        searchPaginationInput, teamSpecification, EnumSet.of(ALL));
+    return this.teamService.teamPagination(searchPaginationInput, teamSpecification, EnumSet.of(TAGS, USERS))
+        .map(TeamWithTagsAndUsersOutput::fromQueryModel);
   }
 
   @LogExecutionTime
@@ -106,8 +110,11 @@ public class TeamApi extends RestBehavior {
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(description = "Find a list of teams based on their ids", summary = "Find teams")
-  public List<TeamOutput> findTeams(@RequestBody @Valid @NotNull final List<String> teamIds) {
-    return this.teamService.find(fromIds(teamIds));
+  public List<TeamWithTagsOutput> findTeams(@RequestBody @Valid @NotNull final List<String> teamIds) {
+    return this.teamService.find(fromIds(teamIds))
+        .stream()
+        .map(TeamWithTagsOutput::fromQueryModel)
+        .toList();
   }
 
   @GetMapping("/api/teams/{teamId}")
@@ -243,31 +250,28 @@ public class TeamApi extends RestBehavior {
       }
     }
     switch (injectFilterOptionEnum) {
-      case ALL_INJECTS:
-        {
-          options =
-              teamRepository.findAllTeamsForAtomicTestingsSimulationsAndScenarios().stream()
-                  .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
-                  .toList();
-          break;
+      case ALL_INJECTS: {
+        options =
+            teamRepository.findAllTeamsForAtomicTestingsSimulationsAndScenarios().stream()
+                .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+                .toList();
+        break;
+      }
+      case SIMULATION_OR_SCENARIO: {
+        if (StringUtils.isEmpty(sourceId)) {
+          throw new BadRequestException("Missing simulation or scenario id");
         }
-      case SIMULATION_OR_SCENARIO:
-        {
-          if (StringUtils.isEmpty(sourceId)) {
-            throw new BadRequestException("Missing simulation or scenario id");
-          }
-        }
-      case ATOMIC_TESTING:
-        {
-          options =
-              teamRepository
-                  .findAllBySimulationOrScenarioIdAndName(
-                      StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText))
-                  .stream()
-                  .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
-                  .toList();
-          break;
-        }
+      }
+      case ATOMIC_TESTING: {
+        options =
+            teamRepository
+                .findAllBySimulationOrScenarioIdAndName(
+                    StringUtils.trimToNull(sourceId), StringUtils.trimToNull(searchText))
+                .stream()
+                .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+                .toList();
+        break;
+      }
     }
     return options;
   }
@@ -297,22 +301,22 @@ public class TeamApi extends RestBehavior {
       String exerciseId = input.getExerciseIds().stream().findFirst().orElse(null);
       if (hasText(exerciseId)
           && teams.stream()
-              .anyMatch(
-                  t ->
-                      TRUE.equals(t.getContextual())
-                          && t.getExercises().stream()
-                              .anyMatch((e) -> exerciseId.equals(e.getId())))) {
+          .anyMatch(
+              t ->
+                  TRUE.equals(t.getContextual())
+                      && t.getExercises().stream()
+                      .anyMatch((e) -> exerciseId.equals(e.getId())))) {
         throw new AlreadyExistingException(
             "A contextual team with the same name already exists on this simulation");
       }
       String scenarioId = input.getScenarioIds().stream().findFirst().orElse(null);
       if (hasText(scenarioId)
           && teams.stream()
-              .anyMatch(
-                  t ->
-                      TRUE.equals(t.getContextual())
-                          && t.getScenarios().stream()
-                              .anyMatch((e) -> scenarioId.equals(e.getId())))) {
+          .anyMatch(
+              t ->
+                  TRUE.equals(t.getContextual())
+                      && t.getScenarios().stream()
+                      .anyMatch((e) -> scenarioId.equals(e.getId())))) {
         throw new AlreadyExistingException(
             "A contextual team with the same name already exists on this scenario");
       }

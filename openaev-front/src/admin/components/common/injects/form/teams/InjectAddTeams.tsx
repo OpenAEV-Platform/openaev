@@ -21,7 +21,7 @@ import SelectList, { type SelectListElements } from '../../../../../../component
 import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
-import { type TeamOutput } from '../../../../../../utils/api-types';
+import { TeamWithTagsOutput, type TeamOutput } from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import CreateTeam from '../../../../components/teams/CreateTeam';
@@ -58,8 +58,8 @@ const InjectAddTeams: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const { searchTeams, onReplaceTeam } = useContext(TeamContext);
 
-  const [teamValues, setTeamValues] = useState<TeamOutput[]>([]);
-  const [selectedTeamValues, setSelectedTeamValues] = useState<TeamOutput[]>([]);
+  const [teamValues, setTeamValues] = useState<TeamWithTagsOutput[]>([]);
+  const [selectedTeamValues, setSelectedTeamValues] = useState<TeamWithTagsOutput[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Dialog
@@ -84,17 +84,17 @@ const InjectAddTeams: FunctionComponent<Props> = ({
   const removeTeam = (teamId: string) => setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
 
   // Headers
-  const elements: SelectListElements<TeamOutput> = useMemo(() => ({
+  const elements: SelectListElements<TeamWithTagsOutput> = useMemo(() => ({
     icon: { value: () => <GroupsOutlined /> },
     headers: [
       {
         field: 'team_name',
-        value: (team: TeamOutput) => team.team_name,
+        value: (team: TeamWithTagsOutput) => team.team_name,
         width: 70,
       },
       {
         field: 'team_tags',
-        value: (team: TeamOutput) => <ItemTags variant="reduced-view" tags={team.team_tags} />,
+        value: (team: TeamWithTagsOutput) => <ItemTags variant="reduced-view" tags={team.team_tags} />,
         width: 30,
       },
     ],

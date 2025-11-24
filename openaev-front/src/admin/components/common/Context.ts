@@ -36,7 +36,7 @@ import {
   type SearchPaginationInput,
   type Team,
   type TeamCreateInput,
-  type TeamOutput,
+  type TeamWithTagsOutput,
   type Variable,
   type VariableInput,
 } from '../../../utils/api-types';
@@ -139,7 +139,7 @@ export type TeamContextType = {
   onToggleUser?: (teamId: Team['team_id'], userId: UserStore['user_id'], userEnabled: boolean) => void;
   checkUserEnabled?: (teamId: Team['team_id'], userId: UserStore['user_id']) => boolean;
   computeTeamUsersEnabled?: (teamId: Team['team_id']) => number;
-  searchTeams: (input: SearchPaginationInput, contextualOnly?: boolean, includes?: string[]) => Promise<{ data: Page<TeamOutput> }>;
+  searchTeams: (input: SearchPaginationInput, contextualOnly?: boolean) => Promise<{ data: Page<TeamWithTagsOutput> }>;
   allUsersEnabledNumber?: number;
   allUsersNumber?: number;
 };
@@ -331,8 +331,8 @@ export const TeamContext = createContext<TeamContextType>({
     return new Promise<void>(() => {
     });
   },
-  searchTeams(_: SearchPaginationInput, _contextualOnly?: boolean): Promise<{ data: Page<TeamOutput> }> {
-    return new Promise<{ data: Page<TeamOutput> }>(() => {
+  searchTeams(_: SearchPaginationInput, _contextualOnly?: boolean): Promise<{ data: Page<TeamWithTagsOutput> }> {
+    return new Promise<{ data: Page<TeamWithTagsOutput> }>(() => {
     });
   },
 });

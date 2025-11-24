@@ -5,7 +5,7 @@ import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openaev.utils.JpaUtils.createLeftJoin;
 
 import io.openaev.database.model.Team;
-import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.rest.team.query_model.TeamQueryModel;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
@@ -43,7 +43,7 @@ public class TeamQueryHelper {
       CriteriaBuilder cb,
       CriteriaQuery<Tuple> cq,
       Root<Team> teamRoot,
-      EnumSet<TeamQueryField> includes) {
+      Set<TeamQueryField> includes) {
     List<Selection<?>> selections = new ArrayList<>();
 
     // Base
@@ -89,13 +89,13 @@ public class TeamQueryHelper {
 
   // -- EXECUTION --
 
-  public static List<TeamOutput> execution(
-      TypedQuery<Tuple> query, EnumSet<TeamQueryField> includes) {
+  public static List<TeamQueryModel> execution(
+      TypedQuery<Tuple> query, Set<TeamQueryField> includes) {
     return query.getResultList().stream()
         .map(
             tuple -> {
-              TeamOutput.TeamOutputBuilder builder =
-                  TeamOutput.builder()
+              TeamQueryModel.TeamQueryModelBuilder builder =
+                  TeamQueryModel.builder()
                       .id(tuple.get("team_id", String.class))
                       .name(tuple.get("team_name", String.class))
                       .description(tuple.get("team_description", String.class))

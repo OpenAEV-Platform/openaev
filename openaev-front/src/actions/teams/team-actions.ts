@@ -1,14 +1,8 @@
 import { type Dispatch } from 'redux';
 
-import {
-  delReferential,
-  getReferential,
-  postReferential,
-  putReferential,
-  simpleCall,
-  simplePostCall,
-} from '../../utils/Action';
-import { type SearchPaginationInput, type Team, type TeamCreateInput, type TeamUpdateInput, type User } from '../../utils/api-types';
+import { type Page } from '../../components/common/queryable/Page';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall, } from '../../utils/Action';
+import { type SearchPaginationInput, type Team, type TeamCreateInput, type TeamUpdateInput, type TeamWithTagsAndUsersOutput, type User } from '../../utils/api-types';
 import * as schema from '../Schema';
 
 const TEAMS_URI = '/api/teams';
@@ -22,7 +16,7 @@ export const fetchTeam = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}`;
   return getReferential(schema.team, uri)(dispatch);
 };
-export const searchTeams = (searchPaginationInput: SearchPaginationInput) => {
+export const searchTeams = (searchPaginationInput: SearchPaginationInput): Promise<{ data: Page<TeamWithTagsAndUsersOutput> }> => {
   const data = searchPaginationInput;
   const uri = `${TEAMS_URI}/search`;
   return simplePostCall(uri, data);

@@ -4438,8 +4438,27 @@ export interface PageTagRuleOutput {
   totalPages?: number;
 }
 
-export interface PageTeamOutput {
-  content?: TeamOutput[];
+export interface PageTeamWithTagsAndUsersOutput {
+  content?: TeamWithTagsAndUsersOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageTeamWithTagsOutput {
+  content?: TeamWithTagsOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -5808,47 +5827,24 @@ export interface TeamCreateInput {
   team_tags?: string[];
 }
 
-export interface TeamOutput {
-  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
-  team_contextual?: boolean;
-  /** Description of the team */
-  team_description?: string;
-  /**
-   * Simulation ids linked to this team
-   * @uniqueItems true
-   */
-  team_exercises: string[];
-  /** ID of the team */
-  team_id: string;
-  /** Name of the team */
-  team_name: string;
-  /** Organization of the team */
-  team_organization?: string;
-  /**
-   * Scenario ids linked to this team
-   * @uniqueItems true
-   */
-  team_scenarios: string[];
-  /**
-   * List of tags of the team
-   * @uniqueItems true
-   */
-  team_tags?: string[];
-  /**
-   * Update date of the team
-   * @format date-time
-   */
-  team_updated_at: string;
-  /**
-   * User ids of the team
-   * @uniqueItems true
-   */
-  team_users?: string[];
-  /**
-   * Number of users of the team
-   * @format int64
-   */
-  team_users_number?: number;
+export interface TeamQueryModel {
+  contextual?: boolean;
+  description?: string;
+  /** @uniqueItems true */
+  exercises: string[];
+  id: string;
+  name: string;
+  organization?: string;
+  /** @uniqueItems true */
+  scenarios: string[];
+  /** @uniqueItems true */
+  tags?: string[];
+  /** @format date-time */
+  updatedAt: string;
+  /** @uniqueItems true */
+  users?: string[];
+  /** @format int64 */
+  usersNumber?: number;
 }
 
 export interface TeamTarget {
@@ -5899,6 +5895,58 @@ export interface TeamUpdateInput {
   team_organization?: string;
   /** IDs of the tags of the team */
   team_tags?: string[];
+}
+
+export interface TeamWithTagsAndUsersOutput {
+  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
+  team_contextual?: boolean;
+  /** Description of the team */
+  team_description?: string;
+  /** ID of the team */
+  team_id: string;
+  /** Name of the team */
+  team_name: string;
+  /**
+   * List of tags of the team
+   * @uniqueItems true
+   */
+  team_tags?: string[];
+  /**
+   * Update date of the team
+   * @format date-time
+   */
+  team_updated_at: string;
+  /**
+   * User ids of the team
+   * @uniqueItems true
+   */
+  team_users?: string[];
+  /**
+   * Number of users of the team
+   * @format int64
+   */
+  team_users_number?: number;
+}
+
+export interface TeamWithTagsOutput {
+  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
+  team_contextual?: boolean;
+  /** Description of the team */
+  team_description?: string;
+  /** ID of the team */
+  team_id: string;
+  /** Name of the team */
+  team_name: string;
+  /**
+   * List of tags of the team
+   * @uniqueItems true
+   */
+  team_tags?: string[];
+  /**
+   * Update date of the team
+   * @format date-time
+   */
+  team_updated_at: string;
 }
 
 /** Definition of the dark theme */

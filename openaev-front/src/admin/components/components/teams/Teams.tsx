@@ -16,7 +16,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { useHelper } from '../../../../store';
-import { type SearchPaginationInput, type Team } from '../../../../utils/api-types';
+import { type SearchPaginationInput, type Team, type TeamWithTagsAndUsersOutput } from '../../../../utils/api-types';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateTeam from './CreateTeam';
@@ -97,7 +97,7 @@ const Teams = () => {
     },
   ];
 
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<TeamWithTagsAndUsersOutput[]>([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState<SearchPaginationInput>(buildSearchPagination({
     sorts: initSorting('team_name'),
     textSearch: search,
@@ -123,7 +123,6 @@ const Teams = () => {
       'team_name',
       'team_description',
       'team_users_number',
-      'team_enabled',
       'team_tags',
     ],
     exportData: teams,
@@ -172,7 +171,7 @@ const Teams = () => {
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-          : teams.map((team: Team) => (
+          : teams.map((team: TeamWithTagsAndUsersOutput) => (
               <ListItem
                 key={team.team_id}
                 classes={{ root: classes.item }}

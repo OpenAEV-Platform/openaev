@@ -24,7 +24,7 @@ import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
-import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.rest.team.query_model.TeamQueryModel;
 import io.openaev.service.*;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -224,7 +224,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<TeamOutput> scenarioTeams(@PathVariable @NotBlank final String scenarioId) {
+  public List<TeamQueryModel> scenarioTeams(@PathVariable @NotBlank final String scenarioId) {
     return this.teamService.find(fromScenario(scenarioId));
   }
 
@@ -234,7 +234,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<TeamOutput> removeScenarioTeams(
+  public Iterable<TeamQueryModel> removeScenarioTeams(
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
     return this.scenarioService.removeTeams(scenarioId, input.getTeamIds());
@@ -246,7 +246,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  public List<TeamOutput> replaceScenarioTeams(
+  public List<TeamQueryModel> replaceScenarioTeams(
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
     return this.scenarioService.replaceTeams(scenarioId, input.getTeamIds());

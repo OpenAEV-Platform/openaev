@@ -1,26 +1,28 @@
 package io.openaev.rest.team;
 
-import static io.openaev.database.specification.TeamSpecification.*;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.ALL;
-
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.rest.team.output.TeamWithTagsOutput;
 import io.openaev.service.TeamService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import java.util.EnumSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.EnumSet;
+
+import static io.openaev.database.specification.TeamSpecification.contextual;
+import static io.openaev.database.specification.TeamSpecification.fromScenario;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.team.TeamQueryHelper.TeamQueryField.TAGS;
 
 @RequiredArgsConstructor
 @RestController
@@ -34,7 +36,7 @@ public class ScenarioTeamApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
-  public Page<TeamOutput> teams(
+  public Page<TeamWithTagsOutput> teams(
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       @RequestParam
@@ -50,7 +52,7 @@ public class ScenarioTeamApi extends RestBehavior {
     } else {
       teamSpecification = fromScenario(scenarioId);
     }
-    return this.teamService.teamPagination(
-        searchPaginationInput, teamSpecification, EnumSet.of(ALL));
+    return this.teamService.teamPagination(searchPaginationInput, teamSpecification, EnumSet.of(TAGS))
+        .map(TeamWithTagsOutput::fromQueryModel);
   }
 }

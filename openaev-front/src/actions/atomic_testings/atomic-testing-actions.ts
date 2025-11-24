@@ -1,9 +1,10 @@
 import { type Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type AtomicTestingInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AtomicTestingInput, type SearchPaginationInput, type TeamWithTagsAndUsersOutput, TeamWithTagsOutput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import * as schema from '../Schema';
+import type { Page } from '../../components/common/queryable/Page';
 
 const ATOMIC_TESTING_URI = '/api/atomic-testings';
 const EXPECTATION_TRACE_URI = '/api/inject-expectations-traces';
@@ -60,7 +61,7 @@ export const createAtomicTesting = (data: AtomicTestingInput) => {
 
 // -- TEAMS --
 
-export const searchAtomicTestingTeams = (paginationInput: SearchPaginationInput, contextualOnly: boolean = false) => {
+export const searchAtomicTestingTeams = (paginationInput: SearchPaginationInput, contextualOnly: boolean = false): Promise<{ data: Page<TeamWithTagsOutput> }> => {
   const uri = `${ATOMIC_TESTING_URI}/teams/search?contextualOnly=${contextualOnly}`;
   return simplePostCall(uri, paginationInput);
 };

@@ -32,7 +32,7 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.rest.team.query_model.TeamQueryModel;
 import io.openaev.service.*;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
@@ -210,7 +210,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<TeamOutput> getExerciseTeams(@PathVariable String exerciseId) {
+  public List<TeamQueryModel> getExerciseTeams(@PathVariable String exerciseId) {
     return this.teamService.find(fromExercise(exerciseId));
   }
 
@@ -220,7 +220,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<TeamOutput> removeExerciseTeams(
+  public Iterable<TeamQueryModel> removeExerciseTeams(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateTeamsInput input) {
     return this.exerciseService.removeTeams(exerciseId, input.getTeamIds());
   }
@@ -231,7 +231,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<TeamOutput> replaceExerciseTeams(
+  public Iterable<TeamQueryModel> replaceExerciseTeams(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateTeamsInput input) {
     return this.exerciseService.replaceTeams(exerciseId, input.getTeamIds());
   }

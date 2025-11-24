@@ -34,7 +34,7 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
-import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.rest.team.query_model.TeamQueryModel;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
@@ -724,7 +724,7 @@ public class ExerciseService {
 
   // -- TEAMS --
   @Transactional(rollbackFor = Exception.class)
-  public Iterable<TeamOutput> removeTeams(
+  public Iterable<TeamQueryModel> removeTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
@@ -737,7 +737,7 @@ public class ExerciseService {
     return teamService.find(fromIds(teamIds));
   }
 
-  public List<TeamOutput> replaceTeams(
+  public List<TeamQueryModel> replaceTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     Exercise exercise = this.exercise(exerciseId);
     List<String> previousTeamIds = exercise.getTeams().stream().map(Team::getId).toList();
