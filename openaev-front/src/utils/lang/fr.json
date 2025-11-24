@@ -1273,7 +1273,7 @@
   "Payload info": "Informations de charge utile",
   "payload_attack_patterns": "Modèles d'attaque",
   "payload_description": "Description",
-  "payload_domaines": "Domaines",
+  "payload_domains": "Domaines",
   "payload_execution_arch": "Architecture",
   "payload_name": "Nom",
   "payload_platforms": "Plateformes",

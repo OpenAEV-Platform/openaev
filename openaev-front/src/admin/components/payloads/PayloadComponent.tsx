@@ -189,7 +189,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
             variant="h3"
             gutterBottom
           >
-            {t('Domains')}
+            {t('payload_domains')}
           </Typography>
           {selectedPayload && (
             <ItemDomains

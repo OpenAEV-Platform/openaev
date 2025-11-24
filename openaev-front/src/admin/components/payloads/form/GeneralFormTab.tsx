@@ -40,7 +40,7 @@ const GeneralFormTab = () => {
       <TagFieldController name="payload_tags" label={t('Tags')} />
       <DomainFieldController
         name="payload_domains"
-        label={t('Domain')}
+        label={t('payload_domains')}
         domains={domainOptions}
         required
       />

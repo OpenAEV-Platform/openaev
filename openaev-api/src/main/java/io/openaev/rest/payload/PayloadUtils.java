@@ -177,7 +177,13 @@ public class PayloadUtils {
       throw new IllegalArgumentException("Input payload cannot be null");
     }
     BeanUtils.copyProperties(
-        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations", "domains");
+        payloadInput,
+        target,
+        "outputParsers",
+        "tags",
+        "attackPatterns",
+        "detectionRemediations",
+        "domains");
 
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, false);
@@ -190,7 +196,13 @@ public class PayloadUtils {
     }
 
     BeanUtils.copyProperties(
-        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations", "domains");
+        payloadInput,
+        target,
+        "outputParsers",
+        "tags",
+        "attackPatterns",
+        "detectionRemediations",
+        "domains");
 
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
@@ -206,7 +218,13 @@ public class PayloadUtils {
     }
 
     BeanUtils.copyProperties(
-        payloadInput, target, "outputParsers", "tags", "attackPatterns", "detectionRemediations", "domains");
+        payloadInput,
+        target,
+        "outputParsers",
+        "tags",
+        "attackPatterns",
+        "detectionRemediations",
+        "domains");
 
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, copyId);

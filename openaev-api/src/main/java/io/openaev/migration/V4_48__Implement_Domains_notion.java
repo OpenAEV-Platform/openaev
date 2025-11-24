@@ -67,8 +67,8 @@ public class V4_48__Implement_Domains_notion extends BaseJavaMigration {
               + "  (gen_random_uuid(), 'Data Exfiltration', '#9933CC'),"
               + "  (gen_random_uuid(), 'URL Filtering', '#66CCFF'),"
               + "  (gen_random_uuid(), 'Cloud', '#9999CC'),"
-              + "  (gen_random_uuid(), 'Table-Top', '#FFCC33')," // Warm Yellow / Gold
-              + "  (gen_random_uuid(), 'Unclassified, '#FFFFFF');");
+              + "  (gen_random_uuid(), 'Table-Top', '#FFCC33'),"
+              + "  (gen_random_uuid(), 'Unclassified', '#FFFFFF');");
     }
   }
 }

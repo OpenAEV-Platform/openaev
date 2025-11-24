@@ -117,7 +117,7 @@ const InjectorContracts = () => {
     },
     {
       field: 'injector_contract_domains',
-      label: t('Domains'),
+      label: t('payload_domains'),
       isSortable: true,
     },
     {
