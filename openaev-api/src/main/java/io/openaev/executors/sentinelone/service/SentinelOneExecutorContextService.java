@@ -35,7 +35,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   private static final String WINDOWS_EXTERNAL_REFERENCE =
       "$agentID=& 'C:\\Program Files\\SentinelOne\\Sentinel Agent *\\SentinelCtl.exe' agent_id;";
   private static final String LINUX_EXTERNAL_REFERENCE =
-      "agentID=$(sudo /opt/sentinelone/bin/sentinelctl management status | grep UUID | sed 's/UUID //g');";
+      "agentID=$(sudo /opt/sentinelone/bin/sentinelctl management status | grep UUID | sed 's/UUID //g; s/ //g');";
   // TODO fix this command
   private static final String MAC_EXTERNAL_REFERENCE =
       "agentID=$(sudo /Applications/Falcon.app/Contents/Resources/falconctl stats | grep agentID | sed 's/agentID: //g' | tr '[:upper:]' '[:lower:]' | sed 's/-//g');";
