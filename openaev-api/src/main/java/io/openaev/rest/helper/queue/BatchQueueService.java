@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitmqConfig;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -89,8 +90,8 @@ public class BatchQueueService<T extends Queueable> {
     ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
     scheduledExecutor.scheduleAtFixedRate(
         () -> queue.keySet().forEach(this::processBufferedBatch),
-        this.queueConfig.getConsumerFrequency(),
-        this.queueConfig.getConsumerFrequency(),
+        this.queueConfig.getWorkerFrequency(),
+        this.queueConfig.getWorkerFrequency(),
         TimeUnit.MILLISECONDS);
 
     executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
@@ -159,16 +160,9 @@ public class BatchQueueService<T extends Queueable> {
               // Unmarshalling of our object and setting it in the queue for processing
               T element = mapper.readValue(message, clazz);
               int elementKey = groupByKey(element);
-              try {
-                queue
-                    .computeIfAbsent(elementKey, integer -> new LinkedBlockingQueue<>())
-                    .put(element);
-              } catch (InterruptedException e) {
-                log.error(String.format("Error processing message: %s", e.getMessage()), e);
-                // Nack the message and sending it back to the queue
-                consumerChannel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
-                return;
-              }
+              queue
+                  .computeIfAbsent(elementKey, integer -> new LinkedBlockingQueue<>())
+                  .add(element);
 
               // Add the message and delivery tag into a hashmap that will allow us to ack when
               // we've inserted in base
@@ -273,6 +267,11 @@ public class BatchQueueService<T extends Queueable> {
     }
   }
 
+  @PreDestroy
+  public void stop() throws IOException, TimeoutException {
+    closeResources();
+  }
+
   /**
    * Process messages in the queue buffer. It will only process as many messages as what's
    * configures in openbas.queue-config.<name of the queue>.max-size
@@ -327,6 +326,20 @@ public class BatchQueueService<T extends Queueable> {
   public void publish(String publishedJson) throws IOException {
     try {
       publisherChannel.basicPublish(exchangeName, routingKey, null, publishedJson.getBytes());
+    } catch (IOException e) {
+      log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
+      throw e;
+    }
+  }
+
+  /**
+   * Purge a queue
+   *
+   * @throws IOException in case of error during the publish
+   */
+  public void forcePurge() throws IOException {
+    try {
+      publisherChannel.queuePurge(queueName);
     } catch (IOException e) {
       log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
       throw e;

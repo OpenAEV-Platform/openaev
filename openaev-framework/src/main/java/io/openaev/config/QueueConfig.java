@@ -11,8 +11,8 @@ public class QueueConfig {
   @JsonProperty("worker-number")
   private int workerNumber;
 
-  @JsonProperty("consumer-frequency")
-  private int consumerFrequency;
+  @JsonProperty("worker-frequency")
+  private int workerFrequency;
 
   @JsonProperty("queue-name")
   private String queueName;

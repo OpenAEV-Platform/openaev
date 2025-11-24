@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.aop.lock.Lock;
@@ -582,5 +583,10 @@ public class InjectApi extends RestBehavior {
     }
 
     return documentService.documentsForPayload(payloadId);
+  }
+
+  @VisibleForTesting
+  public BatchQueueService<InjectExecutionCallback> getInjectTraceQueueService() {
+    return injectTraceQueueService;
   }
 }

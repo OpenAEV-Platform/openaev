@@ -1077,7 +1077,7 @@ class InjectApiTest extends IntegrationTest {
                   }
                   Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
                   return injectStatusSaved
-                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
+                      .filter(injectStatus -> injectStatus.getTraces().size() > 2)
                       .isPresent();
                 });
 
