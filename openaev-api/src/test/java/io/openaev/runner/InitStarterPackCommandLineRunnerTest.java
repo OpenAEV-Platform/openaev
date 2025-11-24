@@ -20,6 +20,7 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -30,10 +31,14 @@ import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("StarterPack process tests")
 @Transactional

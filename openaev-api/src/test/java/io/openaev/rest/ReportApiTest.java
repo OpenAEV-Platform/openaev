@@ -25,6 +25,7 @@ import io.openaev.rest.report.model.Report;
 import io.openaev.rest.report.service.ReportService;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.UUID;
@@ -34,11 +35,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)

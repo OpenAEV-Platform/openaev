@@ -15,6 +15,7 @@ import io.openaev.injectors.manual.model.ManualContent;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,9 +23,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class ManualExecutorTest extends IntegrationTest {
 
   @Mock InjectExpectationService injectExpectationService;

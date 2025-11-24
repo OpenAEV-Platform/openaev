@@ -42,6 +42,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.KeepRabbit;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -545,6 +546,7 @@ class InjectApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @Transactional
   @DisplayName("Retrieving executable payloads injects")
+  @KeepRabbit
   class RetrievingExecutablePayloadInject {
 
     @DisplayName("Get encoded command payload with arguments")
@@ -815,6 +817,7 @@ class InjectApiTest extends IntegrationTest {
   @Transactional
   @WithMockUser(isAdmin = true)
   @DisplayName("Inject Execution Callback Handling (simulating a request from an implant)")
+  @KeepRabbit
   class handleInjectExecutionCallback {
 
     private Inject getPendingInjectWithAssets() {
@@ -837,6 +840,7 @@ class InjectApiTest extends IntegrationTest {
 
     @Nested
     @DisplayName("Action Handling:")
+    @KeepRabbit
     class ActionHandlingTest {
 
       @DisplayName("Should add trace when process is not finished")
@@ -1040,6 +1044,7 @@ class InjectApiTest extends IntegrationTest {
 
     @Nested
     @DisplayName("Agent Status Computation")
+    @KeepRabbit
     class AgentStatusComputationTest {
 
       private void testAgentStatusFunction(
@@ -1121,6 +1126,7 @@ class InjectApiTest extends IntegrationTest {
     @Nested
     @Transactional
     @DisplayName("Finding Handling")
+    @KeepRabbit
     class FindingHandlingTest {
       @Test
       @DisplayName("Should link finding to targeted asset")
@@ -1194,6 +1200,7 @@ class InjectApiTest extends IntegrationTest {
   @Nested
   @WithMockUser(isAdmin = true)
   @DisplayName("Fetch execution traces for inject/atomic overview")
+  @KeepRabbit
   class ShouldFetchExecutionTracesForInjectOverview {
 
     private Inject buildInjectWithTraces(List<ExecutionTraceComposer.Composer> traces) {
@@ -1416,6 +1423,7 @@ class InjectApiTest extends IntegrationTest {
   @Nested
   @WithMockUser(isAdmin = true)
   @DisplayName("Fetch documents for inject by payload")
+  @KeepRabbit
   class ShouldFetchDocuments {
 
     private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {

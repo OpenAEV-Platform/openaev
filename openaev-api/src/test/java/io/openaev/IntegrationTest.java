@@ -3,16 +3,13 @@ package io.openaev;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
-import io.openaev.rest.inject.InjectApi;
 import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUserTestExecutionListener;
+import io.openaev.utilstest.RabbitMQTestListener;
 import io.openaev.utilstest.StartupSnapshotTestListener;
 import jakarta.persistence.EntityManager;
-import java.io.IOException;
-import java.util.concurrent.TimeoutException;
-import org.junit.jupiter.api.AfterAll;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrint;
@@ -22,19 +19,17 @@ import org.springframework.test.context.TestExecutionListeners;
 @AutoConfigureMockMvc(print = MockMvcPrint.SYSTEM_ERR)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestExecutionListeners(
-    value = {StartupSnapshotTestListener.class, WithMockUserTestExecutionListener.class},
+    value = {
+      StartupSnapshotTestListener.class,
+      WithMockUserTestExecutionListener.class,
+      RabbitMQTestListener.class
+    },
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public abstract class IntegrationTest {
 
   @Autowired GrantComposer grantComposer;
   @Autowired protected TestUserHolder testUserHolder;
   @Autowired protected EntityManager entityManager;
-
-  @AfterAll
-  public static void teardownAll(@Autowired InjectApi injectApi)
-      throws IOException, TimeoutException {
-    injectApi.getInjectTraceQueueService().stop();
-  }
 
   public void addGrantToCurrentUser(
       Grant.GRANT_RESOURCE_TYPE grantResourceType, Grant.GRANT_TYPE grantType, String resourceId) {

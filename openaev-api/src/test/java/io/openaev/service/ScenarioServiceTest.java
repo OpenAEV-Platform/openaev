@@ -26,15 +26,20 @@ import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioServiceTest extends IntegrationTest {
 

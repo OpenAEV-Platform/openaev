@@ -24,6 +24,7 @@ import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletException;
 import java.time.Clock;
@@ -41,10 +42,14 @@ import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(PER_CLASS)
 @Transactional
 public class ExerciseApiStatusTest extends IntegrationTest {

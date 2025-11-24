@@ -10,6 +10,7 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
@@ -19,10 +20,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @ExtendWith(MockitoExtension.class)
 @TestInstance(PER_CLASS)
 public class PlatformServiceSettingsTest extends IntegrationTest {
