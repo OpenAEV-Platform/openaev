@@ -9,6 +9,8 @@ import io.openaev.database.model.*;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import jakarta.annotation.Nullable;
+
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
