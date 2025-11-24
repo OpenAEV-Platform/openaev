@@ -11,7 +11,6 @@ import io.openaev.database.model.Domain;
 import io.openaev.rest.domain.form.DomainCreateInput;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,6 @@ public class DomainApiTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer; // Injection du composer
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
-  @Autowired private EntityManager entityManager;
 
   @BeforeEach
   void beforeEach() {
