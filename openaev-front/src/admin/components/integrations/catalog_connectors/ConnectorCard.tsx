@@ -1,5 +1,5 @@
 import { VerifiedOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Chip, Grid, Tooltip, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Grid, Tooltip } from '@mui/material';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -23,8 +23,11 @@ const useStyles = makeStyles()(theme => ({
     justifyContent: 'center',
     marginLeft: theme.spacing(1),
   },
-  content: { padding: 20 },
-
+  content: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(2),
+  },
   chipInList: {
     fontSize: 12,
     height: 20,
@@ -33,14 +36,12 @@ const useStyles = makeStyles()(theme => ({
     textTransform: 'uppercase',
     borderRadius: 4,
   },
-
   dotGreen: {
     height: 15,
     width: 15,
     backgroundColor: theme.palette.success.main,
     borderRadius: '50%',
   },
-
   customizable: {
     position: 'absolute',
     top: 10,
@@ -56,9 +57,9 @@ const ConnectorCard = ({ connector }: ConnectorCardProps) => {
 
   return (
     <Grid key={connector.connector_id} size={{ xs: 4 }}>
-      <Card classes={{ root: classes.card }} variant="outlined">
+      <Card className={classes.card} variant="outlined">
         <CardActionArea
-          classes={{ root: classes.area }}
+          className={classes.area}
           component={Link}
           to={`/admin/integrations/catalog/${connector.connector_id}`}
         >

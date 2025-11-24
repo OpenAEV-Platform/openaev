@@ -71,6 +71,7 @@ const ConnectorDetails = () => {
           connectorLogo={connector.catalog_connector_logo_url}
           connectorTitle={connector.connector_title}
           connectorType={connector.catalog_connector_type}
+          noEllipsis
         />
         <Chip
           variant="filled"

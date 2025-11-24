@@ -1,4 +1,4 @@
-import { Chip, Typography } from '@mui/material';
+import { Chip, Tooltip, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 const useStyles = makeStyles()(theme => ({
@@ -15,8 +15,19 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'top',
+    width: '100%',
   },
-
+  title: {
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    width: '95%',
+  },
+  titleNoEllipsis: {
+    whiteSpace: 'normal',
+    overflow: 'visible',
+    textOverflow: 'unset',
+  },
   chipInList: {
     fontSize: 12,
     height: 20,
@@ -32,9 +43,16 @@ type ConnectorHeaderProps = {
   connectorLogo?: string;
   connectorTitle: string;
   connectorType?: string;
+  noEllipsis?: boolean;
 };
 
-const ConnectorTitle = ({ connectorId, connectorLogo, connectorTitle, connectorType }: ConnectorHeaderProps) => {
+const ConnectorTitle = ({
+  connectorId,
+  connectorLogo,
+  connectorTitle,
+  connectorType,
+  noEllipsis = false,
+}: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
 
@@ -46,19 +64,17 @@ const ConnectorTitle = ({ connectorId, connectorLogo, connectorTitle, connectorT
         className={classes.img}
       />
       <div className={classes.titleContainer}>
-        <Typography
-          variant="h1"
-          style={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {connectorTitle}
-        </Typography>
+        <Tooltip title={connectorTitle}>
+          <Typography
+            variant="h1"
+            className={noEllipsis ? classes.titleNoEllipsis : classes.title}
+          >
+            {connectorTitle}
+          </Typography>
+        </Tooltip>
         <Chip
           variant="outlined"
-          classes={{ root: classes.chipInList }}
+          className={classes.chipInList}
           color="primary"
           label={connectorType}
         />

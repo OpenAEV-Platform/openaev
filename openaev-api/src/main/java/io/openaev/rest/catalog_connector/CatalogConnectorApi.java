@@ -3,9 +3,7 @@ package io.openaev.rest.catalog_connector;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.Injector;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.CatalogConnectorService;
@@ -22,9 +20,7 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
