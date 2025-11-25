@@ -105,14 +105,16 @@ public class InjectApi extends RestBehavior {
 
   @PostConstruct
   public void init() throws IOException, TimeoutException {
-    // Initializing the queue for batching the inject execution trace
-    injectTraceQueueService =
-        new BatchQueueService<>(
-            InjectExecutionCallback.class,
-            batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
-            rabbitmqConfig,
-            objectMapper,
-            openAEVConfig.getQueueConfig().get("inject-trace"));
+    if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
+      // Initializing the queue for batching the inject execution trace
+      injectTraceQueueService =
+          new BatchQueueService<>(
+              InjectExecutionCallback.class,
+              batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
+              rabbitmqConfig,
+              objectMapper,
+              openAEVConfig.getQueueConfig().get("inject-trace"));
+    }
   }
 
   // -- INJECTS --
@@ -371,7 +373,8 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)) {
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)
+        && injectTraceQueueService != null) {
       var injectExecutionCallbackAsString =
           mapper.writeValueAsString(
               InjectExecutionCallback.builder()
