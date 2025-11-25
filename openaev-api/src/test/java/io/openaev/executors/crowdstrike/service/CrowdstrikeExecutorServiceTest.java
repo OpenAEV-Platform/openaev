@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.Ee;
+import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
@@ -18,12 +19,8 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,12 +41,12 @@ public class CrowdstrikeExecutorServiceTest {
   @Mock private Ee eeService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
+  @Mock private ExecutorService executorService;
 
   @InjectMocks private CrowdStrikeExecutorService crowdStrikeExecutorService;
 
   @InjectMocks private CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
 
-  private DomainComposer domainComposer;
   private CrowdStrikeDevice crowdstrikeAgent;
   private Executor crowdstrikeExecutor;
 
@@ -59,7 +56,6 @@ public class CrowdstrikeExecutorServiceTest {
     crowdstrikeExecutor = new Executor();
     crowdstrikeExecutor.setName(CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE);
-    domainComposer = new DomainComposer();
   }
 
   @Test
@@ -119,11 +115,13 @@ public class CrowdstrikeExecutorServiceTest {
             "Inject",
             EndpointFixture.createEndpoint());
     inject.setId("1234567890");
+    List<Agent> agents =
+        List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
-        inject,
-        Set.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345")),
-        InjectStatusFixture.createPendingInjectStatus());
+        inject, new HashSet<>(agents), injectStatus);
     // Asserts
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);

@@ -177,7 +177,7 @@ public class ExecutionExecutorServiceTest {
   }
 
   @Test
-  void test_saveCrowdstrikeAgentsErrorTraces() {
+  void test_saveCrowdstrikeSentineloneAgentsErrorTraces() {
     // Init datas
     Endpoint endpoint = EndpointFixture.createEndpoint();
     Agent agent = AgentFixture.createDefaultAgentSession();

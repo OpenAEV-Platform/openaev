@@ -349,6 +349,21 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Throw license restricted error when schedule exercise with Sentinel One")
+    void given_sentinelone_should_not_scheduleExercise() throws Exception {
+      Exercise exercise = getExercise(executorFixture.getSentineloneExecutor());
+      ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
+
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exercise.getId() + "/start-date")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
     @DisplayName("Throw license restricted error when add Tanium on scheduled scenario")
     void given_taniumAsset_should_not_beAddedToScheduledExercise() throws Exception {
       Exercise exercise = getExercise(null);

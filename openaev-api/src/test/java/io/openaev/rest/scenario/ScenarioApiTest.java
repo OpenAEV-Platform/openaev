@@ -369,6 +369,22 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Throw license restricted error when scheduled scenario with Sentinel One")
+    void given_sentineloneAsset_should_not_scheduleScenario() throws Exception {
+      Scenario scenario = getScenario(null, executorFixture.getSentineloneExecutor());
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrenceStart(Instant.now());
+
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
     @DisplayName("Throw license restricted error when add Crowdstrike on scheduled scenario")
     void given_crowdstrikeInsdeDynamicGroup_should_not_beAddedToScheduledExercise()
         throws Exception {

@@ -293,6 +293,21 @@ public class AtomicTestingApiTest extends IntegrationTest {
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
+
+    @Test
+    @DisplayName("Throw license restricted error when relaunch with Sentinel One")
+    void given_sentinelone_should_not_relaunchAtomicTesting() throws Exception {
+      Inject atomicTesting =
+          getAtomicTestingWrapper(
+                  InjectStatusFixture.createQueuingInjectStatus(),
+                  executorFixture.getSentineloneExecutor())
+              .persist()
+              .get();
+
+      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch"))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
   }
 
   @Test
