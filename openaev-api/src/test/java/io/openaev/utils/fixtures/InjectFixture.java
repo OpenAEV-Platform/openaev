@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
+import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
+import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,12 +19,25 @@ public class InjectFixture {
   public static final String INJECT_EMAIL_NAME = "Test email inject";
   public static final String INJECT_CHALLENGE_NAME = "Test challenge inject";
 
+  public static AtomicTestingInput createAtomicTesting(String title) {
+    AtomicTestingInput input = new AtomicTestingInput();
+    input.setInjectorContract(EMAIL_DEFAULT);
+    input.setContent(injectContent());
+    input.setTitle(title);
+    input.setAllTeams(false);
+    return input;
+  }
+
   public static Inject createInject(InjectorContract injectorContract, String title) {
     Inject inject = createInjectWithTitle(title);
     inject.setInjectorContract(injectorContract);
     inject.setEnabled(true);
     inject.setDependsDuration(0L);
+    inject.setContent(injectContent());
+    return inject;
+  }
 
+  private static ObjectNode injectContent() {
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode injectContent = objectMapper.createObjectNode();
     injectContent.set(
@@ -31,9 +46,7 @@ public class InjectFixture {
             List.of(
                 ExpectationFixture.createExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)),
             ArrayNode.class));
-    inject.setContent(injectContent);
-
-    return inject;
+    return injectContent;
   }
 
   public static Inject createTechnicalInject(

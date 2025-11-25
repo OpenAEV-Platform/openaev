@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openaev.utils.JsonUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -135,6 +136,52 @@ public class AtomicTestingApiTest extends IntegrationTest {
     // Match Expectation results
     assertEquals(
         mapper.readTree(expectedExpectationsJson), mapper.readTree(actualExpectationsJson));
+  }
+
+  @Test
+  @DisplayName("Create and upadte an atomic testing")
+  @WithMockUser(isAdmin = true)
+  void createAndUpdateAnAtomicTesting() throws Exception {
+    String response =
+        mvc.perform(
+                post(ATOMIC_TESTINGS_URI)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(InjectFixture.createAtomicTesting("test"))))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertNotNull(response);
+    String newInjectId = JsonPath.read(response, "$.inject_id");
+    response =
+        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertEquals(newInjectId, JsonPath.read(response, "$.inject_id"));
+    assertEquals("test", JsonPath.read(response, "$.inject_title"));
+
+    response =
+        mvc.perform(
+                put(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(InjectFixture.createAtomicTesting("test2"))))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertNotNull(response);
+    response =
+        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertEquals(newInjectId, JsonPath.read(response, "$.inject_id"));
+    assertEquals("test2", JsonPath.read(response, "$.inject_title"));
   }
 
   @Test

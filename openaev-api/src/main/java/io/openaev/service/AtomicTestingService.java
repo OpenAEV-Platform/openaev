@@ -139,11 +139,12 @@ public class AtomicTestingService {
                     documentRepository.findById(i.getDocumentId()).orElseThrow());
               }
               injectDocument.setAttached(i.isAttached());
-              if (injectId == null) {
-                finalInjectToSave.getDocuments().add(injectDocument);
-              } else {
-                finalInjectToSave.getDocuments().add(injectDocumentRepository.save(injectDocument));
-              }
+              finalInjectToSave
+                  .getDocuments()
+                  .add(
+                      injectId == null
+                          ? injectDocument
+                          : injectDocumentRepository.save(injectDocument));
             });
 
     if (injectId == null) {
