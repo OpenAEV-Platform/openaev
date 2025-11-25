@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -21,7 +22,6 @@ import { splitDuration } from '../../../../../utils/Time';
 import { PermissionsContext } from '../../Context';
 import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
-import { useTheme } from '@mui/material/styles';
 
 const useStyles = makeStyles()(theme => ({
   injectFormContainer: {
@@ -504,7 +504,13 @@ const InjectForm = ({
           />
         )}
 
-        <div className={classes.injectFormButtonsContainer} style={{ marginBottom:theme.spacing(2), marginRight: theme.spacing(2) }}>
+        <div
+          className={classes.injectFormButtonsContainer}
+          style={{
+            marginBottom: theme.spacing(2),
+            marginRight: theme.spacing(2),
+          }}
+        >
           <Button
             variant="contained"
             onClick={handleClose}

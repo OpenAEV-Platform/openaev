@@ -13,7 +13,7 @@ const useStyles = makeStyles()(theme => ({
     fontSize: theme.typography.pxToRem(12),
   },
   numberOfSelectedElements: {
-    padding: theme.spacing(0.5,1,0.5,1),
+    padding: theme.spacing(0.5, 1, 0.5, 1),
     marginRight: 5,
     backgroundColor: theme.palette.background.accent,
   },
