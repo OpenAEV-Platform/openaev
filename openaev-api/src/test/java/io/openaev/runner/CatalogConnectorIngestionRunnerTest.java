@@ -1,1 +1,108 @@
-package io.openaev.runner;import static org.assertj.core.api.Assertions.assertThat;import com.fasterxml.jackson.databind.JsonNode;import com.fasterxml.jackson.databind.ObjectMapper;import io.openaev.IntegrationTest;import io.openaev.database.model.CatalogConnector;import io.openaev.service.CatalogConnectorService;import io.openaev.service.FileService;import org.junit.jupiter.api.*;import org.springframework.beans.factory.annotation.Autowired;import org.springframework.transaction.annotation.Transactional;import java.util.List;@TestInstance(TestInstance.Lifecycle.PER_CLASS)@DisplayName("Catalog connectors process tests")@Transactionalpublic class CatalogConnectorIngestionRunnerTest extends IntegrationTest {    @Autowired    private CatalogConnectorIngestionRunner catalogConnectorIngestionRunner;    @Autowired    private CatalogConnectorService catalogConnectorService;    @Autowired    private FileService fileService;    @Test    @DisplayName("Should run ingestion catalog")    public void shouldRunIngestionCatalog() throws Exception {        String mockJson = """            {              "id": "filigran-catalog-id",              "name": "OpenAEV contracts",              "version": "rolling",              "contracts": [                {                  "title": "CPE",                  "slug": "cpe",                  "description": "",                  "short_description": "",                  "logo": "data:image/png;base64,xxx",                  "use_cases": ["UC1", "UC2"],                  "verified": true,                  "last_verified_date": null,                  "playbook_supported": false,                  "max_confidence_level": 50,                  "support_version": ">=5.5.4",                  "subscription_link": null,                  "source_code": "https://github.com/xxx",                  "manager_supported": false,                  "container_version": "rolling",                  "container_image": "openaev/connector-cpe",                  "container_type": "COLLECTOR"                }              ]            }            """;        ObjectMapper mapper = new ObjectMapper();        JsonNode root = mapper.readTree(mockJson);        List<CatalogConnector> result = catalogConnectorIngestionRunner.extractCatalog(root);        assertThat(result).isNotEmpty();    }    @Test    @DisplayName("Should build catalog")    void shouldBuildCatalogConnector() throws Exception {        String json = """        {          "title": "CPE",          "slug": "cpe",          "description": "Description",          "short_description": "short description",          "logo": "data:image/png;base64,xxx",          "use_cases": ["UC1", "UC2"],          "verified": true,          "last_verified_date": null,          "playbook_supported": false,          "max_confidence_level": 50,          "support_version": ">=5.5.4",          "subscription_link": null,          "source_code": "https://github.com/xxx",          "manager_supported": false,          "container_version": "rolling",          "container_image": "openaev/connector-cpe",          "container_type": "COLLECTOR"        }        """;        JsonNode contract = new ObjectMapper().readTree(json);        CatalogConnectorIngestionRunner runner =                new CatalogConnectorIngestionRunner(catalogConnectorService, fileService);        CatalogConnector connector = runner.buildCatalogConnector(contract);        assertThat(connector.getTitle()).isEqualTo("CPE");        assertThat(connector.getSlug()).isEqualTo("cpe");        assertThat(connector.getDescription()).isEqualTo("Description");        assertThat(connector.getShortDescription()).isEqualTo("short description");        assertThat(connector.getUseCases()).containsExactlyInAnyOrder("UC1", "UC2");        assertThat(connector.isVerified()).isTrue();        assertThat(connector.getSupportVersion()).isEqualTo(">=5.5.4");        assertThat(connector.getContainerImage()).isEqualTo("openaev/connector-cpe");        assertThat(connector.getContainerType())                .isEqualTo(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);    }}
+package io.openaev.runner;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.service.CatalogConnectorService;
+import io.openaev.service.FileService;
+import java.util.List;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@DisplayName("Catalog connectors process tests")
+@Transactional
+public class CatalogConnectorIngestionRunnerTest {
+  @Autowired private CatalogConnectorIngestionRunner catalogConnectorIngestionRunner;
+  @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private FileService fileService;
+
+  @Test
+  @DisplayName("Should run ingestion catalog")
+  public void shouldRunIngestionCatalog() throws Exception {
+    String mockJson =
+        """
+            {
+              "id": "filigran-catalog-id",
+              "name": "OpenAEV contracts",
+              "version": "rolling",
+              "contracts": [
+                {
+                  "title": "CPE",
+                  "slug": "cpe",
+                  "description": "",
+                  "short_description": "",
+                  "logo": "data:image/png;base64,xxx",
+                  "use_cases": ["UC1", "UC2"],
+                  "verified": true,
+                  "last_verified_date": null,
+                  "playbook_supported": false,
+                  "max_confidence_level": 50,
+                  "support_version": ">=5.5.4",
+                  "subscription_link": null,
+                  "source_code": "https://github.com/xxx",
+                  "manager_supported": false,
+                  "container_version": "rolling",
+                  "container_image": "openaev/connector-cpe",
+                  "container_type": "COLLECTOR"
+                }
+              ]
+            }
+            """;
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    JsonNode root = mapper.readTree(mockJson);
+
+    List<CatalogConnector> result = catalogConnectorIngestionRunner.extractCatalog(root);
+
+    assertThat(result).isNotEmpty();
+  }
+
+  @Test
+  @DisplayName("Should build catalog")
+  void shouldBuildCatalogConnector() throws Exception {
+    String json =
+        """
+        {
+          "title": "CPE",
+          "slug": "cpe",
+          "description": "Description",
+          "short_description": "short description",
+          "logo": "data:image/png;base64,xxx",
+          "use_cases": ["UC1", "UC2"],
+          "verified": true,
+          "last_verified_date": null,
+          "playbook_supported": false,
+          "max_confidence_level": 50,
+          "support_version": ">=5.5.4",
+          "subscription_link": null,
+          "source_code": "https://github.com/xxx",
+          "manager_supported": false,
+          "container_version": "rolling",
+          "container_image": "openaev/connector-cpe",
+          "container_type": "COLLECTOR"
+        }
+        """;
+    JsonNode contract = new ObjectMapper().readTree(json);
+
+    CatalogConnectorIngestionRunner runner =
+        new CatalogConnectorIngestionRunner(catalogConnectorService, fileService);
+
+    CatalogConnector connector = runner.buildCatalogConnector(contract);
+
+    assertThat(connector.getTitle()).isEqualTo("CPE");
+    assertThat(connector.getSlug()).isEqualTo("cpe");
+    assertThat(connector.getDescription()).isEqualTo("Description");
+    assertThat(connector.getShortDescription()).isEqualTo("short description");
+    assertThat(connector.getUseCases()).containsExactlyInAnyOrder("UC1", "UC2");
+    assertThat(connector.isVerified()).isTrue();
+    assertThat(connector.getSupportVersion()).isEqualTo(">=5.5.4");
+    assertThat(connector.getContainerImage()).isEqualTo("openaev/connector-cpe");
+    assertThat(connector.getContainerType()).isEqualTo(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
+  }
+}
