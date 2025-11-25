@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.service.CatalogConnectorConfigurationService;
 import io.openaev.service.CatalogConnectorService;
 import io.openaev.service.FileService;
 import io.openaev.utils.TimeUtils;
@@ -63,7 +62,7 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
     return catalogConnectorService.saveAll(catalogConnectorList);
   }
 
-   CatalogConnector buildCatalogConnector(JsonNode contract) {
+  CatalogConnector buildCatalogConnector(JsonNode contract) {
 
     CatalogConnector connector =
         catalogConnectorService
