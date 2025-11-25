@@ -1,0 +1,46 @@
+package io.openaev.database.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
+import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.helper.MonoIdDeserializer;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UuidGenerator;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "connector_instance_logs")
+@EntityListeners(ModelBaseListener.class)
+public class ConnectorInstanceLog implements Base {
+  @Id
+  @Column(name = "connector_instance_log_id")
+  @GeneratedValue(generator = "UUID")
+  @UuidGenerator
+  @JsonProperty("connector_instance_log_id")
+  @NotBlank
+  private String id;
+
+  @Type(ListArrayType.class)
+  @Column(name = "connector_instance_logs")
+  @JsonProperty("connector_instance_logs")
+  @Schema(description = "Connector instance logs")
+  private Set<String> logs = new HashSet<>();
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "connector_instance_id", nullable = false)
+  @JsonIgnore
+  @NotNull
+  @JsonSerialize(using = MonoIdDeserializer.class)
+  private ConnectorInstance connectorInstance;
+}

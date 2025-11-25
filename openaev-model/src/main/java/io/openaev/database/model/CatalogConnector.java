@@ -64,7 +64,7 @@ public class CatalogConnector implements Base {
   @Type(ListArrayType.class)
   @Column(name = "catalog_connector_use_cases")
   @JsonProperty("catalog_connector_use_cases")
-  @Schema(description = "Connector use_cases")
+  @Schema(description = "Connector use cases")
   private Set<String> useCases = new HashSet<>();
 
   @Column(name = "catalog_connector_verified")

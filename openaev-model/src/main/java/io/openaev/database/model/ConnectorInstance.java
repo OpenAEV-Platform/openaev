@@ -19,6 +19,16 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners(ModelBaseListener.class)
 public class ConnectorInstance implements Base {
 
+  public enum CURRENT_STATUS_TYPE {
+    started,
+    stopped
+  }
+
+  public enum REQUESTED_STATUS_TYPE {
+    starting,
+    stopping
+  }
+
   @Id
   @Column(name = "connector_instance_id")
   @GeneratedValue(generator = "UUID")
@@ -33,14 +43,16 @@ public class ConnectorInstance implements Base {
   @NotNull
   private CatalogConnector catalogConnector;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "connector_instance_current_status")
   @JsonProperty("connector_instance_current_status")
   @NotBlank
-  private String currentStatus;
+  private CURRENT_STATUS_TYPE currentStatus;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "connector_instance_requested_status")
   @JsonProperty("connector_instance_requested_status")
-  private String requestedStatus;
+  private REQUESTED_STATUS_TYPE requestedStatus;
 
   @Column(name = "connector_instance_restart_count")
   @JsonProperty("connector_instance_restart_count")
@@ -62,4 +74,13 @@ public class ConnectorInstance implements Base {
   @JsonProperty("connector_instance_configurations")
   @NotNull
   private Set<ConnectorInstanceConfiguration> configurations = new HashSet<>();
+
+  @OneToMany(
+      mappedBy = "connectorInstance",
+      fetch = FetchType.LAZY,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
+  @JsonProperty("connector_instance_logs")
+  @NotNull
+  private Set<ConnectorInstanceLog> logs = new HashSet<>();
 }
