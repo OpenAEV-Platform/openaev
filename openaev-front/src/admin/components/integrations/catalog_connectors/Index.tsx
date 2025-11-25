@@ -1,4 +1,4 @@
-import { lazy, useEffect } from 'react';
+import { lazy } from 'react';
 import { Route, Routes, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 

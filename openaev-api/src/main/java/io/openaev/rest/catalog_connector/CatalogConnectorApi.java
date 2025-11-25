@@ -7,14 +7,12 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.CatalogConnectorService;
-
+import io.openaev.service.FileService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import io.openaev.service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.springframework.http.CacheControl;
@@ -37,31 +35,28 @@ public class CatalogConnectorApi extends RestBehavior {
 
   @GetMapping(CATALOG_CONNECTOR_URI + "/{connectorId}")
   @RBAC(
-          resourceId = "#connectorId",
-          actionPerformed = Action.READ,
-          resourceType = ResourceType.CATALOG)
+      resourceId = "#connectorId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.CATALOG)
   public CatalogConnector getConnector(@PathVariable String connectorId) {
     return catalogConnectorService
-            .findById(connectorId)
-            .orElseThrow(() -> new ElementNotFoundException("Connector not found with id: " + connectorId));
+        .findById(connectorId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Connector not found with id: " + connectorId));
   }
 
   @GetMapping(
-          value = "/api/images/catalog/connectors/logos/{fileName}",
-          produces = MediaType.IMAGE_PNG_VALUE)
+      value = "/api/images/catalog/connectors/logos/{fileName}",
+      produces = MediaType.IMAGE_PNG_VALUE)
   @RBAC(skipRBAC = true)
   public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
     Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName);
 
     if (fileStream.isPresent()) {
       byte[] bytes = IOUtils.toByteArray(fileStream.get());
-      return ResponseEntity
-              .ok()
-              .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-              .body(bytes);
+      return ResponseEntity.ok().cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES)).body(bytes);
     }
 
     return ResponseEntity.notFound().build();
   }
-
 }

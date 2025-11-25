@@ -204,9 +204,9 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
 
       String fileName = connectorSlug + "-logo.png";
 
-       fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
+      fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
 
-       return fileName;
+      return fileName;
     } catch (Exception e) {
       log.error("Error upload image MinIO", e);
       return null;

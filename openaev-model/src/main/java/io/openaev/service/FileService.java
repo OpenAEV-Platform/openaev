@@ -136,7 +136,7 @@ public class FileService {
   }
 
   public Optional<InputStream> getCatalogConnectorImage(String fileName) {
-    return getFilePath( CONNECTORS_LOGO_PATH + fileName );
+    return getFilePath(CONNECTORS_LOGO_PATH + fileName);
   }
 
   public Optional<FileContainer> getFileContainer(String fileTarget) {
