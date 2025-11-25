@@ -18,7 +18,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
-import io.openaev.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.ContractDef;

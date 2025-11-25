@@ -19,7 +19,7 @@ import static io.openaev.injectors.channel.ChannelExecutor.VARIABLE_ARTICLES;
 
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
-import io.openaev.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;

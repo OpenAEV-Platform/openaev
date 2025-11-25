@@ -9,7 +9,7 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 
 import io.openaev.database.model.Endpoint;
-import io.openaev.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.openaev.rest.domain.DomainService;
 import org.springframework.stereotype.Component;
 
 @Component

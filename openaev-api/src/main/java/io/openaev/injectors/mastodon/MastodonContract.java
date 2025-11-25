@@ -9,7 +9,7 @@ import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.injector_contract.fields.ContractTextArea.textareaField;
 
 import io.openaev.database.model.Endpoint;
-import io.openaev.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.Contractor;

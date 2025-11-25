@@ -16,7 +16,7 @@ import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaF
 
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
-import io.openaev.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;

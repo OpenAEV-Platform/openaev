@@ -160,9 +160,8 @@ public class InjectorService {
                   }
                   // Manage the update for domains by doing a merge, if payloads, domains will be hold by payloads
                   if (!isPayloads) {
-                    //TODO Update domains, do an upsert and merge the domains
-                      Set<Domain> currentDomains = this.upserts(current.get().getDomains());
-                      Set<Domain> domainsToAdd = this.upserts(contractDB.getDomains());
+                      Set<Domain> currentDomains = this.upserts(contractDB.getDomains());
+                      Set<Domain> domainsToAdd = this.upserts(current.get().getDomains());
                       contractDB.setDomains(this.mergeDomains(currentDomains, domainsToAdd));
                   }
                   try {
@@ -208,7 +207,7 @@ public class InjectorService {
                     } catch (JsonProcessingException e) {
                       throw new RuntimeException(e);
                     }
-                    if (!isPayloads) {
+                    if (!isPayloads && in.getDomains() != null) {
                         injectorContract.setDomains(this.upserts(in.getDomains()));
                     }
                     return injectorContract;
@@ -259,7 +258,7 @@ public class InjectorService {
                     } catch (JsonProcessingException e) {
                       throw new RuntimeException(e);
                     }
-                    if (!isPayloads) {
+                    if (!isPayloads && in.getDomains() != null) {
                         injectorContract.setDomains(this.upserts(in.getDomains()));
                     }
                     return injectorContract;
@@ -281,7 +280,7 @@ public class InjectorService {
       Optional<Domain> existingDomain = domainRepository.findByName(domain.getName());
       return existingDomain.
               orElseGet(() ->
-                      domainRepository.save(new Domain(domain.getName(), domain.getColor() != null ? domain.getColor() : randomColor())));
+                      domainRepository.save(new Domain(null, domain.getName(), domain.getColor() != null ? domain.getColor() : randomColor(), Instant.now(), null)));
   }
 
   private String randomColor() {

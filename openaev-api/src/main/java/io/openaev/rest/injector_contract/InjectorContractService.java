@@ -432,7 +432,7 @@ public class InjectorContractService {
     } else {
       injectorContract.setAttackPatterns(new ArrayList<>());
     }
-    if (!injector.isPayloads()) {
+    if (!injector.isPayloads() && in.getDomains() != null) {
         injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
     }
     return injectorContract;

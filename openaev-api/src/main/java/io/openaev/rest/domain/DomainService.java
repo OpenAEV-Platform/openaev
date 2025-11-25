@@ -105,6 +105,47 @@ public class DomainService {
         .collect(Collectors.toSet());
   }
 
+  public Set<Domain> findDomainByNameAndDescription(final String name, final String description) {
+      Set<Domain> domains = new HashSet<>();
+
+      if (findInKeywords(DomainKeyWords.ENDPOINT, name) || findInKeywords(DomainKeyWords.ENDPOINT, description)) {
+          domains.add(DefaultDomain.ENDPOINT.getDomain());
+      }
+      if (findInKeywords(DomainKeyWords.NETWORK, name) || findInKeywords(DomainKeyWords.NETWORK, description)) {
+          domains.add(DefaultDomain.NETWORK.getDomain());
+      }
+      if (findInKeywords(DomainKeyWords.WEB_APP, name) || findInKeywords(DomainKeyWords.WEB_APP, description)) {
+          domains.add(DefaultDomain.WEB_APP.getDomain());
+      }
+      if (findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, name) || findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, description)) {
+          domains.add(DefaultDomain.EMAIL_INFILTRATION.getDomain());
+      }
+      if (findInKeywords(DomainKeyWords.DATA_EXFILTRATION, name) || findInKeywords(DomainKeyWords.DATA_EXFILTRATION, description)) {
+          domains.add(DefaultDomain.DATA_EXFILTRATION.getDomain());
+      }
+      if (findInKeywords(DomainKeyWords.URL_FILTERING, name) || findInKeywords(DomainKeyWords.URL_FILTERING, description)) {
+          domains.add(DefaultDomain.URL_FILTERING.getDomain());
+      }
+      if (findInKeywords(DomainKeyWords.CLOUD, name) || findInKeywords(DomainKeyWords.CLOUD, description)) {
+          domains.add(DefaultDomain.CLOUD.getDomain());
+      }
+
+      if (domains.isEmpty()) {
+          domains.add(DefaultDomain.ENDPOINT.getDomain());
+      }
+
+      return domains;
+  }
+
+  private boolean findInKeywords(DomainKeyWords keywords, String searchValue) {
+      return keywords.getKeywords().stream().map(String::toLowerCase).anyMatch(keyword -> searchValue.toLowerCase().contains(keyword));
+  }
+
+  private String randomColor() {
+    Random rand = new Random();
+    return String.format("#%06x", rand.nextInt(0xffffff + 1));
+  }
+
   // -- OPTION --
 
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(final String searchText) {

@@ -12,7 +12,8 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.*;
@@ -43,6 +44,7 @@ public class CalderaContract extends Contractor {
   private final CalderaInjectorConfig config;
   private final CalderaInjectorService injectorCalderaService;
   private final ExpectationBuilderService expectationBuilderService;
+  private final DomainService domainService;
 
   @Override
   public boolean isExpose() {
@@ -154,7 +156,7 @@ public class CalderaContract extends Contractor {
                       builder.build(),
                       platforms,
                       true,
-                      Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
+                      domainService.findDomainByNameAndDescription(ability.getName(), ability.getDescription()));
               contract.addAttackPattern(ability.getTechnique_id());
               return contract;
             }))
