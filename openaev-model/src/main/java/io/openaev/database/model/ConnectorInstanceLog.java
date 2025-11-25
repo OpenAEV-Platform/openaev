@@ -29,7 +29,6 @@ public class ConnectorInstanceLog implements Base {
   @NotBlank
   private String id;
 
-  @Type(ListArrayType.class)
   @Column(name = "connector_instance_log")
   @JsonProperty("connector_instance_log")
   @Schema(description = "Connector instance log")
