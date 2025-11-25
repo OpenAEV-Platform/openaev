@@ -87,12 +87,13 @@ public class BatchQueueService<T extends Queueable> {
     establishConnection();
 
     // A scheduler to handle batches that did not reached the critical mass
-    ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
-    scheduledExecutor.scheduleAtFixedRate(
-        () -> queue.keySet().forEach(this::processBufferedBatch),
-        this.queueConfig.getWorkerFrequency(),
-        this.queueConfig.getWorkerFrequency(),
-        TimeUnit.MILLISECONDS);
+    try (ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1)) {
+      scheduledExecutor.scheduleAtFixedRate(
+          () -> queue.keySet().forEach(this::processBufferedBatch),
+          this.queueConfig.getWorkerFrequency(),
+          this.queueConfig.getWorkerFrequency(),
+          TimeUnit.MILLISECONDS);
+    }
 
     executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
 
