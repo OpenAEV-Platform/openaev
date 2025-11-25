@@ -3,7 +3,6 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdDeserializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,7 +11,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
