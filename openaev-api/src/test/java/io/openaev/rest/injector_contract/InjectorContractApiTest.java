@@ -72,6 +72,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
 
   @Autowired private UserComposer userComposer;
@@ -1211,12 +1212,15 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
+        icComposer.withPayload(
+            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {

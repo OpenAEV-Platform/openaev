@@ -29,10 +29,12 @@ import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -53,6 +55,7 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private CollectorRepository collectorRepository;
 
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Resource private ObjectMapper objectMapper;
 
@@ -82,7 +85,10 @@ class PayloadApiTest extends IntegrationTest {
     @Test
     @DisplayName("Create Payload")
     void createExecutablePayload() throws Exception {
-      PayloadCreateInput input = PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
+
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(domains);
       input.setExecutableFile(EXECUTABLE_FILE.getId());
 
       mvc.perform(
@@ -103,8 +109,10 @@ class PayloadApiTest extends IntegrationTest {
     @Test
     @DisplayName("Creating a Payload with a null as arch should fail")
     void createPayloadWithNullArch() throws Exception {
+
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
       input.setExecutionArch(null);
       mvc.perform(
               post(PAYLOAD_URI)
@@ -117,7 +125,9 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName(
         "Creating an executable Payload with an arch different from x86_64 or arm64 should fail")
     void createExecutablePayloadWithoutArch() throws Exception {
-      PayloadCreateInput input = PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(domains);
       input.setExecutableFile(EXECUTABLE_FILE.getId());
       input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
@@ -138,8 +148,10 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName("Create Payload with output parser")
     void given_payload_create_input_with_output_parsers_should_return_payload_with_output_parsers()
         throws Exception {
+
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser();
+          PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(domains);
 
       mvc.perform(
               post(PAYLOAD_URI)
@@ -170,8 +182,9 @@ class PayloadApiTest extends IntegrationTest {
             throws Exception {
       when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation();
+          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(domains);
 
       mvc.perform(
               post(PAYLOAD_URI)
@@ -189,8 +202,9 @@ class PayloadApiTest extends IntegrationTest {
             throws Exception {
       when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
       /******* Create *******/
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation();
+          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(domains);
 
       String response =
           mvc.perform(
@@ -205,7 +219,8 @@ class PayloadApiTest extends IntegrationTest {
       String payloadId = JsonPath.read(response, "$.payload_id");
 
       /******* Update *******/
-      PayloadUpdateInput updateInput = PayloadInputFixture.getDefaultCommandPayloadUpdateInput();
+      PayloadUpdateInput updateInput =
+          PayloadInputFixture.getDefaultCommandPayloadUpdateInput(domains);
       String updatedValues = "test values";
       List<DetectionRemediationInput> detectionRemediation =
           PayloadInputFixture.buildDetectionRemediations();
@@ -225,8 +240,10 @@ class PayloadApiTest extends IntegrationTest {
     @Test
     @DisplayName("Create Payload with targeted asset")
     void given_targetedAssetArgument_should_create_payload_with_targeted_asset() throws Exception {
+
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
       PayloadArgument targetedAssetArgument = new PayloadArgument();
       targetedAssetArgument.setKey("URL");
@@ -285,8 +302,10 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Update Executable Payload")
   @WithMockUser(isAdmin = true)
   void updateExecutablePayload() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
+        PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(domains);
     createInput.setExecutableFile(EXECUTABLE_FILE.getId());
 
     String response =
@@ -306,7 +325,8 @@ class PayloadApiTest extends IntegrationTest {
 
     var payloadId = JsonPath.read(response, "$.payload_id");
 
-    PayloadUpdateInput updateInput = PayloadInputFixture.getDefaultExecutablePayloadUpdateInput();
+    PayloadUpdateInput updateInput =
+        PayloadInputFixture.getDefaultExecutablePayloadUpdateInput(domains);
     updateInput.setExecutableFile(EXECUTABLE_FILE.getId());
 
     mvc.perform(
@@ -325,8 +345,9 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Updating an Executed Payload with null as arch should fail")
   @WithMockUser(isAdmin = true)
   void updateExecutablePayloadWithoutArch() throws Exception {
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
+        PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(domains);
     createInput.setExecutableFile(EXECUTABLE_FILE.getId());
 
     String response =
@@ -341,7 +362,8 @@ class PayloadApiTest extends IntegrationTest {
 
     var payloadId = JsonPath.read(response, "$.payload_id");
 
-    PayloadUpdateInput updateInput = PayloadInputFixture.getDefaultExecutablePayloadUpdateInput();
+    PayloadUpdateInput updateInput =
+        PayloadInputFixture.getDefaultExecutablePayloadUpdateInput(domains);
     updateInput.setExecutableFile(EXECUTABLE_FILE.getId());
     updateInput.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
@@ -361,8 +383,10 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Updating a Payload no Executable without arch should set ALL_ARCHITECTURES")
   @WithMockUser(isAdmin = true)
   void updatePayloadNoExecutableWithoutArch() throws Exception {
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     String response =
         mvc.perform(
@@ -376,7 +400,8 @@ class PayloadApiTest extends IntegrationTest {
 
     var payloadId = JsonPath.read(response, "$.payload_id");
 
-    PayloadUpdateInput updateInput = PayloadInputFixture.getDefaultCommandPayloadUpdateInput();
+    PayloadUpdateInput updateInput =
+        PayloadInputFixture.getDefaultCommandPayloadUpdateInput(domains);
     updateInput.setExecutableFile(EXECUTABLE_FILE.getId());
 
     mvc.perform(
@@ -397,8 +422,10 @@ class PayloadApiTest extends IntegrationTest {
   void
       given_payload_update_input_with_output_parsers_should_return_updated_payloadd_with_output_parsers()
           throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     String response =
         mvc.perform(
@@ -413,7 +440,7 @@ class PayloadApiTest extends IntegrationTest {
     var payloadId = JsonPath.read(response, "$.payload_id");
 
     PayloadUpdateInput updateInput =
-        PayloadInputFixture.getDefaultCommandPayloadUpdateInputWithOutputParser();
+        PayloadInputFixture.getDefaultCommandPayloadUpdateInputWithOutputParser(domains);
 
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
@@ -445,8 +472,9 @@ class PayloadApiTest extends IntegrationTest {
           throws Exception {
     when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     String response =
         mvc.perform(
@@ -462,7 +490,7 @@ class PayloadApiTest extends IntegrationTest {
     var payloadId = JsonPath.read(response, "$.payload_id");
 
     PayloadUpdateInput updateInput =
-        PayloadInputFixture.getDefaultPayloadUpdateInputWithDetectionRemediation();
+        PayloadInputFixture.getDefaultPayloadUpdateInputWithDetectionRemediation(domains);
 
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
@@ -477,7 +505,9 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Upsert architecture of a Payload")
   @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
-    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand());
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
+    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand(domains));
     payload.setExternalId("external-id");
 
     // -- Without property architecture
@@ -512,12 +542,15 @@ class PayloadApiTest extends IntegrationTest {
   void
       given_payload_upsert_input_with_output_parsers_should_return_updated_payload_with_output_parsers()
           throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput input =
-        PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser();
+        PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(domains);
 
     mvc.perform(
             post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
         .andExpect(status().is2xxSuccessful());
+
 
     PayloadUpsertInput upsertInput =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithOutputParser();
@@ -560,7 +593,9 @@ class PayloadApiTest extends IntegrationTest {
           throws Exception {
     when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
-    PayloadCreateInput input = PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+    PayloadCreateInput input =
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     mvc.perform(
             post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
@@ -585,8 +620,10 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Creating Command Line payload with both set executor and content should succeed")
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothSetExecutorAndContent() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     createInput.setExecutor("sh");
     createInput.setExecutor("echo hello world");
@@ -603,8 +640,10 @@ class PayloadApiTest extends IntegrationTest {
       "Creating Command Line payload with both null cleanup executor and command should succeed")
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothNullCleanupExecutorAndCommand() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     createInput.setCleanupExecutor(null);
     createInput.setCleanupCommand(null);
@@ -621,8 +660,10 @@ class PayloadApiTest extends IntegrationTest {
       "Creating Command Line payload with both set cleanup executor and command should succeed")
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothSetCleanupExecutorAndCommand() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     createInput.setCleanupExecutor("sh");
     createInput.setCleanupCommand("cleanup this mess");
@@ -639,8 +680,10 @@ class PayloadApiTest extends IntegrationTest {
       "Creating Command Line payload with only set cleanup executor and null command should fail")
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithOnlySetCleanupExecutorAndNullCommand() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     createInput.setCleanupExecutor("sh");
     createInput.setCleanupCommand(null);
@@ -657,8 +700,10 @@ class PayloadApiTest extends IntegrationTest {
       "Creating Command Line payload with only set cleanup command and null executor should fail")
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     createInput.setCleanupExecutor(null);
     createInput.setCleanupCommand("cleanup this mess");
@@ -675,8 +720,10 @@ class PayloadApiTest extends IntegrationTest {
       "Updating Command Line payload with only set cleanup command and null executor should fail")
   @WithMockUser(isAdmin = true)
   void updateCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine();
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(domains);
 
     createInput.setCleanupExecutor(null);
     createInput.setCleanupCommand(null);
@@ -713,8 +760,10 @@ class PayloadApiTest extends IntegrationTest {
       "Duplicating a Community and Verified Payload should result in a Manual and Unverified Payload")
   @WithMockUser(isAdmin = true)
   void duplicateExecutablePayload() throws Exception {
+
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
     PayloadCreateInput createInput =
-        PayloadInputFixture.createDefaultPayloadCreateInputForExecutable();
+        PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(domains);
     createInput.setExecutableFile(EXECUTABLE_FILE.getId());
     createInput.setSource(Payload.PAYLOAD_SOURCE.COMMUNITY);
     createInput.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
@@ -768,6 +817,7 @@ class PayloadApiTest extends IntegrationTest {
 
     mvc.perform(multipart("/api/collectors").file(inputMultipart))
         .andExpect(status().is2xxSuccessful());
+
 
     PayloadUpsertInput payloadUpsertInput1 =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInput();

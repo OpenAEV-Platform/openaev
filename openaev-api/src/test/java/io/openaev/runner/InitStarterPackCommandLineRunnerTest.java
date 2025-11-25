@@ -17,11 +17,13 @@ import io.openaev.service.*;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
@@ -58,6 +60,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Mock private ResourcePatternResolver mockResolver;
 
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectRepository injectRepository;
 
@@ -325,10 +328,12 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with honey.scan.me asset")
   public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
     // PREPARE
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
     ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
     contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand();
+    Payload payload = PayloadFixture.createDefaultCommand(domains);
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAsset));
@@ -381,11 +386,13 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
     contractAssetGroup.setLinkedFields(
         InjectorContractFixture.buildMandatoryOnConditionValue("asset_groups"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand();
+    Payload payload = PayloadFixture.createDefaultCommand(domains);
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAssetGroup));

@@ -97,6 +97,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ExecutionTraceComposer executionTraceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private AgentRepository agentRepository;
@@ -540,12 +541,18 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "bash", "echo command name #{arg_value}", List.of(prerequisite), "echo cleanup cmd");
+              "bash",
+              "echo command name #{arg_value}",
+              List.of(prerequisite),
+              "echo cleanup cmd",
+              domains);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -598,9 +605,11 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       String command =
           "echo separatebyspace : #{asset-separate-by-space} separatebycoma : #{asset-separate-by-comma}";
-      Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
+      Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null, domains);
       PayloadArgument targetedAssetArgument =
           PayloadFixture.createPayloadArgument(
               "asset-separate-by-space", ContractFieldType.TargetedAsset, "hostname", "-u");
@@ -679,9 +688,11 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void calling_RetrievingExecutablePayload_should_setStartDateSignature() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd");
+              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -734,8 +745,11 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       Command payloadCommand =
-          PayloadFixture.createCommand("psh", "echo Hello World", List.of(), "echo cleanup cmd");
+          PayloadFixture.createCommand(
+              "psh", "echo Hello World", List.of(), "echo cleanup cmd", domains);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -1027,10 +1041,13 @@ class InjectApiTest extends IntegrationTest {
         input.setStatus("SUCCESS");
         Inject inject = getPendingInjectWithAssets();
 
+        Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
         // Create payload with output parser
         ContractOutputElement CVEOutputElement = OutputParserFixture.getCVEOutputElement();
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(CVEOutputElement));
-        Command payloadCommand = PayloadFixture.createCommand("bash", "command", null, null);
+        Command payloadCommand =
+            PayloadFixture.createCommand("bash", "command", null, null, domains);
         payloadCommand.setOutputParsers(Set.of(outputParser));
         Payload payloadSaved = payloadRepository.save(payloadCommand);
 
@@ -1296,6 +1313,8 @@ class InjectApiTest extends IntegrationTest {
   class ShouldFetchDocuments {
 
     private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
           .withInjectorContract(
@@ -1303,7 +1322,7 @@ class InjectApiTest extends IntegrationTest {
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                   .withPayload(
                       payloadComposer
-                          .forPayload(PayloadFixture.createDefaultFileDrop())
+                          .forPayload(PayloadFixture.createDefaultFileDrop(domains))
                           .withFileDrop(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(
@@ -1313,6 +1332,8 @@ class InjectApiTest extends IntegrationTest {
     }
 
     private Inject getInjectWithPayloadAndExecutableDocumentsLinkedOnIt() {
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
           .withInjectorContract(
@@ -1320,7 +1341,7 @@ class InjectApiTest extends IntegrationTest {
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                   .withPayload(
                       payloadComposer
-                          .forPayload(PayloadFixture.createDefaultExecutable())
+                          .forPayload(PayloadFixture.createDefaultExecutable(domains))
                           .withExecutable(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(FileFixture.getBeadFileContent())))))

@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -55,6 +56,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @Autowired private ObjectiveComposer objectiveComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private ChallengeService challengeService;
   @Autowired private ArticleService articleService;
@@ -86,6 +88,8 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+
     return exerciseComposer
         .forExercise(ExerciseFixture.createDefaultCrisisExercise())
         .withArticle(
@@ -140,7 +144,7 @@ class ExerciseApiExportTest extends IntegrationTest {
                         .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                         .withPayload(
                             payloadComposer
-                                .forPayload(PayloadFixture.createDefaultFileDrop())
+                                .forPayload(PayloadFixture.createDefaultFileDrop(domains))
                                 .withFileDrop(
                                     documentComposer
                                         .forDocument(
