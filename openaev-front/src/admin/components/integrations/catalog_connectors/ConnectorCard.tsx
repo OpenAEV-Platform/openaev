@@ -1,5 +1,6 @@
 import { VerifiedOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Grid, Tooltip } from '@mui/material';
+import { Card, CardActionArea, CardContent, Grid, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -54,6 +55,7 @@ type ConnectorCardProps = { connector: CatalogConnector };
 const ConnectorCard = ({ connector }: ConnectorCardProps) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
+  const theme = useTheme();
 
   return (
     <Grid key={connector.connector_id} size={{ xs: 4 }}>
@@ -75,9 +77,9 @@ const ConnectorCard = ({ connector }: ConnectorCardProps) => {
               connectorTitle={connector.connector_title}
               connectorType={connector.catalog_connector_type}
             />
-            <div>
+            <Typography style={{ color: theme.palette.grey['500'] }}>
               {connector.catalog_connector_short_description}
-            </div>
+            </Typography>
 
           </CardContent>
         </CardActionArea>

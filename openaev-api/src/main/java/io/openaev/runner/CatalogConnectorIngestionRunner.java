@@ -23,7 +23,6 @@ import org.springframework.stereotype.Component;
 public class CatalogConnectorIngestionRunner implements CommandLineRunner {
   private final CatalogConnectorService catalogConnectorService;
   private static final ObjectMapper mapper = new ObjectMapper();
-  private final CatalogConnectorConfigurationService catalogConnectorConfigurationService;
   private final FileService fileService;
 
   @Override
@@ -48,7 +47,7 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
     }
   }
 
-  private List<CatalogConnector> extractCatalog(JsonNode rootNode) {
+  List<CatalogConnector> extractCatalog(JsonNode rootNode) {
     JsonNode contracts = rootNode.get("contracts");
     if (contracts == null) {
       throw new IllegalArgumentException("contracts is null");
@@ -64,7 +63,7 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
     return catalogConnectorService.saveAll(catalogConnectorList);
   }
 
-  private CatalogConnector buildCatalogConnector(JsonNode contract) {
+   CatalogConnector buildCatalogConnector(JsonNode contract) {
 
     CatalogConnector connector =
         catalogConnectorService

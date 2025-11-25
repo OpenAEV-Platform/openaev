@@ -14,14 +14,14 @@ const useStyles = makeStyles()(theme => ({
   titleContainer: {
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'top',
+    justifyContent: 'flex-start',
     width: '100%',
   },
   title: {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    width: '95%',
+    maxWidth: '85%',
   },
   titleNoEllipsis: {
     whiteSpace: 'normal',
