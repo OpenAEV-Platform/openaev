@@ -10,10 +10,13 @@ import java.util.List;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface FindingRepository
@@ -45,4 +48,41 @@ public interface FindingRepository
               + ";",
       nativeQuery = true)
   List<RawFinding> findForIndexing(@Param("from") Instant from);
+
+  @Query(
+      value =
+          "INSERT INTO findings (finding_id, finding_field, finding_type, finding_value, finding_labels, finding_inject_id, finding_name) "
+              + " VALUES (gen_random_uuid(), :findingField, :findingType, :findingValue, :findingLabels, :findingInjectId, :findingName)"
+              + " ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value) DO UPDATE SET finding_name = EXCLUDED.finding_name "
+              + " RETURNING finding_id "
+              + ";",
+      nativeQuery = true)
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  String simpleSaveFinding(
+      String findingField,
+      String findingType,
+      String findingValue,
+      String[] findingLabels,
+      String findingInjectId,
+      String findingName);
+
+  @Query(
+      value =
+          "INSERT INTO findings_assets (finding_id, asset_id) "
+              + " VALUES (:findingId, :assetId)"
+              + " ON CONFLICT DO NOTHING "
+              + ";",
+      nativeQuery = true)
+  @Modifying
+  void linkFindingToAsset(String findingId, String assetId);
+
+  @Query(
+      value =
+          "INSERT INTO findings_tags (finding_id, tag_id) "
+              + " VALUES (:findingId, :tagId)"
+              + " ON CONFLICT DO NOTHING "
+              + ";",
+      nativeQuery = true)
+  @Modifying
+  void linkFindingToTag(String findingId, String tagId);
 }

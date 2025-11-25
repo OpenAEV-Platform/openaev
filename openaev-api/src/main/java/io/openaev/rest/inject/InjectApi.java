@@ -375,17 +375,15 @@ public class InjectApi extends RestBehavior {
       throws IOException {
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)
         && injectTraceQueueService != null) {
-      var injectExecutionCallbackAsString =
-          mapper.writeValueAsString(
-              InjectExecutionCallback.builder()
-                  .injectExecutionInput(input)
-                  .agentId(agentId)
-                  .injectId(injectId)
-                  .emissionDate(Instant.now().toEpochMilli())
-                  .build());
+      InjectExecutionCallback injectExecutionCallback = InjectExecutionCallback.builder()
+              .injectExecutionInput(input)
+              .agentId(agentId)
+              .injectId(injectId)
+              .emissionDate(Instant.now().toEpochMilli())
+              .build();
 
       // Publishing the parameters into a queue for later ingestion
-      injectTraceQueueService.publish(injectExecutionCallbackAsString);
+      injectTraceQueueService.publish(injectExecutionCallback);
     } else {
       injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
     }

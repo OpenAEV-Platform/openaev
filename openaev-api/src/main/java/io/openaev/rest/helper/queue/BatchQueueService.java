@@ -28,7 +28,6 @@ public class BatchQueueService<T extends Queueable> {
 
   private Connection connection;
   private List<Channel> publisherChannels = new ArrayList<>();
-  private int publisherIndex = 0;
   private final String routingKey;
   private final String exchangeName;
   private final String queueName;
@@ -68,6 +67,8 @@ public class BatchQueueService<T extends Queueable> {
     this.mapper = mapper;
     this.queueConfig = queueConfig;
     this.rabbitmqConfig = rabbitmqConfig;
+
+    executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
     shutdownListener = this::handleConnectionShutdown;
     exchangeName =
         rabbitmqConfig.getPrefix()
@@ -94,8 +95,6 @@ public class BatchQueueService<T extends Queueable> {
         this.queueConfig.getWorkerFrequency(),
         this.queueConfig.getWorkerFrequency(),
         TimeUnit.MILLISECONDS);
-
-    executor = Executors.newFixedThreadPool(queueConfig.getWorkerNumber());
 
     // Reconnection executor that we will start if we ever lose connection
     this.reconnectionExecutor = Executors.newScheduledThreadPool(1);
@@ -178,7 +177,7 @@ public class BatchQueueService<T extends Queueable> {
                       .build());
 
               // If we reach a critical mass, we take care of it immediately
-              if (queue.size() > this.queueConfig.getMaxSize()) {
+              if (queue.get(elementKey).size() > this.queueConfig.getMaxSize()) {
                 processBufferedBatch(elementKey);
               }
             };
@@ -326,15 +325,15 @@ public class BatchQueueService<T extends Queueable> {
   /**
    * Publish a stringified object of type T into the queue
    *
-   * @param publishedJson the stringified T object
+   * @param element the T object to publish
    * @throws IOException in case of error during the publish
    */
-  public void publish(String publishedJson) throws IOException {
+  public void publish(T element) throws IOException {
     try {
       publisherChannels
-          .get(publisherIndex)
-          .basicPublish(exchangeName, routingKey, null, publishedJson.getBytes());
-      publisherIndex = (publisherIndex + 1) % publisherChannels.size();
+          .get(element.hashCode() % publisherChannels.size())
+          .basicPublish(
+              exchangeName, routingKey, null, mapper.writeValueAsString(element).getBytes());
     } catch (IOException e) {
       log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
       throw e;
