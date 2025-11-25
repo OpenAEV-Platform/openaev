@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
+import io.openaev.rest.inject.form.InjectDocumentInput;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,12 +20,18 @@ public class InjectFixture {
   public static final String INJECT_EMAIL_NAME = "Test email inject";
   public static final String INJECT_CHALLENGE_NAME = "Test challenge inject";
 
-  public static AtomicTestingInput createAtomicTesting(String title) {
+  public static AtomicTestingInput createAtomicTesting(String title, String documentId) {
     AtomicTestingInput input = new AtomicTestingInput();
     input.setInjectorContract(EMAIL_DEFAULT);
     input.setContent(injectContent());
     input.setTitle(title);
     input.setAllTeams(false);
+    if (documentId != null) {
+      InjectDocumentInput documentInput = new InjectDocumentInput();
+      documentInput.setDocumentId(documentId);
+      documentInput.setAttached(true);
+      input.setDocuments(List.of(documentInput));
+    }
     return input;
   }
 
