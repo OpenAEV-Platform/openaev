@@ -171,6 +171,15 @@ public interface EndpointRepository
       nativeQuery = true)
   void setUpdateDate(@Param("updateDate") Instant updateDate, @Param("id") String assetId);
 
+  // TODO this asset_id deleted -> f1a57c42-98e9-4538-926b-0be130c0af85
+  // Inject -> inject_assets?
+  // Widgets?
+  // ContractOutputType?
+  // Others?
+  @Modifying
+  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
+  void deleteById(@Param("assetId") @NotBlank String assetId);
+
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
 
   List<Endpoint> findDistinctByInjectsScenarioIdAndIdIn(String scenarioId, List<String> ids);
