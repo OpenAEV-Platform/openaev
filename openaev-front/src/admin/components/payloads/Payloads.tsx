@@ -200,6 +200,7 @@ const Payloads = () => {
     'payload_tags',
     'payload_updated_at',
     'payload_execution_arch',
+    'payload_domains',
   ];
   const [payloads, setPayloads] = useState<Payload[]>([]);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('payloads', buildSearchPagination({ sorts: initSorting('payload_name') }));

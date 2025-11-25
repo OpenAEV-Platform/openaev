@@ -7,6 +7,7 @@ import io.openaev.database.model.Domain;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.FilterUtilsJpa;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -50,5 +51,20 @@ public class DomainApi extends RestBehavior {
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
     return domainService.upsertDomain(input);
+  }
+
+  // -- OPTION --
+
+  @GetMapping(DOMAIN_URI + "/options")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
+  public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
+      @RequestParam(required = false) final String searchText) {
+    return domainService.findAllAsOptionsByName(searchText);
+  }
+
+  @PostMapping(DOMAIN_URI + "/options")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
+  public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
+    return domainService.findAllAsOptionsById(ids);
   }
 }

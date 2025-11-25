@@ -240,7 +240,7 @@ public class Payload implements GrantableBase {
 
   @ManyToMany(fetch = FetchType.EAGER)
   @NotEmpty
-  @Queryable(sortable = true)
+  @Queryable(filterable = true, searchable = true, dynamicValues = true)
   @JoinTable(
       name = "payloads_domains",
       joinColumns = @JoinColumn(name = "payload_id"),

@@ -38,6 +38,7 @@ public enum ResourceType {
   ORGANIZATION,
   COLLECTOR,
   STIX_BUNDLE,
+  DOMAIN,
   OBJECTIVE,
   EVALUATION,
   CATALOG,
