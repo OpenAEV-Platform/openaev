@@ -27,7 +27,8 @@ public class BatchQueueService<T extends Queueable> {
   private final RabbitmqConfig rabbitmqConfig;
 
   private Connection connection;
-  private Channel publisherChannel;
+  private List<Channel> publisherChannels = new ArrayList<>();
+  private int publisherIndex = 0;
   private final String routingKey;
   private final String exchangeName;
   private final String queueName;
@@ -134,14 +135,17 @@ public class BatchQueueService<T extends Queueable> {
    */
   private void createChannels() throws IOException {
     try {
-      // Creation of the channels, exchange and queue
-      publisherChannel = connection.createChannel();
-      publisherChannel.basicQos(queueConfig.getPublisherQos()); // Per publisher limit
-      publisherChannel.exchangeDeclare(exchangeName, "topic", true);
-      Map<String, Object> arguments = new HashMap<>();
-      arguments.put("x-queue-type", "quorum");
-      publisherChannel.queueDeclare(queueName, true, false, false, arguments);
-      publisherChannel.queueBind(queueName, exchangeName, routingKey);
+      for (int i = 0; i < queueConfig.getPublisherNumber(); ++i) {
+        // Creation of the channels, exchange and queue
+        Channel publisherChannel = connection.createChannel();
+        publisherChannel.basicQos(queueConfig.getPublisherQos()); // Per publisher limit
+        publisherChannel.exchangeDeclare(exchangeName, "topic", true);
+        Map<String, Object> arguments = new HashMap<>();
+        arguments.put("x-queue-type", "quorum");
+        publisherChannel.queueDeclare(queueName, true, false, false, arguments);
+        publisherChannel.queueBind(queueName, exchangeName, routingKey);
+        publisherChannels.add(publisherChannel);
+      }
 
       consumerChannels.clear();
 
@@ -251,8 +255,10 @@ public class BatchQueueService<T extends Queueable> {
       }
 
       // Closing the publishing channel
-      if (publisherChannel != null && publisherChannel.isOpen()) {
-        publisherChannel.close();
+      for (Channel channel : publisherChannels) {
+        if (channel != null && channel.isOpen()) {
+          channel.close();
+        }
       }
 
       // Close the connection if it's open
@@ -325,7 +331,10 @@ public class BatchQueueService<T extends Queueable> {
    */
   public void publish(String publishedJson) throws IOException {
     try {
-      publisherChannel.basicPublish(exchangeName, routingKey, null, publishedJson.getBytes());
+      publisherChannels
+          .get(publisherIndex)
+          .basicPublish(exchangeName, routingKey, null, publishedJson.getBytes());
+      publisherIndex = (publisherIndex + 1) % publisherChannels.size();
     } catch (IOException e) {
       log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
       throw e;
@@ -339,7 +348,7 @@ public class BatchQueueService<T extends Queueable> {
    */
   public void forcePurge() throws IOException {
     try {
-      publisherChannel.queuePurge(queueName);
+      publisherChannels.getFirst().queuePurge(queueName);
     } catch (IOException e) {
       log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
       throw e;
