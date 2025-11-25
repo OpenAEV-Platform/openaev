@@ -18,6 +18,8 @@
   "semanticCommits": "enabled",
   "updateNotScheduled": false,
   "rebaseWhen": "conflicted",
+  "commitMessageAction": "update",
+  "commitMessagePrefix": "[tool] chore(deps):",
   "packageRules": [
     {
       "description": "Disable updates of images intentionally pinned to older versions for compatibility testing",
@@ -47,11 +49,18 @@
       "commitMessagePrefix": "[backend] chore(deps):"
     },
     {
-      "matchDatasources": [
-        "docker",
-        "orb"
+      "matchPackageNames": [
+        "react-apexcharts"
       ],
-      "commitMessagePrefix": "[tool] chore(deps):"
+      "commitMessagePrefix": "[DANGER] [frontend] chore(deps):",
+      "commitMessageSuffix": "(react-apexcharts has a yarn patch)"
+    },
+    {
+      "matchPackageNames": [
+        "html-to-image"
+      ],
+      "commitMessagePrefix": "[DANGER] [frontend] chore(deps):",
+      "commitMessageSuffix": "(html-to-image has a yarn patch)"
     },
     {
       "matchPackageNames": [
@@ -92,3 +101,4 @@
     "enabled": true
   }
 }
+
