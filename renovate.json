@@ -62,20 +62,6 @@
       "commitMessageSuffix": "(html-to-image has a yarn patch)"
     },
     {
-      "matchPackageNames": [
-        "react-apexcharts"
-      ],
-      "commitMessagePrefix": "[DANGER] [frontend] chore(deps):",
-      "commitMessageSuffix": "(react-apexcharts has a yarn patch)"
-    },
-    {
-      "matchPackageNames": [
-        "html-to-image"
-      ],
-      "commitMessagePrefix": "[DANGER] [frontend] chore(deps):",
-      "commitMessageSuffix": "(html-to-image has a yarn patch)"
-    },
-    {
       "groupName": "devDependencies (non-major)",
       "groupSlug": "dev-dependencies-non-major",
       "description": "Batch auto merge and batch on sunday morning, non-major update of dev dependencies once a week (Sunday 03:00)",
