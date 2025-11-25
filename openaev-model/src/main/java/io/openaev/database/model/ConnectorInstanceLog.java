@@ -32,10 +32,10 @@ public class ConnectorInstanceLog implements Base {
   private String id;
 
   @Type(ListArrayType.class)
-  @Column(name = "connector_instance_logs")
-  @JsonProperty("connector_instance_logs")
-  @Schema(description = "Connector instance logs")
-  private Set<String> logs = new HashSet<>();
+  @Column(name = "connector_instance_log")
+  @JsonProperty("connector_instance_log")
+  @Schema(description = "Connector instance log")
+  private String log;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "connector_instance_id", nullable = false)
