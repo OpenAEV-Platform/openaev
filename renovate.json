@@ -2,8 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    "docker:enableMajor",
-    ":semanticCommits"
+    "docker:enableMajor"
   ],
   "labels": [
     "dependencies",
@@ -16,6 +15,7 @@
     "* 0-4,22-23 * * 1-5",
     "* * * * 0,6"
   ],
+  "semanticCommits": "enabled",
   "updateNotScheduled": false,
   "rebaseWhen": "conflicted",
   "packageRules": [
@@ -54,6 +54,20 @@
       "commitMessagePrefix": "[tool] chore(deps):"
     },
     {
+      "matchPackageNames": [
+        "react-apexcharts"
+      ],
+      "commitMessagePrefix": "[DANGER] [frontend] chore(deps):",
+      "commitMessageSuffix": "(react-apexcharts has a yarn patch)"
+    },
+    {
+      "matchPackageNames": [
+        "html-to-image"
+      ],
+      "commitMessagePrefix": "[DANGER] [frontend] chore(deps):",
+      "commitMessageSuffix": "(html-to-image has a yarn patch)"
+    },
+    {
       "groupName": "devDependencies (non-major)",
       "groupSlug": "dev-dependencies-non-major",
       "description": "Batch auto merge and batch on sunday morning, non-major update of dev dependencies once a week (Sunday 03:00)",
@@ -61,26 +75,20 @@
       "matchDepTypes": [
         "devDependencies"
       ],
-      "commitMessagePrefix": "[DANGER]",
-      "commitMessageSuffix": "(html-to-image has a yarn patch)"
-    },
-    {
-      "matchJsonata": [
-        "$exists(isVulnerabilityAlert)"
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
       ],
-      "matchBaseBranches": [
-        "release/current"
-      ],
-      "enabled": false
-    },
-    {
-      "matchJsonata": [
-        "$not($exists(isVulnerabilityAlert))"
-      ],
-      "matchBaseBranches": [
-        "master"
-      ],
-      "enabled": false
+      "rebaseWhen": "always",
+      "automerge": false
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+    "schedule": "* 5 * * 0",
+    "rebaseWhen": "always",
+    "automerge": false,
+    "enabled": true
+  }
 }
