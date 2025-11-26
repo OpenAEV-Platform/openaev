@@ -46,6 +46,12 @@ public class ExecutionTraceRepositoryHelper {
             ?
         )""";
 
+  /**
+   * Save execution trace with a low level database call
+   *
+   * @param executionTrace the execution trace
+   * @return the id of the new trace
+   */
   public String saveExecutionTrace(ExecutionTrace executionTrace) {
     try (Connection conn = dataSource.getConnection()) {
 
@@ -87,7 +93,14 @@ public class ExecutionTraceRepositoryHelper {
     }
   }
 
-  public void updateStatusUltraFast(String injectStatusId, String name, Instant endDate) {
+  /**
+   * Update an inject status with a new status name and end_date with a low level database call
+   *
+   * @param injectStatusId the id of the inject status to update
+   * @param name the name of the new status
+   * @param endDate the end date
+   */
+  public void updateInjectStatus(String injectStatusId, String name, Instant endDate) {
     String sql =
         "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ? WHERE status_id = ?";
 
@@ -104,7 +117,13 @@ public class ExecutionTraceRepositoryHelper {
     }
   }
 
-  public void updateDateUltraFast(String id, Instant updatedAt) {
+  /**
+   * Update the update date of an injects with a low level database call
+   *
+   * @param id the id of the inject
+   * @param updatedAt the update date
+   */
+  public void updateInjectUpdateDate(String id, Instant updatedAt) {
     String sql = "UPDATE injects SET inject_updated_at = ? WHERE inject_id = ?";
 
     try (Connection conn = dataSource.getConnection();

@@ -18,7 +18,7 @@ public class CachingConfig {
 
   @Bean
   public CacheManager cacheManager() {
-    CaffeineCacheManager cacheManager = new CaffeineCacheManager("license", "global", "adminUser");
+    CaffeineCacheManager cacheManager = new CaffeineCacheManager("license", "global", "adminUsers");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
@@ -26,9 +26,9 @@ public class CachingConfig {
     return cacheManager;
   }
 
-  @CacheEvict(value = "adminUser", allEntries = true)
+  @CacheEvict(value = "adminUsers", allEntries = true)
   @Scheduled(fixedRateString = "1000")
-  public void emptyHotelsCache() {
+  public void emptyAdminUsersCache() {
     log.info("emptying admin users cache");
   }
 }

@@ -359,8 +359,8 @@ public class BatchQueueService<T extends Queueable> {
   }
 
   private int groupByKey(T element) {
-    if (element.getKey() != null && !element.getKey().isEmpty()) {
-      return element.getKey().hashCode() % queueConfig.getWorkerNumber();
+    if (element.getUniqueElementKey() != null && !element.getUniqueElementKey().isEmpty()) {
+      return element.getUniqueElementKey().hashCode() % queueConfig.getWorkerNumber();
     }
     return 0;
   }

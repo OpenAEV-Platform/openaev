@@ -2,11 +2,9 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectStatus;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -38,16 +36,4 @@ public interface InjectStatusRepository
               + " WHERE i.inject_id = :injectId",
       nativeQuery = true)
   Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
-
-  @Query(
-      value = "SELECT * FROM injects_statuses c WHERE c.status_inject IN (:injectId)",
-      nativeQuery = true)
-  List<InjectStatus> findAllByInjectId(@NotNull List<String> injectId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = false)
-  @Query(
-      value =
-          "UPDATE injects_statuses SET status_name = :name, tracking_end_date = :endDate WHERE injects_statuses.status_id = :injectStatusId",
-      nativeQuery = true)
-  void simpleSave(@NotNull String injectStatusId, String name, Instant endDate);
 }

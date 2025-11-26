@@ -12,6 +12,15 @@ public class InjectExpectationRepositoryHelper {
 
   @Autowired private DataSource dataSource;
 
+  /**
+   * Update the signature of the expectation with a new type/value tuple passed in parameter for an
+   * inject and agent
+   *
+   * @param injectId the id of the inject
+   * @param agentId the id of the agent
+   * @param type the type of the element
+   * @param value the value of the element
+   */
   public void insertSignatureForAgentAndInject(
       String injectId, String agentId, String type, String value) {
     try (Connection conn = dataSource.getConnection()) {

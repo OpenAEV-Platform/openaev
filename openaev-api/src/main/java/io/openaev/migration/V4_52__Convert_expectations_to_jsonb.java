@@ -22,7 +22,7 @@ public class V4_52__Convert_expectations_to_jsonb extends BaseJavaMigration {
                   ALTER COLUMN inject_expectation_signatures
                   TYPE jsonb
                   USING inject_expectation_signatures::jsonb;
-              -- Transformer vos FK en DEFERRABLE
+              -- Transform Foreign Key to deferrable key
               ALTER TABLE execution_traces
                 DROP CONSTRAINT execution_traces_execution_agent_id_fkey,
                 DROP CONSTRAINT execution_traces_execution_inject_status_id_fkey,
@@ -43,14 +43,12 @@ public class V4_52__Convert_expectations_to_jsonb extends BaseJavaMigration {
                 FOREIGN KEY (execution_agent_id)
                 REFERENCES agents(agent_id)
                 DEFERRABLE INITIALLY DEFERRED;
-
-
               """);
       select.execute(
           """
-                  CREATE INDEX CONCURRENTLY idx_injects_expectations_inject_agent
-                      ON injects_expectations(inject_id, agent_id);
-                  """);
+              CREATE INDEX CONCURRENTLY idx_injects_expectations_inject_agent
+                  ON injects_expectations(inject_id, agent_id);
+              """);
     }
   }
 }

@@ -26,13 +26,13 @@ public class ThreadPoolTaskSchedulerConfig {
   @Bean(name = "streamExecutor")
   public Executor streamExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-
-    // Plus petit pool car beaucoup d'events
     executor.setCorePoolSize(5);
     executor.setMaxPoolSize(10);
     executor.setQueueCapacity(100);
     executor.setThreadNamePrefix("Stream-");
 
+    // If we have more event to deal with than the available size in the waiting queue, we discard
+    // the oldest to prevent overloading the stream
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
 
     executor.initialize();

@@ -10,7 +10,6 @@ import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
-import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -39,7 +38,6 @@ public class InjectStatusService {
   private final InjectService injectService;
   private final InjectUtils injectUtils;
   private final InjectStatusRepository injectStatusRepository;
-  private final ExecutionTraceRepository executionTraceRepository;
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
 
   private final EntityManager entityManager;
@@ -186,24 +184,30 @@ public class InjectStatusService {
       Agent agent, Inject inject, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
+    // Creating the Execution Trace
     ExecutionTrace executionTrace =
         createExecutionTrace(injectStatus, input, agent, structuredOutput);
+    // Update the status of the execution trace if needed
     computeExecutionTraceStatusIfNeeded(injectStatus, executionTrace, agent);
     injectStatus.addTrace(executionTrace);
+    // Save the trace using a low level call to the database
     String executionTraceId = executionTraceRepositoryHelper.saveExecutionTrace(executionTrace);
     executionTrace.setId(executionTraceId);
     entityManager.merge(injectStatus);
+
+    // If the trace is complete
     if (executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)
         && (agent == null || isAllInjectAgentsExecuted(inject))) {
+      // We update the status of the inject
       updateFinalInjectStatus(injectStatus);
-      executionTraceRepositoryHelper.updateDateUltraFast(
+      executionTraceRepositoryHelper.updateInjectUpdateDate(
           injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
-      executionTraceRepositoryHelper.updateStatusUltraFast(
+      executionTraceRepositoryHelper.updateInjectStatus(
           injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());
-      log.debug("Successfully updated inject final status: " + inject.getId());
+      log.debug("Successfully updated inject final status: {}", inject.getId());
     }
 
-    log.debug("Successfully updated inject: " + inject.getId());
+    log.debug("Successfully updated inject: {}", inject.getId());
   }
 
   public ExecutionStatus computeStatus(List<ExecutionTrace> traces) {

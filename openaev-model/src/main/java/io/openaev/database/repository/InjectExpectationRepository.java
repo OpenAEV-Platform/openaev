@@ -9,12 +9,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface InjectExpectationRepository
@@ -252,25 +250,4 @@ public interface InjectExpectationRepository
     """,
       nativeQuery = true)
   List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
-
-  @Modifying(clearAutomatically = false, flushAutomatically = false)
-  @Transactional
-  @Query(
-      value =
-          """
-        UPDATE injects_expectations
-        SET inject_expectation_signatures = inject_expectation_signatures || jsonb_build_array(
-            jsonb_build_object(
-                'type', :type,
-                'value', :value
-            )
-        )
-        WHERE inject_id = :injectId AND agent_id = :agentId
-        """,
-      nativeQuery = true)
-  void insertSignatureForAgentAndInject(
-      @Param("injectId") String injectId,
-      @Param("agentId") String agentId,
-      @Param("type") String type,
-      @Param("value") String value);
 }

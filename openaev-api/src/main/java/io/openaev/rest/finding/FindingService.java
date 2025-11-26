@@ -105,7 +105,8 @@ public class FindingService {
         tagIds);
   }
 
-  // -- Extract findings from strctured output : Here we compute the findings from structured output
+  // -- Extract findings from structured output : Here we compute the findings from structured
+  // output
   // from ExecutionInjectInput sent by injectors
   // This structured output is generated based on injectorcontract where we can find the node
   // Outputs and with that the injector generate this structure output--
