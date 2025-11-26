@@ -193,7 +193,9 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_created_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_updated_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_created_at",
-            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at")
+            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
   }
@@ -230,7 +232,9 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_created_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_updated_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_created_at",
-            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at")
+            "exercise_injects[*].inject_injector_contract.injector_contract_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
   }
