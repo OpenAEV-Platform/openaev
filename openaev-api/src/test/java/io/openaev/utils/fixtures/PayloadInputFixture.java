@@ -13,7 +13,6 @@ import io.openaev.rest.payload.contract_output_element.ContractOutputElementInpu
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.regex_group.RegexGroupInput;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -160,7 +159,8 @@ public class PayloadInputFixture {
     return executableFile;
   }
 
-  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithOutputParser(Set<Domain> domains) {
+  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithOutputParser(
+      Set<Domain> domains) {
     PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput(domains);
 
     ContractOutputElementInput contractOutputElementInput = getContractOutputElementInput();
@@ -172,7 +172,8 @@ public class PayloadInputFixture {
     return input;
   }
 
-  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithDetectionRemediations(Set<Domain> domains) {
+  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithDetectionRemediations(
+      Set<Domain> domains) {
     PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput(domains);
     input.setDetectionRemediations(buildDetectionRemediations());
     return input;

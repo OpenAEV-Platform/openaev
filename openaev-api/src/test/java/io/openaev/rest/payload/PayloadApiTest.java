@@ -511,7 +511,8 @@ class PayloadApiTest extends IntegrationTest {
     payload.setExternalId("external-id");
 
     // -- Without property architecture
-    PayloadUpsertInput upsertInput = PayloadInputFixture.getDefaultCommandPayloadUpsertInput(domains);
+    PayloadUpsertInput upsertInput =
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInput(domains);
     upsertInput.setExternalId(payload.getExternalId());
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
@@ -551,11 +552,9 @@ class PayloadApiTest extends IntegrationTest {
             post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
         .andExpect(status().is2xxSuccessful());
 
-
     PayloadUpsertInput upsertInput =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithOutputParser(domains);
     upsertInput.setExternalId("external-id");
-
 
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
@@ -820,7 +819,7 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(multipart("/api/collectors").file(inputMultipart))
         .andExpect(status().is2xxSuccessful());
 
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
 
     PayloadUpsertInput payloadUpsertInput1 =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInput(domains);

@@ -14,12 +14,10 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import jakarta.transaction.Transactional;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -74,11 +72,12 @@ public class PayloadUpsertService {
       payload.setCollector(collector);
     }
 
-    payload.setDomains(input.getDomains() != null
+    payload.setDomains(
+        input.getDomains() != null
             ? domainService.upserts(input.getDomains())
-            : Set.of(domainService.upsert(
-            new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null)
-    )));
+            : Set.of(
+                domainService.upsert(
+                    new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

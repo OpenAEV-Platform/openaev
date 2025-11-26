@@ -40,7 +40,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -65,10 +64,9 @@ public class PayloadService {
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
   private final PayloadUtils payloadUtils;
-    @Autowired
-    private DomainService domainService;
+  @Autowired private DomainService domainService;
 
-    public void updateInjectorContractsForPayload(Payload payload) {
+  public void updateInjectorContractsForPayload(Payload payload) {
     List<Injector> injectors = this.injectorRepository.findAllByPayloads(true);
     injectors.forEach(injector -> updateInjectorContract(injector, payload));
   }
@@ -82,7 +80,9 @@ public class PayloadService {
     injectorContract.setInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
-    injectorContract.setDomains(domainService.upserts(Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null))));
+    injectorContract.setDomains(
+        domainService.upserts(
+            Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(

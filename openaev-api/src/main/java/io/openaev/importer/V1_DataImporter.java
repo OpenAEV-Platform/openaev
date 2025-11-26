@@ -239,7 +239,7 @@ public class V1_DataImporter implements Importer {
               domains.add(domainCreated);
             });
     if (domains.isEmpty()) {
-        return Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null));
+      return Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null));
     }
     return domains;
   }

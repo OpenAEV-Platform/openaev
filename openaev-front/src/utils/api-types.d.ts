@@ -540,7 +540,10 @@ interface BasePayloadCreateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /** Set list of domains */
+  /**
+   * Set list of domains
+   * @uniqueItems true
+   */
   payload_domains: Domain[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -3206,6 +3209,8 @@ export interface InjectorContract {
   /** @format date-time */
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
+  /** @uniqueItems true */
+  injector_contract_domains?: Domain[];
   injector_contract_external_id?: string;
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
@@ -3229,8 +3234,6 @@ export interface InjectorContract {
   /** @format date-time */
   injector_contract_updated_at: string;
   injector_contract_vulnerabilities?: string[];
-  /** @uniqueItems true */
-  injectors_domains?: Domain[];
   listened?: boolean;
 }
 
@@ -4596,7 +4599,10 @@ export interface PayloadInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /** Update list of domains */
+  /**
+   * Update list of domains
+   * @uniqueItems true
+   */
   payload_domains: Domain[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -4656,7 +4662,10 @@ export interface PayloadUpdateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /** Update list of domains */
+  /**
+   * Update list of domains
+   * @uniqueItems true
+   */
   payload_domains: Domain[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -4703,6 +4712,11 @@ export interface PayloadUpsertInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /**
+   * Update list of domains
+   * @uniqueItems true
+   */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (

@@ -104,8 +104,8 @@ public class PayloadUpsertInput {
   @Schema(description = "Set of output parsers")
   private Set<OutputParserInput> outputParsers = new HashSet<>();
 
-    @NotNull(message = MANDATORY_MESSAGE)
-    @JsonProperty("payload_domains")
-    @Schema(description = "Update list of domains")
-    private Set<Domain> domains = new HashSet<>();
+  @NotNull(message = MANDATORY_MESSAGE)
+  @JsonProperty("payload_domains")
+  @Schema(description = "Update list of domains")
+  private Set<Domain> domains = new HashSet<>();
 }

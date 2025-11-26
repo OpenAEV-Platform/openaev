@@ -7,7 +7,6 @@ import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.Ee;
@@ -17,8 +16,6 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import jakarta.transaction.Transactional;
 import java.util.List;
-import java.util.Set;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
