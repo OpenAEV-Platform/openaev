@@ -77,6 +77,30 @@ class XtmHubServiceTest {
   }
 
   @Test
+  @DisplayName("Should remove XTM Hub registration when platform is not found in the hub")
+  void refreshConnectivity_WhenPlatformIsNotFound_ShouldRemoveRegistration() {
+    // Given
+    String token = "valid-token";
+    String platformId = "platform-123";
+    String platformVersion = "1.0.0";
+
+    mockSettings.setXtmHubToken(token);
+    mockSettings.setPlatformId(platformId);
+    mockSettings.setPlatformVersion(platformVersion);
+
+    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    when(xtmHubClient.refreshRegistrationStatus(platformId, platformVersion, token))
+        .thenReturn(XtmHubConnectivityStatus.NOT_FOUND);
+
+    // When
+    xtmHubService.refreshConnectivity();
+
+    // Then
+    verify(platformSettingsService).deleteXTMHubRegistration();
+    verifyNoInteractions(xtmHubEmailService);
+  }
+
+  @Test
   @DisplayName("Should update registration as REGISTERED when connectivity is ACTIVE")
   void refreshConnectivity_WhenConnectivityIsActive_ShouldUpdateAsRegistered() {
     // Given

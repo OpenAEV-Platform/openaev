@@ -57,12 +57,13 @@ public class XtmHubClient {
             "input": {
               "platformId": "%s",
               "platformVersion": "%s",
-              "token": "%s"
+              "token": "%s",
+              "platformIdentifier": "%s"
             }
           }
         }
         """,
-            platformId, platformVersion, token);
+            platformId, platformVersion, token, "openaev");
 
     JsonElement element = JsonParser.parseString(mutationBody);
     return new StringEntity(element.toString());
