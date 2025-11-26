@@ -396,12 +396,15 @@ class StixApiTest extends IntegrationTest {
           .contains(OPENCTI_TAG_NAME);
 
       // -- ASSERT Security Coverage --
-      assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(2);
+      assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(3);
 
       StixRefToExternalRef stixRef1 =
           new StixRefToExternalRef("attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1", T_1531);
       StixRefToExternalRef stixRef2 =
           new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
+      StixRefToExternalRef stixRef3 =
+          new StixRefToExternalRef(
+              "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1", "Attack!");
 
       // -- Vulnerabilities --
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(1);
@@ -414,14 +417,14 @@ class StixApiTest extends IntegrationTest {
           createdScenario
               .getSecurityCoverage()
               .getAttackPatternRefs()
-              .containsAll(List.of(stixRef1, stixRef2)));
+              .containsAll(List.of(stixRef1, stixRef2, stixRef3)));
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs())
           .containsAll(List.of(stixRefVuln));
       assertThat(createdScenario.getSecurityCoverage().getContent()).isNotBlank();
 
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
     }
 
     @Test
@@ -445,7 +448,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       entityManager.flush();
       entityManager.clear();
@@ -467,7 +470,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
     }
 
     @Test
@@ -490,7 +493,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       // Push stix without object type attack-pattern
       String updatedResponse =
@@ -541,7 +544,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       entityManager.flush();
       entityManager.clear();
@@ -595,7 +598,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       // Push stix without object type attack-pattern
       String updatedResponse =

@@ -57,11 +57,13 @@ public class SecurityCoverageUtils {
             refId = (String) extensionObj.get(CommonProperties.ID.toString()).getValue();
           }
         }
-      } else if (obj.hasProperty(STIX_NAME)) {
+      }
+
+      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId)) {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
       }
 
-      if (refId != null) {
+      if (!StringUtils.isBlank(refId)) {
         String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
         if (stixId != null) {
           stixToRef.add(new StixRefToExternalRef(stixId, refId));
