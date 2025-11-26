@@ -86,13 +86,15 @@ public interface FindingRepository
   @Modifying
   void linkFindingToTag(String findingId, String tagId);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
         WITH inserted_finding AS (
-          INSERT INTO findings 
-            (finding_id, finding_field, finding_type, finding_value, 
+          INSERT INTO findings
+            (finding_id, finding_field, finding_type, finding_value,
              finding_labels, finding_inject_id, finding_name)
-          VALUES 
-            (gen_random_uuid(), :findingField, :findingType, :findingValue, 
+          VALUES
+            (gen_random_uuid(), :findingField, :findingType, :findingValue,
              :findingLabels, :findingInjectId, :findingName)
           ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
           DO UPDATE SET finding_name = EXCLUDED.finding_name
@@ -113,17 +115,15 @@ public interface FindingRepository
         )
         SELECT finding_id FROM inserted_finding
         """,
-          nativeQuery = true
-  )
+      nativeQuery = true)
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   String saveCompleteFinding(
-          @Param("findingField") String findingField,
-          @Param("findingType") String findingType,
-          @Param("findingValue") String findingValue,
-          @Param("findingLabels") String[] findingLabels,
-          @Param("findingInjectId") String injectId,
-          @Param("findingName") String name,
-          @Param("assetId") String assetId,
-          @Param("tagIds") String[] tagIds
-  );
+      @Param("findingField") String findingField,
+      @Param("findingType") String findingType,
+      @Param("findingValue") String findingValue,
+      @Param("findingLabels") String[] findingLabels,
+      @Param("findingInjectId") String injectId,
+      @Param("findingName") String name,
+      @Param("assetId") String assetId,
+      @Param("tagIds") String[] tagIds);
 }

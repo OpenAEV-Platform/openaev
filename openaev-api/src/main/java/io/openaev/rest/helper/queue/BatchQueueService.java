@@ -34,7 +34,7 @@ public class BatchQueueService<T extends Queueable> {
 
   private final Map<Integer, BlockingQueue<T>> queue;
 
-  private final Map<T, DeliveryContext> deliveryTable = new HashMap<>();
+  private final Map<T, DeliveryContext> deliveryTable = new ConcurrentHashMap<>();
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
@@ -118,6 +118,10 @@ public class BatchQueueService<T extends Queueable> {
     factory.setNetworkRecoveryInterval(5000);
     factory.setRequestedHeartbeat(30);
     factory.setConnectionTimeout(10000);
+    factory.setSharedExecutor(
+        Executors.newFixedThreadPool(
+            queueConfig.getConsumerNumber() + queueConfig.getPublisherNumber()));
+
     connection = factory.newConnection();
 
     // Handle shutdown

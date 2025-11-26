@@ -22,7 +22,7 @@ public class ThreadPoolTaskSchedulerConfig {
     return threadPoolTaskScheduler;
   }
 
-  /** Executor spécifique pour les events de stream */
+  /** Dedicated executor for stream events */
   @Bean(name = "streamExecutor")
   public Executor streamExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -30,10 +30,10 @@ public class ThreadPoolTaskSchedulerConfig {
     // Plus petit pool car beaucoup d'events
     executor.setCorePoolSize(5);
     executor.setMaxPoolSize(10);
-    executor.setQueueCapacity(1000);
+    executor.setQueueCapacity(100);
     executor.setThreadNamePrefix("Stream-");
 
-    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
 
     executor.initialize();
     return executor;
