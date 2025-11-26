@@ -32,7 +32,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class InjectorService {
 
-  private static final String UNCLASSIFIED = "Unclassified";
+  private static final String TOCLASSIFY = "To classify";
 
   @Resource protected ObjectMapper mapper;
 
@@ -293,7 +293,7 @@ public class InjectorService {
       if (existingDomains == null
               || existingDomains.isEmpty()
               || (existingDomains.size() == 1
-              && UNCLASSIFIED.equals(existingDomains.iterator().next().getName()))) {
+              && TOCLASSIFY.equals(existingDomains.iterator().next().getName()))) {
           return addedDomains;
       }
 

@@ -270,7 +270,7 @@ public class LadeService {
                     builder.build(),
                     List.of(Endpoint.PLATFORM_TYPE.Service),
                     false,
-                    Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
+                    Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
             contractInstance.addContext("lade_type", "action");
             contractInstance.addContext("bundle_identifier", bundleIdentifier);
             contracts.add(contractInstance);
@@ -299,7 +299,7 @@ public class LadeService {
                   builder.build(),
                   List.of(Endpoint.PLATFORM_TYPE.Service),
                   false,
-                  Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
+                  Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
           contractInstance.addContext("lade_type", "scenario");
           contractInstance.addContext("bundle_identifier", bundleIdentifier);
           contracts.add(contractInstance);

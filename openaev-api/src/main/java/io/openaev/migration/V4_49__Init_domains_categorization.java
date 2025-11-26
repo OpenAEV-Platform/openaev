@@ -16,13 +16,13 @@ public class V4_49__Init_domains_categorization extends BaseJavaMigration {
                     """
                         insert into payloads_domains (payload_id, domain_id)
                         select p.payload_id, d.domain_id from payloads p
-                        inner join domains d on d.domain_name = 'Unclassified';
+                        inner join domains d on d.domain_name = 'To classify';
                     """);
             stmt.execute(
                     """
                         insert into injectors_contracts_domains (injector_contract_id, domain_id)
                         select ic.injector_contract_id, d.domain_id from injectors_contracts ic
-                        inner join domains d on d.domain_name = 'Unclassified'
+                        inner join domains d on d.domain_name = 'To classify'
                         where ic.injector_contract_payload is null;
                     """);
         }

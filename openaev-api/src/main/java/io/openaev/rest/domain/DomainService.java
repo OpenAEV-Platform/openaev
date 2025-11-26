@@ -23,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DomainService {
@@ -97,7 +96,11 @@ public class DomainService {
     if (existingDomains == null
         || existingDomains.isEmpty()
         || (existingDomains.size() == 1
+<<<<<<< HEAD
             && UNCLASSIFIED.equals(existingDomains.iterator().next().getName()))) {
+=======
+            && DefaultDomain.TOCLASSIFY.getDomain().getName().equals(existingDomains.iterator().next().getName()))) {
+>>>>>>> fd9a0bc78 ([backend] feat(SCV): fix unclassified name (#4266))
       return addedDomains;
     }
 

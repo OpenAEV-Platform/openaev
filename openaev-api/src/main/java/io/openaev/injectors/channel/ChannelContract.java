@@ -130,7 +130,7 @@ public class ChannelContract extends Contractor {
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain()));
+            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
     // Adding generated variables
     publishArticle.addVariable(
         variable(

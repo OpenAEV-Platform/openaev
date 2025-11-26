@@ -218,12 +218,12 @@ public class InjectorContractService {
               new HashSet<>(input.getAttackPatternsIds()));
     }
     injectorContract.setAttackPatterns(aps);
-    injectorContract.setDomains(this.domainService.upserts(input.getDomains()));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
     injectorContract.setInjector(
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
+    injectorContract.setDomains(!injectorContract.getInjector().isPayloads() ? this.domainService.upserts(input.getDomains()) : null);
     return injectorContractRepository.save(injectorContract);
   }
 

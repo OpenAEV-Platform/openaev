@@ -15,7 +15,7 @@ public enum DefaultDomain {
     URL_FILTERING(new Domain(null, "Url Filtering", "#66CCFF", Instant.now(), null)),
     CLOUD(new Domain(null, "Cloud", "#9999CC", Instant.now(), null)),
     TABLE_TOP(new Domain(null, "Table Top", "#FFCC33", Instant.now(), null)),
-    UNCLASSIFIED(new Domain(null, "Unclassified", "#969696", Instant.now(), null));
+    TOCLASSIFY(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null));
 
     private final Domain domain;
 

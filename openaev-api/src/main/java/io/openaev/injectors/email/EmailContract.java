@@ -80,7 +80,7 @@ public class EmailContract extends Contractor {
             standardInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain()));
+            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
     standardEmail.addVariable(documentUriVariable);
     // Global contract
     List<ContractElement> globalInstance =
@@ -99,7 +99,7 @@ public class EmailContract extends Contractor {
             globalInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain()));
+            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
     globalEmail.addVariable(documentUriVariable);
     return List.of(standardEmail, globalEmail);
   }

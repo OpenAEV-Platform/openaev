@@ -91,7 +91,7 @@ public class OpenCTIContract extends Contractor {
             createCaseInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
+            Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
     createCase.addVariable(documentUriVariable);
     List<ContractElement> createReportInstance =
         contractBuilder()
@@ -108,7 +108,7 @@ public class OpenCTIContract extends Contractor {
             createReportInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.UNCLASSIFIED.getDomain()));
+            Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
     createReport.addVariable(documentUriVariable);
     return List.of(createCase, createReport);
   }

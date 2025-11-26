@@ -75,7 +75,7 @@ public class OvhSmsContract extends Contractor {
             instance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain())));
+            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain())));
   }
 
   @Override
