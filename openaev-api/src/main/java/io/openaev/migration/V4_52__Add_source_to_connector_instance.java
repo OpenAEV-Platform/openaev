@@ -14,8 +14,7 @@ public class V4_52__Add_source_to_connector_instance extends BaseJavaMigration {
       select.execute(
           """
         CREATE TYPE connector_instance_source AS ENUM ('PROPERTIES_MIGRATION', 'CATALOG_DEPLOYMENT', 'OTHER');
-        ALTER TABLE connector_instances ADD COLUMN connector_instance_source connector_instance_source NOT NULL DEFAULT 'OTHER'
-          );
+        ALTER TABLE connector_instances ADD COLUMN connector_instance_source connector_instance_source NOT NULL DEFAULT 'OTHER';
         """);
     }
   }
