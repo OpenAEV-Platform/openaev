@@ -3109,6 +3109,11 @@ export interface InjectResultOverviewOutput {
   injects_tags?: string[];
 }
 
+export interface InjectResultPayloadExecutionOutput {
+  execution_execution_traces: ExecutionTrace[];
+  payload_command_blocks: PayloadCommandBlock[];
+}
+
 /** Inject linked to finding */
 export interface InjectSimple {
   /** Inject Id */

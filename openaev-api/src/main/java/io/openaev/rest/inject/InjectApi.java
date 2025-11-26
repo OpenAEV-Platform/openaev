@@ -14,7 +14,6 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.InjectSpecification;
@@ -83,7 +82,6 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
-  private final InjectImportService injectImportService;
   private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
@@ -552,7 +550,8 @@ public class InjectApi extends RestBehavior {
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
-    return this.injectService.getInjectTracesFromInjectAndTarget(injectId, targetId, targetType);
+    return this.injectService.getInjectTracesOutputFromInjectAndTarget(
+        injectId, targetId, targetType);
   }
 
   @Operation(description = "Get InjectStatus with global execution traces")

@@ -946,24 +946,21 @@ public class InjectService {
         .toList();
   }
 
-  public List<ExecutionTraceOutput> getInjectTracesFromInjectAndTarget(
+  public List<ExecutionTraceOutput> getInjectTracesOutputFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
-    switch (targetType) {
-      case AGENT:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId));
-      case ASSETS:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId));
-      case TEAMS:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId));
-      case PLAYERS:
-        return injectStatusMapper.toExecutionTracesOutput(
-            this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId));
-      default:
-        throw new BadRequestException("Target type " + targetType + " is not supported");
-    }
+    return injectStatusMapper.toExecutionTracesOutput(
+        getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
+  }
+
+  public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
+      final String injectId, final String targetId, final TargetType targetType) {
+    return switch (targetType) {
+      case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
+      case ASSETS -> this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
+      case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
+      case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
+      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+    };
   }
 
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {

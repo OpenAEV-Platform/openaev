@@ -1,5 +1,5 @@
-import { Tab, Tabs, Typography } from '@mui/material';
-import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { Typography } from '@mui/material';
+import { useContext, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -7,16 +7,12 @@ import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
-import {
-  type ExpectationResultType,
-  ExpectationType,
-  type InjectExpectationsStore,
-} from '../../../common/injects/expectations/Expectation';
+import { isAgent, isAssetGroups } from '../../../../../utils/target/TargetUtils';
+import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
-import {
-  InjectResultOverviewOutputContext,
-  type InjectResultOverviewOutputContextType,
-} from '../../InjectResultOverviewOutputContext';
+import TerminalView from '../../../common/injects/status/traces/TerminalView';
+import TabbedView, { type TabConfig } from '../../../settings/groups/grants/ui/TabbedView';
+import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationCard from './InjectExpectationCard';
 import TargetResultsReactFlow from './TargetResultsReactFlow';
 
@@ -28,9 +24,9 @@ interface Props {
 const useStyles = makeStyles()(theme => ({
   container: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto 1fr',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    justifyItems: 'center',
   },
-  allWidth: { gridColumn: 'span 3' },
   paddingTop: { paddingTop: theme.spacing(2) },
   gap: {
     display: 'flex',
@@ -42,17 +38,13 @@ const useStyles = makeStyles()(theme => ({
 const TargetResultsDetail = ({ inject, target }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const canShowExecutionTab = target.target_type !== 'ASSETS_GROUPS';
 
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openIdParams = searchParams.get('expectation_id');
 
-  const [activeTab, setActiveTab] = useState(0);
-  const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
+  const [activeTab, setActiveTab] = useState<string | null>(null);
 
   const { injectResultOverviewOutput, updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
 
@@ -96,71 +88,83 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
   useEffect(() => {
     if (!openIdParams || !sortedGroupedTargetResults) return;
 
-    const activeTabIndex = Object.values(sortedGroupedTargetResults).findIndex(results =>
-      results.some(r => r.inject_expectation_id === openIdParams),
-    );
+    const activeTabIndex: string = Object.values(sortedGroupedTargetResults)
+      .map(results => results.find(r => r.inject_expectation_id === openIdParams))
+      .filter(res => !!res)[0]?.inject_expectation_type.toString();
 
-    if (activeTabIndex === -1) return;
+    if (!activeTabIndex) return;
 
     setActiveTab(activeTabIndex);
     searchParams.delete('open');
     setSearchParams(searchParams, { replace: true });
   }, [openIdParams, sortedGroupedTargetResults]);
 
+  const tabs: TabConfig[] = [];
+  Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
+    tabs.push({
+      key: type,
+      label: t(`TYPE_${type}`),
+      component: (
+        expectationResults.map(expectationResult => (
+          <InjectExpectationCard
+            key={expectationResult.inject_expectation_id}
+            injectExpectation={expectationResult}
+            inject={inject}
+            onUpdateInjectExpectationResult={updateInjectResultOverviewOutput}
+          />
+        ))
+      ),
+    })
+  ));
+  if (!isAssetGroups(target)) {
+    tabs.push({
+      key: 'execution',
+      label: 'Execution',
+      component: (
+        <ExecutionStatusDetail
+          target={{
+            id: target.target_id,
+            name: target.target_name,
+            targetType: target.target_type,
+            platformType: target.target_subtype,
+          }}
+          injectId={inject.inject_id}
+        />
+      ),
+    });
+  }
+  if (isAgent(target)) {
+    tabs.push({
+      key: 'terminal-view',
+      label: t('Terminal view'),
+      component: (
+        <TerminalView injectId={inject.inject_id} target={target} />
+      ),
+    });
+  }
+
   return (
-    <Paper className={classes.container}>
-      <Typography sx={{ justifySelf: 'center' }} variant="h3" gutterBottom>{t('Name')}</Typography>
-      <Typography variant="h3" gutterBottom>{t('Type')}</Typography>
-      <Typography sx={{ justifySelf: 'center' }} variant="h3" gutterBottom>{t('Platform')}</Typography>
-      <Typography sx={{ justifySelf: 'center' }}>{target.target_name}</Typography>
-      <Typography>{target.target_type}</Typography>
-      <Typography sx={{ justifySelf: 'center' }}>{target.target_subtype ?? t('N/A')}</Typography>
+    <Paper>
+      <div className={classes.container}>
+        <Typography sx={{ justifySelf: 'center' }} variant="h3" gutterBottom>{t('Name')}</Typography>
+        <Typography variant="h3" gutterBottom>{t('Type')}</Typography>
+        <Typography sx={{ justifySelf: 'center' }} variant="h3" gutterBottom>{t('Platform')}</Typography>
+      </div>
+      <div className={classes.container}>
+        <Typography sx={{ justifySelf: 'center' }}>{target.target_name}</Typography>
+        <Typography>{target.target_type}</Typography>
+        <Typography sx={{ justifySelf: 'center' }}>{target.target_subtype ?? t('N/A')}</Typography>
+      </div>
 
       <TargetResultsReactFlow
-        className={`${classes.allWidth} ${classes.paddingTop}`}
+        className={`${classes.paddingTop} ${classes.gap}`}
         injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
         targetResultsByType={sortedGroupedTargetResults}
         lastExecutionStartDate={injectResultOverviewOutput?.inject_status?.tracking_sent_date || ''}
         lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}
       />
 
-      <Tabs
-        value={activeTab}
-        onChange={handleTabChange}
-        indicatorColor="primary"
-        textColor="primary"
-        className={`${classes.allWidth}`}
-      >
-        {Object.keys(sortedGroupedTargetResults).map((type, index) => (
-          <Tab key={index} label={t(`TYPE_${type}`)} />
-        ))}
-        {canShowExecutionTab && <Tab label={t('Execution')} />}
-      </Tabs>
-
-      <div className={`${classes.allWidth} ${classes.paddingTop} ${classes.gap}`}>
-        {Object.entries(sortedGroupedTargetResults).length > 0
-          && Object.entries(sortedGroupedTargetResults).length > activeTab
-          && Object.entries(sortedGroupedTargetResults)[activeTab][1].map(expectationResult => (
-            <InjectExpectationCard
-              key={expectationResult.inject_expectation_id}
-              injectExpectation={expectationResult}
-              inject={inject}
-              onUpdateInjectExpectationResult={updateInjectResultOverviewOutput}
-            />
-          ))}
-        {(activeTab === Object.keys(sortedGroupedTargetResults).length && canShowExecutionTab) && (
-          <ExecutionStatusDetail
-            target={{
-              id: target.target_id,
-              name: target.target_name,
-              targetType: target.target_type,
-              platformType: target.target_subtype,
-            }}
-            injectId={inject.inject_id}
-          />
-        )}
-      </div>
-
+      <TabbedView tabs={tabs} externalCurrentTab={activeTab} notifyTabChange={setActiveTab} />
     </Paper>
   );
 };

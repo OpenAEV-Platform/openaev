@@ -4,7 +4,7 @@ import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
-import { type LabelColor, LabelColorDict } from './Theme';
+import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
 const EE_COLOR = '#00f1bd';
 
@@ -14,7 +14,6 @@ const THEME_DARK_DEFAULT_SECONDARY = '#00f1bd';
 const THEME_DARK_DEFAULT_ACCENT = '#0f1e38';
 const THEME_DARK_DEFAULT_PAPER = '#09101e';
 const THEME_DARK_DEFAULT_NAV = '#070d19';
-export const BACKGROUND_COLOR_GREY = '#181E27';
 
 const ThemeDark = (
   logo: string | null = null,
@@ -31,7 +30,10 @@ const ThemeDark = (
   borderRadius: 4,
   palette: {
     mode: 'dark',
-    common: { white: '#ffffff' },
+    common: {
+      white: '#ffffff',
+      black: '#000000',
+    },
     error: {
       main: '#f44336',
       dark: '#c62828',
@@ -166,12 +168,12 @@ const ThemeDark = (
             borderTopRightRadius: 'inherit',
           },
           'pre': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             color: '#ffffff !important',
             background: `${accent || THEME_DARK_DEFAULT_ACCENT} !important`,
           },
           'code': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             color: '#ffffff !important',
             background: `${accent || '#01478d'} !important`,
             padding: 3,
