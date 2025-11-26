@@ -107,5 +107,5 @@ public class PayloadUpsertInput {
     @NotNull(message = MANDATORY_MESSAGE)
     @JsonProperty("payload_domains")
     @Schema(description = "Update list of domains")
-    private List<Domain> domains = new ArrayList<>();
+    private Set<Domain> domains = new HashSet<>();
 }

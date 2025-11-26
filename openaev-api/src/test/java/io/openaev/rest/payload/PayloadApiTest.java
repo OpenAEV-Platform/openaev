@@ -511,7 +511,7 @@ class PayloadApiTest extends IntegrationTest {
     payload.setExternalId("external-id");
 
     // -- Without property architecture
-    PayloadUpsertInput upsertInput = PayloadInputFixture.getDefaultCommandPayloadUpsertInput();
+    PayloadUpsertInput upsertInput = PayloadInputFixture.getDefaultCommandPayloadUpsertInput(domains);
     upsertInput.setExternalId(payload.getExternalId());
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
@@ -553,8 +553,9 @@ class PayloadApiTest extends IntegrationTest {
 
 
     PayloadUpsertInput upsertInput =
-        PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithOutputParser();
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithOutputParser(domains);
     upsertInput.setExternalId("external-id");
+
 
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
@@ -603,7 +604,7 @@ class PayloadApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(0));
 
     PayloadUpsertInput upsertInput =
-        PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithDetectionRemediations();
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithDetectionRemediations(domains);
     upsertInput.setExternalId("external-id");
 
     mvc.perform(
@@ -744,6 +745,7 @@ class PayloadApiTest extends IntegrationTest {
     updateInput.setName("updated command line payload");
     updateInput.setContent("echo world again");
     updateInput.setExecutor("sh");
+    updateInput.setDomains(domains);
     updateInput.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux});
 
     updateInput.setCleanupCommand("cleanup this mess");
@@ -818,14 +820,15 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(multipart("/api/collectors").file(inputMultipart))
         .andExpect(status().is2xxSuccessful());
 
+      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
 
     PayloadUpsertInput payloadUpsertInput1 =
-        PayloadInputFixture.getDefaultCommandPayloadUpsertInput();
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInput(domains);
     payloadUpsertInput1.setCollector(collectorId);
     payloadUpsertInput1.setExternalId("54e03fc3-e906-4b8e-865a-972e3e339d60");
 
     PayloadUpsertInput payloadUpsertInput2 =
-        PayloadInputFixture.getDefaultCommandPayloadUpsertInput();
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInput(domains);
     payloadUpsertInput2.setName("Command Payload 2");
     payloadUpsertInput2.setCollector(collectorId);
     payloadUpsertInput2.setExternalId("7a1ecc3c-3201-45cb-9a93-58405c0a680d");

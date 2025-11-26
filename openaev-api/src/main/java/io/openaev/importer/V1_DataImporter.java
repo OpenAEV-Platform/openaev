@@ -223,8 +223,8 @@ public class V1_DataImporter implements Importer {
   }
 
   // -- DOMAINS PATTERN --
-  private List<Domain> importDomain(JsonNode importNode, String prefix) {
-    ArrayList<Domain> domains = new ArrayList<>();
+  private Set<Domain> importDomain(JsonNode importNode, String prefix) {
+    Set<Domain> domains = new HashSet<>();
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
             nodeDomain -> {
@@ -238,6 +238,9 @@ public class V1_DataImporter implements Importer {
                       nameNode.textValue(), nodeDomain.get("domain_color").textValue());
               domains.add(domainCreated);
             });
+    if (domains.isEmpty()) {
+        return Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null));
+    }
     return domains;
   }
 

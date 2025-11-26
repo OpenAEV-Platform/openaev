@@ -35,7 +35,7 @@ public class PayloadInputFixture {
     input.setTagIds(Collections.emptyList());
     input.setExecutor("bash");
     input.setContent("echo hello");
-    input.setDomains(new ArrayList<>(domains));
+    input.setDomains(domains);
     return input;
   }
 
@@ -91,7 +91,7 @@ public class PayloadInputFixture {
     input.setAttackPatternsIds(Collections.emptyList());
     input.setTagIds(Collections.emptyList());
     input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.x86_64);
-    input.setDomains(new ArrayList<>(domains));
+    input.setDomains(domains);
 
     return input;
   }
@@ -101,7 +101,7 @@ public class PayloadInputFixture {
     updateInput.setName("My Updated Executable Payload");
     updateInput.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.MacOS});
     updateInput.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    updateInput.setDomains(new ArrayList<>(domains));
+    updateInput.setDomains(domains);
     return updateInput;
   }
 
@@ -113,7 +113,7 @@ public class PayloadInputFixture {
     input.setTagIds(Collections.emptyList());
     input.setExecutor("sh");
     input.setContent("ufw prepend deny from 1.2.3.4\n" + "ufw status numbered\n");
-    input.setDomains(new ArrayList<>(domains));
+    input.setDomains(domains);
     return input;
   }
 
@@ -138,7 +138,8 @@ public class PayloadInputFixture {
     return input;
   }
 
-  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInput() {
+  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInput(Set<Domain> domains) {
+
     PayloadUpsertInput input = new PayloadUpsertInput();
     input.setType(Command.COMMAND_TYPE);
     input.setName("My Command Payload");
@@ -148,6 +149,7 @@ public class PayloadInputFixture {
     input.setSource(COMMUNITY);
     input.setStatus(UNVERIFIED);
     input.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.MacOS});
+    input.setDomains(domains);
     return input;
   }
 
@@ -158,8 +160,8 @@ public class PayloadInputFixture {
     return executableFile;
   }
 
-  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithOutputParser() {
-    PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput();
+  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithOutputParser(Set<Domain> domains) {
+    PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput(domains);
 
     ContractOutputElementInput contractOutputElementInput = getContractOutputElementInput();
 
@@ -170,8 +172,8 @@ public class PayloadInputFixture {
     return input;
   }
 
-  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithDetectionRemediations() {
-    PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput();
+  public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithDetectionRemediations(Set<Domain> domains) {
+    PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput(domains);
     input.setDetectionRemediations(buildDetectionRemediations());
     return input;
   }
