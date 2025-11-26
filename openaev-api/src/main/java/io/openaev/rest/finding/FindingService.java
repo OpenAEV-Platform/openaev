@@ -90,18 +90,19 @@ public class FindingService {
    */
   public void buildFinding(
       Inject inject, Asset asset, ContractOutputElement contractOutputElement, String finalValue) {
-    String findingId =
-        findingRepository.simpleSaveFinding(
-            contractOutputElement.getKey(),
-            contractOutputElement.getType().name(),
-            finalValue,
-            new String[0],
-            inject.getId(),
-            contractOutputElement.getName());
-    for (Tag tag : contractOutputElement.getTags()) {
-      findingRepository.linkFindingToTag(findingId, tag.getId());
-    }
-    findingRepository.linkFindingToAsset(findingId, asset.getId());
+    String[] tagIds =
+        contractOutputElement.getTags().isEmpty()
+            ? new String[0]
+            : contractOutputElement.getTags().stream().map(Tag::getId).toArray(String[]::new);
+    findingRepository.saveCompleteFinding(
+        contractOutputElement.getKey(),
+        contractOutputElement.getType().name(),
+        finalValue,
+        new String[0],
+        inject.getId(),
+        contractOutputElement.getName(),
+        asset.getId(),
+        tagIds);
   }
 
   // -- Extract findings from strctured output : Here we compute the findings from structured output

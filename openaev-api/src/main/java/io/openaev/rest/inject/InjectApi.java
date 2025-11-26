@@ -375,7 +375,8 @@ public class InjectApi extends RestBehavior {
       throws IOException {
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.BATCHING_INJECTS_EXECUTION_TRACE)
         && injectTraceQueueService != null) {
-      InjectExecutionCallback injectExecutionCallback = InjectExecutionCallback.builder()
+      InjectExecutionCallback injectExecutionCallback =
+          InjectExecutionCallback.builder()
               .injectExecutionInput(input)
               .agentId(agentId)
               .injectId(injectId)

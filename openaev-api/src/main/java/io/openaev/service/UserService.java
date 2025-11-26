@@ -21,7 +21,9 @@ import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -33,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
   @Resource private SessionManager sessionManager;
   private final Argon2PasswordEncoder passwordEncoder =
@@ -42,10 +45,16 @@ public class UserService {
   private TagRepository tagRepository;
   private GroupRepository groupRepository;
   private OrganizationRepository organizationRepository;
+  private CacheManager cacheManager;
 
   @Autowired
   public void setOrganizationRepository(OrganizationRepository organizationRepository) {
     this.organizationRepository = organizationRepository;
+  }
+
+  @Autowired
+  public void setCacheManager(CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
   }
 
   @Autowired
@@ -152,9 +161,20 @@ public class UserService {
   }
 
   public User currentUser() {
-    return this.userRepository
-        .findById(SessionHelper.currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    User user =
+        cacheManager.getCache("adminUser").get(SessionHelper.currentUser().getId(), User.class);
+    if (user == null) {
+      user =
+          this.userRepository
+              .findById(SessionHelper.currentUser().getId())
+              .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+
+      if (user.isAdmin()) {
+        cacheManager.getCache("adminUser").put(SessionHelper.currentUser().getId(), user);
+      }
+    }
+
+    return user;
   }
 
   // endregion
