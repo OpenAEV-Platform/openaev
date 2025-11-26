@@ -25,6 +25,8 @@ public class InjectTestHelper {
   private final AgentRepository agentRepository;
   private final EndpointRepository endpointRepository;
   private final InjectRepository injectRepository;
+  private final FindingRepository findingRepository;
+  private final AssetRepository assetRepository;
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
@@ -73,5 +75,15 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Endpoint properlySaveEndpoint(Endpoint endpoint) {
     return endpointRepository.save(endpoint);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Finding properlySaveFinding(Finding finding) {
+    return findingRepository.save(finding);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Asset properlySaveAsset(Asset asset) {
+    return assetRepository.save(asset);
   }
 }
