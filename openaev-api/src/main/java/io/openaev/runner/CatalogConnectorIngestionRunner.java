@@ -23,10 +23,10 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
   private final CatalogConnectorService catalogConnectorService;
   private static final ObjectMapper mapper = new ObjectMapper();
   private final FileService fileService;
+  private static final String resourcePath = "/catalog/catalog-integrators.json";
 
   @Override
   public void run(String... args) {
-    String resourcePath = "/catalog/catalog-integrators.json";
 
     try (InputStream is = CatalogConnectorIngestionRunner.class.getResourceAsStream(resourcePath)) {
       if (is == null) {
