@@ -297,8 +297,10 @@ public class CatalogConnectorIngestionRunnerTest {
 
     assertThat(conf.getConnectorConfigurationKey()).isEqualTo("api_key");
     assertThat(conf.getConnectorConfigurationDescription()).isEqualTo("API key");
-    assertThat(conf.getConnectorConfigurationType()).isEqualTo(CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING);
-    assertThat(conf.getConnectorConfigurationFormat()).isEqualTo(CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD);
+    assertThat(conf.getConnectorConfigurationType())
+        .isEqualTo(CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING);
+    assertThat(conf.getConnectorConfigurationFormat())
+        .isEqualTo(CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD);
     assertThat(conf.getConnectorConfigurationDefault().asText()).isEqualTo("demo");
     assertThat(conf.getConnectorConfigurationEnum()).containsExactlyInAnyOrder("demo", "prod");
     assertThat(conf.isConnectorConfigurationRequired()).isTrue();
