@@ -75,6 +75,7 @@ const useSearchOptions = () => {
         });
         break;
       case 'payload_domains':
+      case 'injector_contract_domains':
         searchDomainsByNameAsOption(search).then((response) => {
           setOptions(response.data);
         });

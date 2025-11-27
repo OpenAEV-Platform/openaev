@@ -74,6 +74,7 @@ const useRetrieveOptions = () => {
         });
         break;
       case 'payload_domains':
+      case 'injector_contract_domains':
         searchDomainsByIdsAsOption(ids).then((response) => {
           setOptions(response.data);
         });

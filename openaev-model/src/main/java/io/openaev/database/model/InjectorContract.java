@@ -138,6 +138,7 @@ public class InjectorContract implements Base {
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
   @JsonProperty("injector_contract_domains")
+  @Queryable(filterable = true, searchable = true, dynamicValues = true)
   private Set<Domain> domains = new HashSet<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
