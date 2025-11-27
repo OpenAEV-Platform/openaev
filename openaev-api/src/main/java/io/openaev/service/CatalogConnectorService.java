@@ -4,20 +4,23 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import java.util.ArrayList;
+import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
 public class CatalogConnectorService {
   private final CatalogConnectorRepository catalogConnectorRepository;
+  private final CatalogConnectorMapper catalogConnectorMapper;
 
-  public List<CatalogConnector> catalogConnectors() {
-    return fromIterable(catalogConnectorRepository.findAll());
+  public List<CatalogConnectorOutput> catalogConnectors() {
+    return fromIterable(catalogConnectorRepository.findAll()).stream()
+        .map(catalogConnectorMapper::toCatalogConnectorOutput)
+        .toList();
   }
 
   public List<CatalogConnector> saveAll(List<CatalogConnector> connectors) {
@@ -28,22 +31,9 @@ public class CatalogConnectorService {
     return catalogConnectorRepository.findBySlugWithConfigurations(slug);
   }
 
-  public Optional<CatalogConnector> findById(String id) {
-    return catalogConnectorRepository.findById(id);
-  }
-
-  @Transactional
-  public List<CatalogConnector> upsertAll(List<CatalogConnector> connectors) {
-    List<CatalogConnector> connectorsToAdd = new ArrayList<>();
-
-    for (CatalogConnector connectorIncoming : connectors) {
-      catalogConnectorRepository
-          .findByTitle(connectorIncoming.getTitle())
-          .ifPresent(existingConnector -> connectorIncoming.setId(existingConnector.getId()));
-
-      connectorsToAdd.add(catalogConnectorRepository.save(connectorIncoming));
-    }
-
-    return connectorsToAdd;
+  public Optional<CatalogConnectorOutput> findById(String id) {
+    return catalogConnectorRepository
+        .findById(id)
+        .map(catalogConnectorMapper::toCatalogConnectorOutput);
   }
 }

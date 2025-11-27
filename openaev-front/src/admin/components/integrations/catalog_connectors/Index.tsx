@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
-import { type CatalogConnector } from '../../../../utils/api-types';
+import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 
@@ -22,7 +22,7 @@ const Index = () => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const { connectorId } = useParams() as { connectorId: CatalogConnector['connector_id'] };
+  const { connectorId } = useParams() as { connectorId: CatalogConnectorOutput['catalog_connector_id'] };
 
   const { connector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(connectorId) }));
 
@@ -42,7 +42,7 @@ const Index = () => {
               link: '/admin/integrations/catalog',
             },
             {
-              label: connector.connector_title,
+              label: connector.catalog_connector_title,
               current: true,
             },
           ]}
