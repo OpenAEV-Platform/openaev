@@ -32,9 +32,9 @@ public class ConnectorInstance implements Base {
   }
 
   public enum SOURCE {
-    properties_migration,
-    catalog_deployment,
-    other
+    PROPERTIES_MIGRATION,
+    CATALOG_DEPLOYMENT,
+    OTHER
   }
 
   @Id
@@ -62,7 +62,7 @@ public class ConnectorInstance implements Base {
   @Column(name = "connector_instance_source")
   @JsonProperty("connector_instance_source")
   @NotBlank
-  private SOURCE source = SOURCE.other;
+  private SOURCE source = SOURCE.OTHER;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "connector_instance_requested_status")
