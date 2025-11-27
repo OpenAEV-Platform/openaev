@@ -1,25 +1,20 @@
-import { LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Chip, Paper, Typography } from '@mui/material';
+import { LibraryBooksOutlined, OpenInNewOutlined } from '@mui/icons-material';
+import { Paper, Typography } from '@mui/material';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import type { CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import type { CatalogConnector } from '../../../../utils/api-types';
+import type { CatalogConnectorOutput } from '../../../../utils/api-types';
 import ConnectorTitle from './ConnectorTitle';
 
 const useStyles = makeStyles()(theme => ({
-  header: {
-    display: 'flex',
-    gap: theme.spacing(2),
-    alignItems: 'center',
-    marginBottom: theme.spacing(3),
-  },
   content: {
     display: 'grid',
     gap: `0px ${theme.spacing(3)}`,
     gridTemplateColumns: '2fr 1fr',
+    marginTop: theme.spacing(3),
   },
   link: {
     display: 'flex',
@@ -38,64 +33,42 @@ const useStyles = makeStyles()(theme => ({
   paperConnector: {
     display: 'flex',
     flexDirection: 'column',
-    borderRadius: 4,
     gap: theme.spacing(3),
-    padding: theme.spacing(2),
   },
 }));
-
-const inlineStyles = {
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
-  },
-};
 
 const ConnectorDetails = () => {
   // Standard hooks
   const { t, nsdt } = useFormatter();
   const { classes } = useStyles();
 
-  const { connectorId } = useParams() as { connectorId: CatalogConnector['connector_id'] };
+  const { connectorId } = useParams() as { connectorId: CatalogConnectorOutput['catalog_connector_id'] };
   const { connector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(connectorId) }));
 
   return (
     <>
-      <div className={classes.header}>
-        <ConnectorTitle
-          connectorId={connector.connector_id}
-          connectorLogo={connector.catalog_connector_logo_url}
-          connectorTitle={connector.connector_title}
-          connectorType={connector.catalog_connector_type}
-          noEllipsis
-        />
-        <Chip
-          variant="filled"
-          className={classes.chipInList}
-          style={inlineStyles.green}
-          icon={<VerifiedOutlined color="success" />}
-          label={t('Verified')}
-        />
-      </div>
+      <ConnectorTitle
+        connectorId={connector.catalog_connector_id}
+        connectorLogo={connector.catalog_connector_logo_url}
+        connectorTitle={connector.catalog_connector_title}
+        connectorType={connector.catalog_connector_type}
+        detailsTitle
+      />
       <div className={classes.content}>
         <Typography variant="h4">{t('Overview')}</Typography>
         <Typography variant="h4">{t('Basic Information')}</Typography>
 
-        <Paper variant="outlined" className={classes.paperConnector}>
+        <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
           {connector.catalog_connector_description}
         </Paper>
-        <Paper variant="outlined" className={classes.paperConnector}>
+        <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
           {connector.catalog_connector_source_code
             && (
               <div>
                 <Typography variant="h3" gutterBottom>{t('Integration documentation and code')}</Typography>
                 <a target="_blank" href={connector.catalog_connector_source_code} rel="noreferrer" className={classes.link}>
                   <LibraryBooksOutlined />
-                  {connector.connector_title}
+                  {connector.catalog_connector_title}
                 </a>
               </div>
             )}

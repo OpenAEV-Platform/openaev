@@ -35,14 +35,10 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
 
       JsonNode rootNode = mapper.readTree(is);
 
-      List<CatalogConnector> catalog = extractCatalog(rootNode);
+      extractCatalog(rootNode);
 
-      System.out.println("Build catalog:");
-      for (CatalogConnector connector : catalog) {
-        System.out.println("  • " + connector.getTitle());
-      }
     } catch (IOException e) {
-      System.err.println("Error while reading file : " + e.getMessage());
+      log.error("Error while reading file : {}", e.getMessage());
     }
   }
 
@@ -66,11 +62,11 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
 
     CatalogConnector connector =
         catalogConnectorService
-            .findBySlug(contract.get("slug").asText())
+            .findBySlug(contract.path("slug").asText())
             .orElseGet(CatalogConnector::new);
 
     List<String> useCases = new ArrayList<>();
-    JsonNode arrUseCases = contract.get("use_cases");
+    JsonNode arrUseCases = contract.path("use_cases");
     if (arrUseCases != null && arrUseCases.isArray()) {
       for (JsonNode uc : arrUseCases) {
         useCases.add(uc.asText());
@@ -78,18 +74,18 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
     }
     connector.setUseCases(new HashSet<>(useCases));
 
-    connector.setTitle(contract.get("title").asText());
-    connector.setSlug(contract.get("slug").asText());
-    connector.setDescription(contract.get("description").asText());
-    connector.setShortDescription(contract.get("short_description").asText());
+    connector.setTitle(contract.path("title").asText());
+    connector.setSlug(contract.path("slug").asText());
+    connector.setDescription(contract.path("description").asText());
+    connector.setShortDescription(contract.path("short_description").asText());
     String base64Logo = contract.path("logo").asText(null);
     if (base64Logo != null && !base64Logo.isBlank()) {
       String logoPath = uploadBase64Image(base64Logo, contract.path("slug").asText());
       connector.setLogoUrl(logoPath);
     }
 
-    connector.setVerified(contract.get("verified").asBoolean());
-    JsonNode lastVerifiedDateNode = contract.get("last_verified_date");
+    connector.setVerified(contract.path("verified").asBoolean());
+    JsonNode lastVerifiedDateNode = contract.path("last_verified_date");
 
     if (lastVerifiedDateNode != null && !lastVerifiedDateNode.isNull()) {
       String lastVerifiedDate = lastVerifiedDateNode.asText();
@@ -100,20 +96,24 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
       }
     }
     connector.setUseCases(new HashSet<>(useCases));
-    connector.setPlaybookSupported(contract.get("playbook_supported").asBoolean());
-    connector.setMaxConfidenceLevel(contract.get("max_confidence_level").asInt());
-    connector.setSupportVersion(contract.get("support_version").asText());
-    connector.setSubscriptionLink(contract.get("subscription_link").asText());
-    connector.setSourceCode(contract.get("source_code").asText());
-    connector.setManagerSupported(contract.get("manager_supported").asBoolean());
-    connector.setContainerVersion(contract.get("container_version").asText());
-    connector.setContainerImage(contract.get("container_image").asText());
+    connector.setPlaybookSupported(contract.path("playbook_supported").asBoolean());
+    connector.setMaxConfidenceLevel(contract.path("max_confidence_level").asInt());
+    connector.setSupportVersion(contract.path("support_version").asText());
+    connector.setSubscriptionLink(contract.path("subscription_link").asText());
+    connector.setSourceCode(contract.path("source_code").asText());
+    connector.setManagerSupported(contract.path("manager_supported").asBoolean());
+    connector.setContainerVersion(contract.path("container_version").asText());
+    connector.setContainerImage(contract.path("container_image").asText());
     String containerType = contract.path("container_type").asText(null);
-    if (containerType != null) {
-      connector.setContainerType(
-          CatalogConnector.CONNECTOR_TYPE.valueOf(containerType.trim().toUpperCase()));
+    if (containerType != null && !containerType.isBlank()) {
+      try {
+        connector.setContainerType(
+            CatalogConnector.CONNECTOR_TYPE.valueOf(containerType.trim().toUpperCase()));
+      } catch (IllegalArgumentException e) {
+        log.warn("Unknown container_type '{}', ignoring it", containerType);
+      }
     } else {
-      log.error("container_type is null");
+      log.warn("container_type is null or empty");
     }
 
     Set<CatalogConnectorConfiguration> conf = buildConnectorConfigurations(contract, connector);
@@ -122,7 +122,7 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
     return connector;
   }
 
-  private Set<CatalogConnectorConfiguration> buildConnectorConfigurations(
+  Set<CatalogConnectorConfiguration> buildConnectorConfigurations(
       JsonNode contract, CatalogConnector connector) {
     Set<CatalogConnectorConfiguration> configs = new HashSet<>();
 
@@ -149,19 +149,43 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
       // description
       conf.setConnectorConfigurationDescription(prop.path("description").asText(null));
 
-      // type & format
-      conf.setConnectorConfigurationType(prop.path("type").asText(null));
-      conf.setConnectorConfigurationFormat(prop.path("format").asText(null));
+      // type
+      String connectorConfigurationType = prop.path("type").asText(null);
+      if (connectorConfigurationType != null && !connectorConfigurationType.isBlank()) {
+        try {
+          conf.setConnectorConfigurationType(
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.valueOf(
+                  connectorConfigurationType.trim().toUpperCase()));
+        } catch (IllegalArgumentException e) {
+          log.warn("Unknown type '{}', ignoring it", connectorConfigurationType);
+        }
+      } else {
+        log.warn("type is null or empty");
+      }
+
+      // format
+      String connectorConfigurationFormat = prop.path("format").asText(null);
+      if (connectorConfigurationFormat != null && !connectorConfigurationFormat.isBlank()) {
+        try {
+          conf.setConnectorConfigurationFormat(
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.valueOf(
+                  connectorConfigurationFormat.trim().toUpperCase()));
+        } catch (IllegalArgumentException e) {
+          log.warn("Unknown format '{}', ignoring it", connectorConfigurationFormat);
+        }
+      } else {
+        log.warn("format is null or empty");
+      }
 
       // default
-      JsonNode defaultNode = prop.get("default");
+      JsonNode defaultNode = prop.path("default");
       conf.setConnectorConfigurationDefault(
           defaultNode != null && !defaultNode.isNull() ? defaultNode : null);
 
       // enum
-      if (prop.has("enum") && prop.get("enum").isArray()) {
+      if (prop.has("enum") && prop.path("enum").isArray()) {
         List<String> enums = new ArrayList<>();
-        for (JsonNode e : prop.get("enum")) enums.add(e.asText());
+        for (JsonNode e : prop.path("enum")) enums.add(e.asText());
         conf.setConnectorConfigurationEnum(new HashSet<>(enums));
       }
 
@@ -207,7 +231,7 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
       return fileName;
     } catch (Exception e) {
       log.error("Error upload image MinIO", e);
-      return null;
+      return "img/icon-connector-default.png";
     }
   }
 }

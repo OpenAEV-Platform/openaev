@@ -1,40 +1,64 @@
+import { VerifiedOutlined } from '@mui/icons-material';
 import { Chip, Tooltip, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
+import colorStyles from '../../../../components/Color';
+import { useFormatter } from '../../../../components/i18n';
+
 const useStyles = makeStyles()(theme => ({
   content: {
-    display: 'flex',
-    gap: theme.spacing(2),
+    display: 'grid',
+    gridTemplateColumns: '60px auto 1fr',
+    gridTemplateRows: 'auto auto',
+    columnGap: theme.spacing(2),
+    alignItems: 'start',
   },
   img: {
+    gridRow: 'span 2',
     width: 60,
     height: 60,
     borderRadius: 4,
   },
-  titleContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    width: '100%',
-  },
   title: {
+    gridColumn: 2,
+    gridRow: 1,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    maxWidth: '85%',
+    maxWidth: '100%',
   },
   titleNoEllipsis: {
+    gridColumn: 2,
+    gridRow: 1,
     whiteSpace: 'normal',
     overflow: 'visible',
     textOverflow: 'unset',
   },
   chipInList: {
+    gridColumn: 2,
+    gridRow: 2,
     fontSize: 12,
     height: 20,
     flexShrink: 0,
-    alignSelf: 'flex-start',
+    justifySelf: 'start',
     textTransform: 'uppercase',
+    width: 'auto',
     borderRadius: 4,
+  },
+  chipVerified: {
+    padding: theme.spacing(2),
+    fontSize: 12,
+    height: 20,
+    flexShrink: 0,
+    justifySelf: 'start',
+    textTransform: 'uppercase',
+    width: 'auto',
+    borderRadius: 4,
+  },
+  customizable: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
 }));
 
@@ -43,7 +67,7 @@ type ConnectorHeaderProps = {
   connectorLogo?: string;
   connectorTitle: string;
   connectorType?: string;
-  noEllipsis?: boolean;
+  detailsTitle?: boolean;
 };
 
 const ConnectorTitle = ({
@@ -51,10 +75,11 @@ const ConnectorTitle = ({
   connectorLogo,
   connectorTitle,
   connectorType,
-  noEllipsis = false,
+  detailsTitle = false,
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
+  const { t } = useFormatter();
 
   return (
     <div className={classes.content}>
@@ -63,22 +88,34 @@ const ConnectorTitle = ({
         alt={connectorId}
         className={classes.img}
       />
-      <div className={classes.titleContainer}>
-        <Tooltip title={connectorTitle}>
-          <Typography
-            variant="h1"
-            className={noEllipsis ? classes.titleNoEllipsis : classes.title}
-          >
-            {connectorTitle}
-          </Typography>
-        </Tooltip>
-        <Chip
-          variant="outlined"
-          className={classes.chipInList}
-          color="primary"
-          label={connectorType}
-        />
-      </div>
+      <Tooltip title={connectorTitle}>
+        <Typography
+          variant="h1"
+          className={detailsTitle ? classes.titleNoEllipsis : classes.title}
+        >
+          {connectorTitle}
+        </Typography>
+      </Tooltip>
+      <Chip
+        variant="outlined"
+        className={classes.chipInList}
+        color="primary"
+        label={connectorType}
+      />
+      {detailsTitle
+        ? (
+            <Chip
+              variant="filled"
+              className={classes.chipVerified}
+              style={colorStyles.green}
+              icon={<VerifiedOutlined color="success" />}
+              label={t('Verified')}
+            />
+          ) : (
+            <Tooltip title={t('Verified')} className={classes.customizable}>
+              <VerifiedOutlined color="success" />
+            </Tooltip>
+          )}
     </div>
   );
 };

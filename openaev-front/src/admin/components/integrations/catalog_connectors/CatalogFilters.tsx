@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
-import { type CatalogConnector } from '../../../../utils/api-types';
+import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import useSearchAnFilter from '../../../../utils/SortingFiltering';
 
 const useStyles = makeStyles()(theme => ({
@@ -17,8 +17,8 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 type CatalogFiltersProps = {
-  connectors: CatalogConnector[];
-  onFiltered: (filtered: CatalogConnector[]) => void;
+  connectors: CatalogConnectorOutput[];
+  onFiltered: (filtered: CatalogConnectorOutput[]) => void;
 };
 
 const connectorTypes = [
@@ -52,7 +52,7 @@ const CatalogFilters = ({ connectors, onFiltered }: CatalogFiltersProps) => {
     let result = filtering.filterAndSort(connectors);
 
     if (filters.type) {
-      result = result.filter((c: CatalogConnector) => c.catalog_connector_type === filters.type);
+      result = result.filter((c: CatalogConnectorOutput) => c.catalog_connector_type === filters.type);
     }
     onFiltered(result);
   }, [connectors, filters, filtering.keyword, filtering.order]);
@@ -70,45 +70,42 @@ const CatalogFilters = ({ connectors, onFiltered }: CatalogFiltersProps) => {
   };
 
   return (
-    <div>
-      <div className={classes.filters}>
+    <div className={classes.filters}>
+      <SearchFilter
+        variant="small"
+        onChange={filtering.handleSearch}
+        keyword={filtering.keyword}
+      />
 
-        <SearchFilter
-          variant="small"
-          onChange={filtering.handleSearch}
-          keyword={filtering.keyword}
-        />
+      <Autocomplete
+        size="small"
+        sx={{
+          width: 200,
+          backgroundColor: theme.palette.background.paper,
+        }}
+        options={connectorTypes}
+        value={connectorTypes.find(o => o.value === filters.type) || null}
+        onChange={(e, opt) => handleFilterChange('type', opt?.value || '')}
+        getOptionLabel={opt => opt.label}
+        isOptionEqualToValue={(opt, val) => opt.value === val.value}
+        renderInput={params => (
+          <TextField {...params} label="Type" placeholder="Type" variant="outlined" />
+        )}
+        clearOnEscape
+      />
 
-        <Autocomplete
+      <Tooltip title={t('Clear filters')}>
+        <IconButton
+          style={{ maxHeight: 40 }}
+          color={hasActiveFilters ? 'primary' : 'default'}
+          onClick={handleClearFilters}
           size="small"
-          sx={{
-            width: 200,
-            backgroundColor: theme.palette.background.paper,
-          }}
-          options={connectorTypes}
-          value={connectorTypes.find(o => o.value === filters.type) || null}
-          onChange={(e, opt) => handleFilterChange('type', opt?.value || '')}
-          getOptionLabel={opt => opt.label}
-          isOptionEqualToValue={(opt, val) => opt.value === val.value}
-          renderInput={params => (
-            <TextField {...params} label="Type" placeholder="Type" variant="outlined" />
-          )}
-          clearOnEscape
-        />
+          disabled={!hasActiveFilters}
+        >
+          <FilterListOffOutlined fontSize="small" />
+        </IconButton>
+      </Tooltip>
 
-        <Tooltip title={t('Clear filters')}>
-          <IconButton
-            style={{ maxHeight: 40 }}
-            color={hasActiveFilters ? 'primary' : 'default'}
-            onClick={handleClearFilters}
-            size="small"
-            disabled={!hasActiveFilters}
-          >
-            <FilterListOffOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-      </div>
     </div>
   );
 };

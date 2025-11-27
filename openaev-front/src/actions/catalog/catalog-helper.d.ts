@@ -1,1 +1,1 @@
-import { type CatalogConnector } from '../../utils/api-types';export interface CatalogConnectorsHelper {  getCatalogConnectors: () => CatalogConnector[];  getCatalogConnector: (connectorId: string) => CatalogConnector;}
+import { type CatalogConnectorOutput } from '../../utils/api-types';export interface CatalogConnectorsHelper {  getCatalogConnectors: () => CatalogConnectorOutput[];  getCatalogConnector: (connectorId: string) => CatalogConnectorOutput;}

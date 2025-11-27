@@ -2,8 +2,8 @@ package io.openaev.rest.catalog_connector;
 
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.CatalogConnectorService;
@@ -29,7 +29,7 @@ public class CatalogConnectorApi extends RestBehavior {
 
   @GetMapping(CATALOG_CONNECTOR_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
-  public List<CatalogConnector> getCatalogConnectors() {
+  public List<CatalogConnectorOutput> getCatalogConnectors() {
     return this.catalogConnectorService.catalogConnectors();
   }
 
@@ -38,7 +38,7 @@ public class CatalogConnectorApi extends RestBehavior {
       resourceId = "#connectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
-  public CatalogConnector getConnector(@PathVariable String connectorId) {
+  public CatalogConnectorOutput getConnector(@PathVariable String connectorId) {
     return catalogConnectorService
         .findById(connectorId)
         .orElseThrow(
