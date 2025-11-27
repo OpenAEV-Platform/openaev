@@ -17,6 +17,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
+import ItemDomains from '../../../../components/ItemDomains';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
@@ -35,7 +36,6 @@ import InjectorContract from './InjectorContract';
 import InjectPopover from './InjectPopover';
 import InjectsListButtons from './InjectsListButtons';
 import UpdateInject from './UpdateInject';
-import ItemDomains from "../../../../components/ItemDomains";
 
 const useStyles = makeStyles()(() => ({
   disabled: {
@@ -69,8 +69,8 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   inject_type: { width: '15%' },
-    inject_title: { width: '15%' },
-    inject_contract_domain: { width: '15%' },
+  inject_title: { width: '15%' },
+  inject_contract_domain: { width: '15%' },
   inject_depends_duration: { width: '18%' },
   inject_platforms: { width: '10%' },
   inject_enabled: { width: '12%' },
@@ -129,18 +129,18 @@ const Injects: FunctionComponent<Props> = ({
       isSortable: true,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
     },
-      {
-          field: 'inject_contract_domain',
-          label: t('domains'),
-          isSortable: true,
-          value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
-              return inject.inject_injector_contract.injector_contract_domains && inject.inject_injector_contract.injector_contract_domains.length > 0
-                  ? (
-                      <ItemDomains domains={inject.inject_injector_contract.injector_contract_domains} variant="reduced-view" />
-                  )
-                  : <></>;
-          },
+    {
+      field: 'inject_contract_domain',
+      label: t('domains'),
+      isSortable: true,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+        return inject.inject_injector_contract.injector_contract_domains && inject.inject_injector_contract.injector_contract_domains.length > 0
+          ? (
+              <ItemDomains domains={inject.inject_injector_contract.injector_contract_domains} variant="reduced-view" />
+            )
+          : <></>;
       },
+    },
     {
       field: 'inject_depends_duration',
       label: 'Trigger',
