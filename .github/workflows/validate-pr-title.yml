@@ -18,6 +18,12 @@ jobs:
           TITLE="${{ github.event.pull_request.title }}"
           echo "PR title: $TITLE"
           
+          # Skip validation for renovate
+          if [[ "$TITLE" == *"chore(deps)"* ]]; then
+            echo "⚠️ Skipping validation for renovate Prs."
+            exit 0
+          fi
+          
           # Regex for:
           # [category/subcategory] type(scope?): description (#123?)
           PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
