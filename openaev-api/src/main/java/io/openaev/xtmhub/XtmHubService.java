@@ -47,6 +47,7 @@ public class XtmHubService {
 
     ConnectivityCheckResult checkResult = checkConnectivityStatus(settings);
     if (checkResult.status == XtmHubConnectivityStatus.NOT_FOUND) {
+      log.warn("Platform was not found on XTM Hub");
       return platformSettingsService.deleteXTMHubRegistration();
     }
 
