@@ -66,9 +66,4 @@ public interface AgentRepository
               + "WHERE ag.agent_id IN :agentIds ;",
       nativeQuery = true)
   Set<RawAgent> rawAgentByIds(Set<String> agentIds);
-
-  @Query(
-      value = "SELECT agent_id, agent_asset FROM agents WHERE agent_id IN :agentIds ;",
-      nativeQuery = true)
-  List<Object[]> assetIdByAgentId(List<String> agentIds);
 }
