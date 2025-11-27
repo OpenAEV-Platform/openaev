@@ -7,6 +7,8 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
+
 @Component
 @RequiredArgsConstructor
 public class InjectStatusMapper {
@@ -66,7 +68,7 @@ public class InjectStatusMapper {
         .orElseGet(() -> InjectStatusSimple.builder().build());
   }
 
-  public List<ExecutionTraceOutput> toExecutionTracesOutput(List<ExecutionTrace> traces) {
+  public static List<ExecutionTraceOutput> toExecutionTracesOutput(List<ExecutionTrace> traces) {
     return traces.stream()
         .map(
             trace ->
@@ -77,7 +79,7 @@ public class InjectStatusMapper {
                     .action(trace.getAction())
                     .agent(
                         trace.getAgent() != null
-                            ? agentMapper.toAgentOutput(trace.getAgent())
+                            ? toAgentOutput(trace.getAgent())
                             : null)
                     .build())
         .toList();

@@ -8,6 +8,6 @@ export const fetchInjectExecutionResult = (injectId: Inject['inject_id'], target
     targetId,
     targetType,
   };
-  const uri = `${INJECT_URI}/${injectId}/payload_result`;
+  const uri = `${INJECT_URI}/${injectId}/execution-result`;
   return simpleCall(uri, { params });
 };

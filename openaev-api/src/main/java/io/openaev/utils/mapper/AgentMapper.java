@@ -18,11 +18,11 @@ public class AgentMapper {
 
   public Set<AgentOutput> toAgentOutputs(List<Agent> agents) {
     return Optional.ofNullable(agents).orElse(emptyList()).stream()
-        .map(this::toAgentOutput)
+        .map(AgentMapper::toAgentOutput)
         .collect(Collectors.toSet());
   }
 
-  public AgentOutput toAgentOutput(Agent agent) {
+  public static AgentOutput toAgentOutput(Agent agent) {
     AgentOutput.AgentOutputBuilder builder =
         AgentOutput.builder()
             .id(agent.getId())

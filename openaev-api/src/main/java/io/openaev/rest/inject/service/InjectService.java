@@ -10,6 +10,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.StringUtils.duplicateString;
+import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
@@ -948,7 +949,7 @@ public class InjectService {
 
   public List<ExecutionTraceOutput> getInjectTracesOutputFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
-    return injectStatusMapper.toExecutionTracesOutput(
+    return toExecutionTracesOutput(
         getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
   }
 

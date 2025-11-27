@@ -1,16 +1,17 @@
 package io.openaev.api.inject_result.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.PayloadCommandBlock;
+import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import jakarta.validation.constraints.NotEmpty;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
-@Data
+import java.util.ArrayList;
+import java.util.List;
+
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class InjectResultPayloadExecutionOutput {
@@ -19,7 +20,7 @@ public class InjectResultPayloadExecutionOutput {
   @NotEmpty
   private List<PayloadCommandBlock> payloadCommandBlocks = new ArrayList<>();
 
-  @JsonProperty("execution_execution_traces")
+  @JsonProperty("execution_traces")
   @NotEmpty
-  private List<ExecutionTrace> traces = new ArrayList<>();
+  private List<ExecutionTraceOutput> traces = new ArrayList<>();
 }

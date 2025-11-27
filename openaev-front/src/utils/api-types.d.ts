@@ -3110,7 +3110,7 @@ export interface InjectResultOverviewOutput {
 }
 
 export interface InjectResultPayloadExecutionOutput {
-  execution_execution_traces: ExecutionTrace[];
+  execution_traces: ExecutionTraceOutput[];
   payload_command_blocks: PayloadCommandBlock[];
 }
 

@@ -24,7 +24,7 @@ public class InjectExecutionResultApi extends RestBehavior {
 
   private final InjectExecutionResultService injectExecutionService;
 
-  @GetMapping(INJECT_EXECUTION_URI + "/payload_result")
+  @GetMapping(INJECT_EXECUTION_URI + "/execution-result")
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public InjectResultPayloadExecutionOutput injectExecutionResultPayload(
       @PathVariable @NotBlank final String injectId,
