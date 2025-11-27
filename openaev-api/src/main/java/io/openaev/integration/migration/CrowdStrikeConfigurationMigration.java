@@ -6,7 +6,6 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.CrowdStrikeIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,7 +27,6 @@ public class CrowdStrikeConfigurationMigration implements ConfigurationMigration
   @Override
   @Transactional
   public void migrate() {
-    log.error("Migrating config for {}", config);
     Optional<CatalogConnector> connector = catalogConnectorService.findByFactoryClassName(factoryClass);
 
     if(connector.isEmpty()) {
@@ -37,13 +35,19 @@ public class CrowdStrikeConfigurationMigration implements ConfigurationMigration
     }
 
     Set<ConnectorInstance> instances = connector.get().getInstances();
+    if(instances.stream().anyMatch(i -> i.getSource().equals(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION))) {
+      log.warn("Already migrated {}; aborting.", config);
+      return;
+    }
 
+    log.info("Migrating config for {}", config);
     ConnectorInstance instance = new ConnectorInstance();
     instance.setCatalogConnector(connector.get());
     // add configs
     instance.setConfigurations(new HashSet<>());
     instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    instance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
 
     connectorInstanceService.save(instance);
   }
