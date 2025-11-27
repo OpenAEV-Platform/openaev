@@ -1,4 +1,4 @@
-name: test-feature-branch
+name: Deploy feature branch on staging
 on:
   workflow_dispatch:
     inputs:
