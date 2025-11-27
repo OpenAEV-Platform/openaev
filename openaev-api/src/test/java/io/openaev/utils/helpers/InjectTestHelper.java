@@ -48,42 +48,42 @@ public class InjectTestHelper {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public InjectExpectation properlySaveInjectExpectation(InjectExpectation expectation) {
+  public InjectExpectation forceSaveInjectExpectation(InjectExpectation expectation) {
     return injectExpectationRepository.save(expectation);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public Payload properlySavePayload(Payload payload) {
+  public Payload forceSavePayload(Payload payload) {
     return payloadRepository.save(payload);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public InjectorContract properlySaveInjectorContract(InjectorContract injectorContract) {
+  public InjectorContract forceSaveInjectorContract(InjectorContract injectorContract) {
     return injectorContractRepository.save(injectorContract);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public Inject properlySaveInject(Inject inject) {
+  public Inject forceSaveInject(Inject inject) {
     return injectRepository.save(inject);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public Agent properlySaveAgent(Agent agent) {
+  public Agent forceSaveAgent(Agent agent) {
     return agentRepository.save(agent);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public Endpoint properlySaveEndpoint(Endpoint endpoint) {
+  public Endpoint forceSaveEndpoint(Endpoint endpoint) {
     return endpointRepository.save(endpoint);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public Finding properlySaveFinding(Finding finding) {
+  public Finding forceSaveFinding(Finding finding) {
     return findingRepository.save(finding);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public Asset properlySaveAsset(Asset asset) {
+  public Asset forceSaveAsset(Asset asset) {
     return assetRepository.save(asset);
   }
 }

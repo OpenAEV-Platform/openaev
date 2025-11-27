@@ -702,31 +702,31 @@ class InjectApiTest extends IntegrationTest {
       // -- PREPARE --
       Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
-      Command payloadCommand =
-          PayloadFixture.createCommand(
-              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
-        Payload payloadSaved = injectTestHelper.properlySavePayload(payloadCommand);
+        Command payloadCommand =
+                PayloadFixture.createCommand(
+                        "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
+        Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
         Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContract(injector, payloadSaved);
       InjectorContract injectorContractSaved =
-          injectTestHelper.properlySaveInjectorContract(injectorContract);
+          injectTestHelper.forceSaveInjectorContract(injectorContract);
 
       Inject inject =
           InjectFixture.createInjectWithPayloadArg(injectorContractSaved, new HashMap<>());
-      Inject injectSaved = injectTestHelper.properlySaveInject(inject);
+      Inject injectSaved = injectTestHelper.forceSaveInject(inject);
 
       // Prepare injectExpectation on specific agent
       Endpoint endpoint = EndpointFixture.createEndpoint();
       endpoint.setSeenIp("seen-ip-endpoint");
-      Endpoint endpointSaved = injectTestHelper.properlySaveEndpoint(endpoint);
+      Endpoint endpointSaved = injectTestHelper.forceSaveEndpoint(endpoint);
       Agent agent = AgentFixture.createDefaultAgentService();
       agent.setAsset(endpointSaved);
-      Agent agentSaved = injectTestHelper.properlySaveAgent(agent);
+      Agent agentSaved = injectTestHelper.forceSaveAgent(agent);
       InjectExpectation detectionExpectation =
           InjectExpectationFixture.createDetectionInjectExpectation(injectSaved, agentSaved);
-      injectTestHelper.properlySaveInjectExpectation(detectionExpectation);
+      injectTestHelper.forceSaveInjectExpectation(detectionExpectation);
 
       doNothing()
           .when(injectStatusService)
@@ -1005,7 +1005,7 @@ class InjectApiTest extends IntegrationTest {
         // create expectation
         InjectExpectation detectionExpectation =
             InjectExpectationFixture.createDetectionInjectExpectation(inject, agent);
-        injectTestHelper.properlySaveInjectExpectation(detectionExpectation);
+        injectTestHelper.forceSaveInjectExpectation(detectionExpectation);
 
         InjectExecutionInput input = new InjectExecutionInput();
         input.setMessage("Complete log received");
@@ -1149,7 +1149,7 @@ class InjectApiTest extends IntegrationTest {
         Command payloadCommand =
             PayloadFixture.createCommand("bash", "command", null, null, domains);
         payloadCommand.setOutputParsers(Set.of(outputParser));
-        Payload payloadSaved = injectTestHelper.properlySavePayload(payloadCommand);
+        Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
         // Create injectorContract with targeted asset field
         Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -1160,18 +1160,18 @@ class InjectApiTest extends IntegrationTest {
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
         injectorContract.setContent(injectorContract.getConvertedContent().toString());
         InjectorContract injectorContractSaved =
-            injectTestHelper.properlySaveInjectorContract(injectorContract);
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
 
         // Set targeted inject on inject
         Endpoint endpoint = EndpointFixture.createEndpoint();
         endpoint.setSeenIp("seen-ip-endpoint");
-        Endpoint endpointSaved = injectTestHelper.properlySaveEndpoint(endpoint);
+        Endpoint endpointSaved = injectTestHelper.forceSaveEndpoint(endpoint);
         ObjectNode content = objectMapper.createObjectNode();
         content.set(
             "asset-key", objectMapper.convertValue(List.of(endpointSaved.getId()), JsonNode.class));
         inject.setContent(content);
-        injectTestHelper.properlySaveInject(inject);
+        injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();

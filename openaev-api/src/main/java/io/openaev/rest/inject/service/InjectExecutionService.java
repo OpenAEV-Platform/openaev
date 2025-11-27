@@ -83,7 +83,6 @@ public class InjectExecutionService {
   }
 
   /** Processes the execution of an inject by updating its status and extracting findings. */
-  @VisibleForTesting
   public void processInjectExecution(
       Inject inject,
       @Nullable Agent agent,

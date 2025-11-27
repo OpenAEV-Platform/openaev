@@ -435,7 +435,6 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
 
-  // Utilise un EntityGraph ad-hoc
   @EntityGraph(attributePaths = {"expectations", "injectorContract"})
   @Query("SELECT i FROM Inject i WHERE i.id IN :ids")
   List<Inject> findAllByIdWithExpectations(@Param("ids") List<String> ids);

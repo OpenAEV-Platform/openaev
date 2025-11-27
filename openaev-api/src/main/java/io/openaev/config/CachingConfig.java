@@ -18,6 +18,13 @@ public class CachingConfig {
 
   @Bean
   public CacheManager cacheManager() {
+    /**
+     * Creating some cache : - Licence is for the EE licence - global for global settings that do
+     * not need to be fetched from the DB everytime we need it (like features flags) - adminUsers is
+     * a low retention cache for users that are admin. This is useful when receiving a lot of calls.
+     * Execution traces for instance can receive several thousands a sec and not fetching the user
+     * everytime helps for the RBAC
+     */
     CaffeineCacheManager cacheManager = new CaffeineCacheManager("license", "global", "adminUsers");
 
     cacheManager.setCaffeine(
@@ -26,6 +33,7 @@ public class CachingConfig {
     return cacheManager;
   }
 
+  /** Emptying the cache every second to avoid old data on the admin users being persisted */
   @CacheEvict(value = "adminUsers", allEntries = true)
   @Scheduled(fixedRateString = "1000")
   public void emptyAdminUsersCache() {

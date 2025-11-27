@@ -5,7 +5,6 @@ import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.OutputParserFixture.getDefaultContractOutputElement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Asset;
@@ -40,9 +39,9 @@ class FindingServiceTest extends IntegrationTest {
   void given_a_finding_already_existent_with_one_asset_should_have_two_assets() {
     Inject inject = getDefaultInject();
     Asset asset1 = createDefaultAsset(ASSET_1);
-    asset1 = injectTestHelper.properlySaveAsset(asset1);
+    asset1 = injectTestHelper.forceSaveAsset(asset1);
     Asset asset2 = createDefaultAsset(ASSET_2);
-    asset2 = injectTestHelper.properlySaveAsset(asset2);
+    asset2 = injectTestHelper.forceSaveAsset(asset2);
     String value = "value-already-existent";
     ContractOutputElement contractOutputElement = getDefaultContractOutputElement();
 
@@ -53,8 +52,8 @@ class FindingServiceTest extends IntegrationTest {
     finding1.setType(contractOutputElement.getType());
     finding1.setAssets(new ArrayList<>(Arrays.asList(asset1)));
 
-    injectTestHelper.properlySaveInject(inject);
-    injectTestHelper.properlySaveFinding(finding1);
+    injectTestHelper.forceSaveInject(inject);
+    injectTestHelper.forceSaveFinding(finding1);
 
     findingService.buildFinding(inject, asset2, contractOutputElement, value);
 
@@ -80,7 +79,7 @@ class FindingServiceTest extends IntegrationTest {
   void given_a_finding_already_existent_with_same_asset_should_have_one_assets() {
     Inject inject = getDefaultInject();
     Asset asset1 = createDefaultAsset(ASSET_1);
-    asset1 = injectTestHelper.properlySaveAsset(asset1);
+    asset1 = injectTestHelper.forceSaveAsset(asset1);
     String value = "value-already-existent";
     ContractOutputElement contractOutputElement = getDefaultContractOutputElement();
 
@@ -91,8 +90,8 @@ class FindingServiceTest extends IntegrationTest {
     finding1.setType(contractOutputElement.getType());
     finding1.setAssets(new ArrayList<>(Arrays.asList(asset1)));
 
-    injectTestHelper.properlySaveInject(inject);
-    injectTestHelper.properlySaveFinding(finding1);
+    injectTestHelper.forceSaveInject(inject);
+    injectTestHelper.forceSaveFinding(finding1);
 
     findingService.buildFinding(inject, asset1, contractOutputElement, value);
 

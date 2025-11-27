@@ -32,7 +32,8 @@ public class ThreadPoolTaskSchedulerConfig {
     executor.setThreadNamePrefix("Stream-");
 
     // If we have more event to deal with than the available size in the waiting queue, we discard
-    // the oldest to prevent overloading the stream
+    // the oldest to prevent overloading the stream. This also helps a little preventing
+    // overloading the tab of a user connected when having a lot of events
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
 
     executor.initialize();

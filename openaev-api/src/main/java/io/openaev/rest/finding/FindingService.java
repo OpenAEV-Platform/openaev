@@ -94,6 +94,8 @@ public class FindingService {
         contractOutputElement.getTags().isEmpty()
             ? new String[0]
             : contractOutputElement.getTags().stream().map(Tag::getId).toArray(String[]::new);
+
+    // Save or update the finding and add or update the list of assets and/or tags
     findingRepository.saveCompleteFinding(
         contractOutputElement.getKey(),
         contractOutputElement.getType().name(),

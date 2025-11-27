@@ -32,11 +32,19 @@ public class BatchingInjectStatusService {
 
   @Resource protected ObjectMapper mapper;
 
+  /**
+   * Handle the list of inject execution callbacks
+   *
+   * @param injectExecutionCallbacks the inject execution callbacks
+   */
   @LogExecutionTime
   @Transactional(Transactional.TxType.REQUIRES_NEW)
-  public void handleInjectExecutionCallback(
+  public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
 
+    List<InjectExecutionCallback> successfullyProcessedCallbacks = new ArrayList<>();
+
+    // Getting all the injects needed all at once
     Map<String, Inject> mapInjectsById =
         injectRepository
             .findAllByIdWithExpectations(
@@ -46,6 +54,7 @@ public class BatchingInjectStatusService {
             .stream()
             .collect(Collectors.toMap(Inject::getId, Function.identity()));
 
+    // Getting all the agents all at once
     Map<String, Agent> mapAgentsById =
         StreamSupport.stream(
                 agentRepository
@@ -57,15 +66,18 @@ public class BatchingInjectStatusService {
                 false)
             .collect(Collectors.toMap(Agent::getId, Function.identity()));
 
+    // Sorting the inject execution callbacks to make sure we handle them in chronological order
     Stream<InjectExecutionCallback> sortedInjectExecutionCallbacks =
         injectExecutionCallbacks.stream()
             .sorted(Comparator.comparing(InjectExecutionCallback::getEmissionDate));
 
+    // For each of the callback
     sortedInjectExecutionCallbacks.forEach(
         callback -> {
           Inject inject = null;
 
           try {
+            // Get the inject or throw if not found
             inject =
                 Optional.ofNullable(mapInjectsById.get(callback.getInjectId()))
                     .orElseThrow(
@@ -103,6 +115,7 @@ public class BatchingInjectStatusService {
               throw new DataIntegrityViolationException(
                   "Cannot complete inject that is not in PENDING state");
             }
+            // Get the agent or throw if not found
             Agent agent =
                 Optional.ofNullable(mapAgentsById.get(callback.getAgentId()))
                     .orElseThrow(
@@ -110,13 +123,24 @@ public class BatchingInjectStatusService {
                             new ElementNotFoundException(
                                 "Agent not found: " + callback.getAgentId()));
 
+            // Extract the output parsers
             Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
 
+            // Process the execution trace
             injectExecutionService.processInjectExecution(
                 inject, agent, callback.getInjectExecutionInput(), outputParsers);
+            successfullyProcessedCallbacks.add(callback);
           } catch (ElementNotFoundException e) {
             injectExecutionService.handleInjectExecutionError(inject, e);
+            successfullyProcessedCallbacks.add(callback);
+          } catch (Exception e) {
+            log.warn(
+                "The was a problem processing the element for the inject {} and agent {}",
+                callback.getInjectId(),
+                callback.getAgentId(),
+                e);
           }
         });
+    return successfullyProcessedCallbacks;
   }
 }

@@ -12,8 +12,8 @@ public class BatchExecutionTraceExecutor {
 
   private final BatchingInjectStatusService batchingInjectStatusService;
 
-  public void handleInjectExecutionCallbackList(
+  public List<InjectExecutionCallback> handleInjectExecutionCallbackList(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
-    batchingInjectStatusService.handleInjectExecutionCallback(injectExecutionCallbacks);
+    return batchingInjectStatusService.handleInjectExecutionCallback(injectExecutionCallbacks);
   }
 }

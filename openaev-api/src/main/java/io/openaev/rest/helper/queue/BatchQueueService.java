@@ -297,26 +297,47 @@ public class BatchQueueService<T extends Queueable> {
               queue.get(workerId).drainTo(currentBatch);
 
               // If the list is not empty, we process it
+              List<T> processedElement = new ArrayList<>();
               if (!currentBatch.isEmpty()) {
                 log.info("Processing batch of {}", currentBatch.size());
                 try {
-                  queueExecution.perform(currentBatch);
+                  processedElement.addAll(queueExecution.perform(currentBatch));
                 } catch (Exception e) {
                   log.error("Error processing batch - Error during ingestion", e);
                 }
               }
 
               // Sending Ack for all the processed element in the batch
-              for (T element : currentBatch) {
+              for (T element : processedElement) {
                 try {
                   DeliveryContext elementToAck = deliveryTable.remove(element);
                   if (elementToAck != null) {
                     elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
+                    currentBatch.remove(element);
                   }
                 } catch (IOException e) {
                   log.error(
                       String.format(
                           "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
+                      e);
+                }
+              }
+
+              // The elements that were not successfully processed are rejected
+              for (T element : currentBatch) {
+                try {
+                  DeliveryContext elementToReject = deliveryTable.remove(element);
+                  if (elementToReject != null) {
+                    // To avoid having elements that are not properly processed but can never be,
+                    // we're not requeueing them.
+                    elementToReject
+                        .getDeliveryChannel()
+                        .basicReject(elementToReject.getTag(), false);
+                  }
+                } catch (IOException e) {
+                  log.error(
+                      String.format(
+                          "Error processing batch - Cannot Nack the message: %s", e.getMessage()),
                       e);
                 }
               }
@@ -358,6 +379,12 @@ public class BatchQueueService<T extends Queueable> {
     }
   }
 
+  /**
+   * Get the id of the worker depending on the key of the element and the number of workers
+   *
+   * @param element the element that we need to process
+   * @return the id of the worker
+   */
   private int groupByKey(T element) {
     if (element.getUniqueElementKey() != null && !element.getUniqueElementKey().isEmpty()) {
       return element.getUniqueElementKey().hashCode() % queueConfig.getWorkerNumber();
