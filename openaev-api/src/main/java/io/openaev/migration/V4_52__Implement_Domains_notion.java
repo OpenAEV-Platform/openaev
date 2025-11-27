@@ -75,6 +75,7 @@ public class V4_52__Implement_Domains_notion extends BaseJavaMigration {
 
 // Rollback script
 
+// DROP TABLE IF EXISTS domains;
 // DROP INDEX IF EXISTS idx_payloads_domains_domain_id;
 // DROP INDEX IF EXISTS idx_payloads_domains_payload_id;
 // DROP TABLE IF EXISTS payloads_domains;
