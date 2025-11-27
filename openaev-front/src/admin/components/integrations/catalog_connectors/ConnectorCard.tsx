@@ -1,10 +1,8 @@
-import { VerifiedOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Grid, Tooltip, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Grid, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import ConnectorTitle from './ConnectorTitle';
 
@@ -53,7 +51,6 @@ const useStyles = makeStyles()(theme => ({
 type ConnectorCardProps = { connector: CatalogConnectorOutput };
 
 const ConnectorCard = ({ connector }: ConnectorCardProps) => {
-  const { t } = useFormatter();
   const { classes } = useStyles();
   const theme = useTheme();
 
