@@ -103,58 +103,27 @@ With the Starter Pack, you can launch a complete simulation right after installa
 
 ## An end-to-end atomic example (with agent)
 
-Let’s walk through the simplest possible scenario, using only an agent and an atomic payload.
+Let’s walk through the simplest possible set-up, using only an agent and an atomic payload.
 
-Imagine you deployed an OpenAEV agent on a Windows endpoint named `endpoint-win-01`.
+Imagine you deployed an OpenAEV agent on a Linux endpoint named `endpoint-lin-01`.
 
 ### Step 1 — Create the payload
 
-   ```bash
-   echo "OpenAEV Atomic Test" > C:\temp\atomic.txt
+   ```
+   echo "OpenAEV Atomic Test"
    ````
 
 ### Step 2 — Build the inject
 
 * Create an **atomic testing** in the UI
 * Use the created payload
-* Target `endpoint-win-01`
+* Target `endpoint-lin-01`
 
-### Step 3 — Run the simulation
+### Step 3 — Run the atomic testing
 
 Click **Launch now**.
 The platform executes the payload via the agent.
 The result should appear in the atomic testing overview.
-
-## A more complete example
-
-Now imagine simulating a phishing attack followed by reconnaissance.
-
-**Assets**:
-
-* Windows workstation with an agent (`endpoint-win-01`)
-* Database server without agent (`srv-db-01`)
-
-**Injects**:
-
-1. **Phishing email** → expected to be reported (manual validation)
-
-2. **Initial access** → benign file creation on `endpoint-win-01`
-
-   ```bash
-   echo "pwned" > C:\temp\pwned.txt
-   ```
-
-3. **Network scan** → from the endpoint
-
-   ```bash
-   nmap -Pn -T4 10.0.0.0/24
-   ```
-
-4. **Exploit attempt** → non-destructive CVE check on the DB server
-
-**Outcome**:
-You can validate phishing reporting, check EDR blocking, IDS detection of the scan, and see vulnerability results.
-Dashboards consolidate both technical and human responses.
 
 ---
 
