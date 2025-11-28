@@ -495,7 +495,11 @@ public class Inject implements GrantableBase, Injection {
 
   @JsonIgnore
   @JsonProperty("inject_contract_domains")
-  @Queryable(filterable = true, path = "injectorContract.domains", clazz = String[].class, searchable = true, dynamicValues = true)
+  @Queryable(
+      filterable = true,
+      paths = {"injectorContract.domains.id", "injectorContract.payload.domains.id"},
+      searchable = true,
+      dynamicValues = true)
   private Set<Domain> getDomains() {
     return getInjectorContract().map(InjectorContract::getDomains).orElseGet(HashSet::new);
   }

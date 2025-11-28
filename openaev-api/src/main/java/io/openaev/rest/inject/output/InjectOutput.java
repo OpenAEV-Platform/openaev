@@ -101,7 +101,7 @@ public class InjectOutput {
 
   @JsonProperty("inject_contract_domains")
   @Schema(description = "Domain of the inject")
-  public Set<Domain> getDomains(){
+  public Set<Domain> getDomains() {
     return injectorContract.getDomains();
   }
 

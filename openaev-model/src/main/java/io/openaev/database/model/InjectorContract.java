@@ -23,7 +23,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import javax.annotation.Nullable;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -139,11 +138,15 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @JsonProperty("injector_contract_domains")
   @Getter(AccessLevel.NONE)
   private Set<Domain> domains = new HashSet<>();
 
-  @Queryable(filterable = true, searchable = true, dynamicValues = true)
+  @JsonProperty("injector_contract_domains")
+  @Queryable(
+      filterable = true,
+      searchable = true,
+      dynamicValues = true,
+      paths = {"payload.domains.id", "domains.id"})
   public Set<Domain> getDomains() {
     return this.payload != null ? this.payload.getDomains() : this.domains;
   }
