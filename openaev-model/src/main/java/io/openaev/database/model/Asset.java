@@ -48,6 +48,7 @@ public class Asset implements TenantBase {
   @Column(name = "asset_type", insertable = false, updatable = false)
   @JsonProperty("asset_type")
   @Setter(NONE)
+  @Queryable(filterable = true)
   private String type;
 
   @Queryable(searchable = true, sortable = true, filterable = true)

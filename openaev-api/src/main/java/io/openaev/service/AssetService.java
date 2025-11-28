@@ -3,9 +3,11 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -35,8 +37,14 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAllById(assetIds));
   }
 
-  public List<Asset> assets() {
-    return fromIterable(this.assetRepository.findAll());
+  public List<Asset> assets(Filters.FilterGroup filterGroup) {
+    if (filterGroup == null) {
+      return fromIterable(this.assetRepository.findAll());
+    }
+    if (filterGroup.getFilters().isEmpty()) {
+      return List.of();
+    }
+    return this.assetRepository.findAll(FilterUtilsJpa.computeFilterGroupJpa(filterGroup));
   }
 
   public List<SecurityPlatform> securityPlatforms() {

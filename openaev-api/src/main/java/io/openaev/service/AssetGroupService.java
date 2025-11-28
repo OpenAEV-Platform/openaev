@@ -3,7 +3,6 @@ package io.openaev.service;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
-import static io.openaev.utils.FilterUtilsRuntime.computeFilterGroupRuntime;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
@@ -16,7 +15,6 @@ import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -150,25 +148,13 @@ public class AssetGroupService {
       return assetGroups;
     }
 
-    List<Asset> assets = this.assetService.assets();
     assetGroups.forEach(
         assetGroup -> {
-          if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-            Predicate<Object> filters = computeFilterGroupRuntime(assetGroup.getDynamicFilter());
-
-            List<Asset> filteredAssets =
-                assets.stream()
-                    .filter(
-                        asset ->
-                            "Endpoint"
-                                .equals(
-                                    asset.getType())) // Filters for dynamic assets are applicable
-                    // only to endpoints
-                    .filter(filters)
-                    .toList();
-
-            assetGroup.setDynamicAssets(filteredAssets);
-          }
+          Filters.FilterGroup filterGroup = assetGroup.getDynamicFilter();
+          filterGroup
+              .getFilters()
+              .add(Filters.Filter.getNewDefaultEqualFilter("asset_type", List.of("Endpoint")));
+          assetGroup.setDynamicAssets(this.assetService.assets(filterGroup));
         });
     return assetGroups;
   }
