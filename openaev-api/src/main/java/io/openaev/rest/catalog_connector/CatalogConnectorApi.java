@@ -8,6 +8,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.CatalogConnectorService;
 import io.openaev.service.FileService;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -18,14 +19,17 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
 public class CatalogConnectorApi extends RestBehavior {
-  public static final String CATALOG_CONNECTOR_URI = "/api/connectors";
+  public static final String CATALOG_CONNECTOR_URI = "/api/catalog-connector";
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
+  private final CatalogConnectorMapper catalogConnectorMapper;
 
   @GetMapping(CATALOG_CONNECTOR_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
@@ -41,6 +45,7 @@ public class CatalogConnectorApi extends RestBehavior {
   public CatalogConnectorOutput getConnector(@PathVariable String connectorId) {
     return catalogConnectorService
         .findById(connectorId)
+        .map(catalogConnectorMapper::toCatalogConnectorOutput)
         .orElseThrow(
             () -> new ElementNotFoundException("Connector not found with id: " + connectorId));
   }

@@ -31,9 +31,7 @@ public class CatalogConnectorService {
     return catalogConnectorRepository.findBySlugWithConfigurations(slug);
   }
 
-  public Optional<CatalogConnectorOutput> findById(String id) {
-    return catalogConnectorRepository
-        .findById(id)
-        .map(catalogConnectorMapper::toCatalogConnectorOutput);
+  public Optional<CatalogConnector> findById(String id) {
+    return catalogConnectorRepository.findById(id);
   }
 }
