@@ -121,7 +121,7 @@
   },
   "resolutions": {
     "@types/react": "19.2.2",
-    "form-data": "4.0.4"
+    "form-data": "4.0.5"
   },
   "engines": {
     "node": ">= 22.11.0"
