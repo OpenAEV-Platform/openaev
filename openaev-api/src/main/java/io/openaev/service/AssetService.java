@@ -37,14 +37,15 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAllById(assetIds));
   }
 
-  public List<Asset> assets(Filters.FilterGroup filterGroup) {
-    if (filterGroup == null) {
-      return fromIterable(this.assetRepository.findAll());
-    }
-    if (filterGroup.getFilters().isEmpty()) {
+  public List<Asset> assetsFromFilterGroups(@NotNull Filters.FilterGroup filterGroup) {
+    if (filterGroup.getFilters() == null || filterGroup.getFilters().isEmpty()) {
       return List.of();
     }
     return this.assetRepository.findAll(FilterUtilsJpa.computeFilterGroupJpa(filterGroup));
+  }
+
+  public List<Asset> assets() {
+    return fromIterable(this.assetRepository.findAll());
   }
 
   public List<SecurityPlatform> securityPlatforms() {

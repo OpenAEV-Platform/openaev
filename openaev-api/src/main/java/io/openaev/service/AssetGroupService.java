@@ -154,7 +154,7 @@ public class AssetGroupService {
           filterGroup
               .getFilters()
               .add(Filters.Filter.getNewDefaultEqualFilter("asset_type", List.of("Endpoint")));
-          assetGroup.setDynamicAssets(this.assetService.assets(filterGroup));
+          assetGroup.setDynamicAssets(this.assetService.assetsFromFilterGroups(filterGroup));
         });
     return assetGroups;
   }
