@@ -97,7 +97,7 @@ jobs:
           job_templates launch 'Deploy OpenAEV feature branch for testing' \
             --wait \
             --inventory eu-west-staging \
-            --extra_vars '"{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}"'
+            --extra_vars '{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}'
 
       - name: Forge URL to match playbook limitations
         id: urlforge
