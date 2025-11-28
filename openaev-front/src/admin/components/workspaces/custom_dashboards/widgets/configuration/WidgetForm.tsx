@@ -7,7 +7,7 @@ import { z } from 'zod';
 import Dialog from '../../../../../../components/common/dialog/Dialog';
 import StepperComponent from '../../../../../../components/common/StepperComponent';
 import { useFormatter } from '../../../../../../components/i18n';
-import { type Widget } from '../../../../../../utils/api-types-custom';
+import { type Widget } from '../../../../../../utils/api-types';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { getAvailableSteps, lastStepIndex, steps, type WidgetInputWithoutLayout } from '../WidgetUtils';
 import WidgetMultiSeriesSelection from './histogram/WidgetMultiSeriesSelection';

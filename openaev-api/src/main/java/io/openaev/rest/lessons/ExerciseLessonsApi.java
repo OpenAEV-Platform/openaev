@@ -334,10 +334,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/lessons/exercise/{exerciseId}/lessons_categories")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -345,10 +342,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/lessons/exercise/{exerciseId}/lessons_questions")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public List<LessonsQuestion> playerLessonsQuestions(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -364,10 +358,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/lessons/exercise/{exerciseId}/lessons_answers")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public List<LessonsAnswer> playerLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -391,10 +382,7 @@ public class ExerciseLessonsApi extends RestBehavior {
 
   @PostMapping(
       "/api/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public LessonsAnswer createExerciseLessonsQuestion(
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,

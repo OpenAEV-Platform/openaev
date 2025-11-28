@@ -110,12 +110,19 @@ public class SecurityCoverageService {
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
-    stixCoverageObj.setIfSetPresent(
-        CommonProperties.LABELS.toString(),
-        labels -> {
-          labels.add(OPENCTI_TAG_NAME);
-          securityCoverage.setLabels(labels);
-        });
+
+    // labels
+    Set<String> labels = new HashSet<>();
+    if (stixCoverageObj.hasProperty(CommonProperties.LABELS)
+        && stixCoverageObj.getProperty(CommonProperties.LABELS).getValue() != null) {
+      for (StixString stixString :
+          (List<StixString>) stixCoverageObj.getProperty(CommonProperties.LABELS).getValue()) {
+        labels.add(stixString.getValue());
+      }
+    }
+    // force opencti
+    labels.add(OPENCTI_TAG_NAME);
+    securityCoverage.setLabels(labels);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
@@ -463,7 +470,9 @@ public class SecurityCoverageService {
       List<InjectExpectationResultUtils.ExpectationResultsByType> coverageResults) {
     List<Complex<?>> coverageValues = new ArrayList<>();
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
-      CoverageResult cov = new CoverageResult(result.type().name(), result.getSuccessRate());
+      CoverageResult cov =
+          new CoverageResult(
+              result.type().name(), result.getSuccessRate() * 100); // force percentage points
       coverageValues.add(new Complex<>(cov));
     }
     return new io.openaev.stix.types.List<>(coverageValues);

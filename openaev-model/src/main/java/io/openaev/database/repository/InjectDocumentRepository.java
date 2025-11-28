@@ -35,4 +35,10 @@ public interface InjectDocumentRepository
       @Param("injectId") String injectId,
       @Param("documentId") String docId,
       @Param("documentAttached") boolean docAttached);
+
+  @Modifying
+  @Query(
+      value = "UPDATE injects_documents SET inject_id = :injectId where inject_id = :oldInjectId",
+      nativeQuery = true)
+  void updateInjectId(@Param("injectId") String injectId, @Param("oldInjectId") String oldInjectId);
 }

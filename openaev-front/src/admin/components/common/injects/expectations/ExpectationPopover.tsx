@@ -8,6 +8,8 @@ import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { PermissionsContext } from '../../Context';
 import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
 import ExpectationFormUpdate from './ExpectationFormUpdate';
@@ -16,6 +18,7 @@ import useExpectationExpirationTime from './useExpectationExpirationTime';
 interface ExpectationPopoverProps {
   index: number;
   expectation: ExpectationInput;
+  injectId?: string;
   handleUpdate: (data: ExpectationInput, idx: number) => void;
   handleDelete: (idx: number) => void;
 }
@@ -23,13 +26,17 @@ interface ExpectationPopoverProps {
 const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   index,
   expectation,
+  injectId,
   handleUpdate,
   handleDelete,
 }) => {
   // Standard hooks
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const { t } = useFormatter();
-  const { permissions } = useContext(PermissionsContext);
+  const { permissions, inherited_context } = useContext(PermissionsContext);
+  const ability = useContext(AbilityContext);
+  const userManageExpectations = permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
+    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -83,11 +90,11 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
     {
       label: 'Update',
       action: () => handleOpenEdit(),
-      userRight: permissions.canManage,
+      userRight: userManageExpectations,
     }, {
       label: 'Remove',
       action: () => handleOpenDelete(),
-      userRight: permissions.canManage,
+      userRight: userManageExpectations,
     }];
 
   return (

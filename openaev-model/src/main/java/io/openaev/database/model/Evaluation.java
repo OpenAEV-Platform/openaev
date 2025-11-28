@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
@@ -61,6 +62,10 @@ public class Evaluation implements Base {
   @NotNull
   private Instant updated = now();
 
+  @Getter(onMethod_ = @JsonIgnore)
+  @Transient
+  private final ResourceType resourceType = ResourceType.EVALUATION;
+
   @Override
   public boolean isUserHasAccess(User user) {
     return getObjective().isUserHasAccess(user);
@@ -77,5 +82,15 @@ public class Evaluation implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  @JsonIgnore
+  public String getParentResourceId() {
+    return this.getObjective().getParentResourceId();
+  }
+
+  @JsonIgnore
+  public ResourceType getParentResourceType() {
+    return this.getObjective().getParentResourceType();
   }
 }

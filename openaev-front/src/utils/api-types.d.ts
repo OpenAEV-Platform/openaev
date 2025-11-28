@@ -580,14 +580,6 @@ type BasePayloadPayloadTypeMapping<Key, Type> = {
   payload_type: Key;
 } & Type;
 
-interface BaseWidgetConfiguration {
-  widget_configuration_type: string;
-}
-
-type BaseWidgetConfigurationWidgetConfigurationTypeMapping<Key, Type> = {
-  widget_configuration_type: Key;
-} & Type;
-
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
   initial_dataset_completed?: boolean;
@@ -1214,7 +1206,7 @@ export interface CweOutput {
 
 export type DateHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
-  "widget_configuration_type"
+  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   display_legend?: boolean;
   interval: "year" | "month" | "week" | "day" | "hour" | "quarter";
@@ -2474,7 +2466,7 @@ export interface FlagInput {
 
 export type FlatConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
-  "widget_configuration_type"
+  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
 >;
 
 export interface FullTextSearchCountResult {
@@ -2579,32 +2571,6 @@ export interface HealthCheck {
     | "TEAMS"
     | "NMAP"
     | "NUCLEI";
-}
-
-export interface HistogramWidget {
-  date_attribute: string;
-  display_legend?: boolean;
-  end?: string;
-  mode: string;
-  series: Series[];
-  stacked?: boolean;
-  start?: string;
-  time_range:
-    | "DEFAULT"
-    | "ALL_TIME"
-    | "CUSTOM"
-    | "LAST_DAY"
-    | "LAST_WEEK"
-    | "LAST_MONTH"
-    | "LAST_QUARTER"
-    | "LAST_SEMESTER"
-    | "LAST_YEAR";
-  title?: string;
-  widget_configuration_type:
-    | "flat"
-    | "list"
-    | "temporal-histogram"
-    | "structural-histogram";
 }
 
 export interface ImportMapper {
@@ -3662,7 +3628,7 @@ export interface License {
 
 export type ListConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
-  "widget_configuration_type"
+  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   columns?: string[];
   /**
@@ -5338,7 +5304,6 @@ export interface RuleAttributeUpdateInput {
 }
 
 export interface Scenario {
-  from_starter_pack?: boolean;
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
@@ -5349,6 +5314,7 @@ export interface Scenario {
   /** @format date-time */
   scenario_created_at: string;
   scenario_custom_dashboard?: string;
+  scenario_dependencies?: "STARTERPACK"[];
   scenario_description?: string;
   scenario_documents?: string[];
   scenario_exercises?: string[];
@@ -5505,8 +5471,8 @@ export interface SecurityPlatformInput {
   asset_external_reference?: string;
   asset_name: string;
   asset_tags?: string[];
-  security_platform_logo_dark?: string;
-  security_platform_logo_light?: string;
+  security_platform_logo_dark?: string | null;
+  security_platform_logo_light?: string | null;
   security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
 }
 
@@ -5689,7 +5655,7 @@ export interface StatusPayloadOutput {
 
 export type StructuralHistogramWidget = UtilRequiredKeys<
   WidgetConfiguration,
-  "widget_configuration_type"
+  "series" | "widget_configuration_type" | "time_range" | "date_attribute"
 > & {
   display_legend?: boolean;
   field: string;
@@ -6180,6 +6146,8 @@ export interface UserOutput {
   /** Last name of the user */
   user_lastname?: string;
   /** Organization of the user */
+  user_organization_id?: string;
+  /** Organization of the user */
   user_organization_name?: string;
   /**
    * Tags of the user
@@ -6442,25 +6410,28 @@ export interface Widget {
   widget_updated_at: string;
 }
 
-export type WidgetConfiguration = BaseWidgetConfiguration &
-  (
-    | BaseWidgetConfigurationWidgetConfigurationTypeMapping<
-        "flat",
-        FlatConfiguration
-      >
-    | BaseWidgetConfigurationWidgetConfigurationTypeMapping<
-        "list",
-        ListConfiguration
-      >
-    | BaseWidgetConfigurationWidgetConfigurationTypeMapping<
-        "temporal-histogram",
-        DateHistogramWidget
-      >
-    | BaseWidgetConfigurationWidgetConfigurationTypeMapping<
-        "structural-histogram",
-        StructuralHistogramWidget
-      >
-  );
+export interface WidgetConfiguration {
+  date_attribute: string;
+  end?: string;
+  series: Series[];
+  start?: string;
+  time_range:
+    | "DEFAULT"
+    | "ALL_TIME"
+    | "CUSTOM"
+    | "LAST_DAY"
+    | "LAST_WEEK"
+    | "LAST_MONTH"
+    | "LAST_QUARTER"
+    | "LAST_SEMESTER"
+    | "LAST_YEAR";
+  title?: string;
+  widget_configuration_type:
+    | "flat"
+    | "list"
+    | "temporal-histogram"
+    | "structural-histogram";
+}
 
 export interface WidgetInput {
   widget_config:

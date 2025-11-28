@@ -557,10 +557,7 @@ public class DocumentApi extends RestBehavior {
 
   // -- EXERCISE & SENARIO--
   @GetMapping("/api/player/{exerciseOrScenarioId}/documents")
-  @RBAC(
-      resourceId = "#exerciseOrScenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @RBAC(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
@@ -589,10 +586,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/{exerciseOrScenarioId}/documents/{documentId}/file")
-  @RBAC(
-      resourceId = "#exerciseOrScenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @RBAC(skipRBAC = true)
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,

@@ -91,6 +91,11 @@ export const createRunningExerciseFromScenario = (scenarioId: string) => {
 
 // -- TEAMS --
 
+export const fetchPlayersByScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
+  const uri = `/api/scenarios/${scenarioId}/players`;
+  return getReferential(schema.arrayOfUsers, uri)(dispatch);
+};
+
 export const fetchScenarioTeams = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/teams`;
   return getReferential(schema.arrayOfTeams, uri)(dispatch);

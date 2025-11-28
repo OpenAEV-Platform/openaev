@@ -8,7 +8,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchInjectCommunications } from '../../../../../actions/Communication';
 import { executeInject, fetchExerciseInjects } from '../../../../../actions/Inject';
-import { fetchPlayers } from '../../../../../actions/User';
+import { fetchPlayers } from '../../../../../actions/users/User.js';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';

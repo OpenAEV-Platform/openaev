@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,5 +35,25 @@ public class ListConfiguration extends WidgetConfiguration {
 
   public ListConfiguration() {
     super(WidgetConfigurationType.LIST);
+  }
+
+  @Override
+  public void remap(Map<String, String> map) {
+    if (this.perspective != null) {
+      if (perspective.getFilter() != null
+          && perspective.getFilter().getFilters() != null
+          && !perspective.getFilter().getFilters().isEmpty()) {
+        for (Filters.Filter filter : perspective.getFilter().getFilters()) {
+          if (filter.getValues() != null) {
+            for (Map.Entry<String, String> switchPair : map.entrySet()) {
+              if (filter.getValues().contains(switchPair.getKey())) {
+                filter.getValues().remove(switchPair.getKey());
+                filter.getValues().add(switchPair.getValue());
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

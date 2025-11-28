@@ -2,7 +2,7 @@ import { PersonOutlined } from '@mui/icons-material';
 import { Box, Button } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
-import { findUsers, searchUsers } from '../../../../actions/User';
+import { findUsers, searchUsers } from '../../../../actions/users/User';
 import Drawer from '../../../../components/common/Drawer';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';

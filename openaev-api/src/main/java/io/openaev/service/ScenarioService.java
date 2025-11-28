@@ -777,7 +777,18 @@ public class ScenarioService {
     scenarioDuplicate.setLessonsAnonymized(scenario.isLessonsAnonymized());
     scenarioDuplicate.setDocuments(new ArrayList<>(scenario.getDocuments()));
     scenarioDuplicate.setGrants(new ArrayList<>(scenario.getGrants()));
+    scenarioDuplicate.setDependencies(cleanScenarioDependencies(scenario.getDependencies()));
     return scenarioDuplicate;
+  }
+
+  private Scenario.Dependency[] cleanScenarioDependencies(Scenario.Dependency[] dependencies) {
+    if (dependencies == null) {
+      return new Scenario.Dependency[0];
+    }
+
+    return Arrays.stream(dependencies)
+        .filter(dependency -> !Scenario.Dependency.STARTERPACK.equals(dependency))
+        .toArray(Scenario.Dependency[]::new);
   }
 
   private void getListOfDuplicatedInjects(

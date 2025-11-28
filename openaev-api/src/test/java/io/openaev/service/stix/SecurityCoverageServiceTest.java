@@ -170,7 +170,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             injects.stream().map(Inject::getId).collect(Collectors.toSet()));
     return toList(
         results.stream()
-            .map(r -> new Complex<>(new CoverageResult(r.type().name(), r.getSuccessRate())))
+            .map(r -> new Complex<>(new CoverageResult(r.type().name(), r.getSuccessRate() * 100)))
             .toList());
   }
 
@@ -315,7 +315,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                             .getId()
                                             .getValue()
                                             .contains(securityPlatformWrapper.get().getId())
-                                        ? 1.0
+                                        ? 100.0
                                         : 0.0)),
                             new Complex<>(
                                 new CoverageResult(
@@ -324,7 +324,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                             .getId()
                                             .getValue()
                                             .contains(securityPlatformWrapper.get().getId())
-                                        ? 1.0
+                                        ? 100.0
                                         : 0.0))))));
         assertThatJson(actualSro.toStix(mapper))
             .whenIgnoringPaths(CommonProperties.ID.toString())
@@ -357,8 +357,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
-                            new Complex<>(new CoverageResult("PREVENTION", 1.0)),
-                            new Complex<>(new CoverageResult("DETECTION", 1.0))))));
+                            new Complex<>(new CoverageResult("PREVENTION", 100.0)),
+                            new Complex<>(new CoverageResult("DETECTION", 100.0))))));
         assertThatJson(actualSro.toStix(mapper))
             .whenIgnoringPaths(CommonProperties.ID.toString())
             .isEqualTo(expectedSro.toStix(mapper));
@@ -429,7 +429,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(true),
                       ExtendedProperties.COVERAGE.toString(),
-                      toList(List.of(new Complex<>(new CoverageResult("VULNERABILITY", 1.0))))));
+                      toList(List.of(new Complex<>(new CoverageResult("VULNERABILITY", 100.0))))));
           assertThatJson(actualSro.toStix(mapper))
               .whenIgnoringPaths(CommonProperties.ID.toString())
               .isEqualTo(expectedSro.toStix(mapper));
@@ -624,7 +624,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                           .getId()
                                           .getValue()
                                           .contains(securityPlatformWrapper.get().getId())
-                                      ? 0.5
+                                      ? 50.0
                                       : 0.0)),
                           new Complex<>(
                               new CoverageResult(
@@ -633,7 +633,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                           .getId()
                                           .getValue()
                                           .contains(securityPlatformWrapper.get().getId())
-                                      ? 0.5
+                                      ? 50.0
                                       : 0.0))))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
@@ -668,11 +668,11 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           new Complex<>(
                               new CoverageResult(
                                   "PREVENTION",
-                                  stixRef.getExternalRef().equals("T1234") ? 1.0 : 0.0)),
+                                  stixRef.getExternalRef().equals("T1234") ? 100.0 : 0.0)),
                           new Complex<>(
                               new CoverageResult(
                                   "DETECTION",
-                                  stixRef.getExternalRef().equals("T1234") ? 1.0 : 0.0))))));
+                                  stixRef.getExternalRef().equals("T1234") ? 100.0 : 0.0))))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));

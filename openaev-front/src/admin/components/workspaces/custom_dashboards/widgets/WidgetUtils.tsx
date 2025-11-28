@@ -2,17 +2,14 @@ import { AccountTree, List, TableChart } from '@mui/icons-material';
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
 import {
-  type CustomDashboardParameters, type EsAttackPath, type EsBase, type EsCountInterval, type EsSeries,
+  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, type EsBase, type EsCountInterval, type EsSeries,
   type Exercise,
   type Filter,
   type FilterGroup,
-  type InjectExpectation, type Series,
-} from '../../../../../utils/api-types';
-import {
-  type HistogramWidget,
+  type InjectExpectation, type Series, type StructuralHistogramWidget,
   type Widget,
   type WidgetInput,
-} from '../../../../../utils/api-types-custom';
+} from '../../../../../utils/api-types';
 import { createGroupOption, type GroupOption } from '../../../../../utils/Option';
 
 export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;
@@ -20,12 +17,12 @@ export type StepType = ('type' | 'series' | 'parameters');
 export const steps: StepType[] = ['type', 'series', 'parameters'];
 export const lastStepIndex = steps.length - 1;
 const defaultSteps: StepType[] = ['type', 'series', 'parameters'];
-const defaultModes: HistogramWidget['mode'][] = ['structural', 'temporal'];
+const defaultModes: (DateHistogramWidget['mode'] | StructuralHistogramWidget['mode'])[] = ['structural', 'temporal'];
 
 export const widgetVisualizationTypes: {
   category: Widget['widget_type'];
   seriesLimit: number;
-  modes?: HistogramWidget['mode'][];
+  modes?: DateHistogramWidget['mode'][] | StructuralHistogramWidget['mode'][];
   fields?: string[];
   steps?: StepType[];
   limit?: boolean;

@@ -38,10 +38,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
+  @RBAC(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
     Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(scenarioId);

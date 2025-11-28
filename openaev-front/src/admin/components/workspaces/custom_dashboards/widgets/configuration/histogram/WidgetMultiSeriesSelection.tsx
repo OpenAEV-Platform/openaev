@@ -5,8 +5,7 @@ import { type FunctionComponent, useState } from 'react';
 
 import { emptyFilterGroup } from '../../../../../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../../../../../components/i18n';
-import { type Series } from '../../../../../../../utils/api-types';
-import { type Widget } from '../../../../../../../utils/api-types-custom';
+import { type Series, type Widget } from '../../../../../../../utils/api-types';
 import { getCurrentSeriesLimit } from '../../WidgetUtils';
 import WidgetSeriesSelection from '../WidgetSeriesSelection';
 

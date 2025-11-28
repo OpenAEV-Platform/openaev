@@ -526,7 +526,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(readOnly = true)
   public SimulationDetails exercise(@PathVariable String exerciseId) {
     // We get the raw exercise
-    RawSimulation rawSimulation = exerciseRepository.rawDetailsById(exerciseId);
+    RawSimulation rawSimulation = exerciseService.rawSimulation(exerciseId);
     // We get the injects linked to this exercise
     List<RawInject> rawInjects =
         injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());

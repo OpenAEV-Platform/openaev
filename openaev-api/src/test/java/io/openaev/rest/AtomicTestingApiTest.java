@@ -1,9 +1,9 @@
 package io.openaev.rest;
 
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openaev.utils.JsonUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -39,6 +40,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   static Inject INJECT_WITHOUT_STATUS;
   static InjectStatus INJECT_STATUS;
   static InjectorContract INJECTOR_CONTRACT;
+  static Document DOCUMENT;
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -51,6 +53,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private ObjectMapper mapper;
 
@@ -65,6 +68,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     injectStatus.setInject(injectWithPayload);
     INJECT_STATUS = injectStatusRepository.save(injectStatus);
+
+    DOCUMENT = documentRepository.save(DocumentFixture.getDocumentJpeg());
   }
 
   private InjectComposer.Composer getAtomicTestingWrapper(
@@ -135,6 +140,57 @@ public class AtomicTestingApiTest extends IntegrationTest {
     // Match Expectation results
     assertEquals(
         mapper.readTree(expectedExpectationsJson), mapper.readTree(actualExpectationsJson));
+  }
+
+  @Test
+  @DisplayName("Create and upadte an atomic testing")
+  @WithMockUser(isAdmin = true)
+  void createAndUpdateAnAtomicTesting() throws Exception {
+    String response =
+        mvc.perform(
+                post(ATOMIC_TESTINGS_URI)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .content(
+                        asJsonString(InjectFixture.createAtomicTesting("test", DOCUMENT.getId()))))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertNotNull(response);
+    String newInjectId = JsonPath.read(response, "$.inject_id");
+    response =
+        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertEquals(newInjectId, JsonPath.read(response, "$.inject_id"));
+    assertEquals("test", JsonPath.read(response, "$.inject_title"));
+    List<String> documentIds = JsonPath.read(response, "$.injects_documents");
+    assertEquals(1, documentIds.size());
+
+    response =
+        mvc.perform(
+                put(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(InjectFixture.createAtomicTesting("test2", null))))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertNotNull(response);
+    response =
+        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertEquals(newInjectId, JsonPath.read(response, "$.inject_id"));
+    assertEquals("test2", JsonPath.read(response, "$.inject_title"));
+    documentIds = JsonPath.read(response, "$.injects_documents");
+    assertEquals(0, documentIds.size());
   }
 
   @Test

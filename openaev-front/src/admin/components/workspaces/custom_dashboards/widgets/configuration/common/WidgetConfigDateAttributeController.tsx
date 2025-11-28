@@ -9,8 +9,8 @@ import {
   type ListPerspective,
   type PropertySchemaDTO,
   type Series,
+  type Widget,
 } from '../../../../../../../utils/api-types';
-import type { Widget } from '../../../../../../../utils/api-types-custom';
 import type { GroupOption } from '../../../../../../../utils/Option';
 import { getBaseEntities } from '../../WidgetUtils';
 import getEntityPropertiesListOptions from '../EntityPropertiesListOptions';

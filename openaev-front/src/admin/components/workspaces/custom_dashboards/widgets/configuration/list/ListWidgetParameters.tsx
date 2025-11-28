@@ -4,8 +4,7 @@ import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
 import { useFormatter } from '../../../../../../../components/i18n';
-import type { PropertySchemaDTO } from '../../../../../../../utils/api-types';
-import type { Widget } from '../../../../../../../utils/api-types-custom';
+import type { PropertySchemaDTO, Widget } from '../../../../../../../utils/api-types';
 import { type GroupOption } from '../../../../../../../utils/Option';
 import { getBaseEntities, type WidgetInputWithoutLayout } from '../../WidgetUtils';
 import WidgetConfigDateAttributeController from '../common/WidgetConfigDateAttributeController';

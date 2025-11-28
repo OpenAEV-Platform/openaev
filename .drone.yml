@@ -16,16 +16,18 @@ steps:
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
     commands:
+      - mvn spotless:check
       - sleep 60
       - mvn clean install -q -DskipTests
-      - mvn spotless:check
       - cd openaev-api
       - mvn test
+      - echo "Running coverage validation..."
+      - mvn jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
       - cd ../openaev-framework
       - mvn test
 
   - name: frontend-tests
-    image: node:22.17.1-alpine
+    image: node:22.21.1-alpine
     commands:
       - cd openaev-front
       - yarn install
@@ -71,7 +73,7 @@ steps:
       - frontend-tests
 
   - name: frontend-e2e-tests
-    image: node:22.17.1
+    image: node:22.21.1
     commands:
       - apt update
       - apt -y install netcat-traditional
@@ -84,7 +86,7 @@ steps:
       - app-e2e
 
   - name: frontend-api-types
-    image: node:22.17.1
+    image: node:22.21.1
     volumes:
       - name: cache-node-frontend-api-types
         path: /drone/src/openaev-front/node_modules

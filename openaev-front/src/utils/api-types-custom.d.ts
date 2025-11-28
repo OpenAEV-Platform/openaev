@@ -4,61 +4,6 @@ import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
 import type * as ApiTypes from './api-types';
 
-interface BaseWidgetConfiguration {
-  title?: string;
-  start?: string;
-  end?: string;
-  time_range:
-    | 'DEFAULT'
-    | 'ALL_TIME'
-    | 'CUSTOM'
-    | 'LAST_DAY'
-    | 'LAST_WEEK'
-    | 'LAST_MONTH'
-    | 'LAST_QUARTER'
-    | 'LAST_SEMESTER'
-    | 'LAST_YEAR';
-}
-
-export type DateHistogramWidget = BaseWidgetConfiguration & {
-  display_legend?: boolean;
-  widget_configuration_type: 'temporal-histogram';
-  stacked?: boolean;
-  mode: 'temporal';
-  date_attribute: string;
-  interval: 'year' | 'month' | 'week' | 'day' | 'hour' | 'quarter';
-  series: ApiTypes.Series[];
-};
-export type FlatConfiguration = BaseWidgetConfiguration & {
-  series: ApiTypes.Series[];
-  widget_configuration_type: 'flat';
-  date_attribute: string;
-};
-export type ListConfiguration = BaseWidgetConfiguration & {
-  perspective: ApiTypes.ListPerspective;
-  columns: string[];
-  sorts?: ApiTypes.EngineSortField[];
-  limit?: number;
-  widget_configuration_type: 'list';
-  date_attribute: string;
-};
-export type StructuralHistogramWidget = BaseWidgetConfiguration & {
-  widget_configuration_type: 'structural-histogram';
-  display_legend?: boolean;
-  stacked?: boolean;
-  mode: 'structural';
-  field: string;
-  date_attribute: string;
-  series: ApiTypes.Series[];
-  limit?: number;
-};
-export type HistogramWidget = ApiTypes.BaseWidgetConfiguration &
-  (
-    | ApiTypes.BaseWidgetConfigurationWidgetConfigurationTypeMapping<'temporal-histogram', DateHistogramWidget>
-    | ApiTypes.BaseWidgetConfigurationWidgetConfigurationTypeMapping<'structural-histogram', StructuralHistogramWidget>
-    );
-export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & { widget_config: DateHistogramWidget | StructuralHistogramWidget | ListConfiguration | FlatConfiguration };
-export type Widget = Omit<ApiTypes.Widget, 'widget_config'> & { widget_config: DateHistogramWidget | StructuralHistogramWidget | ListConfiguration | FlatConfiguration };
 type PayloadCreateInputOmit = 'payload_type' | 'payload_source' | 'payload_status' | 'payload_created_at' | 'payload_id' | 'payload_updated_at' | 'payload_output_parsers';
 type PayloadCreateInputMore = {
   remediations?: Record<string, DetectionRemediationInput>;

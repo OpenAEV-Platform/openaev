@@ -57,6 +57,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
     scenario = this.scenarioRepository.save(defaultScenario);
 
     // Create exercises linked to the scenario
+    this.exerciseRepository.deleteAll();
     Exercise exercise1 = ExerciseFixture.createDefaultCrisisExercise();
     exercise1.setScenario(scenario);
     exercise1FromScenario = this.exerciseRepository.save(exercise1);

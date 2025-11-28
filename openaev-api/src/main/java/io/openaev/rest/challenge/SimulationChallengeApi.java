@@ -62,10 +62,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @PostMapping("/api/player/challenges/{exerciseId}/{challengeId}/validate")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   public SimulationChallengesReader validateChallenge(
       @PathVariable String exerciseId,
@@ -84,10 +81,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/simulations/{simulationId}/documents")
-  @RBAC(
-      resourceId = "#simulationId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(simulationId);
@@ -125,10 +119,7 @@ public class SimulationChallengeApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/simulations/{simulationId}/challenges")
-  @RBAC(
-      resourceId = "#simulationId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(skipRBAC = true)
   public SimulationChallengesReader playerChallenges(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     final User user = impersonateUser(userRepository, userId);

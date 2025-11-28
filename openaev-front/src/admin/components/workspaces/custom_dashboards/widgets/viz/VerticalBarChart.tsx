@@ -4,7 +4,7 @@ import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import type { Widget } from '../../../../../../utils/api-types-custom';
+import type { DateHistogramWidget, StructuralHistogramWidget, Widget } from '../../../../../../utils/api-types';
 import { verticalBarsChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
@@ -23,9 +23,9 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
   const { classes } = useStyles();
   const { t, fld } = useFormatter();
 
-  const widgetMode = (): 'structural' | 'temporal' => {
+  const widgetMode = (): string => {
     if (widgetConfig.widget_configuration_type === 'temporal-histogram' || widgetConfig.widget_configuration_type === 'structural-histogram') {
-      return widgetConfig.mode;
+      return (widgetConfig as DateHistogramWidget | StructuralHistogramWidget).mode;
     }
     return 'structural';
   };

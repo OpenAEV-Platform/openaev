@@ -18,9 +18,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
+import io.openaev.database.repository.TagRepository;
+import io.openaev.service.AssetGroupService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -56,19 +59,23 @@ class StixApiTest extends IntegrationTest {
 
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TagRepository tagRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
+  @Autowired private AssetGroupService assetGroupService;
 
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private TagRuleComposer tagRuleComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private TagComposer tagComposer;
 
   @Autowired private InjectorFixture injectorFixture;
 
   private String stixSecurityCoverage;
+  private String stixSecurityCoverageNoLabels;
   private String stixSecurityCoverageWithoutTtps;
   private String stixSecurityCoverageWithoutVulns;
   private String stixSecurityCoverageWithoutObjects;
@@ -79,8 +86,20 @@ class StixApiTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     attackPatternComposer.reset();
+    vulnerabilityComposer.reset();
+    tagRuleComposer.reset();
+    endpointComposer.reset();
+    assetGroupComposer.reset();
+    payloadComposer.reset();
+    injectorContractComposer.reset();
+    tagComposer.reset();
+
     stixSecurityCoverage =
         loadJsonWithStixObjectsAsText("src/test/resources/stix-bundles/security-coverage.json");
+
+    stixSecurityCoverageNoLabels =
+        loadJsonWithStixObjectsAsText(
+            "src/test/resources/stix-bundles/security-coverage-no-labels.json");
 
     stixSecurityCoverageWithoutTtps =
         loadJsonWithStixObjectsAsText(
@@ -98,9 +117,6 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjectsAsText(
             "src/test/resources/stix-bundles/security-coverage-only-vulns.json");
 
-    attackPatternComposer
-        .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1531))
-        .persist();
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
         .persist();
@@ -170,15 +186,124 @@ class StixApiTest extends IntegrationTest {
         .persist();
   }
 
-  @AfterEach
-  void afterEach() {
-    attackPatternComposer.reset();
-    vulnerabilityComposer.reset();
-  }
-
   @Nested
   @DisplayName("Import STIX Bundles")
   class ImportStixBundles {
+
+    @Test
+    @DisplayName(
+        "When Security Coverage SDO has no labels property, should force adding opencti tag to scenario")
+    void whenSecurityCoverageSDOHasNoLabelsProperty_shouldForceAddingOpenctiTagToScenario()
+        throws Exception {
+      String response =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageNoLabels))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(response).isNotBlank();
+      String scenarioId = JsonPath.read(response, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Tag openctiTag = tagRepository.findByName(OPENCTI_TAG_NAME).get();
+
+      assertThat(createdScenario.getTags()).contains(openctiTag);
+    }
+
+    @Test
+    @DisplayName(
+        "When Security Coverage SDO has labels property but not the opencti value, should force adding opencti tag to scenario")
+    void
+        whenSecurityCoverageSDOHasLabelsPropertyButNotTheOpenctiValue_shouldForceAddingOpenctiTagToScenario()
+            throws Exception {
+      String bundleWithoutOpenctiLabel = stixSecurityCoverage.replace("opencti", "some-label");
+
+      String response =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(bundleWithoutOpenctiLabel))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(response).isNotBlank();
+      String scenarioId = JsonPath.read(response, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Tag openctiTag = tagRepository.findByName(OPENCTI_TAG_NAME).get();
+
+      assertThat(createdScenario.getTags()).contains(openctiTag);
+    }
+
+    @Test
+    @DisplayName("Eligible asset groups are assigned by tag rule")
+    void eligibleAssetGroupsAreAssignedByTagRule() throws Exception {
+      String label = "custom-label";
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(tagComposer.forTag(TagFixture.getTagWithText(label)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(
+                      AssetGroupFixture.createDefaultAssetGroup("%s asset group".formatted(label)))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
+
+      AttackPatternComposer.Composer attackPatternWrapper =
+          attackPatternComposer.forAttackPattern(
+              AttackPatternFixture.createAttackPatternsWithExternalId(T_1531));
+      injectorContractComposer
+          .forInjectorContract(
+              InjectorContractFixture.createInjectorContractWithPlatforms(
+                  List.of(Endpoint.PLATFORM_TYPE.Windows).toArray(Endpoint.PLATFORM_TYPE[]::new)))
+          .withAttackPattern(attackPatternWrapper)
+          .withPayload(
+              payloadComposer
+                  .forPayload(PayloadFixture.createDefaultCommand())
+                  .withAttackPattern(attackPatternWrapper))
+          .persist();
+
+      String bundleWithCustomLabel = stixSecurityCoverage.replace(OPENCTI_TAG_NAME, label);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String response =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(bundleWithCustomLabel))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      assertThat(response).isNotBlank();
+      String scenarioId = JsonPath.read(response, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Tag customTag = tagRepository.findByName(label).get();
+
+      assertThat(createdScenario.getTags()).contains(customTag);
+
+      List<Inject> injects =
+          createdScenario.getInjects().stream()
+              .filter(i -> i.getInjectorContract().get().getPayload() != null)
+              .toList();
+      assertThat(injects.size()).isEqualTo(1);
+
+      Inject inject = injects.getFirst();
+      Set<AssetGroup> desiredAssetGroups =
+          assetGroupService.fetchAssetGroupsFromScenarioTagRules(createdScenario);
+      assertThat(inject.getAssetGroups())
+          .containsExactlyInAnyOrderElementsOf(desiredAssetGroups.stream().toList());
+    }
 
     @Test
     @DisplayName("Should return 400 when STIX bundle has no security coverage")
@@ -271,12 +396,15 @@ class StixApiTest extends IntegrationTest {
           .contains(OPENCTI_TAG_NAME);
 
       // -- ASSERT Security Coverage --
-      assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(2);
+      assertThat(createdScenario.getSecurityCoverage().getAttackPatternRefs()).hasSize(3);
 
       StixRefToExternalRef stixRef1 =
           new StixRefToExternalRef("attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1", T_1531);
       StixRefToExternalRef stixRef2 =
           new StixRefToExternalRef("attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9", T_1003);
+      StixRefToExternalRef stixRef3 =
+          new StixRefToExternalRef(
+              "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1", "Attack!");
 
       // -- Vulnerabilities --
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs()).hasSize(1);
@@ -289,14 +417,14 @@ class StixApiTest extends IntegrationTest {
           createdScenario
               .getSecurityCoverage()
               .getAttackPatternRefs()
-              .containsAll(List.of(stixRef1, stixRef2)));
+              .containsAll(List.of(stixRef1, stixRef2, stixRef3)));
       assertThat(createdScenario.getSecurityCoverage().getVulnerabilitiesRefs())
           .containsAll(List.of(stixRefVuln));
       assertThat(createdScenario.getSecurityCoverage().getContent()).isNotBlank();
 
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
     }
 
     @Test
@@ -320,7 +448,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       entityManager.flush();
       entityManager.clear();
@@ -342,7 +470,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
     }
 
     @Test
@@ -365,7 +493,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       // Push stix without object type attack-pattern
       String updatedResponse =
@@ -416,7 +544,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       entityManager.flush();
       entityManager.clear();
@@ -470,7 +598,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(3);
+      assertThat(injects).hasSize(4);
 
       // Push stix without object type attack-pattern
       String updatedResponse =

@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -196,18 +196,23 @@ const Index = () => {
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   useDataLoader(() => {
     setLoading(true);
-    dispatch(fetchExercise(exerciseId));
-    if (!exercise) {
-      return;
-    }
+    dispatch(fetchExercise(exerciseId)).finally(() => {
+      setLoading(false);
+    });
+  }, [exerciseId]);
+
+  useEffect(() => {
+    if (!exercise) return;
+    setLoading(true);
     if (!exercise.exercise_scenario) {
       setPristine(false);
       setLoading(false);
     } else {
-      dispatch(fetchScenarioFromSimulation(exercise.exercise_id)).finally(() => {
-        setPristine(false);
-        setLoading(false);
-      });
+      dispatch(fetchScenarioFromSimulation(exercise.exercise_id))
+        .finally(() => {
+          setPristine(false);
+          setLoading(false);
+        });
     }
   }, [exercise]);
 

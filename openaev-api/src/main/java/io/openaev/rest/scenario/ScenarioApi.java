@@ -12,6 +12,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -249,6 +250,15 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
     return this.scenarioService.replaceTeams(scenarioId, input.getTeamIds());
+  }
+
+  @GetMapping(SCENARIO_URI + "/{scenarioId}/players")
+  @RBAC(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public Iterable<RawPlayer> getPlayersByScenario(@PathVariable String scenarioId) {
+    return userRepository.rawPlayersByScenarioId(scenarioId);
   }
 
   @Transactional(rollbackOn = Exception.class)

@@ -3,7 +3,7 @@ import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { addPlayer } from '../../../../actions/User';
+import { addPlayer } from '../../../../actions/users/User';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import Drawer from '../../../../components/common/Drawer';

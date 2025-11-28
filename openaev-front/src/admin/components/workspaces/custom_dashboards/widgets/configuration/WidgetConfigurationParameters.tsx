@@ -3,7 +3,7 @@ import { type FunctionComponent } from 'react';
 import { type Control, Controller, type UseFormSetValue } from 'react-hook-form';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import { type Widget } from '../../../../../../utils/api-types-custom';
+import { type Widget } from '../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../WidgetUtils';
 import HistogramParameters from './histogram/HistogramParameters';
 import ListWidgetParameters from './list/ListWidgetParameters';
