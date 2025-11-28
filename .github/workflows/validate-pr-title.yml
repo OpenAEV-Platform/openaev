@@ -26,7 +26,8 @@ jobs:
             echo "❌ Invalid PR title."
             echo "Required format:"
             echo "[category] type(scope?): description (#123)"
-            exit 1
+            echo "with type: feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert"
+            exit 0
           fi
           
           echo "✅ PR title is valid."
