@@ -541,7 +541,7 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
@@ -605,7 +605,7 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       String command =
           "echo separatebyspace : #{asset-separate-by-space} separatebycoma : #{asset-separate-by-comma}";
@@ -688,7 +688,7 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void calling_RetrievingExecutablePayload_should_setStartDateSignature() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       Command payloadCommand =
           PayloadFixture.createCommand(
@@ -745,7 +745,7 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       Command payloadCommand =
           PayloadFixture.createCommand(
@@ -1041,7 +1041,7 @@ class InjectApiTest extends IntegrationTest {
         input.setStatus("SUCCESS");
         Inject inject = getPendingInjectWithAssets();
 
-        Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
         // Create payload with output parser
         ContractOutputElement CVEOutputElement = OutputParserFixture.getCVEOutputElement();
@@ -1313,7 +1313,7 @@ class InjectApiTest extends IntegrationTest {
   class ShouldFetchDocuments {
 
     private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
@@ -1332,7 +1332,7 @@ class InjectApiTest extends IntegrationTest {
     }
 
     private Inject getInjectWithPayloadAndExecutableDocumentsLinkedOnIt() {
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())

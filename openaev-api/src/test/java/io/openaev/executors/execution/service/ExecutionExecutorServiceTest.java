@@ -50,7 +50,7 @@ public class ExecutionExecutorServiceTest {
             "whoami",
             List.of(),
             "whoami",
-            Set.of(new Domain(null, "Unclassified", "F0F0F0", Instant.now(), null)));
+            Set.of(new Domain(null, "To classify", "F0F0F0", Instant.now(), null)));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

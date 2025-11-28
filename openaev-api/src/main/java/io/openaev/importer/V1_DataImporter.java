@@ -223,7 +223,7 @@ public class V1_DataImporter implements Importer {
   }
 
   // -- DOMAINS PATTERN --
-  private Set<Domain> importDomain(JsonNode importNode, String prefix) {
+  private Set<Domain> importDomains(JsonNode importNode, String prefix) {
     Set<Domain> domains = new HashSet<>();
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
@@ -239,7 +239,7 @@ public class V1_DataImporter implements Importer {
               domains.add(domainCreated);
             });
     if (domains.isEmpty()) {
-      return Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null));
+      return Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null));
     }
     return domains;
   }
@@ -1377,7 +1377,7 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
-    payloadCreateInput.setDomains(importDomain(payloadNode, "payload_"));
+    payloadCreateInput.setDomains(importDomains(payloadNode, "payload_"));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
 
@@ -1418,7 +1418,7 @@ public class V1_DataImporter implements Importer {
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
 
-    payloadCreateInput.setDomains(importDomain(payloadNode, "payload_"));
+    payloadCreateInput.setDomains(importDomains(payloadNode, "payload_"));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);

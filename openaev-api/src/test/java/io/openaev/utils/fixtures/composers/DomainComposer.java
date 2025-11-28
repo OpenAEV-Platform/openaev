@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class DomainComposer extends ComposerBase<Domain> {
 
-  public static final Domain UNCLASSIFIED =
-      new Domain(null, "Unclassified", "#000000", Instant.now(), null);
+  public static final Domain TOCLASSIFY =
+      new Domain(null, "To classify", "#000000", Instant.now(), null);
 
   @Autowired private DomainRepository domainRepository;
 
@@ -70,7 +70,7 @@ public class DomainComposer extends ComposerBase<Domain> {
     return new Composer(domain != null ? domain : new Domain());
   }
 
-  public Composer forDefaultUnclassifiedDomain() {
-    return new Composer(UNCLASSIFIED);
+  public Composer forDefaultToClassifyDomain() {
+    return new Composer(TOCLASSIFY);
   }
 }

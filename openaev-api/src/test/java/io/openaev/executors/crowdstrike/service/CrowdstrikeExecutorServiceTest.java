@@ -107,7 +107,7 @@ public class CrowdstrikeExecutorServiceTest {
             "whoami",
             List.of(),
             "whoami",
-            Set.of(new Domain(null, "Unclassified", "#000000", Instant.now(), null)));
+            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(

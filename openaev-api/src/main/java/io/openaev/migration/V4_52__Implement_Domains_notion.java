@@ -23,6 +23,12 @@ public class V4_52__Implement_Domains_notion extends BaseJavaMigration {
 
       stmt.execute(
           """
+        CREATE INDEX idx_domains_domain_name
+        ON domains(domain_name);
+      """);
+
+      stmt.execute(
+          """
                                 CREATE TABLE payloads_domains (
                                     payload_id VARCHAR(255) NOT NULL,
                                     domain_id VARCHAR(255) NOT NULL,
@@ -60,7 +66,7 @@ public class V4_52__Implement_Domains_notion extends BaseJavaMigration {
 
       stmt.execute(
           "INSERT INTO domains (domain_id, domain_name, domain_color) VALUES "
-              + "  (gen_random_uuid(), 'Endpoint', '#003366'),"
+              + "  (gen_random_uuid(), 'Endpoint', '#389CFF'),"
               + "  (gen_random_uuid(), 'Network', '#009933'),"
               + "  (gen_random_uuid(), 'Web App', '#FF9933'),"
               + "  (gen_random_uuid(), 'E-mail Infiltration', '#FF6666'),"

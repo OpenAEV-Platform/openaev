@@ -126,7 +126,7 @@ const Payloads = () => {
       label: 'Domains',
       isSortable: true,
       value: (payload: Payload) => {
-        return payload.payload_domains && payload.payload_domains.length > 0
+        return payload.payload_domains && payload.payload_domains?.length > 0
           ? (
               <ItemDomains domains={payload.payload_domains} variant="reduced-view" />
             )

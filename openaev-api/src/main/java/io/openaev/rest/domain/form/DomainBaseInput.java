@@ -16,6 +16,7 @@ public class DomainBaseInput {
   @Schema(description = "Name of the domain")
   private String name;
 
+  @NotBlank(message = MANDATORY_MESSAGE)
   @JsonProperty("domain_color")
   @Schema(description = "Color of the domain")
   private String color;

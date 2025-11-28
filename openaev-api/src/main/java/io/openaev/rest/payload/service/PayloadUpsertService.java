@@ -77,7 +77,7 @@ public class PayloadUpsertService {
             ? domainService.upserts(input.getDomains())
             : Set.of(
                 domainService.upsert(
-                    new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null))));
+                    new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

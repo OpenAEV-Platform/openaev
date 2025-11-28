@@ -21,7 +21,7 @@ const DomainFieldController = ({
 }: DomainFieldControllerProps) => {
   const { control } = useFormContext();
 
-  const filteredDomains = domains.filter(d => d.domain_name !== 'Unclassified');
+  const filteredDomains = domains.filter(d => d.domain_name !== 'To classify');
 
   return (
     <Controller

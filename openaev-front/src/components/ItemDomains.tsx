@@ -1,6 +1,7 @@
 import { Chip, Tooltip } from '@mui/material';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
 import { type DomainHelper } from '../actions/helper';
@@ -8,7 +9,7 @@ import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { truncate } from '../utils/String';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   inline: {
     display: 'inline',
     alignItems: 'center',
@@ -16,15 +17,15 @@ const useStyles = makeStyles()(() => ({
     overflow: 'hidden',
   },
   domainChip: {
-    height: 25,
-    fontSize: 12,
-    margin: '0 7px 0 0',
-    borderRadius: 4,
+      height: theme.spacing(3),
+      fontSize: theme.typography.pxToRem(12),
+      marginRight: theme.spacing(1),
+      borderRadius: theme.shape.borderRadius,
   },
   domainChipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
+      fontSize: theme.typography.pxToRem(12),
+      height: theme.spacing(2.5),
+      float: 'left',
     textTransform: 'uppercase',
   },
 }));
@@ -36,6 +37,7 @@ interface ItemsDomainsProps {
 
 const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   const { classes } = useStyles();
+  const theme = useTheme();
 
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
     return helper.getDomains();
@@ -68,7 +70,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
   const renderList = () =>
     resolvedDomains
-      .filter(d => d.domain_name !== 'Unclassified')
+      .filter(d => d.domain_name !== 'To classify')
       .map(domain => (
         <Tooltip key={domain.domain_id} title={domain.domain_name}>
           <Chip
@@ -86,7 +88,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
   const renderSingle = () => {
     const primaryDomain = resolvedDomains[0];
-    if (!primaryDomain || primaryDomain.domain_name === 'Unclassified') return null;
+    if (!primaryDomain || primaryDomain.domain_name === 'To classify') return null;
 
     return (
       <>

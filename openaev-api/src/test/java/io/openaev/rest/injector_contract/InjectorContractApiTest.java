@@ -1218,7 +1218,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
-      Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer

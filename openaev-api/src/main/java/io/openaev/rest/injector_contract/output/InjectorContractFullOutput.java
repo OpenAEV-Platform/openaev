@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
+
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
 @Data
@@ -40,6 +42,7 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   @JsonProperty("injector_contract_attack_patterns")
   private List<String> attackPatterns;
 
+  @NotEmpty
   @Schema(description = "Domain IDs")
   @JsonProperty("injector_contract_domains")
   private List<String> domains;

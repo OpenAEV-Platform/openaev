@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Domain;
-import io.openaev.rest.domain.form.DomainCreateInput;
+import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
@@ -35,7 +35,7 @@ public class DomainApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @DisplayName("When domain does not exist, upsert creates and returns domain")
   public void whenDomainDoesNotExist_upsertCreatesAndReturnsDomain() throws Exception {
-    DomainCreateInput input = new DomainCreateInput();
+      DomainBaseInput input = new DomainBaseInput();
     input.setName("domain");
 
     String response =
@@ -63,7 +63,7 @@ public class DomainApiTest extends IntegrationTest {
     Domain existingDomain =
         domainComposer.forDomain(null).withName("existing").withColor("#123456").persist().get();
 
-    DomainCreateInput input = new DomainCreateInput();
+      DomainBaseInput input = new DomainBaseInput();
     input.setName("existing");
 
     String response =

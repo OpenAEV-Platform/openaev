@@ -88,7 +88,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
-    Set<Domain> domains = domainComposer.forDefaultUnclassifiedDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
     return exerciseComposer
         .forExercise(ExerciseFixture.createDefaultCrisisExercise())

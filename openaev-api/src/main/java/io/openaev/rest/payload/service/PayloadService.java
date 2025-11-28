@@ -82,7 +82,7 @@ public class PayloadService {
     injectorContract.setPlatforms(payload.getPlatforms());
     injectorContract.setDomains(
         domainService.upserts(
-            Set.of(new Domain(null, "Unclassified", "#FFFFFF", Instant.now(), null))));
+            Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(

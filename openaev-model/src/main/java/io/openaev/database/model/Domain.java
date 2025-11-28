@@ -33,7 +33,6 @@ public class Domain implements Base {
   @Column(name = "domain_name")
   @JsonProperty("domain_name")
   @NotBlank
-  @Queryable(searchable = true, filterable = true, sortable = true)
   private String name;
 
   @Column(name = "domain_color")

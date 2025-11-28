@@ -5,7 +5,7 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.domain.form.DomainCreateInput;
+import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -48,7 +48,7 @@ public class DomainApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
-  public Domain upsertDomain(@Valid @RequestBody DomainCreateInput input) {
+  public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
     return domainService.upsertDomain(input);
   }
 }
