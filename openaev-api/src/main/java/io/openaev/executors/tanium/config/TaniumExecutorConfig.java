@@ -19,9 +19,11 @@ public class TaniumExecutorConfig {
 
   @Getter @NotBlank private String url;
 
+  @Getter @NotBlank private Integer apiRegisterInterval = 1200;
+
   @Getter @NotBlank private String apiKey;
 
-  @Getter @NotBlank private Integer computerGroupId = 1;
+  @Getter @NotBlank private String computerGroupId = "1";
 
   @Getter @NotBlank private Integer actionGroupId = 4;
 

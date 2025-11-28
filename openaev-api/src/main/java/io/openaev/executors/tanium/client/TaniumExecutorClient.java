@@ -8,7 +8,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
+import io.openaev.executors.tanium.model.DataComputerGroup;
 import io.openaev.executors.tanium.model.DataEndpoints;
+import io.openaev.executors.tanium.model.EdgesEndpoints;
+import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -16,7 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +40,7 @@ import org.springframework.stereotype.Service;
 public class TaniumExecutorClient {
 
   private static final String KEY_HEADER = "session";
+  private static final String QUERY = "query";
 
   private final TaniumExecutorConfig config;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -42,7 +48,23 @@ public class TaniumExecutorClient {
 
   // -- ENDPOINTS --
 
-  public DataEndpoints endpoints() {
+  public List<NodeEndpoint> endpoints(String computerGroupId) {
+    List<NodeEndpoint> endpoints = new ArrayList<>();
+    return getAllEndpointsFromComputerGroup(null, computerGroupId, endpoints);
+  }
+
+  public List<NodeEndpoint> getAllEndpointsFromComputerGroup(
+      String after, String computerGroupId, List<NodeEndpoint> endpoints) {
+    EdgesEndpoints edgesEndpoints = getTaniumEndpoints(after, computerGroupId);
+    endpoints.addAll(edgesEndpoints.getEdges().stream().toList());
+    if (edgesEndpoints.getPageInfo().isHasNextPage()) {
+      getAllEndpointsFromComputerGroup(
+          edgesEndpoints.getPageInfo().getEndCursor(), computerGroupId, endpoints);
+    }
+    return endpoints;
+  }
+
+  private EdgesEndpoints getTaniumEndpoints(String after, String computerGroupId) {
     try {
       final String formattedDateTime =
           DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
@@ -52,43 +74,100 @@ public class TaniumExecutorClient {
       String query =
           String.format(
               """
-                  query {
-                    endpoints(filter: {
-                      any: false,
-                      filters: [
-                        {memberOf: {id: %d}},
-                        {path: "eidLastSeen", op: GT, value: "%s"}
-                      ]
-                    }) {
-                      edges {
-                        node {
-                          id computerID name ipAddresses macAddresses eidLastSeen
-                          os { platform }
-                          processor { architecture }
-                        }
-                      }
-                    }
-                  }
-                  """,
-              config.getComputerGroupId(), formattedDateTime);
+                              query {
+                                endpoints(after: %s, first: 5000, filter: {
+                                  any: false,
+                                  filters: [
+                                    {memberOf: {id: %s}},
+                                    {path: "eidLastSeen", op: GT, value: "%s"}
+                                  ]
+                                }) {
+                                  edges {
+                                    node {
+                                      id computerID name ipAddresses macAddresses eidLastSeen
+                                      os { platform }
+                                      processor { architecture }
+                                    }
+                                  }
+                                  pageInfo {
+                                    endCursor
+                                    hasNextPage
+                                  }
+                                }
+                              }
+                              """,
+              after, computerGroupId, formattedDateTime);
 
       Map<String, Object> body = new HashMap<>();
-      body.put("query", query);
+      body.put(QUERY, query);
       String jsonResponse = this.post(body);
 
       GraphQLResponse<DataEndpoints> response =
           objectMapper.readValue(jsonResponse, new TypeReference<>() {});
 
       if (response == null || response.data == null) {
-        throw new RuntimeException("API response malformed or empty");
+        throw new RuntimeException(
+            "API response for Tanium endpoints is malformed or empty, computerGroupId: "
+                + computerGroupId);
+      }
+
+      return response.data.getEndpoints();
+    } catch (JsonProcessingException e) {
+      log.error(
+          String.format(
+              "Failed to parse JSON response for Tanium API endpoints, computerGroupId: %s. Error: %s",
+              computerGroupId, e.getMessage()),
+          e);
+      throw new RuntimeException(e);
+    } catch (IOException e) {
+      log.error(
+          String.format(
+              "Error while querying Tanium API endpoints, computerGroupId %S. Error: %s",
+              computerGroupId, e.getMessage()),
+          e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  public DataComputerGroup computerGroup(String computerGroup) {
+    try {
+      String query =
+          String.format(
+              """
+                          query {
+                            computerGroup(ref: {
+                              id: %s
+                            }) {
+                            id
+                            name
+                            }
+                          }
+                          """,
+              computerGroup);
+
+      Map<String, Object> body = new HashMap<>();
+      body.put(QUERY, query);
+      String jsonResponse = this.post(body);
+
+      GraphQLResponse<DataComputerGroup> response =
+          objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+
+      if (response == null || response.data == null) {
+        throw new RuntimeException("API response for Tanium computerGroup is malformed or empty");
       }
 
       return response.data;
     } catch (JsonProcessingException e) {
-      log.error(String.format("Failed to parse JSON response. Error: %s", e.getMessage()), e);
+      log.error(
+          String.format(
+              "Failed to parse JSON response for Tanium API computerGroup. Error: %s",
+              e.getMessage()),
+          e);
       throw new RuntimeException(e);
     } catch (IOException e) {
-      log.error("Error while querying endpoints", e);
+      log.error(
+          String.format("Error while querying Tanium API computerGroup. Error: %s", e.getMessage()),
+          e);
       throw new RuntimeException(e);
     }
   }
@@ -121,11 +200,11 @@ public class TaniumExecutorClient {
               packageID, escapedCommand, config.getActionGroupId(), endpointId);
 
       Map<String, Object> requestBody = new HashMap<>();
-      requestBody.put("query", mutation);
+      requestBody.put(QUERY, mutation);
 
       this.post(requestBody);
     } catch (IOException e) {
-      log.error("Error while executing action", e);
+      log.error("Error while executing action with Tanium API: ", e);
       throw new RuntimeException(e);
     }
   }
@@ -152,7 +231,8 @@ public class TaniumExecutorClient {
               Map<String, Object> responseMap =
                   objectMapper.readValue(result, new TypeReference<>() {});
               if (responseMap.containsKey("errors")) {
-                StringBuilder errorMessage = new StringBuilder("GraphQL errors detected:\n");
+                StringBuilder errorMessage =
+                    new StringBuilder("GraphQL errors detected while targeting Tanium API:\n");
                 for (Map<String, Object> error :
                     (Iterable<Map<String, Object>>) responseMap.get("errors")) {
                   errorMessage.append("- ").append(error.get("message")).append("\n");
@@ -179,12 +259,12 @@ public class TaniumExecutorClient {
                   "Tanium token expired or invalid : " + +status + "\nBody: " + result);
             } else {
               throw new ClientProtocolException(
-                  "Unexpected response status: " + status + "\nBody: " + result);
+                  "Unexpected response for Tanium API, status: " + status + "\nBody: " + result);
             }
           });
 
     } catch (IOException e) {
-      throw new ClientProtocolException("Unexpected response", e);
+      throw new ClientProtocolException("Unexpected response for Tanium API: ", e);
     }
   }
 
