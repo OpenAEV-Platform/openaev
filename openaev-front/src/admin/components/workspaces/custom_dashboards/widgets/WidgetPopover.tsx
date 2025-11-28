@@ -1,6 +1,9 @@
 import { type FunctionComponent, useContext, useState } from 'react';
 
-import { deleteCustomDashboardWidget, updateCustomDashboardWidget } from '../../../../../actions/custom_dashboards/customdashboardwidget-action';
+import {
+  deleteCustomDashboardWidget,
+  updateCustomDashboardWidget,
+} from '../../../../../actions/custom_dashboards/customdashboardwidget-action';
 import ButtonPopover, { type PopoverEntry } from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
@@ -34,8 +37,9 @@ const WidgetPopover: FunctionComponent<Props> = ({
   const toggleDialog = () => setOpenEdit(prev => !prev);
   const initialValues = {
     widget_type: widget.widget_type,
-    widget_config: widget.widget_config,
+    widget_config: widget.widget_config as WidgetInputWithoutLayout['widget_config'],
   };
+
   const onSubmit = async (input: WidgetInputWithoutLayout) => {
     const finalInput = {
       ...input,

@@ -3,7 +3,6 @@ import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'm
 
 import {
   type CustomDashboardParameters,
-  type DateHistogramWidget,
   type EsAttackPath,
   type EsAvgs, type EsBase,
   type EsCountInterval,
@@ -13,7 +12,6 @@ import {
   type FilterGroup,
   type InjectExpectation,
   type Series,
-  type StructuralHistogramWidget,
   type Widget,
 } from '../../../../../utils/api-types';
 import { type WidgetInputCustom } from '../../../../../utils/api-types-custom';
@@ -24,12 +22,13 @@ export type StepType = ('type' | 'series' | 'parameters');
 export const steps: StepType[] = ['type', 'series', 'parameters'];
 export const lastStepIndex = steps.length - 1;
 const defaultSteps: StepType[] = ['type', 'series', 'parameters'];
-const defaultModes: (DateHistogramWidget['mode'] | StructuralHistogramWidget['mode'])[] = ['structural', 'temporal'];
+export type WidgetMode = 'temporal' | 'structural';
+const defaultModes: WidgetMode[] = ['structural', 'temporal'];
 
 export const widgetVisualizationTypes: {
   category: Widget['widget_type'];
   seriesLimit: number;
-  modes?: DateHistogramWidget['mode'][] | StructuralHistogramWidget['mode'][];
+  modes?: WidgetMode[];
   fields?: string[];
   steps?: StepType[];
   limit?: boolean;
@@ -110,7 +109,7 @@ export const getCurrentSeriesLimit = (type: Widget['widget_type']) => {
   return widgetVisualizationTypes.find(widget => widget.category === type)?.seriesLimit ?? 0;
 };
 
-export const getAvailableModes = (type: Widget['widget_type']) => {
+export const getAvailableModes = (type: Widget['widget_type']): WidgetMode[] => {
   return widgetVisualizationTypes.find(widget => widget.category === type)?.modes ?? defaultModes;
 };
 

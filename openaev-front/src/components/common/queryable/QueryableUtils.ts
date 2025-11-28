@@ -44,11 +44,11 @@ export const SearchPaginationInputSchema = z.object({
   page: z.preprocess((val) => {
     if (typeof val === 'string') return parseInt(val, 10);
     return val;
-  }, z.int().min(0)),
+  }, z.number().int().min(0)),
   size: z.preprocess((val) => {
     if (typeof val === 'string') return parseInt(val, 10);
     return val;
-  }, z.int().max(1000)),
+  }, z.number().int().max(1000)),
   sorts: z.array(SortFieldSchema).optional(),
   textSearch: z.string().optional(),
 });

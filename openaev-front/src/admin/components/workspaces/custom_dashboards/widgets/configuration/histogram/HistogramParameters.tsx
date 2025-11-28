@@ -71,6 +71,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
 
   // -- HANDLE MODE --
   const availableModes = getAvailableModes(widgetType);
+
   useEffect(() => {
     if (availableModes.length === 1) {
       setValue('widget_config.mode', availableModes[0]); // If only one mode is available, hide the field and set it automatically

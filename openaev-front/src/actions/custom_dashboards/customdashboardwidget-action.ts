@@ -1,12 +1,13 @@
 import { simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type WidgetInput, type WidgetLayout } from '../../utils/api-types';
+import { type WidgetLayout } from '../../utils/api-types';
+import { type WidgetInputCustom } from '../../utils/api-types-custom';
 import { CUSTOM_DASHBOARD_URI } from './customdashboard-action';
 
-export const createCustomDashboardWidget = (customDashboardId: string, input: WidgetInput) => {
+export const createCustomDashboardWidget = (customDashboardId: string, input: WidgetInputCustom) => {
   return simplePostCall(`${CUSTOM_DASHBOARD_URI}/${customDashboardId}/widgets`, input);
 };
 
-export const updateCustomDashboardWidget = (customDashboardId: string, widgetId: string, input: WidgetInput) => {
+export const updateCustomDashboardWidget = (customDashboardId: string, widgetId: string, input: WidgetInputCustom) => {
   return simplePutCall(`${CUSTOM_DASHBOARD_URI}/${customDashboardId}/widgets/${widgetId}`, input);
 };
 
