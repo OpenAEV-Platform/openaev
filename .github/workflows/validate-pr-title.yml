@@ -48,13 +48,13 @@ jobs:
               # 1) Check category block: [category/category]
               CATEGORY_PATTERN='^\[([a-z]+(/[a-z]+)*)\]'
               if ! [[ "$TITLE" =~ $CATEGORY_PATTERN ]]; then
-                REASON="Missing or invalid <b>[category]</b> block (expected: [category] or [category/category])"
+                REASON="Missing or invalid **[category]** block (expected: [category] or [category/category])"
               fi
 
               # 2) Check type + optional scope
               TYPE_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: '
               if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $TYPE_PATTERN ]]; then
-                REASON="Missing or invalid <b>type:</b> block. Expected one of: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (with optional scope: type(scope))"
+                REASON="Missing or invalid **type:** block. Expected one of: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (with optional scope: type(scope))"
               fi
 
               # 3) Check description starts with lowercase letter
