@@ -14,7 +14,7 @@ import {
   type ImportTestSummary,
   type Inject,
   type InjectBulkProcessingInput,
-  type InjectBulkUpdateInputs,
+  type InjectBulkUpdateInputs, type InjectInput,
   type InjectsImportInput,
   type InjectTestStatusOutput,
   type LessonsAnswer,
@@ -150,6 +150,10 @@ export type InjectContextType = {
   searchInjects: (input: SearchPaginationInput) => Promise<{ data: Page<InjectOutputType> }>;
   onAddInject: (inject: Inject) => Promise<{
     result: string;
+    entities: { injects: Record<string, InjectStore> };
+  }>;
+  onAddMultipleInjects: (inputs: InjectInput[]) => Promise<{
+    result: string[];
     entities: { injects: Record<string, InjectStore> };
   }>;
   onBulkUpdateInject: (param: InjectBulkUpdateInputs) => Promise<Inject[] | void>;
@@ -350,6 +354,15 @@ export const InjectContext = createContext<InjectContextType>({
   }> {
     return Promise.resolve({
       result: '',
+      entities: { injects: {} },
+    });
+  },
+  onAddMultipleInjects(_inputs: InjectInput[]): Promise<{
+    result: string[];
+    entities: { injects: Record<string, InjectStore> };
+  }> {
+    return Promise.resolve({
+      result: [],
       entities: { injects: {} },
     });
   },

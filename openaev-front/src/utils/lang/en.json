@@ -220,6 +220,7 @@
   "Browse the link": "Browse the link",
   "Built-in": "Built-in",
   "Builtin variables": "Builtin variables",
+  "Bulk select lets you addd multiple injects. They'll show as \"missing content\" until configured": "Bulk select lets you addd multiple injects. They'll show as \"missing content\" until configured",
   "By": "By",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "By default we accept iso date (YYYY-MM-DDThh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)",
   "By default, only assets compliant with the injector are displayed": "By default, only assets compliant with the injector are displayed",

@@ -593,7 +593,7 @@ class InjectServiceTest {
     injectInput.setInjectorContract(injectorContractId);
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
 
-    injectService.createInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(null, scenario, injectInput);
 
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
     verify(injectRepository).save(injectCaptor.capture());

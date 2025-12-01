@@ -20,7 +20,7 @@ const InjectCardComponent: FunctionComponent<Props> = ({
   const theme = useTheme();
 
   return (
-    <Card elevation={0}>
+    <Card elevation={0} sx={{ marginBottom: theme.spacing(4) }}>
       <CardHeader
         sx={{ backgroundColor: theme.palette.background.default }}
         avatar={avatar}
