@@ -40,7 +40,7 @@ jobs:
 
           SUMMARY="❌ Something went wrong. This is a test error."
 
-          # 2) Mark the check run as completed with failure + summary
+          # 2) Mark the check run as completed with failure + title + summary
           curl -sS -X PATCH \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -51,6 +51,7 @@ jobs:
             "status": "completed",
             "conclusion": "failure",
             "output": {
+              "title": "Simple Check Failed",
               "summary": "$SUMMARY"
             }
           }
