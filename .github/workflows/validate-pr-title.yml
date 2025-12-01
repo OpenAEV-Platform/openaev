@@ -22,7 +22,7 @@ jobs:
           
           # Skip validation for renovate
           if [[ "$TITLE" == *"chore(deps)"* ]]; then
-            echo "⚠️ Skipping validation for renovate Prs." >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Skipping validation for renovate Prs."
             exit 0
           fi
           
@@ -31,11 +31,18 @@ jobs:
           PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
           
           if [[ ! "$TITLE" =~ $PATTERN ]]; then
-            echo "❌ Invalid PR title." >> $GITHUB_STEP_SUMMARY
-            echo "Required format:" >> $GITHUB_STEP_SUMMARY
-            echo "[category] type(scope?): description (#123)" >> $GITHUB_STEP_SUMMARY
-            exit 0
+            echo "❌ Invalid PR title."
+            echo "Required format:"
+            echo "[category] type(scope?): description (#123)"
+            exit 1
           fi
           
           echo "✅ PR title is valid."
           exit 0
+      - name: Comment invalid PR title
+        if: failure()
+        uses: 1Password/check-pr-title-format-action@v1
+        with:
+          comment: |
+           ❌ Invalid PR title. Required format: `[category] type(scope?): description (#123)`
+            PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
