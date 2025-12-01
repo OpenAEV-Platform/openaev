@@ -92,6 +92,10 @@ public class XtmHubClient {
         return XtmHubConnectivityStatus.ACTIVE;
       }
 
+      if (status.equals(XtmHubConnectivityStatus.NOT_FOUND.label)) {
+        return XtmHubConnectivityStatus.NOT_FOUND;
+      }
+
       return XtmHubConnectivityStatus.INACTIVE;
     } catch (Exception e) {
       log.warn("Error occurred while parsing XTM Hub connectivity response: {}", e.getMessage(), e);

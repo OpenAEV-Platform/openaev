@@ -5,9 +5,11 @@ import jakarta.annotation.PostConstruct;
 import java.net.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class XtmHubConnectivityService {
@@ -23,13 +25,19 @@ public class XtmHubConnectivityService {
   boolean checkIsReachable() {
     HttpURLConnection connection = null;
     try {
-      URI uri = new URI(XtmHubConfig.getApiUrl());
+      URI uri = new URI(XtmHubConfig.getApiUrl() + "/health");
       connection = (HttpURLConnection) uri.toURL().openConnection();
       connection.setRequestMethod("HEAD");
       connection.setConnectTimeout(5000);
       connection.setReadTimeout(5000);
-      return HttpStatus.valueOf(connection.getResponseCode()).is2xxSuccessful();
+      HttpStatus httpStatus = HttpStatus.valueOf(connection.getResponseCode());
+      boolean isReachable = httpStatus.is2xxSuccessful();
+      if (!isReachable){
+        log.warn("XTM Hub backend is not reachable on URl {}, response status: {}", XtmHubConfig.getApiUrl(), httpStatus);
+      }
+      return isReachable;
     } catch (Exception e) {
+      log.warn("XTM Hub backend is not reachable on URL {} due to {}", XtmHubConfig.getApiUrl(), e.getMessage(), e);
       return false;
     } finally {
       if (connection != null) {
