@@ -25,19 +25,26 @@ public class XtmHubConnectivityService {
   boolean checkIsReachable() {
     HttpURLConnection connection = null;
     try {
-      URI uri = new URI(XtmHubConfig.getApiUrl() + "/health");
+      URI uri = new URI(XtmHubConfig.getApiUrl());
       connection = (HttpURLConnection) uri.toURL().openConnection();
       connection.setRequestMethod("HEAD");
       connection.setConnectTimeout(5000);
       connection.setReadTimeout(5000);
       HttpStatus httpStatus = HttpStatus.valueOf(connection.getResponseCode());
       boolean isReachable = httpStatus.is2xxSuccessful();
-      if (!isReachable){
-        log.warn("XTM Hub backend is not reachable on URl {}, response status: {}", XtmHubConfig.getApiUrl(), httpStatus);
+      if (!isReachable) {
+        log.warn(
+            "XTM Hub backend is not reachable on URl {}, response status: {}",
+            XtmHubConfig.getApiUrl(),
+            httpStatus);
       }
       return isReachable;
     } catch (Exception e) {
-      log.warn("XTM Hub backend is not reachable on URL {} due to {}", XtmHubConfig.getApiUrl(), e.getMessage(), e);
+      log.warn(
+          "XTM Hub backend is not reachable on URL {} due to {}",
+          XtmHubConfig.getApiUrl(),
+          e.getMessage(),
+          e);
       return false;
     } finally {
       if (connection != null) {
