@@ -6,7 +6,7 @@ on:
 
 jobs:
   validate-pr-title:
-    name: Step is NON-MANDATORY
+    name: NON-MANDATORY
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
