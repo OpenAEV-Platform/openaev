@@ -1,7 +1,6 @@
 package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
-import static io.openaev.executors.ExecutorHelper.SLEEP_INTERVAL_BATCH_EXECUTIONS;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
@@ -18,6 +17,9 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +51,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
+  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+
   @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
@@ -57,7 +61,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
@@ -80,45 +84,34 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOS(csAgents, Windows), injector, inject.getId()));
+    actions.addAll(getWindowsActions(getAgentsFromOS(csAgents, Windows), injector, inject.getId()));
     // Set implant script for Linux CS agents
-    actions.addAll(
-        getLinuxActions(
-            getAgentsFromOS(csAgents, Linux), injector, inject.getId()));
+    actions.addAll(getLinuxActions(getAgentsFromOS(csAgents, Linux), injector, inject.getId()));
     // Set implant script for MacOS CS agents
-    actions.addAll(
-        getMacOSActions(
-            getAgentsFromOS(csAgents, MacOS), injector, inject.getId()));
+    actions.addAll(getMacOSActions(getAgentsFromOS(csAgents, MacOS), injector, inject.getId()));
     // Launch payloads with CS API
     executeActions(actions);
     return csAgents;
   }
 
-  private void executeActions(List<CrowdStrikeAction> actions) throws InterruptedException {
+  private void executeActions(List<CrowdStrikeAction> actions) {
+    int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
     for (CrowdStrikeAction action : actions) {
-      int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
-      // Pagination with 1s wait if needed because each implant will call OpenAEV API to set traces
-      if (action.getAgents().size() > paginationLimit) {
-        int numberOfExecution = Math.ceilDiv(action.getAgents().size(), paginationLimit);
-        int fromIndex = 0;
-        int toIndex = paginationLimit;
-        for (int callNumber = 0; callNumber < numberOfExecution; callNumber += 1) {
-          this.crowdStrikeExecutorClient.executeAction(
-              action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList(),
-              action.getScriptName(),
-              action.getCommandEncoded());
-          fromIndex = toIndex;
-          toIndex = Math.min(action.getAgents().size(), fromIndex + paginationLimit);
-          Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
-        }
-      } else {
-        this.crowdStrikeExecutorClient.executeAction(
-            action.getAgents().stream().map(Agent::getId).toList(),
-            action.getScriptName(),
-            action.getCommandEncoded());
-        Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
+      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
+      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
+        int fromIndex = (batchIndex * paginationLimit);
+        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
+        List<String> batchAgentIds =
+            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
+        // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
+        // because each XXX actions will call the CS API to execute the implants
+        // and each implant will call OpenAEV API to set traces
+        scheduledExecutorService.schedule(
+            () ->
+                this.crowdStrikeExecutorClient.executeAction(
+                    batchAgentIds, action.getScriptName(), action.getCommandEncoded()),
+            batchIndex * 5L,
+            TimeUnit.SECONDS);
       }
     }
   }
@@ -174,8 +167,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       CrowdStrikeAction actionLinux = new CrowdStrikeAction();
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
-          getUnixCommand(
-              Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE));
+          getUnixCommand(Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }

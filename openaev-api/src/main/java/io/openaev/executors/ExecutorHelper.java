@@ -18,8 +18,6 @@ public class ExecutorHelper {
   public static final String UNIX_CLEAN_PAYLOADS_COMMAND =
       "find /opt/openaev-agent/payloads /opt/openaev-agent/runtimes -type d -mmin +1440 -exec rm -rf {} + 2>/dev/null";
 
-  public static final int SLEEP_INTERVAL_BATCH_EXECUTIONS = 1000;
-
   private ExecutorHelper() {}
 
   public static String replaceArgs(

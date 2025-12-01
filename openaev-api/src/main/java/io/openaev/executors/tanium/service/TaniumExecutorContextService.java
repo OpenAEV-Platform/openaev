@@ -49,7 +49,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
@@ -125,8 +125,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       int fromIndex = (batchIndex * paginationLimit);
       int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
       List<TaniumAction> batchActions = actions.subList(fromIndex, toIndex);
-      // Pagination of XXX (paginationLimit) call per batch with 5s waiting
-      // because each action will call at the same time the Tanium API to execute the implant
+      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
+      // because each action will call the Tanium API to execute the implant
       // and each implant will call OpenAEV API to set traces
       scheduledExecutorService.schedule(
           () ->
