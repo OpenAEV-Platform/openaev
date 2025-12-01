@@ -13,6 +13,7 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Check PR title format
         shell: bash
         run: |
           TITLE="${{ github.event.pull_request.title }}"
