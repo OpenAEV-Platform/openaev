@@ -73,7 +73,6 @@ jobs:
             "status": "completed",
             "conclusion": "$CONCLUSION",
             "output": {
-              "title": "PR Title Validation",
               "summary": "$SUMMARY"
             }
           }
