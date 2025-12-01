@@ -40,6 +40,10 @@ public class DomainService {
                         (String.format("%s: %s", DOMAIN_NAME_NOT_FOUND_MSG, name)))));
   }
 
+  public Optional<Domain> findOptionalById(final String domainId) {
+        return domainRepository.findById(domainId);
+  }
+
   public Domain findById(final String domainId) {
     return domainRepository
         .findById(domainId)
@@ -47,6 +51,10 @@ public class DomainService {
             () ->
                 new ElementNotFoundException(
                     (String.format("%s: %s", DOMAIN_ID_NOT_FOUND_MSG, domainId))));
+  }
+
+  public Iterable<Domain> findAllById(final List<String> domainIds) {
+       return domainRepository.findAllById(domainIds);
   }
 
   public Domain upsertDomain(final DomainBaseInput input) {
@@ -58,7 +66,7 @@ public class DomainService {
   }
 
   public Domain upsert(final String name, final String color) {
-    Optional<Domain> existingDomain = this.findByName(name);
+    Optional<Domain> existingDomain = domainRepository.findByName(name);
     return existingDomain.orElseGet(
         () ->
             domainRepository.save(

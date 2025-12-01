@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 public class PayloadInputFixture {
 
   public static PayloadCreateInput createDefaultPayloadCreateInputForCommandLine(
-      Set<Domain> domains) {
+      List<String> domains) {
 
     PayloadCreateInput input = new PayloadCreateInput();
     input.setType(Command.COMMAND_TYPE);
@@ -34,12 +34,12 @@ public class PayloadInputFixture {
     input.setTagIds(Collections.emptyList());
     input.setExecutor("bash");
     input.setContent("echo hello");
-    input.setDomains(domains);
+    input.setDomainIds(domains);
     return input;
   }
 
   public static PayloadCreateInput createDefaultPayloadCreateInputWithOutputParser(
-      Set<Domain> domains) {
+      List<String> domains) {
     PayloadCreateInput input = createDefaultPayloadCreateInputForCommandLine(domains);
 
     RegexGroupInput regexGroupInput = createDefaultRegexGroupInputIPV6();
@@ -56,7 +56,7 @@ public class PayloadInputFixture {
   }
 
   public static PayloadCreateInput createDefaultPayloadCreateInputWithDetectionRemediation(
-      Set<Domain> domains) {
+      List<String> domains) {
     PayloadCreateInput input = createDefaultPayloadCreateInputForCommandLine(domains);
     input.setDetectionRemediations(buildDetectionRemediations());
     return input;
@@ -79,7 +79,7 @@ public class PayloadInputFixture {
   }
 
   public static PayloadCreateInput createDefaultPayloadCreateInputForExecutable(
-      Set<Domain> domains) {
+      List<String> domains) {
     PayloadCreateInput input = new PayloadCreateInput();
     input.setType(Executable.EXECUTABLE_TYPE);
     input.setName("My Executable Payload");
@@ -90,21 +90,21 @@ public class PayloadInputFixture {
     input.setAttackPatternsIds(Collections.emptyList());
     input.setTagIds(Collections.emptyList());
     input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.x86_64);
-    input.setDomains(domains);
+    input.setDomainIds(domains);
 
     return input;
   }
 
-  public static PayloadUpdateInput getDefaultExecutablePayloadUpdateInput(Set<Domain> domains) {
+  public static PayloadUpdateInput getDefaultExecutablePayloadUpdateInput(List<String> domains) {
     PayloadUpdateInput updateInput = new PayloadUpdateInput();
     updateInput.setName("My Updated Executable Payload");
     updateInput.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.MacOS});
     updateInput.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    updateInput.setDomains(domains);
+    updateInput.setDomainIds(domains);
     return updateInput;
   }
 
-  public static PayloadUpdateInput getDefaultCommandPayloadUpdateInput(Set<Domain> domains) {
+  public static PayloadUpdateInput getDefaultCommandPayloadUpdateInput(List<String> domains) {
     PayloadUpdateInput input = new PayloadUpdateInput();
     input.setName("Updated Command line payload");
     input.setDescription("Command line description");
@@ -112,12 +112,12 @@ public class PayloadInputFixture {
     input.setTagIds(Collections.emptyList());
     input.setExecutor("sh");
     input.setContent("ufw prepend deny from 1.2.3.4\n" + "ufw status numbered\n");
-    input.setDomains(domains);
+    input.setDomainIds(domains);
     return input;
   }
 
   public static PayloadUpdateInput getDefaultCommandPayloadUpdateInputWithOutputParser(
-      Set<Domain> domains) {
+      List<String> domains) {
     PayloadUpdateInput input = getDefaultCommandPayloadUpdateInput(domains);
 
     ContractOutputElementInput contractOutputElementInput =
@@ -131,7 +131,7 @@ public class PayloadInputFixture {
   }
 
   public static PayloadUpdateInput getDefaultPayloadUpdateInputWithDetectionRemediation(
-      Set<Domain> domains) {
+      List<String> domains) {
     PayloadUpdateInput input = getDefaultCommandPayloadUpdateInput(domains);
     input.setDetectionRemediations(buildDetectionRemediations());
     return input;

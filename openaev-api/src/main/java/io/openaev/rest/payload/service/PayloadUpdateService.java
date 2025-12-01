@@ -66,9 +66,7 @@ public class PayloadUpdateService {
     List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
     payload.setDetectionRemediations(Collections.emptyList());
     payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    payload.setDomains(
-        iterableToSet(
-            domainRepository.findAllById(input.getDomains().stream().map(Domain::getId).toList())));
+    payload.setDomains(iterableToSet(domainRepository.findAllById(input.getDomainIds())));
     payload.setDetectionRemediations(originalDrs);
 
     if (payload instanceof Executable executable) {

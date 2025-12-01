@@ -222,26 +222,35 @@ public class V1_DataImporter implements Importer {
     return tag;
   }
 
-  // -- DOMAINS PATTERN --
-  private Set<Domain> importDomains(JsonNode importNode, String prefix) {
-    Set<Domain> domains = new HashSet<>();
+  // -- DOMAINS --
+  private List<String> importDomains(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    List<String> domainIds = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
             nodeDomain -> {
-              JsonNode nameNode = nodeDomain.get("domain_name");
-              if (nameNode == null) {
-                return;
-              }
+                JsonNode idNode = nodeDomain.get("domain_id");
+                if (idNode == null) {
+                    return;
+                }
+                String id = idNode.textValue();
 
-              Domain domainCreated =
-                  this.domainService.upsert(
-                      nameNode.textValue(), nodeDomain.get("domain_color").textValue());
-              domains.add(domainCreated);
+                if (baseIds.get(id) != null) {
+                    // Already import
+                    return;
+                }
+
+                Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
+                if (existingDomain.isPresent()) {
+                    baseIds.put(id, existingDomain.get());
+                    domainIds.add(existingDomain.get().getId());
+                } else {
+                   Domain createdDomain =  this.domainService.upsert(nodeDomain.get("domain_name").textValue(), nodeDomain.get("domain_color").textValue());
+                   baseIds.put(createdDomain.getId(), createdDomain);
+                   domainIds.add(createdDomain.getId());
+                }
             });
-    if (domains.isEmpty()) {
-      return Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null));
-    }
-    return domains;
+
+    return domainIds;
   }
 
   // -- ATTACK PATTERN --
@@ -1377,7 +1386,7 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
-    payloadCreateInput.setDomains(importDomains(payloadNode, "payload_"));
+    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
 
@@ -1418,7 +1427,7 @@ public class V1_DataImporter implements Importer {
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
 
-    payloadCreateInput.setDomains(importDomains(payloadNode, "payload_"));
+    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);

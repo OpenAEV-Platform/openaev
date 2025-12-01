@@ -56,7 +56,7 @@ public class PayloadCreationService {
 
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    payload.setDomains(domainService.upserts(input.getDomains()));
+    payload.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));

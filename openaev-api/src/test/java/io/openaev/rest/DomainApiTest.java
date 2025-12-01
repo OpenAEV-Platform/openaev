@@ -37,6 +37,7 @@ public class DomainApiTest extends IntegrationTest {
   public void whenDomainDoesNotExist_upsertCreatesAndReturnsDomain() throws Exception {
     DomainBaseInput input = new DomainBaseInput();
     input.setName("domain");
+    input.setColor("#012012");
 
     String response =
         mvc.perform(
@@ -65,6 +66,7 @@ public class DomainApiTest extends IntegrationTest {
 
     DomainBaseInput input = new DomainBaseInput();
     input.setName("existing");
+    input.setColor("#123456");
 
     String response =
         mvc.perform(

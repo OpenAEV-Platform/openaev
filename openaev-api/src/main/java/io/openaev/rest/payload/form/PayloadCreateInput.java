@@ -124,5 +124,5 @@ public class PayloadCreateInput {
   @NotNull(message = MANDATORY_MESSAGE)
   @JsonProperty("payload_domains")
   @Schema(description = "Set list of domains")
-  private Set<Domain> domains = new HashSet<>();
+  private List<String> domainIds = new ArrayList<>();
 }
