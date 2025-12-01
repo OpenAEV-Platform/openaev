@@ -51,7 +51,7 @@ jobs:
             "status": "completed",
             "conclusion": "failure",
             "output": {
-              "title": "PR Title",
+              "title": "$MESSAGE",
               "summary": "$MESSAGE"
             }
           }
