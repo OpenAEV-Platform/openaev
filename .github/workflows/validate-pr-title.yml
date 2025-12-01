@@ -110,6 +110,7 @@ jobs:
             "conclusion": "$CONCLUSION",
             "output": {
               "title": "$SUMMARY",
+              "summary": "$SUMMARY"
             }
           }
           EOF
