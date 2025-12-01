@@ -44,6 +44,7 @@ public @interface Queryable {
   /**
    * Defines the JPA path used to query this property. Follows Spring Data Specification conventions
    * (e.g. {@code "organization.id"}).
+   * Path should end by a primitiv value or this can lead to UnsupportableOperation.
    */
   String path() default "";
 
