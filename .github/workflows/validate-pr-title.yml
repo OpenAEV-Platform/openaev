@@ -1,4 +1,4 @@
-name: "Check PR title format"
+name: "Check PR title format (NON-MANDATORY CHECK)"
 
 on:
   pull_request:
@@ -6,7 +6,6 @@ on:
 
 jobs:
   validate-pr-title:
-    name: NON-MANDATORY
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
@@ -14,7 +13,6 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Check PR title format
         shell: bash
         run: |
           TITLE="${{ github.event.pull_request.title }}"
