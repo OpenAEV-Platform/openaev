@@ -8,7 +8,7 @@ import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { truncate } from '../utils/String';
 
-export const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(theme => ({
   inline: {
     display: 'inline',
     alignItems: 'center',
