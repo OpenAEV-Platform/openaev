@@ -33,7 +33,7 @@ jobs:
             echo "❌ Invalid PR title."
             echo "Required format:"
             echo "[category] type(scope?): description (#123)"
-            exit 0
+            exit 78
           fi
           
           echo "✅ PR title is valid."
