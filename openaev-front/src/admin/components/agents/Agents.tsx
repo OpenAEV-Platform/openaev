@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { fetchExecutors } from '../../../actions/Executor';
 import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
 import { type LoggedHelper, type MeTokensHelper } from '../../../actions/helper';
-import { meTokens } from '../../../actions/User';
+import { meTokens } from '../../../actions/users/User';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';

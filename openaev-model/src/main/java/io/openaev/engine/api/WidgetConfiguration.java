@@ -9,8 +9,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.openaev.database.model.Filters;
 import io.openaev.jsonapi.CanRemapWeakRelationships;
 import io.openaev.utils.CustomDashboardTimeRange;
-import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,23 +21,23 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@Schema(
-    discriminatorProperty = "widget_configuration_type",
-    oneOf = {HistogramWidget.class, ListConfiguration.class, FlatConfiguration.class},
-    discriminatorMapping = {
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.FLAT,
-          schema = FlatConfiguration.class),
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.LIST,
-          schema = ListConfiguration.class),
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.TEMPORAL_HISTOGRAM,
-          schema = DateHistogramWidget.class),
-      @DiscriminatorMapping(
-          value = WidgetConfigurationType.Values.STRUCTURAL_HISTOGRAM,
-          schema = StructuralHistogramWidget.class),
-    })
+// @Schema(
+//    discriminatorProperty = "widget_configuration_type",
+//    oneOf = {HistogramWidget.class, ListConfiguration.class, FlatConfiguration.class},
+//    discriminatorMapping = {
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.FLAT,
+//          schema = FlatConfiguration.class),
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.LIST,
+//          schema = ListConfiguration.class),
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.TEMPORAL_HISTOGRAM,
+//          schema = DateHistogramWidget.class),
+//      @DiscriminatorMapping(
+//          value = WidgetConfigurationType.Values.STRUCTURAL_HISTOGRAM,
+//          schema = StructuralHistogramWidget.class),
+//    })
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,

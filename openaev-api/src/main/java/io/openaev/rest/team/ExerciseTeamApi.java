@@ -4,6 +4,7 @@ import static io.openaev.database.specification.TeamSpecification.contextual;
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -27,6 +28,7 @@ public class ExerciseTeamApi extends RestBehavior {
 
   private final TeamService teamService;
 
+  @LogExecutionTime
   @PostMapping(EXERCISE_URI + "/{exerciseId}/teams/search")
   @RBAC(
       resourceId = "#exerciseId",

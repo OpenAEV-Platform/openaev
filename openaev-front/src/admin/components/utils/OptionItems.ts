@@ -23,6 +23,10 @@ export const langItems = (t: (text: string) => string) => [
     label: t('English'),
   },
   {
+    value: 'es',
+    label: t('Spanish'),
+  },
+  {
     value: 'fr',
     label: t('French'),
   },

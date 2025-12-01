@@ -1,5 +1,4 @@
-import { type PropertySchemaDTO } from '../../../../../../utils/api-types';
-import { type Widget } from '../../../../../../utils/api-types-custom';
+import { type PropertySchemaDTO, type Widget } from '../../../../../../utils/api-types';
 import { type GroupOption } from '../../../../../../utils/Option';
 import { getAvailableFields } from '../WidgetUtils';
 

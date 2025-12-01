@@ -174,6 +174,9 @@ public class TaniumExecutorClient {
               }
 
               return result;
+            } else if (status == 401) {
+              throw new TokenExpiredException(
+                  "Tanium token expired or invalid : " + +status + "\nBody: " + result);
             } else {
               throw new ClientProtocolException(
                   "Unexpected response status: " + status + "\nBody: " + result);

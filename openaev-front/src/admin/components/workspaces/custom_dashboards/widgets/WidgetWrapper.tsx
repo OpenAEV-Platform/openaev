@@ -9,8 +9,8 @@ import {
   type EsBase,
   type EsCountInterval,
   type EsSeries,
+  type Widget,
 } from '../../../../../utils/api-types';
-import { type Widget } from '../../../../../utils/api-types-custom';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import WidgetTitle from './WidgetTitle';
 import { type WidgetVizData, WidgetVizDataType } from './WidgetUtils';

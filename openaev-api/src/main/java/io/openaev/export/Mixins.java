@@ -26,6 +26,7 @@ public class Mixins {
         "scenario_mail_from",
         "scenario_tags",
         "scenario_documents",
+        "scenario_dependencies",
       })
   public static class Scenario {}
 

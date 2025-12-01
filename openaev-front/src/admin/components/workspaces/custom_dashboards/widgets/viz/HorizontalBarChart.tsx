@@ -4,7 +4,7 @@ import Chart from 'react-apexcharts';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import type { Widget } from '../../../../../../utils/api-types';
+import { type DateHistogramWidget, type StructuralHistogramWidget, type Widget } from '../../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
@@ -37,9 +37,9 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
     });
   };
 
-  const widgetMode = (): 'structural' | 'temporal' => {
+  const widgetMode = (): string => {
     if (widgetConfig.widget_configuration_type === 'temporal-histogram' || widgetConfig.widget_configuration_type === 'structural-histogram') {
-      return widgetConfig.mode;
+      return (widgetConfig as DateHistogramWidget | StructuralHistogramWidget).mode;
     }
     return 'structural';
   };

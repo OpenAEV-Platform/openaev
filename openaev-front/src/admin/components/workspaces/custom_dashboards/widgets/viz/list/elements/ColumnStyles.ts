@@ -2,7 +2,7 @@ import type { CSSProperties } from '@mui/material/styles';
 
 const minComputedWidthPercent = 10;
 
-const buildStyles = (all_columns: string[], staticStyles: Record<string, CSSProperties>) => {
+const buildStyles = (all_columns: string[] = [], staticStyles: Record<string, CSSProperties>) => {
   let fixedWidthsSum = 0;
   let columnsFixedWidthCount = 0;
   for (const col in all_columns) {

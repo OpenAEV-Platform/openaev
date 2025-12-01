@@ -1,8 +1,8 @@
 import { Button } from '@mui/material';
-import * as PropTypes from 'prop-types';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
 
+import { type UserInputForm } from '../../../../actions/users/users-helper';
 import OldSwitchField from '../../../../components/fields/OldSwitchField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
@@ -10,13 +10,21 @@ import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
 import { schemaValidator } from '../../../../utils/Zod.js';
 
-const UserForm = (props) => {
-  const { onSubmit, initialValues, editing, handleClose } = props;
+interface UserFormProps {
+  onSubmit: (data: UserInputForm) => void;
+  initialValues?: Partial<UserInputForm>;
+  editing: boolean;
+  handleClose: () => void;
+}
+
+const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFormProps) => {
   const { t } = useFormatter();
 
   const requiredFields = editing
     ? ['user_email']
     : ['user_email', 'user_plain_password'];
+
+  const phoneRegex = /^\+\d+$/;
 
   const userFormSchemaValidation = z.object({
     user_email: z
@@ -28,7 +36,25 @@ const UserForm = (props) => {
         .string()
         .nonempty(t('This field is required.')),
     }),
+    user_phone: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        val => !val || phoneRegex.test(val),
+        t('Phone number must start with + and contain only digits'),
+      ),
+
+    user_phone2: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        val => !val || phoneRegex.test(val),
+        t('Phone number must start with + and contain only digits'),
+      ),
   });
+
   return (
     <Form
       keepDirtyOnReinitialize={true}
@@ -145,12 +171,6 @@ const UserForm = (props) => {
       )}
     </Form>
   );
-};
-
-UserForm.propTypes = {
-  onSubmit: PropTypes.func.isRequired,
-  handleClose: PropTypes.func,
-  editing: PropTypes.bool,
 };
 
 export default UserForm;

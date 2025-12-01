@@ -20,6 +20,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawSimulation;
 import io.openaev.database.repository.*;
 import io.openaev.ee.Ee;
 import io.openaev.expectation.ExpectationType;
@@ -145,6 +146,14 @@ public class ExerciseService {
     return this.exerciseRepository
         .findById(exerciseId)
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  public RawSimulation rawSimulation(@NotBlank final String simulationId) {
+    RawSimulation rawSimulation = exerciseRepository.rawDetailsById(simulationId);
+    if (rawSimulation == null) {
+      throw new ElementNotFoundException("Simulation not found");
+    }
+    return rawSimulation;
   }
 
   public List<ExerciseSimple> exercises(final List<String> exerciseIds) {

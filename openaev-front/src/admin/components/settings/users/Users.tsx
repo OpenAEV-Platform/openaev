@@ -1,18 +1,22 @@
 import { CheckCircleOutlined, PersonOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchOrganizations } from '../../../../actions/Organization';
-import { searchUsers } from '../../../../actions/User';
+import { searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
-import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
+import ExportButton from '../../../../components/common/ExportButton';
 import { initSorting } from '../../../../components/common/queryable/Page';
+import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import { useHelper } from '../../../../store';
+import { type User, type UserOutput } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -62,12 +66,9 @@ const inlineStyles = {
 const Users = () => {
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const { tagsMap, organizationsMap } = useHelper(helper => ({
-    organizationsMap: helper.getOrganizationsMap(),
-    tagsMap: helper.getTagsMap(),
-  }));
+
   useDataLoader(() => {
     dispatch(fetchOrganizations());
   });
@@ -106,8 +107,15 @@ const Users = () => {
     },
   ];
 
-  const [users, setUsers] = useState([]);
-  const [searchPaginationInput, setSearchPaginationInput] = useState({ sorts: initSorting('user_email') });
+  // Query param
+  const [searchParams] = useSearchParams();
+  const [search] = searchParams.getAll('search');
+
+  const [users, setUsers] = useState<UserOutput[]>([]);
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('users', buildSearchPagination({
+    sorts: initSorting('user_firstname'),
+    textSearch: search,
+  }));
 
   // Export
   const exportProps = {
@@ -131,17 +139,23 @@ const Users = () => {
             current: true,
           }]}
         />
-        <PaginationComponent
+        <PaginationComponentV2
+          disableFilters
           fetch={searchUsers}
           searchPaginationInput={searchPaginationInput}
           setContent={setUsers}
-          exportProps={exportProps}
+          entityPrefix="user"
+          queryableHelpers={queryableHelpers}
+          topBarButtons={
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+          }
         />
         <List>
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
             style={{ paddingTop: 0 }}
+            secondaryAction={<>&nbsp;</>}
           >
             <ListItemIcon>
               <span
@@ -156,21 +170,26 @@ const Users = () => {
             </ListItemIcon>
             <ListItemText
               primary={(
-                <SortHeadersComponent
+                <SortHeadersComponentV2
                   headers={headers}
                   inlineStylesHeaders={inlineStyles}
-                  searchPaginationInput={searchPaginationInput}
-                  setSearchPaginationInput={setSearchPaginationInput}
+                  sortHelpers={queryableHelpers.sortHelpers}
                 />
               )}
             />
-            <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
           </ListItem>
           {users.map(user => (
             <ListItem
               key={user.user_id}
               classes={{ root: classes.item }}
               divider={true}
+              secondaryAction={(
+                <UserPopover
+                  user={user}
+                  onUpdate={(result: User) => setUsers(users.map(u => (u.user_id !== result.user_id ? u : result)))}
+                  onDelete={(result: string) => setUsers(users.filter(u => (u.user_id !== result)))}
+                />
+              )}
             >
               <ListItemIcon>
                 <PersonOutlined color="primary" />
@@ -199,21 +218,12 @@ const Users = () => {
                   </div>
                 )}
               />
-              <ListItemSecondaryAction>
-                <UserPopover
-                  user={user}
-                  tagsMap={tagsMap}
-                  organizationsMap={organizationsMap}
-                  onUpdate={result => setUsers(users.map(u => (u.user_id !== result.user_id ? u : result)))}
-                  onDelete={result => setUsers(users.filter(u => (u.user_id !== result)))}
-                />
-              </ListItemSecondaryAction>
             </ListItem>
           ))}
         </List>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
           <CreateUser
-            onCreate={result => setUsers([result, ...users])}
+            onCreate={(result: User) => setUsers([result, ...users])}
           />
         </Can>
       </div>

@@ -59,22 +59,14 @@ public class ImportService {
       Scenario scenario,
       Asset asset,
       AssetGroup assetGroup,
-      String suffix,
-      boolean isFromStarterPack) {
+      String suffix) {
     try {
       JsonNode importNode = mapper.readTree(inputStream);
       int importVersion = importNode.get("export_version").asInt();
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
         importer.importData(
-            importNode,
-            docReferences,
-            exercise,
-            scenario,
-            asset,
-            assetGroup,
-            suffix,
-            isFromStarterPack);
+            importNode, docReferences, exercise, scenario, asset, assetGroup, suffix);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
       }
@@ -92,8 +84,7 @@ public class ImportService {
         scenario,
         null,
         null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX,
-        false);
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -103,10 +94,9 @@ public class ImportService {
       Scenario scenario,
       Asset asset,
       AssetGroup assetGroup,
-      String suffix,
-      boolean isFromStarterPack)
+      String suffix)
       throws Exception {
-    handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix, isFromStarterPack);
+    handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix);
   }
 
   private void handleInputStreamImport(
@@ -115,8 +105,7 @@ public class ImportService {
       Scenario scenario,
       Asset asset,
       AssetGroup assetGroup,
-      String suffix,
-      boolean isFromStarterPack)
+      String suffix)
       throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".zip");
     FileUtils.copyInputStreamToFile(is, tempFile);
@@ -262,15 +251,7 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(
-            dataStream,
-            docReferences,
-            exercise,
-            scenario,
-            asset,
-            assetGroup,
-            suffix,
-            isFromStarterPack);
+        handleDataImport(dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
       }
     } finally {
       tempFile.delete();

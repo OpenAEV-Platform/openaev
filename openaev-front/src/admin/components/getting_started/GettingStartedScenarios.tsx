@@ -24,7 +24,7 @@ const GettingStartedScenarios = () => {
   const filter: FilterGroup = {
     mode: 'and',
     filters: [
-      buildFilter('from_starter_pack', ['true'], 'eq'),
+      buildFilter('scenario_dependencies', ['STARTERPACK'], 'contains'),
     ],
   };
   const input = buildSearchPagination({ filterGroup: filter });
