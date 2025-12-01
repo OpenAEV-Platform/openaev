@@ -1,26 +1,55 @@
-name: "PR Title Check"
+name: "Validate PR Title"
 
 on:
   pull_request:
+    types: [opened, edited, reopened, ready_for_review, synchronize]
 
 jobs:
-  pr-title-check:
+  validate-pr-title:
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
-      checks: write   # required to create custom checks
+      checks: write          # needed for custom check run
+      pull-requests: write
 
     steps:
-      - name: Create failing PR title check
+      - name: Validate PR title and create check
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
-        shell: bash
         run: |
           set -euo pipefail
 
-          # 1) Create the check run
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "PR title: $TITLE"
+
+          # Skip validation for renovate
+          if [[ "$TITLE" == "chore(deps)"* ]]; then
+            echo "⚠️ Skipping validation for renovate PRs."
+            SUMMARY="⚠️ Skipping validation for Renovate PRs."
+            CONCLUSION="success"
+          else
+            # Regex for:
+            # [category/subcategory] type(scope?): description (#123)
+            PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
+
+            if [[ "$TITLE" =~ $PATTERN ]]; then
+              echo "✅ PR title is valid."
+              SUMMARY="✅ PR title is valid."
+              CONCLUSION="success"
+            else
+              echo "❌ Invalid PR title."
+              echo "Required format:"
+              echo "[category] type(scope?): description (#123)"
+              SUMMARY="❌ Invalid PR title. Required: [category] type(scope?): description (#123)"
+              CONCLUSION="failure"
+            fi
+          fi
+
+          # Create a custom check run (CodeQL-style line in PR checks)
           CHECK_RUN=$(
             curl -sS -X POST \
               -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -28,7 +57,7 @@ jobs:
               https://api.github.com/repos/$REPO/check-runs \
               -d @- <<EOF
           {
-            "name": "PR Title (dynamic)",
+            "name": "PR Title",
             "head_sha": "$SHA",
             "status": "in_progress"
           }
@@ -38,24 +67,22 @@ jobs:
           CHECK_RUN_ID=$(echo "$CHECK_RUN" | jq -r '.id')
           echo "Created check run ID: $CHECK_RUN_ID"
 
-          # 2) Complete the check as failing with a short message
-          MESSAGE="fail because title is too long"
-
+          # Complete the check run with the result + message
           curl -sS -X PATCH \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/$REPO/check-runs/$CHECK_RUN_ID \
             -d @- <<EOF
           {
-            "name": "PR Title (dynamic)",
+            "name": "PR Title",
             "status": "completed",
-            "conclusion": "failure",
+            "conclusion": "$CONCLUSION",
             "output": {
-              "title": "$MESSAGE",
-              "summary": "$MESSAGE"
+              "title": "PR Title Validation",
+              "summary": "$SUMMARY"
             }
           }
           EOF
 
-          # 3) Fail the workflow job as well
-          exit 1
+          # Do NOT fail the job: continue-on-error is true and we exit 0
+          exit 0
