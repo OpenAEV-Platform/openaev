@@ -6,6 +6,7 @@ on:
 
 jobs:
   validate-pr-title:
+    name:
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
