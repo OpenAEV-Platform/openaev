@@ -1,4 +1,4 @@
-name: "Validate PR Title"
+name: "(Step NON MANDATORY) Validate PR Title"
 
 on:
   pull_request:
@@ -33,7 +33,7 @@ jobs:
             echo "❌ Invalid PR title."
             echo "Required format:"
             echo "[category] type(scope?): description (#123)"
-            exit 78
+            exit 1
           fi
           
           echo "✅ PR title is valid."
