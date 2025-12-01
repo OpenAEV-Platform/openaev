@@ -223,32 +223,36 @@ public class V1_DataImporter implements Importer {
   }
 
   // -- DOMAINS --
-  private List<String> importDomains(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+  private List<String> importDomains(
+      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     List<String> domainIds = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
             nodeDomain -> {
-                JsonNode idNode = nodeDomain.get("domain_id");
-                if (idNode == null) {
-                    return;
-                }
-                String id = idNode.textValue();
+              JsonNode idNode = nodeDomain.get("domain_id");
+              if (idNode == null) {
+                return;
+              }
+              String id = idNode.textValue();
 
-                if (baseIds.get(id) != null) {
-                    // Already import
-                    domainIds.add(baseIds.get(id).getId());
-                    return;
-                }
+              if (baseIds.get(id) != null) {
+                // Already import
+                domainIds.add(baseIds.get(id).getId());
+                return;
+              }
 
-                Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
-                if (existingDomain.isPresent()) {
-                    baseIds.put(id, existingDomain.get());
-                    domainIds.add(existingDomain.get().getId());
-                } else {
-                   Domain createdDomain =  this.domainService.upsert(nodeDomain.get("domain_name").textValue(), nodeDomain.get("domain_color").textValue());
-                   baseIds.put(createdDomain.getId(), createdDomain);
-                   domainIds.add(createdDomain.getId());
-                }
+              Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
+              if (existingDomain.isPresent()) {
+                baseIds.put(id, existingDomain.get());
+                domainIds.add(existingDomain.get().getId());
+              } else {
+                Domain createdDomain =
+                    this.domainService.upsert(
+                        nodeDomain.get("domain_name").textValue(),
+                        nodeDomain.get("domain_color").textValue());
+                baseIds.put(createdDomain.getId(), createdDomain);
+                domainIds.add(createdDomain.getId());
+              }
             });
 
     return domainIds;

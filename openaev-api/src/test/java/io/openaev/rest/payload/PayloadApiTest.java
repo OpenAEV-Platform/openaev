@@ -112,7 +112,8 @@ class PayloadApiTest extends IntegrationTest {
 
       Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
       input.setExecutionArch(null);
       mvc.perform(
               post(PAYLOAD_URI)
@@ -125,7 +126,7 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName(
         "Creating an executable Payload with an arch different from x86_64 or arm64 should fail")
     void createExecutablePayloadWithoutArch() throws Exception {
-        Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
 
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(List.of(domain.getId()));
@@ -152,7 +153,8 @@ class PayloadApiTest extends IntegrationTest {
 
       Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(
+              List.of(domain.getId()));
 
       mvc.perform(
               post(PAYLOAD_URI)
@@ -185,7 +187,8 @@ class PayloadApiTest extends IntegrationTest {
 
       Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
+              List.of(domain.getId()));
 
       mvc.perform(
               post(PAYLOAD_URI)
@@ -205,7 +208,8 @@ class PayloadApiTest extends IntegrationTest {
       /******* Create *******/
       Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
+              List.of(domain.getId()));
 
       String response =
           mvc.perform(
@@ -244,7 +248,8 @@ class PayloadApiTest extends IntegrationTest {
 
       Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
 
       PayloadArgument targetedAssetArgument = new PayloadArgument();
       targetedAssetArgument.setKey("URL");
@@ -441,7 +446,8 @@ class PayloadApiTest extends IntegrationTest {
     var payloadId = JsonPath.read(response, "$.payload_id");
 
     PayloadUpdateInput updateInput =
-        PayloadInputFixture.getDefaultCommandPayloadUpdateInputWithOutputParser(List.of(domain.getId()));
+        PayloadInputFixture.getDefaultCommandPayloadUpdateInputWithOutputParser(
+            List.of(domain.getId()));
 
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
@@ -491,7 +497,8 @@ class PayloadApiTest extends IntegrationTest {
     var payloadId = JsonPath.read(response, "$.payload_id");
 
     PayloadUpdateInput updateInput =
-        PayloadInputFixture.getDefaultPayloadUpdateInputWithDetectionRemediation(List.of(domain.getId()));
+        PayloadInputFixture.getDefaultPayloadUpdateInputWithDetectionRemediation(
+            List.of(domain.getId()));
 
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
@@ -547,7 +554,8 @@ class PayloadApiTest extends IntegrationTest {
 
     Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
     PayloadCreateInput input =
-        PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(List.of(domain.getId()));
+        PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(
+            List.of(domain.getId()));
 
     mvc.perform(
             post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
@@ -604,7 +612,8 @@ class PayloadApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(0));
 
     PayloadUpsertInput upsertInput =
-        PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithDetectionRemediations(Set.of(domain));
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithDetectionRemediations(
+            Set.of(domain));
     upsertInput.setExternalId("external-id");
 
     mvc.perform(

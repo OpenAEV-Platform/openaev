@@ -41,7 +41,7 @@ public class DomainService {
   }
 
   public Optional<Domain> findOptionalById(final String domainId) {
-        return domainRepository.findById(domainId);
+    return domainRepository.findById(domainId);
   }
 
   public Domain findById(final String domainId) {
@@ -54,7 +54,7 @@ public class DomainService {
   }
 
   public Iterable<Domain> findAllById(final List<String> domainIds) {
-       return domainRepository.findAllById(domainIds);
+    return domainRepository.findAllById(domainIds);
   }
 
   public Domain upsertDomain(final DomainBaseInput input) {

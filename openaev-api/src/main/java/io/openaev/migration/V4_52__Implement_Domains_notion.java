@@ -75,6 +75,19 @@ public class V4_52__Implement_Domains_notion extends BaseJavaMigration {
               + "  (gen_random_uuid(), 'Cloud', '#9999CC'),"
               + "  (gen_random_uuid(), 'Table-Top', '#FFCC33'),"
               + "  (gen_random_uuid(), 'To classify', '#FFFFFF');");
+
+      stmt.execute(
+          """
+insert into payloads_domains (payload_id, domain_id)
+select p.payload_id, d.domain_id from payloads p
+inner join domains d on d.domain_name = 'To classify';""");
+
+      stmt.execute(
+          """
+insert into injectors_contracts_domains (injector_contract_id, domain_id)
+select ic.injector_contract_id, d.domain_id from injectors_contracts ic
+inner join domains d on d.domain_name = 'To classify'
+where ic.injector_contract_payload is null;""");
     }
   }
 }

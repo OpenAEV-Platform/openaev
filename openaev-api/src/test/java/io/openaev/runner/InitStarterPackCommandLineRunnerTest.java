@@ -337,6 +337,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAsset));
+    // Be careful should match inject into the zip scenario
     injectorContract.setId("2e7fc079-4444-4531-4444-928fe4a1fc0b");
     injectorContractComposer
         .forInjectorContract(injectorContract)
@@ -396,7 +397,8 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAssetGroup));
-    injectorContract.setId("ea43ae39-1a8c-47dc-93e1-80ef8b0e70c4");
+    // Be careful should match inject into the zip scenario
+    injectorContract.setId("df0d6fe6-ffb1-4e4c-a5f8-11a45b30dd69");
     injectorContractComposer
         .forInjectorContract(injectorContract)
         .withInjector(injector)
