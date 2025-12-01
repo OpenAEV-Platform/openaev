@@ -22,7 +22,7 @@ jobs:
           
           # Skip validation for renovate
           if [[ "$TITLE" == *"chore(deps)"* ]]; then
-            echo "⚠️ Skipping validation for renovate Prs."
+            echo "⚠️ Skipping validation for renovate Prs." >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
           
