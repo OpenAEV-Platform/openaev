@@ -1,19 +1,17 @@
-name: "Validate PR Title (Checks API)"
+name: "Simple Check Run Error"
 
 on:
   pull_request:
-    types: [opened, edited, reopened, ready_for_review, synchronize]
 
 jobs:
-  validate-pr-title:
+  simple-check:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      checks: write         # IMPORTANT for Checks API
-      pull-requests: write
+      checks: write   # needed for Checks API
 
     steps:
-      - name: Validate PR title and create custom check
+      - name: Create failing check run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -22,18 +20,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          TITLE="${{ github.event.pull_request.title }}"
-
-          echo "PR title: $TITLE"
-
-          # 1) Create a pending check run
-          CHECK_RUN=$(curl -sS -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/$REPO/check-runs \
-            -d @- <<EOF
+          # 1) Create a check run in "in_progress" state
+          CHECK_RUN=$(
+            curl -sS -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$REPO/check-runs \
+              -d @- <<EOF
           {
-            "name": "Validate PR Title",
+            "name": "Simple Check",
             "head_sha": "$SHA",
             "status": "in_progress"
           }
@@ -41,41 +36,25 @@ jobs:
           )
 
           CHECK_RUN_ID=$(echo "$CHECK_RUN" | jq -r '.id')
+          echo "Created check run ID: $CHECK_RUN_ID"
 
-          # Regex for:
-          # [category/subcategory] type(scope?): description (#123)
-          PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
+          SUMMARY="❌ Something went wrong. This is a test error."
 
-          # Skip validation for renovate
-          if [[ "$TITLE" == "chore(deps)"* ]]; then
-            SUMMARY="⚠️ Skipping validation for Renovate PRs."
-            CONCLUSION="success"
-          elif [[ "$TITLE" =~ $PATTERN ]]; then
-            SUMMARY="✅ PR title is valid."
-            CONCLUSION="success"
-          else
-            SUMMARY="❌ Invalid PR title. Must match: [category] type(scope?): description (#123)"
-            CONCLUSION="failure"
-          fi
-
-          echo "Check run ID: $CHECK_RUN_ID"
-          echo "Conclusion: $CONCLUSION"
-          echo "Summary: $SUMMARY"
-
-          # 2) Complete the check run with conclusion + summary (this is what appears like CodeQL)
+          # 2) Mark the check run as completed with failure + summary
           curl -sS -X PATCH \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/$REPO/check-runs/$CHECK_RUN_ID \
             -d @- <<EOF
           {
-            "name": "Validate PR Title",
+            "name": "Simple Check",
             "status": "completed",
-            "conclusion": "$CONCLUSION",
+            "conclusion": "failure",
             "output": {
               "summary": "$SUMMARY"
             }
           }
           EOF
 
-          # 3
+          # 3) Fail the job so branch protection sees it
+          exit 1
