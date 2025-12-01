@@ -1,4 +1,4 @@
-name: "(Step NON MANDATORY) Validate PR Title"
+name: "Validate PR Title"
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
 
 jobs:
   validate-pr-title:
+    name: Validate PR Title (This step is NON-MANDATORY)
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
@@ -37,3 +38,4 @@ jobs:
           fi
           
           echo "✅ PR title is valid."
+          exit 0
