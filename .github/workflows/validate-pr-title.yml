@@ -7,27 +7,8 @@ on:
 jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-
     steps:
-      - name: Check PR title format
-        shell: bash
+      - name: Force error annotation
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          echo "PR title: $TITLE"
-          
-          # Regex for:
-          # [category/subcategory] type(scope?): description (#123?)
-          PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
-          
-          if [[ ! "$TITLE" =~ $PATTERN ]]; then
-            echo "::error title=Invalid PR title::Title must match: [category] type(scope?): description (#123)"
-            echo "❌ Invalid PR title."
-            echo "Required format:"
-            echo "[category] type(scope?): description (#123)"
-            exit 1
-          fi
-          
-          echo "✅ PR title is valid."
+          echo "::error title=Invalid PR title::Title must match: [category] type(scope?): description (#123)"
+          exit 1
