@@ -10,7 +10,6 @@ jobs:
     continue-on-error: true
     permissions:
       contents: read
-      checks: write
 
     steps:
       - name: Validate PR title and create check
