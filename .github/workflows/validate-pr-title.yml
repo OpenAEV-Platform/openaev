@@ -27,7 +27,7 @@ jobs:
           echo "PR title: $TITLE"
 
           # Skip validation for renovate
-          if [[ "$TITLE" == "chore(deps)"* ]]; then
+          if [[ "$TITLE" == *"chore(deps)"* ]]; then
             echo "⚠️ Skipping validation for renovate PRs."
             OUTPUT_TITLE="⚠️ Skipping validation for Renovate PRs."
             OUTPUT_SUMMARY="⚠️ Skipping validation for Renovate PRs."
@@ -54,7 +54,7 @@ jobs:
               # 2) Check type + optional scope
               TYPE_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: '
               if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $TYPE_PATTERN ]]; then
-                REASON="Bad type(scope): block. Expected (optionally with scope: type(scope):): feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert"
+                REASON="Bad type(scope): block. Expected type: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (optionally with scope: type(scope):)"
               fi
 
               # 3) Check description starts with lowercase letter
@@ -63,10 +63,10 @@ jobs:
                 REASON="Bad description. Must start with a lowercase letter after ': '"
               fi
 
-              # 4) Check issue reference at the end: (#123)
+              # 4) Check issue reference at the end: (#XXX)
               ISSUE_PATTERN='\(#[0-9]+\)$'
               if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $ISSUE_PATTERN ]]; then
-                REASON="Bad (#123) ending block."
+                REASON="Bad (#XXX) ending block. Missing issue reference"
               fi
 
               if [[ -z "${REASON:-}" ]]; then
@@ -77,7 +77,7 @@ jobs:
               echo "Required format:"
               echo "[category] type(scope?): description (#123)"
 
-              OUTPUT_TITLE="❌ $REASON"
+              OUTPUT_TITLE="$REASON"
               OUTPUT_SUMMARY="❌ Invalid PR title: $REASON. Required: [category] type(scope?): description (#123)"
               CONCLUSION="failure"
             fi
