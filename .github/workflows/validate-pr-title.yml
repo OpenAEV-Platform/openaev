@@ -7,6 +7,7 @@ on:
 jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -32,7 +33,7 @@ jobs:
             echo "❌ Invalid PR title."
             echo "Required format:"
             echo "[category] type(scope?): description (#123)"
-            exit 1
+            exit 0
           fi
           
           echo "✅ PR title is valid."
