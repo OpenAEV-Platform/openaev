@@ -10,7 +10,7 @@ jobs:
     continue-on-error: true
     permissions:
       contents: read
-      checks: write          # needed for custom check run
+      checks: write
       pull-requests: write
 
     steps:
@@ -32,24 +32,55 @@ jobs:
             SUMMARY="⚠️ Skipping validation for Renovate PRs."
             CONCLUSION="success"
           else
-            # Regex for:
+            # Full pattern:
             # [category/subcategory] type(scope?): description (#123)
-            PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
+            FULL_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
 
-            if [[ "$TITLE" =~ $PATTERN ]]; then
+            if [[ "$TITLE" =~ $FULL_PATTERN ]]; then
               echo "✅ PR title is valid."
               SUMMARY="✅ PR title is valid."
               CONCLUSION="success"
             else
-              echo "❌ Invalid PR title."
+              # Diagnose common failures
+
+              # 1) Check category block: [category/subcategory]
+              CATEGORY_PATTERN='^\[([a-z]+(/[a-z]+)*)\]'
+              if ! [[ "$TITLE" =~ $CATEGORY_PATTERN ]]; then
+                REASON="missing or invalid [category] block (expected: [category] or [category/subcategory])"
+              fi
+
+              # 2) Check type + optional scope
+              TYPE_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: '
+              if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $TYPE_PATTERN ]]; then
+                REASON="missing or invalid type. Expected one of: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (with optional scope: type(scope))"
+              fi
+
+              # 3) Check description starts with lowercase letter
+              DESC_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z]'
+              if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $DESC_PATTERN ]]; then
+                REASON="description must start with a lowercase letter after ': '"
+              fi
+
+              # 4) Check issue reference at the end: (#123)
+              ISSUE_PATTERN='\(#[0-9]+\)$'
+              if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $ISSUE_PATTERN ]]; then
+                REASON="missing issue reference at the end. Expected: (#123)"
+              fi
+
+              if [[ -z "${REASON:-}" ]]; then
+                REASON="title does not match the required pattern"
+              fi
+
+              echo "❌ Invalid PR title: $REASON"
               echo "Required format:"
               echo "[category] type(scope?): description (#123)"
-              SUMMARY="❌ Invalid PR title. Required: [category] type(scope?): description (#123)"
+
+              SUMMARY="❌ Invalid PR title: $REASON. Required: [category] type(scope?): description (#123)"
               CONCLUSION="failure"
             fi
           fi
 
-          # Create a custom check run (CodeQL-style line in PR checks)
+          # Create custom check run
           CHECK_RUN=$(
             curl -sS -X POST \
               -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -67,7 +98,7 @@ jobs:
           CHECK_RUN_ID=$(echo "$CHECK_RUN" | jq -r '.id')
           echo "Created check run ID: $CHECK_RUN_ID"
 
-          # Complete the check run with the result + message
+          # Complete the check run with conclusion + detailed summary
           curl -sS -X PATCH \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -84,5 +115,5 @@ jobs:
           }
           EOF
 
-          # Do NOT fail the job: continue-on-error is true and we exit 0
+          # Do not fail job (continue-on-error is true)
           exit 0
