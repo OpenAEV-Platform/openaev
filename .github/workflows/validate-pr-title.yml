@@ -113,7 +113,6 @@ jobs:
             https://api.github.com/repos/$REPO/check-runs/$CHECK_RUN_ID \
             -d @- <<EOF
           {
-            "name": "Validate PR Title",
             "status": "completed",
             "conclusion": "$CONCLUSION",
             "output": {
