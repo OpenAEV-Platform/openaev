@@ -1,19 +1,20 @@
 package io.openaev.integration;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
 import io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
 import jakarta.persistence.EntityManager;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 @SpringBootTest
 @Transactional
@@ -24,20 +25,23 @@ public class ManagerTest {
   @Autowired private EntityManager entityManager;
 
   @Test
-  public void test() throws ClassNotFoundException {
+  public void test() throws Exception {
     Manager manager = managerFactory.getManager();
 
-    Optional<CatalogConnector> connector = catalogConnectorService.findByFactoryClassName("io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory");
+    Optional<CatalogConnector> connector =
+        catalogConnectorService.findByFactoryClassName(
+            "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory");
     ConnectorInstance instance = new ConnectorInstance();
     instance.setCatalogConnector(connector.get());
 
     manager.activate(instance);
 
-    assertThat(manager.getSpawnedIntegrations().getFirst()).isInstanceOf(CrowdStrikeIntegration.class);
+    assertThat(manager.getSpawnedIntegrations().getFirst())
+        .isInstanceOf(CrowdStrikeIntegration.class);
   }
 
   @Test
-  public void test2() throws ClassNotFoundException {
+  public void test2() throws Exception {
     String className = "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory";
     CatalogConnector cc = catalogConnectorService.createBuiltIn(className);
     ConnectorInstance alreadyCreated = new ConnectorInstance();
@@ -51,12 +55,44 @@ public class ManagerTest {
 
     Manager manager = managerFactory.getManager();
 
-    Optional<CatalogConnector> connector = catalogConnectorService.findByFactoryClassName(className);
+    Optional<CatalogConnector> connector =
+        catalogConnectorService.findByFactoryClassName(className);
     ConnectorInstance instance = new ConnectorInstance();
     instance.setCatalogConnector(connector.get());
 
     manager.activate(instance);
 
-    assertThat(manager.getSpawnedIntegrations().getFirst()).isInstanceOf(CrowdStrikeIntegration.class);
+    assertThat(manager.getSpawnedIntegrations().getFirst())
+        .isInstanceOf(CrowdStrikeIntegration.class);
+  }
+
+  @Test
+  public void test3() throws Exception {
+    String className = "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory";
+    CatalogConnector cc = catalogConnectorService.createBuiltIn(className);
+    ConnectorInstance alreadyCreated = new ConnectorInstance();
+    alreadyCreated.setCatalogConnector(cc);
+    alreadyCreated.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    alreadyCreated.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    alreadyCreated.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+    connectorInstanceService.save(alreadyCreated);
+    entityManager.flush();
+    entityManager.clear();
+
+    Manager manager = managerFactory.getManager();
+
+    Optional<CatalogConnector> connector =
+        catalogConnectorService.findByFactoryClassName(className);
+    ConnectorInstance instance = new ConnectorInstance();
+    instance.setCatalogConnector(connector.get());
+
+    manager.activate(instance);
+
+    ExecutorContextService executorContextService =
+        manager.request(
+            new ComponentRequest(CrowdStrikeExecutorContextService.SERVICE_NAME),
+            ExecutorContextService.class);
+
+    assertThat(executorContextService).isInstanceOf(ExecutorContextService.class);
   }
 }

@@ -6,14 +6,13 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
 
 @Component
 @Slf4j
@@ -27,15 +26,17 @@ public class CrowdStrikeConfigurationMigration implements ConfigurationMigration
   @Override
   @Transactional
   public void migrate() {
-    Optional<CatalogConnector> connector = catalogConnectorService.findByFactoryClassName(factoryClass);
+    Optional<CatalogConnector> connector =
+        catalogConnectorService.findByFactoryClassName(factoryClass);
 
-    if(connector.isEmpty()) {
+    if (connector.isEmpty()) {
       log.error("Configuration found for {} but no related connector in catalog", factoryClass);
       return;
     }
 
     Set<ConnectorInstance> instances = connector.get().getInstances();
-    if(instances.stream().anyMatch(i -> i.getSource().equals(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION))) {
+    if (instances.stream()
+        .anyMatch(i -> i.getSource().equals(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION))) {
       log.warn("Already migrated {}; aborting.", config);
       return;
     }

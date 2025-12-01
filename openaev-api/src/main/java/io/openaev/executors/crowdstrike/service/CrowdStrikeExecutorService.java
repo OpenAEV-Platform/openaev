@@ -3,7 +3,6 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.utils.TimeUtils.toInstant;
 
 import io.openaev.database.model.*;
-import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
@@ -20,9 +19,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
 
 @Slf4j
 public class CrowdStrikeExecutorService implements Runnable {
@@ -60,7 +56,7 @@ public class CrowdStrikeExecutorService implements Runnable {
   }
 
   public CrowdStrikeExecutorService(
-      ExecutorService executorService,
+      Executor executor,
       CrowdStrikeExecutorClient client,
       CrowdStrikeExecutorConfig config,
       EndpointService endpointService,
@@ -71,30 +67,7 @@ public class CrowdStrikeExecutorService implements Runnable {
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    try {
-      if (config.isEnable()) {
-        this.executor =
-            executorService.register(
-                config.getId(),
-                CROWDSTRIKE_EXECUTOR_TYPE,
-                CROWDSTRIKE_EXECUTOR_NAME,
-                CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK,
-                CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR,
-                getClass().getResourceAsStream("/img/icon-crowdstrike.png"),
-                getClass().getResourceAsStream("/img/banner-crowdstrike.png"),
-                new String[] {
-                  Endpoint.PLATFORM_TYPE.Windows.name(),
-                  Endpoint.PLATFORM_TYPE.Linux.name(),
-                  Endpoint.PLATFORM_TYPE.MacOS.name()
-                });
-      } else {
-        if (executor != null) {
-          executorService.remove(config.getId());
-        }
-      }
-    } catch (Exception e) {
-      log.error(String.format("Error creating CrowdStrike executor: %s", e.getMessage()), e);
-    }
+    this.executor = executor;
   }
 
   @Override

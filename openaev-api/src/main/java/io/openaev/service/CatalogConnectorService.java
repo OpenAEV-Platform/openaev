@@ -6,7 +6,6 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import java.util.List;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

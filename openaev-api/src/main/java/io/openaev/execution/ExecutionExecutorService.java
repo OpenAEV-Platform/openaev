@@ -7,6 +7,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
+import io.openaev.integration.ComponentRequest;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -16,7 +18,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -24,7 +25,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ExecutionExecutorService {
 
-  private final ApplicationContext context;
+  private final ManagerFactory managerFactory;
   private final ExecutionTraceRepository executionTraceRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
@@ -57,7 +58,10 @@ public class ExecutionExecutorService {
     if (!crowdstrikeAgents.isEmpty()) {
       try {
         ExecutorContextService executorContextService =
-            context.getBean(CROWDSTRIKE_EXECUTOR_NAME, ExecutorContextService.class);
+            managerFactory
+                .getManager()
+                .request(
+                    new ComponentRequest(CROWDSTRIKE_EXECUTOR_NAME), ExecutorContextService.class);
         executorContextService.launchBatchExecutorSubprocess(
             inject, crowdstrikeAgents, injectStatus);
         atLeastOneExecution.set(true);
@@ -181,7 +185,11 @@ public class ExecutionExecutorService {
     try {
       Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
       ExecutorContextService executorContextService =
-          context.getBean(agent.getExecutor().getName(), ExecutorContextService.class);
+          managerFactory
+              .getManager()
+              .request(
+                  new ComponentRequest(agent.getExecutor().getName()),
+                  ExecutorContextService.class);
       executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
