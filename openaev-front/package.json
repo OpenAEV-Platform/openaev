@@ -106,7 +106,7 @@
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-refresh": "0.4.24",
     "eslint-plugin-simple-import-sort": "12.1.1",
-    "express": "5.1.0",
+    "express": "5.2.0",
     "fs-extra": "11.3.2",
     "globals": "16.5.0",
     "i18n-auto-translation": "2.2.3",
