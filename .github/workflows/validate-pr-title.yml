@@ -13,10 +13,16 @@ jobs:
       checks: write
 
     steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
       - name: Validate PR title and create check
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
@@ -77,7 +83,7 @@ jobs:
               echo "[category] type(scope?): description (#123)"
 
               OUTPUT_TITLE="$REASON"
-              OUTPUT_SUMMARY="❌ Invalid PR title: $REASON. Required: [category] type(scope?): description (#123)"
+              OUTPUT_SUMMARY="❌ Invalid PR title: $REASON. \nRequired: [category] type(scope?): description (#XXX)"
               CONCLUSION="failure"
             fi
           fi
@@ -90,7 +96,7 @@ jobs:
               https://api.github.com/repos/$REPO/check-runs \
               -d @- <<EOF
           {
-            "name": "PR Title",
+            "name": "Validate PR Title",
             "head_sha": "$SHA",
             "status": "in_progress"
           }
