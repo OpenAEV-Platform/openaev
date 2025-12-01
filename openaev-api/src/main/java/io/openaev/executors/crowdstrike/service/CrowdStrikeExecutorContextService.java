@@ -1,5 +1,6 @@
 package io.openaev.executors.crowdstrike.service;
 
+import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.SLEEP_INTERVAL_BATCH_EXECUTIONS;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
@@ -81,15 +82,15 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     // Set implant script for Windows CS agents
     actions.addAll(
         getWindowsActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows), injector, inject.getId()));
+            getAgentsFromOS(csAgents, Windows), injector, inject.getId()));
     // Set implant script for Linux CS agents
     actions.addAll(
         getLinuxActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux), injector, inject.getId()));
+            getAgentsFromOS(csAgents, Linux), injector, inject.getId()));
     // Set implant script for MacOS CS agents
     actions.addAll(
         getMacOSActions(
-            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject.getId()));
+            getAgentsFromOS(csAgents, MacOS), injector, inject.getId()));
     // Launch payloads with CS API
     executeActions(actions);
     return csAgents;
@@ -134,7 +135,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
               + ExecutorHelper.IMPLANT_BASE_NAME
               + UUID.randomUUID()
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
+      Endpoint.PLATFORM_TYPE platform = Windows;
       // x86_64 by default in the register because CS API doesn't provide the platform architecture
       // (we update this when the download implant script is launched on the endpoint)
       String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
@@ -174,7 +175,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
           getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE));
+              Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -188,7 +189,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       CrowdStrikeAction actionMac = new CrowdStrikeAction();
       actionMac.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionMac.setCommandEncoded(
-          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE));
+          getUnixCommand(MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE));
       actionMac.setAgents(agents);
       actions.add(actionMac);
     }

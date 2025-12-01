@@ -1,5 +1,8 @@
 package io.openaev.executors.sentinelone.service;
 
+import static io.openaev.database.model.Endpoint.PLATFORM_ARCH.arm64;
+import static io.openaev.database.model.Endpoint.PLATFORM_ARCH.x86_64;
+import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.SLEEP_INTERVAL_BATCH_EXECUTIONS;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
@@ -80,48 +83,42 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     // Set implant script for Windows SentinelOne agents
     actions.addAll(
         getWindowsActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_ARCH.x86_64),
+            getAgentsFromOSAndArch(sentinelOneAgents, Windows, x86_64),
             injector,
             inject.getId(),
-            Endpoint.PLATFORM_ARCH.x86_64.name()));
+            x86_64.name()));
     actions.addAll(
         getWindowsActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_ARCH.arm64),
+            getAgentsFromOSAndArch(sentinelOneAgents, Windows, arm64),
             injector,
             inject.getId(),
-            Endpoint.PLATFORM_ARCH.arm64.name()));
+            arm64.name()));
     // Set implant script for Linux SentinelOne agents
     actions.addAll(
         getLinuxActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_ARCH.x86_64),
+            getAgentsFromOSAndArch(sentinelOneAgents, Linux, x86_64),
             injector,
             inject.getId(),
-            Endpoint.PLATFORM_ARCH.x86_64.name()));
+            x86_64.name()));
     actions.addAll(
         getLinuxActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_ARCH.arm64),
+            getAgentsFromOSAndArch(sentinelOneAgents, Linux, arm64),
             injector,
             inject.getId(),
-            Endpoint.PLATFORM_ARCH.arm64.name()));
+            arm64.name()));
     // Set implant script for MacOS SentinelOne agents
     actions.addAll(
         getMacOSActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.MacOS, Endpoint.PLATFORM_ARCH.x86_64),
+            getAgentsFromOSAndArch(sentinelOneAgents, MacOS, x86_64),
             injector,
             inject.getId(),
-            Endpoint.PLATFORM_ARCH.x86_64.name()));
+            x86_64.name()));
     actions.addAll(
         getMacOSActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.MacOS, Endpoint.PLATFORM_ARCH.arm64),
+            getAgentsFromOSAndArch(sentinelOneAgents, MacOS, arm64),
             injector,
             inject.getId(),
-            Endpoint.PLATFORM_ARCH.arm64.name()));
+            arm64.name()));
     // Launch payloads with SentinelOne API
     executeActions(actions);
     return sentinelOneAgents;
@@ -166,7 +163,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
               + ExecutorHelper.IMPLANT_BASE_NAME
               + UUID.randomUUID()
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
+      Endpoint.PLATFORM_TYPE platform = Windows;
       String executorCommandKey = platform.name() + "." + arch;
       String command = injector.getExecutorCommands().get(executorCommandKey);
       // The default command to download the openaev implant and execute the attack is modified for
@@ -196,8 +193,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       SentinelOneAction actionLinux = new SentinelOneAction();
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE, arch));
+          getUnixCommand(Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE, arch));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -211,8 +207,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       SentinelOneAction actionMac = new SentinelOneAction();
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE, arch));
+          getUnixCommand(MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE, arch));
       actionMac.setAgents(agents);
       actions.add(actionMac);
     }
