@@ -1,4 +1,4 @@
-name: "Check Format Title"
+name: "Check PR title format"
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   validate-pr-title:
-    name: Validate PR Title (This step is NON-MANDATORY)
+    name: This step is NON-MANDATORY
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
