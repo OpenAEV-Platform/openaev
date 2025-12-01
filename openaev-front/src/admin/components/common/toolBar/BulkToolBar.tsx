@@ -10,7 +10,7 @@ import { type ToolTasks } from './BulkToolBar-model';
 const useStyles = makeStyles()(theme => ({
   title: {
     flex: '1',
-    fontSize: theme.typography.pxToRem(12),
+    fontSize: theme.typography.h4.fontSize,
   },
   numberOfSelectedElements: {
     padding: theme.spacing(0.5, 1, 0.5, 1),

@@ -60,11 +60,6 @@ export const importInjectsForSimulation = (simulationId: Exercise['exercise_id']
   });
 };
 
-export const createInjectsForSimulation = (simulationId: Exercise['exercise_id'], inputs: InjectInput[]) => (dispatch: Dispatch) => {
-  const uri = `/api/exercises/${simulationId}/injects/bulk`;
-  return postReferential(schema.arrayOfInjects, uri, inputs)(dispatch);
-};
-
 // -- SCENARIOS --
 
 export const fetchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
@@ -85,11 +80,6 @@ export const importInjectsForScenario = (scenarioId: Scenario['scenario_id'], fi
     MESSAGING$.notifyError('Could not import injects');
     throw error;
   });
-};
-
-export const createInjectsForScenario = (scenarioId: Scenario['scenario_id'], inputs: InjectInput[]) => (dispatch: Dispatch) => {
-  const uri = `/api/scenarios/${scenarioId}/injects/bulk`;
-  return postReferential(schema.arrayOfInjects, uri, inputs)(dispatch);
 };
 
 // -- TARGETS --

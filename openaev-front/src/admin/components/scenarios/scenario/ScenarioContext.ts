@@ -4,11 +4,11 @@ import { addInjectForScenario, bulkDeleteInjectsSimple, bulkUpdateInjectSimple, 
 import { bulkTestInjects } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import {
-  createInjectsForScenario,
   importInjectsForScenario,
   searchScenarioInjectsSimple,
 } from '../../../../actions/injects/inject-action';
 import { dryImportXlsForScenario, fetchScenario, fetchScenarioTeams, importXlsForScenario } from '../../../../actions/scenarios/scenario-actions';
+import { createInjectsForScenario } from '../../../../actions/scenarios/scenario-inject-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import { type ImportTestSummary, type Inject, type InjectBulkProcessingInput, type InjectBulkUpdateInputs, type InjectInput, type InjectsImportInput, type InjectTestStatusOutput, type Scenario, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';

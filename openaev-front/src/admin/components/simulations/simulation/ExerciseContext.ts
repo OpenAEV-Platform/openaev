@@ -16,10 +16,10 @@ import {
 import { bulkTestInjects } from '../../../../actions/inject_test/simulation-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import {
-  createInjectsForSimulation,
   importInjectsForSimulation,
   searchExerciseInjectsSimple,
 } from '../../../../actions/injects/inject-action';
+import { createInjectsForSimulation } from '../../../../actions/simulations/simulation-inject-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import {
   type Exercise,
