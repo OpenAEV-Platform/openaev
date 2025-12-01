@@ -1,4 +1,4 @@
-name: "Validate PR Title"
+name: "Check Format Title"
 
 on:
   pull_request:
