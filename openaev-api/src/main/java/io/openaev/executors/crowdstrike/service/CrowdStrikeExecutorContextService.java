@@ -1,5 +1,6 @@
 package io.openaev.executors.crowdstrike.service;
 
+import static io.openaev.executors.ExecutorHelper.SLEEP_INTERVAL_BATCH_EXECUTIONS;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
@@ -27,8 +28,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
-
-  private static final int SLEEP_INTERVAL_BATCH_EXECUTIONS = 1000;
 
   private static final String AGENT_ID_VARIABLE = "$agentID";
   private static final String ARCH_VARIABLE = "$architecture";

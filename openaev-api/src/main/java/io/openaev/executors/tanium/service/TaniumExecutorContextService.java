@@ -1,5 +1,7 @@
 package io.openaev.executors.tanium.service;
 
+import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.Windows;
+import static io.openaev.executors.ExecutorHelper.SLEEP_INTERVAL_BATCH_EXECUTIONS;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
 
@@ -8,14 +10,15 @@ import io.openaev.database.model.*;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
+import io.openaev.executors.ExecutorService;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
-import io.openaev.rest.exception.AgentException;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -27,28 +30,30 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   private final LicenseCacheManager licenseCacheManager;
   private final TaniumExecutorConfig taniumExecutorConfig;
   private final TaniumExecutorClient taniumExecutorClient;
+  private final ExecutorService executorService;
   public static final String SERVICE_NAME = TANIUM_EXECUTOR_NAME;
 
   @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent)
-      throws AgentException {
+      @NotNull final Agent agent) {}
 
-    InjectStatus status = inject.getStatus().orElseThrow();
+  @Override
+  public List<Agent> launchBatchExecutorSubprocess(
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
+
     eeService.throwEEExecutorService(
-        licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, status);
+        licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.taniumExecutorConfig.isEnable()) {
-      throw new AgentException("Fatal error: Tanium executor is not enabled", agent);
+      throw new RuntimeException("Fatal error: Tanium executor is not enabled");
     }
 
-    Endpoint.PLATFORM_TYPE platform = assetEndpoint.getPlatform();
-    Endpoint.PLATFORM_ARCH arch = assetEndpoint.getArch();
-    if (platform == null || arch == null) {
-      throw new RuntimeException("Unsupported platform: " + platform + " (arch:" + arch + ")");
-    }
+    List<Agent> taniumAgents = new ArrayList<>(agents);
+
+    // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
+    taniumAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
     Injector injector =
         inject
@@ -57,54 +62,55 @@ public class TaniumExecutorContextService extends ExecutorContextService {
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
-    Integer packageId =
-        switch (platform) {
-          case Windows -> this.taniumExecutorConfig.getWindowsPackageId();
-          case Linux, MacOS -> this.taniumExecutorConfig.getUnixPackageId();
-          default -> throw new RuntimeException("Unsupported platform: " + platform);
-        };
+    taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
 
+    for (int callNumber = 0; callNumber < taniumAgents.size(); callNumber += 1) {
+      int paginationLimit = this.taniumExecutorConfig.getApiBatchExecutionActionPagination();
+      // Pagination with 1s wait because each action will call the Tanium API to execute the implant
+      // and each implant will call OpenAEV API to set traces
+      launchTaniumAction(taniumAgents.get(callNumber), inject, injector);
+      if (callNumber + 1 % paginationLimit == 0) {
+        Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
+      }
+    }
+    return taniumAgents;
+  }
+
+  private void launchTaniumAction(Agent agent, Inject inject, Injector injector) {
+    Endpoint endpoint = (Endpoint) agent.getAsset();
+    Endpoint.PLATFORM_TYPE platform = endpoint.getPlatform();
+    Endpoint.PLATFORM_ARCH arch = endpoint.getArch();
+    Integer packageId =
+        platform.equals(Windows)
+            ? this.taniumExecutorConfig.getWindowsPackageId()
+            : this.taniumExecutorConfig.getUnixPackageId();
     String implantLocation =
-        switch (platform) {
-          case Windows ->
-              "$location="
-                  + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
-                  + ExecutorHelper.IMPLANT_BASE_NAME
-                  + UUID.randomUUID()
-                  + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-          case Linux, MacOS ->
-              "location="
-                  + ExecutorHelper.IMPLANT_LOCATION_UNIX
-                  + ExecutorHelper.IMPLANT_BASE_NAME
-                  + UUID.randomUUID()
-                  + ";mkdir -p $location;filename=";
-          default -> throw new RuntimeException("Unsupported platform: " + platform);
-        };
+        platform.equals(Windows)
+            ? "$location="
+                + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
+                + ExecutorHelper.IMPLANT_BASE_NAME
+                + UUID.randomUUID()
+                + "\";md $location -ea 0;[Environment]::CurrentDirectory"
+            : "location="
+                + ExecutorHelper.IMPLANT_LOCATION_UNIX
+                + ExecutorHelper.IMPLANT_BASE_NAME
+                + UUID.randomUUID()
+                + ";mkdir -p $location;filename=";
 
     String executorCommandKey = platform.name() + "." + arch.name();
     String command = injector.getExecutorCommands().get(executorCommandKey);
     command = replaceArgs(platform, command, inject.getId(), agent.getId());
     command =
-        switch (platform) {
-          case Windows ->
-              command.replaceFirst(
-                  "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
-                  Matcher.quoteReplacement(implantLocation));
-          case Linux, MacOS ->
-              command.replaceFirst(
-                  "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
-          default -> throw new RuntimeException("Unsupported platform: " + platform);
-        };
+        platform.equals(Windows)
+            ? command.replaceFirst(
+                "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
+                Matcher.quoteReplacement(implantLocation))
+            : command.replaceFirst(
+                "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
 
     this.taniumExecutorClient.executeAction(
         agent.getExternalReference(),
         packageId,
         Base64.getEncoder().encodeToString(command.getBytes()));
-  }
-
-  @Override
-  public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
-    return new ArrayList<>();
   }
 }

@@ -19,6 +19,8 @@ public class TaniumExecutorConfig {
 
   @Getter @NotBlank private String url;
 
+  @Getter @NotBlank private Integer apiBatchExecutionActionPagination = 100;
+
   @Getter @NotBlank private Integer apiRegisterInterval = 1200;
 
   @Getter @NotBlank private String apiKey;

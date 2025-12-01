@@ -32,6 +32,7 @@ import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -100,7 +101,7 @@ public class TaniumExecutorClient {
 
       Map<String, Object> body = new HashMap<>();
       body.put(QUERY, query);
-      String jsonResponse = this.post(body);
+      String jsonResponse = this.postSync(body);
 
       GraphQLResponse<DataEndpoints> response =
           objectMapper.readValue(jsonResponse, new TypeReference<>() {});
@@ -147,7 +148,7 @@ public class TaniumExecutorClient {
 
       Map<String, Object> body = new HashMap<>();
       body.put(QUERY, query);
-      String jsonResponse = this.post(body);
+      String jsonResponse = this.postSync(body);
 
       GraphQLResponse<DataComputerGroup> response =
           objectMapper.readValue(jsonResponse, new TypeReference<>() {});
@@ -202,15 +203,25 @@ public class TaniumExecutorClient {
       Map<String, Object> requestBody = new HashMap<>();
       requestBody.put(QUERY, mutation);
 
-      this.post(requestBody);
+      this.postAsync(requestBody);
     } catch (IOException e) {
-      log.error("Error while executing action with Tanium API: ", e);
+      log.error(
+          String.format("Error while executing action with Tanium API. Error: %s", e.getMessage()),
+          e);
       throw new RuntimeException(e);
     }
   }
 
-  // -- PRIVATE --
+  private String postSync(@NotNull final Map<String, Object> body) throws IOException {
+    return post(body);
+  }
 
+  @Async
+  protected void postAsync(@NotNull final Map<String, Object> body) throws IOException {
+    post(body);
+  }
+
+  // -- PRIVATE --
   private String post(@NotNull final Map<String, Object> body) throws IOException {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpPost httpPost = new HttpPost(this.config.getGatewayUrl());
