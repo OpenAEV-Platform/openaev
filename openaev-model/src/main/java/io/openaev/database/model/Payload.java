@@ -192,7 +192,7 @@ public class Payload implements GrantableBase {
   @JoinColumn(name = "payload_collector")
   @JsonSerialize(using = MonoIdDeserializer.class)
   @JsonProperty("payload_collector")
-  @IncludeOption(key="exclude from payload export")
+  @IncludeOption(key = "exclude from payload export")
   @Schema(type = "string")
   private Collector collector;
 
