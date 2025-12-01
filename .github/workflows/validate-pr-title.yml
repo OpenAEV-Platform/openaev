@@ -29,7 +29,8 @@ jobs:
           # Skip validation for renovate
           if [[ "$TITLE" == "chore(deps)"* ]]; then
             echo "⚠️ Skipping validation for renovate PRs."
-            SUMMARY="⚠️ Skipping validation for Renovate PRs."
+            OUTPUT_TITLE="⚠️ Skipping validation for Renovate PRs."
+            OUTPUT_SUMMARY="⚠️ Skipping validation for Renovate PRs."
             CONCLUSION="success"
           else
             # Full pattern:
@@ -38,7 +39,8 @@ jobs:
 
             if [[ "$TITLE" =~ $FULL_PATTERN ]]; then
               echo "✅ PR title is valid."
-              SUMMARY="✅ PR title is valid."
+              OUTPUT_TITLE="✅ PR title is valid."
+              OUTPUT_SUMMARY="✅ PR title is valid."
               CONCLUSION="success"
             else
               # Diagnose common failures
@@ -46,36 +48,37 @@ jobs:
               # 1) Check category block: [category/subcategory]
               CATEGORY_PATTERN='^\[([a-z]+(/[a-z]+)*)\]'
               if ! [[ "$TITLE" =~ $CATEGORY_PATTERN ]]; then
-                REASON="missing or invalid [category] block (expected: [category] or [category/subcategory])"
+                REASON="Missing or invalid [category] block (expected: [category] or [category/subcategory])"
               fi
 
               # 2) Check type + optional scope
               TYPE_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: '
               if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $TYPE_PATTERN ]]; then
-                REASON="missing or invalid type. Expected one of: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (with optional scope: type(scope))"
+                REASON="Missing or invalid type. Expected one of: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (with optional scope: type(scope))"
               fi
 
               # 3) Check description starts with lowercase letter
               DESC_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z]'
               if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $DESC_PATTERN ]]; then
-                REASON="description must start with a lowercase letter after ': '"
+                REASON="Description must start with a lowercase letter after ': '"
               fi
 
               # 4) Check issue reference at the end: (#123)
               ISSUE_PATTERN='\(#[0-9]+\)$'
               if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $ISSUE_PATTERN ]]; then
-                REASON="missing issue reference at the end. Expected: (#123)"
+                REASON="Missing issue reference at the end. Expected: (#123)"
               fi
 
               if [[ -z "${REASON:-}" ]]; then
-                REASON="title does not match the required pattern"
+                REASON="Title does not match the required pattern"
               fi
 
               echo "❌ Invalid PR title: $REASON"
               echo "Required format:"
               echo "[category] type(scope?): description (#123)"
 
-              SUMMARY="❌ Invalid PR title: $REASON. Required: [category] type(scope?): description (#123)"
+              OUTPUT_TITLE="❌ $REASON"
+              OUTPUT_SUMMARY="❌ Invalid PR title: $REASON. Required: [category] type(scope?): description (#123)"
               CONCLUSION="failure"
             fi
           fi
@@ -109,8 +112,8 @@ jobs:
             "status": "completed",
             "conclusion": "$CONCLUSION",
             "output": {
-              "title": "$SUMMARY",
-              "summary": "$SUMMARY"
+              "title": "$OUTPUT_TITLE",
+              "summary": "$OUTPUT_SUMMARY"
             }
           }
           EOF
