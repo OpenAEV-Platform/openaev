@@ -11,13 +11,12 @@ jobs:
     permissions:
       contents: read
       checks: write
-      pull-requests: write
 
     steps:
       - name: Validate PR title and create check
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.PR_TITLE_CHECK }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
