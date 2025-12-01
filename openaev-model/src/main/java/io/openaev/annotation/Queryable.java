@@ -43,8 +43,8 @@ public @interface Queryable {
 
   /**
    * Defines the JPA path used to query this property. Follows Spring Data Specification conventions
-   * (e.g. {@code "organization.id"}).
-   * Path should end by a primitiv value or this can lead to UnsupportableOperation.
+   * (e.g. {@code "organization.id"}). Path should end by a primitiv value or this can lead to
+   * UnsupportableOperation.
    */
   String path() default "";
 
@@ -54,10 +54,21 @@ public @interface Queryable {
    */
   String[] paths() default {};
 
+  /**
+   * Defines the complete list of operators available for filtering a collection by the decorated
+   * property. If undefined, the client is responsible for guessing which operators are applicable
+   * according to the decorated property type.
+   */
   Filters.FilterOperator[] overrideOperators() default {};
 
+  /**
+   * Define a value here to specify a type hint for clients to treat the decorated property as this
+   * type. Example: String[].class; clients parsing this hint will be encouraged to treat the value
+   * of the decorated property as an array of strings.
+   */
   Class clazz() default Unassigned.class;
 
+  /** Defines the Enum source for the allowed values of the decorated property, if applicable. */
   Class refEnumClazz() default Unassigned.class;
 
   /**
