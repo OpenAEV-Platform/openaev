@@ -540,11 +540,8 @@ interface BasePayloadCreateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Set list of domains
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
+  /** Set list of domains */
+  payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -1420,9 +1417,9 @@ export interface Domain {
   listened?: boolean;
 }
 
-export interface DomainCreateInput {
+export interface DomainBaseInput {
   /** Color of the domain */
-  domain_color?: string;
+  domain_color: string;
   /** Name of the domain */
   domain_name: string;
 }
@@ -3271,7 +3268,7 @@ export interface InjectorContractFullOutput {
   /** Content */
   injector_contract_content: string;
   /** Domain IDs */
-  injector_contract_domains?: string[];
+  injector_contract_domains: string[];
   /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
@@ -4599,11 +4596,8 @@ export interface PayloadInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Update list of domains
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
+  /** Update list of domains */
+  payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -4662,11 +4656,8 @@ export interface PayloadUpdateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Update list of domains
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
+  /** Update list of domains */
+  payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"

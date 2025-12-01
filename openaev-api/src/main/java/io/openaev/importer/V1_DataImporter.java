@@ -236,6 +236,7 @@ public class V1_DataImporter implements Importer {
 
                 if (baseIds.get(id) != null) {
                     // Already import
+                    domainIds.add(baseIds.get(id).getId());
                     return;
                 }
 
