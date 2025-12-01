@@ -23,6 +23,7 @@ jobs:
           PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
           
           if [[ ! "$TITLE" =~ $PATTERN ]]; then
+            echo "::error title=Invalid PR title::Title must match: [category] type(scope?): description (#123)"
             echo "❌ Invalid PR title."
             echo "Required format:"
             echo "[category] type(scope?): description (#123)"
