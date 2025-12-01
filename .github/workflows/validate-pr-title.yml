@@ -96,7 +96,7 @@ jobs:
               https://api.github.com/repos/$REPO/check-runs \
               -d @- <<EOF
           {
-            "name": "📝 Validate PR Title (optional)",
+            "name": "Validate PR Title (optional)",
             "head_sha": "$SHA",
             "status": "in_progress"
           }
