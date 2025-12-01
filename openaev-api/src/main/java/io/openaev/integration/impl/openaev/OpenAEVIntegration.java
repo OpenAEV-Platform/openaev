@@ -1,0 +1,63 @@
+package io.openaev.integration.impl.openaev;
+
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
+import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.executors.ExecutorService;
+import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
+import io.openaev.integration.ComponentRequestEngine;
+import io.openaev.integration.Integration;
+import io.openaev.integration.QualifiedComponent;
+
+public class OpenAEVIntegration extends Integration {
+  private final ExecutorService executorService;
+  private final AssetAgentJobRepository assetAgentJobRepository;
+
+  private Executor executor;
+
+  public static final String OPENAEV_EXECUTOR_ID = "2f9a0936-c327-4e95-b406-d161d32a2501";
+  public static final String OPENAEV_EXECUTOR_TYPE = "openaev_agent";
+  public static final String OPENAEV_EXECUTOR_NAME = "OpenAEV Agent";
+  public static final String OPENAEV_EXECUTOR_DOCUMENTATION_LINK =
+      "https://docs.openaev.io/latest/usage/openaev-agent/";
+  private static final String OPENAEV_EXECUTOR_BACKGROUND_COLOR = "#001BDB";
+
+  @QualifiedComponent(identifier = OPENAEV_EXECUTOR_NAME)
+  private OpenAEVExecutorContextService openAEVExecutorContextService;
+
+  public OpenAEVIntegration(
+      ExecutorService executorService,
+      AssetAgentJobRepository assetAgentJobRepository,
+      ComponentRequestEngine componentRequestEngine) {
+    super(componentRequestEngine);
+    this.assetAgentJobRepository = assetAgentJobRepository;
+    this.executorService = executorService;
+  }
+
+  @Override
+  public void start() throws Exception {
+    this.executor =
+        executorService.register(
+            OPENAEV_EXECUTOR_ID,
+            OPENAEV_EXECUTOR_TYPE,
+            OPENAEV_EXECUTOR_NAME,
+            OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
+            OPENAEV_EXECUTOR_BACKGROUND_COLOR,
+            getClass().getResourceAsStream("/img/icon-openaev.png"),
+            getClass().getResourceAsStream("/img/banner-openaev.png"),
+            new String[] {
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_TYPE.MacOS.name()
+            });
+
+    this.openAEVExecutorContextService = new OpenAEVExecutorContextService(assetAgentJobRepository);
+  }
+
+  @Override
+  public void stop() {
+    executorService.remove(this.executor.getId());
+    this.executor = null;
+    this.openAEVExecutorContextService = null;
+  }
+}
