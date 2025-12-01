@@ -45,10 +45,10 @@ jobs:
             else
               # Diagnose common failures
 
-              # 1) Check category block: [category/subcategory]
+              # 1) Check category block: [category/category]
               CATEGORY_PATTERN='^\[([a-z]+(/[a-z]+)*)\]'
               if ! [[ "$TITLE" =~ $CATEGORY_PATTERN ]]; then
-                REASON="Missing or invalid [category] block (expected: [category] or [category/subcategory])"
+                REASON="Missing or invalid [category] block (expected: [category] or [category/category])"
               fi
 
               # 2) Check type + optional scope
