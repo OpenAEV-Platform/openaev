@@ -35,7 +35,7 @@ public class DomainApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @DisplayName("When domain does not exist, upsert creates and returns domain")
   public void whenDomainDoesNotExist_upsertCreatesAndReturnsDomain() throws Exception {
-      DomainBaseInput input = new DomainBaseInput();
+    DomainBaseInput input = new DomainBaseInput();
     input.setName("domain");
 
     String response =
@@ -63,7 +63,7 @@ public class DomainApiTest extends IntegrationTest {
     Domain existingDomain =
         domainComposer.forDomain(null).withName("existing").withColor("#123456").persist().get();
 
-      DomainBaseInput input = new DomainBaseInput();
+    DomainBaseInput input = new DomainBaseInput();
     input.setName("existing");
 
     String response =

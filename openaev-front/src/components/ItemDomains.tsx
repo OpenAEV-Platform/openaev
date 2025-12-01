@@ -1,7 +1,6 @@
 import { Chip, Tooltip } from '@mui/material';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
-import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
 import { type DomainHelper } from '../actions/helper';
@@ -9,7 +8,7 @@ import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { truncate } from '../utils/String';
 
-const useStyles = makeStyles()((theme) => ({
+export const useStyles = makeStyles()(theme => ({
   inline: {
     display: 'inline',
     alignItems: 'center',
@@ -17,15 +16,15 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'hidden',
   },
   domainChip: {
-      height: theme.spacing(3),
-      fontSize: theme.typography.pxToRem(12),
-      marginRight: theme.spacing(1),
-      borderRadius: theme.shape.borderRadius,
+    height: theme.spacing(3),
+    fontSize: theme.typography.pxToRem(12),
+    marginRight: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
   },
   domainChipInList: {
-      fontSize: theme.typography.pxToRem(12),
-      height: theme.spacing(2.5),
-      float: 'left',
+    fontSize: theme.typography.pxToRem(12),
+    height: theme.spacing(2.5),
+    float: 'left',
     textTransform: 'uppercase',
   },
 }));
@@ -37,7 +36,6 @@ interface ItemsDomainsProps {
 
 const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
     return helper.getDomains();
