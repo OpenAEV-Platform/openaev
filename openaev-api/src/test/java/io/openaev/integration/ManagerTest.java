@@ -2,6 +2,7 @@ package io.openaev.integration;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
 import jakarta.persistence.EntityManager;
@@ -26,7 +27,7 @@ public class ManagerTest {
   public void test() throws ClassNotFoundException {
     Manager manager = managerFactory.getManager();
 
-    Optional<CatalogConnector> connector = catalogConnectorService.findByFactoryClassName("io.openaev.integration.CrowdStrikeIntegrationFactory");
+    Optional<CatalogConnector> connector = catalogConnectorService.findByFactoryClassName("io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory");
     ConnectorInstance instance = new ConnectorInstance();
     instance.setCatalogConnector(connector.get());
 
@@ -37,7 +38,7 @@ public class ManagerTest {
 
   @Test
   public void test2() throws ClassNotFoundException {
-    String className = "io.openaev.integration.CrowdStrikeIntegrationFactory";
+    String className = "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory";
     CatalogConnector cc = catalogConnectorService.createBuiltIn(className);
     ConnectorInstance alreadyCreated = new ConnectorInstance();
     alreadyCreated.setCatalogConnector(cc);

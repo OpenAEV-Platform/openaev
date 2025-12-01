@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
 public class CrowdStrikeGarbageCollectorService implements Runnable {
   // Clean payloads older than 24 hours
   private static final String WINDOWS_COMMAND_LINE =
@@ -23,7 +22,6 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
   private final CrowdStrikeExecutorClient client;
   private final AgentService agentService;
 
-  @Autowired
   public CrowdStrikeGarbageCollectorService(
       CrowdStrikeExecutorConfig config,
       CrowdStrikeExecutorClient client,

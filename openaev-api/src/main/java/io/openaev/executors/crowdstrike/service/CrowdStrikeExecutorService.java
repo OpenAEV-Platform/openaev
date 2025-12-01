@@ -24,9 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-@ConditionalOnProperty(prefix = "executor.crowdstrike", name = "enable")
 @Slf4j
-@Service
 public class CrowdStrikeExecutorService implements Runnable {
 
   public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike";
@@ -61,7 +59,6 @@ public class CrowdStrikeExecutorService implements Runnable {
     };
   }
 
-  @Autowired
   public CrowdStrikeExecutorService(
       ExecutorService executorService,
       CrowdStrikeExecutorClient client,

@@ -3,7 +3,7 @@ package io.openaev.integration.migration;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
-import io.openaev.integration.CrowdStrikeIntegrationFactory;
+import io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
 import lombok.RequiredArgsConstructor;

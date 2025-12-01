@@ -14,7 +14,12 @@ public class ManagerFactory {
   private final List<ConfigurationMigration> migrations;
   private final CatalogConnectorService catalogConnectorService;
 
+  private Manager managerInstance;
+
   public Manager getManager() {
-    return new Manager(factories, migrations, catalogConnectorService);
+    if(managerInstance == null) {
+      managerInstance = new Manager(factories, migrations, catalogConnectorService);
+    }
+    return managerInstance;
   }
 }
