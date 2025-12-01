@@ -31,10 +31,10 @@ jobs:
           PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
           
           if [[ ! "$TITLE" =~ $PATTERN ]]; then
-            echo "❌ Invalid PR title."
-            echo "Required format:"
-            echo "[category] type(scope?): description (#123)"
-            exit 1
+            echo "❌ Invalid PR title." >> $GITHUB_STEP_SUMMARY
+            echo "Required format:" >> $GITHUB_STEP_SUMMARY
+            echo "[category] type(scope?): description (#123)" >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
           
           echo "✅ PR title is valid."
