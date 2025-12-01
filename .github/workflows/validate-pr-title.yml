@@ -10,6 +10,7 @@ jobs:
     continue-on-error: true
     permissions:
       contents: read
+      checks: write
 
     steps:
       - name: Validate PR title and create check
@@ -106,7 +107,7 @@ jobs:
             https://api.github.com/repos/$REPO/check-runs/$CHECK_RUN_ID \
             -d @- <<EOF
           {
-            "name": "PR Title",
+            "name": "Validate PR Title",
             "status": "completed",
             "conclusion": "$CONCLUSION",
             "output": {
