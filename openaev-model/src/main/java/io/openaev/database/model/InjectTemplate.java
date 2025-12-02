@@ -63,16 +63,6 @@ public class InjectTemplate implements GrantableBase, Injection {
   private String description;
 
   @Getter
-  @Column(name = "inject_template_enabled")
-  @JsonProperty("inject_template_enabled")
-  private boolean enabled = true;
-
-  @Getter
-  @Column(name = "inject_template_trigger_now_date")
-  @JsonProperty("inject_template_trigger_now_date")
-  private Instant triggerNowDate;
-
-  @Getter
   @Column(name = "inject_template_content")
   @Convert(converter = ContentConverter.class)
   @JsonProperty("inject_template_content")
@@ -118,28 +108,10 @@ public class InjectTemplate implements GrantableBase, Injection {
   @JsonProperty("inject_template_depends_on")
   private List<Edge> dependsOn = new ArrayList<>();
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "inject_template_injector_contract")
-  @JsonProperty("inject_template_injector_contract")
-  @Queryable(filterable = true, dynamicValues = true, path = "injectorContract.injector.id")
-  private InjectorContract injectorContract;
-
   // CascadeType.ALL is required here because inject status are embedded
   @JsonProperty("inject_template_status")
   @Queryable(filterable = true, sortable = true)
   private String status;
-
-  // CascadeType.ALL is required here because of complex relationships
-  @ArraySchema(schema = @Schema(type = "string"))
-  @Getter
-  @OneToMany(
-      mappedBy = "inject",
-      fetch = FetchType.EAGER,
-      cascade = CascadeType.ALL,
-      orphanRemoval = true)
-  @JsonProperty("inject_template_documents")
-  @JsonSerialize(using = MultiModelDeserializer.class)
-  private List<InjectDocument> documents = new ArrayList<>();
 
   @Getter @Setter @Transient private boolean isListened = true;
 
