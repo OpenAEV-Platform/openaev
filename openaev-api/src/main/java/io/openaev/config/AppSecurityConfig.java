@@ -15,12 +15,14 @@ import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import jakarta.annotation.Resource;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.core5.net.URIBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -92,10 +94,23 @@ public class AppSecurityConfig {
                 logout
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
-                    .logoutSuccessUrl(
-                        env.getProperty("openaev.base-url", String.class, "/")
-                            + env.getProperty("openaev.logout-success-url", String.class, "/")));
-
+                    .logoutSuccessHandler(
+                        (request, response, authentication) -> {
+                          try {
+                            response.sendRedirect(
+                                new URIBuilder(request.getHeader("Referer"))
+                                    .setPath("")
+                                    .build()
+                                    .toString());
+                          } catch (URISyntaxException e) {
+                            log.warn(
+                                "Could not deduce root url from referer. Using base url from env properties");
+                            response.sendRedirect(
+                                env.getProperty("openaev.base-url", String.class, "/")
+                                    + env.getProperty(
+                                        "openaev.logout-success-url", String.class, "/"));
+                          }
+                        }));
     if (openAEVConfig.isAuthOpenidEnable()) {
       http.oauth2Login(
           login ->
