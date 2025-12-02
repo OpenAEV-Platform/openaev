@@ -381,7 +381,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Without attack patterns, creating contract succeeds")
       void createContractSucceeds() throws Exception {
-          Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
@@ -462,7 +462,7 @@ public class InjectorContractApiTest extends IntegrationTest {
               .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
               .persist();
         }
-          Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
         em.flush();
         em.clear();
 
@@ -584,7 +584,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                       VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
-          Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
         em.flush();
         em.clear();
 
@@ -646,7 +646,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                       VulnerabilityFixture.getRandomExternalVulnerabilityId()))
               .persist();
         }
-          Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
         em.flush();
         em.clear();
 

@@ -13,6 +13,7 @@ import io.openaev.rest.domain.enums.DomainKeyWords;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -20,8 +21,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -82,7 +81,7 @@ public class DomainService {
   @Transactional
   public Set<Domain> upserts(final Set<Domain> domains) {
     if (domains == null) {
-        return Set.of();
+      return Set.of();
     }
 
     return domains.stream().map(this::upsert).collect(Collectors.toSet());
@@ -159,7 +158,7 @@ public class DomainService {
   private boolean findInKeywords(DomainKeyWords keywords, String searchValue) {
     return keywords.getKeywords().stream()
         .map(String::toLowerCase)
-            .anyMatch(keyword -> searchValue.toLowerCase().contains(keyword));
+        .anyMatch(keyword -> searchValue.toLowerCase().contains(keyword));
   }
 
   private String randomColor() {
