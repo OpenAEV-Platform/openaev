@@ -33,7 +33,7 @@ import static java.util.Optional.ofNullable;
 
 @Setter
 @Entity
-@Table(name = "injects_templates")
+@Table(name = "inject_templates")
 @EntityListeners(ModelBaseListener.class)
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)

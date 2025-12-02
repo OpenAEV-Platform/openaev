@@ -97,18 +97,4 @@ public class InjectExecution implements GrantableBase, Injection {
       "grant_resource_type = 'ATOMIC_TESTING'") // Must be present in Grant.GRANT_RESOURCE_TYPE
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
-
-   @JsonIgnore
-  public String getParentResourceId() {
-    return this.getScenario() != null
-        ? this.getScenario().getId()
-        : this.getExercise() != null ? this.getExercise().getId() : this.getId();
-  }
-
-  @JsonIgnore
-  public ResourceType getParentResourceType() {
-    return this.getScenario() != null
-        ? ResourceType.SCENARIO
-        : this.getExercise() != null ? ResourceType.SIMULATION : ResourceType.ATOMIC_TESTING;
-  }
 }
