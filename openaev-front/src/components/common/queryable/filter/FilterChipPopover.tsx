@@ -78,8 +78,7 @@ const FilterChipPopover: FunctionComponent<Props> = ({
     >
       <div
         style={{
-          width: 250,
-          padding: 8,
+          width: 250
         }}
       >
         {displayOperatorAndFilter()}
