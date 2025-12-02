@@ -9,13 +9,9 @@ import {
   fetchLessonsQuestions,
   fetchPlayersByExercise,
 } from '../../../../../actions/exercises/exercise-action';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type UserHelper } from '../../../../../actions/helper';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchReportFromSimulation } from '../../../../../actions/reports/report-actions';
-import { type ReportsHelper } from '../../../../../actions/reports/report-helper';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
-import { useHelper } from '../../../../../store';
+import { getExerciseLessonsAnswersSelector, getExerciseLessonsCategoriesSelector, getExerciseLessonsQuestionsSelector, getExerciseSelector, getExerciseTeamsSelector, getReportSelector, getTeamsMapSelector, getUsersMapSelector } from '../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../store';
 import {
   type Exercise,
   type ExpectationResultsByType,
@@ -35,18 +31,18 @@ import ReportInformationType from './ReportInformationType';
 export interface ExerciseReportData {
   injects: InjectResultOutput[];
   exerciseExpectationResults: ExpectationResultsByType[];
-  exercise: Exercise;
+  exercise: Exercise | undefined;
   lessonsCategories: LessonsCategory[];
   lessonsQuestions: LessonsQuestion[];
   lessonsAnswers: LessonsAnswer[];
   teams: Team[];
-  teamsMap: Record<string, Team>;
-  usersMap: Record<string, User>;
+  teamsMap: Record<string, Team | undefined>;
+  usersMap: Record<string, User | undefined>;
 }
 
 interface ReturnType {
   loading: boolean;
-  report: Report;
+  report: Report | undefined;
   displayModule: (moduleType: ReportInformationType) => boolean;
   setReloadReportDataCount: Dispatch<SetStateAction<number>>;
   reportData: ExerciseReportData;
@@ -59,30 +55,17 @@ const useExerciseReportData = (reportId: Report['report_id'], exerciseId: Exerci
   const [exerciseExpectationResults, setResults] = useState<ExpectationResultsByType[]>([]);
   const [injects, setInjects] = useState<InjectResultOutput[]>([]);
 
-  const {
-    report,
-    exercise,
-    lessonsCategories,
-    lessonsQuestions,
-    lessonsAnswers,
-    teams,
-    teamsMap,
-    usersMap,
-  } = useHelper((helper: InjectHelper & ReportsHelper & ExercisesHelper & TeamsHelper & UserHelper) => {
-    return {
-      report: helper.getReport(reportId),
-      exercise: helper.getExercise(exerciseId),
-      lessonsCategories: helper.getExerciseLessonsCategories(exerciseId),
-      lessonsQuestions: helper.getExerciseLessonsQuestions(exerciseId),
-      lessonsAnswers: helper.getExerciseLessonsAnswers(exerciseId),
-      teamsMap: helper.getTeamsMap(),
-      teams: helper.getExerciseTeams(exerciseId),
-      usersMap: helper.getUsersMap(),
-    };
-  });
+  const report = useSelectorHelper(state => getReportSelector(reportId, state));
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const lessonsCategories = useSelectorHelper(state => getExerciseLessonsCategoriesSelector(exerciseId, state));
+  const lessonsQuestions = useSelectorHelper(state => getExerciseLessonsQuestionsSelector(exerciseId, state));
+  const lessonsAnswers = useSelectorHelper(state => getExerciseLessonsAnswersSelector(exerciseId, state));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
+  const teamsMap = useSelectorHelper(getTeamsMapSelector);
+  const usersMap = useSelectorHelper(getUsersMapSelector);
 
   const displayModule = (moduleType: ReportInformationType): boolean => {
-    return report?.report_informations.find((info: ReportInformation) => info.report_informations_type === moduleType)?.report_informations_display;
+    return !!report?.report_informations?.find((info: ReportInformation) => info.report_informations_type === moduleType)?.report_informations_display;
   };
 
   useDataLoader(() => {

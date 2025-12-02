@@ -2,7 +2,7 @@ import * as R from 'ramda';
 import { type FunctionComponent, useContext } from 'react';
 
 import { updateAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
-import { type Inject, type InjectResultOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { type InjectInput, type InjectResultOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import UpdateInject from '../../common/injects/UpdateInject';
@@ -20,7 +20,7 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
   handleClose,
 }) => {
   const { updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
-  const onUpdateAtomicTesting = async (data: Inject) => {
+  const onUpdateAtomicTesting = async (data: InjectInput) => {
     const toUpdate = R.pipe(
       R.pick([
         'inject_tags',

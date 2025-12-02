@@ -710,7 +710,7 @@ export interface ChannelCreateInput {
 export interface ChannelReader {
   channel_articles?: Article[];
   channel_exercise?: Exercise;
-  channel_id?: string;
+  channel_id: string;
   channel_information?: Channel;
   channel_scenario?: Scenario;
 }
@@ -811,7 +811,7 @@ export interface ComcheckInput {
 
 export interface ComcheckStatus {
   comcheckstatus_comcheck?: string;
-  comcheckstatus_id?: string;
+  comcheckstatus_id: string;
   /** @format date-time */
   comcheckstatus_receive_date?: string;
   /** @format date-time */
@@ -3124,7 +3124,7 @@ export interface InjectSimple {
 
 export interface InjectStatus {
   listened?: boolean;
-  status_id?: string;
+  status_id: string;
   status_name:
     | "SUCCESS"
     | "ERROR"
@@ -3890,8 +3890,8 @@ export interface ObjectiveInput {
 }
 
 export interface Option {
-  id?: string;
-  label?: string;
+  id: string;
+  label: string;
 }
 
 export interface Organization {
@@ -4132,6 +4132,25 @@ export interface PageFullTextSearchResult {
 
 export interface PageGroup {
   content?: Group[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageInjectOutput {
+  content?: InjectOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -5445,7 +5464,7 @@ export interface Scenario {
 
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
-  scenario_id?: string;
+  scenario_id: string;
   scenario_information?: PublicScenario;
 }
 
@@ -5601,7 +5620,7 @@ export interface SettingsUpdateInput {
 
 export interface SimulationChallengesReader {
   exercise_challenges?: ChallengeInformation[];
-  exercise_id?: string;
+  exercise_id: string;
   exercise_information?: PublicExercise;
 }
 

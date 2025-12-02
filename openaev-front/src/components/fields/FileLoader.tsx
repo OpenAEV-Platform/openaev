@@ -5,10 +5,10 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocumentFromSecurityPlatform } from '../../actions/assets/securityPlatform-actions';
 import { fetchDocuments } from '../../actions/Document';
-import { type DocumentHelper } from '../../actions/helper';
+import { getDocumentsSelector } from '../../actions/selectors';
 import DocumentType from '../../admin/components/components/documents/DocumentType';
-import { useHelper } from '../../store';
-import { type RawDocument } from '../../utils/api-types';
+import { useSelectorHelper } from '../../store';
+import { type Document } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../utils/permissions/PermissionsProvider';
@@ -111,12 +111,12 @@ const FileLoader: FunctionComponent<Props> = ({
   const ability = useContext(AbilityContext);
 
   const [open, setOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<RawDocument | undefined>(undefined);
+  const [selectedDocument, setSelectedDocument] = useState<Document | undefined>(undefined);
   // Check if selectedDocument resulted from a remove action or an interaction with the File loader dialog
   const [firstInteraction, setFirstInteraction] = useState(false);
 
   // Fetching data
-  const { documents }: { documents: [RawDocument] } = useHelper((helper: DocumentHelper) => ({ documents: helper.getDocuments() }));
+  const documents = useSelectorHelper(getDocumentsSelector);
 
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)) {

@@ -4,11 +4,11 @@ import type React from 'react';
 import { useState } from 'react';
 
 import { updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
-import type { LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
-import { useHelper } from '../../../../store';
-import type { PlatformSettings, SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import type { SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -19,11 +19,11 @@ const EnterpriseEditionSettings: React.FC = () => {
   const dispatch = useAppDispatch();
   const { t, fldt } = useFormatter();
   const [openEEChanges, setOpenEEChanges] = useState(false);
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
-  const isEnterpriseEditionActivated = settings.platform_license?.license_is_enterprise;
-  const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
-  const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
+  const isEnterpriseEditionActivated = settings?.platform_license?.license_is_enterprise;
+  const isEnterpriseEditionByConfig = settings?.platform_license?.license_is_by_configuration;
+  const isEnterpriseEdition = settings?.platform_license?.license_is_validated === true;
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
 
   return (
@@ -121,7 +121,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ListItemText primary={t('Organization')} />
                 <ItemBoolean
                   variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_customer}
+                  neutralLabel={settings?.platform_license?.license_customer}
                   status={null}
                 />
               </ListItem>
@@ -130,18 +130,18 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ListItemText primary={t('Scope')} />
                 <ItemBoolean
                   variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
+                  neutralLabel={settings?.platform_license?.license_is_global ? t('Global') : t('Current instance')}
                   status={null}
                 />
               </ListItem>
-              {!settings.platform_license?.license_is_expired && settings.platform_license?.license_is_prevention && (
+              {!settings?.platform_license?.license_is_expired && settings?.platform_license?.license_is_prevention && (
                 <ListItem>
                   <Alert severity="warning" variant="outlined" style={{ width: '100%' }}>
                     {t('Your Enterprise Edition license will expire in less than 3 months.')}
                   </Alert>
                 </ListItem>
               )}
-              {!settings.platform_license?.license_is_validated && settings.platform_license?.license_is_valid_cert && (
+              {!settings?.platform_license?.license_is_validated && settings?.platform_license?.license_is_valid_cert && (
                 <ListItem>
                   <Alert severity="error" variant="outlined" style={{ width: '100%' }}>
                     {t('Your Enterprise Edition license is expired. Please contact your Filigran representative.')}
@@ -152,23 +152,23 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ListItemText primary={t('Start date')} />
                 <ItemBoolean
                   variant="xlarge"
-                  label={fldt(settings.platform_license?.license_start_date)}
-                  status={!settings.platform_license?.license_is_expired}
+                  label={fldt(settings?.platform_license?.license_start_date)}
+                  status={!settings?.platform_license?.license_is_expired}
                 />
               </ListItem>
               <ListItem divider>
                 <ListItemText primary={t('Expiration date')} />
                 <ItemBoolean
                   variant="xlarge"
-                  label={fldt(settings.platform_license?.license_expiration_date)}
-                  status={!settings.platform_license?.license_is_expired}
+                  label={fldt(settings?.platform_license?.license_expiration_date)}
+                  status={!settings?.platform_license?.license_is_expired}
                 />
               </ListItem>
-              <ListItem divider={!settings.platform_license?.license_is_prevention}>
+              <ListItem divider={!settings?.platform_license?.license_is_prevention}>
                 <ListItemText primary={t('License type')} />
                 <ItemBoolean
                   variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_type}
+                  neutralLabel={settings?.platform_license?.license_type}
                   status={null}
                 />
               </ListItem>

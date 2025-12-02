@@ -4,10 +4,10 @@ import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
 import { fetchExerciseTeams } from '../../../../actions/Exercise';
-import { type TeamsHelper } from '../../../../actions/teams/team-helper';
+import { getExerciseTeamsSelector } from '../../../../actions/selectors';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Exercise, type Team } from '../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -23,12 +23,12 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
   const theme = useTheme();
 
   // Fetching data
-  const { teams } = useHelper((helper: TeamsHelper) => ({ teams: helper.getExerciseTeams(exerciseId) }));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
 
-  const teamsColors = getTeamsColors(teams);
+  const teamsColors = getTeamsColors(teams as Team[]);
   const sortedTeamsByExpectedScore = R.pipe(
     R.sortWith([
       R.descend(R.prop('team_injects_expectations_total_expected_score')),

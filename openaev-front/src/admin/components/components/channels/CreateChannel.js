@@ -36,7 +36,7 @@ class CreateChannel extends Component {
   onSubmit(data) {
     return this.props
       .addChannel(data)
-      .then(result => (result.result ? this.handleClose() : result));
+      .then(result => (result.data ? this.handleClose() : result));
   }
 
   render() {

@@ -2,11 +2,10 @@ import { Autocomplete, Box, TextField } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
+import { getChannelsSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Channel } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { ArticleContext } from '../../common/Context';
 import ChannelIcon from './ChannelIcon';
@@ -42,12 +41,11 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
   const { t } = useFormatter();
   const { fetchChannels } = useContext(ArticleContext);
 
-  const dispatch = useAppDispatch();
   useDataLoader(() => {
-    dispatch(fetchChannels());
+    fetchChannels();
   });
 
-  const { channels } = useHelper((helper: ChannelsHelper) => ({ channels: helper.getChannels() }));
+  const channels = useSelectorHelper(getChannelsSelector);
   const { onChannelsChange, onClearChannels = () => { }, fullWidth } = props;
 
   const channelColor = (type?: string) => {
@@ -64,11 +62,11 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
   };
   const channelTransform = (n: Channel) => ({
     id: n.channel_id,
-    label: n.channel_name,
+    label: n.channel_name || '-',
     color: channelColor(n.channel_type),
-    type: n.channel_type,
+    type: n.channel_type || '-',
   });
-  const channelsOptions: ChannelTransformed[] = channels.map(channelTransform);
+  const channelsOptions: ChannelTransformed[] = channels.filter(channel => !!channel).map(channel => channelTransform(channel));
   return (
     <div style={{
       display: 'flex',

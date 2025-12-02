@@ -1,12 +1,11 @@
-import type { DomainHelper } from '../../../../actions/helper';
+import { getDomainsSelector } from '../../../../actions/selectors';
 import AttackPatternFieldController from '../../../../components/fields/AttackPatternFieldController';
 import DomainFieldController from '../../../../components/fields/DomainFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import type { Domain } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
 
 const GeneralFormTab = () => {
   const { t } = useFormatter();
@@ -28,9 +27,7 @@ const GeneralFormTab = () => {
     },
   ];
 
-  const domainOptions: Domain[] = useHelper((helper: DomainHelper) => {
-    return helper.getDomains();
-  });
+  const domainOptions = useSelectorHelper(getDomainsSelector);
 
   return (
     <>

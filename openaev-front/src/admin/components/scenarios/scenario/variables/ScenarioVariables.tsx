@@ -3,10 +3,10 @@ import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { useParams } from 'react-router';
 
+import { getScenarioVariablesSelector } from '../../../../../actions/selectors';
 import { addVariableForScenario, deleteVariableForScenario, fetchVariablesForScenario, updateVariableForScenario } from '../../../../../actions/variables/variable-actions';
-import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Scenario, type Variable, type VariableInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -23,7 +23,7 @@ const ScenarioVariables = () => {
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { permissions } = useContext(PermissionsContext);
-  const { variables } = useHelper((helper: VariablesHelper) => ({ variables: helper.getScenarioVariables(scenarioId) }));
+  const variables = useSelectorHelper(state => getScenarioVariablesSelector(scenarioId, state));
   useDataLoader(() => {
     dispatch(fetchVariablesForScenario(scenarioId));
   });

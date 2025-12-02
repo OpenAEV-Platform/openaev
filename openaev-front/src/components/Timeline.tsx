@@ -4,9 +4,9 @@ import * as R from 'ramda';
 import { Fragment, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type InjectStore } from '../actions/injects/Inject';
 import InjectIcon from '../admin/components/common/injects/InjectIcon';
 import { type Inject, type Team } from '../utils/api-types';
+import { type InjectorContractConverted } from '../utils/api-types-custom';
 import useSearchAnFilter from '../utils/SortingFiltering';
 import { truncate } from '../utils/String';
 import { splitDuration } from '../utils/Time';
@@ -86,7 +86,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props {
-  injects: InjectStore[];
+  injects: Inject[];
   teams: Team[];
   onSelectInject: (injectId: string) => void;
 }
@@ -110,7 +110,7 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
 
   // Build map of technical Injects or without team
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const injectsWithoutTeamMap = injects.reduce((acc: { [x: string]: any[] }, inject: InjectStore) => {
+  const injectsWithoutTeamMap = injects.reduce((acc: { [x: string]: any[] }, inject: Inject) => {
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     let keys: any[] = [];
 
@@ -118,7 +118,7 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
       if (
         inject.inject_injector_contract?.convertedContent
         && 'fields' in inject.inject_injector_contract.convertedContent
-        && inject.inject_injector_contract.convertedContent.fields.some(
+        && (inject.inject_injector_contract.convertedContent as InjectorContractConverted['convertedContent']).fields.some(
           /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
           (field: any) => field.key === 'teams',
         )
@@ -185,7 +185,7 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
   const tickDuration = Math.round(totalDuration / 20);
   const ticks = [...Array(21)].map((_, i) => tickDuration * i);
   // eslint-disable-next-line consistent-return
-  const byTick = R.groupBy((inject: InjectStore) => {
+  const byTick = R.groupBy((inject: Inject) => {
     const duration = inject.inject_depends_duration;
     for (const tick of ticks) {
       if (duration < tick) {
@@ -245,7 +245,7 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
                         className={classes.injectGroup}
                         style={{ left: `${injectGroupPosition}%` }}
                       >
-                        {injectsGroupedByTick[key].map((inject: InjectStore) => {
+                        {injectsGroupedByTick[key].map((inject: Inject) => {
                           const duration = splitDuration(inject.inject_depends_duration || 0);
                           const tooltipContent = (
                             <Fragment>

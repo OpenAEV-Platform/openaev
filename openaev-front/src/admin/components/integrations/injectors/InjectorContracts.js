@@ -6,12 +6,13 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
+import { getAttackPatternsMapSelector, getInjectorSelector, getKillChainPhasesMapSelector } from '../../../../actions/selectors';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { useFormatter } from '../../../../components/i18n';
 import ItemDomains from '../../../../components/ItemDomains.tsx';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import CreateInjectorContract from './injector_contracts/CreateInjectorContract';
 import InjectorContractPopover from './injector_contracts/InjectorContractPopover';
 
@@ -97,11 +98,9 @@ const InjectorContracts = () => {
   const { classes } = useStyles();
   const { injectorId } = useParams();
   const { t, tPick, nsdt } = useFormatter();
-  const { injector, attackPatternsMap, killChainPhasesMap } = useHelper(helper => ({
-    injector: helper.getInjector(injectorId),
-    attackPatternsMap: helper.getAttackPatternsMap(),
-    killChainPhasesMap: helper.getKillChainPhasesMap(),
-  }));
+  const injector = useSelectorHelper(state => getInjectorSelector(injectorId, state));
+  const attackPatternsMap = useSelectorHelper(getAttackPatternsMapSelector);
+  const killChainPhasesMap = useSelectorHelper(getKillChainPhasesMapSelector);
 
   // Headers
   const headers = [

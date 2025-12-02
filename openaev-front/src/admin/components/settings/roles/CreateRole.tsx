@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import { createRole } from '../../../../actions/roles/roles-actions';
-import { type RoleResult } from '../../../../actions/roles/roles-helper';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -19,12 +18,12 @@ const CreateRole = ({ onCreate }: CreateRoleProps) => {
   const dispatch = useAppDispatch();
   const onSubmit = (data: RoleCreateInput) => {
     dispatch(createRole(data))
-      .then((result: RoleResult) => {
+      .then((result) => {
         if (onCreate) {
-          const roleCreated = result.entities.roles[result.result];
+          const roleCreated = result.data;
           onCreate(roleCreated);
         }
-        return (result.result ? setOpen(false) : result);
+        return (result.data ? setOpen(false) : result);
       });
   };
 

@@ -4,10 +4,15 @@ import { useParams } from 'react-router';
 import { fetchMe } from '../../../actions/Application';
 import { fetchExercise, fetchPlayerExercise } from '../../../actions/Exercise';
 import { addLessonsAnswers, fetchLessonsAnswers, fetchLessonsCategories, fetchLessonsQuestions, fetchPlayerLessonsAnswers, fetchPlayerLessonsCategories, fetchPlayerLessonsQuestions } from '../../../actions/exercises/exercise-action';
-import { type ExercisesHelper } from '../../../actions/exercises/exercise-helper';
-import { type UserHelper } from '../../../actions/helper';
+import {
+  getExerciseLessonsCategoriesSelector,
+  getExerciseLessonsQuestionsSelector,
+  getExerciseSelector,
+  getExerciseUserLessonsAnswersSelector,
+  getMeSelector,
+} from '../../../actions/selectors';
 import { ViewLessonContext, type ViewLessonContextType } from '../../../admin/components/common/Context';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Exercise } from '../../../utils/api-types';
 import { useQueryParameter } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -35,28 +40,16 @@ const ExerciseViewLessons = () => {
     };
   };
 
-  const {
-    me,
-    exercise,
-    source,
-    lessonsCategories,
-    lessonsQuestions,
-    lessonsAnswers,
-  } = useHelper((helper: ExercisesHelper & UserHelper) => {
-    const currentUser = helper.getMe();
-    const exerciseData = helper.getExercise(exerciseId);
-    return {
-      me: currentUser,
-      exercise: exerciseData,
-      source: processToGenericSource(exerciseData),
-      lessonsCategories: helper.getExerciseLessonsCategories(exerciseId),
-      lessonsQuestions: helper.getExerciseLessonsQuestions(exerciseId),
-      lessonsAnswers: helper.getExerciseUserLessonsAnswers(
-        exerciseId,
-        userId && userId !== 'null' ? userId : currentUser?.user_id,
-      ),
-    };
-  });
+  const me = useSelectorHelper(getMeSelector);
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const source = processToGenericSource(exercise);
+  const lessonsCategories = useSelectorHelper(state => getExerciseLessonsCategoriesSelector(exerciseId, state));
+  const lessonsQuestions = useSelectorHelper(state => getExerciseLessonsQuestionsSelector(exerciseId, state));
+  const lessonsAnswers = useSelectorHelper(state => getExerciseUserLessonsAnswersSelector(
+    exerciseId,
+    userId && userId !== 'null' ? userId : me?.user_id,
+    state,
+  ));
 
   const finalUserId = userId && userId !== 'null' ? userId : me?.user_id;
 

@@ -7,13 +7,12 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchExpectationTraces } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import type { InjectExpectationResult, InjectExpectationTrace } from '../../../../utils/api-types';
-import { type InjectExpectationsStore } from '../../common/injects/expectations/Expectation';
+import type { InjectExpectation, InjectExpectationResult, InjectExpectationTrace } from '../../../../utils/api-types';
 
 const useStyles = makeStyles()(() => ({ flexContainer: { display: 'flex' } }));
 
 interface Props {
-  injectExpectation: InjectExpectationsStore;
+  injectExpectation: InjectExpectation;
   sourceId: string;
   expectationResult: InjectExpectationResult | null;
   open: boolean;

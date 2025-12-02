@@ -2,11 +2,15 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchMe } from '../../../actions/Application';
-import { type UserHelper } from '../../../actions/helper';
 import { fetchLessonsCategories, fetchLessonsQuestions, fetchScenario } from '../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../actions/scenarios/scenario-helper';
+import {
+  getMeSelector,
+  getScenarioLessonsCategoriesSelector,
+  getScenarioLessonsQuestionsSelector,
+  getScenarioSelector,
+} from '../../../actions/selectors';
 import { ViewLessonContext, type ViewLessonContextType } from '../../../admin/components/common/Context';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Scenario } from '../../../utils/api-types';
 import { useQueryParameter } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -32,22 +36,11 @@ const ScenarioViewLessons = () => {
     };
   };
 
-  const {
-    me,
-    source,
-    lessonsCategories,
-    lessonsQuestions,
-  } = useHelper((helper: ScenariosHelper & UserHelper) => {
-    const currentUser = helper.getMe();
-    const scenarioData = helper.getScenario(scenarioId);
-    return {
-      me: currentUser,
-      scenario: scenarioData,
-      source: processToGenericSource(scenarioData),
-      lessonsCategories: helper.getScenarioLessonsCategories(scenarioId),
-      lessonsQuestions: helper.getScenarioLessonsQuestions(scenarioId),
-    };
-  });
+  const me = useSelectorHelper(getMeSelector);
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
+  const source = processToGenericSource(scenario);
+  const lessonsCategories = useSelectorHelper(state => getScenarioLessonsCategoriesSelector(scenarioId, state));
+  const lessonsQuestions = useSelectorHelper(state => getScenarioLessonsQuestionsSelector(scenarioId, state));
 
   const finalUserId = userId && userId !== 'null' ? userId : me?.user_id;
 

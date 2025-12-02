@@ -1,14 +1,13 @@
 import { type FunctionComponent } from 'react';
 
-import { type Article, type Channel } from '../../../../../../utils/api-types';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
+import { type Article, type Channel, type InjectExpectation } from '../../../../../../utils/api-types';
 import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import ExpectationLine from './ExpectationLine';
 
 interface Props {
   channel: Channel;
   article: Article;
-  expectation: InjectExpectationsStore;
+  expectation: InjectExpectation;
 }
 
 const ChannelExpectation: FunctionComponent<Props> = ({

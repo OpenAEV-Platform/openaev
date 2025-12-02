@@ -4,12 +4,12 @@ import { type FunctionComponent, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocuments } from '../../../../actions/Document';
-import type { DocumentHelper } from '../../../../actions/helper';
+import { getDocumentsMapSelector } from '../../../../actions/selectors';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type InjectResultOverviewOutput, type KillChainPhaseSimple } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -37,7 +37,7 @@ const AtomicTestingInformation: FunctionComponent<Props> = ({ injectResultOvervi
   const theme = useTheme();
   const dispatch = useAppDispatch();
 
-  const { documentMap } = useHelper((helper: DocumentHelper) => ({ documentMap: helper.getDocumentsMap() }));
+  const documentMap = useSelectorHelper(getDocumentsMapSelector);
   useDataLoader(() => {
     dispatch(fetchDocuments());
   });

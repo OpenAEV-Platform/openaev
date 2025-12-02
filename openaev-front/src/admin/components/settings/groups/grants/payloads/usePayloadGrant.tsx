@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 
 import { addGrant, deleteGrant } from '../../../../../../actions/Grant';
 import { fetchGroup } from '../../../../../../actions/Group';
-import { type GroupHelper } from '../../../../../../actions/group/group-helper';
+import { getGroupSelector } from '../../../../../../actions/selectors';
 import { useFormatter } from '../../../../../../components/i18n';
-import { useHelper } from '../../../../../../store';
+import { useSelectorHelper } from '../../../../../../store';
 import { type Grant, type GroupGrantInput, type Payload } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import { type TableConfig } from '../ui/TableData';
@@ -18,7 +18,7 @@ interface PayloadGrantsProps {
 const usePayloadGrant = ({ groupId, onGrantChange }: PayloadGrantsProps) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
+  const group = useSelectorHelper(state => getGroupSelector(groupId, state));
 
   useEffect(() => {
     dispatch(fetchGroup(groupId));

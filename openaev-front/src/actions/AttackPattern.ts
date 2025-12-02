@@ -1,24 +1,26 @@
 import { type Dispatch } from 'redux';
 
+import { type Page } from '../components/common/queryable/Page';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
 import {
   type AttackPattern,
   type AttackPatternCreateInput,
   type AttackPatternUpdateInput,
+  type Option,
   type SearchPaginationInput,
 } from '../utils/api-types';
-import * as schema from './Schema';
+import { arrayOfAttackPatterns, attackPattern } from './schemas';
 
 const ATTACK_PATTERN_URI = '/api/attack_patterns';
 
-export const fetchAttackPatterns = () => (dispatch: Dispatch) => {
-  return getReferential(schema.arrayOfAttackPatterns, ATTACK_PATTERN_URI)(dispatch);
+export const fetchAttackPatterns = (dispatch: Dispatch) => {
+  return getReferential<AttackPattern[]>(arrayOfAttackPatterns, ATTACK_PATTERN_URI)(dispatch);
 };
 
 export const searchAttackPatterns = (paginationInput: SearchPaginationInput) => {
   const data = paginationInput;
   const uri = `${ATTACK_PATTERN_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<Page<AttackPattern>>(uri, data);
 };
 
 export const searchAttackPatternsWithAIWebservice = (files: File[], text: string) => {
@@ -27,16 +29,16 @@ export const searchAttackPatternsWithAIWebservice = (files: File[], text: string
     formData.append('files', file);
   });
   formData.append('text', new Blob([JSON.stringify({ text })], { type: 'application/json' }));
-  return simplePostCall(`${ATTACK_PATTERN_URI}/search-with-ai`, formData);
+  return simplePostCall<string[]>(`${ATTACK_PATTERN_URI}/search-with-ai`, formData);
 };
 
 export const updateAttackPattern = (attackPatternId: AttackPattern['attack_pattern_id'], data: AttackPatternUpdateInput) => (dispatch: Dispatch) => {
   const uri = `${ATTACK_PATTERN_URI}/${attackPatternId}`;
-  return putReferential(schema.attackPattern, uri, data)(dispatch);
+  return putReferential<AttackPattern>(attackPattern, uri, data)(dispatch);
 };
 
 export const addAttackPattern = (data: AttackPatternCreateInput) => (dispatch: Dispatch) => {
-  return postReferential(schema.attackPattern, ATTACK_PATTERN_URI, data)(dispatch);
+  return postReferential<AttackPattern>(attackPattern, ATTACK_PATTERN_URI, data)(dispatch);
 };
 
 export const deleteAttackPattern = (attackPatternId: AttackPattern['attack_pattern_id']) => (dispatch: Dispatch) => {
@@ -48,9 +50,9 @@ export const deleteAttackPattern = (attackPatternId: AttackPattern['attack_patte
 
 export const searchAttackPatternsByNameAsOption = (searchText: string = '') => {
   const params = { searchText };
-  return simpleCall(`${ATTACK_PATTERN_URI}/options`, { params });
+  return simpleCall<Option[]>(`${ATTACK_PATTERN_URI}/options`, { params });
 };
 
 export const searchAttackPatternsByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${ATTACK_PATTERN_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${ATTACK_PATTERN_URI}/options`, ids);
 };

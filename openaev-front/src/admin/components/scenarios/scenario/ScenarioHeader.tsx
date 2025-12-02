@@ -5,18 +5,18 @@ import { type Dispatch, type SetStateAction, useContext, useEffect, useState } f
 import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { playInjectsAssistantForScenario } from '../../../../actions/Inject';
+import { playInjectsAssistantForScenario } from '../../../../actions/inject';
 import { createRunningExerciseFromScenario, updateScenarioRecurrence } from '../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
+import { getScenarioSelector } from '../../../../actions/selectors';
 import LoaderDialog from '../../../../components/common/loader/LoaderDialog';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import {
   type Exercise,
   type InjectAssistantInput,
-  type Scenario,
+  type InjectOutput, type Scenario,
 } from '../../../../utils/api-types';
 import { parseCron, type ParsedCron } from '../../../../utils/Cron';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -95,20 +95,18 @@ const ScenarioHeader = ({
   const [openLoaderDialog, setOpenLoaderDialog] = useState(false);
   const [isInjectAssistantLoading, setIsInjectAssistantLoading] = useState(false);
   // Fetching data
-  const { scenario }: { scenario: Scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
 
   // Local
-  const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
+  const ended = scenario?.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
   const onSubmit = (cron: string, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: cron,
       scenario_recurrence_start: start,
       scenario_recurrence_end: end,
-    })).then((result: { [x: string]: string }) => {
-      if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        setCronExpression(cron);
-        setParsedCronExpression(parseCron(cron));
-      }
+    })).then(() => {
+      setCronExpression(cron);
+      setParsedCronExpression(parseCron(cron));
     });
     setOpenScenarioRecurringFormDialog(false);
   };
@@ -118,13 +116,13 @@ const ScenarioHeader = ({
     setIsInjectAssistantLoading(true);
     setOpenLoaderDialog(true);
     playInjectsAssistantForScenario(scenarioId, data).then((results) => {
-      setInjects([...injects, ...results.data]);
+      setInjects([...injects, ...results.data as InjectOutput[]]);
       setIsInjectAssistantLoading(false);
     }).catch(() => setOpenLoaderDialog(false));
   };
 
   useEffect(() => {
-    if (scenario.scenario_recurrence != null) {
+    if (scenario?.scenario_recurrence != null) {
       setCronExpression(scenario.scenario_recurrence);
       setParsedCronExpression(parseCron(scenario.scenario_recurrence));
       const { w, d } = parseCron(scenario.scenario_recurrence);
@@ -136,7 +134,7 @@ const ScenarioHeader = ({
         setSelectRecurring('daily');
       }
     }
-  }, [scenario.scenario_recurrence]);
+  }, [scenario?.scenario_recurrence]);
   const stop = () => {
     setCronExpression(null);
     setParsedCronExpression(null);
@@ -149,9 +147,9 @@ const ScenarioHeader = ({
 
   return (
     <>
-      <Tooltip title={scenario.scenario_name}>
+      <Tooltip title={scenario?.scenario_name}>
         <Typography variant="h1" gutterBottom={true} classes={{ root: classes.title }}>
-          {truncate(scenario.scenario_name, 80)}
+          {truncate(scenario?.scenario_name ?? '', 80)}
         </Typography>
       </Tooltip>
       <div style={{
@@ -162,12 +160,12 @@ const ScenarioHeader = ({
         height: 20,
       }}
       />
-      <Tooltip title={t(scenario.scenario_recurrence ? 'Scheduled' : 'Not scheduled')}>
-        <div className={scenario.scenario_recurrence ? classes.statusScheduled : classes.statusNotScheduled} />
+      <Tooltip title={t(scenario?.scenario_recurrence ? 'Scheduled' : 'Not scheduled')}>
+        <div className={scenario?.scenario_recurrence ? classes.statusScheduled : classes.statusNotScheduled} />
       </Tooltip>
       <div className={classes.actions}>
         { canLaunch
-          && scenario.scenario_recurrence && !ended ? (
+          && scenario?.scenario_recurrence && !ended ? (
               <Button
                 style={{ marginRight: theme.spacing(1) }}
                 startIcon={<Stop />}
@@ -216,7 +214,7 @@ const ScenarioHeader = ({
               </>
             )}
         <ScenarioPopover
-          scenario={scenario}
+          scenario={scenario!}
           actions={['Duplicate', 'Update', 'Delete', 'Export']}
           onDelete={() => navigate('/admin/scenarios')}
         />
@@ -227,7 +225,7 @@ const ScenarioHeader = ({
         open={openScenarioRecurringFormDialog}
         setOpen={setOpenScenarioRecurringFormDialog}
         onSubmit={onSubmit}
-        initialValues={scenario}
+        initialValues={scenario!}
       />
       <Dialog
         open={openInstantiateSimulationAndStart}

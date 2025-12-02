@@ -6,10 +6,10 @@ import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { updateExerciseStatus } from '../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { getExerciseSelector } from '../../../../actions/selectors';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Exercise, type Exercise as ExerciseType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
@@ -196,17 +196,15 @@ const ExerciseHeader = () => {
   const navigate = useNavigate();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => {
-    return { exercise: helper.getExercise(exerciseId) };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
 
   const actions: ExerciseActionPopover[] = ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
 
   return (
     <>
-      <Tooltip title={exercise.exercise_name}>
+      <Tooltip title={exercise?.exercise_name}>
         <Typography variant="h1" gutterBottom={true} classes={{ root: classes.title }}>
-          {truncate(exercise.exercise_name, 80)}
+          {truncate(exercise?.exercise_name ?? '', 80)}
         </Typography>
       </Tooltip>
       <div style={{
@@ -217,14 +215,18 @@ const ExerciseHeader = () => {
         height: 20,
       }}
       />
-      <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} />
+      {exercise && <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} />}
       <div className={classes.actions}>
-        <Buttons exerciseId={exercise.exercise_id} exerciseStatus={exercise.exercise_status} exerciseName={exercise.exercise_name} />
-        <ExercisePopover
-          exercise={exercise}
-          actions={actions}
-          onDelete={() => navigate('/admin/simulations')}
-        />
+        {exercise && (
+          <>
+            <Buttons exerciseId={exercise.exercise_id} exerciseStatus={exercise.exercise_status} exerciseName={exercise.exercise_name} />
+            <ExercisePopover
+              exercise={exercise}
+              actions={actions}
+              onDelete={() => navigate('/admin/simulations')}
+            />
+          </>
+        )}
       </div>
       <div className="clearfix" />
     </>

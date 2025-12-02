@@ -80,6 +80,7 @@ const EnterpriseEditionAgreementDialog = () => {
             {t('To obtain a license, please {contact}', {
               contact: (
                 <Link
+                  key="contact"
                   href="https://filigran.io/contact/"
                   target="_blank"
                   style={{ textDecoration: 'none' }}
@@ -94,6 +95,7 @@ const EnterpriseEditionAgreementDialog = () => {
             {t('You just need to try ? Get right now {url}.', {
               url: (
                 <Link
+                  key="try"
                   href="https://filigran.io/enterprise-editions-trial/"
                   target="_blank"
                   style={{ textDecoration: 'none' }}

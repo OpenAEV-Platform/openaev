@@ -1,11 +1,11 @@
 import { type FunctionComponent, useState } from 'react';
 
-import type { EndpointHelper } from '../../../../actions/assets/asset-helper';
 import { fetchEndpoint, updateEndpoint } from '../../../../actions/assets/endpoint-actions';
+import { getEndpointSelector } from '../../../../actions/selectors';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import type { Endpoint, EndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -32,7 +32,7 @@ const EndpointUpdate: FunctionComponent<Props> = ({
   const [loading, setLoading] = useState(true);
   const dispatch = useAppDispatch();
 
-  const { endpoint } = useHelper((helper: EndpointHelper) => ({ endpoint: helper.getEndpoint(endpointId) }));
+  const endpoint = useSelectorHelper(state => getEndpointSelector(endpointId, state));
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchEndpoint(endpointId)).finally(() => setLoading(false));
@@ -40,17 +40,13 @@ const EndpointUpdate: FunctionComponent<Props> = ({
 
   const onSubmit = (data: EndpointInput) => {
     dispatch(updateEndpoint(endpointId, data)).then(
-      (result: {
-        result: string;
-        entities: { endpoints: Record<string, Endpoint> };
-      }) => {
-        if (result.entities) {
-          if (onUpdate) {
-            const endpointUpdated = result.entities.endpoints[result.result];
-            onUpdate(endpointUpdated);
-          }
-          handleClose();
+      (result) => {
+        if (onUpdate) {
+          const endpointUpdated = result.data;
+          onUpdate(endpointUpdated);
         }
+        handleClose();
+
         return result;
       },
     );

@@ -18,13 +18,13 @@ const teamContextForScenario = (scenarioId: Scenario['scenario_id'], scenarioTea
   return {
     async onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
       await dispatch(addScenarioTeamPlayers(scenarioId, teamId, { scenario_team_players: userIds }));
-      return dispatch(fetchScenarioTeams(scenarioId));
+      dispatch(fetchScenarioTeams(scenarioId));
     },
     async onRemoveUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
       await dispatch(removeScenarioTeamPlayers(scenarioId, teamId, { scenario_team_players: userIds }));
-      return dispatch(fetchScenarioTeams(scenarioId));
+      dispatch(fetchScenarioTeams(scenarioId));
     },
-    onCreateTeam(team: TeamCreateInput): Promise<{ result: string }> {
+    onCreateTeam(team: TeamCreateInput) {
       return dispatch(addTeam({
         ...team,
         team_scenarios: [scenarioId],
@@ -38,16 +38,10 @@ const teamContextForScenario = (scenarioId: Scenario['scenario_id'], scenarioTea
     computeTeamUsersEnabled(teamId: Team['team_id']) {
       return scenarioTeamsUsers?.filter((o: ScenarioTeamUser) => o.team_id === teamId).length ?? 0;
     },
-    onRemoveTeam(teamId: Team['team_id']): Promise<{
-      result: string[];
-      entities: { teams: Record<string, Team> };
-    }> {
+    onRemoveTeam(teamId: Team['team_id']) {
       return dispatch(removeScenarioTeams(scenarioId, { scenario_teams: [teamId] }));
     },
-    onReplaceTeam(teamIds: Team['team_id'][]): Promise<{
-      result: string[];
-      entities: { teams: Record<string, Team> };
-    }> {
+    onReplaceTeam(teamIds: Team['team_id'][]) {
       return dispatch(replaceScenarioTeams(scenarioId, { scenario_teams: teamIds }));
     },
     onToggleUser(teamId: Team['team_id'], userId: UserStore['user_id'], userEnabled: boolean): void {

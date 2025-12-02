@@ -17,13 +17,12 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type FullArticleStore } from '../../../../../../actions/channels/Article';
-import { type ArticlesHelper } from '../../../../../../actions/channels/article-helper';
 import { fetchChannels } from '../../../../../../actions/channels/channel-action';
-import { type ChannelsHelper } from '../../../../../../actions/channels/channel-helper';
+import { getArticlesMapSelector, getChannelsMapSelector } from '../../../../../../actions/selectors';
 import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import SearchFilter from '../../../../../../components/SearchFilter';
-import { useHelper } from '../../../../../../store';
+import { useSelectorHelper } from '../../../../../../store';
 import { type Article } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
@@ -66,10 +65,8 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
 
-  const { articlesMap, channelsMap } = useHelper((helper: ArticlesHelper & ChannelsHelper) => ({
-    articlesMap: helper.getArticlesMap(),
-    channelsMap: helper.getChannelsMap(),
-  }));
+  const articlesMap = useSelectorHelper(getArticlesMapSelector);
+  const channelsMap = useSelectorHelper(getChannelsMapSelector);
 
   useDataLoader(() => {
     dispatch(fetchChannels());
@@ -195,16 +192,14 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
             <Box className={classes.box}>
               {[...injectArticlesIds, ...articleIds].map((articleId) => {
                 const article = articlesMap[articleId];
-                const channel = article
-                  ? channelsMap[article.article_channel] || {}
-                  : {};
+                const channel = channelsMap[article?.article_channel ?? ''];
                 return (
                   <Chip
                     key={articleId}
                     onDelete={() => removeArticle(articleId)}
                     label={truncate(article?.article_name, 22)}
                     icon={
-                      <ChannelIcon type={channel.channel_type} variant="chip" />
+                      <ChannelIcon type={channel?.channel_type} variant="chip" />
                     }
                     classes={{ root: classes.chip }}
                   />

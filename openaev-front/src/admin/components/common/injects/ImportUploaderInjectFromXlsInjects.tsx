@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { searchMappers } from '../../../../actions/mapper/mapper-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import { useFormatter } from '../../../../components/i18n';
-import { type ImportMapper, type ImportMessage, type ImportTestSummary, type InjectsImportInput } from '../../../../utils/api-types';
+import { type ImportMapper, type ImportMessage, type InjectsImportInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import { InjectContext } from '../Context';
 
@@ -133,8 +133,8 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
         sheet_name: formValues.sheetName,
         timezone_offset: moment.tz(formValues.timezone).utcOffset(),
       };
-      injectContext.onDryImportInjectFromXls?.(importId, input).then((value: ImportTestSummary) => {
-        const criticalMessages = value.import_message?.filter((importMessage: ImportMessage) => importMessage.message_level === 'CRITICAL');
+      injectContext.onDryImportInjectFromXls?.(importId, input).then((value) => {
+        const criticalMessages = value.data.import_message?.filter((importMessage: ImportMessage) => importMessage.message_level === 'CRITICAL');
         if (criticalMessages && criticalMessages?.filter((message) => {
           return message.message_code === 'ABSOLUTE_TIME_WITHOUT_START_DATE';
         }).length > 0) {
@@ -199,7 +199,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
                   <div className={classes.text}>{option.label}</div>
                 </Box>
               )}
-              getOptionLabel={option => option.label}
+              getOptionLabel={option => option.label || ''}
               isOptionEqualToValue={(option, v) => option.id === v.id}
               renderInput={params => (
                 <TextField

@@ -6,7 +6,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { addKillChainPhase } from '../actions/KillChainPhase';
-import { storeHelper } from '../actions/Schema';
+import { storeHelper } from '../actions/Schema_DEPRECATED';
 import KillChainPhaseForm from '../admin/components/settings/kill_chain_phases/KillChainPhaseForm';
 import { Can } from '../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types.js';
@@ -46,8 +46,8 @@ class KillChainPhaseField extends Component {
   onSubmit(data) {
     const { name, setFieldValue, values } = this.props;
     this.props.addKillChainPhase(data).then((result) => {
-      if (result.result) {
-        const newKillChainPhase = result.entities.killchainphases[result.result];
+      if (result.data) {
+        const newKillChainPhase = result.data;
         const killChainPhases = R.append(
           {
             id: newKillChainPhase.phase_id,

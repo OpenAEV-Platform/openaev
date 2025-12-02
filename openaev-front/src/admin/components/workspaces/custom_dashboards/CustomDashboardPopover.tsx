@@ -2,13 +2,13 @@ import { type FunctionComponent, useCallback, useContext, useState } from 'react
 
 import { updatePlatformParameters } from '../../../../actions/Application';
 import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
-import type { LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type CustomDashboard, type PlatformSettings } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type CustomDashboard } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -29,7 +29,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   const initialValues = {
     custom_dashboard_name: customDashboard.custom_dashboard_name,
@@ -45,7 +45,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
       try {
         const response = await updateCustomDashboard(customDashboard.custom_dashboard_id, data);
         if (response.data) {
-          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
+          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings!, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
           onUpdate?.(response.data);
         }
       } finally {
@@ -83,7 +83,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
     {
       label: t('Delete'),
       action: () => toggleModal('delete'),
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DASHBOARDS) && settings.platform_home_dashboard !== customDashboard.custom_dashboard_id,
+      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DASHBOARDS) && settings?.platform_home_dashboard !== customDashboard.custom_dashboard_id,
     },
   ];
 

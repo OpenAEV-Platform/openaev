@@ -5,14 +5,14 @@ import { CSVLink } from 'react-csv';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type TagHelper, type UserHelper } from '../../../actions/helper';
 import { fetchOrganizations } from '../../../actions/Organization';
+import { getOrganizationsSelector, getTagsMapSelector } from '../../../actions/selectors';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import SearchFilter from '../../../components/SearchFilter';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Organization } from '../../../utils/api-types';
 import { exportData } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -84,14 +84,8 @@ const Organizations = () => {
   const { t } = useFormatter();
 
   // Fetching data
-  const { organizations, tagsMap }: {
-    organizations: ReturnType<OrganizationHelper['getOrganizations']>;
-    tagsMap: ReturnType<TagHelper['getTagsMap']>;
-  }
-    = useHelper((helper: UserHelper & TagHelper & OrganizationHelper) => ({
-      organizations: helper.getOrganizations(),
-      tagsMap: helper.getTagsMap(),
-    }));
+  const organizations = useSelectorHelper(getOrganizationsSelector);
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
 
   useDataLoader(() => {
     dispatch(fetchOrganizations());

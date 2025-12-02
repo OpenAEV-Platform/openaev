@@ -2,11 +2,11 @@ import { Card, CardContent, Chip, GridLegacy, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExecutors } from '../../../actions/Executor';
-import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
+import { getExecutorsSelector } from '../../../actions/selectors';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import SearchFilter from '../../../components/SearchFilter';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Executor } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -51,7 +51,7 @@ const Executors = () => {
   );
 
   // Fetching data
-  const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutors() }));
+  const executors = useSelectorHelper(getExecutorsSelector);
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });

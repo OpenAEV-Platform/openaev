@@ -4,22 +4,16 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchSimulationAssetGroups } from '../../../../../../actions/asset_groups/assetgroup-action';
-import { type AssetGroupsHelper } from '../../../../../../actions/asset_groups/assetgroup-helper';
-import { type EndpointHelper } from '../../../../../../actions/assets/asset-helper';
 import { fetchSimulationEndpoints } from '../../../../../../actions/assets/endpoint-actions';
 import { fetchExerciseChallenges } from '../../../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../../../actions/channels/article-action';
-import { type ArticlesHelper } from '../../../../../../actions/channels/article-helper';
-import { type ChannelsHelper } from '../../../../../../actions/channels/channel-helper';
 import { type Contract } from '../../../../../../actions/contract/contract';
 import { fetchExerciseTeams } from '../../../../../../actions/Exercise';
-import { type ChallengeHelper } from '../../../../../../actions/helper';
-import { type TeamsHelper } from '../../../../../../actions/teams/team-helper';
-import { useHelper } from '../../../../../../store';
-import { type AssetGroup, type Endpoint, type Inject, type Team } from '../../../../../../utils/api-types';
+import { getArticlesMapSelector, getAssetGroupSelector, getChallengesMapSelector, getChannelsMapSelector, getEndpointSelector, getTeamSelector } from '../../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../../store';
+import { type Inject, type InjectExpectation } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import ChallengeExpectation from '../expectations/ChallengeExpectation';
 import ChannelExpectation from '../expectations/ChannelExpectation';
 import ManualExpectations from '../expectations/ManualExpectations';
@@ -39,9 +33,9 @@ interface Props {
   exerciseId: string;
   inject: Inject;
   injectContract: Contract;
-  expectationsByInject: InjectExpectationsStore[];
+  expectationsByInject: InjectExpectation[];
   id: string;
-  expectations: InjectExpectationsStore[];
+  expectations: InjectExpectation[];
 }
 
 const TeamOrAssetLine: FunctionComponent<Props> = ({
@@ -57,23 +51,12 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const {
-    teamsMap,
-    assetsMap,
-    assetGroupsMap,
-    challengesMap,
-    articlesMap,
-    channelsMap,
-  } = useHelper((helper: ArticlesHelper & AssetGroupsHelper & EndpointHelper & ChallengeHelper & ChannelsHelper & TeamsHelper) => {
-    return {
-      articlesMap: helper.getArticlesMap(),
-      assetsMap: helper.getEndpointsMap(),
-      assetGroupsMap: helper.getAssetGroupMaps(),
-      challengesMap: helper.getChallengesMap(),
-      channelsMap: helper.getChannelsMap(),
-      teamsMap: helper.getTeamsMap(),
-    };
-  });
+  const team = useSelectorHelper(state => getTeamSelector(id, state));
+  const asset = useSelectorHelper(state => getEndpointSelector(id, state));
+  const assetGroup = useSelectorHelper(state => getAssetGroupSelector(id, state));
+  const challengesMap = useSelectorHelper(getChallengesMapSelector);
+  const articlesMap = useSelectorHelper(getArticlesMapSelector);
+  const channelsMap = useSelectorHelper(getChannelsMapSelector);
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
@@ -82,11 +65,7 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
     dispatch(fetchSimulationAssetGroups(exerciseId));
   });
 
-  const team: Team = teamsMap[id];
-  const asset: Endpoint = assetsMap[id];
-  const assetGroup: AssetGroup = assetGroupsMap[id];
-
-  const groupByExpectationName = (es: InjectExpectationsStore[]) => {
+  const groupByExpectationName = (es: InjectExpectation[]) => {
     return es.reduce((group, expectation) => {
       const { inject_expectation_name } = expectation;
       if (inject_expectation_name) {
@@ -95,7 +74,7 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
         group.set(inject_expectation_name, values);
       }
       return group;
-    }, new Map());
+    }, new Map<string, InjectExpectation[]>());
   };
 
   return (
@@ -120,23 +99,27 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
       </ListItem>
       <List component="div" disablePadding>
         {Array.from(groupByExpectationName(expectations)).map(([expectationName, es]) => {
-          if (es === 'ARTICLE') {
-            const expectation = es[0];
-            const article = articlesMap[expectation.inject_expectation_article] || {};
-            const channel = channelsMap[article.article_channel] || {};
-            return (
-              <ChannelExpectation key={expectationName} channel={channel} article={article} expectation={expectation} />
-            );
+          const expectation = es[0];
+          if (expectationName === 'ARTICLE' && expectation.inject_expectation_article) {
+            const article = articlesMap[expectation.inject_expectation_article];
+            if (article) {
+              const channel = channelsMap[article.article_channel];
+              if (channel) {
+                return (
+                  <ChannelExpectation key={expectationName} channel={channel} article={article} expectation={expectation} />
+                );
+              }
+            }
           }
-          if (es === 'CHALLENGE') {
-            const expectation = es[0];
-            const challenge = challengesMap[expectation.inject_expectation_challenge] || {};
-            return (
-              <ChallengeExpectation key={expectationName} challenge={challenge} expectation={expectation} />
-            );
+          if (expectationName === 'CHALLENGE' && expectation.inject_expectation_challenge) {
+            const challenge = challengesMap[expectation.inject_expectation_challenge];
+            if (challenge) {
+              return (
+                <ChallengeExpectation key={expectationName} challenge={challenge} expectation={expectation} />
+              );
+            }
           }
-          if (es === 'PREVENTION' || es === 'DETECTION') {
-            const expectation = es[0];
+          if (expectationName === 'PREVENTION' || expectationName === 'DETECTION') {
             if (asset) {
               return (
                 <TechnicalExpectationAsset

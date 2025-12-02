@@ -2,10 +2,10 @@ import { Typography } from '@mui/material';
 import { useContext, useState } from 'react';
 
 import { fetchExercise } from '../../../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../../../actions/exercises/exercise-helper';
+import { getExerciseSelector } from '../../../../../../../actions/selectors';
 import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
-import { useHelper } from '../../../../../../../store';
+import { useSelectorHelper } from '../../../../../../../store';
 import type { EsAttackPath, StructuralHistogramWidget } from '../../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../../utils/hooks/useDataLoader';
@@ -29,7 +29,7 @@ const AttackPathContextLayer = ({ attackPathsData, widgetId, widgetConfig }: Pro
   const dashboardParameterId = customDashboard?.custom_dashboard_parameters?.find(p => p.custom_dashboards_parameter_type === 'simulation' && p.custom_dashboards_parameter_id === simulationParamIdFromSerie)?.custom_dashboards_parameter_id;
   const simulationIdContext = dashboardParameterId == simulationParamIdFromSerie ? customDashboardParameters[dashboardParameterId].value : simulationParamIdFromSerie;
 
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(simulationIdContext) }));
+  const exercise = useSelectorHelper(state => getExerciseSelector(simulationIdContext, state));
 
   useDataLoader(() => {
     if (!simulationIdContext) {
@@ -68,8 +68,8 @@ const AttackPathContextLayer = ({ attackPathsData, widgetId, widgetConfig }: Pro
       data={attackPathsData}
       widgetId={widgetId}
       simulationId={simulationIdContext}
-      simulationStartDate={exercise?.exercise_start_date}
-      simulationEndDate={exercise?.exercise_end_date}
+      simulationStartDate={exercise?.exercise_start_date ? new Date(exercise.exercise_start_date) : null}
+      simulationEndDate={exercise?.exercise_end_date ? new Date(exercise.exercise_end_date) : null}
     />
   );
 };

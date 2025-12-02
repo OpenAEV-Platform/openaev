@@ -1,5 +1,6 @@
 import { type Dispatch } from 'redux';
 
+import { type Page } from '../../components/common/queryable/Page';
 import {
   delReferential,
   getReferential,
@@ -8,14 +9,13 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type SearchPaginationInput, type SecurityPlatform, type SecurityPlatformInput } from '../../utils/api-types';
-import * as schema from '../Schema';
-import { arrayOfSecurityPlatforms, securityPlatform } from './asset-schema';
+import { type Option, type SearchPaginationInput, type SecurityPlatform, type SecurityPlatformInput } from '../../utils/api-types';
+import { arrayOfDocuments, arrayOfSecurityPlatforms, securityPlatform } from '../schemas';
 
 const SECURITY_PLATFORM_URI = '/api/security_platforms';
 
 export const addSecurityPlatform = (data: SecurityPlatformInput) => (dispatch: Dispatch) => {
-  return postReferential(securityPlatform, SECURITY_PLATFORM_URI, data)(dispatch);
+  return postReferential<SecurityPlatform>(securityPlatform, SECURITY_PLATFORM_URI, data)(dispatch);
 };
 
 export const updateSecurityPlatform = (
@@ -23,7 +23,7 @@ export const updateSecurityPlatform = (
   data: SecurityPlatformInput,
 ) => (dispatch: Dispatch) => {
   const uri = `${SECURITY_PLATFORM_URI}/${assetId}`;
-  return putReferential(securityPlatform, uri, data)(dispatch);
+  return putReferential<SecurityPlatform>(securityPlatform, uri, data)(dispatch);
 };
 
 export const deleteSecurityPlatform = (assetId: SecurityPlatform['asset_id']) => (dispatch: Dispatch) => {
@@ -32,22 +32,22 @@ export const deleteSecurityPlatform = (assetId: SecurityPlatform['asset_id']) =>
 };
 
 export const fetchSecurityPlatforms = () => (dispatch: Dispatch) => {
-  return getReferential(arrayOfSecurityPlatforms, SECURITY_PLATFORM_URI)(dispatch);
+  return getReferential<SecurityPlatform[]>(arrayOfSecurityPlatforms, SECURITY_PLATFORM_URI)(dispatch);
 };
 
 export const searchSecurityPlatforms = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${SECURITY_PLATFORM_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<Page<SecurityPlatform>>(uri, data);
 };
 
 export const searchSecurityPlatformAsOption = (searchText: string = '') => {
   const params = { searchText };
-  return simpleCall(`${SECURITY_PLATFORM_URI}/options`, { params });
+  return simpleCall<Option[]>(`${SECURITY_PLATFORM_URI}/options`, { params });
 };
 
 export const searchSecurityPlatformByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${SECURITY_PLATFORM_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${SECURITY_PLATFORM_URI}/options`, ids);
 };
 
-export const fetchDocumentFromSecurityPlatform = (securityPlatformId: string) => (dispatch: Dispatch) => getReferential(schema.arrayOfDocuments, `${SECURITY_PLATFORM_URI}/${securityPlatformId}/documents`)(dispatch);
+export const fetchDocumentFromSecurityPlatform = (securityPlatformId: string) => (dispatch: Dispatch) => getReferential<Document[]>(arrayOfDocuments, `${SECURITY_PLATFORM_URI}/${securityPlatformId}/documents`)(dispatch);

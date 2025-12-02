@@ -1,9 +1,9 @@
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
-import * as schema from './Schema';
+import { arrayOfInjectorContracts, injectorContract } from './schemas';
 
 export const fetchInjectorContract = injectorContractId => (dispatch) => {
   const uri = `/api/injector_contracts/${injectorContractId}`;
-  return getReferential(schema.injectorContract, uri)(dispatch);
+  return getReferential(injectorContract, uri)(dispatch);
 };
 
 export const directFetchInjectorContract = (injectorContractId) => {
@@ -13,7 +13,7 @@ export const directFetchInjectorContract = (injectorContractId) => {
 
 export const fetchInjectorsContracts = () => (dispatch) => {
   const uri = '/api/injector_contracts';
-  return getReferential(schema.arrayOfInjectorContracts, uri)(dispatch);
+  return getReferential(arrayOfInjectorContracts, uri)(dispatch);
 };
 
 export const searchInjectorContracts = (paginationInput) => {
@@ -24,17 +24,17 @@ export const searchInjectorContracts = (paginationInput) => {
 
 export const updateInjectorContract = (injectorContractId, data) => (dispatch) => {
   const uri = `/api/injector_contracts/${injectorContractId}`;
-  return putReferential(schema.injectorContract, uri, data)(dispatch);
+  return putReferential(injectorContract, uri, data)(dispatch);
 };
 
 export const updateInjectorContractMapping = (injectorContractId, data) => (dispatch) => {
   const uri = `/api/injector_contracts/${injectorContractId}/mapping`;
-  return putReferential(schema.injectorContract, uri, data)(dispatch);
+  return putReferential(injectorContract, uri, data)(dispatch);
 };
 
 export const addInjectorContract = data => (dispatch) => {
   const uri = '/api/injector_contracts';
-  return postReferential(schema.injectorContract, uri, data)(dispatch);
+  return postReferential(injectorContract, uri, data)(dispatch);
 };
 
 export const deleteInjectorContract = injectorContractId => (dispatch) => {

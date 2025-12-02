@@ -1,120 +1,79 @@
-import { fromJS, List, Map } from 'immutable';
-import * as R from 'ramda';
+import { fromJS, List as ImmutableList, Map as ImmutableMap } from 'immutable';
 
-import * as Constants from '../constants/ActionTypes';
+import { DATA_DELETE_SUCCESS, DATA_FETCH_ERROR, DATA_FETCH_SUBMITTED, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS, IDENTITY_LOGOUT_SUCCESS } from '../constants/ActionTypes';
+import { type Actions, type DataDeleteSuccessAction, type DataFetchErrorAction, type DataFetchSuccessAction, type DataUpdateSuccessAction, type StoreState } from '../store';
+import { entitiesInitializer, type EntityKeys } from './entities';
+import initialState from './state';
 
-export const entitiesInitializer = Map({
-  entities: Map({
-    files: Map({}),
-    users: Map({}),
-    groups: Map({}),
-    roles: Map({}),
-    grants: Map({}),
-    organizations: Map({}),
-    tokens: Map({}),
-    exercises: Map({}),
-    objectives: Map({}),
-    evaluations: Map({}),
-    comchecks: Map({}),
-    comcheckstatuses: Map({}),
-    channelreaders: Map({}),
-    simulationchallengesreaders: Map({}),
-    teams: Map({}),
-    injects: Map({}),
-    atomics: Map({}),
-    atomicdetails: Map({}),
-    targetresults: Map({}),
-    injector_contracts: Map({}),
-    inject_statuses: Map({}),
-    communications: Map({}),
-    logs: Map({}),
-    tags: Map({}),
-    documents: Map({}),
-    platformParameters: Map({}),
-    channels: Map({}),
-    payloads: Map({}),
-    challenges: Map({}),
-    articles: Map({}),
-    injectexpectations: Map({}),
-    lessonstemplates: Map({}),
-    lessonstemplatecategorys: Map({}),
-    lessonstemplatequestions: Map({}),
-    lessonscategorys: Map({}),
-    lessonsquestions: Map({}),
-    lessonsanswers: Map({}),
-    reports: Map({}),
-    variables: Map({}),
-    killchainphases: Map({}),
-    attackpatterns: Map({}),
-    endpoints: Map({}),
-    asset_groups: Map({}),
-    securityplatforms: Map({}),
-    scenarios: Map({}),
-    injectors: Map({}),
-    collectors: Map({}),
-    executors: Map({}),
-    mitigations: Map({}),
-    agents: Map({}),
-    domains: Map({}),
-    catalog_connectors: Map({}),
-  }),
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mergeDeepOverwriteLists = (a: any, b: any, deep = 0) => {
+const mergeDeepOverwriteLists = (a: unknown, b: unknown, deep = 0) => {
   // First, check if 'b' is null to avoid overwriting 'a', even if 'a' is mergeable.
   // Then, check if 'a' is mergeable.
   // Then, merge a is not a list & b is immutable then merge them otherwise return b
   if (!b) {
     return b;
   }
-  if (deep < 3 && a && Map.isMap(a)) {
+  if (deep < 1 && a && ImmutableMap.isMap(a)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return a.mergeWith((c: any, d: any): any => mergeDeepOverwriteLists(c, d, deep + 1), b);
+    return a.mergeWith((c: unknown, d: unknown): any => mergeDeepOverwriteLists(c, d, deep + 1), b as Iterable<[string, unknown]>);
   }
-  if (!List.isList(a) && Map.isMap(b)) {
-    return a.merge(b);
+  if (!ImmutableList.isList(a) && ImmutableMap.isMap(b)) {
+    return (a as ImmutableMap<unknown, unknown>).merge(b);
   }
   return b;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const referential = (state: any = Map({}), action: any = {}) => {
+const entityKeysToStoreFromStream = ['injects'] as EntityKeys[];
+
+const referential = (state: StoreState['referential'] = initialState.referential, action: Actions) => {
   switch (action.type) {
-    case Constants.DATA_UPDATE_SUCCESS:
-    case Constants.DATA_FETCH_SUCCESS: {
-      if (action.payload?.entities?.settings) {
-        const firstKey = Object.keys(action.payload.entities.settings)[0];
-        const firstValue = action.payload.entities.settings[firstKey];
+    case DATA_FETCH_SUBMITTED: {
+      // TODO check because this seems to be useless
+      // const { payload } = action as DataFetchSubmittedAction;
+      // if (payload) {
+      //   return state.setIn(['entities', payload], ImmutableMap({}));
+      // }
+      return state;
+    }
+    case DATA_FETCH_SUCCESS: {
+      const { payload } = action as DataFetchSuccessAction;
+      const entityKey = Object.keys(payload.entities)[0] as EntityKeys;
+      if (!action.fromStream || entityKeysToStoreFromStream.includes(entityKey)) {
+        return state.updateIn(['entities', entityKey], map => mergeDeepOverwriteLists(map, fromJS(payload.entities[entityKey])));
+      }
+      return state;
+    }
+    case DATA_UPDATE_SUCCESS: {
+      const { payload } = action as DataUpdateSuccessAction;
+      const entityKey = Object.keys(payload.entities)[0] as EntityKeys;
+      // TODO check that is still needed bceause merge deepfix that no ?
+      if (payload.entities.settings) {
+        const firstKey = Object.keys(payload.entities.settings)[0];
+        const firstValue = payload.entities.settings[firstKey];
         return state.setIn(
           ['entities', 'platformParameters', 'parameters', firstValue['setting_key']],
           firstValue['setting_value'],
         );
-      } else {
-        return mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
       }
+      return state.updateIn(['entities', entityKey], map => (map as ImmutableMap<string, unknown>).size ? mergeDeepOverwriteLists(map, fromJS(payload.entities[entityKey])) : map);
     }
-    case Constants.DATA_DELETE_SUCCESS: {
-      const toDeleteIn = state.getIn(['entities', action.payload.type]);
-      if (toDeleteIn) {
-        return state.setIn(
-          ['entities', action.payload.type],
-          state.getIn(['entities', action.payload.type]).delete(action.payload.id),
-        );
+    case DATA_DELETE_SUCCESS: {
+      const { payload } = action as DataDeleteSuccessAction;
+      if (state.entities[payload.type]) {
+        return state.setIn(['entities', payload.type], state.entities[payload.type].delete(payload.id));
       }
       return state;
     }
-    case Constants.DATA_FETCH_ERROR: {
-      if (action.payload.status === 401) {
+    case DATA_FETCH_ERROR: {
+      const { payload } = action as DataFetchErrorAction;
+      if (payload.status === 401) {
         // If unauthorized, reset all entities except platform parameters.
-        return entitiesInitializer.setIn(['entities', 'platformParameters'], state.getIn(['entities', 'platformParameters']));
+        return entitiesInitializer.setIn(['entities', 'platformParameters'], state.entities.get('platformParameters'));
       }
       return state;
     }
-
-    case Constants.IDENTITY_LOGOUT_SUCCESS: {
+    case IDENTITY_LOGOUT_SUCCESS: {
       // Upon logout, reset all entities except for platform parameters.
-      return entitiesInitializer.setIn(['entities', 'platformParameters'], state.getIn(['entities', 'platformParameters']));
+      return entitiesInitializer.setIn(['entities', 'platformParameters'], state.entities.get('platformParameters'));
     }
     default: {
       return state;

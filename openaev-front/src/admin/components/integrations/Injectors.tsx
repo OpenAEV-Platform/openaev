@@ -4,11 +4,11 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchInjectors } from '../../../actions/Injectors';
-import { type InjectorHelper } from '../../../actions/injectors/injector-helper';
+import { getInjectorsSelector } from '../../../actions/selectors';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import SearchFilter from '../../../components/SearchFilter';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Injector } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -72,7 +72,7 @@ const Injectors = () => {
   );
 
   // Fetching data
-  const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectors() }));
+  const injectors = useSelectorHelper(getInjectorsSelector);
   useDataLoader(() => {
     dispatch(fetchInjectors());
   });

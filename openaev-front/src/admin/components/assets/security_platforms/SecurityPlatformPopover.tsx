@@ -61,16 +61,12 @@ const SecurityPlatformPopover: FunctionComponent<Props> = ({
   };
   const submitEdit = (data: SecurityPlatformInput) => {
     dispatch(updateSecurityPlatform(securityPlatform.asset_id, data)).then(
-      (result: {
-        result: string;
-        entities: { securityplatforms: Record<string, SecurityPlatform> };
-      }) => {
-        if (result.entities) {
-          if (onUpdate) {
-            const securityPlatformUpdated = result.entities.securityplatforms[result.result];
-            onUpdate(securityPlatformUpdated);
-          }
+      (result) => {
+        if (onUpdate) {
+          const securityPlatformUpdated = result.data;
+          onUpdate(securityPlatformUpdated);
         }
+
         return result;
       },
     );

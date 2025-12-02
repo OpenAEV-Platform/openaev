@@ -3,10 +3,11 @@ import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
+import { getMeSelector, getMeTokensSelector } from '../../../actions/selectors';
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User.js';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { countryOption } from '../../../utils/Option';
 import PasswordForm from './PasswordForm';
@@ -20,10 +21,8 @@ const Index = () => {
   useDataLoader(() => {
     dispatch(meTokens());
   });
-  const { user, tokens } = useHelper(helper => ({
-    user: helper.getMe(),
-    tokens: helper.getMeTokens(),
-  }));
+  const user = useSelectorHelper(getMeSelector);
+  const tokens = useSelectorHelper(getMeTokensSelector);
   const onRenew = tokenId => dispatch(renewToken(tokenId));
   const onUpdate = (data) => {
     const inputValues = R.pipe(

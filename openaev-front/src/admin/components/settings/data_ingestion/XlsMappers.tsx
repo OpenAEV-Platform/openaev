@@ -11,7 +11,7 @@ import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
-import { type RawPaginationImportMapper, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type ImportMapper, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import DataIngestionMenu from '../DataIngestionMenu';
@@ -61,11 +61,11 @@ const XlsMappers = () => {
       field: 'import_mapper_name',
       label: 'Name',
       isSortable: true,
-      value: (mapper: RawPaginationImportMapper) => mapper.import_mapper_name,
+      value: (mapper: ImportMapper) => mapper.import_mapper_name,
     },
   ];
 
-  const [mappers, setMappers] = useState<RawPaginationImportMapper[]>([]);
+  const [mappers, setMappers] = useState<ImportMapper[]>([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState<SearchPaginationInput>(buildSearchPagination({ sorts: initSorting('import_mapper_name') }));
 
   return (

@@ -46,9 +46,9 @@ const CreateLessonsQuestion = (props) => {
   const handleClose = () => setOpen(false);
   const onSubmit = async (data) => {
     const result = await onAddLessonsQuestion(lessonsCategoryId, data);
-    if (result.result) {
+    if (result.normalizedData.result) {
       if (onCreate) {
-        onCreate(result.result);
+        onCreate(result.normalizedData.result);
       }
       return handleClose();
     }

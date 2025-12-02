@@ -10,7 +10,7 @@ import CommandsInfoCard from './CommandsInfoCard';
 import OutputParserInfoCard from './OutputParserInfoCard';
 import PayloadInfoPaper from './PayloadInfoPaper';
 
-const useStyles = makeStyles()(theme => ({ payloadInfoTabContainer: { '& > div:nth-child(even)': { marginBottom: theme.spacing(2) } } }));
+const useStyles = makeStyles()(theme => ({ payloadInfoTabContainer: { '& > div:nth-of-type(n)': { marginBottom: theme.spacing(2) } } }));
 
 const AtomicTestingPayloadInfo: FunctionComponent = () => {
   const { classes } = useStyles();

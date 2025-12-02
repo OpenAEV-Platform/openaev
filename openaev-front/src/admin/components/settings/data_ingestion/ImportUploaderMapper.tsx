@@ -8,10 +8,8 @@ const ImportUploaderMapper = () => {
   const navigate = useNavigate();
 
   const handleUpload = async (formData: FormData) => {
-    importMapper(formData).then((result: { data: { [x: string]: string } }) => {
-      if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        navigate(0);
-      }
+    importMapper(formData).then(() => {
+      navigate(0);
     });
   };
 

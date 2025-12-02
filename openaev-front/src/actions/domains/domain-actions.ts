@@ -1,7 +1,8 @@
 import type { Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simplePostCall } from '../../utils/Action';
-import { arrayOfDomains } from './domain-schema';
+import { type Option } from '../../utils/api-types';
+import { arrayOfDomains } from '../schemas';
 
 const DOMAIN_URI = '/api/domains';
 
@@ -15,9 +16,9 @@ export default fetchDomains;
 
 export const searchDomainsByNameAsOption = (searchText: string = '') => {
   const params = { searchText };
-  return simpleCall(`${DOMAIN_URI}/options`, { params });
+  return simpleCall<Option[]>(`${DOMAIN_URI}/options`, { params });
 };
 
 export const searchDomainsByIdsAsOption = (ids: string[]) => {
-  return simplePostCall(`${DOMAIN_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${DOMAIN_URI}/options`, ids);
 };

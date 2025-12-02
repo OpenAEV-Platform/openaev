@@ -18,6 +18,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -33,7 +34,7 @@ public class FilterUtilsJpa {
   public static final int PAGE_NUMBER_OPTION = 0;
   public static final int PAGE_SIZE_OPTION = 100;
 
-  public record Option(String id, String label) {}
+  public record Option(@NotBlank String id, @NotBlank String label) {}
 
   public static final Specification<?> EMPTY_SPECIFICATION = (root, query, cb) -> cb.conjunction();
 

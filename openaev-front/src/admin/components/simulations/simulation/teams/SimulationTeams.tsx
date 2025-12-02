@@ -4,9 +4,9 @@ import { type FunctionComponent, useContext } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { getExerciseTeamsSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type Team } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -26,7 +26,7 @@ const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
 
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { teamsStore }: { teamsStore: Team[] } = useHelper((helper: ExercisesHelper) => ({ teamsStore: helper.getExerciseTeams(exerciseId) }));
+  const teamsStore = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
@@ -44,12 +44,12 @@ const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
           {permissions.canManage
             && (
               <UpdateTeams
-                addedTeamIds={teamsStore.map((team: Team) => team.team_id)}
+                addedTeamIds={(teamsStore as Team[]).map((team: Team) => team.team_id)}
               />
             )}
         </Typography>
         <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
-          <ContextualTeams teams={teamsStore} />
+          <ContextualTeams teams={teamsStore as Team[]} />
         </Paper>
       </div>
     </TeamContext.Provider>

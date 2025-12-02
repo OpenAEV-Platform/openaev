@@ -8,13 +8,13 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchCollectorsForAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { fetchCollectors } from '../../../../actions/Collector';
-import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { postDetectionRemediationAIRulesByInject } from '../../../../actions/detection-remediation/detectionremediation-action';
 import { fetchPayloadDetectionRemediationsByInject } from '../../../../actions/injects/inject-action';
+import { getCollectorsSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { COLLECTOR_LIST } from '../../../../constants/Entities';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import {
   type Collector,
   type DetectionRemediationOutput,
@@ -65,7 +65,7 @@ const AtomicTestingRemediations = () => {
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const [loading, setLoading] = useState(false);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+  const collectors = useSelectorHelper(getCollectorsSelector);
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const [activeDetectionRemediation, setActiveDetectionRemediation] = useState<DetectionRemediationOutput>();

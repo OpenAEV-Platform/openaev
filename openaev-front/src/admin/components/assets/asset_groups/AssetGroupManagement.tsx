@@ -5,13 +5,12 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchAssetGroup, searchEndpointsFromAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
-import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
-import { type UserHelper } from '../../../../actions/helper';
+import { getAssetGroupSelector } from '../../../../actions/selectors';
 import { type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type AssetGroup, type Endpoint, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -68,7 +67,7 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const { assetGroup } = useHelper((helper: AssetGroupsHelper & UserHelper) => ({ assetGroup: helper.getAssetGroup(assetGroupId) }));
+  const assetGroup = useSelectorHelper(state => getAssetGroupSelector(assetGroupId, state));
   useDataLoader(() => {
     dispatch(fetchAssetGroup(assetGroupId));
   });
@@ -155,13 +154,15 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
           />
         )}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <AssetGroupAddEndpoints
-          assetGroupId={assetGroup?.asset_group_id}
-          assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
-          onUpdate={onUpdateList}
-        />
-      </Can>
+      {assetGroup?.asset_group_id && (
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+          <AssetGroupAddEndpoints
+            assetGroupId={assetGroup.asset_group_id}
+            assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
+            onUpdate={onUpdateList}
+          />
+        </Can>
+      )}
     </>
   );
 };

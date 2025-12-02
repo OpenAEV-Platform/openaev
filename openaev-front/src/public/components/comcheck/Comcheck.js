@@ -7,8 +7,9 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchComcheckStatus } from '../../../actions/Comcheck';
+import { getComcheckStatusSelector } from '../../../actions/selectors';
 import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -40,7 +41,7 @@ const Comcheck = () => {
   const dispatch = useDispatch();
   const { fldt, t } = useFormatter();
   const { statusId } = useParams();
-  const status = useHelper(helper => helper.getComcheckStatus(statusId));
+  const status = useSelectorHelper(state => getComcheckStatusSelector(statusId, state));
   useEffect(() => {
     dispatch(fetchComcheckStatus(statusId));
   }, []);

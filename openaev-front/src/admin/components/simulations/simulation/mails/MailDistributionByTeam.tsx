@@ -4,10 +4,10 @@ import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { getTeamsSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type Team } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -23,7 +23,7 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
   const theme = useTheme();
 
   // Fetching data
-  const { teams } = useHelper((helper: TeamsHelper) => ({ teams: helper.getTeams() }));
+  const teams = useSelectorHelper(getTeamsSelector);
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
   });

@@ -2,15 +2,15 @@ import { FORM_ERROR } from 'final-form';
 
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall } from '../utils/Action';
-import * as schema from './Schema';
+import { platformParameters, token, user } from './schemas';
 
 export const fetchPlatformParameters = () => (dispatch) => {
-  return getReferential(schema.platformParameters, '/api/settings')(dispatch);
+  return getReferential(platformParameters, '/api/settings')(dispatch);
 };
 
 export const updatePlatformParameters = data => (dispatch) => {
   return putReferential(
-    schema.platformParameters,
+    platformParameters,
     '/api/settings',
     data,
   )(dispatch);
@@ -18,7 +18,7 @@ export const updatePlatformParameters = data => (dispatch) => {
 
 export const updatePlatformPolicies = data => (dispatch) => {
   return putReferential(
-    schema.platformParameters,
+    platformParameters,
     '/api/settings/policies',
     data,
   )(dispatch);
@@ -26,7 +26,7 @@ export const updatePlatformPolicies = data => (dispatch) => {
 
 export const updatePlatformEnterpriseEditionParameters = data => (dispatch) => {
   return putReferential(
-    schema.platformParameters,
+    platformParameters,
     '/api/settings/enterprise-edition',
     data,
   )(dispatch);
@@ -34,7 +34,7 @@ export const updatePlatformEnterpriseEditionParameters = data => (dispatch) => {
 
 export const updatePlatformWhitemarkParameters = data => (dispatch) => {
   return putReferential(
-    schema.platformParameters,
+    platformParameters,
     '/api/settings/platform_whitemark',
     data,
   )(dispatch);
@@ -42,7 +42,7 @@ export const updatePlatformWhitemarkParameters = data => (dispatch) => {
 
 export const updatePlatformLightParameters = data => (dispatch) => {
   return putReferential(
-    schema.platformParameters,
+    platformParameters,
     '/api/settings/theme/light',
     data,
   )(dispatch);
@@ -50,7 +50,7 @@ export const updatePlatformLightParameters = data => (dispatch) => {
 
 export const updatePlatformDarkParameters = data => (dispatch) => {
   return putReferential(
-    schema.platformParameters,
+    platformParameters,
     '/api/settings/theme/dark',
     data,
   )(dispatch);
@@ -61,7 +61,7 @@ export const askReset = (username, locale) => (dispatch) => {
     login: username,
     lang: locale,
   };
-  return postReferential(schema.user, '/api/reset', data)(dispatch);
+  return postReferential(user, '/api/reset', data)(dispatch);
 };
 
 export const resetPassword = (token, values) => (dispatch) => {
@@ -70,7 +70,7 @@ export const resetPassword = (token, values) => (dispatch) => {
     password_validation: values.password_validation,
   };
   const ref = postReferential(
-    schema.user,
+    user,
     `/api/reset/${token}`,
     data,
   )(dispatch);
@@ -94,7 +94,7 @@ export const askToken = (username, password) => (dispatch) => {
     login: username,
     password,
   };
-  const ref = postReferential(schema.user, '/api/login', data)(dispatch);
+  const ref = postReferential(user, '/api/login', data)(dispatch);
   return ref.then((finalData) => {
     if (finalData[FORM_ERROR]) {
       return finalData;
@@ -107,7 +107,7 @@ export const askToken = (username, password) => (dispatch) => {
 };
 
 export const checkKerberos = () => (dispatch) => {
-  const ref = getReferential(schema.token, '/api/auth/kerberos')(dispatch);
+  const ref = getReferential(token, '/api/auth/kerberos')(dispatch);
   return ref.catch(() => {
     dispatch({
       type: Constants.IDENTITY_LOGIN_FAILED,
@@ -117,7 +117,7 @@ export const checkKerberos = () => (dispatch) => {
 };
 
 export const fetchMe = () => (dispatch) => {
-  const ref = getReferential(schema.user, '/api/me')(dispatch);
+  const ref = getReferential(user, '/api/me')(dispatch);
   return ref.then(data => dispatch({
     type: Constants.IDENTITY_LOGIN_SUCCESS,
     payload: data,

@@ -2,9 +2,9 @@ import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
-import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
+import { getScenarioSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Scenario } from '../../../../utils/api-types';
 import ScenarioArticles from './articles/ScenarioArticles';
 import ScenarioChallenges from './challenges/ScenarioChallenges';
@@ -17,7 +17,7 @@ const ScenarioDefinition = () => {
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   // Fetching data
-  const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
   return (
     <div style={{
       display: 'grid',
@@ -25,7 +25,7 @@ const ScenarioDefinition = () => {
       gridTemplateColumns: '1fr 1fr',
     }}
     >
-      <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />
+      <ScenarioTeams scenarioTeamsUsers={scenario?.scenario_teams_users} />
       <ScenarioVariables />
       <div style={{ gridColumn: '1 / span 2' }}>
         <ScenarioArticles />

@@ -2,8 +2,7 @@ import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from 
 import { type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
 
-import { duplicateInjectForExercise, duplicateInjectForScenario } from '../../../../actions/Inject';
-import { type InjectStore } from '../../../../actions/injects/Inject';
+import { duplicateInjectForExercise, duplicateInjectForScenario } from '../../../../actions/inject';
 import { exportInject } from '../../../../actions/injects/inject-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
@@ -11,6 +10,7 @@ import DialogTest from '../../../../components/common/DialogTest';
 import ExportOptionsDialog from '../../../../components/common/export/ExportOptionsDialog';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import { type CustomAxiosResponse } from '../../../../network';
 import type {
   Inject,
   InjectIndividualExportRequestInput,
@@ -41,14 +41,8 @@ interface Props {
   canBeTested?: boolean;
   canDone?: boolean;
   canTriggerNow?: boolean;
-  onCreate?: (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => void;
-  onUpdate?: (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => void;
+  onCreate?: (result: CustomAxiosResponse<Inject>) => void;
+  onUpdate?: (result: CustomAxiosResponse<Inject>) => void;
   onDelete?: (result: string) => void;
 }
 
@@ -96,18 +90,12 @@ const InjectPopover: FunctionComponent<Props> = ({
 
   const submitDuplicate = () => {
     if (inject.inject_exercise) {
-      dispatch(duplicateInjectForExercise(inject.inject_exercise, inject.inject_id)).then((result: {
-        result: string;
-        entities: { injects: Record<string, InjectStore> };
-      }) => {
+      dispatch(duplicateInjectForExercise(inject.inject_exercise, inject.inject_id)).then((result) => {
         onCreate?.(result);
       });
     }
     if (inject.inject_scenario) {
-      dispatch(duplicateInjectForScenario(inject.inject_scenario, inject.inject_id)).then((result: {
-        result: string;
-        entities: { injects: Record<string, InjectStore> };
-      }) => {
+      dispatch(duplicateInjectForScenario(inject.inject_scenario, inject.inject_id)).then((result) => {
         onCreate?.(result);
       });
     }

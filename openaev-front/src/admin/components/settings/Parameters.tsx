@@ -4,13 +4,13 @@ import { useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchPlatformParameters, updatePlatformDarkParameters, updatePlatformLightParameters, updatePlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
-import { type LoggedHelper } from '../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../actions/selectors';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import ItemCopy from '../../../components/ItemCopy';
-import { useHelper } from '../../../store';
-import { type PlatformSettings, type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
+import { useSelectorHelper } from '../../../store';
+import { type SettingsPlatformWhitemarkUpdateInput, type SettingsUpdateInput, type ThemeInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/PermissionsProvider';
@@ -38,34 +38,34 @@ const Parameters = () => {
   const ability = useContext(AbilityContext);
   const cannotManagePlatformSettings = ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-  const isEnterpriseEditionValid = settings.platform_license?.license_is_validated;
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
+  const isEnterpriseEditionValid = settings?.platform_license?.license_is_validated;
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
   });
 
   const initialValuesDark = {
-    accent_color: settings.platform_dark_theme?.accent_color ?? '',
-    background_color: settings.platform_dark_theme?.background_color ?? '',
-    logo_login_url: settings.platform_dark_theme?.logo_login_url ?? '',
-    logo_url: settings.platform_dark_theme?.logo_url ?? '',
-    logo_url_collapsed: settings.platform_dark_theme?.logo_url_collapsed ?? '',
-    navigation_color: settings.platform_dark_theme?.navigation_color ?? '',
-    paper_color: settings.platform_dark_theme?.paper_color ?? '',
-    primary_color: settings.platform_dark_theme?.primary_color ?? '',
-    secondary_color: settings.platform_dark_theme?.secondary_color ?? '',
+    accent_color: settings?.platform_dark_theme?.accent_color ?? '',
+    background_color: settings?.platform_dark_theme?.background_color ?? '',
+    logo_login_url: settings?.platform_dark_theme?.logo_login_url ?? '',
+    logo_url: settings?.platform_dark_theme?.logo_url ?? '',
+    logo_url_collapsed: settings?.platform_dark_theme?.logo_url_collapsed ?? '',
+    navigation_color: settings?.platform_dark_theme?.navigation_color ?? '',
+    paper_color: settings?.platform_dark_theme?.paper_color ?? '',
+    primary_color: settings?.platform_dark_theme?.primary_color ?? '',
+    secondary_color: settings?.platform_dark_theme?.secondary_color ?? '',
   };
 
   const initialValuesLight = {
-    accent_color: settings.platform_light_theme?.accent_color ?? '',
-    background_color: settings.platform_light_theme?.background_color ?? '',
-    logo_login_url: settings.platform_light_theme?.logo_login_url ?? '',
-    logo_url: settings.platform_light_theme?.logo_url ?? '',
-    logo_url_collapsed: settings.platform_light_theme?.logo_url_collapsed ?? '',
-    navigation_color: settings.platform_light_theme?.navigation_color ?? '',
-    paper_color: settings.platform_light_theme?.paper_color ?? '',
-    primary_color: settings.platform_light_theme?.primary_color ?? '',
-    secondary_color: settings.platform_light_theme?.secondary_color ?? '',
+    accent_color: settings?.platform_light_theme?.accent_color ?? '',
+    background_color: settings?.platform_light_theme?.background_color ?? '',
+    logo_login_url: settings?.platform_light_theme?.logo_login_url ?? '',
+    logo_url: settings?.platform_light_theme?.logo_url ?? '',
+    logo_url_collapsed: settings?.platform_light_theme?.logo_url_collapsed ?? '',
+    navigation_color: settings?.platform_light_theme?.navigation_color ?? '',
+    paper_color: settings?.platform_light_theme?.paper_color ?? '',
+    primary_color: settings?.platform_light_theme?.primary_color ?? '',
+    secondary_color: settings?.platform_light_theme?.secondary_color ?? '',
   };
 
   const onUpdate = (data: SettingsUpdateInput) => dispatch(updatePlatformParameters(data));
@@ -100,12 +100,12 @@ const Parameters = () => {
           <ParametersForm
             onSubmit={onUpdate}
             initialValues={{
-              platform_name: settings?.platform_name,
-              platform_theme: settings?.platform_theme,
-              platform_lang: settings?.platform_lang,
-              platform_home_dashboard: settings?.platform_home_dashboard,
-              platform_scenario_dashboard: settings?.platform_scenario_dashboard,
-              platform_simulation_dashboard: settings?.platform_simulation_dashboard,
+              platform_name: settings?.platform_name ?? '',
+              platform_theme: settings?.platform_theme ?? '',
+              platform_lang: settings?.platform_lang ?? '',
+              platform_home_dashboard: settings?.platform_home_dashboard ?? '',
+              platform_scenario_dashboard: settings?.platform_scenario_dashboard ?? '',
+              platform_simulation_dashboard: settings?.platform_simulation_dashboard ?? '',
             }}
             canNotManage={cannotManagePlatformSettings}
           />
@@ -119,9 +119,9 @@ const Parameters = () => {
                   padding: 0,
                   margin: 0,
                 }}
-                key={settings.platform_id}
+                key={settings?.platform_id}
               >
-                <ItemCopy content={settings.platform_id ?? ''} variant="inLine" />
+                <ItemCopy content={settings?.platform_id ?? ''} variant="inLine" />
               </pre>
             </ListItem>
             <ListItem divider>
@@ -148,12 +148,12 @@ const Parameters = () => {
                 variant="large"
                 label={
                   // eslint-disable-next-line no-nested-ternary
-                  !settings.platform_ai_enabled ? t('Disabled') : settings.platform_ai_has_token
-                    ? settings.platform_ai_type
-                    : `${settings.platform_ai_type} - ${t('Missing token')}`
+                  !settings?.platform_ai_enabled ? t('Disabled') : settings?.platform_ai_has_token
+                    ? settings?.platform_ai_type
+                    : `${settings?.platform_ai_type} - ${t('Missing token')}`
                 }
-                status={(settings.platform_ai_enabled) && (settings.platform_ai_has_token)}
-                tooltip={settings.platform_ai_has_token ? `${settings.platform_ai_type} - ${settings.platform_ai_model}` : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
+                status={(settings?.platform_ai_enabled) && (settings?.platform_ai_has_token)}
+                tooltip={settings?.platform_ai_has_token ? `${settings?.platform_ai_type} - ${settings?.platform_ai_model}` : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
               />
             </ListItem>
             <ListItem divider>
@@ -162,8 +162,8 @@ const Parameters = () => {
             <ListItem divider>
               <ListItemText primary={t('Remove Filigran logos')} />
               <Switch
-                disabled={settings.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-                checked={settings.platform_whitemark === 'true'}
+                disabled={settings?.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+                checked={settings?.platform_whitemark === 'true'}
                 onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
               />
             </ListItem>
@@ -216,7 +216,7 @@ const Parameters = () => {
                 <ListItemText primary={t('RabbitMQ')} />
                 <ItemBoolean status={null} variant="large" neutralLabel={settings?.rabbitmq_version} />
               </ListItem>
-              {settings.analytics_engine_type
+              {settings?.analytics_engine_type
                 && (
                   <ListItem divider>
                     <ListItemText primary={t(settings.analytics_engine_type)} />

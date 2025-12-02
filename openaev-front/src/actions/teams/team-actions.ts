@@ -1,5 +1,6 @@
 import { type Dispatch } from 'redux';
 
+import { type Page } from '../../components/common/queryable/Page';
 import {
   delReferential,
   getReferential,
@@ -8,50 +9,50 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type SearchPaginationInput, type Team, type TeamCreateInput, type TeamUpdateInput, type User } from '../../utils/api-types';
-import * as schema from '../Schema';
+import { type Option, type SearchPaginationInput, type Team, type TeamCreateInput, type TeamOutput, type TeamUpdateInput, type User } from '../../utils/api-types';
+import { arrayOfTeams, arrayOfUsers, team } from '../schemas';
 
 const TEAMS_URI = '/api/teams';
 
 export const fetchTeams = () => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}`;
-  return getReferential(schema.arrayOfTeams, uri)(dispatch);
+  return getReferential<Team[]>(arrayOfTeams, uri)(dispatch);
 };
 
 export const fetchTeam = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}`;
-  return getReferential(schema.team, uri)(dispatch);
+  return getReferential<Team>(team, uri)(dispatch);
 };
 export const searchTeams = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${TEAMS_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<Page<TeamOutput>>(uri, data);
 };
 
 export const findTeams = (teamIds: string[]) => {
   const data = teamIds;
   const uri = `${TEAMS_URI}/find`;
-  return simplePostCall(uri, data);
+  return simplePostCall<TeamOutput[]>(uri, data);
 };
 
 export const fetchTeamPlayers = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}/players`;
-  return getReferential(schema.arrayOfUsers, uri)(dispatch);
+  return getReferential<User[]>(arrayOfUsers, uri)(dispatch);
 };
 
 export const updateTeam = (teamId: Team['team_id'], data: TeamUpdateInput) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}`;
-  return putReferential(schema.team, uri, data)(dispatch);
+  return putReferential<Team>(team, uri, data)(dispatch);
 };
 
 export const updateTeamPlayers = (teamId: Team['team_id'], data: { team_users: User['user_id'][] }) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}/players`;
-  return putReferential(schema.team, uri, data)(dispatch);
+  return putReferential<Team>(team, uri, data)(dispatch);
 };
 
 export const addTeam = (data: TeamCreateInput) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}`;
-  return postReferential(schema.team, uri, data)(dispatch);
+  return postReferential<Team>(team, uri, data)(dispatch);
 };
 
 export const deleteTeam = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
@@ -65,9 +66,9 @@ export const searchTeamsAsOption = (searchText: string = '', sourceId: string = 
     sourceId,
     inputFilterOption,
   };
-  return simpleCall(`${TEAMS_URI}/options`, { params });
+  return simpleCall<Option[]>(`${TEAMS_URI}/options`, { params });
 };
 
 export const searchTeamByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${TEAMS_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${TEAMS_URI}/options`, ids);
 };

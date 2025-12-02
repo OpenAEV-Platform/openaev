@@ -35,7 +35,9 @@ const ReportPopover: FunctionComponent<Props> = ({
   // Deletion
   const [openDelete, setOpenDelete] = useState(false);
   const submitDelete = () => {
-    onDeleteReport(report);
+    if (onDeleteReport) {
+      onDeleteReport(report);
+    }
     setOpenDelete(false);
   };
 

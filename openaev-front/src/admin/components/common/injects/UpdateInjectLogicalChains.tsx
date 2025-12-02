@@ -4,19 +4,18 @@ import arrayMutators from 'final-form-arrays';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 
-import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { getInjectsMapSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type Inject, type InjectDependency } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type Inject, type InjectDependency, type InjectOutput } from '../../../../utils/api-types';
 import { PermissionsContext } from '../Context';
 import InjectChainsForm from './InjectChainsForm';
 
 interface Props {
-  inject: InjectStore;
+  inject: Inject;
   handleClose: () => void;
   onUpdateInject?: (data: Inject[]) => Promise<void>;
-  injects?: InjectOutputType[];
+  injects?: InjectOutput[];
   isDisabled: boolean;
 }
 
@@ -25,7 +24,7 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
   const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
 
-  const { injectsMap } = useHelper((helper: InjectHelper) => ({ injectsMap: helper.getInjectsMap() }));
+  const injectsMap = useSelectorHelper(getInjectsMapSelector);
 
   const initialValues = {
     ...inject,
@@ -46,7 +45,6 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
   const onSubmit = async (data: Inject & { inject_depends_to: InjectDependency[] }) => {
     const injectUpdate = {
       ...data,
-      inject_id: data.inject_id,
       inject_injector_contract: data.inject_injector_contract?.injector_contract_id,
       inject_depends_on: data.inject_depends_on,
     };
@@ -66,7 +64,7 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
               inject_id: currentInject.inject_id,
               inject_injector_contract: currentInject.inject_injector_contract?.injector_contract_id,
               inject_depends_on: undefined,
-            } as unknown as Inject;
+            } as Inject;
           })
       : [];
 
@@ -79,12 +77,11 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
         const injectDependsOnUpdate = data.inject_depends_to
           .find(dependsTo => dependsTo.dependency_relationship?.inject_children_id === childrenId);
 
-        const injectChildrenUpdate: Inject = {
+        const injectChildrenUpdate = {
           ...injectsMap[children.inject_id],
-          inject_id: children.inject_id,
           inject_injector_contract: children.inject_injector_contract?.injector_contract_id,
           inject_depends_on: injectDependsOnUpdate ? [injectDependsOnUpdate] : [],
-        };
+        } as Inject;
         injectsToUpdate.push(injectChildrenUpdate);
       }
     });

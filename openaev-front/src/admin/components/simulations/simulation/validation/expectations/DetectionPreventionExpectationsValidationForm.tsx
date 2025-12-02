@@ -5,22 +5,21 @@ import { Controller, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
-import { type SecurityPlatformHelper } from '../../../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../../../actions/assets/securityPlatform-actions';
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
+import { getSecurityPlatformsMapSelector } from '../../../../../../actions/selectors';
 import ExpandableText from '../../../../../../components/common/ExpendableText';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';
-import { useHelper } from '../../../../../../store';
-import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../../store';
+import { type InjectExpectation, type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 
 const useStyles = makeStyles()(theme => ({
   marginTop_2: { marginTop: theme.spacing(2) },
@@ -33,7 +32,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface FormProps {
-  expectation: InjectExpectationsStore;
+  expectation: InjectExpectation;
   result?: InjectExpectationResult;
   sourceIds?: string[];
   onUpdate?: () => void;
@@ -44,8 +43,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-  const { securityPlatformsMap }: { securityPlatformsMap: Record<string, SecurityPlatform> }
-    = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatformsMap: helper.getSecurityPlatformsMap() }));
+  const securityPlatformsMap = useSelectorHelper(getSecurityPlatformsMapSelector);
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)) dispatch(fetchSecurityPlatforms());
   });
@@ -57,7 +55,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
       ...data,
       source_id: data.security_platform,
       source_type: 'security-platform',
-      source_name: securityPlatformsMap[data.security_platform].asset_name,
+      source_name: securityPlatformsMap[data.security_platform]?.asset_name,
     })).then(() => {
       onUpdate?.();
     });

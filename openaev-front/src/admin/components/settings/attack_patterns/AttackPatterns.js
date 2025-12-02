@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchAttackPatterns } from '../../../../actions/AttackPattern';
+import { getKillChainPhasesMapSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style.js';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import TaxonomiesMenu from '../TaxonomiesMenu';
@@ -45,7 +46,7 @@ const AttackPatterns = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
-  const { killChainPhasesMap } = useHelper(helper => ({ killChainPhasesMap: helper.getKillChainPhasesMap() }));
+  const killChainPhasesMap = useSelectorHelper(getKillChainPhasesMapSelector);
 
   // Headers
   const headers = [

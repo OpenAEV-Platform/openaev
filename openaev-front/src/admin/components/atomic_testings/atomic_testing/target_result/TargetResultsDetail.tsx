@@ -6,9 +6,9 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
-import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
+import type { InjectExpectation, InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
 import { isAgent, isAssetGroups } from '../../../../../utils/target/TargetUtils';
-import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { type ExpectationResultType, ExpectationType } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import TabbedView, { type TabConfig } from '../../../settings/groups/grants/ui/TabbedView';
@@ -39,7 +39,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
 
-  const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
+  const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectation[]>>({});
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openIdParams = searchParams.get('expectation_id');
@@ -48,8 +48,8 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
 
   const { injectResultOverviewOutput, updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
 
-  const transformToSortedGroupedResults = (results: InjectExpectationsStore[]) => {
-    const groupedByType: Record<string, InjectExpectationsStore[]> = {};
+  const transformToSortedGroupedResults = (results: InjectExpectation[]) => {
+    const groupedByType: Record<string, InjectExpectation[]> = {};
     results.forEach((result) => {
       const type = result.inject_expectation_type;
       if (!groupedByType[type]) {
@@ -58,7 +58,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
       groupedByType[type].push(result);
     });
 
-    const sortedGroupedResults: Record<string, InjectExpectationsStore[]> = {};
+    const sortedGroupedResults: Record<string, InjectExpectation[]> = {};
     Object.keys(groupedByType)
       .toSorted((a, b) => Object.keys(ExpectationType).indexOf(a as ExpectationResultType) - Object.keys(ExpectationType).indexOf(b as ExpectationResultType))
       .forEach((key) => {
@@ -80,7 +80,7 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
 
   useEffect(() => {
     fetchTargetResult(inject.inject_id, target.target_id!, target.target_type!)
-      .then((result: { data: InjectExpectationsStore[] }) => {
+      .then((result) => {
         setSortedGroupedTargetResults(transformToSortedGroupedResults(result.data ?? []));
       });
   }, [injectResultOverviewOutput, target]);

@@ -3,6 +3,7 @@ package io.openaev.rest.challenge.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Scenario;
 import io.openaev.rest.scenario.response.PublicScenario;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -13,6 +14,7 @@ import lombok.Setter;
 public class ScenarioChallengesReader {
 
   @JsonProperty("scenario_id")
+  @NotNull
   private String id;
 
   @JsonProperty("scenario_information")

@@ -7,9 +7,8 @@ import { makeStyles } from 'tss-react/mui';
 import { type Contract } from '../../../../../../actions/contract/contract';
 import Drawer from '../../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../../components/i18n';
-import { type InjectExpectationResult } from '../../../../../../utils/api-types';
+import { type InjectExpectation, type InjectExpectationResult } from '../../../../../../utils/api-types';
 import { truncate } from '../../../../../../utils/String';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
 
@@ -28,7 +27,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface Props {
-  expectation: InjectExpectationsStore;
+  expectation: InjectExpectation;
   injectContract: Contract;
   gap?: number;
 }

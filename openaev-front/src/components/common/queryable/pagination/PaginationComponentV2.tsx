@@ -45,7 +45,7 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
 interface Props<T> {
   fetch: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
   searchPaginationInput: SearchPaginationInput;
-  setContent: (data: T[]) => void;
+  setContent?: (data: T[]) => void;
   setLoading?: (loading: boolean) => void;
   searchEnable?: boolean;
   disablePagination?: boolean;
@@ -112,7 +112,7 @@ const PaginationComponentV2 = <T extends object>({
     setLoading?.(true);
     fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
       const { data } = result;
-      setContent(data.content);
+      setContent?.(data.content);
       queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
       if (data.totalPages <= data.pageable.pageNumber) {
         queryableHelpers.paginationHelpers.handleChangePage(0);

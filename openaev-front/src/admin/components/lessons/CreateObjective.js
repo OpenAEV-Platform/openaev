@@ -30,7 +30,7 @@ class CreateObjective extends Component {
     const { onAddObjective } = this.context;
     return onAddObjective(data)
       .then((result) => {
-        if (result.result) {
+        if (result.data) {
           this.handleClose();
         }
         return result;

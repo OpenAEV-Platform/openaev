@@ -59,10 +59,9 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
         author_rule: value[1].author_rule,
       }))),
     )(data);
-    return dispatch(updatePayload(payload.payload_id, inputValues)).then((result) => {
+    return dispatch(updatePayload(payload.payload_id, inputValues)).then((response) => {
       if (onUpdate) {
-        const payloadUpdated = result.entities.payloads[result.result];
-        onUpdate(payloadUpdated);
+        onUpdate(response.data);
       }
       handleCloseEdit();
     });
@@ -86,10 +85,9 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
   };
   const handleCloseDuplicate = () => setOpenDuplicate(false);
   const submitDuplicate = () => {
-    return dispatch(duplicatePayload(payload.payload_id)).then((result) => {
+    return dispatch(duplicatePayload(payload.payload_id)).then((response) => {
       if (onDuplicate) {
-        const payloadUpdated = result.entities.payloads[result.result];
-        onDuplicate(payloadUpdated);
+        onDuplicate(response.data);
       }
       handleCloseDuplicate();
     });

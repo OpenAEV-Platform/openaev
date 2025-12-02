@@ -5,10 +5,11 @@ import * as R from 'ramda';
 import { forwardRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { getDocumentsMapSelector } from '../../../actions/selectors';
 import Empty from '../../../components/Empty';
 import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 
 const Transition = forwardRef((props, ref) => (
@@ -49,7 +50,7 @@ const ChannelNewspaper = ({ channelReader }) => {
     channel_information: channel,
   } = channelReader;
   const baseUri = `/api/player/${exercise?.exercise_id ?? scenario?.scenario_id}`;
-  const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
   const logo = isDark ? channel.channel_logo_dark : channel.channel_logo_light;
   const firstArticle = R.head(articles) || null;
   const firstArticleImages = (firstArticle?.article_documents || [])

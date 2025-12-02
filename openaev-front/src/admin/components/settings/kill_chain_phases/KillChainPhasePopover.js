@@ -46,7 +46,7 @@ class KillChainPhasePopover extends Component {
       .updateKillChainPhase(this.props.killChainPhase.phase_id, data)
       .then((result) => {
         if (this.props.onUpdate) {
-          const killChainPhaseUpdated = result.entities.killchainphases[result.result];
+          const killChainPhaseUpdated = result.data;
           this.props.onUpdate(killChainPhaseUpdated);
         }
         this.handleCloseEdit();

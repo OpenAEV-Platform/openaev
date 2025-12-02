@@ -5,7 +5,7 @@ import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
-import { storeHelper } from '../actions/Schema';
+import { storeHelper } from '../actions/Schema_DEPRECATED';
 import { addTag } from '../actions/Tag';
 import TagForm from '../admin/components/settings/tags/TagForm';
 import { Can } from '../utils/permissions/PermissionsProvider.js';
@@ -46,8 +46,8 @@ class TagField extends Component {
   onSubmit(data) {
     const { name, setFieldValue, values } = this.props;
     this.props.addTag(data).then((result) => {
-      if (result.result) {
-        const newTag = result.entities.tags[result.result];
+      if (result.data) {
+        const newTag = result.data;
         const tags = R.append(
           {
             id: newTag.tag_id,

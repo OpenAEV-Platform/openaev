@@ -6,12 +6,13 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseInjectExpectations } from '../../../../../actions/Exercise';
-import { fetchExerciseInjects } from '../../../../../actions/Inject';
+import { fetchExerciseInjects } from '../../../../../actions/inject.js';
+import { getExerciseInjectExpectationsSelector, getExerciseSelector, getInjectsMapSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import Loader from '../../../../../components/Loader';
 import SearchFilter from '../../../../../components/SearchFilter';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import TagsFilter from '../../../common/filters/TagsFilter';
@@ -48,17 +49,9 @@ const Validations = () => {
   };
   const handleRemoveTag = value => setTags(R.filter(n => n.id !== value, tags));
   // Fetching data
-  const {
-    exercise,
-    injectExpectations,
-    injectsMap,
-  } = useHelper((helper) => {
-    return {
-      exercise: helper.getExercise(exerciseId),
-      injectsMap: helper.getInjectsMap(),
-      injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-    };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const injectsMap = useSelectorHelper(getInjectsMapSelector);
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseInjectExpectations(exerciseId));
     dispatch(fetchExerciseInjects(exerciseId));

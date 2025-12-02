@@ -15,7 +15,7 @@ import type { Header } from '../../../../components/common/SortHeadersList';
 import FindingIcon from '../../../../components/FindingIcon';
 import ItemTargets from '../../../../components/ItemTargets';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import type { AggregatedFindingOutput, FilterGroup, RelatedFindingOutput, SearchPaginationInput, TargetSimple } from '../../../../utils/api-types';
+import { type AggregatedFindingOutput, type FilterGroup, type SearchPaginationInput, type TargetSimple } from '../../../../utils/api-types';
 import ContractOutputElementType from '../../findings/Finding';
 
 const useStyles = makeStyles()(() => ({
@@ -24,7 +24,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
+  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
   finding: AggregatedFindingOutput;
   additionalHeaders?: Header[];
   additionalFilterNames?: string[];
@@ -44,7 +44,7 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
     ...additionalFilterNames,
   ];
 
-  const [findings, setFindings] = useState<RelatedFindingOutput[]>([]);
+  const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
 
   const baseFilter: FilterGroup = {
     mode: 'and',
@@ -73,7 +73,7 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
       field: 'finding_assets',
       label: 'Endpoints',
       isSortable: false,
-      value: (finding: RelatedFindingOutput) => (
+      value: (finding: AggregatedFindingOutput) => (
         <ItemTargets
           targets={(finding.finding_assets || []).map(asset => ({
             target_id: asset.asset_id,

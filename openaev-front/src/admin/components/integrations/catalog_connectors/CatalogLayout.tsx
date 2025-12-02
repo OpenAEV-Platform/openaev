@@ -1,10 +1,10 @@
 import { Outlet, useParams } from 'react-router';
 
 import { fetchCatalogConnectors, fetchConnector } from '../../../../actions/catalog/catalog-actions';
-import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
+import { getCatalogConnectorSelector, getCatalogConnectorsSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -14,10 +14,8 @@ const CatalogLayout = () => {
   const dispatch = useAppDispatch();
   const { connectorId } = useParams() as { connectorId: CatalogConnectorOutput['catalog_connector_id'] };
 
-  const { connector, catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({
-    connector: helper.getCatalogConnector(connectorId),
-    catalogConnectors: helper.getCatalogConnectors(),
-  }));
+  const connector = useSelectorHelper(state => getCatalogConnectorSelector(connectorId, state));
+  const catalogConnectors = useSelectorHelper(getCatalogConnectorsSelector);
 
   useDataLoader(() => {
     dispatch(fetchCatalogConnectors());
@@ -27,7 +25,7 @@ const CatalogLayout = () => {
   });
 
   const breadcrumbElements
-    = connectorId
+    = connectorId && connector
       ? [
           { label: t('Catalog') },
           {

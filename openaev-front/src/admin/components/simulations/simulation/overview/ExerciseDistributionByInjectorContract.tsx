@@ -3,12 +3,12 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type InjectStore } from '../../../../../actions/injects/Inject';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { getExerciseInjectExpectationsSelector, getInjectsMapSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type Exercise, type Inject, type InjectExpectation } from '../../../../../utils/api-types';
+import { type InjectorContractConverted } from '../../../../../utils/api-types-custom';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
@@ -19,13 +19,8 @@ const ExerciseDistributionByInjectorContract: FunctionComponent<Props> = ({ exer
   const theme = useTheme();
 
   // Fetching data
-  const { injectsMap, injectExpectations }: {
-    injectsMap: Record<string, InjectStore>;
-    injectExpectations: InjectExpectation[];
-  } = useHelper((helper: InjectHelper) => ({
-    injectsMap: helper.getInjectsMap(),
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-  }));
+  const injectsMap = useSelectorHelper(getInjectsMapSelector);
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
 
   const sortedInjectorContractsByTotalScore = R.pipe(
     R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results)),
@@ -47,10 +42,10 @@ const ExerciseDistributionByInjectorContract: FunctionComponent<Props> = ({ exer
   const totalScoreByInjectorContractData = [
     {
       name: t('Total score'),
-      data: sortedInjectorContractsByTotalScore.map((i: InjectStore & { inject_total_score: number }) => ({
+      data: sortedInjectorContractsByTotalScore.map((i: Inject & { inject_total_score: number }) => ({
         x: tPick(i.inject_injector_contract?.injector_contract_labels),
         y: i.inject_total_score,
-        fillColor: i.inject_injector_contract?.convertedContent?.config?.[`color_${theme.palette.mode}`],
+        fillColor: (i.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'])?.config?.[`color_${theme.palette.mode}`],
       })),
     },
   ];

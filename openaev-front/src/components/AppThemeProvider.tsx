@@ -2,9 +2,8 @@ import { enUS, esES, frFR, type Localization, zhCN } from '@mui/material/locale'
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
-import { type LoggedHelper } from '../actions/helper';
-import { useHelper } from '../store';
-import { type PlatformSettings, type User } from '../utils/api-types';
+import { getMeSelector, getPlatformSettingsSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import { useFormatter } from './i18n';
 import themeDark from './ThemeDark';
 import themeLight from './ThemeLight';
@@ -24,16 +23,11 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   const [muiLocale, setMuiLocale] = useState<Localization>(enUS);
   const { locale } = useFormatter();
   const [theme, setTheme] = useState('dark');
-  const { me, settings }: {
-    me: User;
-    settings: PlatformSettings;
-  } = useHelper((helper: LoggedHelper) => ({
-    me: helper.getMe(),
-    settings: helper.getPlatformSettings(),
-  }));
+  const me = useSelectorHelper(getMeSelector);
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   useEffect(() => {
-    const rawPlatformTheme = settings.platform_theme ?? 'dark';
+    const rawPlatformTheme = settings?.platform_theme ?? 'dark';
     const rawUserTheme = me?.user_theme ?? 'default';
     const themeToSet = rawUserTheme !== 'default' ? rawUserTheme : rawPlatformTheme;
     document.body.setAttribute('data-theme', themeToSet);
@@ -44,7 +38,7 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     setMuiLocale(localeMap[locale as keyof typeof localeMap]);
   }, [locale]);
 
-  const dark = settings.platform_dark_theme;
+  const dark = settings?.platform_dark_theme;
   let muiTheme = createTheme(
     {
       spacing: scaleFactor,
@@ -62,7 +56,7 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     muiLocale,
   );
   if (theme === 'light') {
-    const light = settings.platform_light_theme;
+    const light = settings?.platform_light_theme;
     muiTheme = createTheme(
       {
         spacing: scaleFactor,

@@ -2,9 +2,8 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
-import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
-import { useHelper } from '../../../../store';
+import { getAttackPatternsSelector, getKillChainPhasesMapSelector } from '../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../store';
 import { type AttackPattern, type KillChainPhase } from '../../../../utils/api-types';
 import { random } from '../../../../utils/number';
 import KillChainPhaseColumn from './KillChainPhaseColumn';
@@ -24,14 +23,9 @@ const useStyles = makeStyles()(() => ({
 const MitreMatrixDummy: FunctionComponent = () => {
   // Standard hooks
   const { classes } = useStyles();
-  // Fetching data
-  const { attackPatterns, killChainPhaseMap }: {
-    attackPatterns: AttackPattern[];
-    killChainPhaseMap: Record<string, KillChainPhase>;
-  } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper) => ({
-    attackPatterns: helper.getAttackPatterns(),
-    killChainPhaseMap: helper.getKillChainPhasesMap(),
-  }));
+
+  const attackPatterns = useSelectorHelper(getAttackPatternsSelector);
+  const killChainPhaseMap = useSelectorHelper(getKillChainPhasesMapSelector);
 
   // Attack Pattern & Kill Chain Phase
   const sortKillChainPhase = (k1: KillChainPhase, k2: KillChainPhase) => {

@@ -3,9 +3,8 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
-import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
-import { useHelper } from '../../../../../../store';
+import { getAttackPatternsMapSelector } from '../../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../../store';
 import type { AttackPattern, KillChainPhase } from '../../../../../../utils/api-types';
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
@@ -34,12 +33,11 @@ const KillChainPhaseColumn: FunctionComponent<{
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
   // Fetching data
-  // eslint-disable-next-line max-len
-  const { attackPatternMap }: { attackPatternMap: Record<string, AttackPattern> } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper) => ({ attackPatternMap: helper.getAttackPatternsMap() }));
+  const attackPatternMap = useSelectorHelper(getAttackPatternsMapSelector);
 
-  const attackPatterns: AttackPattern[] = Object.values(attackPatternMap)
-    .filter((attackPattern: AttackPattern) => attackPattern.attack_pattern_kill_chain_phases?.includes(killChainPhase.phase_id))
-    .filter((attackPattern: AttackPattern) => attackPattern.attack_pattern_parent === null); // Remove sub techniques
+  const attackPatterns = Object.values(attackPatternMap)
+    .filter(attackPattern => attackPattern?.attack_pattern_kill_chain_phases?.includes(killChainPhase.phase_id))
+    .filter(attackPattern => attackPattern?.attack_pattern_parent === null); // Remove sub techniques
 
   if (resolvedDataSuccess.length === 0 && resolvedDataFailure.length === 0 && showCoveredOnly) {
     return (<></>);
@@ -69,7 +67,7 @@ const KillChainPhaseColumn: FunctionComponent<{
         {killChainPhase.phase_name}
       </Typography>
       <div className={classes.column}>
-        {attackPatterns.toSorted(sortAttackPattern)
+        {attackPatterns.filter(ap => !!ap).toSorted(sortAttackPattern)
           .map((attackPattern) => {
             const resolvedDataSuccessForTTP = resolvedDataSuccess.filter(d => d.attack_pattern_external_id === attackPattern.attack_pattern_external_id);
             const resolvedDataFailureForTTP = resolvedDataFailure.filter(d => d.attack_pattern_external_id === attackPattern.attack_pattern_external_id);

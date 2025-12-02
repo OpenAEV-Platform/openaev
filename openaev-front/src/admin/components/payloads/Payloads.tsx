@@ -31,7 +31,6 @@ import PayloadComponent from './PayloadComponent';
 import PayloadPopover from './PayloadPopover';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
   chip: {
     fontSize: 12,
@@ -264,7 +263,6 @@ const Payloads = () => {
       />
       <List>
         <ListItem
-          classes={{ root: classes.itemHead }}
           divider={false}
           style={{ paddingTop: 0 }}
           secondaryAction={<>&nbsp;</>}

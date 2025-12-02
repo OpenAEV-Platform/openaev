@@ -9,9 +9,9 @@ import {
   seriesByScenario,
   updateScenario, widgetToEntitiesByByScenario,
 } from '../../../../../actions/scenarios/scenario-actions';
-import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
+import { getScenarioSelector } from '../../../../../actions/selectors';
 import { SCENARIO_SIMULATIONS } from '../../../../../components/common/queryable/filter/constants';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import {
   type CustomDashboard,
   type Scenario,
@@ -31,10 +31,9 @@ const ScenarioAnalysis = () => {
   const ability = useContext(AbilityContext);
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 
-  const scenario = useHelper((helper: ScenariosHelper) => {
-    return helper.getScenario(scenarioId);
-  });
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
   const handleSelectNewDashboard = (dashboardId: string) => {
+    if (!scenario) return;
     dispatch(updateScenario(scenario.scenario_id, {
       ...scenario,
       scenario_custom_dashboard: dashboardId,
@@ -57,7 +56,7 @@ const ScenarioAnalysis = () => {
         },
       ],
     });
-    return data.content?.[0]?.exercise_id;
+    return data?.[0]?.exercise_id;
   };
 
   const paramsBuilder = async (dashboardParameters: CustomDashboard['custom_dashboard_parameters'], localStorageParams: Record<string, ParameterOption>) => {
@@ -68,7 +67,7 @@ const ScenarioAnalysis = () => {
         const value = localStorageParams[paramId]?.value;
         if ('scenario' === p.custom_dashboards_parameter_type) {
           paramOptions = {
-            value: scenario.scenario_id,
+            value: scenario?.scenario_id,
             hidden: true,
           };
         } else if ('simulation' === p.custom_dashboards_parameter_type) {

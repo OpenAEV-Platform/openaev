@@ -53,9 +53,9 @@ const CreateDocument = (props) => {
     const blob = new Blob([JSON.stringify(inputValues)], { type: 'application/json' });
     formData.append('input', blob);
     return props.addDocument(formData).then((result) => {
-      if (result.result) {
+      if (result.data) {
         if (props.onCreate) {
-          const created = result.entities.documents[result.result];
+          const created = result.data;
           props.onCreate(created);
         }
         return setOpen(false);

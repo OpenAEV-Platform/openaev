@@ -85,13 +85,13 @@ interface Props {
   source: GenericSource;
   objectives: Objective[];
   injects: Inject[];
-  teamsMap: Record<string, Team>;
+  teamsMap: Record<string, Team | undefined>;
   teams: Team[];
   lessonsCategories: LessonsCategory[];
   lessonsQuestions: LessonsQuestion[];
   lessonsAnswers: LessonsAnswer[];
   lessonsTemplates: LessonsTemplate[];
-  usersMap: Record<string, User>;
+  usersMap: Record<string, User | undefined>;
 }
 
 const Lessons: FunctionComponent<Props> = ({

@@ -1,5 +1,6 @@
 import { HubOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { type AxiosResponse } from 'axios';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -15,7 +16,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import FindingIcon from '../../../components/FindingIcon';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import FindingDetail from './FindingDetail';
 
 const useStyles = makeStyles()(() => ({
@@ -24,8 +25,8 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
+  searchFindings: (input: SearchPaginationInput) => Promise<AxiosResponse<Page<AggregatedFindingOutput>>>;
+  searchDistinctFindings: (input: SearchPaginationInput) => Promise<AxiosResponse<Page<AggregatedFindingOutput>>>;
   additionalHeaders?: Header[];
   additionalFilterNames?: string[];
   filterLocalStorageKey: string;

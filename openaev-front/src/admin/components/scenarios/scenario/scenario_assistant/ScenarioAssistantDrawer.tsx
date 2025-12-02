@@ -135,7 +135,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   useEffect(() => {
     if (assetIds.length > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
-      findEndpoints(assetIds).then(result => setEndpoints(result.data));
+      findEndpoints(assetIds).then(result => setEndpoints(result.data as EndpointOutput[]));
     } else {
       setEndpoints([]);
     }

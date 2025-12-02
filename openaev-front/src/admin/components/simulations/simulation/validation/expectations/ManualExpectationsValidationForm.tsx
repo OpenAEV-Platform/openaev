@@ -16,19 +16,17 @@ import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
-import { type UserHelper } from '../../../../../../actions/helper';
+import { getTeamsMapSelector, getUsersMapSelector } from '../../../../../../actions/selectors';
 import { fetchTeams } from '../../../../../../actions/teams/team-actions';
-import { type TeamsHelper } from '../../../../../../actions/teams/team-helper';
 import { fetchPlayers } from '../../../../../../actions/users/User';
 import { useFormatter } from '../../../../../../components/i18n';
-import { useHelper } from '../../../../../../store';
-import { type Team, type User } from '../../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../../store';
+import { type InjectExpectation } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import { computeStatusStyle } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { zodImplement } from '../../../../../../utils/Zod';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 
 const useStyles = makeStyles()(theme => ({
   marginTop_2: { marginTop: theme.spacing(2) },
@@ -48,7 +46,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface FormProps {
-  expectation: InjectExpectationsStore;
+  expectation: InjectExpectation;
   onUpdate?: () => void;
   withSummary?: boolean;
   isDisabled?: boolean;
@@ -59,15 +57,8 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { teamsMap, usersMap }: {
-    teamsMap: Record<string, Team>;
-    usersMap: Record<string, User>;
-  } = useHelper((helper: TeamsHelper & UserHelper) => {
-    return ({
-      teamsMap: helper.getTeamsMap(),
-      usersMap: helper.getUsersMap(),
-    });
-  });
+  const teamsMap = useSelectorHelper(getTeamsMapSelector);
+  const usersMap = useSelectorHelper(getUsersMapSelector);
   const dispatch = useAppDispatch();
   useDataLoader(() => {
     dispatch(fetchPlayers());
@@ -100,7 +91,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
     reset({ expectation_score: expectation.inject_expectation_score ?? expectation.inject_expectation_expected_score ?? 0 });
   }, [expectation, reset]);
 
-  const targetLabel = (expectationToProcess: InjectExpectationsStore) => {
+  const targetLabel = (expectationToProcess: InjectExpectation) => {
     if (expectationToProcess.inject_expectation_user && usersMap[expectationToProcess.inject_expectation_user]) {
       return truncate(resolveUserName(usersMap[expectationToProcess.inject_expectation_user]), 22);
     }

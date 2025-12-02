@@ -1,5 +1,6 @@
 import { type Dispatch } from 'redux';
 
+import { type Page } from '../../components/common/queryable/Page';
 import {
   delReferential,
   getReferential,
@@ -9,35 +10,49 @@ import {
   simplePostCall,
 } from '../../utils/Action';
 import {
+  type CheckScenarioRulesOutput,
+  type CustomDashboard,
+  type EsAttackPath,
+  type EsBase,
+  type EsCountInterval,
+  type EsSeries,
+  type Exercise,
+  type ExerciseSimple,
   type GetScenariosInput,
+  type HealthCheck,
+  type ImportTestSummary,
   type InjectsImportInput,
+  type LessonsCategory,
   type LessonsCategoryCreateInput,
   type LessonsCategoryTeamsInput,
   type LessonsCategoryUpdateInput,
   type LessonsInput,
+  type LessonsQuestion,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput,
+  type Option,
   type Scenario,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
+  type ScenarioStatistic,
   type ScenarioTeamPlayersEnableInput,
   type SearchPaginationInput,
   type Team,
   type UpdateScenarioInput,
   type WidgetToEntitiesInput,
+  type WidgetToEntitiesOutput,
 } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
-import * as schema from '../Schema';
-import { arrayOfScenarios, scenario } from './scenario-schema';
+import { arrayOfLessonsCategories, arrayOfLessonsQuestions, arrayOfScenarios, arrayOfTeams, arrayOfUsers, lessonsCategory, lessonsQuestion, scenario } from '../schemas';
 
 export const SCENARIO_URI = '/api/scenarios';
 
 export const addScenario = (data: ScenarioInput) => (dispatch: Dispatch) => {
-  return postReferential(scenario, SCENARIO_URI, data)(dispatch);
+  return postReferential<Scenario>(scenario, SCENARIO_URI, data)(dispatch);
 };
 
 export const fetchScenarios = () => (dispatch: Dispatch) => {
-  return getReferential(arrayOfScenarios, SCENARIO_URI)(dispatch);
+  return getReferential<Scenario[]>(arrayOfScenarios, SCENARIO_URI)(dispatch);
 };
 
 export const fetchScenariosById = (exerciseIds: GetScenariosInput) => (dispatch: Dispatch) => {
@@ -46,13 +61,13 @@ export const fetchScenariosById = (exerciseIds: GetScenariosInput) => (dispatch:
 
 export const searchScenarios = (paginationInput: SearchPaginationInput) => {
   const data = paginationInput;
-  const uri = '/api/scenarios/search';
-  return simplePostCall(uri, data);
+  const uri = `${SCENARIO_URI}/search`;
+  return simplePostCall<Page<Scenario>>(uri, data);
 };
 
 export const fetchScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
-  return getReferential(scenario, uri)(dispatch);
+  return getReferential<Scenario>(scenario, uri)(dispatch);
 };
 
 export const updateScenario = (
@@ -60,7 +75,7 @@ export const updateScenario = (
   data: UpdateScenarioInput,
 ) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
-  return putReferential(scenario, uri, data)(dispatch);
+  return putReferential<Scenario>(scenario, uri, data)(dispatch);
 };
 
 export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
@@ -72,33 +87,33 @@ export const exportScenarioUri = (scenarioId: Scenario['scenario_id'], exportTea
   return `${SCENARIO_URI}/${scenarioId}/export?isWithTeams=${exportTeams}&isWithPlayers=${exportPlayers}&isWithVariableValues=${exportVariableValues}`;
 };
 
-export const importScenario = (formData: FormData) => (dispatch: Dispatch) => {
+export const importScenario = (formData: FormData) => {
   const uri = `${SCENARIO_URI}/import`;
-  return postReferential(null, uri, formData)(dispatch);
+  return simplePostCall<void>(uri, formData);
 };
 
 export const duplicateScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
-  return postReferential(scenario, uri, null)(dispatch);
+  return postReferential<Scenario>(scenario, uri, null)(dispatch);
 };
 
 // -- SCENARIO TO EXERCISE
 
 export const createRunningExerciseFromScenario = (scenarioId: string) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/exercise/running`;
-  return simplePostCall(uri);
+  return simplePostCall<Exercise>(uri);
 };
 
 // -- TEAMS --
 
 export const fetchPlayersByScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/players`;
-  return getReferential(schema.arrayOfUsers, uri)(dispatch);
+  return getReferential(arrayOfUsers, uri)(dispatch);
 };
 
 export const fetchScenarioTeams = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/teams`;
-  return getReferential(schema.arrayOfTeams, uri)(dispatch);
+  return getReferential<Team[]>(arrayOfTeams, uri)(dispatch);
 };
 
 export const enableScenarioTeamPlayers = (scenarioId: Scenario['scenario_id'], teamId: Team['team_id'], data: ScenarioTeamPlayersEnableInput) => (dispatch: Dispatch) => putReferential(
@@ -130,14 +145,14 @@ export const removeScenarioTeamPlayers = (scenarioId: Scenario['scenario_id'], t
 export const searchScenarioExercises = (scenarioId: Scenario['scenario_id'], paginationInput: SearchPaginationInput) => {
   const data = paginationInput;
   const uri = `/api/scenarios/${scenarioId}/exercises/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<ExerciseSimple[]>(uri, data);
 };
 
 // -- HEALTHCHEKS --
 
 export const searchScenarioHealthcheks = (scenarioId: Scenario['scenario_id']) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/healthchecks`;
-  return simpleCall(uri);
+  return simpleCall<HealthCheck[]>(uri);
 };
 
 // -- RECURRENCE --
@@ -147,21 +162,21 @@ export const updateScenarioRecurrence = (
   data: ScenarioRecurrenceInput,
 ) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/recurrence`;
-  return putReferential(scenario, uri, data)(dispatch);
+  return putReferential<Scenario>(scenario, uri, data)(dispatch);
 };
 
 // -- STATISTIC --
 
 export const fetchScenarioStatistic = (scenarioId: Scenario['scenario_id']) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/statistics`;
-  return simpleCall(uri);
+  return simpleCall<ScenarioStatistic>(uri);
 };
 
 // -- IMPORT --
 
 export const importXlsForScenario = (scenarioId: Scenario['scenario_id'], importId: string, input: InjectsImportInput) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/xls/${importId}/import`;
-  return simplePostCall(uri, input)
+  return simplePostCall<ImportTestSummary>(uri, input)
     .then((response) => {
       const injectCount = response.data.total_injects;
       if (injectCount === 0) {
@@ -175,7 +190,7 @@ export const importXlsForScenario = (scenarioId: Scenario['scenario_id'], import
 
 export const dryImportXlsForScenario = (scenarioId: Scenario['scenario_id'], importId: string, input: InjectsImportInput) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/xls/${importId}/dry`;
-  return simplePostCall(uri, input)
+  return simplePostCall<ImportTestSummary>(uri, input)
     .then((response) => {
       return response;
     });
@@ -185,16 +200,16 @@ export const dryImportXlsForScenario = (scenarioId: Scenario['scenario_id'], imp
 
 export const searchScenarioAsOption = (searchText: string = '') => {
   const params = { searchText };
-  return simpleCall(`${SCENARIO_URI}/options`, { params });
+  return simpleCall<Option[]>(`${SCENARIO_URI}/options`, { params });
 };
 
 export const searchScenarioByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${SCENARIO_URI}/options`, ids);
+  return simplePostCall<Option[]>(`${SCENARIO_URI}/options`, ids);
 };
 
 export const searchScenarioCategoryAsOption = (searchText: string = '') => {
   const params = { searchText };
-  return simpleCall(`${SCENARIO_URI}/category/options`, { params });
+  return simpleCall<Option[]>(`${SCENARIO_URI}/category/options`, { params });
 };
 
 // -- LESSONS --
@@ -207,22 +222,22 @@ export const updateScenarioLessons = (scenarioId: string, data: LessonsInput) =>
 
 export const fetchLessonsCategories = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_categories`;
-  return getReferential(schema.arrayOfLessonsCategories, uri)(dispatch);
+  return getReferential<LessonsCategory[]>(arrayOfLessonsCategories, uri)(dispatch);
 };
 
 export const updateLessonsCategory = (scenarioId: string, lessonsCategoryId: string, data: LessonsCategoryUpdateInput) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_categories/${lessonsCategoryId}`;
-  return putReferential(schema.lessonsCategory, uri, data)(dispatch);
+  return putReferential<LessonsCategory>(lessonsCategory, uri, data)(dispatch);
 };
 
 export const updateLessonsCategoryTeams = (scenarioId: string, lessonsCategoryId: string, data: LessonsCategoryTeamsInput) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_categories/${lessonsCategoryId}/teams`;
-  return putReferential(schema.lessonsCategory, uri, data)(dispatch);
+  return putReferential<LessonsCategory>(lessonsCategory, uri, data)(dispatch);
 };
 
 export const addLessonsCategory = (scenarioId: string, data: LessonsCategoryCreateInput) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_categories`;
-  return postReferential(schema.lessonsCategory, uri, data)(dispatch);
+  return postReferential<LessonsCategory>(lessonsCategory, uri, data)(dispatch);
 };
 
 export const deleteLessonsCategory = (scenarioId: string, lessonsCategoryId: string) => (dispatch: Dispatch) => {
@@ -232,22 +247,22 @@ export const deleteLessonsCategory = (scenarioId: string, lessonsCategoryId: str
 
 export const applyLessonsTemplate = (scenarioId: string, lessonsTemplateId: string) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_apply_template/${lessonsTemplateId}`;
-  return postReferential(schema.arrayOfLessonsCategories, uri, {})(dispatch);
+  return postReferential<LessonsCategory[]>(arrayOfLessonsCategories, uri, {})(dispatch);
 };
 
 export const fetchLessonsQuestions = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_questions`;
-  return getReferential(schema.arrayOfLessonsQuestions, uri)(dispatch);
+  return getReferential<LessonsQuestion[]>(arrayOfLessonsQuestions, uri)(dispatch);
 };
 
 export const updateLessonsQuestion = (scenarioId: string, lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_categories/${lessonsCategoryId}/lessons_questions/${lessonsQuestionId}`;
-  return putReferential(schema.lessonsQuestion, uri, data)(dispatch);
+  return putReferential<LessonsQuestion>(lessonsQuestion, uri, data)(dispatch);
 };
 
 export const addLessonsQuestion = (scenarioId: string, lessonsCategoryId: string, data: LessonsQuestionCreateInput) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_categories/${lessonsCategoryId}/lessons_questions`;
-  return postReferential(schema.lessonsQuestion, uri, data)(dispatch);
+  return postReferential<LessonsQuestion>(lessonsQuestion, uri, data)(dispatch);
 };
 
 export const deleteLessonsQuestion = (scenarioId: string, lessonsCategoryId: string, lessonsQuestionId: string) => (dispatch: Dispatch) => {
@@ -257,35 +272,35 @@ export const deleteLessonsQuestion = (scenarioId: string, lessonsCategoryId: str
 
 export const emptyLessonsCategories = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `/api/scenarios/${scenarioId}/lessons_empty`;
-  return postReferential(schema.arrayOfLessonsCategories, uri, {})(dispatch);
+  return postReferential<LessonsCategory[]>(arrayOfLessonsCategories, uri, {})(dispatch);
 };
 
 export const checkScenarioTagRules = (scenarioId: string, newTagIds: string[]) => {
   const uri = `/api/scenarios/${scenarioId}/check-rules`;
   const input = { new_tags: newTagIds };
-  return simplePostCall(uri, input);
+  return simplePostCall<CheckScenarioRulesOutput>(uri, input);
 };
 
 export const fetchCustomDashboardFromScenario = (scenarioId: string) => {
-  return simpleCall(`/api/scenarios/${scenarioId}/dashboard`);
+  return simpleCall<CustomDashboard>(`/api/scenarios/${scenarioId}/dashboard`);
 };
 
 export const countByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/count/${widgetId}`, parameters);
+  return simplePostCall<EsCountInterval>(`/api/scenarios/${scenarioId}/dashboard/count/${widgetId}`, parameters);
 };
 
 export const seriesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/series/${widgetId}`, parameters);
+  return simplePostCall<EsSeries[]>(`/api/scenarios/${scenarioId}/dashboard/series/${widgetId}`, parameters);
 };
 
 export const entitiesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/entities/${widgetId}`, parameters);
+  return simplePostCall<EsBase[]>(`/api/scenarios/${scenarioId}/dashboard/entities/${widgetId}`, parameters);
 };
 
 export const widgetToEntitiesByByScenario = (scenarioId: string, widgetId: string, input: WidgetToEntitiesInput) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/entities-runtime/${widgetId}`, input);
+  return simplePostCall<WidgetToEntitiesOutput>(`/api/scenarios/${scenarioId}/dashboard/entities-runtime/${widgetId}`, input);
 };
 
 export const attackPathsByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/attack-paths/${widgetId}`, parameters);
+  return simplePostCall<EsAttackPath[]>(`/api/scenarios/${scenarioId}/dashboard/attack-paths/${widgetId}`, parameters);
 };

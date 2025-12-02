@@ -55,14 +55,13 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
     } else {
       value = await dispatch(addTeam(inputValues));
     }
-    if (value.entities) {
+    if (value.data) {
       if (onCreate) {
-        const created = value.entities.teams[value.result];
-        onCreate(created);
+        onCreate(value.data);
       }
       handleClose();
     }
-    return value;
+    return value.data;
   };
 
   return (

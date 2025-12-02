@@ -1,8 +1,7 @@
 import { useContext } from 'react';
 
-import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
-import { type LoggedHelper, type UserHelper } from '../../actions/helper';
-import { useHelper } from '../../store';
+import { getExerciseSelector, getLoggedSelector, getMeSelector } from '../../actions/selectors';
+import { useSelectorHelper } from '../../store';
 import { type Exercise } from '../api-types';
 import { AbilityContext } from './PermissionsProvider';
 import { ACTIONS, SUBJECTS } from './types';
@@ -10,13 +9,9 @@ import { ACTIONS, SUBJECTS } from './types';
 const useSimulationPermissions = (exerciseId: string, fullExercise?: Exercise) => {
   const ability = useContext(AbilityContext);
 
-  const { exercise, me, logged } = useHelper((helper: ExercisesHelper & UserHelper & LoggedHelper) => {
-    return {
-      exercise: helper.getExercise(exerciseId),
-      me: helper.getMe(),
-      logged: helper.logged(),
-    };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const me = useSelectorHelper(getMeSelector);
+  const logged = useSelectorHelper(getLoggedSelector);
 
   if ((!fullExercise && !exercise) || !me) {
     return {
@@ -34,7 +29,7 @@ const useSimulationPermissions = (exerciseId: string, fullExercise?: Exercise) =
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
   const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.DELETE, SUBJECTS.ASSESSMENT);
-  const isRunning = (exercise || fullExercise).exercise_status === 'RUNNING';
+  const isRunning = (exercise || fullExercise)?.exercise_status === 'RUNNING';
   const readOnly = !canManage;
 
   return {

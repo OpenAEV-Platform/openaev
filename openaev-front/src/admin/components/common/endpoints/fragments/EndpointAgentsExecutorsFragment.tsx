@@ -1,9 +1,9 @@
 import { Tooltip } from '@mui/material';
 
 import { fetchExecutors } from '../../../../../actions/Executor';
-import type { ExecutorHelper } from '../../../../../actions/executors/executor-helper';
+import { getExecutorsMapSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type EndpointOutput } from '../../../../../utils/api-types';
 import { getExecutorsCount } from '../../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -14,7 +14,7 @@ type Props = { endpoint: EndpointOutput };
 const EndpointActiveFragment = (props: Props) => {
   const dispatch = useAppDispatch();
   // Fetching data
-  const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
+  const executorsMap = useSelectorHelper(getExecutorsMapSelector);
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });

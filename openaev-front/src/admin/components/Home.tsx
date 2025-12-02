@@ -1,5 +1,5 @@
 import { fetchPlatformParameters, updatePlatformParameters } from '../../actions/Application';
-import type { LoggedHelper } from '../../actions/helper';
+import { getPlatformSettingsSelector } from '../../actions/selectors';
 import {
   fetchHomeDashboard, homeDashboardAttackPaths,
   homeDashboardCount,
@@ -7,8 +7,7 @@ import {
   homeDashboardSeries,
   homeWidgetToEntitiesRuntime,
 } from '../../actions/settings/settings-action';
-import { useHelper } from '../../store';
-import type { PlatformSettings } from '../../utils/api-types';
+import { useSelectorHelper } from '../../store';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import { Can } from '../../utils/permissions/PermissionsProvider';
@@ -19,7 +18,7 @@ import SelectDashboardButton from './workspaces/custom_dashboards/SelectDashboar
 
 const Home = () => {
   const dispatch = useAppDispatch();
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
@@ -33,7 +32,7 @@ const Home = () => {
   };
 
   const configuration = {
-    customDashboardId: settings.platform_home_dashboard,
+    customDashboardId: settings?.platform_home_dashboard,
     paramLocalStorageKey: 'custom-dashboard-home',
     fetchCustomDashboard: fetchHomeDashboard,
     fetchCount: homeDashboardCount,

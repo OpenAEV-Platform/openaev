@@ -2,9 +2,9 @@ import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
-import type { ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { getExerciseSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Exercise } from '../../../../utils/api-types';
 import ExerciseArticles from './articles/ExerciseArticles';
 import ExerciseChallenges from './challenges/ExerciseChallenges';
@@ -17,7 +17,7 @@ const SimulationDefinition = () => {
   const theme = useTheme();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   // Fetching data
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
   return (
     <div style={{
       display: 'grid',
@@ -25,7 +25,7 @@ const SimulationDefinition = () => {
       gridTemplateColumns: '1fr 1fr',
     }}
     >
-      <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />
+      <SimulationTeams exerciseTeamsUsers={exercise?.exercise_teams_users ?? []} />
       <SimulationVariables />
       <div style={{ gridColumn: '1 / span 2' }}>
         <ExerciseArticles />

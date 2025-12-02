@@ -35,8 +35,8 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { fetchDocuments } from '../../../../../actions/Document';
-import { addInjectForExercise } from '../../../../../actions/Inject';
-import { storeHelper } from '../../../../../actions/Schema';
+import { addInjectForExercise } from '../../../../../actions/inject.js';
+import { storeHelper } from '../../../../../actions/Schema_DEPRECATED';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
 import MultipleFileLoader from '../../../../../components/fields/MultipleFileLoader';
 import OldRichTextField from '../../../../../components/fields/OldRichTextField';

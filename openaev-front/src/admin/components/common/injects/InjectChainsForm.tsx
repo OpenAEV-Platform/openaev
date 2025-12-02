@@ -18,7 +18,7 @@ import { type FormApi } from 'final-form';
 import { type FunctionComponent, type ReactElement, type ReactNode, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type ConditionElement, type ConditionType, type Content, type ConvertedContentType, type Dependency, type InjectOutputType } from '../../../../actions/injects/Inject';
+import { type ConditionElement, type ConditionType, type Content, type ConvertedContentType, type Dependency } from '../../../../actions/injects/Inject';
 import ClickableChip, { type Element } from '../../../../components/common/chips/ClickableChip';
 import ClickableModeChip from '../../../../components/common/chips/ClickableModeChip';
 import { useFormatter } from '../../../../components/i18n';
@@ -40,7 +40,7 @@ const useStyles = makeStyles()(() => ({
 interface Props {
   values: Inject & { inject_depends_to: InjectDependency[] };
   form: FormApi<Inject & { inject_depends_to: InjectDependency[] }, Partial<Inject & { inject_depends_to: InjectDependency[] }>>;
-  injects?: InjectOutputType[];
+  injects?: InjectOutput[];
   isDisabled: boolean;
 }
 
@@ -375,7 +375,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
    * Get the list of available expectations
    * @param inject
    */
-  const getAvailableExpectations = (inject: InjectOutputType | undefined) => {
+  const getAvailableExpectations = (inject: InjectOutput | undefined) => {
     if (inject?.inject_content !== null && inject?.inject_content !== undefined && (inject.inject_content as Content).expectations !== undefined) {
       const expectations = (inject.inject_content as Content).expectations.map(expectation => (expectation.expectation_type === 'MANUAL' ? expectation.expectation_name : capitalize(expectation.expectation_type)));
       return ['Execution', ...expectations];
@@ -452,7 +452,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
       const updatedChildren = childrens.find(currentChildren => currentChildren.inject?.inject_id === children.inject?.inject_id);
       let expectationString = 'Execution';
       if (currentConditions?.conditionElement !== undefined) {
-        expectationString = getAvailableExpectations(values as InjectOutput as InjectOutputType)
+        expectationString = getAvailableExpectations(values as InjectOutput as InjectOutput)
           .find(expectation => !currentConditions?.conditionElement?.find(conditionElement => conditionElement.key === expectation));
       }
       currentConditions.conditionElement?.push({
@@ -722,7 +722,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
    * @param inject
    * @param conditions
    */
-  const canAddConditions = (inject: InjectOutputType, conditions?: ConditionType) => {
+  const canAddConditions = (inject: InjectOutput, conditions?: ConditionType) => {
     const expectationsNumber = getAvailableExpectations(inject).length;
     if (conditions === undefined || conditions.conditionElement === undefined) return true;
 
@@ -1037,7 +1037,7 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
                       addConditionChildren(children);
                     }}
                     disabled={!canAddConditions(
-                      values as InjectOutput as InjectOutputType,
+                      values as InjectOutput as InjectOutput,
                       childrenConditions.find(childrenCondition => childrenCondition.childrenId === children.inject?.inject_id),
                     )}
                     style={{ justifyContent: 'start' }}

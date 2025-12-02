@@ -3,12 +3,12 @@ import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 
 import { fetchCollectors } from '../../../../actions/Collector';
-import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchCollectorsForPayload } from '../../../../actions/payloads/payload-actions';
+import { getCollectorsSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { COLLECTOR_LIST } from '../../../../constants/Entities';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Collector } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -34,7 +34,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
 
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+  const collectors = useSelectorHelper(getCollectorsSelector);
   useDataLoader(() => {
     if (hasPlatformSettingsCapabilities) {
       setLoading(true);

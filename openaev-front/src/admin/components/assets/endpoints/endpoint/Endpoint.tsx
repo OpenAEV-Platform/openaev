@@ -3,18 +3,19 @@ import { useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type EndpointHelper } from '../../../../../actions/assets/asset-helper';
 import { searchDistinctFindingsOnEndpoint, searchFindingsOnEndpoint } from '../../../../../actions/findings/finding-actions';
+import { getEndpointSelector } from '../../../../../actions/selectors';
 import InverseBooleanFragment from '../../../../../components/common/list/fragments/InverseBooleanFragment';
 import Empty from '../../../../../components/Empty';
 import ExpandableMarkdown from '../../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import ItemTargets from '../../../../../components/ItemTargets';
+import Loader from '../../../../../components/Loader';
 import PlatformIcon from '../../../../../components/PlatformIcon';
 import { INJECT, SIMULATION } from '../../../../../constants/Entities';
-import { useHelper } from '../../../../../store';
-import { type AggregatedFindingOutput, type EndpointOverviewOutput as EndpointType, type RelatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type AgentOutput, type AggregatedFindingOutput, type EndpointOverviewOutput as EndpointType, type RelatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../../../utils/api-types';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../../utils/String';
 import FindingContextLink from '../../../findings/FindingContextLink';
 import FindingList from '../../../findings/FindingList';
@@ -23,7 +24,7 @@ import AgentList from './AgentList';
 const useStyles = makeStyles()(theme => ({
   endpointPage: {
     'marginTop': theme.spacing(2),
-    '& > div:nth-child(even)': { marginBottom: theme.spacing(2) },
+    '& > div:nth-of-type(n)': { marginBottom: theme.spacing(2) },
   },
   gridContainer: {
     display: 'grid',
@@ -48,7 +49,7 @@ const Endpoint = () => {
   const theme = useTheme();
 
   // Fetching data
-  const { endpoint } = useHelper((helper: EndpointHelper) => ({ endpoint: helper.getEndpoint(endpointId) }));
+  const endpoint = useSelectorHelper(state => getEndpointSelector(endpointId, state));
 
   const additionalFilterNames = [
     'finding_inject_id',
@@ -90,37 +91,41 @@ const Endpoint = () => {
     return searchDistinctFindingsOnEndpoint(endpointId, input);
   };
 
+  if (!endpoint) {
+    return <Loader variant="inElement" />;
+  }
+
   return (
     <div className={classes.endpointPage}>
       <Typography variant="h4">{t('Endpoint Information')}</Typography>
       <Paper className={`paper ${classes.gridContainer}`} variant="outlined">
         <div>
           <Typography variant="h3" gutterBottom>{t('Description')}</Typography>
-          <ExpandableMarkdown source={endpoint.asset_description} limit={300} />
+          <ExpandableMarkdown source={endpoint?.asset_description} limit={300} />
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Hostname')}</Typography>
-          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.endpoint_hostname)}</Typography>
+          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint?.endpoint_hostname)}</Typography>
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Seen IP address')}</Typography>
-          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.endpoint_seen_ip)}</Typography>
+          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint?.endpoint_seen_ip)}</Typography>
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Platform')}</Typography>
           <span style={{ display: 'flex' }}>
             <PlatformIcon platform={endpoint.endpoint_platform} width={20} marginRight={theme.spacing(2)} />
             &nbsp;
-            {endpoint.endpoint_platform}
+            {endpoint?.endpoint_platform}
           </span>
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('End of Life')}</Typography>
-          <InverseBooleanFragment bool={endpoint.endpoint_is_eol} />
+          <InverseBooleanFragment bool={endpoint?.endpoint_is_eol} />
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Architecture')}</Typography>
-          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.endpoint_arch)}</Typography>
+          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint?.endpoint_arch)}</Typography>
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('IP Addresses')}</Typography>
@@ -132,7 +137,7 @@ const Endpoint = () => {
           }}
           >
             <Typography variant="body2" gutterBottom>
-              {endpoint.endpoint_ips?.map((ip: string) => (
+              {endpoint?.endpoint_ips?.map((ip: string) => (
                 <ListItem key={ip} disableGutters sx={{ py: 0 }}>
                   <Tooltip title={ip}>
                     <Typography
@@ -161,7 +166,7 @@ const Endpoint = () => {
           }}
           >
             <Typography variant="body2" gutterBottom>
-              {endpoint.endpoint_mac_addresses?.map((mac: string) => (
+              {endpoint?.endpoint_mac_addresses?.map((mac: string) => (
                 <ListItem key={mac} disableGutters sx={{ py: 0 }}>
                   <Tooltip title={mac}>
                     <Typography
@@ -183,14 +188,14 @@ const Endpoint = () => {
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Tags')}</Typography>
-          <ItemTags variant="list" tags={endpoint.asset_tags} />
+          <ItemTags variant="list" tags={endpoint?.asset_tags} />
         </div>
       </Paper>
       <Typography variant="h4">{t('Agents')}</Typography>
       <Paper className="paper" variant="outlined">
-        {endpoint.asset_agents ? (
+        {endpoint?.asset_agents ? (
           <List>
-            <AgentList agents={endpoint.asset_agents}></AgentList>
+            <AgentList agents={endpoint.asset_agents as AgentOutput[]}></AgentList>
           </List>
         ) : (
           <Empty message={t('No agents installed.')} />

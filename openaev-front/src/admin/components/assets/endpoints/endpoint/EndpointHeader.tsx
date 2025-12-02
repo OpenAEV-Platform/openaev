@@ -2,10 +2,10 @@ import { Tooltip, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type EndpointHelper } from '../../../../../actions/assets/asset-helper';
-import { type UserHelper } from '../../../../../actions/helper';
-import { useHelper } from '../../../../../store';
-import { type EndpointOverviewOutput as EndpointType } from '../../../../../utils/api-types';
+import { getEndpointSelector } from '../../../../../actions/selectors';
+import Loader from '../../../../../components/Loader';
+import { useSelectorHelper } from '../../../../../store';
+import { type EndpointOutput, type EndpointOverviewOutput as EndpointType } from '../../../../../utils/api-types';
 import { truncate } from '../../../../../utils/String';
 import EndpointPopover from '../EndpointPopover';
 
@@ -24,26 +24,27 @@ const EndpointHeader = () => {
   const { endpointId } = useParams() as { endpointId: EndpointType['asset_id'] };
 
   // Fetching data
-  const { endpoint } = useHelper((helper: EndpointHelper & UserHelper) => ({ endpoint: helper.getEndpoint(endpointId) }));
+  const endpoint = useSelectorHelper(state => getEndpointSelector(endpointId, state));
+
+  if (!endpoint) {
+    return <Loader variant="inElement" />;
+  }
 
   return (
     <>
-      <Tooltip title={endpoint.asset_name}>
+      <Tooltip title={endpoint?.asset_name}>
         <Typography
           variant="h1"
           gutterBottom
           classes={{ root: classes.title }}
         >
-          {truncate(endpoint.asset_name, 80)}
+          {truncate(endpoint?.asset_name ?? '', 80)}
         </Typography>
       </Tooltip>
       <div className={classes.actions}>
         <EndpointPopover
-          endpoint={{
-            ...endpoint,
-            type: 'static',
-          }}
-          agentless={endpoint.asset_agents.length === 0}
+          endpoint={endpoint as EndpointOutput}
+          agentless={(endpoint?.asset_agents?.length ?? 0) === 0}
           onUpdate={() => endpoint}
           onDelete={() => navigate('/admin/assets/endpoints')}
         />

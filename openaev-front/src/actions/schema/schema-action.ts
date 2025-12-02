@@ -1,8 +1,9 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
+import { type PropertySchemaDTO } from '../../utils/api-types';
 
 export const filterableProperties = (clazz: string, filterNames: string[] = []) => {
   const uri = `/api/schemas/${clazz}?filterableOnly=${true}`;
-  return simplePostCall(uri, filterNames);
+  return simplePostCall<PropertySchemaDTO[]>(uri, filterNames);
 };
 
 export const engineSchemas = (classNames?: (string | undefined)[]) => {
@@ -17,5 +18,5 @@ export const engineSchemas = (classNames?: (string | undefined)[]) => {
   }
 
   const uri = `/api/engine/schemas${params.toString() ? `?${params.toString()}` : ''}`;
-  return simpleCall(uri);
+  return simpleCall<PropertySchemaDTO[]>(uri);
 };

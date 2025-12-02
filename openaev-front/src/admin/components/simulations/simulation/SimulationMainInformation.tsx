@@ -2,7 +2,7 @@ import { Chip, Grid, Paper, Typography, useTheme } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useContext } from 'react';
 
-import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
+import { getScenarioSelector } from '../../../../actions/selectors';
 import ContextLink from '../../../../components/ContextLink';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -12,7 +12,7 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -25,7 +25,7 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
   const ability = useContext(AbilityContext);
 
   const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
-  const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(exercise.exercise_scenario || '') }));
+  const scenario = useSelectorHelper(state => getScenarioSelector(exercise.exercise_scenario || '', state));
 
   const renderScenarioContent = () => {
     if (!scenario) {

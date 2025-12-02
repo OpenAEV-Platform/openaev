@@ -35,9 +35,9 @@ const CreateArticle = (props) => {
     };
     return onAddArticle(inputValues).then(
       (result) => {
-        if (result.result) {
+        if (result.normalizedData.result) {
           if (onCreate) {
-            onCreate(result.result);
+            onCreate(result.normalizedData.result);
           }
           return handleCloseCreate();
         }

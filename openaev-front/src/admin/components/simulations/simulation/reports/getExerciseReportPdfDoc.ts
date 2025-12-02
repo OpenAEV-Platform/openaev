@@ -284,7 +284,7 @@ const getExerciseReportPdfDocDefinition = async ({
             .map(answerId => reportData.lessonsAnswers.find(answer => answer.lessonsanswer_id === answerId));
           const totalScore = (lessonsAnswers || []).reduce((sum, answer) => sum + (answer?.lessons_answer_score || 0), 0);
           const getUserName = (answer: LessonsAnswer): string => {
-            if (reportData.exercise.exercise_lessons_anonymized) return t('Anonymized');
+            if (reportData.exercise?.exercise_lessons_anonymized) return t('Anonymized');
             if (answer.lessons_answer_user) return resolveUserName(reportData.usersMap[answer.lessons_answer_user as string]);
             return '-';
           };
@@ -365,13 +365,13 @@ const getExerciseReportPdfDocDefinition = async ({
         text: report.report_name,
         style: 'reportTitle',
       },
-      reportData.exercise.exercise_start_date
+      reportData.exercise?.exercise_start_date
         ? {
             text: fldt(reportData.exercise.exercise_start_date),
             margin: [0, 10, 0, 0],
           }
         : {},
-      reportData.exercise.exercise_teams?.length && reportData.exercise.exercise_teams?.length > 0
+      reportData.exercise?.exercise_teams && reportData.exercise.exercise_teams.length > 0
         ? {
             text: [{ text: t('Teams') }, { text: ` : ${reportData.exercise.exercise_teams?.map(teamId_1 => reportData.teams.find(team_1 => team_1.team_id === teamId_1)?.team_name).join(', ')}` }],
             margin: [0, 0, 0, 150],

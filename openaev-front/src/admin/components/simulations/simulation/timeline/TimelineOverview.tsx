@@ -4,15 +4,11 @@ import { Link, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
-import type { ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { fetchExerciseInjects, updateInjectForExercise } from '../../../../../actions/Inject';
-import { type InjectStore } from '../../../../../actions/injects/Inject';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { fetchExerciseInjects, updateInjectForExercise } from '../../../../../actions/inject';
+import { getExerciseArticlesSelector, getExerciseInjectsSelector, getExerciseSelector, getExerciseTeamsSelector, getExerciseVariablesSelector } from '../../../../../actions/selectors';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
-import type { VariablesHelper } from '../../../../../actions/variables/variable-helper';
 import { BACK_LABEL, BACK_URI } from '../../../../../components/Breadcrumbs';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
@@ -20,8 +16,9 @@ import ItemStatus from '../../../../../components/ItemStatus';
 import ProgressBarCountdown from '../../../../../components/ProgressBarCountdown';
 import SearchFilter from '../../../../../components/SearchFilter';
 import Timeline from '../../../../../components/Timeline';
-import { useHelper } from '../../../../../store';
-import { type Exercise, type Inject } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type Article, type Exercise, type Inject, type InjectInput, type Team } from '../../../../../utils/api-types';
+import { type InjectorContractConverted } from '../../../../../utils/api-types-custom';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -63,21 +60,11 @@ const TimelineOverview = () => {
   const { t, fndt } = useFormatter();
   const [selectedInjectId, setSelectedInjectId] = useState<string | null>(null);
 
-  const {
-    exercise,
-    injects,
-    teams,
-    articles,
-    variables,
-  } = useHelper((helper: InjectHelper & ExercisesHelper & ArticlesHelper & VariablesHelper) => {
-    return {
-      exercise: helper.getExercise(exerciseId),
-      injects: helper.getExerciseInjects(exerciseId),
-      teams: helper.getExerciseTeams(exerciseId),
-      articles: helper.getExerciseArticles(exerciseId),
-      variables: helper.getExerciseVariables(exerciseId),
-    };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const injects = useSelectorHelper(state => getExerciseInjectsSelector(exerciseId, state));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
+  const articles = useSelectorHelper(state => getExerciseArticlesSelector(exerciseId, state));
+  const variables = useSelectorHelper(state => getExerciseVariablesSelector(exerciseId, state));
 
   // Fetching Data
   useDataLoader(() => {
@@ -95,12 +82,12 @@ const TimelineOverview = () => {
     searchColumns,
   );
 
-  const isEnable = (inject: InjectStore): boolean => inject.inject_injector_contract?.convertedContent?.config.expose && !!inject.inject_enabled;
-  const filteredInjects: InjectStore[] = filtering.filterAndSort(injects.filter((inject: InjectStore) => isEnable(inject)));
-  const pendingInjects: InjectStore[] = filtering.filterAndSort(filteredInjects.filter((inject: InjectStore) => inject.inject_status === null));
-  const processedInjects: InjectStore[] = filtering.filterAndSort(filteredInjects.filter((i: InjectStore) => i.inject_status !== null));
+  const isEnable = (inject: Inject): boolean => (inject.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'])?.config.expose && !!inject.inject_enabled;
+  const filteredInjects: Inject[] = filtering.filterAndSort((injects as Inject[]).filter((inject: Inject) => isEnable(inject)));
+  const pendingInjects: Inject[] = filtering.filterAndSort(filteredInjects.filter((inject: Inject) => inject.inject_status === null));
+  const processedInjects: Inject[] = filtering.filterAndSort(filteredInjects.filter((i: Inject) => i.inject_status !== null));
 
-  const onUpdateInject = async (inject: Inject) => {
+  const onUpdateInject = async (inject: InjectInput) => {
     if (selectedInjectId) {
       await dispatch(updateInjectForExercise(exerciseId, selectedInjectId, inject));
     }
@@ -128,7 +115,7 @@ const TimelineOverview = () => {
       </div>
       <Timeline
         injects={filteredInjects}
-        teams={teams}
+        teams={teams as Team[]}
         onSelectInject={(id: string) => setSelectedInjectId(id)}
       />
       <div className="clearfix" />
@@ -144,7 +131,7 @@ const TimelineOverview = () => {
         <Paper variant="outlined">
           {pendingInjects.length > 0 ? (
             <List style={{ paddingTop: theme.spacing(0) }}>
-              {pendingInjects.map((inject: InjectStore) => {
+              {pendingInjects.map((inject: Inject) => {
                 return (
                   <ListItem
                     key={inject.inject_id}
@@ -218,7 +205,7 @@ const TimelineOverview = () => {
         <Paper variant="outlined">
           {processedInjects.length > 0 ? (
             <List style={{ paddingTop: 0 }}>
-              {processedInjects.map((inject: InjectStore) => (
+              {processedInjects.map((inject: Inject) => (
                 <ListItem key={inject.inject_id}>
                   <ListItemButton
                     dense
@@ -311,8 +298,9 @@ const TimelineOverview = () => {
                   onUpdateInject={onUpdateInject}
                   injectId={selectedInjectId}
                   isAtomic={false}
-                  injects={injects}
-                  articlesFromExerciseOrScenario={articles}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  injects={injects as unknown as any}
+                  articlesFromExerciseOrScenario={articles as Article[]}
                   uriVariable={`/admin/simulations/${exerciseId}/definition`}
                   variablesFromExerciseOrScenario={variables}
                 />

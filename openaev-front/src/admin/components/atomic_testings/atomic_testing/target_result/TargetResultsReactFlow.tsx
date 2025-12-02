@@ -9,14 +9,14 @@ import {
 import { useCallback, useEffect } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import { type InjectExpectation } from '../../../../../utils/api-types';
 import { truncate } from '../../../../../utils/String';
-import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import nodeTypes from '../types/nodes';
 import type { NodeResultStep } from '../types/nodes/NodeResultStep';
 
 interface Props {
   className?: string;
-  targetResultsByType: Record<string, InjectExpectationsStore[]>;
+  targetResultsByType: Record<string, InjectExpectation[]>;
   lastExecutionStartDate: string;
   injectStatusName?: string;
   lastExecutionEndDate: string;
@@ -190,7 +190,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
       }]];
     } else {
       const newSteps: Steptarget[] = Object.entries(targetResultsByType).flatMap(([type, expectations]) => {
-        return expectations.map((expectation: InjectExpectationsStore) => ({
+        return expectations.map((expectation: InjectExpectation) => ({
           key: 'result',
           label: (
             <span>

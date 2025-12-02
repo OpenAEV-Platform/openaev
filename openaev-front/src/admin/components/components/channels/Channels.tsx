@@ -5,13 +5,12 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchChannels } from '../../../../actions/channels/channel-action';
-import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
-import { type UserHelper } from '../../../../actions/helper';
+import { getChannelsSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Channel } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -101,7 +100,7 @@ const Channels = () => {
   const searchColumns = ['type', 'name', 'description'];
   const filtering = useSearchAnFilter('channel', 'name', searchColumns);
   // Fetching data
-  const { channels }: { channels: Channel[] } = useHelper((helper: ChannelsHelper & UserHelper) => ({ channels: helper.getChannels() }));
+  const channels = useSelectorHelper(getChannelsSelector);
   useDataLoader(() => {
     dispatch(fetchChannels());
   });

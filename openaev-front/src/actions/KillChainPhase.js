@@ -1,9 +1,9 @@
 import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../utils/Action';
-import * as schema from './Schema';
+import { arrayOfKillChainPhases, killChainPhase } from './schemas';
 
-export const fetchKillChainPhases = () => (dispatch) => {
+export const fetchKillChainPhases = (dispatch) => {
   const uri = '/api/kill_chain_phases';
-  return getReferential(schema.arrayOfKillChainPhases, uri)(dispatch);
+  return getReferential(arrayOfKillChainPhases, uri)(dispatch);
 };
 
 export const searchKillChainPhases = (searchPaginationInput) => {
@@ -14,12 +14,12 @@ export const searchKillChainPhases = (searchPaginationInput) => {
 
 export const updateKillChainPhase = (killChainPhaseId, data) => (dispatch) => {
   const uri = `/api/kill_chain_phases/${killChainPhaseId}`;
-  return putReferential(schema.killChainPhase, uri, data)(dispatch);
+  return putReferential(killChainPhase, uri, data)(dispatch);
 };
 
 export const addKillChainPhase = data => (dispatch) => {
   const uri = '/api/kill_chain_phases';
-  return postReferential(schema.killChainPhase, uri, data)(dispatch);
+  return postReferential(killChainPhase, uri, data)(dispatch);
 };
 
 export const deleteKillChainPhase = killChainPhaseId => (dispatch) => {

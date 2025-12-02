@@ -1,7 +1,7 @@
 import * as R from 'ramda';
 
-import { type LoggedHelper } from '../actions/helper';
-import { useHelper } from '../store';
+import { getPlatformSettingsSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import { MESSAGING$ } from './Environment';
 
 export const export_max_size = 50000;
@@ -42,7 +42,7 @@ export const copyToClipboard = (t: (text: string) => string, text: string) => {
   MESSAGING$.notifySuccess(t('Copied to clipboard'));
 };
 
-export const download = (content: string | Blob, filename: string, contentType: string | undefined) => {
+export const download = (content: Blob | ArrayBuffer | string, filename: string, contentType: string | undefined) => {
   let finalContentType = contentType;
   if (!contentType) {
     finalContentType = 'application/octet-stream';
@@ -118,11 +118,9 @@ export const debounce = <T>(func: (...param: T[]) => void, timeout = 500) => {
 // see api-types.d.ts
 // currently we copy/paste the generated enum types here since they don't exist as a standalone type in TS
 export const isFeatureEnabled = (feature: '_RESERVED' | 'STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES') => {
-  const { settings } = useHelper((helper: LoggedHelper) => {
-    return { settings: helper.getPlatformSettings() };
-  });
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
-  return (settings.enabled_dev_features ?? []).includes(feature);
+  return (settings?.enabled_dev_features ?? []).includes(feature);
 };
 
 export const getUrl = (url: string, base: string): string => {

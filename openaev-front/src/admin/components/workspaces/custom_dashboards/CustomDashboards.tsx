@@ -17,6 +17,7 @@ import type { Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import type { CustomDashboard, SearchPaginationInput } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardCreation from './CustomDashboardCreation';
@@ -37,6 +38,7 @@ const CustomDashboards = () => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
+  const dispatch = useAppDispatch();
 
   // Pagination
   const [loading, setLoading] = useState<boolean>(true);
@@ -102,7 +104,7 @@ const CustomDashboards = () => {
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
               <ImportUploaderJsonApiComponent
                 title={t('Import a custom dashboard')}
-                uploadFn={importCustomDashboard}
+                uploadFn={(content: FormData) => dispatch(importCustomDashboard(content))}
               />
             </Can>
           </ToggleButtonGroup>

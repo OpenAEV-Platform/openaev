@@ -5,18 +5,14 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
-import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/simulation-inject-test-actions';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { getExerciseArticlesSelector, getExerciseSelector, getExerciseTeamsSelector, getExerciseVariablesSelector } from '../../../../../actions/selectors';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
-import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
-import { type Exercise } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type Article, type Exercise, type Team } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -66,16 +62,10 @@ const ExerciseInjects: FunctionComponent = () => {
     setViewMode(mode);
   };
 
-  const { exercise, teams, articles, variables } = useHelper(
-    (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
-      return {
-        exercise: helper.getExercise(exerciseId),
-        teams: helper.getExerciseTeams(exerciseId),
-        articles: helper.getExerciseArticles(exerciseId),
-        variables: helper.getExerciseVariables(exerciseId),
-      };
-    },
-  );
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
+  const articles = useSelectorHelper(state => getExerciseArticlesSelector(exerciseId, state));
+  const variables = useSelectorHelper(state => getExerciseVariablesSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchVariablesForExercise(exerciseId));
@@ -83,7 +73,7 @@ const ExerciseInjects: FunctionComponent = () => {
   });
 
   const articleContext = articleContextForExercise(exerciseId);
-  const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
+  const teamContext = teamContextForExercise(exerciseId, exercise?.exercise_teams_users, exercise?.exercise_all_users_number, exercise?.exercise_users_number);
   const endpointContext = endpointContextForExercise(exerciseId);
   const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
 
@@ -104,8 +94,8 @@ const ExerciseInjects: FunctionComponent = () => {
                   <Injects
                     setViewMode={handleViewMode}
                     availableButtons={availableButtons}
-                    teams={teams}
-                    articles={articles}
+                    teams={teams as Team[]}
+                    articles={articles as Article[]}
                     variables={variables}
                     uriVariable={`/admin/simulations/${exerciseId}/definition`}
                   />

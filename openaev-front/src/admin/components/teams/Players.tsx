@@ -4,9 +4,9 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
 import { fetchOrganizations } from '../../../actions/Organization';
 import { searchPlayers } from '../../../actions/players/player-actions';
+import { getOrganizationsMapSelector } from '../../../actions/selectors';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import { initSorting } from '../../../components/common/queryable/Page';
@@ -19,7 +19,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type PlayerOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -52,7 +52,7 @@ const Players = () => {
   const { t } = useFormatter();
 
   // Fetching data
-  const { organizationsMap } = useHelper((helper: UserHelper & OrganizationHelper) => ({ organizationsMap: helper.getOrganizationsMap() }));
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
 
   useDataLoader(() => {
     dispatch(fetchOrganizations());

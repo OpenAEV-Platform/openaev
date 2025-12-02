@@ -6,14 +6,14 @@ import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'rea
 import { Link, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { findNotificationRuleByResource } from '../../../../actions/scenarios/scenario-notification-rules';
+import { getScenarioSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type NotificationRuleOutput, type Scenario } from '../../../../utils/api-types';
 import { parseCron, type ParsedCron } from '../../../../utils/Cron';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -324,7 +324,7 @@ const Index = () => {
   const { t } = useFormatter();
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchScenario(scenarioId)).finally(() => {
@@ -333,7 +333,7 @@ const Index = () => {
     });
   });
 
-  const scenarioInjectContext = injectContextForScenario(scenario);
+  const scenarioInjectContext = injectContextForScenario(scenario!);
 
   // avoid to show loader if something trigger useDataLoader
   if (pristine && loading) {
@@ -349,7 +349,7 @@ const Index = () => {
   }
   return (
     <InjectContext.Provider value={scenarioInjectContext}>
-      <IndexScenarioComponent scenario={scenario} />
+      <IndexScenarioComponent scenario={scenario!} />
     </InjectContext.Provider>
   );
 };

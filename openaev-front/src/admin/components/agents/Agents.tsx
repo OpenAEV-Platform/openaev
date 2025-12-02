@@ -3,13 +3,12 @@ import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
 import { fetchExecutors } from '../../../actions/Executor';
-import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
-import { type LoggedHelper, type MeTokensHelper } from '../../../actions/helper';
+import { getExecutorsSelector, getMeTokensSelector, getPlatformSettingsSelector } from '../../../actions/selectors';
 import { meTokens } from '../../../actions/users/User';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Executor } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -34,11 +33,9 @@ const Executors = () => {
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const { settings, executors, tokens } = useHelper((helper: ExecutorHelper & MeTokensHelper & LoggedHelper) => ({
-    settings: helper.getPlatformSettings(),
-    executors: helper.getExecutors(),
-    tokens: helper.getMeTokens(),
-  }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
+  const executors = useSelectorHelper(getExecutorsSelector);
+  const tokens = useSelectorHelper(getMeTokensSelector);
   useDataLoader(() => {
     dispatch(fetchExecutors());
     dispatch(meTokens());
@@ -55,7 +52,7 @@ const Executors = () => {
 
   const sortedExecutors = executors.sort((a: Executor, b: Executor) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
-  const showEEChip = (executor: Executor) => !settings.platform_license?.license_is_validated
+  const showEEChip = (executor: Executor) => !settings?.platform_license?.license_is_validated
     && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE || executor.executor_type === OPENAEV_SENTINELONE);
 
   // -- Manage Dialogs
@@ -117,7 +114,7 @@ const Executors = () => {
                   <PlatformSelector selectedExecutor={selectedExecutor} setActiveStep={setActiveStep} setPlatform={setPlatform} />
                 )}
                 {activeStep === 1 && platform && (
-                  <InstructionSelector userToken={userToken} platform={platform} selectedExecutor={selectedExecutor} />
+                  <InstructionSelector userToken={userToken!} platform={platform} selectedExecutor={selectedExecutor} />
                 )}
               </>
             )}

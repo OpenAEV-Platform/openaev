@@ -3,12 +3,11 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { getExerciseInjectExpectationsSelector, getExerciseTeamsSelector, getTeamsMapSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type Exercise, type InjectExpectation, type Team } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { computeTeamsColors } from './DistributionUtils';
 
@@ -20,11 +19,9 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
   const theme = useTheme();
 
   // Fetching data
-  const { injectExpectations, teams, teamsMap } = useHelper((helper: InjectHelper & TeamsHelper) => ({
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-    teams: helper.getExerciseTeams(exerciseId),
-    teamsMap: helper.getTeamsMap(),
-  }));
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
+  const teamsMap = useSelectorHelper(getTeamsMapSelector);
   const teamsTotalScores = R.pipe(
     R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
     R.groupBy(R.prop('inject_expectation_team')),
@@ -36,7 +33,7 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
       ),
     })),
   )(injectExpectations);
-  const teamsColors = computeTeamsColors(teams, theme);
+  const teamsColors = computeTeamsColors(teams as Team[], theme);
   let cumulation = 0;
   const teamsPercentScoresData = R.pipe(
     R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team && n?.inject_expectation_user === null),
@@ -50,12 +47,13 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
           R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
           R.map((i: InjectExpectation) => {
             cumulation += i.inject_expectation_score ?? 0;
+            const team = teamsMap[n[0]];
             return R.assoc(
               'inject_expectation_percent_score',
               Math.round(
                 (cumulation * 100)
-                / (teamsMap[n[0]] && teamsMap[n[0]].team_injects_expectations_total_expected_score_by_exercise
-                  ? teamsMap[n[0]]
+                / (team && team.team_injects_expectations_total_expected_score_by_exercise
+                  ? team
                     .team_injects_expectations_total_expected_score_by_exercise[exerciseId]
                   : 1),
               ),

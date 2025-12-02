@@ -29,7 +29,7 @@ interface GenericSource {
 interface Props {
   source: GenericSource;
   objectives: Objective[];
-  teamsMap: Record<string, Team>;
+  teamsMap: Record<string, Team | undefined>;
   teams: Team[];
   lessonsCategories: LessonsCategory[];
   lessonsQuestions: LessonsQuestion[];

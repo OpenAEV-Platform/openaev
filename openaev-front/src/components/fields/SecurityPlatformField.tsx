@@ -4,8 +4,8 @@ import { type CSSProperties, type FunctionComponent } from 'react';
 import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type SecurityPlatformHelper } from '../../actions/assets/asset-helper';
-import { useHelper } from '../../store';
+import { getSecurityPlatformsSelector } from '../../actions/selectors';
+import { useSelectorHelper } from '../../store';
 import { type SecurityPlatform } from '../../utils/api-types';
 
 const useStyles = makeStyles()(() => ({
@@ -58,7 +58,7 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   // Fetching data
-  const { securityPlatforms }: { securityPlatforms: SecurityPlatform[] } = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatforms: helper.getSecurityPlatforms() }));
+  const securityPlatforms = useSelectorHelper(getSecurityPlatformsSelector);
 
   // Form
   const securityPlatformsOptions = securityPlatformsToOptions(securityPlatforms, filterOptions);

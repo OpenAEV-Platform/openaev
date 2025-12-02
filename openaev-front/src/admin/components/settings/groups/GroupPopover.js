@@ -54,7 +54,7 @@ class GroupPopover extends Component {
       .updateGroupInformation(this.props.group.group_id, data)
       .then((result) => {
         if (this.props.onUpdate) {
-          const groupUpdated = result.entities.groups[result.result];
+          const groupUpdated = result.data;
           this.props.onUpdate(groupUpdated);
         }
         this.setState({ openEdit: false });
@@ -116,7 +116,7 @@ class GroupPopover extends Component {
   fetchAndUpdateGroup() {
     this.props.fetchGroup(this.props.group.group_id).then((result) => {
       if (this.props.onUpdate) {
-        this.props.onUpdate(result.entities.groups[this.props.group.group_id]);
+        this.props.onUpdate(result.data);
       }
     });
   }

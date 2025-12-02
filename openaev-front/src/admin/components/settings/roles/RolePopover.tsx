@@ -1,7 +1,7 @@
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { deleteRole, updateRole } from '../../../../actions/roles/roles-actions';
-import { type RoleInput, type RoleResult } from '../../../../actions/roles/roles-helper';
+import { type RoleInput } from '../../../../actions/roles/roles-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -62,12 +62,12 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
 
   const onSubmit = (data: RoleInput) => {
     dispatch(updateRole(role.role_id, data))
-      .then((result: RoleResult) => {
+      .then((result) => {
         if (onUpdate) {
-          const roleUpdated = result.entities.roles[result.result];
+          const roleUpdated = result.data;
           onUpdate(roleUpdated);
         }
-        return (result.result ? setOpenUpdate(false) : result);
+        return (result.data ? setOpenUpdate(false) : result);
       });
   };
 

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { addExercise } from '../../../../actions/Exercise';
-import { type LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type CreateExerciseInput, type Exercise, type PlatformSettings } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type CreateExerciseInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import ExerciseForm from './ExerciseForm';
 
@@ -18,16 +18,13 @@ const ExerciseCreation = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const onSubmit = (data: CreateExerciseInput) => {
-    dispatch(addExercise(data)).then((result: {
-      result: string;
-      entities: { scenarios: Record<string, Exercise> };
-    }) => {
+    dispatch(addExercise(data)).then((result) => {
       setOpen(false);
-      navigate(`/admin/simulations/${result.result}`);
+      navigate(`/admin/simulations/${result.normalizedData.result}`);
     });
   };
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   // Form
   const initialValues: CreateExerciseInput = {
@@ -39,8 +36,8 @@ const ExerciseCreation = () => {
     exercise_severity: 'high',
     exercise_tags: [],
     exercise_start_date: null,
-    exercise_mail_from: settings.default_mailer,
-    exercise_mails_reply_to: [settings.default_reply_to ? settings.default_reply_to : ''],
+    exercise_mail_from: settings?.default_mailer,
+    exercise_mails_reply_to: [settings?.default_reply_to ? settings.default_reply_to : ''],
     exercise_message_header: t('SIMULATION HEADER'),
     exercise_message_footer: t('SIMULATION FOOTER'),
   };

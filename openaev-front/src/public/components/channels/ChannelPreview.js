@@ -7,9 +7,10 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchMe } from '../../../actions/Application';
 import { fetchObserverChannel } from '../../../actions/channels/channel-action';
 import { fetchSimulationPlayerDocuments } from '../../../actions/Document';
+import { getChannelReaderSelector } from '../../../actions/selectors';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions.js';
 import ChannelMicroblogging from './ChannelMicroblogging';
@@ -30,7 +31,7 @@ const ChannelPreview = () => {
   const { t } = useFormatter();
   const [userId, articleId] = useQueryParameter(['user', 'article']);
   const { channelId, exerciseId } = useParams();
-  const { channelReader } = useHelper(helper => ({ channelReader: helper.getChannelReader(channelId) }));
+  const channelReader = useSelectorHelper(state => getChannelReaderSelector(channelId, state));
   const { channel_information: channel, channel_exercise: exercise } = channelReader ?? {};
   // Pass the full exercise because the exercise is never loaded in the store at this point
   const permissions = useSimulationPermissions(exerciseId, exercise);

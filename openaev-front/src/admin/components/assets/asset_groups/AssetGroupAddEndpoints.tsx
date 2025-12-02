@@ -5,7 +5,6 @@ import ButtonCreate from '../../../../components/common/ButtonCreate';
 import { useFormatter } from '../../../../components/i18n';
 import { type AssetGroup } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { type UserStore } from '../../teams/players/Player';
 import EndpointsDialogAdding from '../endpoints/EndpointsDialogAdding';
 
 interface Props {
@@ -30,13 +29,10 @@ const AssetGroupAddEndpoints: FunctionComponent<Props> = ({
 
   const onSubmit = (endpointIds: string[]) => {
     return dispatch(updateAssetsOnAssetGroup(assetGroupId, { asset_group_assets: endpointIds })).then(
-      (result: {
-        result: string;
-        entities: { asset_groups: Record<string, UserStore> };
-      }) => {
-        if (result.result) {
+      (result) => {
+        if (result.data) {
           if (onUpdate) {
-            const created = result.entities.asset_groups[result.result];
+            const created = result.data;
             onUpdate(created);
           }
           setOpen(false);

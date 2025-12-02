@@ -10,6 +10,7 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchDocumentsChallenge } from '../../../../actions/challenge-action.js';
 import { fetchDocuments } from '../../../../actions/Document.js';
 import { fetchExercises } from '../../../../actions/Exercise';
+import { getDocumentsMapSelector } from '../../../../actions/selectors';
 import MultipleFileLoader from '../../../../components/fields/MultipleFileLoader';
 import OldMarkDownField from '../../../../components/fields/OldMarkDownField';
 import OldSelectField from '../../../../components/fields/OldSelectField';
@@ -17,7 +18,7 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import TagField from '../../../../components/TagField';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -126,7 +127,7 @@ const ChallengeForm = (props) => {
   };
   const required = value => (value ? undefined : t('This field is required.'));
   const requiredArray = value => (value && value.length > 0 ? undefined : t('This field is required.'));
-  const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
 
   useDataLoader(() => {
     dispatch(fetchExercises());

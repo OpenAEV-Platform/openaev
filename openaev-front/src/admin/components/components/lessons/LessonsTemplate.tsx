@@ -3,11 +3,10 @@ import { GridLegacy, List, ListItem, ListItemIcon, ListItemSecondaryAction, List
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type UserHelper } from '../../../../actions/helper';
 import { fetchLessonsTemplateCategories, fetchLessonsTemplateQuestions } from '../../../../actions/Lessons';
-import { type LessonsTemplatesHelper } from '../../../../actions/lessons/lesson-helper';
+import { getLessonsTemplateCategoriesSelector, getLessonsTemplateQuestionsSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type LessonsTemplateCategory, type LessonsTemplateQuestion } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -33,25 +32,15 @@ const LessonsTemplate = () => {
   const { lessonsTemplateId } = useParams() as { lessonsTemplateId: string };
 
   // Datas
-  const {
-    categories,
-    questions,
-  }: {
-    categories: LessonsTemplateCategory[];
-    questions: LessonsTemplateQuestion[];
-  } = useHelper((helper: LessonsTemplatesHelper & UserHelper) => {
-    return {
-      categories: helper.getLessonsTemplateCategories(lessonsTemplateId),
-      questions: helper.getLessonsTemplateQuestions(),
-    };
-  });
+  const categories = useSelectorHelper(state => getLessonsTemplateCategoriesSelector(lessonsTemplateId, state));
+  const questions = useSelectorHelper(getLessonsTemplateQuestionsSelector);
   useDataLoader(() => {
     dispatch(fetchLessonsTemplateCategories(lessonsTemplateId));
     dispatch(fetchLessonsTemplateQuestions(lessonsTemplateId));
   });
 
   // Utils
-  const categoriesSorted = categories
+  const categoriesSorted: LessonsTemplateCategory[] = categories
     .sort((c1, c2) => ((c1.lessons_template_category_order ?? 0) > (c2.lessons_template_category_order ?? 0) ? 1 : -1));
   const sortQuestions = (qs: LessonsTemplateQuestion[]) => {
     return qs

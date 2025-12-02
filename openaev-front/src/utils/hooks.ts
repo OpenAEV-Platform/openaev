@@ -1,5 +1,7 @@
 import { useDispatch } from 'react-redux';
+import { type Dispatch, type UnknownAction } from 'redux';
 
-// TODO upgrade redux to make it correctly work https://redux.js.org/usage/usage-with-typescript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any,import/prefer-default-export
-export const useAppDispatch: any = useDispatch;
+// eslint-disable-next-line import/prefer-default-export
+export const useAppDispatch = useDispatch as () => <R>(
+  action: (dispatch: Dispatch<UnknownAction>) => R,
+) => R;

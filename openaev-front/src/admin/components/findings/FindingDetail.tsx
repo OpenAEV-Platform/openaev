@@ -6,7 +6,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPaginationInput, type VulnerabilityOutput } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type SearchPaginationInput, type VulnerabilityOutput } from '../../../utils/api-types';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import GeneralVulnerabilityInfoTab from '../settings/vulnerabilities/GeneralVulnerabilityInfoTab';
 import RelatedInjectsTab from '../settings/vulnerabilities/RelatedInjectsTab';
@@ -16,7 +16,7 @@ import { type VulnerabilityStatus } from '../settings/vulnerabilities/Vulnerabil
 import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 
 interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
+  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
   selectedFinding: AggregatedFindingOutput;
   additionalHeaders?: Header[];
   additionalFilterNames?: string[];

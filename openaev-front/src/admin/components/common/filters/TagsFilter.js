@@ -3,8 +3,9 @@ import { Autocomplete, Box, Chip, TextField } from '@mui/material';
 import * as R from 'ramda';
 import { makeStyles } from 'tss-react/mui';
 
+import { getTagsSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -26,7 +27,7 @@ const useStyles = makeStyles()(() => ({
 const TagsFilter = (props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const { tags } = useHelper(helper => ({ tags: helper.getTags() }));
+  const tags = useSelectorHelper(getTagsSelector);
   const { onAddTag, onClearTag, onRemoveTag, currentTags, fullWidth } = props;
   const tagTransform = n => ({
     id: n.tag_id,

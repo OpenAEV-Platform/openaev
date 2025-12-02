@@ -38,10 +38,10 @@ class CreateTag extends Component {
       .addTag(data)
       .then((result) => {
         if (this.props.onCreate) {
-          const tagCreated = result.entities.tags[result.result];
+          const tagCreated = result.data;
           this.props.onCreate(tagCreated);
         }
-        return (result.result ? this.handleClose() : result);
+        return (result.data ? this.handleClose() : result);
       });
   }
 

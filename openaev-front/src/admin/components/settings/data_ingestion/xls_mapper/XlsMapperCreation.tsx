@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { createMapper } from '../../../../../actions/mapper/mapper-actions';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ImportMapperAddInput, type RawPaginationImportMapper } from '../../../../../utils/api-types';
+import { type ImportMapper, type ImportMapperAddInput } from '../../../../../utils/api-types';
 import MapperForm from './MapperForm';
 
 const useStyles = makeStyles()(() => ({
@@ -17,7 +17,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-interface Props { onCreate?: (result: RawPaginationImportMapper) => void }
+interface Props { onCreate?: (result: ImportMapper) => void }
 
 const XlsMapperCreation: FunctionComponent<Props> = ({ onCreate }) => {
   const { classes } = useStyles();
@@ -27,7 +27,7 @@ const XlsMapperCreation: FunctionComponent<Props> = ({ onCreate }) => {
 
   const onSubmit = (data: ImportMapperAddInput) => {
     createMapper(data).then(
-      (result: { data: RawPaginationImportMapper }) => {
+      (result) => {
         onCreate?.(result.data);
         return result;
       },

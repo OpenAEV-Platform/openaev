@@ -3,9 +3,9 @@ import { useParams } from 'react-router';
 
 import { fetchInjectResultOverviewOutput } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import { fetchExercise } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { getExerciseSelector } from '../../../../../actions/selectors';
 import Loader from '../../../../../components/Loader';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise as ExerciseType, type InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -56,7 +56,7 @@ const InjectIndex = () => {
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { injectId } = useParams() as { injectId: InjectResultOverviewOutput['inject_id'] };
-  const exercise = useHelper((helper: ExercisesHelper) => helper.getExercise(exerciseId));
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExercise(exerciseId));
   });

@@ -28,6 +28,7 @@ import { makeStyles } from 'tss-react/mui';
 import { fetchMe } from '../../../actions/Application';
 import { fetchSimulationPlayerChallenges, validateChallenge } from '../../../actions/challenge-action.js';
 import { fetchSimulationPlayerDocuments } from '../../../actions/Document';
+import { getDocumentsMapSelector, getSimulationChallengesReaderSelector } from '../../../actions/selectors';
 import ChallengeCard from '../../../admin/components/common/challenges/ChallengeCard.js';
 import { FAILED } from '../../../admin/components/common/injects/expectations/ExpectationUtils.js';
 import DocumentType from '../../../admin/components/components/documents/DocumentType';
@@ -38,7 +39,7 @@ import OldTextField from '../../../components/fields/OldTextField';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions.js';
 
@@ -136,10 +137,8 @@ const ChallengesPlayer = () => {
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
   const [documentsOrderAsc, setDocumentsOrderAsc] = useState(true);
   const { exerciseId } = useParams();
-  const { challengesReader, documentsMap } = useHelper(helper => ({
-    challengesReader: helper.getSimulationChallengesReader(exerciseId),
-    documentsMap: helper.getDocumentsMap(),
-  }));
+  const challengesReader = useSelectorHelper(state => getSimulationChallengesReaderSelector(exerciseId, state));
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
   const { exercise_information: exercise, exercise_challenges: challenges } = challengesReader ?? {};
   const {
     challenge_detail: currentChallenge,
@@ -199,7 +198,7 @@ const ChallengesPlayer = () => {
   const submit = (cid, data) => {
     return dispatch(validateChallenge(exerciseId, cid, userId, data)).then(
       (result) => {
-        const challengeEntries = result.entities?.simulationchallengesreaders[result.result].exercise_challenges || [];
+        const challengeEntries = result.data.exercise_challenges || [];
         setCurrentChallengeEntry(
           R.head(
             challengeEntries.filter(

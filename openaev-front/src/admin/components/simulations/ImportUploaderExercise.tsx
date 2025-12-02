@@ -10,10 +10,8 @@ const ImportUploaderExercise = () => {
   const navigate = useNavigate();
 
   const handleUpload = async (formData: FormData) => {
-    await dispatch(importingExercise(formData)).then((result: { [x: string]: string }) => {
-      if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        navigate(0);
-      }
+    await dispatch(importingExercise(formData)).then(() => {
+      navigate(0);
     });
   };
 

@@ -21,6 +21,7 @@ public abstract class BaseInjectStatus implements Base {
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @JsonProperty("status_id")
+  @NotNull
   private String id;
 
   @Column(name = "status_name")

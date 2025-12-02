@@ -2,7 +2,8 @@ import { Typography } from '@mui/material';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { useHelper } from '../../../../store';
+import { getChannelSelector } from '../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../store';
 import ChannelPopover from './ChannelPopover';
 
 const useStyles = makeStyles()(theme => ({
@@ -22,7 +23,7 @@ const useStyles = makeStyles()(theme => ({
 const ChannelHeader = () => {
   const { classes } = useStyles();
   const { channelId } = useParams();
-  const { channel } = useHelper(helper => ({ channel: helper.getChannel(channelId) }));
+  const channel = useSelectorHelper(state => getChannelSelector(channelId, state));
   return (
     <div className={classes.container}>
       <Typography

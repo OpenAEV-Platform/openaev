@@ -34,9 +34,9 @@ const CreateLessonsCategory = (props) => {
   const handleClose = () => setOpen(false);
   const onSubmit = (data) => {
     return onAddLessonsCategory(data).then((result) => {
-      if (result.result) {
+      if (result.normalizedData.result) {
         if (onCreate) {
-          onCreate(result.result);
+          onCreate(result.normalizedData.result);
         }
         return handleClose();
       }

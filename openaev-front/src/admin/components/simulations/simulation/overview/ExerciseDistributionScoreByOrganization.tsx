@@ -3,11 +3,10 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type OrganizationHelper, type UserHelper } from '../../../../../actions/helper';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { getExerciseInjectExpectationsSelector, getOrganizationsMapSelector, getOrganizationsSelector, getUsersMapSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectation, type Organization } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { computeOrganizationsColors } from './DistributionUtils';
@@ -20,12 +19,10 @@ const ExerciseDistributionScoreByOrganization: FunctionComponent<Props> = ({ exe
   const theme = useTheme();
 
   // Fetching data
-  const { injectExpectations, organizations, organizationsMap, usersMap } = useHelper((helper: InjectHelper & OrganizationHelper & UserHelper) => ({
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-    organizationsMap: helper.getOrganizationsMap(),
-    usersMap: helper.getUsersMap(),
-    organizations: helper.getOrganizations(),
-  }));
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
+  const organizations = useSelectorHelper(getOrganizationsSelector);
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
+  const usersMap = useSelectorHelper(getUsersMapSelector);
 
   const organizationsTotalScores = R.pipe(
     R.filter(

@@ -9,6 +9,7 @@ import { makeStyles } from 'tss-react/mui';
 import { searchDocuments } from '../../../../actions/Document';
 import { fetchExercisesById } from '../../../../actions/Exercise';
 import { fetchScenariosById } from '../../../../actions/scenarios/scenario-actions';
+import { getExercisesMapSelector, getScenariosMapSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
@@ -17,7 +18,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader.js';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import CreateDocument from './CreateDocument';
@@ -72,10 +73,8 @@ const Documents = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { t } = useFormatter();
-  const { exercisesMap, scenariosMap } = useHelper(helper => ({
-    exercisesMap: helper.getExercisesMap(),
-    scenariosMap: helper.getScenariosMap(),
-  }));
+  const exercisesMap = useSelectorHelper(getExercisesMapSelector);
+  const scenariosMap = useSelectorHelper(getScenariosMapSelector);
 
   // Headers
   const headers = [

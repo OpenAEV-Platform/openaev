@@ -76,16 +76,12 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
   };
   const submitEdit = (data: AssetGroupInput) => {
     dispatch(updateAssetGroup(assetGroup.asset_group_id, data)).then(
-      (result: {
-        result: string;
-        entities: { asset_groups: Record<string, AssetGroup> };
-      }) => {
-        if (result.entities) {
-          if (onUpdate) {
-            const updated = result.entities.asset_groups[result.result];
-            onUpdate(updated);
-          }
+      (result) => {
+        if (onUpdate) {
+          const updated = result.data;
+          onUpdate(updated);
         }
+
         setEdition(false);
         return result;
       },

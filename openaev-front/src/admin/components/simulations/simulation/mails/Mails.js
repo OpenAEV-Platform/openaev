@@ -19,11 +19,12 @@ import { useDispatch } from 'react-redux';
 import { Link, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchExerciseInjects } from '../../../../../actions/Inject';
+import { fetchExerciseInjects } from '../../../../../actions/inject.js';
+import { getExerciseInjectsSelector, getExerciseSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import SearchFilter from '../../../../../components/SearchFilter';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useSearchAnFilter from '../../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
@@ -203,12 +204,8 @@ const Mails = () => {
   const filtering = useSearchAnFilter('inject', 'sent_at', searchColumns);
   // Fetching data
   const { exerciseId } = useParams();
-  const { exercise, injects } = useHelper((helper) => {
-    return {
-      exercise: helper.getExercise(exerciseId),
-      injects: helper.getExerciseInjects(exerciseId),
-    };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const injects = useSelectorHelper(state => getExerciseInjectsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseInjects(exerciseId));
   });

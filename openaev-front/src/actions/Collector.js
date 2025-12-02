@@ -1,14 +1,14 @@
 import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../utils/Action';
-import * as schema from './Schema';
+import { arrayOfCollectors, collector } from './schemas';
 
 export const fetchCollectors = () => (dispatch) => {
   const uri = '/api/collectors';
-  return getReferential(schema.arrayOfCollectors, uri)(dispatch);
+  return getReferential(arrayOfCollectors, uri)(dispatch);
 };
 
 export const fetchCollector = collectorId => (dispatch) => {
   const uri = `/api/collectors/${collectorId}`;
-  return getReferential(schema.collector, uri)(dispatch);
+  return getReferential(collector, uri)(dispatch);
 };
 
 export const searchCollectors = (paginationInput) => {
@@ -19,12 +19,12 @@ export const searchCollectors = (paginationInput) => {
 
 export const updateCollector = (collectorId, data) => (dispatch) => {
   const uri = `/api/collectors/${collectorId}`;
-  return putReferential(schema.collector, uri, data)(dispatch);
+  return putReferential(collector, uri, data)(dispatch);
 };
 
 export const addCollector = data => (dispatch) => {
   const uri = '/api/collectors';
-  return postReferential(schema.collector, uri, data)(dispatch);
+  return postReferential(collector, uri, data)(dispatch);
 };
 
 export const deleteCollector = collectorId => (dispatch) => {

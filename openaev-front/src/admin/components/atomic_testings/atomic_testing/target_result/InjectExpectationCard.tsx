@@ -9,14 +9,13 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
-import type { InjectExpectationResult, InjectResultOverviewOutput } from '../../../../../utils/api-types';
+import type { InjectExpectation, InjectExpectationResult, InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { computeInjectExpectationLabel } from '../../../../../utils/statusUtils';
 import { emptyFilled } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context';
-import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import { isManualExpectation, isTechnicalExpectation } from '../../../common/injects/expectations/ExpectationUtils';
 import { isAgentExpectation, isAssetExpectation, isAssetGroupExpectation, isPlayerExpectation, useIsManuallyUpdatable } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
 import ExpirationChip from '../ExpirationChip';
@@ -26,7 +25,7 @@ import InjectExpectationResultList from './InjectExpectationResultList';
 
 interface Props {
   inject: InjectResultOverviewOutput;
-  injectExpectation: InjectExpectationsStore;
+  injectExpectation: InjectExpectation;
   onUpdateInjectExpectationResult: (result: InjectResultOverviewOutput) => void;
 }
 

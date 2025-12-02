@@ -9,6 +9,7 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdDeserializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +31,7 @@ public class ComcheckStatus implements Base {
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @JsonProperty("comcheckstatus_id")
+  @NotNull
   private String id;
 
   @ManyToOne(fetch = FetchType.LAZY)

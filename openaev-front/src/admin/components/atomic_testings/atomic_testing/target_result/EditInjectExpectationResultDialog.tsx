@@ -1,6 +1,5 @@
 import Dialog from '../../../../../components/common/dialog/Dialog';
-import type { InjectExpectationResult } from '../../../../../utils/api-types';
-import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import type { InjectExpectation, InjectExpectationResult } from '../../../../../utils/api-types';
 import { isManualExpectation } from '../../../common/injects/expectations/ExpectationUtils';
 import DetectionPreventionExpectationsValidationForm
   from '../../../simulations/simulation/validation/expectations/DetectionPreventionExpectationsValidationForm';
@@ -9,7 +8,7 @@ import ManualExpectationsValidationForm
 
 interface Props {
   open: boolean;
-  injectExpectation: InjectExpectationsStore | null;
+  injectExpectation: InjectExpectation | null;
   sourceIds: string[];
   resultToEdit?: InjectExpectationResult | null;
   onClose: () => void;

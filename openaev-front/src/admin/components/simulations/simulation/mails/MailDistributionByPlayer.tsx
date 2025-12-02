@@ -4,12 +4,11 @@ import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
 import { fetchExerciseCommunications } from '../../../../../actions/Communication';
-import { type CommunicationHelper } from '../../../../../actions/communications/communication-helper';
-import { type UserHelper } from '../../../../../actions/helper';
+import { getExerciseCommunicationsSelector, getUsersMapSelector } from '../../../../../actions/selectors';
 import { fetchPlayers } from '../../../../../actions/users/User';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Communication, type Exercise, type User } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -25,10 +24,8 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
   const theme = useTheme();
 
   // Fetching data
-  const { communications, usersMap } = useHelper((helper: CommunicationHelper & UserHelper) => ({
-    communications: helper.getExerciseCommunications(exerciseId),
-    usersMap: helper.getUsersMap(),
-  }));
+  const communications = useSelectorHelper(state => getExerciseCommunicationsSelector(exerciseId, state));
+  const usersMap = useSelectorHelper(getUsersMapSelector);
   useDataLoader(() => {
     dispatch(fetchExerciseCommunications(exerciseId));
     dispatch(fetchPlayers());

@@ -53,7 +53,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
       };
       setValue(fieldName, updated);
 
-      if (editor) {
+      if (editor && value.data.rules) {
         typeChar(
           editor,
           value.data.rules,

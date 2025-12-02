@@ -69,10 +69,10 @@ class CreatePayload extends Component {
       .addPayload(inputValues)
       .then((result) => {
         if (this.props.onCreate) {
-          const payloadCreated = result.entities.payloads[result.result];
+          const payloadCreated = result.data;
           this.props.onCreate(payloadCreated);
         }
-        return (result.result ? this.handleClose() : result);
+        return (result.data ? this.handleClose() : result);
       });
   }
 

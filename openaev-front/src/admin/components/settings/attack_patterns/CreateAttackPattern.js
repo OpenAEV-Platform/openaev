@@ -41,10 +41,10 @@ class CreateAttackPattern extends Component {
       .addAttackPattern(inputValues)
       .then((result) => {
         if (this.props.onCreate) {
-          const attackPatternCreated = result.entities.attackpatterns[result.result];
+          const attackPatternCreated = result.data;
           this.props.onCreate(attackPatternCreated);
         }
-        return (result.result ? this.handleClose() : result);
+        return (result.data ? this.handleClose() : result);
       });
   }
 

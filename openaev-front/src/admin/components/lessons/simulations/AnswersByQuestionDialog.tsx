@@ -12,7 +12,7 @@ interface Props {
   question: string;
   answers: LessonsAnswer[];
   anonymized: boolean;
-  usersMap: Record<string, User>;
+  usersMap: Record<string, User | undefined>;
 }
 
 const AnswersByQuestionDialog: FunctionComponent<Props> = ({ open, onClose, question, answers, anonymized, usersMap }) => {

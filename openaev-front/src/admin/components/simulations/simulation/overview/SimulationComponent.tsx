@@ -6,13 +6,13 @@ import { useParams, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { getExerciseSelector } from '../../../../../actions/selectors';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
 import ResponsePie from '../../../common/injects/ResponsePie';
@@ -43,7 +43,7 @@ const SimulationComponent = () => {
   // We do not use the traditional anchor (`#`) as the pagination hook overrides it
   const anchor = searchParams.get('anchor');
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
   const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
 
@@ -95,7 +95,7 @@ const SimulationComponent = () => {
       >
         <Typography variant="h4">{t('Information')}</Typography>
         <Typography variant="h4">{t('Results')}</Typography>
-        <SimulationMainInformation exercise={exercise} />
+        {exercise && <SimulationMainInformation exercise={exercise} />}
         <Paper
           variant="outlined"
           style={{
@@ -128,7 +128,7 @@ const SimulationComponent = () => {
           </Paper>
         </div>
       )}
-      {exercise.exercise_status !== 'SCHEDULED' && (
+      {exercise?.exercise_status !== 'SCHEDULED' && (
         <div
           style={{
             display: 'grid',
@@ -145,7 +145,7 @@ const SimulationComponent = () => {
               goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
               queryableHelpers={queryableHelpers}
               searchPaginationInput={searchPaginationInput}
-              contextId={exercise.exercise_id}
+              contextId={exercise?.exercise_id}
             />
           </Paper>
         </div>

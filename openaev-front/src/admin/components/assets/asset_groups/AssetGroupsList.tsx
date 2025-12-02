@@ -14,12 +14,12 @@ import { useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { findAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
-import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
+import { getAssetGroupMapsSelector } from '../../../../actions/selectors';
 import { type Header } from '../../../../components/common/SortHeadersList';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_RULES_BASE_URL } from '../../../../constants/BaseUrls';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type AssetGroupOutput } from '../../../../utils/api-types';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
 import type { EndpointPopoverProps } from '../endpoints/EndpointPopover';
@@ -56,7 +56,7 @@ const AssetGroupsList: FunctionComponent<Props> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [assetGroupValues, setAssetGroupValues] = useState<AssetGroupOutput[]>([]);
   const { fetchAssetGroupsByIds } = useContext(EndpointContext);
-  const { assetGroupMaps } = useHelper((helper: AssetGroupsHelper) => ({ assetGroupMaps: helper.getAssetGroupMaps() }));
+  const assetGroupMaps = useSelectorHelper(getAssetGroupMapsSelector);
 
   const component = (assetGroup: AssetGroupOutput) => {
     return renderActions(assetGroup);

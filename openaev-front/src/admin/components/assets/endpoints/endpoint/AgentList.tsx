@@ -5,11 +5,10 @@ import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExecutors } from '../../../../../actions/Executor';
-import { type ExecutorHelper } from '../../../../../actions/executors/executor-helper';
-import type { LoggedHelper } from '../../../../../actions/helper';
+import { getExecutorsMapSelector, getPlatformSettingsSelector } from '../../../../../actions/selectors';
 import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type AgentOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -54,10 +53,8 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   // Fetching data
-  const { settings, executorsMap } = useHelper((helper: ExecutorHelper & LoggedHelper) => ({
-    settings: helper.getPlatformSettings(),
-    executorsMap: helper.getExecutorsMap(),
-  }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
+  const executorsMap = useSelectorHelper(getExecutorsMapSelector);
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });
@@ -83,7 +80,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         }
 
         const { executor_type, executor_name } = executor;
-        const showEEChip = !settings.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike' || executor_type === 'openaev_sentinelone');
+        const showEEChip = !settings?.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike' || executor_type === 'openaev_sentinelone');
 
         return (
           <>

@@ -3,7 +3,6 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type InjectStore } from '../../../../../actions/injects/Inject';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Inject } from '../../../../../utils/api-types';
@@ -18,9 +17,9 @@ const InjectOverTimeArea: FunctionComponent<Props> = ({ injects }) => {
 
   let cumulation = 0;
   const injectsOverTime = R.pipe(
-    R.filter((i: InjectStore) => i && i.inject_sent_at !== null),
+    R.filter((i: Inject) => i && i.inject_sent_at !== null),
     R.sortWith([R.ascend(R.prop('inject_sent_at'))]),
-    R.map((i: InjectStore) => {
+    R.map((i: Inject) => {
       cumulation += 1;
       return R.assoc('inject_cumulated_number', cumulation, i);
     }),
@@ -28,7 +27,7 @@ const InjectOverTimeArea: FunctionComponent<Props> = ({ injects }) => {
   const injectsData = [
     {
       name: t('Number of injects'),
-      data: injectsOverTime.map((i: InjectStore & { inject_cumulated_number: number }) => ({
+      data: injectsOverTime.map((i: Inject & { inject_cumulated_number: number }) => ({
         x: i.inject_sent_at,
         y: i.inject_cumulated_number,
       })),

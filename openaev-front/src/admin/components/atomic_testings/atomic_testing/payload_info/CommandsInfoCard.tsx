@@ -12,7 +12,7 @@ import type {
 import { emptyFilled } from '../../../../../utils/String';
 
 const useStyles = makeStyles()(theme => ({
-  paperContainer: { '& > *:nth-child(even)': { marginBottom: theme.spacing(2) } },
+  paperContainer: { '& > p:nth-of-type(n), & > div:nth-of-type(n)': { marginBottom: theme.spacing(2) } },
   tableContainer: { backgroundColor: theme.palette.background.paperInCard },
 }));
 
@@ -96,9 +96,9 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
               fontWeight: 'bold',
             }}
             >
-              <TableCell width="30%">{t('Type')}</TableCell>
+              {/* <TableCell width="30%">{t('Type')}</TableCell>
               <TableCell width="30%">{t('Key')}</TableCell>
-              <TableCell width="30%">{t('Default value')}</TableCell>
+              <TableCell width="30%">{t('Default value')}</TableCell> */}
             </TableHead>
             <TableBody>
               {payloadOutput.payload_arguments?.map((argument: PayloadArgument) => (
@@ -126,9 +126,9 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
               fontWeight: 'bold',
             }}
             >
-              <TableCell width="30%">{t('Command executor')}</TableCell>
+              {/* <TableCell width="30%">{t('Command executor')}</TableCell>
               <TableCell width="30%">{t('Get command')}</TableCell>
-              <TableCell width="30%">{t('Check command')}</TableCell>
+              <TableCell width="30%">{t('Check command')}</TableCell> */}
             </TableHead>
             <TableBody>
               {payloadOutput.payload_prerequisites?.map((prerequisite: PayloadPrerequisite) => (

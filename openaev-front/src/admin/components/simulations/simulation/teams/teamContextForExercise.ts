@@ -11,15 +11,15 @@ const teamContextForExercise = (exerciseId: Exercise['exercise_id'], exerciseTea
   const dispatch = useAppDispatch();
 
   return {
-    async onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
+    async onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]) {
       await dispatch(addExerciseTeamPlayers(exerciseId, teamId, { exercise_team_players: userIds }));
-      return dispatch(fetchExerciseTeams(exerciseId));
+      dispatch(fetchExerciseTeams(exerciseId));
     },
-    async onRemoveUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
+    async onRemoveUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]) {
       await dispatch(removeExerciseTeamPlayers(exerciseId, teamId, { exercise_team_players: userIds }));
-      return dispatch(fetchExerciseTeams(exerciseId));
+      dispatch(fetchExerciseTeams(exerciseId));
     },
-    onCreateTeam(team: TeamCreateInput): Promise<{ result: string }> {
+    onCreateTeam(team: TeamCreateInput) {
       return dispatch(addTeam({
         ...team,
         team_exercises: [exerciseId],
@@ -33,16 +33,10 @@ const teamContextForExercise = (exerciseId: Exercise['exercise_id'], exerciseTea
     computeTeamUsersEnabled(teamId: Team['team_id']) {
       return (exerciseTeamsUsers ?? []).filter((o: ExerciseTeamUser) => o.team_id === teamId).length;
     },
-    onRemoveTeam(teamId: Team['team_id']): Promise<{
-      result: string[];
-      entities: { teams: Record<string, Team> };
-    }> {
+    onRemoveTeam(teamId: Team['team_id']) {
       return dispatch(removeExerciseTeams(exerciseId, { exercise_teams: [teamId] }));
     },
-    onReplaceTeam(teamIds: Team['team_id'][]): Promise<{
-      result: string[];
-      entities: { teams: Record<string, Team> };
-    }> {
+    onReplaceTeam(teamIds: Team['team_id'][]) {
       return dispatch(replaceExerciseTeams(exerciseId, { exercise_teams: teamIds }));
     },
     onToggleUser(teamId: Team['team_id'], userId: UserStore['user_id'], userEnabled: boolean): void {

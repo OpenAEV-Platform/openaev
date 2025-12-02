@@ -4,10 +4,10 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { addReportForExercise, deleteReportForExercise, fetchReportsForExercise, updateReportForExercise } from '../../../../../actions/reports/report-actions';
-import { type ReportsHelper } from '../../../../../actions/reports/report-helper';
+import { getExerciseReportsSelector } from '../../../../../actions/selectors';
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Report, type ReportInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -34,7 +34,7 @@ const ExerciseReports: FunctionComponent<ReportListProps> = ({ exerciseId, exerc
   const onCreateReportSubmit = (data: ReportInput) => dispatch(addReportForExercise(exerciseId, data)).finally(() => handleCloseCreate());
 
   // Fetching data
-  const { reports } = useHelper((helper: ReportsHelper) => ({ reports: helper.getExerciseReports(exerciseId) }));
+  const reports = useSelectorHelper(state => getExerciseReportsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchReportsForExercise(exerciseId));
   });
@@ -58,7 +58,7 @@ const ExerciseReports: FunctionComponent<ReportListProps> = ({ exerciseId, exerc
 
   return (
     <ReportContext.Provider value={context}>
-      <Reports reports={reports} navigateToReportPage={navigateToReportPage} />
+      <Reports reports={reports as Report[]} navigateToReportPage={navigateToReportPage} />
       {permissions.canManage && (
         <>
           <Fab

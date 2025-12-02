@@ -2,14 +2,12 @@ import { ListItemButton, ListItemText } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
-import { type InjectorContractHelper } from '../../../../actions/injector_contracts/injector-contract-helper';
 import { fetchInjectorsContracts } from '../../../../actions/InjectorContracts';
-import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
+import { getAttackPatternsSelector, getInjectorContractsSelector, getKillChainPhasesSelector } from '../../../../actions/selectors';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
 import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type AttackPattern, type KillChainPhase } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -144,11 +142,9 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const { attackPatterns, killChainPhases, injectorsContracts } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & InjectorContractHelper) => ({
-    attackPatterns: helper.getAttackPatterns(),
-    killChainPhases: helper.getKillChainPhases(),
-    injectorsContracts: helper.getInjectorContracts(),
-  }));
+  const attackPatterns = useSelectorHelper(getAttackPatternsSelector);
+  const killChainPhases = useSelectorHelper(getKillChainPhasesSelector);
+  const injectorsContracts = useSelectorHelper(getInjectorContractsSelector);
   useDataLoader(() => {
     dispatch(fetchInjectorsContracts());
   });

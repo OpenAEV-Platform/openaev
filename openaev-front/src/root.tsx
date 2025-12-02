@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
-import { type LoggedHelper } from './actions/helper';
+import { getLoggedSelector, getMeSelector, getPlatformSettingsSelector } from './actions/selectors';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -15,7 +15,7 @@ import Loader from './components/Loader';
 import Message from './components/Message';
 import NotFound from './components/NotFound';
 import SystemBanners from './public/components/systembanners/SystemBanners';
-import { useHelper } from './store';
+import { useSelectorHelper } from './store';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
@@ -35,13 +35,10 @@ const SimulationChallengesPreview = lazy(() => import('./admin/components/simula
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 
 const Root = () => {
-  const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
-    return {
-      logged: helper.logged(),
-      me: helper.getMe(),
-      settings: helper.getPlatformSettings(),
-    };
-  });
+  const me = useSelectorHelper(getMeSelector);
+  const logged = useSelectorHelper(getLoggedSelector);
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
+
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(fetchMe());
@@ -49,17 +46,15 @@ const Root = () => {
   }, []);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
-  if (R.isEmpty(logged)) {
-    return <div />;
-  }
 
-  if (!logged || !me || !settings || isReachable === undefined) {
+  if (R.isEmpty(logged) || !me || R.isEmpty(settings)) {
     return (
       <Suspense fallback={<Loader />}>
         <RootPublic />
       </Suspense>
     );
   }
+
   return (
     <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
       <UserContext.Provider

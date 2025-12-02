@@ -10,14 +10,14 @@ import {
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
+import { getAttackPatternsSelector } from '../../../../../../../actions/selectors';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
-import { useHelper } from '../../../../../../../store';
+import { useSelectorHelper } from '../../../../../../../store';
 import { type EsBase, type ListConfiguration } from '../../../../../../../utils/api-types';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
@@ -41,7 +41,7 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const navigate = useNavigate();
 
-  const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
+  const attackPatterns = useSelectorHelper(getAttackPatternsSelector);
 
   const headersFromColumns = (widgetConfig.columns ?? []).map(col => ({
     field: col,

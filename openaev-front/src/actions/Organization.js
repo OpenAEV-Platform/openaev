@@ -1,12 +1,12 @@
 import { delReferential, getReferential, postReferential, putReferential } from '../utils/Action';
-import * as schema from './Schema';
+import { arrayOfOrganizations, organization } from './schemas';
 
-export const fetchOrganizations = () => dispatch => getReferential(schema.arrayOfOrganizations, '/api/organizations')(dispatch);
+export const fetchOrganizations = () => dispatch => getReferential(arrayOfOrganizations, '/api/organizations')(dispatch);
 
-export const addOrganization = data => dispatch => postReferential(schema.organization, '/api/organizations', data)(dispatch);
+export const addOrganization = data => dispatch => postReferential(organization, '/api/organizations', data)(dispatch);
 
 export const updateOrganization = (organizationId, data) => dispatch => putReferential(
-  schema.organization,
+  organization,
   `/api/organizations/${organizationId}`,
   data,
 )(dispatch);

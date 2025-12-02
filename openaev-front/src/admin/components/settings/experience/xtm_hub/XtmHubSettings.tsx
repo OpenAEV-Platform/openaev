@@ -3,11 +3,10 @@ import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 
-import type { LoggedHelper } from '../../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../../actions/selectors';
 import { refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
-import type { PlatformSettings } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import { Can } from '../../../../../utils/permissions/PermissionsProvider';
@@ -19,12 +18,12 @@ const XtmHubSettings: React.FC = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
   const dispatch = useAppDispatch();
 
   const hasRun = useRef(false);
   useEffect(() => {
-    if (!settings.xtm_hub_token || hasRun.current) {
+    if (!settings?.xtm_hub_token || hasRun.current) {
       return;
     }
 
@@ -55,7 +54,7 @@ const XtmHubSettings: React.FC = () => {
           {t('XTM Hub')}
         </Typography>
         {
-          isXTMHubAccessible && settings.xtm_hub_reachable && (
+          isXTMHubAccessible && settings?.xtm_hub_reachable && (
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
               <XtmHubTab />
             </Can>

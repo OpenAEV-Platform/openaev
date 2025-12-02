@@ -7,13 +7,14 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchInjectCommunications } from '../../../../../actions/Communication';
-import { executeInject, fetchExerciseInjects } from '../../../../../actions/Inject';
+import { executeInject, fetchExerciseInjects } from '../../../../../actions/inject.js';
+import { getExerciseSelector, getInjectCommunicationsSelector, getInjectSelector, getUsersMapSelector } from '../../../../../actions/selectors';
 import { fetchPlayers } from '../../../../../actions/users/User.js';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import Loader from '../../../../../components/Loader';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { PermissionsContext } from '../../../common/Context.js';
 import AnimationMenu from '../AnimationMenu';
@@ -43,14 +44,10 @@ const Inject = () => {
   const { permissions } = useContext(PermissionsContext);
 
   // Fetching data
-  const { exercise, inject, communications, usersMap } = useHelper((helper) => {
-    return {
-      exercise: helper.getExercise(exerciseId),
-      inject: helper.getInject(injectId),
-      communications: helper.getInjectCommunications(injectId),
-      usersMap: helper.getUsersMap(),
-    };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const inject = useSelectorHelper(state => getInjectSelector(injectId, state));
+  const communications = useSelectorHelper(state => getInjectCommunicationsSelector(injectId, state));
+  const usersMap = useSelectorHelper(getUsersMapSelector);
   useDataLoader(() => {
     dispatch(fetchExerciseInjects(exerciseId));
     dispatch(fetchInjectCommunications(exerciseId, injectId));

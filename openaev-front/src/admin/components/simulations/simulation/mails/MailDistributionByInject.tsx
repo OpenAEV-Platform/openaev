@@ -3,11 +3,11 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { fetchExerciseInjects } from '../../../../../actions/Inject';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { fetchExerciseInjects } from '../../../../../actions/inject';
+import { getExerciseInjectsSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type Inject } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -22,7 +22,7 @@ const MailDistributionByInject: FunctionComponent<Props> = ({ exerciseId }) => {
   const theme = useTheme();
 
   // Fetching data
-  const { injects } = useHelper((helper: InjectHelper) => ({ injects: helper.getScenarioInjects(exerciseId) }));
+  const injects = useSelectorHelper(state => getExerciseInjectsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseInjects(exerciseId));
   });

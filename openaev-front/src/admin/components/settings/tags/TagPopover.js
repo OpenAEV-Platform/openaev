@@ -50,7 +50,7 @@ class TagPopover extends Component {
       .updateTag(this.props.tag.tag_id, data)
       .then((result) => {
         if (this.props.onUpdate) {
-          const tagUpdated = result.entities.tags[result.result];
+          const tagUpdated = result.data;
           this.props.onUpdate(tagUpdated);
         }
         this.handleCloseEdit();

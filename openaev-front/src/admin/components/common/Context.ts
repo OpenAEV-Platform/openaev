@@ -1,8 +1,9 @@
+import { type AxiosResponse } from 'axios';
 import { createContext, type ReactElement } from 'react';
 
 import { type FullArticleStore } from '../../../actions/channels/Article';
-import { type InjectOutputType, type InjectStore } from '../../../actions/injects/Inject';
 import { type Page } from '../../../components/common/queryable/Page';
+import { type CustomAxiosResponse } from '../../../network';
 import {
   type Article,
   type ArticleCreateInput,
@@ -12,10 +13,9 @@ import {
   type Evaluation,
   type EvaluationInput,
   type ImportTestSummary,
-  type Inject,
-  type InjectBulkProcessingInput,
+  type Inject, type InjectBulkProcessingInput,
   type InjectBulkUpdateInputs, type InjectInput,
-  type InjectsImportInput,
+  type InjectOutput, type InjectsImportInput,
   type InjectTestStatusOutput,
   type LessonsAnswer,
   type LessonsAnswerCreateInput,
@@ -57,26 +57,17 @@ export type PermissionsContextType = {
 
 export type ArticleContextType = {
   previewArticleUrl: (article: FullArticleStore) => string;
-  fetchArticles: () => Promise<{
-    result: string[];
-    entities: { articles: Record<string, Article> };
-  }>;
-  fetchChannels: () => Promise<{
-    result: string[];
-    entities: { channels: Record<string, Channel> };
-  }>;
-  fetchDocuments: () => Promise<Document[]>;
-  onAddArticle: (data: ArticleCreateInput) => Promise<{ result: string }>;
-  onUpdateArticle: (article: Article, data: ArticleUpdateInput) => string;
-  onDeleteArticle: (article: Article) => string;
+  fetchArticles: () => Promise<CustomAxiosResponse<Article[]>>;
+  fetchChannels: () => Promise<CustomAxiosResponse<Channel[]>>;
+  fetchDocuments: () => Promise<CustomAxiosResponse<Document[]>>;
+  onAddArticle: (data: ArticleCreateInput) => Promise<CustomAxiosResponse<Article>>;
+  onUpdateArticle: (article: Article, data: ArticleUpdateInput) => Promise<CustomAxiosResponse<Article>>;
+  onDeleteArticle: (article: Article) => Promise<AxiosResponse>;
 };
 
 export type ChallengeContextType = {
   previewChallengeUrl?: () => string;
-  fetchChallenges?: () => Promise<{
-    result: string[];
-    entities: { challenges: Record<string, Challenge> };
-  }>;
+  fetchChallenges?: () => Promise<CustomAxiosResponse<Challenge[]>>;
 };
 
 export type PreviewChallengeContextType = {
@@ -119,23 +110,17 @@ export type VariableContextType = {
 };
 
 export type ReportContextType = {
-  onDeleteReport: (report: Report) => void;
+  onDeleteReport?: (report: Report) => void;
   onUpdateReport: (reportId: Report['report_id'], report: ReportInput) => void;
   renderReportForm: (onSubmitForm: (data: ReportInput) => void, onHandleCancel: () => void, report: Report) => ReactElement;
 };
 
 export type TeamContextType = {
-  onAddUsersTeam?: (teamId: Team['team_id'], userIds: UserStore['user_id'][]) => Promise<void>;
-  onRemoveUsersTeam?: (teamId: Team['team_id'], userIds: UserStore['user_id'][]) => Promise<void>;
-  onCreateTeam?: (team: TeamCreateInput) => Promise<{ result: string }>;
-  onRemoveTeam?: (teamId: Team['team_id']) => Promise<{
-    result: string[];
-    entities: { teams: Record<string, Team> };
-  }>;
-  onReplaceTeam?: (teamIds: Team['team_id'][]) => Promise<{
-    result: string[];
-    entities: { teams: Record<string, Team> };
-  }>;
+  onAddUsersTeam?: (teamId: Team['team_id'], userIds: UserStore['user_id'][]) => void;
+  onRemoveUsersTeam?: (teamId: Team['team_id'], userIds: UserStore['user_id'][]) => void;
+  onCreateTeam?: (team: TeamCreateInput) => Promise<CustomAxiosResponse<Team>>;
+  onRemoveTeam?: (teamId: Team['team_id']) => Promise<CustomAxiosResponse<TeamOutput[]>>;
+  onReplaceTeam?: (teamIds: Team['team_id'][]) => Promise<CustomAxiosResponse<TeamOutput[]>>;
   onToggleUser?: (teamId: Team['team_id'], userId: UserStore['user_id'], userEnabled: boolean) => void;
   checkUserEnabled?: (teamId: Team['team_id'], userId: UserStore['user_id']) => boolean;
   computeTeamUsersEnabled?: (teamId: Team['team_id']) => number;
@@ -145,38 +130,20 @@ export type TeamContextType = {
 };
 
 export type InjectContextType = {
-  injects: InjectOutputType[];
-  setInjects: (input: InjectOutputType[]) => void;
-  searchInjects: (input: SearchPaginationInput) => Promise<{ data: Page<InjectOutputType> }>;
-  onAddInject: (inject: Inject) => Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }>;
-  onAddMultipleInjects: (inputs: InjectInput[]) => Promise<{
-    result: string[];
-    entities: { injects: Record<string, InjectStore> };
-  }>;
+  injects: InjectOutput[];
+  setInjects: (input: InjectOutput[]) => void;
+  searchInjects: (input: SearchPaginationInput) => Promise<{ data: Page<InjectOutput> }>;
+  onAddInject: (inject: Inject) => Promise<CustomAxiosResponse<Inject>>;
+  onAddMultipleInjects: (inputs: InjectInput[]) => Promise<CustomAxiosResponse<Inject[]>>;
   onBulkUpdateInject: (param: InjectBulkUpdateInputs) => Promise<Inject[] | void>;
-  onUpdateInject: (injectId: Inject['inject_id'], inject: Inject) => Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }>;
-  onUpdateInjectTrigger?: (injectId: Inject['inject_id']) => Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }>;
-  onUpdateInjectActivation: (injectId: Inject['inject_id'], injectEnabled: { inject_enabled: boolean }) => Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }>;
-  onInjectDone?: (injectId: Inject['inject_id']) => Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }>;
-  onDeleteInject: (injectId: Inject['inject_id']) => Promise<void>;
-  onImportInjectFromJson?: (file: File) => Promise<void>;
-  onImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
-  onDryImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
+  onUpdateInject: (injectId: Inject['inject_id'], inject: InjectInput) => Promise<CustomAxiosResponse<Inject>>;
+  onUpdateInjectTrigger?: (injectId: Inject['inject_id']) => Promise<CustomAxiosResponse<Inject>>;
+  onUpdateInjectActivation: (injectId: Inject['inject_id'], injectEnabled: { inject_enabled: boolean }) => Promise<CustomAxiosResponse<Inject>>;
+  onInjectDone?: (injectId: Inject['inject_id']) => Promise<CustomAxiosResponse<Inject>>;
+  onDeleteInject: (injectId: Inject['inject_id']) => Promise<AxiosResponse>;
+  onImportInjectFromJson?: (file: File) => Promise<AxiosResponse<void>>;
+  onImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<AxiosResponse<ImportTestSummary>>;
+  onDryImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<AxiosResponse<ImportTestSummary>>;
   onBulkDeleteInjects: (param: InjectBulkProcessingInput) => Promise<Inject[]>;
   bulkTestInjects: (param: InjectBulkProcessingInput) => Promise<{
     uri: string;
@@ -184,28 +151,28 @@ export type InjectContextType = {
   }>;
 };
 export type LessonContextType = {
-  onApplyLessonsTemplate: (data: string) => Promise<LessonsCategory[]>;
-  onResetLessonsAnswers?: () => Promise<LessonsCategory[]>;
-  onEmptyLessonsCategories: () => Promise<LessonsCategory[]>;
-  onUpdateSourceLessons: (data: boolean) => Promise<{ result: string }>;
+  onApplyLessonsTemplate: (data: string) => Promise<AxiosResponse<LessonsCategory[]>>;
+  onResetLessonsAnswers?: () => Promise<AxiosResponse<LessonsCategory[]>>;
+  onEmptyLessonsCategories: () => Promise<AxiosResponse<LessonsCategory[]>>;
+  onUpdateSourceLessons: (data: boolean) => Promise<AxiosResponse>;
   onSendLessons?: (data: LessonsSendInput) => void;
-  onAddLessonsCategory: (data: LessonsCategoryCreateInput) => Promise<LessonsCategory>;
+  onAddLessonsCategory: (data: LessonsCategoryCreateInput) => Promise<AxiosResponse<LessonsCategory>>;
   onDeleteLessonsCategory: (data: string) => void;
-  onUpdateLessonsCategory: (lessonCategoryId: string, data: LessonsCategoryUpdateInput) => Promise<LessonsCategory>;
-  onUpdateLessonsCategoryTeams: (lessonCategoryId: string, data: LessonsCategoryTeamsInput) => Promise<LessonsCategory>;
+  onUpdateLessonsCategory: (lessonCategoryId: string, data: LessonsCategoryUpdateInput) => Promise<AxiosResponse<LessonsCategory>>;
+  onUpdateLessonsCategoryTeams: (lessonCategoryId: string, data: LessonsCategoryTeamsInput) => Promise<AxiosResponse<LessonsCategory>>;
   onDeleteLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string) => void;
-  onUpdateLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => Promise<LessonsQuestion>;
-  onAddLessonsQuestion: (lessonsCategoryId: string, data: LessonsQuestionCreateInput) => Promise<LessonsQuestion>;
-  onAddObjective: (data: ObjectiveInput) => Promise<Objective>;
-  onUpdateObjective: (objectiveId: string, data: ObjectiveInput) => Promise<Objective>;
+  onUpdateLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => Promise<AxiosResponse<LessonsQuestion>>;
+  onAddLessonsQuestion: (lessonsCategoryId: string, data: LessonsQuestionCreateInput) => Promise<AxiosResponse<LessonsQuestion>>;
+  onAddObjective: (data: ObjectiveInput) => Promise<CustomAxiosResponse<Objective>>;
+  onUpdateObjective: (objectiveId: string, data: ObjectiveInput) => Promise<CustomAxiosResponse<Objective>>;
   onDeleteObjective: (objectiveId: string) => void;
-  onAddEvaluation: (objectiveId: string, data: EvaluationInput) => Promise<Evaluation>;
-  onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => Promise<Evaluation>;
-  onFetchEvaluation: (objectiveId: string) => Promise<Evaluation[]>;
+  onAddEvaluation: (objectiveId: string, data: EvaluationInput) => Promise<CustomAxiosResponse<Evaluation>>;
+  onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => Promise<CustomAxiosResponse<Evaluation>>;
+  onFetchEvaluation: (objectiveId: string) => void;
 };
 export type ViewLessonContextType = {
-  onAddLessonsAnswers?: (questionCategory: string, lessonsQuestionId: string, answerData: LessonsAnswerCreateInput) => Promise<LessonsAnswer>;
-  onFetchPlayerLessonsAnswers?: () => Promise<LessonsAnswer[]>;
+  onAddLessonsAnswers?: (questionCategory: string, lessonsQuestionId: string, answerData: LessonsAnswerCreateInput) => Promise<AxiosResponse<LessonsAnswer>>;
+  onFetchPlayerLessonsAnswers?: () => Promise<AxiosResponse<LessonsAnswer[]>>;
 };
 
 export const PermissionsContext = createContext<PermissionsContextType>({
@@ -220,37 +187,12 @@ export const PermissionsContext = createContext<PermissionsContextType>({
   inherited_context: INHERITED_CONTEXT.NONE,
 });
 export const ArticleContext = createContext<ArticleContextType>({
-  fetchArticles(): Promise<{
-    result: string[];
-    entities: { articles: Record<string, Article> };
-  }> {
-    return Promise.resolve({
-      result: [],
-      entities: { articles: {} },
-    });
-  },
-  fetchChannels(): Promise<{
-    result: string[];
-    entities: { channels: Record<string, Channel> };
-  }> {
-    return Promise.resolve({
-      result: [],
-      entities: { channels: {} },
-    });
-  },
-  fetchDocuments(): Promise<Document[]> {
-    return new Promise<Document[]>(() => {
-    });
-  },
-  onAddArticle(_data: ArticleCreateInput): Promise<{ result: string }> {
-    return Promise.resolve({ result: '' });
-  },
-  onDeleteArticle(_article: Article): string {
-    return '';
-  },
-  onUpdateArticle(_article: Article, _data: ArticleUpdateInput): string {
-    return '';
-  },
+  fetchArticles: () => new Promise<CustomAxiosResponse<Article[]>>(() => {}),
+  fetchChannels: () => new Promise<CustomAxiosResponse<Channel[]>>(() => {}),
+  fetchDocuments: () => new Promise<CustomAxiosResponse<Document[]>>(() => {}),
+  onAddArticle: (_data: ArticleCreateInput) => new Promise<CustomAxiosResponse<Article>>(() => {}),
+  onDeleteArticle: (_article: Article) => new Promise<CustomAxiosResponse>(() => {}),
+  onUpdateArticle: (_article: Article, _data: ArticleUpdateInput) => new Promise<CustomAxiosResponse<Article>>(() => {}),
   previewArticleUrl(_article: FullArticleStore): string {
     return '';
   },
@@ -259,15 +201,7 @@ export const ChallengeContext = createContext<ChallengeContextType>({
   previewChallengeUrl(): string {
     return '';
   },
-  fetchChallenges(): Promise<{
-    result: string[];
-    entities: { challenges: Record<string, Challenge> };
-  }> {
-    return Promise.resolve({
-      result: [],
-      entities: { challenges: {} },
-    });
-  },
+  fetchChallenges: () => new Promise<CustomAxiosResponse<Challenge[]>>(() => {}),
 });
 export const PreviewChallengeContext = createContext<PreviewChallengeContextType>({
   linkToPlayerMode: '',
@@ -319,8 +253,6 @@ export const VariableContext = createContext<VariableContextType>({
   },
 });
 export const ReportContext = createContext<ReportContextType>(<ReportContextType>{
-  onDeleteReport(_report: Report): void {
-  },
   onUpdateReport(_reportId: Report['report_id'], _report: ReportInput): void {
   },
   renderReportForm(_onSubmit: (data: ReportInput) => void, _onCancel: () => void, _report: Report): void {
@@ -342,78 +274,27 @@ export const TeamContext = createContext<TeamContextType>({
 });
 export const InjectContext = createContext<InjectContextType>({
   injects: [],
-  setInjects: () => {
-  },
-  searchInjects(_: SearchPaginationInput): Promise<{ data: Page<InjectOutputType> }> {
-    return new Promise<{ data: Page<InjectOutputType> }>(() => {
+  setInjects: () => {},
+  searchInjects(_: SearchPaginationInput) {
+    return new Promise<{ data: Page<InjectOutput> }>(() => {
     });
   },
-  onAddInject(_inject: Inject): Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }> {
-    return Promise.resolve({
-      result: '',
-      entities: { injects: {} },
-    });
-  },
-  onAddMultipleInjects(_inputs: InjectInput[]): Promise<{
-    result: string[];
-    entities: { injects: Record<string, InjectStore> };
-  }> {
-    return Promise.resolve({
-      result: [],
-      entities: { injects: {} },
-    });
-  },
+  onAddInject: () => new Promise<CustomAxiosResponse<Inject>>(() => {}),
+  onAddMultipleInjects: (_inputs: InjectInput[]) => new Promise<CustomAxiosResponse<Inject[]>>(() => {}),
   onBulkUpdateInject(_param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
     return Promise.resolve([]);
   },
-  onUpdateInject(_injectId: Inject['inject_id'], _inject: Inject): Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }> {
-    return Promise.resolve({
-      result: '',
-      entities: { injects: {} },
+  onUpdateInject: () => new Promise<CustomAxiosResponse<Inject>>(() => {}),
+  onUpdateInjectTrigger: () => new Promise<CustomAxiosResponse<Inject>>(() => {}),
+  onUpdateInjectActivation: () => new Promise<CustomAxiosResponse<Inject>>(() => {}),
+  onInjectDone: () => new Promise<CustomAxiosResponse<Inject>>(() => {}),
+  onDeleteInject: () => new Promise<AxiosResponse>(() => {}),
+  onImportInjectFromXls(_importId: string, _input: InjectsImportInput) {
+    return new Promise<AxiosResponse<ImportTestSummary>>(() => {
     });
   },
-  onUpdateInjectTrigger(_injectId: Inject['inject_id']): Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }> {
-    return Promise.resolve({
-      result: '',
-      entities: { injects: {} },
-    });
-  },
-  onUpdateInjectActivation(_injectId: Inject['inject_id'], _injectEnabled: { inject_enabled: boolean }): Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }> {
-    return Promise.resolve({
-      result: '',
-      entities: { injects: {} },
-    });
-  },
-  onInjectDone(_injectId: Inject['inject_id']): Promise<{
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }> {
-    return Promise.resolve({
-      result: '',
-      entities: { injects: {} },
-    });
-  },
-  onDeleteInject(_injectId: Inject['inject_id']): Promise<void> {
-    return Promise.resolve();
-  },
-  onImportInjectFromXls(_importId: string, _input: InjectsImportInput): Promise<ImportTestSummary> {
-    return new Promise<ImportTestSummary>(() => {
-    });
-  },
-  onDryImportInjectFromXls(_importId: string, _input: InjectsImportInput): Promise<ImportTestSummary> {
-    return new Promise<ImportTestSummary>(() => {
+  onDryImportInjectFromXls(_importId: string, _input: InjectsImportInput) {
+    return new Promise<AxiosResponse<ImportTestSummary>>(() => {
     });
   },
   onBulkDeleteInjects(_param: InjectBulkProcessingInput): Promise<Inject[]> {
@@ -432,63 +313,64 @@ export const InjectContext = createContext<InjectContextType>({
   },
 });
 export const LessonContext = createContext<LessonContextType>({
-  onApplyLessonsTemplate(_data: string): Promise<LessonsCategory[]> {
-    return new Promise<LessonsCategory[]>(() => {
+  onApplyLessonsTemplate(_data: string) {
+    return new Promise<AxiosResponse<LessonsCategory[]>>(() => {
     });
   },
-  onResetLessonsAnswers(): Promise<LessonsCategory[]> {
-    return new Promise<LessonsCategory[]>(() => {
+  onResetLessonsAnswers() {
+    return new Promise<AxiosResponse<LessonsCategory[]>>(() => {
     });
   },
-  onEmptyLessonsCategories(): Promise<LessonsCategory[]> {
-    return new Promise<LessonsCategory[]>(() => {
+  onEmptyLessonsCategories() {
+    return new Promise<AxiosResponse<LessonsCategory[]>>(() => {
     });
   },
-  onUpdateSourceLessons(_data: boolean): Promise<{ result: string }> {
-    return Promise.resolve({ result: '' });
+  onUpdateSourceLessons(_data: boolean) {
+    return new Promise<AxiosResponse>(() => {
+    });
   },
   onSendLessons(_data: LessonsSendInput): void {
   },
-  onAddLessonsCategory(_data: LessonsCategoryCreateInput): Promise<LessonsCategory> {
-    return new Promise<LessonsCategory>(() => {
+  onAddLessonsCategory(_data: LessonsCategoryCreateInput) {
+    return new Promise<AxiosResponse<LessonsCategory>>(() => {
     });
   },
   onDeleteLessonsCategory(_data: string): void {
   },
-  onUpdateLessonsCategory(_lessonCategoryId: string, _data: LessonsCategoryUpdateInput): Promise<LessonsCategory> {
-    return new Promise<LessonsCategory>(() => {
+  onUpdateLessonsCategory(_lessonCategoryId: string, _data: LessonsCategoryUpdateInput) {
+    return new Promise<AxiosResponse<LessonsCategory>>(() => {
     });
   },
-  onUpdateLessonsCategoryTeams(_lessonCategoryId: string, _data: LessonsCategoryTeamsInput): Promise<LessonsCategory> {
-    return new Promise<LessonsCategory>(() => {
+  onUpdateLessonsCategoryTeams(_lessonCategoryId: string, _data: LessonsCategoryTeamsInput) {
+    return new Promise<AxiosResponse<LessonsCategory>>(() => {
     });
   },
   onDeleteLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string): void {
   },
-  onUpdateLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string, _data: LessonsQuestionUpdateInput): Promise<LessonsQuestion> {
-    return new Promise<LessonsQuestion>(() => {
+  onUpdateLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string, _data: LessonsQuestionUpdateInput) {
+    return new Promise<AxiosResponse<LessonsQuestion>>(() => {
     });
   },
-  onAddLessonsQuestion(_lessonsCategoryId: string, _data: LessonsQuestionCreateInput): Promise<LessonsQuestion> {
-    return new Promise<LessonsQuestion>(() => {
+  onAddLessonsQuestion(_lessonsCategoryId: string, _data: LessonsQuestionCreateInput) {
+    return new Promise<AxiosResponse<LessonsQuestion>>(() => {
     });
   },
-  onAddObjective(_data: ObjectiveInput): Promise<Objective> {
-    return new Promise<Objective>(() => {
+  onAddObjective(_data: ObjectiveInput) {
+    return new Promise<CustomAxiosResponse<Objective>>(() => {
     });
   },
-  onUpdateObjective(_objectiveId: string, _data: ObjectiveInput): Promise<Objective> {
-    return new Promise<Objective>(() => {
+  onUpdateObjective(_objectiveId: string, _data: ObjectiveInput) {
+    return new Promise<CustomAxiosResponse<Objective>>(() => {
     });
   },
   onDeleteObjective(_objectiveId: string): void {
   },
-  onAddEvaluation(_objectiveId: string, _data: EvaluationInput): Promise<Evaluation> {
-    return new Promise<Evaluation>(() => {
+  onAddEvaluation(_objectiveId: string, _data: EvaluationInput) {
+    return new Promise<CustomAxiosResponse<Evaluation>>(() => {
     });
   },
-  onUpdateEvaluation(_objectiveId: string, _evaluationId: string, _data: EvaluationInput): Promise<Evaluation> {
-    return new Promise<Evaluation>(() => {
+  onUpdateEvaluation(_objectiveId: string, _evaluationId: string, _data: EvaluationInput) {
+    return new Promise<CustomAxiosResponse<Evaluation>>(() => {
     });
   },
   onFetchEvaluation(_objectiveId: string): Promise<Evaluation[]> {
@@ -497,13 +379,11 @@ export const LessonContext = createContext<LessonContextType>({
   },
 });
 export const ViewLessonContext = createContext<ViewLessonContextType>({
-  onAddLessonsAnswers(_questionCategory: string, _lessonsQuestionId: string, _answerData: LessonsAnswerCreateInput): Promise<LessonsAnswer> {
-    return new Promise<LessonsAnswer>(() => {
-    });
+  onAddLessonsAnswers(_questionCategory: string, _lessonsQuestionId: string, _answerData: LessonsAnswerCreateInput) {
+    return new Promise<CustomAxiosResponse<LessonsAnswer>>(() => {});
   },
-  onFetchPlayerLessonsAnswers(): Promise<LessonsAnswer[]> {
-    return new Promise<LessonsAnswer[]>(() => {
-    });
+  onFetchPlayerLessonsAnswers() {
+    return new Promise<CustomAxiosResponse<LessonsAnswer[]>>(() => {});
   },
 });
 export const ViewModeContext = createContext('list');

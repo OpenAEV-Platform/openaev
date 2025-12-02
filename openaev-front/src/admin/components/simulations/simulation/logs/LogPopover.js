@@ -6,7 +6,7 @@ import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteLog, updateLog } from '../../../../../actions/Log';
-import { storeHelper } from '../../../../../actions/Schema';
+import { storeHelper } from '../../../../../actions/Schema_DEPRECATED';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
 import { tagOptions } from '../../../../../utils/Option';

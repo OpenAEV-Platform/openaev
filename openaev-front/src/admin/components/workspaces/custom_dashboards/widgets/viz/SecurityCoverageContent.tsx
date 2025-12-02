@@ -4,11 +4,10 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
 
-import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
-import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
+import { getAttackPatternsMapSelector, getKillChainPhasesMapSelector } from '../../../../../../actions/selectors';
 import { useFormatter } from '../../../../../../components/i18n';
-import { useHelper } from '../../../../../../store';
-import { type AttackPattern, type EsSeries, type KillChainPhase } from '../../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../../store';
+import { type EsSeries } from '../../../../../../utils/api-types';
 import { sortKillChainPhase } from '../../../../../../utils/kill_chain_phases/kill_chain_phases';
 import ColoredPercentageRate from './components/ColoredPercentageRate';
 import KillChainPhaseColumn from './KillChainPhaseColumn';
@@ -35,14 +34,8 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
   const theme = useTheme();
   const { t } = useFormatter();
   // Fetching data
-  // eslint-disable-next-line max-len
-  const { attackPatternMap, killChainPhaseMap }: {
-    attackPatternMap: Record<string, AttackPattern>;
-    killChainPhaseMap: Record<string, KillChainPhase>;
-  } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper) => ({
-    attackPatternMap: helper.getAttackPatternsMap(),
-    killChainPhaseMap: helper.getKillChainPhasesMap(),
-  }));
+  const attackPatternMap = useSelectorHelper(getAttackPatternsMapSelector);
+  const killChainPhaseMap = useSelectorHelper(getKillChainPhasesMapSelector);
 
   const resolvedDataSuccess = resolvedData(attackPatternMap, killChainPhaseMap, data.at(0)?.data ?? []);
   const resolvedDataFailure = resolvedData(attackPatternMap, killChainPhaseMap, data.at(1)?.data ?? []);
@@ -79,7 +72,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, data }) =
         </div>
       </div>
       <Box className={classes.container}>
-        {Object.values(killChainPhaseMap).toSorted(sortKillChainPhase)
+        {Object.values(killChainPhaseMap).filter(kc => !!kc).toSorted(sortKillChainPhase)
           .map((phase) => {
             const resolvedDataSuccessByKillChainPhase = filterByKillChainPhase(resolvedDataSuccess, phase.phase_external_id);
             const resolvedDataFailureByKillChainPhase = filterByKillChainPhase(resolvedDataFailure, phase.phase_external_id);

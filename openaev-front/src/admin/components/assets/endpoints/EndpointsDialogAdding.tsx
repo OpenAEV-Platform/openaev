@@ -3,11 +3,12 @@ import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip
 import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 
-import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/Executor';
-import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
+import { arrayOfEndpoints } from '../../../../actions/schemas';
+import { getExecutorsMapSelector } from '../../../../actions/selectors';
 import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -18,7 +19,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import * as Constants from '../../../../constants/ActionTypes';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../../utils/api-types';
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -51,11 +52,12 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
+  const reduxDispatch = useDispatch();
   const ability = useContext(AbilityContext);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
-  const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
+  const executorsMap = useSelectorHelper(getExecutorsMapSelector);
 
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
@@ -83,7 +85,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   };
 
   const handleSubmit = () => {
-    dispatch({
+    reduxDispatch({
       type: Constants.DATA_FETCH_SUCCESS,
       payload: normalize(endpointValues, arrayOfEndpoints),
     });

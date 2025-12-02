@@ -1,7 +1,7 @@
 import type { Dispatch } from 'redux';
 
 import { getReferential } from '../../utils/Action';
-import { arrayOfCatalogConnectors, catalogConnector } from './catalog-schema';
+import { arrayOfCatalogConnectors, catalogConnector } from '../schemas';
 
 const CATALOG_CONNECTORS_URI = '/api/catalog-connector';
 

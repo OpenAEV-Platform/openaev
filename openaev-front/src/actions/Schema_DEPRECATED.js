@@ -1,280 +1,13 @@
 import { fromJS, List, Map } from 'immutable';
-import { schema } from 'normalizr';
 
 import locale from '../utils/BrowserLanguage.js';
-
-export const document = new schema.Entity(
-  'documents',
-  {},
-  { idAttribute: 'document_id' },
-);
-export const arrayOfDocuments = new schema.Array(document);
-
-export const tag = new schema.Entity('tags', {}, { idAttribute: 'tag_id' });
-export const arrayOfTags = new schema.Array(tag);
-
-export const injectorContract = new schema.Entity(
-  'injector_contracts',
-  {},
-  { idAttribute: 'injector_contract_id' },
-);
-export const arrayOfInjectorContracts = new schema.Array(injectorContract);
-
-export const injectStatus = new schema.Entity(
-  'inject_statuses',
-  {},
-  { idAttribute: 'status_id' },
-);
-export const arrayOfInjectStatuses = new schema.Array(injectStatus);
-
-export const platformParameters = new schema.Entity(
-  'platformParameters',
-  {},
-  { idAttribute: () => 'parameters' },
-);
-
-export const token = new schema.Entity(
-  'tokens',
-  {},
-  { idAttribute: 'token_id' },
-);
-export const arrayOfTokens = new schema.Array(token);
-
-export const organization = new schema.Entity(
-  'organizations',
-  {},
-  { idAttribute: 'organization_id' },
-);
-export const arrayOfOrganizations = new schema.Array(organization);
-
-export const group = new schema.Entity(
-  'groups',
-  {},
-  { idAttribute: 'group_id' },
-);
-export const arrayOfGroups = new schema.Array(group);
-
-export const grant = new schema.Entity(
-  'grants',
-  {},
-  { idAttribute: 'grant_id' },
-);
-export const arrayOfGrants = new schema.Array(grant);
-
-export const user = new schema.Entity('users', {}, { idAttribute: 'user_id' });
-export const arrayOfUsers = new schema.Array(user);
-
-export const role = new schema.Entity(
-  'roles',
-  {},
-  { idAttribute: 'role_id' },
-);
-export const arrayOfRoles = new schema.Array(role);
-
-export const exercise = new schema.Entity(
-  'exercises',
-  {},
-  { idAttribute: 'exercise_id' },
-);
-export const arrayOfExercises = new schema.Array(exercise);
-
-export const objective = new schema.Entity(
-  'objectives',
-  {},
-  { idAttribute: 'objective_id' },
-);
-export const arrayOfObjectives = new schema.Array(objective);
-
-export const evaluation = new schema.Entity(
-  'evaluations',
-  {},
-  { idAttribute: 'evaluation_id' },
-);
-export const arrayOfEvaluations = new schema.Array(evaluation);
-
-export const comcheck = new schema.Entity(
-  'comchecks',
-  {},
-  { idAttribute: 'comcheck_id' },
-);
-export const arrayOfComchecks = new schema.Array(comcheck);
-
-export const comcheckStatus = new schema.Entity(
-  'comcheckstatuses',
-  {},
-  { idAttribute: 'comcheckstatus_id' },
-);
-export const arrayOfComcheckStatuses = new schema.Array(comcheckStatus);
-
-export const team = new schema.Entity(
-  'teams',
-  {},
-  { idAttribute: 'team_id' },
-);
-export const arrayOfTeams = new schema.Array(team);
-
-export const inject = new schema.Entity(
-  'injects',
-  {},
-  { idAttribute: 'inject_id' },
-);
-export const arrayOfInjects = new schema.Array(inject);
-
-export const communication = new schema.Entity(
-  'communications',
-  {},
-  { idAttribute: 'communication_id' },
-);
-export const arrayOfCommunications = new schema.Array(communication);
-
-export const statistics = new schema.Entity(
-  'statistics',
-  {},
-  { idAttribute: 'platform_id' },
-);
-
-export const log = new schema.Entity('logs', {}, { idAttribute: 'log_id' });
-export const arrayOfLogs = new schema.Array(log);
-
-export const channelReader = new schema.Entity(
-  'channelreaders',
-  {},
-  { idAttribute: 'channel_id' },
-);
-export const simulationChallengesReaders = new schema.Entity(
-  'simulationchallengesreaders',
-  {},
-  { idAttribute: 'exercise_id' },
-);
-export const scenarioChallengesReaders = new schema.Entity(
-  'scenariochallengesreaders',
-  {},
-  { idAttribute: 'scenario_id' },
-);
-export const injectexpectation = new schema.Entity(
-  'injectexpectations',
-  {},
-  { idAttribute: 'inject_expectation_id' },
-);
-export const arrayOfInjectexpectations = new schema.Array(injectexpectation);
-
-export const lessonsTemplate = new schema.Entity(
-  'lessonstemplates',
-  {},
-  { idAttribute: 'lessonstemplate_id' },
-);
-export const arrayOfLessonsTemplates = new schema.Array(lessonsTemplate);
-
-export const lessonsTemplateCategory = new schema.Entity(
-  'lessonstemplatecategorys',
-  {},
-  { idAttribute: 'lessonstemplatecategory_id' },
-);
-export const arrayOfLessonsTemplateCategories = new schema.Array(
-  lessonsTemplateCategory,
-);
-
-export const lessonsTemplateQuestion = new schema.Entity(
-  'lessonstemplatequestions',
-  {},
-  { idAttribute: 'lessonstemplatequestion_id' },
-);
-export const arrayOfLessonsTemplateQuestions = new schema.Array(
-  lessonsTemplateQuestion,
-);
-
-export const lessonsCategory = new schema.Entity(
-  'lessonscategorys',
-  {},
-  { idAttribute: 'lessonscategory_id' },
-);
-export const arrayOfLessonsCategories = new schema.Array(lessonsCategory);
-
-export const lessonsQuestion = new schema.Entity(
-  'lessonsquestions',
-  {},
-  { idAttribute: 'lessonsquestion_id' },
-);
-export const arrayOfLessonsQuestions = new schema.Array(lessonsQuestion);
-
-export const lessonsAnswer = new schema.Entity(
-  'lessonsanswers',
-  {},
-  { idAttribute: 'lessonsanswer_id' },
-);
-export const arrayOfLessonsAnswers = new schema.Array(lessonsAnswer);
-
-export const report = new schema.Entity(
-  'reports',
-  {},
-  { idAttribute: 'report_id' },
-);
-export const arrayOfReports = new schema.Array(report);
-
-export const variable = new schema.Entity(
-  'variables',
-  {},
-  { idAttribute: 'variable_id' },
-);
-export const arrayOfVariables = new schema.Array(variable);
-
-export const killChainPhase = new schema.Entity(
-  'killchainphases',
-  {},
-  { idAttribute: 'phase_id' },
-);
-export const arrayOfKillChainPhases = new schema.Array(killChainPhase);
-
-export const attackPattern = new schema.Entity(
-  'attackpatterns',
-  {},
-  { idAttribute: 'attack_pattern_id' },
-);
-export const arrayOfAttackPatterns = new schema.Array(attackPattern);
-
-export const injector = new schema.Entity(
-  'injectors',
-  {},
-  { idAttribute: 'injector_id' },
-);
-export const arrayOfInjectors = new schema.Array(injector);
-
-export const collector = new schema.Entity(
-  'collectors',
-  {},
-  { idAttribute: 'collector_id' },
-);
-export const arrayOfCollectors = new schema.Array(collector);
-
-export const executor = new schema.Entity(
-  'executors',
-  {},
-  { idAttribute: 'executor_id' },
-);
-export const arrayOfExecutors = new schema.Array(executor);
-
-export const payload = new schema.Entity(
-  'payloads',
-  {},
-  { idAttribute: 'payload_id' },
-);
-export const arrayOfPayloads = new schema.Array(payload);
-
-export const mitigation = new schema.Entity(
-  'mitigations',
-  {},
-  { idAttribute: 'mitigation_id' },
-);
-export const arrayOfMitigations = new schema.Array(mitigation);
-
-token.define({ token_user: user });
-user.define({ user_organization: organization });
 
 const maps = (key, state) => state.referential.getIn(['entities', key]);
 const entities = (key, state) => maps(key, state).valueSeq();
 const entity = (id, key, state) => state.referential.getIn(['entities', key, id]);
 const me = state => state.referential.getIn(['entities', 'users', state.app.getIn(['logged', 'user'])]);
 
+// eslint-disable-next-line import/prefer-default-export
 export const storeHelper = state => ({
   logged: () => state.app.get('logged'),
   getMe: () => me(state),
@@ -289,7 +22,7 @@ export const storeHelper = state => ({
     const userLang = rawUserLang !== 'auto' ? rawUserLang : platformLang;
     return userLang;
   },
-  getStatistics: () => state.referential.getIn(['entities', 'statistics', 'openaev']),
+  getStatistics: () => state.referential.getIn(['entities', 'statistics', 'openbas']),
   // exercises
   getExercises: () => entities('exercises', state),
   getExercisesMap: () => maps('exercises', state),
@@ -383,7 +116,7 @@ export const storeHelper = state => ({
     return state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
   },
   getPlatformName: () => {
-    return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenAEV - Open Adversarial Exposure Validation Platform';
+    return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenBAS - Breach and Attack Simulation Platform';
   },
   // kill chain phases
   getKillChainPhase: id => entity(id, 'killchainphases', state),
@@ -403,13 +136,13 @@ export const storeHelper = state => ({
   getInjectorsMap: () => maps('injectors', state),
   // injector contracts
   getInjectorContract: (id) => {
-    const i = entity(id, 'injector_contracts', state);
+    const i = entity(id, 'injectorcontracts', state);
     if (!i || i.isEmpty()) {
       return i;
     }
     return i.merge(fromJS(JSON.parse(i.get('injector_contract_content'))));
   },
-  getInjectorContracts: () => entities('injector_contracts', state),
+  getInjectorContracts: () => entities('injectorcontracts', state),
   // collectors
   getCollector: id => entity(id, 'collectors', state),
   getCollectors: () => entities('collectors', state),

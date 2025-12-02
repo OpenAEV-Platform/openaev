@@ -6,15 +6,16 @@ import { useDispatch } from 'react-redux';
 import { Link, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchChallenges } from '../../../../actions/challenge-action.js';
+import { fetchChallenges } from '../../../../actions/challenge-action';
 import { fetchDocuments } from '../../../../actions/Document';
 import { fetchExercises } from '../../../../actions/Exercise';
+import { getChallengesSelector, getDocumentsMapSelector, getExercisesMapSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import useBodyItemsStyles from '../../../../components/common/queryable/style/style.js';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -110,11 +111,9 @@ const Challenges = () => {
   const searchColumns = ['name', 'content', 'category'];
   const filtering = useSearchAnFilter('challenge', 'name', searchColumns, { defaultKeyword: initialKeyword });
   // Fetching data
-  const { challenges, documentsMap, exercisesMap } = useHelper(helper => ({
-    exercisesMap: helper.getExercisesMap(),
-    challenges: helper.getChallenges(),
-    documentsMap: helper.getDocumentsMap(),
-  }));
+  const challenges = useSelectorHelper(getChallengesSelector);
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
+  const exercisesMap = useSelectorHelper(getExercisesMapSelector);
   useDataLoader(() => {
     dispatch(fetchExercises());
     dispatch(fetchChallenges());

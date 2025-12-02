@@ -1,14 +1,14 @@
 import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
-import { type OrganizationHelper, type TagHelper, type UserHelper } from '../../../../actions/helper';
+import { getMeSelector, getOrganizationsMapSelector, getTagsMapSelector } from '../../../../actions/selectors';
 import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type PlayerInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { countryOption, type Option, organizationOption, tagOptions } from '../../../../utils/Option';
@@ -37,17 +37,9 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { organizationsMap, tagsMap, currentUser } = useHelper(
-    (
-      helper: UserHelper & OrganizationHelper & TagHelper,
-    ) => {
-      return {
-        organizationsMap: helper.getOrganizationsMap(),
-        tagsMap: helper.getTagsMap(),
-        currentUser: helper.getMe(),
-      };
-    },
-  );
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
+  const currentUser = useSelectorHelper(getMeSelector);
 
   const { onRemoveUsersTeam } = useContext(TeamContext);
 
@@ -70,12 +62,9 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
       user_tags: data.user_tags?.map((tag: Option) => tag.id),
     };
     return dispatch(updatePlayer(user.user_id, inputValues))
-      .then((result: {
-        result: string;
-        entities: { users: Record<string, UserStore> };
-      }) => {
+      .then((result) => {
         if (onUpdate) {
-          const updated = result.entities.users[result.result];
+          const updated = result.data as UserStore;
           onUpdate(updated);
         }
         handleCloseEdit();
@@ -137,7 +126,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   });
 
   // It's not possible to delete your own player
-  if (user.user_id !== currentUser.user_id) entries.push({
+  if (user.user_id !== currentUser?.user_id) entries.push({
     label: t('Delete'),
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),

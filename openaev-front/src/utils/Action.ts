@@ -1,6 +1,5 @@
 import { type AxiosError, type AxiosRequestConfig } from 'axios';
-import { FORM_ERROR } from 'final-form';
-import { type Schema } from 'normalizr';
+import { type schema as normalizrSchema } from 'normalizr';
 import * as R from 'ramda';
 import { type ErrorInfo } from 'react';
 import { createIntl, createIntlCache } from 'react-intl';
@@ -9,7 +8,8 @@ import { type Dispatch } from 'redux';
 import { LANG } from '../components/AppIntlProvider';
 import * as Constants from '../constants/ActionTypes';
 import { DATA_FETCH_ERROR } from '../constants/ActionTypes';
-import { api } from '../network';
+import { api, simpleApi } from '../network';
+import { type EntityKeys } from '../reducers/entities';
 import { store } from '../store';
 import { MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
@@ -32,25 +32,6 @@ const langOpenAEV = {
 };
 
 export const buildUri = (uri: string) => `${APP_BASE_PATH}${uri}`;
-
-const buildError = (data: AxiosError) => {
-  const errorsExtractor = R.pipe(
-    R.pathOr({}, ['errors', 'children']),
-    R.toPairs(),
-    R.map((elem: unknown) => {
-      const extractErrorsPipe = R.pipe(
-        R.tail(),
-        R.head(),
-        R.propOr([], 'errors'),
-        R.head(),
-      );
-      return [R.head(elem), extractErrorsPipe(elem)];
-    }),
-    R.fromPairs(),
-    R.set(R.lensProp(FORM_ERROR), data.message),
-  );
-  return errorsExtractor(data);
-};
 
 const notifySuccess = (message: string) => {
   const messages = langOpenAEV[LANG as keyof typeof langOpenAEV] as Record<string, string>;
@@ -75,17 +56,15 @@ const checkUnauthorized = (error: AxiosError) => {
   }
 };
 
-const simpleApi = api();
-
-export const simpleCall = (uri: string, config?: AxiosRequestConfig, defaultErrorBehavior: boolean = true) => simpleApi.get(buildUri(uri), config).catch((error) => {
+export const simpleCall = <T>(uri: string, config?: AxiosRequestConfig, defaultErrorBehavior: boolean = true) => simpleApi.get<T>(buildUri(uri), config).catch((error) => {
   checkUnauthorized(error);
   if (defaultErrorBehavior) {
     notifyErrorHandler(error);
   }
   throw error;
 });
-export const simplePostCall = (uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = false) =>
-  simpleApi.post(buildUri(uri), data, config)
+export const simplePostCall = <T>(uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = false) =>
+  simpleApi.post<T>(buildUri(uri), data, config)
     .then((response) => {
       if (defaultSuccessBehavior) {
         notifySuccess('The element has been successfully created');
@@ -99,8 +78,8 @@ export const simplePostCall = (uri: string, data?: unknown, config?: AxiosReques
       }
       throw error;
     });
-export const simplePutCall = (uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
-  simpleApi.put(buildUri(uri), data, config)
+export const simplePutCall = <T>(uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
+  simpleApi.put<T>(buildUri(uri), data, config)
     .then((response) => {
       if (defaultSuccessBehavior) {
         notifySuccess('The element has been successfully updated');
@@ -130,90 +109,105 @@ export const simpleDelCall = (uri: string, config?: AxiosRequestConfig, defaultN
       throw error;
     });
 
-export const getReferential = (schema: Schema, uri: string) => (dispatch: Dispatch) => {
-  dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
-  return api(schema)
-    .get(buildUri(uri))
-    .then((response) => {
-      dispatch({
-        type: Constants.DATA_FETCH_SUCCESS,
-        payload: response.data,
+export const getReferential = <T = unknown>(
+  schema: normalizrSchema.Entity | normalizrSchema.Array,
+  uri: string,
+  config?: AxiosRequestConfig,
+  defaultErrorBehavior: boolean = true,
+) =>
+  (dispatch: Dispatch) => {
+    dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
+    return api(schema)
+      .get<T>(buildUri(uri), config)
+      .then((response) => {
+        dispatch({
+          type: Constants.DATA_FETCH_SUCCESS,
+          payload: response.normalizedData,
+        });
+        return response;
+      })
+      .catch((error) => {
+        dispatch({
+          type: Constants.DATA_FETCH_ERROR,
+          payload: error,
+        });
+        if (defaultErrorBehavior) {
+          notifyErrorHandler(error);
+        }
+        throw error;
       });
-      return response.data;
-    })
-    .catch((error) => {
-      dispatch({
-        type: Constants.DATA_FETCH_ERROR,
-        payload: error,
-      });
-      notifyErrorHandler(error);
-      throw error;
-    });
-};
+  };
 
-export const putReferential = (schema: Schema, uri: string, data: unknown, defaultSuccessBehavior: boolean = true) => (dispatch: Dispatch) => {
-  dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
-  return api(schema)
-    .put(buildUri(uri), data)
-    .then((response) => {
-      dispatch({
-        type: Constants.DATA_FETCH_SUCCESS,
-        payload: response.data,
+export const putReferential = <T = unknown>(schema: normalizrSchema.Entity | normalizrSchema.Array, uri: string, data?: unknown, defaultSuccessBehavior: boolean = true) =>
+  (dispatch: Dispatch) => {
+    dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
+    return api(schema)
+      .put<T>(buildUri(uri), data)
+      .then((response) => {
+        dispatch({
+          type: Constants.DATA_UPDATE_SUCCESS,
+          payload: response.normalizedData,
+        });
+        if (defaultSuccessBehavior) {
+          notifySuccess('The element has been successfully updated');
+        }
+        return response;
+      })
+      .catch((error) => {
+        dispatch({
+          type: Constants.DATA_FETCH_ERROR,
+          payload: error,
+        });
+        notifyErrorHandler(error);
+        throw error;
       });
-      dispatch({
-        type: Constants.DATA_UPDATE_SUCCESS,
-        payload: response.data,
-      });
-      if (defaultSuccessBehavior) {
-        notifySuccess('The element has been successfully updated');
-      }
-      return response.data;
-    })
-    .catch((error) => {
-      dispatch({
-        type: Constants.DATA_FETCH_ERROR,
-        payload: error,
-      });
-      notifyErrorHandler(error);
-      return buildError(error);
-    });
-};
+  };
 
-export const postReferential = (schema: Schema | null, uri: string, data: unknown, config?: AxiosRequestConfig, defaultSuccessBehavior: boolean = true) => (dispatch: Dispatch) => {
-  dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
-  return api(schema)
-    .post(buildUri(uri), data, config)
-    .then((response) => {
-      dispatch({
-        type: Constants.DATA_FETCH_SUCCESS,
-        payload: response.data,
-      });
-      if (defaultSuccessBehavior) {
-        notifySuccess('The element has been successfully updated');
-      }
-      return response.data;
-    })
-    .catch((error) => {
-      dispatch({
-        type: Constants.DATA_FETCH_ERROR,
-        payload: error,
-      });
-      notifyErrorHandler(error);
-      return buildError(error);
+export const postReferential = <T = unknown>(
+  schema: normalizrSchema.Entity | normalizrSchema.Array,
+  uri: string, data: unknown,
+  config?: AxiosRequestConfig,
+  defaultSuccessBehavior: boolean = true,
+) =>
+  (dispatch: Dispatch) => {
+    dispatch({
+      type: Constants.DATA_FETCH_SUBMITTED,
+      // TODO check if this can be deleted
+      // ...(schema && { payload: 'key' in schema ? schema.key : (schema.schema as normalizrSchema.Entity).key }),
     });
-};
+    return api(schema)
+      .post<T>(buildUri(uri), data, config)
+      .then((response) => {
+        dispatch({
+          type: Constants.DATA_FETCH_SUCCESS,
+          payload: response.normalizedData,
+        });
+        if (defaultSuccessBehavior) {
+          notifySuccess('The element has been successfully updated');
+        }
+        return response;
+      })
+      .catch((error) => {
+        dispatch({
+          type: Constants.DATA_FETCH_ERROR,
+          payload: error,
+        });
+        notifyErrorHandler(error);
+        throw error;
+      });
+  };
 
-export const delSubResourceReferential = (schema: Schema | null, uri: string) => (dispatch: Dispatch) => {
+export const delSubResourceReferential = (schema: normalizrSchema.Entity | normalizrSchema.Array, uri: string) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
   return api(schema)
     .delete(buildUri(uri))
     .then((response) => {
       dispatch({
         type: Constants.DATA_FETCH_SUCCESS,
-        payload: response.data,
+        payload: response.normalizedData,
       });
       notifySuccess('The element has been successfully updated');
-      return response.data;
+      return response;
     })
     .catch((error) => {
       dispatch({
@@ -225,9 +219,9 @@ export const delSubResourceReferential = (schema: Schema | null, uri: string) =>
     });
 };
 
-export const delReferential = (uri: string, type: string, id: string) => (dispatch: Dispatch) => {
+export const delReferential = (uri: string, type: EntityKeys, id: string) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
-  return api()
+  return simpleApi
     .delete(buildUri(uri))
     .then((response) => {
       dispatch({
@@ -238,7 +232,7 @@ export const delReferential = (uri: string, type: string, id: string) => (dispat
         },
       });
       notifySuccess('The element has been successfully deleted');
-      return response.data;
+      return response;
     })
     .catch((error) => {
       dispatch({
@@ -252,17 +246,18 @@ export const delReferential = (uri: string, type: string, id: string) => (dispat
 
 export const bulkDeleteReferential = (uri: string, type: string, data: unknown) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
-  return api()
+  return simpleApi
     .delete(buildUri(uri), { data })
     .then((response) => {
       dispatch({
         type: Constants.DATA_DELETE_SUCCESS,
         payload: {
           type,
+          // TODO fix this why send back data
           data,
         },
       });
-      return response.data;
+      return response;
     })
     .catch((error) => {
       dispatch({
@@ -283,5 +278,5 @@ export const sendErrorToBackend = async (error: Error, stack: ErrorInfo) => {
     timestamp: new Date().toISOString(),
     level: 'SEVERE',
   };
-  simplePostCall('/api/logs', errorDetails);
+  simplePostCall<void>('/api/logs', errorDetails);
 };

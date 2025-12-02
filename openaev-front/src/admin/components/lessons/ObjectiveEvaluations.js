@@ -3,9 +3,10 @@ import { Box, Button, LinearProgress, List, ListItem, ListItemIcon, ListItemText
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
+import { getMeSelector, getObjectiveEvaluationsSelector, getObjectiveSelector, getUsersMapSelector } from '../../../actions/selectors';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../utils/String';
 import { LessonContext } from '../common/Context';
@@ -22,16 +23,10 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
     onFetchEvaluation,
   } = useContext(LessonContext);
   // Fetching data
-  const { me, objective, evaluations, usersMap } = useHelper(
-    (helper) => {
-      return {
-        me: helper.getMe(),
-        usersMap: helper.getUsersMap(),
-        objective: helper.getObjective(objectiveId),
-        evaluations: helper.getObjectiveEvaluations(objectiveId),
-      };
-    },
-  );
+  const me = useSelectorHelper(getMeSelector);
+  const usersMap = useSelectorHelper(getUsersMapSelector);
+  const objective = useSelectorHelper(state => getObjectiveSelector(objectiveId, state));
+  const evaluations = useSelectorHelper(state => getObjectiveEvaluationsSelector(objectiveId, state));
 
   useDataLoader(() => {
     onFetchEvaluation(objectiveId);
@@ -48,7 +43,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
         currentUserEvaluation.evaluation_id,
         data,
       ).then((result) => {
-        if (result.result) {
+        if (result.data) {
           return handleClose();
         }
         return result;
@@ -56,7 +51,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
     }
     return onAddEvaluation(objectiveId, data).then(
       (result) => {
-        if (result.result) {
+        if (result.data) {
           return handleClose();
         }
         return result;

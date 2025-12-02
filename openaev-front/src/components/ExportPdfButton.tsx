@@ -6,8 +6,8 @@ import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { type FunctionComponent, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
-import { type UserHelper } from '../actions/helper';
-import { useHelper } from '../store';
+import { getMeSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import { sendErrorToBackend } from '../utils/Action';
 import { MESSAGING$ } from '../utils/Environment';
 import { useFormatter } from './i18n';
@@ -24,16 +24,16 @@ interface Props {
 const ExportPdfButton: FunctionComponent<Props> = ({ getPdfDocDefinition, pdfName }) => {
   const { t } = useFormatter();
   const [exporting, setExporting] = useState<boolean>(false);
-  const dispatch = useDispatch();
+  const reduxDispatch = useDispatch();
 
-  const { user } = useHelper((helper: UserHelper) => ({ user: helper.getMe() }));
+  const user = useSelectorHelper(getMeSelector);
 
-  const changeUserTheme = (theme: string) => dispatch({
+  const changeUserTheme = (theme: string) => reduxDispatch({
     type: 'DATA_UPDATE_SUCCESS',
     payload: {
       entities: {
         users: {
-          [user.user_id]: {
+          [user!.user_id]: {
             ...user,
             user_theme: theme,
             user_exporting: false,
@@ -46,7 +46,7 @@ const ExportPdfButton: FunctionComponent<Props> = ({ getPdfDocDefinition, pdfNam
 
   const onExportPdf = async () => {
     setExporting(true);
-    if (user.user_theme !== 'light') {
+    if (user?.user_theme !== 'light') {
       changeUserTheme('light');
       await timeout(500);
     }
@@ -59,8 +59,8 @@ const ExportPdfButton: FunctionComponent<Props> = ({ getPdfDocDefinition, pdfNam
         MESSAGING$.notifyError(t('An error occurred during PDF generation.'));
       })
       .finally(() => {
-        if (user.user_theme !== 'light') {
-          changeUserTheme(user.user_theme);
+        if (user?.user_theme !== 'light') {
+          changeUserTheme(user!.user_theme!);
         }
         setExporting(false);
       });

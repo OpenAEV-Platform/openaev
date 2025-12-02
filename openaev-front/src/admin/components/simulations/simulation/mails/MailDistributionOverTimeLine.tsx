@@ -4,10 +4,10 @@ import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { getExerciseTeamsSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Communication, type Exercise, type Team } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -23,13 +23,13 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
   const theme = useTheme();
 
   // Fetching data
-  const { teams } = useHelper((helper: TeamsHelper) => ({ teams: helper.getExerciseTeams(exerciseId) }));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
 
   let cumulation = 0;
-  const teamsColors = getTeamsColors(teams);
+  const teamsColors = getTeamsColors(teams as Team[]);
   const teamsCommunications = R.pipe(
     R.map((n: Team) => {
       cumulation = 0;

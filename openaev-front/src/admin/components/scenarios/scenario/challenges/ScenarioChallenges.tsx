@@ -1,8 +1,8 @@
 import { useParams } from 'react-router';
 
 import { fetchScenarioChallenges } from '../../../../../actions/challenge-action';
-import { type ChallengeHelper } from '../../../../../actions/helper';
-import { useHelper } from '../../../../../store';
+import { getScenarioChallengesSelector } from '../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../store';
 import { type Scenario } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -14,7 +14,7 @@ const ScenarioChallenges = () => {
   const dispatch = useAppDispatch();
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const { challenges } = useHelper((helper: ChallengeHelper) => ({ challenges: helper.getScenarioChallenges(scenarioId) }));
+  const challenges = useSelectorHelper(state => getScenarioChallengesSelector(scenarioId, state));
   useDataLoader(() => {
     dispatch(fetchScenarioChallenges(scenarioId));
   });

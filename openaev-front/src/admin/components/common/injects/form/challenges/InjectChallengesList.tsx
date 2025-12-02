@@ -4,10 +4,10 @@ import { useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type ChallengeHelper } from '../../../../../../actions/helper';
+import { getChallengesMapSelector } from '../../../../../../actions/selectors';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
-import { useHelper } from '../../../../../../store';
+import { useSelectorHelper } from '../../../../../../store';
 import type { Challenge } from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
@@ -40,7 +40,7 @@ const InjectChallengesList = ({ readOnly = false, error }: Props) => {
 
   const { fetchChallenges } = useContext(ChallengeContext);
   const [sortedChallenges, setSortedChallenges] = useState<Challenge[]>([]);
-  const { challengesMap } = useHelper((helper: ChallengeHelper) => ({ challengesMap: helper.getChallengesMap() }));
+  const challengesMap = useSelectorHelper(getChallengesMapSelector);
 
   const injectChallengeIds: string[] = useWatch({
     control,
@@ -56,7 +56,7 @@ const InjectChallengesList = ({ readOnly = false, error }: Props) => {
 
     if (missingIds.length > 0) {
       fetchChallenges?.().then((result) => {
-        const injectChallenges = injectChallengeIds.map(id => result.entities.challenges[id]).filter(a => a !== undefined);
+        const injectChallenges = injectChallengeIds.map(id => result.normalizedData?.entities.challenges[id]).filter(a => a !== undefined);
         setSortedChallenges(sortChallenges(injectChallenges));
       });
     } else {

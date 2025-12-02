@@ -6,8 +6,9 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../../../../actions/channels/channel-action';
+import { getChannelSelector, getDocumentsMapSelector } from '../../../../actions/selectors';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -35,11 +36,8 @@ const Channel = () => {
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
 
-  const { channel, documentsMap } = useHelper(helper => ({
-    channel: helper.getChannel(channelId),
-    documentsMap: helper.getDocumentsMap(),
-  }),
-  );
+  const channel = useSelectorHelper(state => getChannelSelector(channelId, state));
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
   useDataLoader(() => {
     dispatch(fetchDocumentsChannels(channelId));
   });

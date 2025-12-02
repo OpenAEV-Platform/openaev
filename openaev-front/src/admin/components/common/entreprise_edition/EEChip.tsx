@@ -1,5 +1,5 @@
 import { Tooltip } from '@mui/material';
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useEffect } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -29,9 +29,12 @@ const EEChip = ({ clickable = false, featureDetectedInfo = null, style = {} }: {
   const { classes } = useStyles({ isClickable: clickable });
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition, openDialog, setEEFeatureDetectedInfo } = useEnterpriseEdition();
-  if (featureDetectedInfo) {
-    setEEFeatureDetectedInfo(featureDetectedInfo);
-  }
+
+  useEffect(() => {
+    if (featureDetectedInfo) {
+      setEEFeatureDetectedInfo(featureDetectedInfo);
+    }
+  }, [featureDetectedInfo]);
 
   return (
     <Tooltip

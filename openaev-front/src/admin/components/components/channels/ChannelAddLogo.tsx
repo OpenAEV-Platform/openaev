@@ -4,7 +4,7 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { fetchDocuments } from '../../../../actions/Document';
 import FileTransferDialog from '../../../../components/fields/FileTransferDialog';
 import { useFormatter } from '../../../../components/i18n';
-import { type RawDocument } from '../../../../utils/api-types';
+import { type Document } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -16,7 +16,7 @@ const ChannelAddLogo: FunctionComponent<Props> = ({ handleAddLogo }) => {
   const dispatch = useAppDispatch();
 
   const [open, setOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<RawDocument | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
   useEffect(() => {
     if (open) {

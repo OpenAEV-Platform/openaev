@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import type { DocumentHelper } from '../../../../../../actions/helper';
+import { getDocumentsMapSelector } from '../../../../../../actions/selectors';
 import MultipleFileLoader from '../../../../../../components/fields/MultipleFileLoader';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemBoolean from '../../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../../components/ItemTags';
-import { useHelper } from '../../../../../../store';
+import { useSelectorHelper } from '../../../../../../store';
 import { type Document } from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
@@ -41,7 +41,7 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
   const { classes } = useStyles();
 
   const [sortedDocuments, setSortedDocuments] = useState<(Document & { document_attached: boolean })[]>([]);
-  const { documentsMap } = useHelper((helper: DocumentHelper) => ({ documentsMap: helper.getDocumentsMap() }));
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
   const {
     fields,
     append: appendInjectDocuments,
@@ -59,14 +59,20 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
   })[];
 
   useEffect(() => {
-    const test = (injectDocuments || [])
-      .map(d => ({
-        ...d,
-        ...documentsMap[d.document_id],
-        document_attached: d.document_attached,
-      }))
+    const docs = (injectDocuments || [])
+      .reduce((acc, d) => {
+        const doc = documentsMap[d.document_id];
+        if (doc) {
+          return [...acc, {
+            ...d,
+            ...doc,
+            document_attached: d.document_attached,
+          }];
+        }
+        return acc;
+      }, [] as (Document & { document_attached: boolean })[])
       .toSorted((a, b) => (a.document_name ?? '').localeCompare(b.document_name ?? ''));
-    setSortedDocuments(test);
+    setSortedDocuments(docs);
   }, [injectDocuments]);
 
   // -- ACTIONS --

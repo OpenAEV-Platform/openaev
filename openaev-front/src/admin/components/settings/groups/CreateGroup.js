@@ -7,7 +7,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { addGroup } from '../../../../actions/Group';
-import { storeHelper } from '../../../../actions/Schema.js';
+import { storeHelper } from '../../../../actions/Schema_DEPRECATED';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import GroupForm from './GroupForm';
@@ -39,10 +39,10 @@ class CreateGroup extends Component {
       .addGroup(data)
       .then((result) => {
         if (this.props.onCreate) {
-          const groupCreated = result.entities.groups[result.result];
+          const groupCreated = result.data;
           this.props.onCreate(groupCreated);
         }
-        return result.result ? this.handleClose() : result;
+        return result.data ? this.handleClose() : result;
       });
   }
 

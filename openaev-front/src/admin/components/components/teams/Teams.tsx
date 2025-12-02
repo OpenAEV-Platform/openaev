@@ -4,8 +4,8 @@ import { type CSSProperties, useContext, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { getTeamSelector } from '../../../../actions/selectors';
 import { searchTeams } from '../../../../actions/teams/team-actions';
-import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
@@ -15,8 +15,8 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { useHelper } from '../../../../store';
-import { type SearchPaginationInput, type Team } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type SearchPaginationInput, type TeamOutput } from '../../../../utils/api-types';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateTeam from './CreateTeam';
@@ -97,21 +97,21 @@ const Teams = () => {
     },
   ];
 
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<TeamOutput[]>([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState<SearchPaginationInput>(buildSearchPagination({
     sorts: initSorting('team_name'),
     textSearch: search,
   }));
 
-  const { refetched } = useHelper((helper: TeamsHelper) => ({ refetched: helper.getTeam(selectedTeam ?? '') }));
+  const refetched = useSelectorHelper(state => getTeamSelector(selectedTeam ?? '', state));
 
-  const onTeamUpdated = (team: Team) => {
+  const onTeamUpdated = (team: TeamOutput) => {
     setTeams(teams.map(v => (v.team_id !== team.team_id ? v : team)));
   };
 
   const onPlayersChanged = (team_id: string | null) => {
     if (team_id) {
-      onTeamUpdated(refetched);
+      if (refetched) onTeamUpdated(refetched as TeamOutput);
       setSelectedTeam(null);
     }
   };
@@ -172,7 +172,7 @@ const Teams = () => {
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-          : teams.map((team: Team) => (
+          : teams.map((team: TeamOutput) => (
               <ListItem
                 key={team.team_id}
                 classes={{ root: classes.item }}
@@ -181,7 +181,7 @@ const Teams = () => {
                   <TeamPopover
                     team={team}
                     managePlayers={() => setSelectedTeam(team.team_id)}
-                    onUpdate={result => onTeamUpdated(result)}
+                    onUpdate={result => onTeamUpdated(result as TeamOutput)}
                     onDelete={result => setTeams(teams.filter(v => (v.team_id !== result)))}
                     openEditOnInit={team.team_id === searchId}
                   />
@@ -252,7 +252,7 @@ const Teams = () => {
         )}
       </Drawer>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <CreateTeam onCreate={result => setTeams([result, ...teams])} />
+        <CreateTeam onCreate={result => setTeams([result as TeamOutput, ...teams])} />
       </Can>
     </>
   );

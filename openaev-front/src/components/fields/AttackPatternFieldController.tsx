@@ -5,12 +5,10 @@ import { useContext, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AttackPatternHelper } from '../../actions/attack_patterns/attackpattern-helper';
 import { addAttackPattern } from '../../actions/AttackPattern';
-import { type UserHelper } from '../../actions/helper';
-import { type KillChainPhaseHelper } from '../../actions/kill_chain_phases/killchainphase-helper';
+import { getAttackPatternsSelector, getKillChainPhasesMapSelector } from '../../actions/selectors';
 import AttackPatternForm from '../../admin/components/settings/attack_patterns/AttackPatternForm';
-import { useHelper } from '../../store';
+import { useSelectorHelper } from '../../store';
 import { type AttackPattern, type AttackPatternCreateInput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import { type Option } from '../../utils/Option';
@@ -48,10 +46,8 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
   const ability = useContext(AbilityContext);
 
   // Fetching data
-  const { attackPatterns, killChainPhasesMap } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & UserHelper) => ({
-    attackPatterns: helper.getAttackPatterns(),
-    killChainPhasesMap: helper.getKillChainPhasesMap(),
-  }));
+  const attackPatterns = useSelectorHelper(getAttackPatternsSelector);
+  const killChainPhasesMap = useSelectorHelper(getKillChainPhasesMapSelector);
 
   const [attackPatternCreation, setAttackPatternCreation] = useState(false);
 
@@ -68,12 +64,9 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
       ...data,
       attack_pattern_kill_chain_phases: data.attack_pattern_kill_chain_phases?.map(k => k.id),
     };
-    dispatch(addAttackPattern(inputValues)).then((result: {
-      result: string;
-      entities: { attackpatterns: Record<string, AttackPattern> };
-    }) => {
-      if (result.result) {
-        const newAttackPattern = result.entities.attackpatterns[result.result];
+    dispatch(addAttackPattern(inputValues)).then((result) => {
+      if (result.data) {
+        const newAttackPattern = result.data;
         const newAttackPatterns = [...values, newAttackPattern.attack_pattern_id];
         onChange(newAttackPatterns);
         return handleCloseAttackPatternCreation();

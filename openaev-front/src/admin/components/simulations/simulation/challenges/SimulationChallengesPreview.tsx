@@ -5,10 +5,9 @@ import { fetchMe } from '../../../../../actions/Application';
 import { fetchSimulationObserverChallenges } from '../../../../../actions/challenge-action';
 import { fetchSimulationPlayerDocuments } from '../../../../../actions/Document';
 import { fetchExercise } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type SimulationChallengesReaderHelper } from '../../../../../actions/helper';
-import { useHelper } from '../../../../../store';
-import { type Exercise as ExerciseType, type SimulationChallengesReader } from '../../../../../utils/api-types';
+import { getExerciseSelector, getSimulationChallengesReaderSelector } from '../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../store';
+import { type Exercise as ExerciseType } from '../../../../../utils/api-types';
 import { useQueryParameter } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
@@ -18,13 +17,8 @@ import { PreviewChallengeContext } from '../../../common/Context';
 const SimulationChallengesPreview = () => {
   const dispatch = useAppDispatch();
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { challengesReader, fullExercise }: {
-    fullExercise: ExerciseType;
-    challengesReader: SimulationChallengesReader;
-  } = useHelper((helper: SimulationChallengesReaderHelper & ExercisesHelper) => ({
-    fullExercise: helper.getExercise(exerciseId),
-    challengesReader: helper.getSimulationChallengesReader(exerciseId),
-  }));
+  const fullExercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const challengesReader = useSelectorHelper(state => getSimulationChallengesReaderSelector(exerciseId, state));
   const { exercise_information: exercise, exercise_challenges: challenges } = challengesReader ?? {};
   const permissions = useSimulationPermissions(exerciseId, fullExercise);
   const [userId, challengeId] = useQueryParameter(['user', 'challenge']);

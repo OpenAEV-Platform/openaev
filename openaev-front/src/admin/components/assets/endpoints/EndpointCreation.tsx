@@ -24,17 +24,13 @@ const EndpointCreation: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
   const onSubmit = (data: EndpointInput) => {
     dispatch(addEndpointAgentless(data)).then(
-      (result: {
-        result: string;
-        entities: { endpoints: Record<string, Endpoint> };
-      }) => {
-        if (result.entities) {
-          if (onCreate) {
-            const endpointCreated = result.entities.endpoints[result.result];
-            onCreate(endpointCreated);
-          }
-          setOpen(false);
+      (result) => {
+        if (onCreate) {
+          const endpointCreated = result.data;
+          onCreate(endpointCreated);
         }
+        setOpen(false);
+
         return result;
       },
     );

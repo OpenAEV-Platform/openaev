@@ -4,14 +4,13 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { fetchExerciseInjects } from '../../../../../actions/Inject';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { fetchExerciseInjects } from '../../../../../actions/inject';
+import { getExerciseInjectExpectationsSelector, getExerciseSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import arrowDark from '../../../../../static/images/misc/arrow_dark.png';
 import arrowLight from '../../../../../static/images/misc/arrow_light.png';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -63,12 +62,10 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
       });
   });
 
-  const { injectExpectations, exercise } = useHelper((helper: InjectHelper & ExercisesHelper) => ({
-    exercise: helper.getExercise(exerciseId),
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-  }));
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
 
-  if (exercise.exercise_status === 'SCHEDULED' && injectExpectations?.length === 0 && !isReport) {
+  if (exercise?.exercise_status === 'SCHEDULED' && injectExpectations?.length === 0 && !isReport) {
     return (
       <div style={{
         marginTop: 100,

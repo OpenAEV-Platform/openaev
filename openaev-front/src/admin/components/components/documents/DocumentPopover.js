@@ -7,6 +7,7 @@ import { useContext, useEffect, useState } from 'react';
 import { deleteDocument, updateDocument } from '../../../../actions/Document';
 import { fetchExercises } from '../../../../actions/Exercise';
 import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
+import { getExercisesMapSelector, getScenariosMapSelector, getTagsMapSelector } from '../../../../actions/selectors';
 import ButtonPopover from '../../../../components/common/ButtonPopover.js';
 import DialogDelete from '../../../../components/common/DialogDelete.js';
 import Drawer from '../../../../components/common/Drawer';
@@ -15,7 +16,7 @@ import Transition from '../../../../components/common/Transition';
 import ContextLink from '../../../../components/ContextLink.js';
 import { useFormatter } from '../../../../components/i18n';
 import { ATOMIC_BASE_URL, CHALLENGE_BASE_URL, CHANNEL_BASE_URL, PAYLOAD_BASE_URL, SCENARIO_BASE_URL, SECURITY_PLATFORM_BASE_URL, SIMULATION_BASE_URL } from '../../../../constants/BaseUrls.js';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { exerciseOptions, scenarioOptions, tagOptions } from '../../../../utils/Option';
@@ -49,11 +50,9 @@ const DocumentPopover = (props) => {
   const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete } = props;
 
   // Fetching data
-  const { tagsMap, exercisesMap, scenariosMap } = useHelper(helper => ({
-    tagsMap: helper.getTagsMap(),
-    exercisesMap: helper.getExercisesMap(),
-    scenariosMap: helper.getScenariosMap(),
-  }));
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
+  const exercisesMap = useSelectorHelper(getExercisesMapSelector);
+  const scenariosMap = useSelectorHelper(getScenariosMapSelector);
   if (!props.scenariosAndExercisesFetched) {
     useDataLoader(() => {
       dispatch(fetchExercises());
@@ -81,7 +80,7 @@ const DocumentPopover = (props) => {
     return dispatch(updateDocument(document.document_id, inputValues))
       .then((result) => {
         if (onUpdate) {
-          const updated = result.entities.documents[result.result];
+          const updated = result.data;
           onUpdate(updated);
         }
         handleCloseEdit();

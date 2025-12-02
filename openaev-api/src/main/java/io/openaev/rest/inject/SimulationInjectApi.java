@@ -98,7 +98,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
-  public Iterable<InjectOutput> exerciseInjectsSimple(
+  public Page<InjectOutput> exerciseInjectsSimple(
       @PathVariable @NotBlank final String exerciseId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();

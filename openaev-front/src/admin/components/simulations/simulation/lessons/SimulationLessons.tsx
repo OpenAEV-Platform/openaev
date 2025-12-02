@@ -1,19 +1,15 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
 
-import { addExerciseEvaluation, fetchExerciseEvaluations, updateExerciseEvaluation } from '../../../../../actions/Evaluation';
+import { addExerciseEvaluation, fetchExerciseEvaluations, updateExerciseEvaluation } from '../../../../../actions/evaluation';
 import { fetchExerciseTeams, updateExerciseLessons } from '../../../../../actions/Exercise';
 import { addLessonsCategory, addLessonsQuestion, applyLessonsTemplate, deleteLessonsCategory, deleteLessonsQuestion, emptyLessonsCategories, fetchLessonsAnswers, fetchLessonsCategories, fetchLessonsQuestions, fetchPlayersByExercise, resetLessonsAnswers, sendLessons, updateLessonsCategory, updateLessonsCategoryTeams, updateLessonsQuestion } from '../../../../../actions/exercises/exercise-action';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type UserHelper } from '../../../../../actions/helper';
-import { fetchExerciseInjects } from '../../../../../actions/Inject';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import { type LessonsTemplatesHelper } from '../../../../../actions/lessons/lesson-helper';
-import { addExerciseObjective, deleteExerciseObjective, fetchExerciseObjectives, updateExerciseObjective } from '../../../../../actions/Objective';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { fetchExerciseInjects } from '../../../../../actions/inject';
+import { addExerciseObjective, deleteExerciseObjective, fetchExerciseObjectives, updateExerciseObjective } from '../../../../../actions/objective';
+import { getExerciseInjectsSelector, getExerciseLessonsAnswersSelector, getExerciseLessonsCategoriesSelector, getExerciseLessonsQuestionsSelector, getExerciseObjectivesSelector, getExerciseSelector, getExerciseTeamsSelector, getLessonsTemplatesSelector, getTeamsMapSelector, getUsersMapSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import Loader from '../../../../../components/Loader';
+import { useSelectorHelper } from '../../../../../store';
 import { type EvaluationInput, type Exercise, type LessonsCategoryCreateInput, type LessonsCategoryTeamsInput, type LessonsCategoryUpdateInput, type LessonsQuestionCreateInput, type LessonsQuestionUpdateInput, type LessonsSendInput, type ObjectiveInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -27,7 +23,10 @@ const SimulationLessons = () => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { t } = useFormatter();
 
-  const processToGenericSource = (exercise: Exercise) => {
+  const processToGenericSource = (exercise?: Exercise) => {
+    if (!exercise) {
+      return exercise;
+    }
     return {
       id: exercise.exercise_id,
       type: 'simulation',
@@ -43,32 +42,16 @@ const SimulationLessons = () => {
     };
   };
 
-  const {
-    exercise,
-    objectives,
-    injects,
-    teams,
-    teamsMap,
-    lessonsCategories,
-    lessonsQuestions,
-    lessonsAnswers,
-    lessonsTemplates,
-    usersMap,
-  } = useHelper((helper: ExercisesHelper & InjectHelper & LessonsTemplatesHelper & ScenariosHelper & TeamsHelper & UserHelper) => {
-    const exerciseData = helper.getExercise(exerciseId);
-    return {
-      exercise: exerciseData,
-      objectives: helper.getExerciseObjectives(exerciseId),
-      injects: helper.getExerciseInjects(exerciseId),
-      lessonsCategories: helper.getExerciseLessonsCategories(exerciseId),
-      lessonsQuestions: helper.getExerciseLessonsQuestions(exerciseId),
-      lessonsAnswers: helper.getExerciseLessonsAnswers(exerciseId),
-      lessonsTemplates: helper.getLessonsTemplates(),
-      teamsMap: helper.getTeamsMap(),
-      teams: helper.getExerciseTeams(exerciseId),
-      usersMap: helper.getUsersMap(),
-    };
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
+  const injects = useSelectorHelper(state => getExerciseInjectsSelector(exerciseId, state));
+  const objectives = useSelectorHelper(state => getExerciseObjectivesSelector(exerciseId, state));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
+  const teamsMap = useSelectorHelper(getTeamsMapSelector);
+  const lessonsCategories = useSelectorHelper(state => getExerciseLessonsCategoriesSelector(exerciseId, state));
+  const lessonsQuestions = useSelectorHelper(state => getExerciseLessonsQuestionsSelector(exerciseId, state));
+  const lessonsAnswers = useSelectorHelper(state => getExerciseLessonsAnswersSelector(exerciseId, state));
+  const lessonsTemplates = useSelectorHelper(getLessonsTemplatesSelector);
+  const usersMap = useSelectorHelper(getUsersMapSelector);
 
   const source = useMemo(
     () => processToGenericSource(exercise),
@@ -91,7 +74,7 @@ const SimulationLessons = () => {
     onResetLessonsAnswers: () => dispatch(resetLessonsAnswers(exerciseId)),
     onEmptyLessonsCategories: () => dispatch(emptyLessonsCategories(exerciseId)),
     onUpdateSourceLessons: (data: boolean) => dispatch(updateExerciseLessons(exerciseId, { lessons_anonymized: data })),
-    onSendLessons: (data: LessonsSendInput) => dispatch(sendLessons(exerciseId, data)),
+    onSendLessons: (data: LessonsSendInput) => sendLessons(exerciseId, data),
     // Categories
     onAddLessonsCategory: (data: LessonsCategoryCreateInput) => dispatch(addLessonsCategory(exerciseId, data)),
     onDeleteLessonsCategory: (data: string) => dispatch(deleteLessonsCategory(exerciseId, data)),
@@ -125,6 +108,10 @@ const SimulationLessons = () => {
     onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => dispatch(updateExerciseEvaluation(exerciseId, objectiveId, evaluationId, data)),
     onFetchEvaluation: (objectiveId: string) => dispatch(fetchExerciseEvaluations(exerciseId, objectiveId)),
   };
+
+  if (!source) {
+    return <Loader variant="inElement" />;
+  }
 
   return (
     <LessonContext.Provider value={context}>

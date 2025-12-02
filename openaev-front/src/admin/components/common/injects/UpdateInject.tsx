@@ -5,20 +5,23 @@ import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchInject } from '../../../../actions/Inject';
-import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
+import { fetchInject } from '../../../../actions/inject';
 import { fetchDocumentsPayloadByInject } from '../../../../actions/injects/inject-action';
-import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { getInjectSelector } from '../../../../actions/selectors';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
+import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import {
   type Article,
-  type AttackPattern, type Document,
+  type AttackPattern,
+  type Document,
   type Inject,
   type InjectInput,
-  type KillChainPhase, type Variable,
+  type InjectOutput,
+  type KillChainPhase,
+  type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -36,11 +39,11 @@ import UpdateInjectLogicalChains from './UpdateInjectLogicalChains';
 interface Props {
   open: boolean;
   handleClose: () => void;
-  onUpdateInject: (data: Inject) => Promise<void>;
+  onUpdateInject: (data: InjectInput) => Promise<void>;
   massUpdateInject?: (data: Inject[]) => Promise<void>;
   injectId: string;
   isAtomic?: boolean;
-  injects?: InjectOutputType[];
+  injects?: InjectOutput[];
   articlesFromExerciseOrScenario?: Article[];
   uriVariable?: string;
   variablesFromExerciseOrScenario?: Variable[];
@@ -74,7 +77,7 @@ const UpdateInject: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<string>(availableTabs[0]);
 
   // Fetching data
-  const { inject }: { inject: InjectStore } = useHelper((helper: InjectHelper) => ({ inject: helper.getInject(injectId) }));
+  const inject = useSelectorHelper(state => getInjectSelector(injectId, state));
   const contractPayload = inject?.inject_injector_contract?.injector_contract_payload;
   const injectorContract = inject?.inject_injector_contract;
   const [documentsMap, setDocumentsMap] = useState<Record<string, Document> | null>(null);
@@ -103,7 +106,7 @@ const UpdateInject: React.FC<Props> = ({
   const [injectorContractContent, setInjectorContractContent] = useState<InjectorContractConverted['convertedContent']>();
   useEffect(() => {
     if (inject?.inject_injector_contract?.convertedContent) {
-      setInjectorContractContent(inject.inject_injector_contract?.convertedContent);
+      setInjectorContractContent(inject?.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent']);
     }
   }, [inject]);
 
@@ -153,10 +156,14 @@ const UpdateInject: React.FC<Props> = ({
           )}
         </div>
       )}
-      content={inject?.inject_title}
+      content={inject?.inject_title ?? ''}
     />
-
   );
+
+  if (!inject) {
+    return <Loader variant="inElement" />;
+  }
+
   return (
     <Drawer
       open={open}
@@ -192,7 +199,7 @@ const UpdateInject: React.FC<Props> = ({
               isAtomic={isAtomic}
               defaultInject={inject}
               injectorContractContent={injectorContractContent}
-              onSubmitInject={(data: InjectInput) => onUpdateInject(data as Inject)}
+              onSubmitInject={(data: InjectInput) => onUpdateInject(data)}
               articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
               uriVariable={uriVariable}
               variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
@@ -215,7 +222,7 @@ const UpdateInject: React.FC<Props> = ({
         {/* Logical chains */}
         <TabPanel value="Logical chains" keepMounted className={classes.tabPanel}>
           {injectFormContent}
-          {!isInjectLoading && !isAtomic && (
+          {!isInjectLoading && !isAtomic && inject && (
             <UpdateInjectLogicalChains
               inject={inject}
               handleClose={handleClose}

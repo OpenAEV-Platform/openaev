@@ -18,11 +18,11 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchChallenges } from '../../../../../../actions/challenge-action';
-import { type ChallengeHelper } from '../../../../../../actions/helper';
+import { getChallengesMapSelector, getChallengesSelector } from '../../../../../../actions/selectors';
 import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import SearchFilter from '../../../../../../components/SearchFilter';
-import { useHelper } from '../../../../../../store';
+import { useSelectorHelper } from '../../../../../../store';
 import { type Challenge } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
@@ -72,10 +72,8 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
   const [open, setopen] = useState(false);
 
-  const { challenges, challengesMap } = useHelper((helper: ChallengeHelper) => ({
-    challenges: helper.getChallenges(),
-    challengesMap: helper.getChallengesMap(),
-  }));
+  const challenges = useSelectorHelper(getChallengesSelector);
+  const challengesMap = useSelectorHelper(getChallengesMapSelector);
 
   useDataLoader(() => {
     if (open) {

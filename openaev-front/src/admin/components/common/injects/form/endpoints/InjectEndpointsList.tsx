@@ -1,9 +1,9 @@
 import { useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
-import { type EndpointHelper } from '../../../../../../actions/assets/asset-helper';
-import { useHelper } from '../../../../../../store';
-import type { EndpointOutput } from '../../../../../../utils/api-types';
+import { getEndpointsMapSelector } from '../../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../../store';
+import { type EndpointOutput } from '../../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../../utils/context/endpoint/EndpointContext';
 import { Can } from '../../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
@@ -23,7 +23,7 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
   const { control, setValue } = useFormContext();
   const { fetchEndpointsByIds } = useContext(EndpointContext);
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
-  const { endpointsMap } = useHelper((helper: EndpointHelper) => ({ endpointsMap: helper.getEndpointsMap() }));
+  const endpointsMap = useSelectorHelper(getEndpointsMapSelector);
 
   const endpointIds = useWatch({
     control,
@@ -47,7 +47,7 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
   return (
     <>
       <EndpointsList
-        endpoints={endpoints}
+        endpoints={endpoints as EndpointOutput[]}
         renderActions={endpoint => (
           <EndpointPopover
             inline

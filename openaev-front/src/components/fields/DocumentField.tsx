@@ -5,9 +5,8 @@ import { type FieldError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocuments } from '../../actions/Document';
-import type { DocumentHelper } from '../../actions/helper';
-import { useHelper } from '../../store';
-import type { Document } from '../../utils/api-types';
+import { getDocumentsSelector } from '../../actions/selectors';
+import { useSelectorHelper } from '../../store';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 
@@ -44,7 +43,7 @@ const DocumentField: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   // Fetching data
-  const { documents }: { documents: [Document] } = useHelper((helper: DocumentHelper) => ({ documents: helper.getDocuments() }));
+  const documents = useSelectorHelper(getDocumentsSelector);
   const dispatch = useAppDispatch();
   useDataLoader(() => {
     dispatch(fetchDocuments());

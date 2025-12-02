@@ -3,13 +3,13 @@ import { Route, Routes, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchInjector } from '../../../../actions/Injectors';
-import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
+import { getInjectorSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Injector as InjectorType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -24,7 +24,7 @@ const Index = () => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { injectorId } = useParams() as { injectorId: InjectorType['injector_id'] };
-  const { injector } = useHelper((helper: InjectorHelper) => ({ injector: helper.getInjector(injectorId) }));
+  const injector = useSelectorHelper(state => getInjectorSelector(injectorId, state));
   useDataLoader(() => {
     dispatch(fetchInjector(injectorId));
   });

@@ -7,7 +7,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { addKillChainPhase } from '../../../../actions/KillChainPhase';
-import { storeHelper } from '../../../../actions/Schema.js';
+import { storeHelper } from '../../../../actions/Schema_DEPRECATED';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import KillChainPhaseForm from './KillChainPhaseForm';
@@ -39,10 +39,10 @@ class CreateKillChainPhase extends Component {
       .addKillChainPhase(data)
       .then((result) => {
         if (this.props.onCreate) {
-          const killChainPhaseCreated = result.entities.killchainphases[result.result];
+          const killChainPhaseCreated = result.data;
           this.props.onCreate(killChainPhaseCreated);
         }
-        return (result.result ? this.handleClose() : result);
+        return (result.data ? this.handleClose() : result);
       });
   }
 

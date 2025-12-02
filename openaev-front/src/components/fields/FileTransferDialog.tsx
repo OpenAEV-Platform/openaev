@@ -3,11 +3,11 @@ import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, G
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type DocumentHelper, type UserHelper } from '../../actions/helper';
+import { getDocumentsSelector } from '../../actions/selectors';
 import TagsFilter from '../../admin/components/common/filters/TagsFilter';
 import CreateDocument from '../../admin/components/components/documents/CreateDocument';
-import { useHelper } from '../../store';
-import { type RawDocument } from '../../utils/api-types';
+import { useSelectorHelper } from '../../store';
+import { type Document } from '../../utils/api-types';
 import { Can } from '../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { truncate } from '../../utils/String';
@@ -36,12 +36,12 @@ interface Props {
   label: string;
   open: boolean;
   setOpen: (open: boolean) => void;
-  onAddDocument?: (document: RawDocument) => void;
+  onAddDocument?: (document: Document) => void;
   extensions?: string[];
   /* If we want to load multiples files */
   multiple?: boolean;
   initialDocumentIds?: string[];
-  onSubmitAddDocuments?: (documents: RawDocument[]) => void;
+  onSubmitAddDocuments?: (documents: Document[]) => void;
 }
 
 const FileTransferDialog: FunctionComponent<Props> = ({
@@ -63,10 +63,10 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     label: string;
     color: string;
   }[]>([]);
-  const [selectedDocuments, setSelectedDocuments] = useState<RawDocument[]>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
 
   // Fetching data
-  const { documents }: { documents: [RawDocument] } = useHelper((helper: DocumentHelper & UserHelper) => ({ documents: helper.getDocuments() }));
+  const documents = useSelectorHelper(getDocumentsSelector);
 
   useEffect(() => {
     // If initial data hasn't arrived yet, do nothing
@@ -106,7 +106,7 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     setSelectedDocuments([]);
   };
 
-  const handleAddDocument = (document: RawDocument) => {
+  const handleAddDocument = (document: Document) => {
     if (!selectedDocuments.some(doc => doc.document_id === document.document_id)) {
       setSelectedDocuments([...selectedDocuments, document]);
     }
@@ -123,23 +123,23 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     handleClose();
   };
 
-  const handleRemoveDocument = (document: RawDocument) => {
+  const handleRemoveDocument = (document: Document) => {
     setSelectedDocuments(selectedDocuments.filter(doc => doc.document_id !== document.document_id));
   };
 
-  const filterByExtensions = (document: RawDocument) => {
+  const filterByExtensions = (document: Document) => {
     return extensions?.length === 0
       || extensions?.map(ext => ext.toLowerCase()).includes(document.document_name?.split('.').pop()?.toLowerCase() || '');
   };
 
-  const filterByKeyword = (document: RawDocument) => {
+  const filterByKeyword = (document: Document) => {
     return keyword === ''
       || document.document_name?.toLowerCase().includes(keyword.toLowerCase())
       || document.document_description?.toLowerCase().includes(keyword.toLowerCase())
       || document.document_type?.toLowerCase().includes(keyword.toLowerCase());
   };
 
-  const filterByTag = (document: RawDocument) => {
+  const filterByTag = (document: Document) => {
     return tags.length === 0 || tags.every(tag => document.document_tags?.includes(tag.id));
   };
 
@@ -189,7 +189,7 @@ const FileTransferDialog: FunctionComponent<Props> = ({
               </GridLegacy>
             </GridLegacy>
             <List>
-              {filteredDocuments.map((document: RawDocument) => {
+              {filteredDocuments.map((document: Document) => {
                 return (
                   <ListItem
                     classes={{ root: classes.item }}

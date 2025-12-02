@@ -2,9 +2,9 @@ import { FileDownloadOutlined } from '@mui/icons-material';
 import { ToggleButton, Tooltip } from '@mui/material';
 import { CSVLink } from 'react-csv';
 
-import { type TagHelper } from '../../actions/helper';
 import { exportCsvMapper } from '../../actions/mapper/mapper-actions';
-import { useHelper } from '../../store';
+import { getTagsMapSelector } from '../../actions/selectors';
+import { useSelectorHelper } from '../../store';
 import { type SearchPaginationInput } from '../../utils/api-types';
 import { exportData } from '../../utils/Environment';
 import { download } from '../../utils/utils';
@@ -27,15 +27,12 @@ const ExportButton = <T extends object>({ totalElements, exportProps }: Props<T>
   // Standard hooks
   const { t } = useFormatter();
   // Fetching data
-  const { tagsMap } = useHelper((helper: TagHelper) => ({ tagsMap: helper.getTagsMap() }));
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
 
   const exportCsvMapperAction = () => {
     exportCsvMapper(exportProps.exportType, exportProps.searchPaginationInput).then(
-      (result: {
-        data: string;
-        filename: string;
-      }) => {
-        download(result.data, result.filename, 'text/csv');
+      (result) => {
+        download(result.data as string, result.filename, 'text/csv');
       },
     );
   };

@@ -2,12 +2,12 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchMapper, updateMapper } from '../../../../../actions/mapper/mapper-actions';
 import Loader from '../../../../../components/Loader';
-import { type ImportMapper, type ImportMapperUpdateInput, type RawPaginationImportMapper } from '../../../../../utils/api-types';
+import { type ImportMapper, type ImportMapperUpdateInput } from '../../../../../utils/api-types';
 import MapperForm from './MapperForm';
 
 interface XlsMapperUpdateComponentProps {
   xlsMapper: ImportMapper;
-  onUpdate?: (result: RawPaginationImportMapper) => void;
+  onUpdate?: (result: ImportMapper) => void;
   handleClose: () => void;
 }
 
@@ -33,7 +33,7 @@ const XlsMapperUpdateComponent: FunctionComponent<XlsMapperUpdateComponentProps>
 
   const onSubmit = (data: ImportMapperUpdateInput) => {
     updateMapper(xlsMapper.import_mapper_id, data).then(
-      (result: { data: RawPaginationImportMapper }) => {
+      (result) => {
         onUpdate?.(result.data);
         return result;
       },
@@ -52,7 +52,7 @@ const XlsMapperUpdateComponent: FunctionComponent<XlsMapperUpdateComponentProps>
 
 interface XlsMapperUpdateProps {
   xlsMapperId: string;
-  onUpdate?: (result: RawPaginationImportMapper) => void;
+  onUpdate?: (result: ImportMapper) => void;
   handleClose: () => void;
 }
 

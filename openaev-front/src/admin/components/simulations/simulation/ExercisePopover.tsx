@@ -85,12 +85,9 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = () => {
-    dispatch(duplicateExercise(exercise.exercise_id)).then((result: {
-      result: string;
-      entities: { exercises: Exercise };
-    }) => {
+    dispatch(duplicateExercise(exercise.exercise_id)).then((result) => {
       handleCloseDuplicate();
-      navigate(`/admin/simulations/${result.result}`);
+      navigate(`/admin/simulations/${result.normalizedData.result}`);
     });
   };
 

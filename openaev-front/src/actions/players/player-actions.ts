@@ -1,5 +1,6 @@
+import { type Page } from '../../components/common/queryable/Page';
 import { simplePostCall } from '../../utils/Action';
-import { type SearchPaginationInput } from '../../utils/api-types';
+import { type PlayerOutput, type SearchPaginationInput } from '../../utils/api-types';
 
 const PLAYER_URI = '/api/players';
 
@@ -7,5 +8,5 @@ const PLAYER_URI = '/api/players';
 export const searchPlayers = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${PLAYER_URI}/search`;
-  return simplePostCall(uri, data);
+  return simplePostCall<Page<PlayerOutput>>(uri, data);
 };

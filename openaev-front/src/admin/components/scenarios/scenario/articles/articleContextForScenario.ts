@@ -9,8 +9,9 @@ import { fetchScenarioChannels } from '../../../../../actions/channels/channel-a
 import { fetchScenarioDocuments } from '../../../../../actions/documents/documents-actions';
 import { type Article, type ArticleCreateInput, type ArticleUpdateInput, type Scenario } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
+import { type ArticleContextType } from '../../../common/Context';
 
-const articleContextForScenario = (scenarioId: Scenario['scenario_id']) => {
+const articleContextForScenario = (scenarioId: Scenario['scenario_id']): ArticleContextType => {
   const dispatch = useAppDispatch();
   return {
     previewArticleUrl: (article: FullArticleStore) => `/channels/${scenarioId}/${article.article_fullchannel?.channel_id}?preview=true`,

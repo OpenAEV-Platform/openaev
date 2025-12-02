@@ -64,7 +64,8 @@ const SimulationReportPage: FunctionComponent = () => {
 
   const saveGlobalObservation = (comment: string) => dispatch(updateReportForExercise(
     exerciseId,
-    report.report_id,
+    // report is defined because we check it lower
+    report!.report_id,
     {
       ...report,
       report_global_observation: comment,
@@ -135,7 +136,9 @@ const SimulationReportPage: FunctionComponent = () => {
               <Typography variant="h4" gutterBottom>
                 {t('General information')}
               </Typography>
-              <SimulationMainInformation exercise={reportData.exercise} />
+              {
+                reportData.exercise && <SimulationMainInformation exercise={reportData.exercise} />
+              }
             </div>
           )}
         {displayModule(ReportInformationType.SCORE_DETAILS)
@@ -216,7 +219,7 @@ const SimulationReportPage: FunctionComponent = () => {
           onClose={() => setSelectedQuestion(null)}
           question={selectedQuestion?.lessons_question_content || ''}
           answers={selectedQuestionAnswers}
-          anonymized={!!reportData.exercise.exercise_lessons_anonymized}
+          anonymized={!!reportData.exercise?.exercise_lessons_anonymized}
           usersMap={reportData.usersMap}
         />
       </div>

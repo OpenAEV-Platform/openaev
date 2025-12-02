@@ -22,16 +22,18 @@ import moment from 'moment-timezone';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AssetGroupsHelper } from '../actions/asset_groups/assetgroup-helper';
-import { type EndpointHelper } from '../actions/assets/asset-helper';
-import { type ExercisesHelper } from '../actions/exercises/exercise-helper';
-import { type InjectOutputType, type InjectStore } from '../actions/injects/Inject';
-import { type InjectHelper } from '../actions/injects/inject-helper';
-import { type ScenariosHelper } from '../actions/scenarios/scenario-helper';
-import { type TeamsHelper } from '../actions/teams/team-helper';
+import {
+  getAssetGroupMapsSelector,
+  getEndpointsMapSelector,
+  getExerciseSelector,
+  getInjectsMapSelector,
+  getScenarioSelector,
+  getTeamsMapSelector,
+} from '../actions/selectors';
 import { InjectTestContext, PermissionsContext } from '../admin/components/common/Context';
-import { useHelper } from '../store';
-import { type Inject, type InjectDependency } from '../utils/api-types';
+import { type CustomAxiosResponse } from '../network';
+import { useSelectorHelper } from '../store';
+import { type Inject, type InjectDependency, type InjectOutput } from '../utils/api-types';
 import { parseCron } from '../utils/Cron';
 import ChainingUtils from './common/chaining/ChainingUtils';
 import CustomTimelineBackground from './CustomTimelineBackground';
@@ -56,18 +58,12 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props {
-  injects: InjectOutputType[];
-  onSelectedInject(inject?: InjectOutputType): void;
+  injects: InjectOutput[];
+  onSelectedInject(inject?: InjectOutput): void;
   onTimelineClick(duration: number): void;
-  onUpdateInject: (data: Inject[]) => void;
-  onCreate: (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => void;
-  onUpdate: (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => void;
+  onUpdateInjects: (data: Inject[]) => void;
+  onCreate: (result: CustomAxiosResponse<Inject>) => void;
+  onUpdate: (result: CustomAxiosResponse<Inject>) => void;
   onDelete: (result: string) => void;
 }
 
@@ -75,7 +71,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
   injects,
   onSelectedInject,
   onTimelineClick,
-  onUpdateInject,
+  onUpdateInjects,
   onCreate,
   onUpdate,
   onDelete,
@@ -103,15 +99,12 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
 
   const { contextId } = useContext(InjectTestContext);
 
-  const { injectsMap, teams, assets, assetGroups, scenario, exercise }
-    = useHelper((helper: ExercisesHelper & InjectHelper & TeamsHelper & EndpointHelper & AssetGroupsHelper & ScenariosHelper) => ({
-      injectsMap: helper.getInjectsMap(),
-      teams: helper.getTeamsMap(),
-      assets: helper.getEndpointsMap(),
-      assetGroups: helper.getAssetGroupMaps(),
-      scenario: helper.getScenario(contextId),
-      exercise: helper.getExercise(contextId),
-    }));
+  const injectsMap = useSelectorHelper(getInjectsMapSelector);
+  const teams = useSelectorHelper(getTeamsMapSelector);
+  const assets = useSelectorHelper(getEndpointsMapSelector);
+  const assetGroups = useSelectorHelper(getAssetGroupMapsSelector);
+  const scenario = useSelectorHelper(state => getScenarioSelector(contextId, state));
+  const exercise = useSelectorHelper(state => getExerciseSelector(contextId, state));
 
   const { t } = useFormatter();
 
@@ -306,9 +299,9 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
    */
   const updateNodes = () => {
     if (injects.length > 0) {
-      const injectsNodes = injects
+      const injectsNodes: NodeInject[] = injects
         .sort((a, b) => a.inject_depends_duration - b.inject_depends_duration)
-        .map((inject: InjectOutputType) => ({
+        .map((inject: InjectOutput) => ({
           id: `${inject.inject_id}`,
           type: 'inject',
           data: {
@@ -335,9 +328,10 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
                 y: nodeHeightClearance,
               },
             },
-            targets: inject.inject_assets!.map(asset => assets[asset]?.asset_name)
-              .concat(inject.inject_asset_groups!.map(assetGroup => assetGroups[assetGroup]?.asset_group_name))
-              .concat(inject.inject_teams!.map(team => teams[team]?.team_name)),
+            targets: (inject.inject_assets ?? []).map(asset => assets[asset]?.asset_name)
+              .concat((inject.inject_asset_groups ?? []).map(assetGroup => assetGroups[assetGroup]?.asset_group_name))
+              .concat((inject.inject_teams ?? []).map(team => teams[team]?.team_name))
+              .filter((target): target is string => !!target),
             contextId,
             onCreate,
             onUpdate,
@@ -395,14 +389,14 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
     if (injectFromMap !== undefined) {
       const inject = {
         ...injectFromMap,
-        inject_injector_contract: injectFromMap.inject_injector_contract.injector_contract_id,
+        inject_injector_contract: injectFromMap.inject_injector_contract?.injector_contract_id,
         inject_id: node.id,
         inject_depends_duration: convertCoordinatesToTime(node.position),
         inject_depends_on: injectFromMap.inject_depends_on !== null
           ? injectFromMap.inject_depends_on
-          : null,
+          : undefined,
       };
-      onUpdateInject([inject]);
+      onUpdateInjects([inject as Inject]);
       setCurrentUpdatedNode(node);
       setDraggingOnGoing(false);
     }
@@ -458,11 +452,11 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
 
       const injectToUpdate = {
         ...injectsMap[inject.inject_id],
-        inject_injector_contract: inject.inject_injector_contract.injector_contract_id,
+        inject_injector_contract: inject.inject_injector_contract?.injector_contract_id,
         inject_id: inject.inject_id,
         inject_depends_on: [newDependsOn],
       };
-      onUpdateInject([injectToUpdate]);
+      onUpdateInjects([injectToUpdate as Inject]);
     }
   };
 
@@ -585,11 +579,11 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
       if (inject !== undefined) {
         const injectToUpdate = {
           ...injectsMap[inject.inject_id],
-          inject_injector_contract: inject.inject_injector_contract.injector_contract_id,
+          inject_injector_contract: inject.inject_injector_contract?.injector_contract_id,
           inject_id: inject.inject_id,
           inject_depends_on: undefined,
         };
-        onUpdateInject([injectToUpdate]);
+        onUpdateInjects([injectToUpdate as Inject]);
       }
     } else if (handleType === 'source') {
       const updates = [];
@@ -604,7 +598,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
         && parent.inject_depends_duration < injectToUpdate.inject_depends_duration) {
         const injectToRemoveEdge = {
           ...injectsMap[injectToRemove.inject_id],
-          inject_injector_contract: injectToRemove.inject_injector_contract.injector_contract_id,
+          inject_injector_contract: injectToRemove.inject_injector_contract?.injector_contract_id,
           inject_id: injectToRemove.inject_id,
           inject_depends_on: undefined,
         };
@@ -628,12 +622,12 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
         };
         const injectToUpdateEdge = {
           ...injectsMap[injectToUpdate.inject_id],
-          inject_injector_contract: injectToUpdate.inject_injector_contract.injector_contract_id,
+          inject_injector_contract: injectToUpdate.inject_injector_contract?.injector_contract_id,
           inject_id: injectToUpdate.inject_id,
           inject_depends_on: [newDependsOn],
         };
         updates.push(injectToUpdateEdge);
-        onUpdateInject(updates);
+        onUpdateInjects(updates as Inject[]);
       }
     } else {
       const inject = injects.find(currentInject => currentInject.inject_id === edge.target);
@@ -658,11 +652,11 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
         };
         const injectToUpdate = {
           ...injectsMap[inject.inject_id],
-          inject_injector_contract: inject.inject_injector_contract.injector_contract_id,
+          inject_injector_contract: inject.inject_injector_contract?.injector_contract_id,
           inject_id: inject.inject_id,
           inject_depends_on: [newDependsOn],
         };
-        onUpdateInject([injectToUpdate]);
+        onUpdateInjects([injectToUpdate as Inject]);
       }
     }
     updateNodes();

@@ -56,15 +56,15 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
 
   useEffect(() => {
     const processArticles = async () => {
-      const sortArticles = (articles: Article[], channels: Record<string, Channel>): (Article & {
+      const sortArticles = (articles: Article[], channels?: Record<string, Channel>): (Article & {
         article_channel_type: string;
         article_channel_name: string;
       })[] => {
         return articles
           .map(a => ({
             ...a,
-            article_channel_type: channels[a.article_channel]?.channel_type ?? '',
-            article_channel_name: channels[a.article_channel]?.channel_name ?? '',
+            article_channel_type: (channels && channels[a.article_channel]?.channel_type) ?? '',
+            article_channel_name: (channels && channels[a.article_channel]?.channel_name) ?? '',
           }))
           .toSorted((a, b) => (a.article_name ?? '').localeCompare(b.article_name ?? ''));
       };
@@ -74,8 +74,8 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
         fetchArticles(),
       ]);
 
-      const articles = injectArticlesIds.map(id => result.entities.articles[id]).filter(a => a !== undefined);
-      setSortedArticles(sortArticles(articles, channelResult.entities.channels));
+      const articles = injectArticlesIds.map(id => result.normalizedData?.entities.articles[id]).filter(a => a !== undefined);
+      setSortedArticles(sortArticles(articles, channelResult.normalizedData?.entities.channels));
     };
 
     processArticles();

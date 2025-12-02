@@ -34,7 +34,7 @@ export const createGroupOption: (id: string, label: string, group: string, color
 
 export const tagOptions = (
   tag_ids: string[] | undefined,
-  tagsMap: Record<string, Tag>,
+  tagsMap: Record<string, Tag | undefined>,
 ) => (tag_ids ?? [])
   .map(tagId => tagsMap[tagId])
   .filter(tagItem => tagItem !== undefined)
@@ -105,7 +105,7 @@ export const scenarioOptions = (
 
 export const organizationOption = (
   organizationId: string | undefined,
-  organizationsMap: Record<string, Organization>,
+  organizationsMap: Record<string, Organization | undefined>,
 ) => {
   if (!organizationId) {
     return undefined;

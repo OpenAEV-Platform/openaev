@@ -3,14 +3,13 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { fetchExerciseInjects } from '../../../../actions/Inject';
-import { type InjectorContractHelper } from '../../../../actions/injector_contracts/injector-contract-helper';
-import { type InjectStore } from '../../../../actions/injects/Inject';
-import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { fetchExerciseInjects } from '../../../../actions/inject';
+import { getExerciseInjectsSelector } from '../../../../actions/selectors';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type Exercise, type Inject, type InjectExpectation } from '../../../../utils/api-types';
+import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -24,13 +23,13 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
   const theme = useTheme();
 
   // Fetching data
-  const { injects } = useHelper((helper: InjectHelper & InjectorContractHelper) => ({ injects: helper.getExerciseInjects(exerciseId) }));
+  const injects = useSelectorHelper(state => getExerciseInjectsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseInjects(exerciseId));
   });
 
   const injectsByType = R.pipe(
-    R.filter((n: InjectStore) => n.inject_sent_at !== null),
+    R.filter((n: Inject) => n.inject_sent_at !== null),
     R.groupBy(R.prop('inject_type')),
     R.toPairs,
     R.map((n: [string, InjectExpectation[]]) => ({
@@ -42,10 +41,10 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
   const injectsByInjectorContractData = [
     {
       name: t('Number of injects'),
-      data: injectsByType.map((a: InjectStore & { number: number }) => ({
+      data: injectsByType.map((a: Inject & { number: number }) => ({
         x: tPick(a.inject_injector_contract?.injector_contract_labels),
         y: a.number,
-        fillColor: a.inject_injector_contract?.convertedContent?.config?.[`color_${theme.palette.mode}`],
+        fillColor: (a.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'])?.config?.[`color_${theme.palette.mode}`],
       })),
     },
   ];

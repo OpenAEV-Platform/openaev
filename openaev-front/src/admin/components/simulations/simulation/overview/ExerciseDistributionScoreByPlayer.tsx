@@ -3,11 +3,10 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type UserHelper } from '../../../../../actions/helper';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { getExerciseInjectExpectationsSelector, getUsersMapSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectation, type User } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { resolveUserName } from '../../../../../utils/String';
@@ -20,10 +19,8 @@ const ExerciseDistributionScoreByPlayer: FunctionComponent<Props> = ({ exerciseI
   const theme = useTheme();
 
   // Fetching data
-  const { injectExpectations, usersMap } = useHelper((helper: InjectHelper & UserHelper) => ({
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-    usersMap: helper.getUsersMap(),
-  }));
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
+  const usersMap = useSelectorHelper(getUsersMapSelector);
 
   const usersTotalScores = R.pipe(
     R.filter(

@@ -34,7 +34,7 @@ import { withStyles } from 'tss-react/mui';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
-import { storeHelper } from '../../../actions/Schema';
+import { storeHelper } from '../../../actions/Schema_DEPRECATED';
 import DialogDelete from '../../../components/common/DialogDelete';
 import DialogTest from '../../../components/common/DialogTest';
 import ExportOptionsDialog from '../../../components/common/export/ExportOptionsDialog.js';

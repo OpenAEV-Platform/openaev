@@ -9,10 +9,8 @@ const ImportUploaderEndpoints = () => {
   const { t } = useFormatter();
 
   const handleUpload = (file: FormData) => {
-    return importEndpoints(file, 'ENDPOINTS').then((result) => {
-      if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        navigate(0);
-      }
+    return importEndpoints(file, 'ENDPOINTS').then(() => {
+      navigate(0);
     });
   };
 

@@ -6,7 +6,6 @@ import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useCon
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { exportInjectSearch } from '../../../../actions/injects/inject-action';
 import ChainedTimeline from '../../../../components/ChainedTimeline';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
@@ -22,12 +21,14 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import { type CustomAxiosResponse } from '../../../../network';
 import {
   type Article,
   type Inject,
   type InjectBulkUpdateOperation,
   type InjectExportFromSearchRequestInput,
   type InjectInput,
+  type InjectOutput,
   type InjectTestStatusOutput,
   type SearchPaginationInput,
   type Team,
@@ -120,7 +121,7 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_type',
       label: 'Type',
       isSortable: false,
-      value: (_: InjectOutputType, injectContract: InjectorContractConverted['convertedContent']) => {
+      value: (_: InjectOutput, injectContract: InjectorContractConverted['convertedContent']) => {
         const injectorContractName = tPick(injectContract?.label);
         return injectContract
           ? (
@@ -137,13 +138,13 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_title',
       label: 'Title',
       isSortable: true,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
+      value: (inject: InjectOutput, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
     },
     {
       field: 'inject_domains',
       label: 'Payload domains',
       isSortable: true,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+      value: (inject: InjectOutput, _: InjectorContractConverted['convertedContent']) => {
         return inject.inject_contract_domains?.length
           ? (
               <ItemDomains domains={inject.inject_contract_domains} variant="reduced-view" />
@@ -155,7 +156,7 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_depends_duration',
       label: 'Trigger',
       isSortable: true,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+      value: (inject: InjectOutput, _: InjectorContractConverted['convertedContent']) => {
         const duration = splitDuration(
           inject.inject_depends_duration || 0,
         );
@@ -174,7 +175,7 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_platforms',
       label: 'Platform(s)',
       isSortable: false,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+      value: (inject: InjectOutput, _: InjectorContractConverted['convertedContent']) => (
         <>
           {
             inject.inject_injector_contract?.injector_contract_platforms?.map(
@@ -195,7 +196,7 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_enabled',
       label: 'Status',
       isSortable: false,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
+      value: (inject: InjectOutput, _: InjectorContractConverted['convertedContent']) => {
         let injectStatus = inject.inject_enabled
           ? t('Enabled')
           : t('Disabled');
@@ -217,7 +218,7 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_tags',
       label: 'Tags',
       isSortable: false,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+      value: (inject: InjectOutput, _: InjectorContractConverted['convertedContent']) => (
         <ItemTags
           variant="list"
           tags={inject.inject_tags}
@@ -262,30 +263,24 @@ const Injects: FunctionComponent<Props> = ({
   const [reloadInjectCount, setReloadInjectCount] = useState(0);
 
   // Optimistic update
-  const onCreate = (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => {
-    if (result.entities) {
-      const created = result.entities.injects[result.result];
-      setInjects([created as InjectOutputType, ...injects]);
+  const onCreate = (result: CustomAxiosResponse<Inject>) => {
+    if (result.data) {
+      const created = result.data;
+      setInjects([created as InjectOutput, ...injects]);
       queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + 1);
     }
   };
 
-  const onUpdate = (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => {
-    if (result.entities) {
-      const updatedResults = result.entities.injects[result.result];
-      setInjects(injects.map(i => i.inject_id !== updatedResults.inject_id ? i : updatedResults as InjectOutputType));
+  const onUpdate = (result: CustomAxiosResponse<Inject>) => {
+    if (result.data) {
+      const updatedResults = result.data;
+      setInjects(injects.map(i => i.inject_id !== updatedResults.inject_id ? i : updatedResults as InjectOutput));
     }
   };
 
   const onBulkUpdate = (updatedResults: Inject[]) => {
     setInjects(injects.map((originalInject) => {
-      return updatedResults.find(updatedInject => updatedInject.inject_id === originalInject.inject_id) as unknown as InjectOutputType || originalInject;
+      return updatedResults.find(updatedInject => updatedInject.inject_id === originalInject.inject_id) as unknown as InjectOutput || originalInject;
     }));
   };
 
@@ -297,20 +292,14 @@ const Injects: FunctionComponent<Props> = ({
   };
 
   const onCreateInject = async (data: InjectInput) => {
-    await injectContext.onAddInject(data as Inject).then((result: {
-      result: string;
-      entities: { injects: Record<string, InjectStore> };
-    }) => {
+    await injectContext.onAddInject(data as Inject).then((result) => {
       onCreate(result);
     });
   };
 
-  const onUpdateInject = async (data: Inject) => {
+  const onUpdateInject = async (data: InjectInput) => {
     if (selectedInjectId) {
-      await injectContext.onUpdateInject(selectedInjectId, data).then((result: {
-        result: string;
-        entities: { injects: Record<string, InjectStore> };
-      }) => {
+      await injectContext.onUpdateInject(selectedInjectId, data).then((result) => {
         onUpdate(result);
         return result;
       });
@@ -318,14 +307,11 @@ const Injects: FunctionComponent<Props> = ({
   };
 
   const massUpdateInject = async (data: Inject[]) => {
-    const promises: Promise<InjectStore | undefined>[] = [];
+    const promises: Promise<Inject | undefined>[] = [];
     data.forEach((inject) => {
-      promises.push(injectContext.onUpdateInject(inject.inject_id, inject).then((result: {
-        result: string;
-        entities: { injects: Record<string, InjectStore> };
-      }) => {
-        if (result.entities) {
-          return result.entities.injects[result.result];
+      promises.push(injectContext.onUpdateInject(inject.inject_id, inject as InjectInput).then((result) => {
+        if (result.data) {
+          return result.data;
         }
         return undefined;
       }));
@@ -335,8 +321,8 @@ const Injects: FunctionComponent<Props> = ({
       if (values !== undefined) {
         const updatedInjects = injects
           .map(inject => (values.find(value => value !== undefined && value.inject_id === inject.inject_id)
-            ? (values.find(value => value !== undefined && value?.inject_id === inject.inject_id) as InjectOutputType)
-            : inject as InjectOutputType));
+            ? (values.find(value => value !== undefined && value?.inject_id === inject.inject_id) as InjectOutput)
+            : inject as InjectOutput));
         setInjects(updatedInjects);
       }
     });
@@ -359,7 +345,7 @@ const Injects: FunctionComponent<Props> = ({
     handleToggleSelectAll,
     onToggleEntity,
     numberOfSelectedElements,
-  } = useEntityToggle<InjectOutputType>('inject', injects, queryableHelpers.paginationHelpers.getTotalElements());
+  } = useEntityToggle<InjectOutput>('inject', injects, queryableHelpers.paginationHelpers.getTotalElements());
   const onRowShiftClick = (currentIndex: number, currentEntity: { inject_id: string }, event: SyntheticEvent | null = null) => {
     if (event) {
       event.stopPropagation();
@@ -372,7 +358,7 @@ const Injects: FunctionComponent<Props> = ({
         injects,
       );
       if (currentIndex > firstIndex) {
-        let entities: InjectOutputType[] = [];
+        let entities: InjectOutput[] = [];
         while (firstIndex <= currentIndex) {
           entities = [...entities, injects[firstIndex]];
 
@@ -385,7 +371,7 @@ const Injects: FunctionComponent<Props> = ({
         // @ts-expect-error
         return onToggleEntity(entities, event, forcedRemove);
       }
-      let entities: InjectOutputType[] = [];
+      let entities: InjectOutput[] = [];
       while (firstIndex >= currentIndex) {
         entities = [...entities, injects[firstIndex]];
 
@@ -545,13 +531,13 @@ const Injects: FunctionComponent<Props> = ({
         <div style={{ marginBottom: 10 }}>
           <ChainedTimeline
             injects={injects}
-            onUpdateInject={massUpdateInject}
+            onUpdateInjects={massUpdateInject}
             onTimelineClick={openCreateInjectDrawer}
             onSelectedInject={(inject) => {
-              const injectContract = inject?.inject_injector_contract.convertedContent;
+              const injectContract = inject?.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'];
               const isContractExposed = injectContract?.config.expose;
-              if (injectContract && isContractExposed) {
-                setSelectedInjectId(inject?.inject_id);
+              if (injectContract && isContractExposed && inject?.inject_id) {
+                setSelectedInjectId(inject.inject_id);
               }
             }}
             onCreate={onCreate}
@@ -592,8 +578,8 @@ const Injects: FunctionComponent<Props> = ({
           </ListItem>
           {loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-            : injects.map((inject: InjectOutputType, index) => {
-                const injectContract = inject.inject_injector_contract?.convertedContent;
+            : injects.map((inject: InjectOutput, index) => {
+                const injectContract = inject.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'];
                 const isContractExposed = injectContract?.config.expose;
                 return (
                   <ListItem

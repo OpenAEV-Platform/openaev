@@ -1,13 +1,13 @@
 import { type Edge, type Node, useNodesInitialized, useReactFlow, useStore } from '@xyflow/react';
 import { useEffect } from 'react';
 
-import { type InjectExpectationsStore } from '../../admin/components/common/injects/expectations/Expectation';
+import { type InjectExpectation } from '../api-types';
 import layoutAlgorithms, { type LayoutAlgorithmOptions } from './algorithms';
 import { getSourceHandlePosition, getTargetHandlePosition } from './utils';
 
 export type LayoutOptions = { algorithm: keyof typeof layoutAlgorithms } & LayoutAlgorithmOptions;
 
-function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectationsStore[]) {
+function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectation[]) {
   const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const elements = useStore(
     state => ({
@@ -80,8 +80,6 @@ function compareNodes(xs: Map<string, Node>, ys: Map<string, Node>) {
   // the number of nodes changed, so we already know that the nodes are not equal
   if (xs.size !== ys.size) return false;
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   for (const [id, x] of xs.entries()) {
     const y = ys.get(id);
 

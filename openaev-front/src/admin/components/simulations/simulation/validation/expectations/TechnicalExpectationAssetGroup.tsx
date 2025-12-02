@@ -3,11 +3,10 @@ import { ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type EndpointHelper } from '../../../../../../actions/assets/asset-helper';
 import { type Contract } from '../../../../../../actions/contract/contract';
-import { useHelper } from '../../../../../../store';
-import { type AssetGroup, type Endpoint, type Team } from '../../../../../../utils/api-types';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
+import { getEndpointsMapSelector } from '../../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../../store';
+import { type AssetGroup, type InjectExpectation, type Team } from '../../../../../../utils/api-types';
 import { typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
 import { groupedByAsset } from './ExpectationUtils';
@@ -23,10 +22,10 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props {
-  expectation: InjectExpectationsStore;
+  expectation: InjectExpectation;
   injectContract: Contract;
-  relatedExpectations: InjectExpectationsStore[];
-  team: Team;
+  relatedExpectations: InjectExpectation[];
+  team: Team | undefined;
   assetGroup: AssetGroup;
 }
 
@@ -41,9 +40,7 @@ const TechnicalExpectationAssetGroup: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   // Fetching data
-  const { assetsMap } = useHelper((helper: EndpointHelper) => {
-    return { assetsMap: helper.getEndpointsMap() };
-  });
+  const assetsMap = useSelectorHelper(getEndpointsMapSelector);
 
   return (
     <>
@@ -54,7 +51,7 @@ const TechnicalExpectationAssetGroup: FunctionComponent<Props> = ({
         icon={typeIcon(expectation.inject_expectation_type)}
       />
       {Array.from(groupedByAsset(relatedExpectations)).map(([groupedId, groupedExpectations]) => {
-        const relatedAsset: Endpoint = assetsMap[groupedId];
+        const relatedAsset = assetsMap[groupedId];
         return (
           <div key={relatedAsset?.asset_id}>
             <ListItem
@@ -73,7 +70,7 @@ const TechnicalExpectationAssetGroup: FunctionComponent<Props> = ({
                 )}
               />
             </ListItem>
-            {groupedExpectations.map((e: InjectExpectationsStore) => (
+            {groupedExpectations.map((e: InjectExpectation) => (
               <TechnicalExpectationAsset key={e.inject_expectation_id} expectation={e} injectContract={injectContract} gap={16} />
             ))}
           </div>

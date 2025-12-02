@@ -1,13 +1,13 @@
 import { Route, Routes, useParams } from 'react-router';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import { type LessonsTemplatesHelper } from '../../../../actions/lessons/lesson-helper';
+import { getLessonsTemplateSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import LessonsTemplate from './LessonsTemplate';
@@ -19,7 +19,7 @@ const Index = () => {
   const dispatch = useAppDispatch();
 
   const { lessonsTemplateId } = useParams() as { lessonsTemplateId: string };
-  const { lessonsTemplate } = useHelper((helper: LessonsTemplatesHelper) => ({ lessonsTemplate: helper.getLessonsTemplate(lessonsTemplateId) }));
+  const lessonsTemplate = useSelectorHelper(state => getLessonsTemplateSelector(lessonsTemplateId, state));
   useDataLoader(() => {
     dispatch(fetchLessonsTemplates());
   });

@@ -19,13 +19,13 @@ import * as R from 'ramda';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
+import { getOrganizationsMapSelector, getUsersMapSelector } from '../../../../actions/selectors';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Organization, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -74,13 +74,8 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
 
   const { onAddUsersTeam } = useContext(TeamContext);
 
-  const { usersMap, organizationsMap }: {
-    organizationsMap: Record<string, Organization>;
-    usersMap: Record<string, UserStore>;
-  } = useHelper((helper: UserHelper & OrganizationHelper) => ({
-    usersMap: helper.getUsersMap(),
-    organizationsMap: helper.getOrganizationsMap(),
-  }));
+  const usersMap = useSelectorHelper(getUsersMapSelector);
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
 
   useDataLoader(() => {
     dispatch(fetchPlayers());

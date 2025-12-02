@@ -6,7 +6,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { addOrganization, fetchOrganizations } from '../actions/Organization';
-import { storeHelper } from '../actions/Schema';
+import { storeHelper } from '../actions/Schema_DEPRECATED';
 import OrganizationForm from '../admin/components/teams/organizations/OrganizationForm';
 import Autocomplete from './Autocomplete';
 import inject18n from './i18n';
@@ -51,8 +51,8 @@ class OrganizationField extends Component {
       R.assoc('organization_tags', R.pluck('id', data.organization_tags)),
     )(data);
     this.props.addOrganization(inputValues).then((result) => {
-      if (result.result) {
-        const newOrganization = result.entities.organizations[result.result];
+      if (result.data) {
+        const newOrganization = result.data;
         const organization = {
           id: newOrganization.organization_id,
           label: newOrganization.organization_name,

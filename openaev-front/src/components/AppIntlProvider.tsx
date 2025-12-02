@@ -9,16 +9,14 @@ import { enUS as dateFnsEnUSLocale, es as dateFnsEsLocale, fr as dateFnsFrLocale
 import moment from 'moment';
 import { type FunctionComponent, type ReactElement, useEffect } from 'react';
 import { IntlProvider } from 'react-intl';
+import { useSelector } from 'react-redux';
 
-import { type LoggedHelper } from '../actions/helper';
+import { getPlatformNameSelector, getUserLangSelector } from '../actions/selectors';
 import { DEFAULT_LANG } from '../constants/Lang';
-import { useHelper } from '../store';
 import enOpenAEV from '../utils/lang/en.json';
 import esOpenAEV from '../utils/lang/es.json';
 import frOpenAEV from '../utils/lang/fr.json';
 import zhOpenAEV from '../utils/lang/zh.json';
-
-type Lang = 'en' | 'es' | 'fr' | 'zh';
 
 const dateFnsLocaleMap = {
   en: dateFnsEnUSLocale,
@@ -46,22 +44,12 @@ const momentMap = {
 export let LANG = DEFAULT_LANG;
 
 const AppIntlProvider: FunctionComponent<{ children: ReactElement }> = ({ children }) => {
-  const { platformName, userLang }: {
-    platformName: string;
-    userLang: Lang;
-  } = useHelper((helper: LoggedHelper) => {
-    const platformName = helper.getPlatformName();
-    const userLang = helper.getUserLang();
-
-    return {
-      platformName,
-      userLang,
-    };
-  });
+  const platformName = useSelector(getPlatformNameSelector) as string;
+  const userLang = useSelector(getUserLangSelector) as string;
 
   LANG = userLang;
-  const baseMessages: Record<string, string> = oaevLocaleMap[userLang] || oaevLocaleMap[DEFAULT_LANG];
-  const momentLocale = momentMap[userLang];
+  const baseMessages: Record<string, string> = oaevLocaleMap[userLang as keyof typeof oaevLocaleMap] || oaevLocaleMap[DEFAULT_LANG];
+  const momentLocale = momentMap[userLang as keyof typeof momentMap];
   moment.locale(momentLocale);
   useEffect(() => {
     document.title = platformName;
@@ -82,7 +70,7 @@ const AppIntlProvider: FunctionComponent<{ children: ReactElement }> = ({ childr
     >
       <LocalizationProvider
         dateAdapter={AdapterDateFns}
-        adapterLocale={dateFnsLocaleMap[userLang]}
+        adapterLocale={dateFnsLocaleMap[userLang as keyof typeof dateFnsLocaleMap]}
       >
         {children}
       </LocalizationProvider>

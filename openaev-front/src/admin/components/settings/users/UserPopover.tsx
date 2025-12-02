@@ -1,13 +1,15 @@
 import { useContext, useState } from 'react';
+import { type Dispatch } from 'redux';
 
-import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
+import { getOrganizationsMapSelector, getTagsMapSelector } from '../../../../actions/selectors';
 import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
-import { type UserInputForm, type UserResult } from '../../../../actions/users/users-helper';
+import { type UserInputForm } from '../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { type CustomAxiosResponse } from '../../../../network';
+import { useSelectorHelper } from '../../../../store';
 import { type ChangePasswordInput, type UpdateUserInput, type User, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
@@ -31,16 +33,8 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
 
   const { t } = useFormatter();
 
-  const { organizationsMap, tagsMap } = useHelper(
-    (
-      helper: OrganizationHelper & TagHelper,
-    ) => {
-      return {
-        organizationsMap: helper.getOrganizationsMap(),
-        tagsMap: helper.getTagsMap(),
-      };
-    },
-  );
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
 
   const handleOpenEdit = () => setOpenEdit(true);
 
@@ -53,9 +47,9 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
       user_tags: data.user_tags?.map((tag: Option) => tag.id),
     };
 
-    return dispatch(updateUser(user.user_id, inputValues)).then((result: UserResult) => {
-      if (result?.entities?.users && onUpdate) {
-        const userUpdated = result.entities.users[result.result];
+    return dispatch(updateUser(user.user_id, inputValues) as (dispatch: Dispatch) => Promise<CustomAxiosResponse<User>>).then((result) => {
+      if (result.data && onUpdate) {
+        const userUpdated = result.data;
 
         const orgId = userUpdated.user_organization;
         const org = orgId ? organizationsMap[orgId] : undefined;
@@ -68,7 +62,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
 
         onUpdate(userToUpdate);
       }
-      return result.result ? handleCloseEdit() : result;
+      return result.data ? handleCloseEdit() : result;
     });
   };
 

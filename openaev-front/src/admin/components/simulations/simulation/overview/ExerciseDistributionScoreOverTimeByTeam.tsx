@@ -3,12 +3,11 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { getExerciseInjectExpectationsSelector, getExerciseTeamsSelector, getTeamsMapSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type Exercise, type InjectExpectation, type Team } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { computeTeamsColors } from './DistributionUtils';
 
@@ -20,13 +19,11 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
   const theme = useTheme();
 
   // Fetching data
-  const { injectExpectations, teams, teamsMap } = useHelper((helper: InjectHelper & TeamsHelper) => ({
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-    teams: helper.getExerciseTeams(exerciseId),
-    teamsMap: helper.getTeamsMap(),
-  }));
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
+  const teams = useSelectorHelper(state => getExerciseTeamsSelector(exerciseId, state));
+  const teamsMap = useSelectorHelper(getTeamsMapSelector);
 
-  const teamsColors = computeTeamsColors(teams, theme);
+  const teamsColors = computeTeamsColors(teams as Team[], theme);
 
   let cumulation = 0;
   const teamsScores = R.pipe(

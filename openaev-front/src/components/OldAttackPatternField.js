@@ -6,7 +6,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { addAttackPattern, fetchAttackPatterns } from '../actions/AttackPattern';
-import { storeHelper } from '../actions/Schema';
+import { storeHelper } from '../actions/Schema_DEPRECATED';
 import AttackPatternForm from '../admin/components/settings/attack_patterns/AttackPatternForm';
 import { Can } from '../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types.js';
@@ -50,8 +50,8 @@ class OldAttackPatternField extends Component {
   onSubmit(data) {
     const { name, setFieldValue, values, killChainPhasesMap, useExternalId } = this.props;
     this.props.addAttackPattern(data).then((result) => {
-      if (result.result) {
-        const newAttackPattern = result.entities.attackpatterns[result.result];
+      if (result.data) {
+        const newAttackPattern = result.data;
         const killChainPhase = R.head(newAttackPattern.attack_pattern_kill_chain_phases);
         const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
         const attackPatterns = R.append(

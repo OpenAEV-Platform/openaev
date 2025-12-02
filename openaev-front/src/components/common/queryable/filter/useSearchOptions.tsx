@@ -33,7 +33,7 @@ const useSearchOptions = () => {
 
   const [options, setOptions] = useState<GroupOption[] | Option[]>([]);
 
-  const handleOptions = (response: AxiosResponse<GroupOption[] | Option[]>, defaultValues: GroupOption[] | undefined) => {
+  const handleOptions = (response: AxiosResponse<GroupOption[]> | AxiosResponse<Option[]>, defaultValues: GroupOption[] | undefined) => {
     if (defaultValues && defaultValues.length > 0) {
       setOptions([...defaultValues, ...response.data.map((d: Option) => ({
         ...d,

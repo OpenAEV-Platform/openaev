@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import colorStyles from '../../../../../../components/Color';
 import { useFormatter } from '../../../../../../components/i18n';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
+import { type InjectExpectation } from '../../../../../../utils/api-types';
 
 const useStyles = makeStyles()(() => ({
   chipInList: {
@@ -22,7 +22,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-interface Props { expectation: InjectExpectationsStore }
+interface Props { expectation: InjectExpectation }
 
 const ResultChip: FunctionComponent<Props> = ({ expectation }) => {
   // Standard hooks

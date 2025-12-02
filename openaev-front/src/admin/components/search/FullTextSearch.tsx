@@ -174,7 +174,7 @@ const FullTextSearch = () => {
   const [results, setResults] = useState<Record<string, FullTextSearchCountResult>>({});
 
   useEffect(() => {
-    fullTextSearch(search).then((result: { data: Record<string, FullTextSearchCountResult> }) => {
+    fullTextSearch(search).then((result) => {
       setResults(result.data);
     });
     setSearchPaginationInput(buildSearchPagination({ textSearch: search }));

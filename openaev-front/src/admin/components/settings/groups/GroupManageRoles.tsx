@@ -39,17 +39,13 @@ const GroupManageRoles: FC<GroupManageRolesProps> = (
     );
   };
 
-  const fetchRolesToLoad = () => {
-    return dispatch(fetchRoles())
-      .then((result: { entities: { roles: Record<string, RoleOutput> } }) => {
-        const rolesArray = Object.values(result.entities.roles);
-        setRoles(rolesArray);
-      });
-  };
-
   useEffect(() => {
     if (open) {
-      fetchRolesToLoad();
+      dispatch(fetchRoles())
+        .then((result) => {
+          const rolesArray = Object.values(result.data);
+          setRoles(rolesArray);
+        });
     }
   }, [open]);
 

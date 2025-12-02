@@ -9,13 +9,14 @@ import { searchGroups } from '../../../../actions/Group';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { fetchRoles } from '../../../../actions/roles/roles-actions.js';
 import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
+import { getRolesSelector } from '../../../../actions/selectors';
 import { fetchUsers } from '../../../../actions/users/User.js';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store.js';
+import { useSelectorHelper } from '../../../../store.js';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -72,12 +73,12 @@ const Groups = () => {
   const dispatch = useDispatch();
   const { t } = useFormatter();
 
-  const roles = useHelper(helper => helper.getRoles());
+  const roles = useSelectorHelper(getRolesSelector);
+
   const rolesMap = roles.reduce((acc, r) => {
     if (r?.role_id && r?.role_name) acc[r.role_id] = r.role_name;
     return acc;
   }, {});
-
   useDataLoader(() => {
     dispatch(fetchOrganizations());
     dispatch(fetchUsers());

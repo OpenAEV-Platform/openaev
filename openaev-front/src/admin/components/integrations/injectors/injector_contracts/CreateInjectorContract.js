@@ -82,7 +82,7 @@ class CreateInjectorContract extends Component {
     )(data);
     return this.props
       .addInjectorContract(inputValues)
-      .then(result => (result.result ? this.handleClose() : result));
+      .then(result => (result.data ? this.handleClose() : result));
   }
 
   renderInjectorContracts() {

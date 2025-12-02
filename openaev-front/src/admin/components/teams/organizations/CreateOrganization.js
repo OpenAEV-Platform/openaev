@@ -44,7 +44,7 @@ class CreateOrganization extends Component {
     )(data);
     return this.props
       .addOrganization(inputValues)
-      .then(result => (result.result ? this.handleClose() : result));
+      .then(result => (result.data ? this.handleClose() : result));
   }
 
   render() {

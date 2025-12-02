@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router';
 
 import { updatePlatformParameters } from '../../../../actions/Application';
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
-import type { LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { DASHBOARD_BASE_URL } from '../../../../constants/BaseUrls';
-import { useHelper } from '../../../../store';
-import type { PlatformSettings } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
 import { useAppDispatch } from '../../../../utils/hooks';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
 import updateDefaultDashboardsInParameters from './customDashboardUtils';
@@ -19,7 +18,7 @@ const CustomDashboardCreation: FunctionComponent = () => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   // Drawer
   const [open, setOpen] = useState(false);
@@ -30,7 +29,7 @@ const CustomDashboardCreation: FunctionComponent = () => {
       try {
         const response = await createCustomDashboard(data);
         if (response.data) {
-          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
+          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings!, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
           navigate(`${DASHBOARD_BASE_URL}/${response.data.custom_dashboard_id}`);
         }
       } finally {

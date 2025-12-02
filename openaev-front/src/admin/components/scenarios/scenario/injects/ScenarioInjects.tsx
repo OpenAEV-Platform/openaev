@@ -2,19 +2,14 @@ import { type FunctionComponent, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchScenarioChallenges } from '../../../../../actions/challenge-action';
-import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchScenarioDocuments } from '../../../../../actions/documents/documents-actions';
-import { type ChallengeHelper } from '../../../../../actions/helper';
 import { testInject } from '../../../../../actions/inject_test/scenario-inject-test-actions';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchScenarioTeams } from '../../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { fetchScenarioInjectsSimple } from '../../../../../actions/scenarios/scenario-inject-actions';
-import type { TeamsHelper } from '../../../../../actions/teams/team-helper';
+import { getScenarioArticlesSelector, getScenarioSelector, getScenarioTeamsSelector, getScenarioVariablesSelector } from '../../../../../actions/selectors';
 import { fetchVariablesForScenario } from '../../../../../actions/variables/variable-actions';
-import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
-import { useHelper } from '../../../../../store';
-import { type Scenario } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type Article, type Scenario, type Team } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForScenario from '../../../../../utils/context/endpoint/EndpointContextForScenario';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -38,16 +33,10 @@ const ScenarioInjects: FunctionComponent = () => {
 
   const availableButtons = ['chain', 'list'];
 
-  const { scenario, teams, articles, variables } = useHelper(
-    (helper: InjectHelper & ScenariosHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
-      return {
-        scenario: helper.getScenario(scenarioId),
-        teams: helper.getScenarioTeams(scenarioId),
-        articles: helper.getScenarioArticles(scenarioId),
-        variables: helper.getScenarioVariables(scenarioId),
-      };
-    },
-  );
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
+  const teams = useSelectorHelper(state => getScenarioTeamsSelector(scenarioId, state));
+  const articles = useSelectorHelper(state => getScenarioArticlesSelector(scenarioId, state));
+  const variables = useSelectorHelper(state => getScenarioVariablesSelector(scenarioId, state));
   useDataLoader(() => {
     dispatch(fetchScenarioInjectsSimple(scenarioId));
     dispatch(fetchScenarioTeams(scenarioId));
@@ -56,7 +45,7 @@ const ScenarioInjects: FunctionComponent = () => {
   });
 
   const articleContext = articleContextForScenario(scenarioId);
-  const teamContext = teamContextForScenario(scenarioId, scenario.scenario_teams_users, scenario.scenario_all_users_number, scenario.scenario_users_number);
+  const teamContext = teamContextForScenario(scenarioId, scenario?.scenario_teams_users, scenario?.scenario_all_users_number, scenario?.scenario_users_number);
   const endpointContext = endpointContextForScenario(scenarioId);
   const challengeContext = { fetchChallenges: () => dispatch(fetchScenarioChallenges(scenarioId)) };
 
@@ -84,8 +73,8 @@ const ScenarioInjects: FunctionComponent = () => {
             <ChallengeContext.Provider value={challengeContext}>
               <InjectTestContext.Provider value={injectTestContext}>
                 <Injects
-                  teams={teams}
-                  articles={articles}
+                  teams={teams as Team[]}
+                  articles={articles as Article[]}
                   variables={variables}
                   uriVariable={`/admin/scenarios/${scenarioId}/definition`}
                   setViewMode={handleViewMode}

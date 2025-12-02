@@ -49,13 +49,10 @@ const CreatePlayer: FunctionComponent<CreatePlayerProps> = ({
       user_tags: data.user_tags?.map((tag: Option) => tag.id),
     };
     return dispatch(addPlayer(inputValues)).then(
-      (result: {
-        result: string;
-        entities: { users: Record<string, UserStore> };
-      }) => {
-        if (result.result) {
+      (result) => {
+        if (result.data) {
           if (onCreate) {
-            const created = result.entities.users[result.result];
+            const created = result.data;
             onCreate(created);
           }
           return handleClose();

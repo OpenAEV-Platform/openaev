@@ -3,11 +3,10 @@ import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type LoggedHelper } from '../../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
-import { useHelper } from '../../../../../store';
-import { type PlatformSettings } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
 import { splitDuration } from '../../../../../utils/Time';
 import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
 import { formProps, infoMessage } from './ExpectationFormUtils';
@@ -54,14 +53,14 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { classes } = useStyles();
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
   const [expectationType, setExpectationType] = useState<string>('MANUAL');
 
   const manualExpectationExpirationTime = useExpectationExpirationTime('MANUAL');
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
-      return settings.expectation_manual_default_score_value;
+      return settings?.expectation_manual_default_score_value ?? 100;
     } else {
       return 100;
     }

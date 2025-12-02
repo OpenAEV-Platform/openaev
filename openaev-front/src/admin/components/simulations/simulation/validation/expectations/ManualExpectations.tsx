@@ -4,21 +4,20 @@ import * as R from 'ramda';
 import { type FunctionComponent, type SyntheticEvent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type UserHelper } from '../../../../../../actions/helper';
+import { getUsersMapSelector } from '../../../../../../actions/selectors';
 import { fetchPlayers } from '../../../../../../actions/users/User';
 import colorStyles from '../../../../../../components/Color';
 import Drawer from '../../../../../../components/common/Drawer';
 import ExpandableText from '../../../../../../components/common/ExpendableText';
 import Paper from '../../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../../components/i18n';
-import { useHelper } from '../../../../../../store';
-import { type Inject, type User } from '../../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../../store';
+import { type Inject, type InjectExpectation } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import { computeStatusStyle } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { PermissionsContext } from '../../../../common/Context';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { FAILED } from '../../../../common/injects/expectations/ExpectationUtils';
 import ManualExpectationsValidationForm from './ManualExpectationsValidationForm';
 
@@ -62,7 +61,7 @@ const useStyles = makeStyles()(theme => ({
 
 interface Props {
   inject: Inject;
-  expectations: InjectExpectationsStore[];
+  expectations: InjectExpectation[];
 }
 
 const ManualExpectations: FunctionComponent<Props> = ({
@@ -74,19 +73,17 @@ const ManualExpectations: FunctionComponent<Props> = ({
   const { permissions } = useContext(PermissionsContext);
 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [currentExpectations, setCurrentExpectations] = useState<InjectExpectationsStore[] | null>(null);
+  const [currentExpectations, setCurrentExpectations] = useState<InjectExpectation[] | null>(null);
   const [expanded, setExpanded] = useState<string | false>(false);
 
-  const { usersMap }: { usersMap: Record<string, User> } = useHelper((helper: UserHelper) => {
-    return ({ usersMap: helper.getUsersMap() });
-  });
+  const usersMap = useSelectorHelper(getUsersMapSelector);
   const dispatch = useAppDispatch();
 
   useDataLoader(() => {
     dispatch(fetchPlayers());
   });
 
-  const handleItemClick = (expectationsToUpdate: InjectExpectationsStore[]) => {
+  const handleItemClick = (expectationsToUpdate: InjectExpectation[]) => {
     setSelectedItem(expectationsToUpdate[0]?.inject_expectation_name || null);
     setCurrentExpectations(expectationsToUpdate);
   };
@@ -122,7 +119,7 @@ const ManualExpectations: FunctionComponent<Props> = ({
     }
   }
 
-  const targetLabel = (expectationToProcess: InjectExpectationsStore) => {
+  const targetLabel = (expectationToProcess: InjectExpectation) => {
     if (expectationToProcess.inject_expectation_user && usersMap[expectationToProcess.inject_expectation_user]) {
       return truncate(resolveUserName(usersMap[expectationToProcess.inject_expectation_user]), 22);
     }

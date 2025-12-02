@@ -3,11 +3,11 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchPlatformParameters, updatePlatformPolicies } from '../../../../actions/Application';
-import { type LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type PlatformSettings, type PolicyInput } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type PolicyInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import SecurityMenu from '../SecurityMenu';
@@ -27,15 +27,15 @@ const Policies: FunctionComponent = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
   });
 
   const initialValues = {
-    platform_login_message: settings.platform_policies?.platform_login_message || '',
-    platform_consent_message: settings.platform_policies?.platform_consent_message || '',
-    platform_consent_confirm_text: settings.platform_policies?.platform_consent_confirm_text || '',
+    platform_login_message: settings?.platform_policies?.platform_login_message || '',
+    platform_consent_message: settings?.platform_policies?.platform_consent_message || '',
+    platform_consent_confirm_text: settings?.platform_policies?.platform_consent_confirm_text || '',
   };
 
   const onUpdate = (data: PolicyInput) => {

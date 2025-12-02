@@ -4,7 +4,8 @@ import { useDispatch } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchExercises } from '../actions/Exercise';
-import { useHelper } from '../store';
+import { getExercisesSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import Autocomplete from './Autocomplete';
 
@@ -27,7 +28,7 @@ const useStyles = makeStyles()(() => ({
 const ExerciseField = (props) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
-  const exercises = useHelper(helper => helper.getExercises());
+  const exercises = useSelectorHelper(getExercisesSelector);
   useDataLoader(() => {
     dispatch(fetchExercises());
   });

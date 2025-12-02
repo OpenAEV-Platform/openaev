@@ -3,7 +3,8 @@ import { Box } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchScenarios } from '../actions/scenarios/scenario-actions';
-import { useHelper } from '../store';
+import { getScenariosSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import Autocomplete from './Autocomplete';
@@ -26,7 +27,7 @@ const ScenarioField = (props) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   // Fetching data
-  const scenarios = useHelper(helper => helper.getScenarios());
+  const scenarios = useSelectorHelper(getScenariosSelector);
   useDataLoader(() => {
     dispatch(fetchScenarios());
   });

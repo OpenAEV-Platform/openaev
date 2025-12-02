@@ -5,7 +5,7 @@ import { type MouseEvent as ReactMouseEvent, useContext, useState } from 'react'
 import { storeXlsFile } from '../../../../actions/mapper/mapper-actions';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../../components/i18n';
-import { type ImportMessage, type ImportPostSummary, type ImportTestSummary, type InjectsImportInput } from '../../../../utils/api-types';
+import { type ImportMessage, type ImportPostSummary, type InjectsImportInput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { InjectContext } from '../Context';
 import ImportFileSelector from './ImportFileSelector';
@@ -71,8 +71,8 @@ const InjectImportMenu = ({ onImportedInjects = () => {} }: Props) => {
 
   const onSubmitImportInjects = (input: InjectsImportInput) => {
     if (importId) {
-      injectContext.onImportInjectFromXls?.(importId, input).then((value: ImportTestSummary) => {
-        const criticalMessages = value.import_message?.filter((importMessage: ImportMessage) => importMessage.message_level === 'CRITICAL');
+      injectContext.onImportInjectFromXls?.(importId, input).then((value) => {
+        const criticalMessages = value.data.import_message?.filter((importMessage: ImportMessage) => importMessage.message_level === 'CRITICAL');
         if (criticalMessages && criticalMessages?.length > 0) {
           MESSAGING$.notifyError(t(criticalMessages[0].message_code || 'An unknown error occurred. Please contact your administrator or the OpenAEV maintainers.'), true);
         }

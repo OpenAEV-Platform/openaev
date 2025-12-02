@@ -4,9 +4,9 @@ import { type FunctionComponent, useContext } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchScenarioTeams } from '../../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
+import { getScenarioTeamsSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Scenario, type Team } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -26,7 +26,7 @@ const ScenarioTeams: FunctionComponent<Props> = ({ scenarioTeamsUsers }) => {
 
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const { teamsStore }: { teamsStore: Team[] } = useHelper((helper: ScenariosHelper) => ({ teamsStore: helper.getScenarioTeams(scenarioId) }));
+  const teamsStore = useSelectorHelper(state => getScenarioTeamsSelector(scenarioId, state));
   useDataLoader(() => {
     dispatch(fetchScenarioTeams(scenarioId));
   });
@@ -44,12 +44,12 @@ const ScenarioTeams: FunctionComponent<Props> = ({ scenarioTeamsUsers }) => {
           {permissions.canManage
             && (
               <UpdateTeams
-                addedTeamIds={teamsStore.map((team: Team) => team.team_id)}
+                addedTeamIds={(teamsStore as Team[]).map((team: Team) => team.team_id)}
               />
             )}
         </Typography>
         <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
-          <ContextualTeams teams={teamsStore} />
+          <ContextualTeams teams={teamsStore as Team[]} />
         </Paper>
       </div>
     </TeamContext.Provider>

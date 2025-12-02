@@ -4,11 +4,11 @@ import { type FunctionComponent, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import type { OrganizationHelper } from '../../actions/helper';
 import { addOrganization, fetchOrganizations } from '../../actions/Organization';
+import { getOrganizationsSelector } from '../../actions/selectors';
 import OrganizationForm from '../../admin/components/teams/organizations/OrganizationForm';
-import { useHelper } from '../../store';
-import { type Organization, type OrganizationCreateInput } from '../../utils/api-types';
+import { useSelectorHelper } from '../../store';
+import { type OrganizationCreateInput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import { type Option } from '../../utils/Option';
@@ -38,7 +38,7 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
   const dispatch = useAppDispatch();
   const { control, setValue } = useFormContext();
 
-  const { organizations }: { organizations: Organization[] } = useHelper((helper: OrganizationHelper) => ({ organizations: helper.getOrganizations() }));
+  const organizations = useSelectorHelper(getOrganizationsSelector);
 
   useDataLoader(() => {
     dispatch(fetchOrganizations());
@@ -52,12 +52,9 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
       organization_tags: (data.organization_tags ?? []).map(t => t.id),
     };
 
-    dispatch(addOrganization(inputValues)).then((result: {
-      result: string;
-      entities: { organizations: Record<string, Organization> };
-    }) => {
-      if (result.result) {
-        setValue(name, result.result);
+    dispatch(addOrganization(inputValues)).then((result) => {
+      if (result.normalizedData) {
+        setValue(name, result.normalizedData.result);
         setOpen(false);
       }
     });

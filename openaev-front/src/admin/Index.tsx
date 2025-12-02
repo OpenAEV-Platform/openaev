@@ -8,20 +8,20 @@ import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchAttackPatterns } from '../actions/AttackPattern';
 import fetchDomains from '../actions/domains/domain-actions';
-import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
+import { getLoggedSelector, getPlatformSettingsSelector } from '../actions/selectors';
 import { fetchTags } from '../actions/Tag';
 import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
-import { useHelper } from '../store';
+import { useSelectorHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
-import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
+import { GETTING_STARTED_URI } from './components/getting_started/utils';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
@@ -45,6 +45,7 @@ const IndexAgents = lazy(() => import('./components/agents/Agents'));
 const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_dashboards/Index'));
 const Payloads = lazy(() => import('./components/payloads/Payloads'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
+const GettingStarted = lazy(() => import('./components/getting_started/GettingStartedPage'));
 
 const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSObject }));
 
@@ -54,12 +55,8 @@ const Index = () => {
   const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { logged, settings } = useHelper((helper: LoggedHelper) => {
-    return {
-      logged: helper.logged(),
-      settings: helper.getPlatformSettings(),
-    };
-  });
+  const logged = useSelectorHelper(getLoggedSelector);
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   useEffect(() => {
     if (logged.isOnlyPlayer) {
@@ -79,12 +76,12 @@ const Index = () => {
   };
   // load taxonomies one time at login
   useDataLoader(() => {
-    dispatch(fetchAttackPatterns());
-    dispatch(fetchKillChainPhases());
-    dispatch(fetchTags());
+    dispatch(fetchAttackPatterns);
+    dispatch(fetchKillChainPhases);
+    dispatch(fetchTags);
     dispatch(fetchDomains());
   });
-  const { bannerHeight } = computeBannerSettings(settings);
+  const { bannerHeight } = computeBannerSettings(settings!);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
     if (goToGettingStarted) {
@@ -220,7 +217,7 @@ const Index = () => {
               )}
             />
             <Route path="agents/*" element={errorWrapper(IndexAgents)()} />
-            {GettingStartedRoutes}
+            <Route path={GETTING_STARTED_URI} element={errorWrapper(GettingStarted)()} />
             <Route
               path="settings/*"
               element={(

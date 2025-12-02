@@ -2,14 +2,13 @@ import { Alert, AlertTitle } from '@mui/material';
 import { lazy, useState } from 'react';
 import { Route, Routes, useParams } from 'react-router';
 
-import { type EndpointHelper } from '../../../../../actions/assets/asset-helper';
 import { fetchEndpoint } from '../../../../../actions/assets/endpoint-actions';
+import { getEndpointSelector } from '../../../../../actions/selectors';
 import Breadcrumbs from '../../../../../components/Breadcrumbs';
-import { errorWrapper } from '../../../../../components/Error';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import NotFound from '../../../../../components/NotFound';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type EndpointOverviewOutput as EndpointType } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -25,7 +24,7 @@ const Index = () => {
   const { endpointId } = useParams() as { endpointId: EndpointType['asset_id'] };
 
   // Fetching data
-  const { endpoint } = useHelper((helper: EndpointHelper) => ({ endpoint: helper.getEndpoint(endpointId) }));
+  const endpoint = useSelectorHelper(state => getEndpointSelector(endpointId, state));
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchEndpoint(endpointId)).finally(() => {
@@ -57,7 +56,7 @@ const Index = () => {
             link: '/admin/assets/endpoints',
           },
           {
-            label: endpoint.asset_name,
+            label: endpoint?.asset_name ?? '',
             current: true,
           },
         ]}
@@ -65,7 +64,7 @@ const Index = () => {
       <EndpointHeader />
       <div className="clearfix" />
       <Routes>
-        <Route path="" element={errorWrapper(Endpoint)()} />
+        <Route path="" element={<Endpoint />} />
         {/* Not found */}
         <Route path="*" element={<NotFound />} />
       </Routes>

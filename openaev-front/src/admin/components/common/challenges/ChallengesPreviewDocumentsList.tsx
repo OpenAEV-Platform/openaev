@@ -4,14 +4,14 @@ import { type CSSProperties, type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import type { DocumentHelper } from '../../../../actions/helper';
+import { getDocumentsMapSelector } from '../../../../actions/selectors';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import ItemTags from '../../../../components/ItemTags';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import type { Challenge, Document } from '../../../../utils/api-types';
 import DocumentType from '../../components/documents/DocumentType';
 
@@ -107,7 +107,7 @@ const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChall
 
   const { queryableHelpers } = useQueryableWithLocalStorage('documents', buildSearchPagination({ sorts: initSorting('document_name') }));
 
-  const { documentsMap }: { documentsMap: Record<string, Document> } = useHelper((helper: DocumentHelper) => ({ documentsMap: helper.getDocumentsMap() }));
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
 
   return (
     <List>
@@ -135,7 +135,8 @@ const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChall
       </ListItem>
       {(currentChallenge?.challenge_documents || []).map(
         (documentId) => {
-          const document: Document = documentsMap[documentId] || {};
+          const document = documentsMap[documentId];
+          if (!document) return null;
           return (
             <ListItemButton
               key={document.document_id}

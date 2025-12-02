@@ -2,11 +2,11 @@ import { Card, CardContent, Chip, GridLegacy, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchCollectors } from '../../../actions/Collector';
-import { type CollectorHelper } from '../../../actions/collectors/collector-helper';
+import { getCollectorsSelector } from '../../../actions/selectors';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import SearchFilter from '../../../components/SearchFilter';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type Collector } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -57,7 +57,7 @@ const Collectors = () => {
   );
 
   // Fetching data
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+  const collectors = useSelectorHelper(getCollectorsSelector);
   useDataLoader(() => {
     dispatch(fetchCollectors());
   });

@@ -5,12 +5,12 @@ import { type FunctionComponent, useMemo } from 'react';
 import { FormProvider, type SubmitErrorHandler, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import type { LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type CustomDashboardInput, type PlatformSettings } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type CustomDashboardInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import GeneralFormTab from './form/GeneralFormTab';
 import ParametersTab from './form/ParametersTab';
@@ -44,7 +44,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   const parametersSchema = z.object({
     custom_dashboards_parameter_id: z.string().optional(),
@@ -70,9 +70,9 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
     resolver: zodResolver(validationSchema),
     defaultValues: {
       ...initialValues,
-      is_default_home_dashboard: editing && settings.platform_home_dashboard === customDashboardId,
-      is_default_scenario_dashboard: editing && settings.platform_scenario_dashboard === customDashboardId,
-      is_default_simulation_dashboard: editing && settings.platform_simulation_dashboard === customDashboardId,
+      is_default_home_dashboard: editing && settings?.platform_home_dashboard === customDashboardId,
+      is_default_scenario_dashboard: editing && settings?.platform_scenario_dashboard === customDashboardId,
+      is_default_simulation_dashboard: editing && settings?.platform_simulation_dashboard === customDashboardId,
     },
   });
 
@@ -122,9 +122,9 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
           <GeneralFormTab
             initialDefaultDashboardIds={
               {
-                home: settings.platform_home_dashboard,
-                scenario: settings.platform_scenario_dashboard,
-                simulation: settings.platform_simulation_dashboard,
+                home: settings?.platform_home_dashboard,
+                scenario: settings?.platform_scenario_dashboard,
+                simulation: settings?.platform_simulation_dashboard,
               }
             }
           />

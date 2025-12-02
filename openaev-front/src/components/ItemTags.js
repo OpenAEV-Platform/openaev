@@ -5,7 +5,8 @@ import * as R from 'ramda';
 import { forwardRef, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { useHelper } from '../store';
+import { getTagsSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import { hexToRGB } from '../utils/Colors';
 import { getLabelOfRemainingItems, getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
 import { useFormatter } from './i18n';
@@ -50,10 +51,7 @@ const ItemTags = (props) => {
     style = `${classes.tag} ${classes.tagInList}`;
     truncateLimit = 6;
   }
-  const { allTags } = useHelper((helper) => {
-    const allTags = helper.getTags();
-    return { allTags };
-  });
+  const allTags = useSelectorHelper(getTagsSelector);
   const resolvedTags = useMemo(() => allTags.filter(tag => (tags ?? []).includes(tag.tag_id)), [allTags, tags]);
   const orderedTags = R.sortWith([R.ascend(R.prop('tag_name'))], resolvedTags);
 

@@ -27,14 +27,11 @@ const CreateLessonsTemplate: FunctionComponent<Props> = ({
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
   const onSubmit = (data: LessonsTemplateInput) => {
-    return dispatch(addLessonsTemplate(data)).then((result: {
-      result: string;
-      entities: { lessonstemplates: Record<string, LessonsTemplate> };
-    }) => {
-      if (result.result) {
+    return dispatch(addLessonsTemplate(data)).then((result) => {
+      if (result.data) {
         if (onCreate) {
-          const created = result.entities.lessonstemplates[result.result];
-          onCreate(created);
+          const created = result.data;
+          onCreate(created as LessonsTemplate);
         }
         return handleClose();
       }

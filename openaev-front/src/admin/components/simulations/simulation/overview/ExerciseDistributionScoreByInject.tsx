@@ -3,10 +3,10 @@ import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import { getExerciseInjectExpectationsSelector, getInjectsMapSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Exercise, type Inject, type InjectExpectation } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 
@@ -18,10 +18,8 @@ const ExerciseDistributionScoreByInject: FunctionComponent<Props> = ({ exerciseI
   const theme = useTheme();
 
   // Fetching data
-  const { injectsMap, injectExpectations } = useHelper((helper: InjectHelper) => ({
-    injectsMap: helper.getInjectsMap(),
-    injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
-  }));
+  const injectsMap = useSelectorHelper(getInjectsMapSelector);
+  const injectExpectations = useSelectorHelper(state => getExerciseInjectExpectationsSelector(exerciseId, state));
 
   const injectsTotalScores = R.pipe(
     R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results)),

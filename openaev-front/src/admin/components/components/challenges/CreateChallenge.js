@@ -37,9 +37,9 @@ const CreateChallenge = (props) => {
       R.assoc('challenge_tags', R.pluck('id', data.challenge_tags)),
     )(data);
     return dispatch(addChallenge(inputValues)).then((result) => {
-      if (result.result) {
+      if (result.normalizedData.result) {
         if (onCreate) {
-          onCreate(result.result);
+          onCreate(result.normalizedData.result);
         }
         return handleClose();
       }

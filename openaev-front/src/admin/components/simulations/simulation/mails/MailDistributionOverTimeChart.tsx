@@ -4,10 +4,10 @@ import { type FunctionComponent } from 'react';
 import Chart from 'react-apexcharts';
 
 import { fetchExerciseCommunications } from '../../../../../actions/Communication';
-import { type CommunicationHelper } from '../../../../../actions/communications/communication-helper';
+import { getExerciseCommunicationsSelector } from '../../../../../actions/selectors';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Communication, type Exercise } from '../../../../../utils/api-types';
 import { areaChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -22,7 +22,7 @@ const MailDistributionOverTimeChart: FunctionComponent<Props> = ({ exerciseId })
   const theme = useTheme();
 
   // Fetching data
-  const { communications } = useHelper((helper: CommunicationHelper) => ({ communications: helper.getExerciseCommunications(exerciseId) }));
+  const communications = useSelectorHelper(state => getExerciseCommunicationsSelector(exerciseId, state));
   useDataLoader(() => {
     dispatch(fetchExerciseCommunications(exerciseId));
   });

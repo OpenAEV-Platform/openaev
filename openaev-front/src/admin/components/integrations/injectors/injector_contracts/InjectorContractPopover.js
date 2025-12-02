@@ -36,9 +36,9 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
       R.dissoc('injector_contract_attack_patterns'),
     )(data);
     return dispatch(updateInjectorContractMapping(injectorContract.injector_contract_id, inputValues)).then((result) => {
-      if (result.entities) {
+      if (result.data) {
         if (onUpdate) {
-          const updated = result.entities.injector_contracts[result.result];
+          const updated = result.data;
           onUpdate(updated);
         }
       }
@@ -68,9 +68,9 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
       R.dissoc('injector_contract_attack_patterns'),
     )(data);
     return dispatch(updateInjectorContract(injectorContract.injector_contract_id, inputValues)).then((result) => {
-      if (result.entities) {
+      if (result.data) {
         if (onUpdate) {
-          const updated = result.entities.injector_contracts[result.result];
+          const updated = result.data;
           onUpdate(updated);
         }
       }

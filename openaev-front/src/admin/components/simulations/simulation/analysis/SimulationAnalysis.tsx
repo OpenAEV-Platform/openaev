@@ -7,8 +7,8 @@ import {
   countBySimulation,
   entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation, widgetToEntitiesBySimulation,
 } from '../../../../../actions/exercises/exercise-action';
-import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { useHelper } from '../../../../../store';
+import { getExerciseSelector } from '../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../store';
 import {
   type CustomDashboard,
   type Exercise,
@@ -28,11 +28,10 @@ const SimulationAnalysis = () => {
   const ability = useContext(AbilityContext);
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
-  const exercise = useHelper((helper: ExercisesHelper) => {
-    return helper.getExercise(exerciseId);
-  });
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
 
   const handleSelectNewDashboard = (dashboardId: string) => {
+    if (!exercise) return;
     dispatch(updateExercise(exercise.exercise_id, {
       ...exercise,
       exercise_custom_dashboard: dashboardId,
@@ -48,7 +47,7 @@ const SimulationAnalysis = () => {
         value = exerciseId;
         hidden = true;
       } else if ('scenario' === p.custom_dashboards_parameter_type) {
-        value = exercise.exercise_scenario ?? '';
+        value = exercise?.exercise_scenario ?? '';
         hidden = true;
       } else if ('timeRange' === p.custom_dashboards_parameter_type) {
         value = ALL_TIME_TIME_RANGE;

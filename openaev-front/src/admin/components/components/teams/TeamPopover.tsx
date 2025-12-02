@@ -1,17 +1,15 @@
 import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
-import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
+import { getOrganizationsMapSelector, getTagsMapSelector } from '../../../../actions/selectors';
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { deleteTeam, updateTeam } from '../../../../actions/teams/team-actions';
-import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Team, type TeamOutput, type TeamUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
@@ -43,16 +41,8 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { organizationsMap, tagsMap } = useHelper(
-    (
-      helper: ExercisesHelper & TeamsHelper & OrganizationHelper & TagHelper,
-    ) => {
-      return {
-        organizationsMap: helper.getOrganizationsMap(),
-        tagsMap: helper.getTagsMap(),
-      };
-    },
-  );
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
 
   const { onRemoveTeam } = useContext(TeamContext);
 
@@ -75,13 +65,10 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
       team_tags: data.team_tags?.map((tag: Option) => tag.id),
     };
     return dispatch(updateTeam(team.team_id, inputValues)).then(
-      (result: {
-        result: string;
-        entities: { teams: Record<string, Team> };
-      }) => {
-        if (result.entities) {
+      (result) => {
+        if (result.data) {
           if (onUpdate) {
-            const updated = result.entities.teams[result.result];
+            const updated = result.data;
             onUpdate(updated);
           }
         }

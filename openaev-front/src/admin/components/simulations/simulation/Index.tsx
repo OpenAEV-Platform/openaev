@@ -5,13 +5,13 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
-import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { getExerciseSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Exercise as ExerciseType } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -193,7 +193,7 @@ const Index = () => {
   const dispatch = useAppDispatch();
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  const exercise = useSelectorHelper(state => getExerciseSelector(exerciseId, state));
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchExercise(exerciseId)).finally(() => {
@@ -216,7 +216,7 @@ const Index = () => {
     }
   }, [exercise]);
 
-  const exerciseInjectContext = injectContextForExercise(exercise);
+  const exerciseInjectContext = injectContextForExercise(exercise!);
 
   // avoid to show loader if something trigger useDataLoader
   if (pristine && loading) {
@@ -232,7 +232,7 @@ const Index = () => {
   }
   return (
     <InjectContext.Provider value={exerciseInjectContext}>
-      <IndexComponent exercise={exercise} />
+      <IndexComponent exercise={exercise!} />
     </InjectContext.Provider>
   );
 };

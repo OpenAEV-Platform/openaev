@@ -75,7 +75,7 @@ export type EnhancedContractElement = ContractElement & {
   };
 };
 
-export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent'> & {
+export type InjectorContractConverted = Omit<ApiTypes.InjectorContract, 'convertedContent'> & {
   convertedContent: {
     fields: ContractElement[];
     contract_id: string;

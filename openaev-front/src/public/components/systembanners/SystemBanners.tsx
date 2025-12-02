@@ -46,11 +46,11 @@ const useStyles = makeStyles()((theme) => ({
 /* end banner classes needing eslint-disable */
 /* eslint-enable */
 
-const SystemBanners = (settings: { settings: PlatformSettings }) => {
+const SystemBanners = ({ settings }: { settings?: PlatformSettings }) => {
   // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const bannerLevel = computeBanners(settings.settings);
+  const bannerLevel = computeBanners(settings);
   let numberOfElements = 0;
   if (bannerLevel !== undefined) {
     for (const currentBannerLevel of recordEntries(bannerLevel)) {

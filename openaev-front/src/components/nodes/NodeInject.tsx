@@ -5,9 +5,11 @@ import moment from 'moment';
 import { memo, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type InjectOutputType, type InjectStore } from '../../actions/injects/Inject';
 import InjectIcon from '../../admin/components/common/injects/InjectIcon';
 import InjectPopover from '../../admin/components/common/injects/InjectPopover';
+import { type CustomAxiosResponse } from '../../network';
+import { type Inject, type InjectOutput } from '../../utils/api-types';
+import { type InjectorContractConverted } from '../../utils/api-types-custom';
 import { isNotEmptyField } from '../../utils/utils';
 import { useFormatter } from '../i18n';
 
@@ -84,7 +86,7 @@ export type NodeInject = Node<{
   isTargeted?: boolean;
   isTargeting?: boolean;
   onConnectInjects?: OnConnect;
-  inject?: InjectOutputType;
+  inject?: InjectOutput;
   fixedY?: number;
   startDate?: string;
   targets: string[];
@@ -92,15 +94,9 @@ export type NodeInject = Node<{
     topLeft: XYPosition;
     bottomRight: XYPosition;
   };
-  onSelectedInject(inject?: InjectOutputType): void;
-  onCreate: (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => void;
-  onUpdate: (result: {
-    result: string;
-    entities: { injects: Record<string, InjectStore> };
-  }) => void;
+  onSelectedInject(inject?: InjectOutput): void;
+  onCreate: (result: CustomAxiosResponse<Inject>) => void;
+  onUpdate: (result: CustomAxiosResponse<Inject>) => void;
   onDelete: (result: string) => void;
 }
 
@@ -160,9 +156,9 @@ const NodeInjectComponent = ({ data }: NodeProps<NodeInject>) => {
     if (data.inject) data.onSelectedInject(data.inject);
   };
 
-  const isDisabled = !data.inject?.inject_injector_contract?.convertedContent?.config.expose;
+  const isDisabled = !(data.inject?.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'])?.config.expose;
 
-  const dimNode = !data.inject?.inject_enabled || !data.inject?.inject_injector_contract?.convertedContent?.config.expose;
+  const dimNode = !data.inject?.inject_enabled || !(data.inject?.inject_injector_contract?.convertedContent as InjectorContractConverted['convertedContent'])?.config.expose;
 
   let borderLeftColor = theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
   if (!data.inject?.inject_enabled) {

@@ -4,10 +4,10 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type InjectorContractHelper } from '../../../../../actions/injector_contracts/injector-contract-helper';
 import { fetchInjectorContract } from '../../../../../actions/InjectorContracts';
-import { useHelper } from '../../../../../store.js';
-import { type Exercise, type InjectorContract } from '../../../../../utils/api-types';
+import { getInjectorContractSelector } from '../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../store.js';
+import { type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks.js';
 import { PermissionsContext } from '../../../common/Context';
 import QuickInject, { EMAIL_CONTRACT } from './QuickInject';
@@ -34,8 +34,7 @@ const CreateQuickInject: FunctionComponent<Props> = ({ exercise }) => {
   const { permissions } = useContext(PermissionsContext);
 
   const [open, setOpen] = useState(false);
-  const { injectorContract }: { injectorContract: InjectorContract }
-    = useHelper((helper: InjectorContractHelper) => ({ injectorContract: helper.getInjectorContract(EMAIL_CONTRACT) }));
+  const injectorContract = useSelectorHelper(state => getInjectorContractSelector(EMAIL_CONTRACT, state));
   useEffect(() => {
     dispatch(fetchInjectorContract(EMAIL_CONTRACT));
   }, []);

@@ -105,8 +105,6 @@ const d3HierarchyLayout: LayoutAlgorithm = async (nodes, edges, options) => {
   // looking up a node's position later on.
   const root = layout(hierarchy);
   const layoutNodes = new Map<string, HierarchyPointNode<NodeWithPosition>>();
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   for (const node of root) {
     layoutNodes.set(node.id!, node);
   }

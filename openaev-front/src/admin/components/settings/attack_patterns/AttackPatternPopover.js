@@ -35,7 +35,7 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
     )(data);
     return dispatch(updateAttackPattern(attackPattern.attack_pattern_id, inputValues)).then((result) => {
       if (onUpdate) {
-        const attackPatternUpdated = result.entities.attackpatterns[result.result];
+        const attackPatternUpdated = result.data;
         onUpdate(attackPatternUpdated);
       }
       handleCloseEdit();

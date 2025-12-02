@@ -1,12 +1,8 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
 
-import { addScenarioEvaluation, fetchScenarioEvaluations, updateScenarioEvaluation } from '../../../../../actions/Evaluation';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type UserHelper } from '../../../../../actions/helper';
-import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import { type LessonsTemplatesHelper } from '../../../../../actions/lessons/lesson-helper';
-import { addScenarioObjective, deleteScenarioObjective, fetchScenarioObjectives, updateScenarioObjective } from '../../../../../actions/Objective';
+import { addScenarioEvaluation, fetchScenarioEvaluations, updateScenarioEvaluation } from '../../../../../actions/evaluation';
+import { addScenarioObjective, deleteScenarioObjective, fetchScenarioObjectives, updateScenarioObjective } from '../../../../../actions/objective';
 import {
   addLessonsCategory,
   addLessonsQuestion,
@@ -22,10 +18,10 @@ import {
   updateLessonsQuestion,
   updateScenarioLessons,
 } from '../../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
+import { getLessonsTemplatesSelector, getScenarioLessonsCategoriesSelector, getScenarioLessonsQuestionsSelector, getScenarioObjectivesSelector, getScenarioSelector, getScenarioTeamsSelector, getTeamsMapSelector } from '../../../../../actions/selectors';
 import { fetchTeams } from '../../../../../actions/teams/team-actions';
-import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
-import { useHelper } from '../../../../../store';
+import Loader from '../../../../../components/Loader';
+import { useSelectorHelper } from '../../../../../store';
 import {
   type EvaluationInput,
   type LessonsCategoryCreateInput,
@@ -56,26 +52,13 @@ const ScenarioLessons = () => {
     };
   };
 
-  const {
-    scenario,
-    objectives,
-    teams,
-    teamsMap,
-    lessonsCategories,
-    lessonsQuestions,
-    lessonsTemplates,
-  } = useHelper((helper: ExercisesHelper & InjectHelper & LessonsTemplatesHelper & ScenariosHelper & TeamsHelper & UserHelper) => {
-    const scenarioData = helper.getScenario(scenarioId);
-    return {
-      scenario: scenarioData,
-      objectives: helper.getScenarioObjectives(scenarioId),
-      lessonsCategories: helper.getScenarioLessonsCategories(scenarioId),
-      lessonsQuestions: helper.getScenarioLessonsQuestions(scenarioId),
-      lessonsTemplates: helper.getLessonsTemplates(),
-      teamsMap: helper.getTeamsMap(),
-      teams: helper.getScenarioTeams(scenarioId),
-    };
-  });
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
+  const objectives = useSelectorHelper(state => getScenarioObjectivesSelector(scenarioId, state));
+  const teams = useSelectorHelper(state => getScenarioTeamsSelector(scenarioId, state));
+  const teamsMap = useSelectorHelper(getTeamsMapSelector);
+  const lessonsCategories = useSelectorHelper(state => getScenarioLessonsCategoriesSelector(scenarioId, state));
+  const lessonsQuestions = useSelectorHelper(state => getScenarioLessonsQuestionsSelector(scenarioId, state));
+  const lessonsTemplates = useSelectorHelper(getLessonsTemplatesSelector);
   useDataLoader(() => {
     dispatch(fetchTeams());
     dispatch(fetchPlayersByScenario(scenarioId));
@@ -86,7 +69,7 @@ const ScenarioLessons = () => {
   });
 
   const source = useMemo(
-    () => processToGenericSource(scenario),
+    () => scenario && processToGenericSource(scenario),
     [scenario],
   );
 
@@ -127,6 +110,10 @@ const ScenarioLessons = () => {
     onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => dispatch(updateScenarioEvaluation(scenarioId, objectiveId, evaluationId, data)),
     onFetchEvaluation: (objectiveId: string) => dispatch(fetchScenarioEvaluations(scenarioId, objectiveId)),
   };
+
+  if (!source) {
+    return <Loader variant="inElement" />;
+  }
 
   return (
     <LessonContext.Provider value={context}>

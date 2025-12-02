@@ -4,11 +4,8 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
-import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
-import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
+import { getAttackPatternsMapSelector, getAttackPatternsSelector, getKillChainPhasesMapSelector } from '../../../../actions/selectors';
 import Drawer from '../../../../components/common/Drawer';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -18,12 +15,13 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemDomains from '../../../../components/ItemDomains';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import {
   type Article,
   type AtomicTestingInput,
   type AttackPattern,
   type FilterGroup,
+  type Inject,
   type InjectInput,
   type InjectorContract,
   type InjectorContractFullOutput,
@@ -99,11 +97,9 @@ const CreateInject: FunctionComponent<Props> = ({
   const { injects, setInjects } = injectContext;
 
   // Fetching data
-  const { attackPatterns, attackPatternsMap, killChainPhasesMap } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & InjectorHelper) => ({
-    attackPatterns: helper.getAttackPatterns(),
-    attackPatternsMap: helper.getAttackPatternsMap(),
-    killChainPhasesMap: helper.getKillChainPhasesMap(),
-  }));
+  const attackPatterns = useSelectorHelper(getAttackPatternsSelector);
+  const attackPatternsMap = useSelectorHelper(getAttackPatternsMapSelector);
+  const killChainPhasesMap = useSelectorHelper(getKillChainPhasesMapSelector);
 
   // Headers
   const headers: Header[] = useMemo(() => [
@@ -268,17 +264,10 @@ const CreateInject: FunctionComponent<Props> = ({
     return onToggleEntity(currentEntity, event);
   };
 
-  const onCreateAll = (result: {
-    result: string[];
-    entities: { injects: Record<string, InjectStore> };
-  }) => {
-    if (result.entities) {
-      const created: InjectOutputType[] = [];
-      result.result.map((r: string) => {
-        created.push(result.entities.injects[r]);
-      });
-      setInjects([...created, ...injects]);
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + created.length);
+  const onCreateAll = (data: Inject[]) => {
+    if (data) {
+      setInjects([...data, ...injects]);
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + data.length);
     }
   };
 
@@ -309,11 +298,8 @@ const CreateInject: FunctionComponent<Props> = ({
   };
 
   const onCreateMultipleInjectsInject = async (data: InjectInput[]) => {
-    await injectContext.onAddMultipleInjects(data).then((result: {
-      result: string[];
-      entities: { injects: Record<string, InjectStore> };
-    }) => {
-      onCreateAll(result);
+    await injectContext.onAddMultipleInjects(data).then((result) => {
+      onCreateAll(result.data);
       handleCloseDrawer();
     });
   };

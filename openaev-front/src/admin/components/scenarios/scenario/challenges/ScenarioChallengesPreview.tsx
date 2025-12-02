@@ -4,11 +4,10 @@ import { useParams } from 'react-router';
 import { fetchMe } from '../../../../../actions/Application';
 import { fetchScenarioObserverChallenges } from '../../../../../actions/challenge-action';
 import { fetchScenarioPlayerDocuments } from '../../../../../actions/Document';
-import { type ScenarioChallengesReaderHelper } from '../../../../../actions/helper';
 import { fetchScenario } from '../../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
-import { useHelper } from '../../../../../store';
-import { type Scenario as ScenarioType, type ScenarioChallengesReader } from '../../../../../utils/api-types';
+import { getScenarioChallengesReaderSelector } from '../../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../../store';
+import { type Scenario as ScenarioType } from '../../../../../utils/api-types';
 import { useQueryParameter } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useScenarioPermissions from '../../../../../utils/permissions/useScenarioPermissions';
@@ -19,10 +18,7 @@ const ScenarioChallengesPreview = () => {
   const dispatch = useAppDispatch();
 
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
-  const { challengesReader }: { challengesReader: ScenarioChallengesReader } = useHelper((helper: ScenarioChallengesReaderHelper & ScenariosHelper) => ({
-    fullScenario: helper.getScenario(scenarioId),
-    challengesReader: helper.getScenarioChallengesReader(scenarioId),
-  }));
+  const challengesReader = useSelectorHelper(state => getScenarioChallengesReaderSelector(scenarioId, state));
 
   const { scenario_information: scenario, scenario_challenges: challenges } = challengesReader ?? {};
 

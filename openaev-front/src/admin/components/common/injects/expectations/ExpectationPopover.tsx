@@ -1,13 +1,13 @@
 import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
-import { type LoggedHelper } from '../../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../../actions/selectors';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
-import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../../store';
+import { type InjectExpectation } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { PermissionsContext } from '../../Context';
@@ -31,7 +31,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   handleDelete,
 }) => {
   // Standard hooks
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
   const { t } = useFormatter();
   const { permissions, inherited_context } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
@@ -52,7 +52,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
     expectation_type: expectation.expectation_type ?? '',
     expectation_name: expectation.expectation_name ?? '',
     expectation_description: expectation.expectation_description ?? '',
-    expectation_score: expectation.expectation_score ?? settings.expectation_manual_default_score_value,
+    expectation_score: expectation.expectation_score ?? settings?.expectation_manual_default_score_value,
     expectation_expectation_group: expectation.expectation_expectation_group ?? false,
     expectation_expiration_time: getExpirationTime(expectation.expectation_expiration_time),
   };

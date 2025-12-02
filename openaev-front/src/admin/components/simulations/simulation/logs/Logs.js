@@ -8,10 +8,11 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { addLog, fetchLogs } from '../../../../../actions/Log';
-import { fetchExerciseObjectives } from '../../../../../actions/Objective';
+import { fetchExerciseObjectives } from '../../../../../actions/objective';
+import { getExerciseLogsSelector, getUsersMapSelector } from '../../../../../actions/selectors';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context.js';
@@ -42,12 +43,8 @@ const Logs = () => {
   const bottomRef = useRef(null);
   // Fetching data
   const { exerciseId } = useParams();
-  const { logs, usersMap } = useHelper((helper) => {
-    return {
-      logs: helper.getExerciseLogs(exerciseId),
-      usersMap: helper.getUsersMap(),
-    };
-  });
+  const logs = useSelectorHelper(state => getExerciseLogsSelector(exerciseId, state));
+  const usersMap = useSelectorHelper(getUsersMapSelector);
   useDataLoader(() => {
     dispatch(fetchExerciseObjectives(exerciseId));
     dispatch(fetchLogs(exerciseId));
@@ -68,7 +65,7 @@ const Logs = () => {
       R.assoc('log_tags', R.pluck('id', data.log_tags)),
     )(data);
     return dispatch(addLog(exerciseId, inputValues)).then((result) => {
-      if (result.result) {
+      if (result.data) {
         action.reset();
         action.resetFieldState('log_title');
         action.resetFieldState('log_content');

@@ -41,12 +41,9 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   const handleOpenDuplicate = () => setDuplicate(true);
   const handleCloseDuplicate = () => setDuplicate(false);
   const submitDuplicate = () => {
-    dispatch(duplicateScenario(scenario.scenario_id)).then((result: {
-      result: string;
-      entities: { scenarios: Record<string, Scenario> };
-    }) => {
+    dispatch(duplicateScenario(scenario.scenario_id)).then((result) => {
       handleCloseDuplicate();
-      navigate(`/admin/scenarios/${result.result}`);
+      navigate(`/admin/scenarios/${result.normalizedData.result}`);
     });
   };
 

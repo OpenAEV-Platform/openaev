@@ -20,24 +20,20 @@ const Index = () => {
   const { t } = useFormatter();
   const { injectId } = useParams() as { injectId: InjectResultOverviewOutput['inject_id'] };
 
-  const [pristine, setPristine] = useState(true);
   const [loading, setLoading] = useState(true);
   const [injectResultOverviewOutput, setInjectResultOverviewOutput] = useState<InjectResultOverviewOutput>();
 
   useEffect(() => {
-    setLoading(true);
-    fetchInjectResultOverviewOutput(injectId).then((result: { data: InjectResultOverviewOutput }) => {
+    fetchInjectResultOverviewOutput(injectId).then((result) => {
       setInjectResultOverviewOutput(result.data);
     }).finally(() => {
       setLoading(false);
-      setPristine(false);
     });
   }, [injectId]);
 
   useEffect(() => {
     const subscription = interval$.subscribe(() => {
-      setLoading(true);
-      fetchInjectResultOverviewOutput(injectId).then((result: { data: InjectResultOverviewOutput }) => {
+      fetchInjectResultOverviewOutput(injectId).then((result) => {
         if (result.data.inject_updated_at !== injectResultOverviewOutput?.inject_updated_at) {
           setInjectResultOverviewOutput(result.data);
         }
@@ -45,13 +41,12 @@ const Index = () => {
         subscription.unsubscribe();
       }).finally(() => {
         setLoading(false);
-        setPristine(false);
       });
     });
     return () => {
       subscription.unsubscribe();
     };
-  }, [injectResultOverviewOutput]);
+  }, [injectResultOverviewOutput, setLoading]);
 
   const updateInjectResultOverviewOutput = () => {
     fetchInjectResultOverviewOutput(injectId).then((result: { data: InjectResultOverviewOutput }) => {
@@ -59,7 +54,7 @@ const Index = () => {
     });
   };
 
-  if (pristine && loading) return <Loader />;
+  if (loading) return <Loader />;
 
   if (!injectResultOverviewOutput) {
     return (

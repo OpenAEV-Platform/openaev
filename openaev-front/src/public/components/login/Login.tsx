@@ -5,13 +5,14 @@ import Markdown from 'react-markdown';
 import { makeStyles } from 'tss-react/mui';
 
 import { askToken, checkKerberos } from '../../../actions/Application';
-import { type LoggedHelper } from '../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../actions/selectors';
 import { useFormatter } from '../../../components/i18n';
+import Loader from '../../../components/Loader';
 import byFiligranDark from '../../../static/images/by_filigran_dark.png';
 import byFiligranLight from '../../../static/images/by_filigran_light.png';
 import logoDark from '../../../static/images/logo_text_dark.png';
 import logoLight from '../../../static/images/logo_text_light.png';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { fileUri } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -54,19 +55,17 @@ const Login = () => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const { settings } = useHelper((helper: LoggedHelper) => {
-    return { settings: helper.getPlatformSettings() };
-  });
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
 
   const {
     auth_openid_enable: isOpenId,
     auth_saml2_enable: isSaml2,
     auth_local_enable: isLocal,
-  } = settings;
+  } = settings ?? {};
   const {
     platform_openid_providers: openidProviders,
     platform_saml2_providers: saml2Providers,
-  } = settings;
+  } = settings ?? {};
   const [reset, setReset] = useState(false);
   const [dimension, setDimension] = useState({
     width: window.innerWidth,
@@ -100,13 +99,13 @@ const Login = () => {
     ? settings?.platform_dark_theme?.logo_login_url
     : settings?.platform_light_theme?.logo_login_url;
 
-  const isWhitemarkEnable = settings.platform_whitemark === 'true'
-    && settings.platform_license?.license_is_validated === true;
+  const isWhitemarkEnable = settings?.platform_whitemark === 'true'
+    && settings?.platform_license?.license_is_validated === true;
 
   // POLICIES
-  const loginMessage = settings.platform_policies?.platform_login_message;
-  const consentMessage = settings.platform_policies?.platform_consent_message;
-  const consentConfirmText = settings.platform_policies?.platform_consent_confirm_text
+  const loginMessage = settings?.platform_policies?.platform_login_message;
+  const consentMessage = settings?.platform_policies?.platform_consent_message;
+  const consentConfirmText = settings?.platform_policies?.platform_consent_confirm_text
     ? settings.platform_policies.platform_consent_confirm_text
     : t('I have read and comply with the above statement');
   const isLoginMessage = isNotEmptyField(loginMessage);
@@ -135,6 +134,7 @@ const Login = () => {
         className={classes.logo}
         style={{ marginBottom: isWhitemarkEnable ? 20 : 0 }}
       />
+      {!Object.keys(settings ?? {}).length && <Loader />}
       {!isWhitemarkEnable && (
         <div style={{ marginBottom: 20 }}>
           <img
@@ -198,8 +198,8 @@ const Login = () => {
               provider => (
                 <LoginSSOButton
                   key={provider.provider_name}
-                  providerName={provider.provider_login}
-                  providerUri={provider.provider_uri}
+                  providerName={provider.provider_login ?? ''}
+                  providerUri={provider.provider_uri ?? ''}
                 />
               ),
             )}

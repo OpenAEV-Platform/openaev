@@ -6,10 +6,10 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type ContractVariable } from '../../../../../actions/contract/contract';
-import { type UserHelper } from '../../../../../actions/helper';
+import { getMeSelector } from '../../../../../actions/selectors';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store';
+import { useSelectorHelper } from '../../../../../store';
 import { type Variable } from '../../../../../utils/api-types';
 import { copyToClipboard } from '../../../../../utils/utils';
 
@@ -90,7 +90,7 @@ const AvailableVariablesDialog: FunctionComponent<
     setTab(newTab);
   };
 
-  const me = useHelper((helper: UserHelper) => helper.getMe());
+  const me = useSelectorHelper(getMeSelector);
 
   return (
     <Dialog
@@ -193,7 +193,7 @@ const AvailableVariablesDialog: FunctionComponent<
                   size="small"
                   className={classes.button}
                 >
-                  {me.user_is_planner
+                  {me?.user_is_planner
                     ? t('manage custom variables')
                     : t('view custom variables')}
                 </Button>

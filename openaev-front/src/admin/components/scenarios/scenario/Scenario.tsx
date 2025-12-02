@@ -9,18 +9,13 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AgentHelper } from '../../../../actions/agents/agent-helper';
-import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
-import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import type { LoggedHelper } from '../../../../actions/helper';
-import { fetchScenarioInjects } from '../../../../actions/Inject';
-import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { fetchScenarioInjects } from '../../../../actions/inject';
 import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
-import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
+import { getCollectorsSelector, getPlatformSettingsSelector, getScenarioInjectsSelector, getScenarioSelector } from '../../../../actions/selectors';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -34,10 +29,9 @@ import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import {
-  type Agent,
-  type ExerciseSimple, type HealthCheck, type Inject,
+  type ExerciseSimple, type HealthCheck,
   type KillChainPhase,
   type Scenario as ScenarioType,
   type SearchPaginationInput,
@@ -76,30 +70,23 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const {
-    scenario,
-    settings,
-    injects,
-    collectors,
-    agents,
-  } = useHelper((helper: ScenariosHelper & ExercisesHelper & LoggedHelper & InjectHelper & CollectorHelper & AgentHelper) => ({
-    scenario: helper.getScenario(scenarioId),
-    settings: helper.getPlatformSettings(),
-    injects: helper.getScenarioInjects(scenarioId),
-    collectors: helper.getCollectors(),
-    agents: helper.getAgents(),
-  }));
-  const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
+  const scenario = useSelectorHelper(state => getScenarioSelector(scenarioId, state));
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
+  const injects = useSelectorHelper(state => getScenarioInjectsSelector(scenarioId, state));
+  const collectors = useSelectorHelper(getCollectorsSelector);
+  // const agents = useSelectorHelper(getAgentsSelector); // TODO: getAgentsSelector not yet implemented
+  const areAnyExercisesInScenario = (scenario?.scenario_exercises?.length ?? 0) > 0;
   const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
 
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
-  const agentsActive = useMemo(() => {
-    const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
-    return agents
-      .filter((agent: Agent) => injectAssetIds.includes(agent.agent_asset))
-      .map((agent: Agent) => agent.agent_active);
-  }, [agents, injects]);
+  // TODO: Uncomment when getAgentsSelector is implemented
+  // const agentsActive = useMemo(() => {
+  //   const injectAssetIds: string[] = (injects as Inject[]).flatMap((inject: Inject) => inject.inject_assets ?? []);
+  //   return (agents as Agent[])
+  //     .filter((agent: Agent) => injectAssetIds.includes(agent.agent_asset))
+  //     .map((agent: Agent) => agent.agent_active);
+  // }, [agents, injects]);
 
   useDataLoader(() => {
     if (!injects) {
@@ -115,7 +102,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     scenario,
     injects,
     collectors.length,
-    agentsActive,
+    // agentsActive, // TODO: Uncomment when getAgentsSelector is implemented
   ]);
 
   // Exercises
@@ -166,7 +153,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           <Typography variant="h4" marginBottom={0}>{t('Information')}</Typography>
           <Button
             component={Link}
-            to={scenario.scenario_external_url}
+            to={scenario?.scenario_external_url ?? ''}
             target="_blank"
             size="small"
             variant="outlined"
@@ -180,7 +167,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 alt="OCTI"
               />
             )}
-            disabled={isEmptyField(scenario.scenario_external_url)}
+            disabled={isEmptyField(scenario?.scenario_external_url)}
           >
             {t('Threat intelligence')}
           </Button>
@@ -197,7 +184,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 {t('Description')}
               </Typography>
               <ExpandableMarkdown
-                source={scenario.scenario_description}
+                source={scenario?.scenario_description}
                 limit={300}
               />
             </GridLegacy>
@@ -209,7 +196,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Severity')}
               </Typography>
-              <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
+              <ItemSeverity severity={scenario?.scenario_severity} label={t(scenario?.scenario_severity ?? 'Unknown')} />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
@@ -219,7 +206,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Category')}
               </Typography>
-              <ItemCategory category={scenario.scenario_category} label={t(scenario.scenario_category ?? 'Unknown')} />
+              <ItemCategory category={scenario?.scenario_category ?? ''} label={t(scenario?.scenario_category ?? 'Unknown')} />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
@@ -230,8 +217,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 {t('Main Focus')}
               </Typography>
               <ItemMainFocus
-                mainFocus={scenario.scenario_main_focus}
-                label={t(scenario.scenario_main_focus ?? 'Unknown')}
+                mainFocus={scenario?.scenario_main_focus ?? ''}
+                label={t(scenario?.scenario_main_focus ?? 'Unknown')}
               />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
@@ -242,7 +229,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Tags')}
               </Typography>
-              <ItemTags tags={scenario.scenario_tags} limit={10} />
+              <ItemTags tags={scenario?.scenario_tags} limit={10} />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
@@ -252,9 +239,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Platforms')}
               </Typography>
-              {(scenario.scenario_platforms ?? []).length === 0 ? (
+              {(scenario?.scenario_platforms ?? []).length === 0 ? (
                 <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
-              ) : scenario.scenario_platforms.map(
+              ) : scenario?.scenario_platforms?.map(
                 (platform: string) => (
                   <PlatformIcon
                     key={platform}
@@ -274,8 +261,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Kill Chain Phases')}
               </Typography>
-              {(scenario.scenario_kill_chain_phases ?? []).length === 0 && '-'}
-              {sortByOrder(scenario.scenario_kill_chain_phases ?? [])?.map((killChainPhase: KillChainPhase) => (
+              {(scenario?.scenario_kill_chain_phases ?? []).length === 0 && '-'}
+              {sortByOrder(scenario?.scenario_kill_chain_phases ?? [])?.map((killChainPhase: KillChainPhase) => (
                 <Chip
                   key={killChainPhase.phase_id}
                   variant="outlined"
@@ -302,7 +289,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           <Typography variant="h4">{t('Simulations')}</Typography>
           <Paper classes={{ root: classes.paper }} variant="outlined">
             <PaginationComponentV2
-              fetch={input => search(scenarioId, input)}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              fetch={input => search(scenarioId, input) as unknown as Promise<{ data: any }>}
               searchPaginationInput={searchPaginationInput}
               setContent={setExercises}
               entityPrefix="exercise"
@@ -320,7 +308,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           </Paper>
         </div>
       )}
-      {!areAnyExercisesInScenario && !scenario.scenario_recurrence && ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id) && (
+      {!areAnyExercisesInScenario && !scenario?.scenario_recurrence && ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario?.scenario_id) && (
         <div style={{
           marginTop: 100,
           textAlign: 'center',
@@ -341,7 +329,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           </Button>
         </div>
       )}
-      {!areAnyExercisesInScenario && scenario.scenario_recurrence && (
+      {!areAnyExercisesInScenario && scenario?.scenario_recurrence && (
         <div style={{
           marginTop: 100,
           textAlign: 'center',

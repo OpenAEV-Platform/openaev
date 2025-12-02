@@ -2,7 +2,7 @@ import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
+import { type InjectExpectation } from '../../../../../../utils/api-types';
 import ResultChip from './ResultChip';
 
 const useStyles = makeStyles()(theme => ({
@@ -20,7 +20,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface Props {
-  expectation: InjectExpectationsStore;
+  expectation: InjectExpectation;
   info?: string;
   title: string;
   icon: ReactElement;

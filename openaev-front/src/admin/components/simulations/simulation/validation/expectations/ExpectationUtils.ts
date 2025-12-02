@@ -1,8 +1,7 @@
 import { type InjectExpectation } from '../../../../../../utils/api-types';
-import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { isManualExpectation } from '../../../../common/injects/expectations/ExpectationUtils';
 
-export const groupedByAsset = (es: InjectExpectationsStore[]) => {
+export const groupedByAsset = (es: InjectExpectation[]) => {
   return es.reduce((group, expectation) => {
     const { inject_expectation_asset } = expectation;
     if (inject_expectation_asset) {

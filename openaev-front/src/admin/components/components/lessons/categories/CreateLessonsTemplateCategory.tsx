@@ -4,7 +4,6 @@ import { addLessonsTemplateCategory } from '../../../../../actions/Lessons';
 import ButtonCreate from '../../../../../components/common/ButtonCreate.js';
 import Drawer from '../../../../../components/common/Drawer.js';
 import { useFormatter } from '../../../../../components/i18n';
-import { type LessonsTemplateCategory } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import LessonsTemplateCategoryForm, { type LessonsTemplateCategoryInputForm } from './LessonsTemplateCategoryForm';
 
@@ -20,14 +19,11 @@ const CreateLessonsTemplateCategory: FunctionComponent<Props> = ({ lessonsTempla
   const handleClose = () => setOpen(false);
   const onSubmit = (data: LessonsTemplateCategoryInputForm) => {
     return dispatch(addLessonsTemplateCategory(lessonsTemplateId, data)).then(
-      (result: {
-        result: string;
-        entities: { lessonstemplatecategorys: Record<string, LessonsTemplateCategory> };
-      }) => {
-        if (result.result) {
+      (result) => {
+        if (result.data) {
           return handleClose();
         }
-        return result;
+        return result.data;
       },
     );
   };

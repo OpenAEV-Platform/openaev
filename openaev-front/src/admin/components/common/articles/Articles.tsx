@@ -7,15 +7,13 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type FullArticleStore } from '../../../../actions/channels/Article';
-import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
-import { type DocumentHelper } from '../../../../actions/helper';
+import { getChannelsMapSelector, getDocumentsMapSelector } from '../../../../actions/selectors';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ChannelColor from '../../../../public/components/channels/ChannelColor';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type Article } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAnFilter from '../../../../utils/SortingFiltering';
 import ChannelIcon from '../../components/channels/ChannelIcon';
@@ -53,17 +51,14 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
 
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
 
   // Fetching data
-  const { channelsMap, documentsMap } = useHelper((helper: ChannelsHelper & DocumentHelper) => ({
-    channelsMap: helper.getChannelsMap(),
-    documentsMap: helper.getDocumentsMap(),
-  }));
+  const channelsMap = useSelectorHelper(getChannelsMapSelector);
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
   useDataLoader(() => {
-    dispatch(fetchChannels());
-    dispatch(fetchDocuments());
+    fetchChannels();
+    fetchDocuments();
   });
 
   // Creation

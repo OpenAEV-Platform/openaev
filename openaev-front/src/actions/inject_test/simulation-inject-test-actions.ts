@@ -1,22 +1,23 @@
+import { type Page } from '../../components/common/queryable/Page';
 import { simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
-import { type InjectBulkProcessingInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type InjectBulkProcessingInput, type InjectTestStatusOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 
 const EXERCISE_URI = `/api/exercises`;
 
 export const searchInjectTests = (simulationId: string, searchPaginationInput: SearchPaginationInput) => {
   const uri = `${EXERCISE_URI}/${simulationId}/injects/test/search`;
-  return simplePostCall(uri, searchPaginationInput);
+  return simplePostCall<Page<InjectTestStatusOutput>>(uri, searchPaginationInput);
 };
 
 export const fetchInjectTestStatus = (testId: string) => {
   const uri = `${EXERCISE_URI}/injects/test/${testId}`;
-  return simpleCall(uri);
+  return simpleCall<InjectTestStatusOutput>(uri);
 };
 
 export const testInject = (simulationId: string, injectId: string) => {
   const uri = `${EXERCISE_URI}/${simulationId}/injects/${injectId}/test`;
-  return simpleCall(uri).catch((error) => {
+  return simpleCall<InjectTestStatusOutput>(uri).catch((error) => {
     MESSAGING$.notifyError('Can\'t be tested');
     throw error;
   });
@@ -24,7 +25,7 @@ export const testInject = (simulationId: string, injectId: string) => {
 
 export const bulkTestInjects = (simulationId: string, data: InjectBulkProcessingInput) => {
   const uri = `${EXERCISE_URI}/${simulationId}/injects/test`;
-  return simplePostCall(uri, data, undefined, false).catch((error) => {
+  return simplePostCall<InjectTestStatusOutput[]>(uri, data, undefined, false).catch((error) => {
     MESSAGING$.notifyError('Can\'t be tested');
     throw error;
   });

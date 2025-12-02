@@ -4,22 +4,21 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, Fragment, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
+import { getAttackPatternsMapSelector } from '../../../actions/selectors';
 import AttackPatternChip from '../../../components/AttackPatternChip';
 import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
 import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import {
-  type AttackPattern,
   type Command,
   type DnsResolution,
   type Document,
   type Executable,
   type FileDrop,
-  type Payload as PayloadType,
+  type Payload,
   type PayloadArgument,
   type PayloadPrerequisite,
 } from '../../../utils/api-types';
@@ -69,7 +68,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 };
 
 interface Props {
-  selectedPayload: PayloadType | null;
+  selectedPayload: Payload | null;
   documentsMap: Record<string, Document> | null;
 }
 
@@ -79,8 +78,8 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
-  const getAttackCommand = (payload: PayloadType | null): string => {
+  const attackPatternsMap = useSelectorHelper(getAttackPatternsMapSelector);
+  const getAttackCommand = (payload: Payload | null): string => {
     if (!payload) return '';
 
     switch (payload.payload_type) {
@@ -137,9 +136,13 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
             {t('Attack patterns')}
           </Typography>
 
-          {selectedPayload?.payload_attack_patterns && selectedPayload?.payload_attack_patterns.length === 0 ? '-' : selectedPayload?.payload_attack_patterns?.map((attackPatternId: string) => attackPatternsMap?.[attackPatternId]).map((attackPattern: AttackPattern) => (
-            <AttackPatternChip key={attackPattern.attack_pattern_id} attackPattern={attackPattern}></AttackPatternChip>
-          ))}
+          {selectedPayload?.payload_attack_patterns && selectedPayload?.payload_attack_patterns.length === 0
+            ? '-'
+            : selectedPayload?.payload_attack_patterns?.map((attackPatternId: string) => attackPatternsMap?.[attackPatternId])
+                .filter(attackPattern => !!attackPattern)
+                .map(attackPattern => (
+                  <AttackPatternChip key={attackPattern.attack_pattern_id} attackPattern={attackPattern}></AttackPatternChip>
+                ))}
         </div>
 
         <div>

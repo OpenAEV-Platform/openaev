@@ -18,11 +18,12 @@ import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocuments } from '../../../../actions/Document';
+import { getDocumentsMapSelector } from '../../../../actions/selectors';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { truncate } from '../../../../utils/String';
@@ -62,7 +63,7 @@ const ArticleAddDocuments = (props) => {
   const [tags, setTags] = useState([]);
 
   // Fetching data
-  const { documents } = useHelper(helper => ({ documents: helper.getDocumentsMap() }));
+  const documents = useSelectorHelper(getDocumentsMapSelector);
   useDataLoader(() => {
     dispatch(fetchDocuments());
   });

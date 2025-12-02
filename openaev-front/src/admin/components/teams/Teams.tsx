@@ -1,8 +1,7 @@
-import { type UserHelper } from '../../../actions/helper';
+import { getTeamsSelector } from '../../../actions/selectors';
 import { updateTeamPlayers } from '../../../actions/teams/team-actions';
-import { type TeamsHelper } from '../../../actions/teams/team-helper';
 import { type Page } from '../../../components/common/queryable/Page';
-import { useHelper } from '../../../store';
+import { useSelectorHelper } from '../../../store';
 import { type SearchPaginationInput, type Team, type TeamOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import { INHERITED_CONTEXT } from '../../../utils/permissions/types';
@@ -12,10 +11,7 @@ import { type UserStore } from './players/Player';
 
 const Teams = () => {
   const dispatch = useAppDispatch();
-  const { teams }: { teams: Team[] } = useHelper((helper: UserHelper & TeamsHelper) => ({
-    user: helper.getMe(),
-    teams: helper.getTeams(),
-  }));
+  const teams = useSelectorHelper(getTeamsSelector);
 
   const permissionsContext: PermissionsContextType = {
     permissions: {
@@ -30,10 +26,10 @@ const Teams = () => {
   };
 
   const teamContext: TeamContextType = {
-    onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
+    onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]) {
       return dispatch(updateTeamPlayers(teamId, { team_users: [...(teams.find(t => t.team_id === teamId)?.team_users || []), ...userIds] }));
     },
-    onRemoveUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
+    onRemoveUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]) {
       return dispatch(updateTeamPlayers(teamId, { team_users: [...(teams.find(t => t.team_id === teamId)?.team_users?.filter(u => !userIds.includes(u)) || [])] }));
     },
     searchTeams(_: SearchPaginationInput): Promise<{ data: Page<TeamOutput> }> {

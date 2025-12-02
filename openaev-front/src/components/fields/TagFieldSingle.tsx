@@ -4,10 +4,10 @@ import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type TagHelper, type UserHelper } from '../../actions/helper';
+import { getTagsSelector } from '../../actions/selectors';
 import { addTag } from '../../actions/Tag';
 import TagForm from '../../admin/components/settings/tags/TagForm';
-import { useHelper } from '../../store';
+import { useSelectorHelper } from '../../store';
 import { type Tag } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import { Can } from '../../utils/permissions/PermissionsProvider';
@@ -53,7 +53,8 @@ const TagFieldSingle: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   // Fetching data
-  const { tags }: { tags: [Tag] } = useHelper((helper: TagHelper & UserHelper) => ({ tags: helper.getTags().filter(tag => !forbiddenOptions.includes(tag.tag_name)) }));
+  const allTags = useSelectorHelper(getTagsSelector);
+  const tags = allTags.filter(tag => !forbiddenOptions.includes(tag.tag_name));
   const dispatch = useAppDispatch();
 
   // Handle tag creation
@@ -76,12 +77,9 @@ const TagFieldSingle: FunctionComponent<Props> = ({
 
   const onSubmit = (data: Tag) => {
     dispatch(addTag(data))
-      .then((result: {
-        entities: { tags: Record<string, Tag> };
-        result: string;
-      }) => {
-        if (result.result) {
-          const newTag = result.entities.tags[result.result];
+      .then((result) => {
+        if (result.data) {
+          const newTag = result.data as Tag;
           fieldOnChange(newTag.tag_name);
           handleCloseTagCreation();
         }

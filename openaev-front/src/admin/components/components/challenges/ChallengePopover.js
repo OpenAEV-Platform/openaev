@@ -16,9 +16,10 @@ import { forwardRef, useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action.js';
+import { getTagsMapSelector } from '../../../../actions/selectors';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { tagOptions } from '../../../../utils/Option';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
@@ -43,7 +44,7 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
   const [anchorEl, setAnchorEl] = useState(null);
 
   // popover management
-  const { tagsMap } = useHelper(helper => ({ tagsMap: helper.getTagsMap() }));
+  const tagsMap = useSelectorHelper(getTagsMapSelector);
   const handlePopoverOpen = (event) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);

@@ -7,6 +7,7 @@ import io.openaev.database.model.Article;
 import io.openaev.database.model.Channel;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
+import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -18,6 +19,7 @@ public class ChannelReader {
 
   @Setter(NONE)
   @JsonProperty("channel_id")
+  @NotBlank
   private String id;
 
   @JsonProperty("channel_information")

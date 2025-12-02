@@ -8,12 +8,13 @@ import { makeStyles } from 'tss-react/mui';
 
 import { fetchChannels } from '../../../../actions/channels/channel-action';
 import { fetchDocuments } from '../../../../actions/Document';
+import { getChannelsSelector, getDocumentsMapSelector } from '../../../../actions/selectors';
 import Autocomplete from '../../../../components/Autocomplete';
 import OldMarkDownField from '../../../../components/fields/OldMarkDownField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess.js';
@@ -130,12 +131,8 @@ const ArticleForm = ({
     return errors;
   };
   // Fetching data
-  const { channels, documentsMap } = useHelper(
-    helper => ({
-      channels: helper.getChannels(),
-      documentsMap: helper.getDocumentsMap(),
-    }),
-  );
+  const channels = useSelectorHelper(getChannelsSelector);
+  const documentsMap = useSelectorHelper(getDocumentsMapSelector);
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS)) {
       dispatch(fetchChannels());

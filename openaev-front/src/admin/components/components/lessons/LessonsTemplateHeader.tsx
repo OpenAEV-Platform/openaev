@@ -2,9 +2,8 @@ import { Typography } from '@mui/material';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type UserHelper } from '../../../../actions/helper';
-import { type LessonsTemplatesHelper } from '../../../../actions/lessons/lesson-helper';
-import { useHelper } from '../../../../store';
+import { getLessonsTemplateSelector } from '../../../../actions/selectors';
+import { useSelectorHelper } from '../../../../store';
 import LessonsTemplatePopover from './LessonsTemplatePopover';
 
 const useStyles = makeStyles()(() => ({
@@ -24,7 +23,7 @@ const LessonsTemplateHeader = () => {
   const { classes } = useStyles();
 
   const { lessonsTemplateId } = useParams() as { lessonsTemplateId: string };
-  const { lessonsTemplate } = useHelper((helper: LessonsTemplatesHelper & UserHelper) => ({ lessonsTemplate: helper.getLessonsTemplate(lessonsTemplateId) }));
+  const lessonsTemplate = useSelectorHelper(state => getLessonsTemplateSelector(lessonsTemplateId, state));
   return (
     <>
       <div className={classes.containerTitle}>
@@ -32,14 +31,14 @@ const LessonsTemplateHeader = () => {
           variant="h1"
           classes={{ root: classes.title }}
         >
-          {lessonsTemplate.lessons_template_name}
+          {lessonsTemplate?.lessons_template_name}
         </Typography>
         <div>
-          <LessonsTemplatePopover lessonsTemplate={lessonsTemplate} />
+          {lessonsTemplate && <LessonsTemplatePopover lessonsTemplate={lessonsTemplate} />}
         </div>
       </div>
       <Typography variant="body2">
-        {lessonsTemplate.lessons_template_description}
+        {lessonsTemplate?.lessons_template_description}
       </Typography>
     </>
   );

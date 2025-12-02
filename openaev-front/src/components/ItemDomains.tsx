@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type DomainHelper } from '../actions/helper';
-import { useHelper } from '../store';
+import { getDomainsSelector } from '../actions/selectors';
+import { useSelectorHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { truncate } from '../utils/String';
 
@@ -37,9 +37,7 @@ interface ItemsDomainsProps {
 const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   const { classes } = useStyles();
 
-  const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
-    return helper.getDomains();
-  });
+  const allDomains = useSelectorHelper(getDomainsSelector);
 
   const resolvedDomains: Domain[] = useMemo(() => {
     if (!domains) return [];

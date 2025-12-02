@@ -6,7 +6,7 @@ import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
-import { type LoggedHelper } from '../../../../actions/helper';
+import { getPlatformSettingsSelector } from '../../../../actions/selectors';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ClickableModeChip from '../../../../components/common/chips/ClickableModeChip';
 import ExportButton from '../../../../components/common/ExportButton';
@@ -22,7 +22,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
-import { useHelper } from '../../../../store';
+import { useSelectorHelper } from '../../../../store';
 import { type AssetGroup, type AssetGroupOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -116,10 +116,8 @@ const AssetGroups = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
 
-  const { settings } = useHelper((helper: LoggedHelper) => {
-    return { settings: helper.getPlatformSettings() };
-  });
-  const { bannerHeight } = computeBannerSettings(settings);
+  const settings = useSelectorHelper(getPlatformSettingsSelector);
+  const { bannerHeight } = computeBannerSettings(settings!);
 
   const [selectedAssetGroupId, setSelectedAssetGroupId] = useState<AssetGroup['asset_group_id'] | undefined>(undefined);
 

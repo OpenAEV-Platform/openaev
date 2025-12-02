@@ -4,16 +4,15 @@ import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
+import { getOrganizationsMapSelector, getTeamSelector, getTeamUsersSelector } from '../../../../actions/selectors';
 import { fetchTeam, fetchTeamPlayers } from '../../../../actions/teams/team-actions';
-import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
-import { useHelper } from '../../../../store';
-import { type Organization, type Team } from '../../../../utils/api-types';
+import { useSelectorHelper } from '../../../../store';
+import { type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
@@ -162,15 +161,9 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
   const [orderAsc, setOrderAsc] = useState(true);
   const [tags, setTags] = useState<Option['id'][]>([]);
 
-  const { organizationsMap, team, users }: {
-    organizationsMap: Record<string, Organization>;
-    team: Team;
-    users: UserStore[];
-  } = useHelper((helper: UserHelper & TeamsHelper & OrganizationHelper) => ({
-    organizationsMap: helper.getOrganizationsMap(),
-    team: helper.getTeam(teamId),
-    users: helper.getTeamUsers(teamId),
-  }));
+  const organizationsMap = useSelectorHelper(getOrganizationsMapSelector);
+  const team = useSelectorHelper(state => getTeamSelector(teamId, state));
+  const users = useSelectorHelper(state => getTeamUsersSelector(teamId, state));
 
   const { onToggleUser, checkUserEnabled } = useContext(TeamContext);
 
