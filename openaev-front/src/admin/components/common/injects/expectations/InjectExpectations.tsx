@@ -40,7 +40,8 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const { t } = useFormatter();
   const { permissions, inherited_context } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
-  const userCanAddExpectations = permissions.canManage || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
+  const userCanAddExpectations = permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
+    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [sortedExpectations, setSortedExpectations] = useState<ExpectationInput[]>([]);
   const [sortBy] = useState('expectation_name');
@@ -102,6 +103,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
               <ExpectationPopover
                 index={idx}
                 expectation={expectation}
+                injectId={injectId}
                 handleUpdate={handleUpdateExpectation}
                 handleDelete={handleRemoveExpectation}
               />
