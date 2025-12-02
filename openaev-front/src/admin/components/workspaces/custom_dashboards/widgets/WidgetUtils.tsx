@@ -258,8 +258,8 @@ export enum WidgetVizDataType {
 }
 
 // Define the discriminated union
-export type WidgetVizData =
-  | {
+export type WidgetVizData
+  = | {
     type: WidgetVizDataType.SERIES;
     data: EsSeries[];
   }

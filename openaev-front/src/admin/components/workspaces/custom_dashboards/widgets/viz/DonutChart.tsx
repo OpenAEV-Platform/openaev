@@ -44,7 +44,7 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
   const labels = datas.map(s => s?.x ?? t('-'));
   // Apply custom color mapping only when the widget field represents a status breakdown
   const isStatusBreakdown
-      = 'field' in widgetConfig && (widgetConfig.field.toLowerCase().includes('status') || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
+    = 'field' in widgetConfig && (widgetConfig.field.toLowerCase().includes('status') || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
   const chartColors = isStatusBreakdown
     ? labels.map(label => getStatusColor(theme, label))
     : [];

@@ -14,7 +14,7 @@ export type LayoutAlgorithmOptions = {
 export type LayoutAlgorithm = (
   nodes: Node[],
   edges: Edge[],
-  options: LayoutAlgorithmOptions
+  options: LayoutAlgorithmOptions,
 ) => Promise<{
   nodes: Node[];
   edges: Edge[];
