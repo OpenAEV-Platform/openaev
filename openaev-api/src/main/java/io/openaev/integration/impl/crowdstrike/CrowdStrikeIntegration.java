@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.crowdstrike;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ExecutionTraceRepository;
@@ -51,6 +52,7 @@ public class CrowdStrikeIntegration extends Integration {
   private final ThreadPoolTaskScheduler taskScheduler;
 
   public CrowdStrikeIntegration(
+      ConnectorInstance connectorInstance,
       CrowdStrikeExecutorClient client,
       CrowdStrikeExecutorConfig config,
       EndpointService endpointService,
@@ -62,7 +64,7 @@ public class CrowdStrikeIntegration extends Integration {
       ExecutionTraceRepository executionTraceRepository,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler) {
-    super(componentRequestEngine);
+    super(componentRequestEngine, connectorInstance);
     this.taskScheduler = taskScheduler;
     this.client = client;
     this.config = config;

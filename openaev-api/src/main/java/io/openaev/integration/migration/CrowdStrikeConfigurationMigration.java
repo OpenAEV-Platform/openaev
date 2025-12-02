@@ -47,7 +47,11 @@ public class CrowdStrikeConfigurationMigration implements ConfigurationMigration
     // add configs
     instance.setConfigurations(new HashSet<>());
     instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
-    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    if (config.isEnable()) {
+      instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    } else {
+      instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    }
     instance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
 
     connectorInstanceService.save(instance);

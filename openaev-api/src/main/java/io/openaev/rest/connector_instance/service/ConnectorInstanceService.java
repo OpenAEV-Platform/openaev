@@ -38,4 +38,11 @@ public class ConnectorInstanceService {
     }
     connectorInstanceRepository.deleteById(id);
   }
+
+  public ConnectorInstance createAutostartInstance() {
+    ConnectorInstance instance = new ConnectorInstance();
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    return instance;
+  }
 }

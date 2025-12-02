@@ -1,5 +1,6 @@
 package io.openaev.integration;
 
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -8,10 +9,20 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public abstract class Integration {
   private final ComponentRequestEngine componentRequestEngine;
+  private final ConnectorInstance connectorInstance;
 
   public abstract void start() throws Exception;
 
   public abstract void stop();
+
+  public void initialise() throws Exception {
+    if (ConnectorInstance.REQUESTED_STATUS_TYPE.starting.equals(
+        this.connectorInstance.getRequestedStatus())) {
+      this.start();
+    } else {
+      this.stop();
+    }
+  }
 
   public <T> T requestComponent(ComponentRequest request, Class<T> componentType)
       throws IllegalAccessException {
