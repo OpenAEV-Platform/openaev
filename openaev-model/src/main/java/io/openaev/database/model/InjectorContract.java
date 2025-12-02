@@ -133,12 +133,13 @@ public class InjectorContract implements Base {
     this.attackPatterns = attackPatterns;
   }
 
-  @ManyToMany(fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
   @Getter(AccessLevel.NONE)
+  @JsonProperty("injector_contract_domains")
   private Set<Domain> domains = new HashSet<>();
 
   @JsonProperty("injector_contract_domains")

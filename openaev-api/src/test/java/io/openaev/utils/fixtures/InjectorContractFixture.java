@@ -87,6 +87,7 @@ public class InjectorContractFixture {
     ObjectNode content = createDefaultContent(objectMapper);
     injectorContract.setContent(objectMapper.writeValueAsString(content));
     injectorContract.setConvertedContent(content);
+    injectorContract.setDomains(new HashSet<>());
     return injectorContract;
   }
 
