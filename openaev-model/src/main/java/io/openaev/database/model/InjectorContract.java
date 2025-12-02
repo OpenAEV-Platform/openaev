@@ -145,7 +145,6 @@ public class InjectorContract implements Base {
   @JsonProperty("injector_contract_domains")
   @Queryable(
       filterable = true,
-      searchable = true,
       dynamicValues = true,
       paths = {"payload.domains.id", "domains.id"})
   public Set<Domain> getDomains() {
