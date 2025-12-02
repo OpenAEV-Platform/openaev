@@ -43,7 +43,9 @@ export const APP_BASE_PATH = isEmptyPath || contextPath.startsWith('/') ? contex
 export const fileUri = fileImport => `${APP_BASE_PATH}${fileImport}`; // No slash here, will be replaced by the builder
 
 // Export
-const escape = value => value?.toString().replaceAll('"', '""');
+const escape = value => value?.toString()
+  .replaceAll('"', '""')
+  .replaceAll('\n', '\\n');
 export const exportData = (
   type,
   keys,
