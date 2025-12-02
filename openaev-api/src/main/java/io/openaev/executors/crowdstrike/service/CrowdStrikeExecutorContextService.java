@@ -94,7 +94,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     return csAgents;
   }
 
-  private void executeActions(List<CrowdStrikeAction> actions) {
+  public void executeActions(List<CrowdStrikeAction> actions) {
     int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
     for (CrowdStrikeAction action : actions) {
       int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);

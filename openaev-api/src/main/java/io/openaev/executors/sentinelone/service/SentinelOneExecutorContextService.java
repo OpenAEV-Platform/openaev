@@ -128,7 +128,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     return sentinelOneAgents;
   }
 
-  private void executeActions(List<SentinelOneAction> actions) {
+  public void executeActions(List<SentinelOneAction> actions) {
     int paginationLimit = this.config.getApiBatchExecutionActionPagination();
     for (SentinelOneAction action : actions) {
       int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);

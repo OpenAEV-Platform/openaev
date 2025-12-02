@@ -32,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class CrowdstrikeExecutorServiceTest {
 
-  public static final String HOST_GROUP_CS = "hostGroupCs";
+  private static final String HOST_GROUP_CS = "hostGroupCs";
 
   @Mock private CrowdStrikeExecutorClient client;
   @Mock private CrowdStrikeExecutorConfig config;

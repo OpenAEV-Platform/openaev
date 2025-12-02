@@ -117,7 +117,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     return taniumAgents;
   }
 
-  private void executeActions(List<TaniumAction> actions) {
+  public void executeActions(List<TaniumAction> actions) {
     int paginationLimit = this.taniumExecutorConfig.getApiBatchExecutionActionPagination();
     int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
 
