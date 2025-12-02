@@ -92,19 +92,10 @@ public class AppSecurityConfig {
                 logout
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
-                    .logoutSuccessHandler(
-                        (request, response, authentication) -> {
-                          if (request.getHeader("Referer").contains("localhost")
-                              || request.getHeader("Referer").contains("127.0.0.1")) {
-                            response.sendRedirect(
-                                env.getProperty("openaev.base-url", String.class, "/")
-                                    + env.getProperty(
-                                        "openaev.logout-success-url", String.class, "/"));
-                          } else {
-                            response.sendRedirect(
-                                env.getProperty("openaev.logout-success-url", String.class, "/"));
-                          }
-                        }));
+                    .logoutSuccessUrl(
+                        env.getProperty("openaev.base-url", String.class, "/")
+                            + env.getProperty("openaev.logout-success-url", String.class, "/")));
+
     if (openAEVConfig.isAuthOpenidEnable()) {
       http.oauth2Login(
           login ->
