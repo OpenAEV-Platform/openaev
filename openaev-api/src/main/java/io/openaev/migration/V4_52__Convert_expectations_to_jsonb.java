@@ -32,16 +32,19 @@ public class V4_52__Convert_expectations_to_jsonb extends BaseJavaMigration {
                 ADD CONSTRAINT execution_traces_execution_inject_status_id_fkey
                 FOREIGN KEY (execution_inject_status_id)
                 REFERENCES injects_statuses(status_id)
+                ON DELETE CASCADE
                 DEFERRABLE INITIALLY DEFERRED,
 
                 ADD CONSTRAINT execution_traces_execution_inject_test_status_id_fkey
                 FOREIGN KEY (execution_inject_test_status_id)
                 REFERENCES injects_tests_statuses(status_id)
+                ON DELETE CASCADE
                 DEFERRABLE INITIALLY DEFERRED,
 
                 ADD CONSTRAINT execution_traces_execution_agent_id_fkey
                 FOREIGN KEY (execution_agent_id)
                 REFERENCES agents(agent_id)
+                ON DELETE CASCADE
                 DEFERRABLE INITIALLY DEFERRED;
               """);
       select.execute(
