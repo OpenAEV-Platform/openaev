@@ -41,21 +41,24 @@ const CatalogFilters = ({ connectors, onFiltered }: CatalogFiltersProps) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
 
-  const searchColumns = ['title'];
-  const filtering = useSearchAnFilter('connector', 'title', searchColumns);
+  const searchColumns = ['title', 'short_description'];
 
+  const filtering = useSearchAnFilter(
+    'catalog_connector',
+    'title',
+    searchColumns,
+  );
   const [filters, setFilters] = useState({ type: '' });
 
   const hasActiveFilters = Boolean(filters.type);
 
   useEffect(() => {
     let result = filtering.filterAndSort(connectors);
-
     if (filters.type) {
       result = result.filter((c: CatalogConnectorOutput) => c.catalog_connector_type === filters.type);
     }
     onFiltered(result);
-  }, [connectors, filters, filtering.keyword, filtering.order]);
+  }, [connectors, filters, filtering.keyword]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({

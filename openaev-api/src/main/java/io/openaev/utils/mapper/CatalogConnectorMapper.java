@@ -23,6 +23,8 @@ public class CatalogConnectorMapper {
         .subscriptionLink(catalogConnector.getSubscriptionLink())
         .sourceCode(catalogConnector.getSourceCode())
         .containerType(catalogConnector.getContainerType())
+        .useCases(catalogConnector.getUseCases())
+        .isManagerSupported(catalogConnector.isManagerSupported())
         .build();
   }
 }

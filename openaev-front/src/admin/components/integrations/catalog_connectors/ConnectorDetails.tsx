@@ -52,6 +52,7 @@ const ConnectorDetails = () => {
         connectorLogo={connector.catalog_connector_logo_url}
         connectorTitle={connector.catalog_connector_title}
         connectorType={connector.catalog_connector_type}
+        connectorUseCases={connector.catalog_connector_use_cases}
         detailsTitle
       />
       <div className={classes.content}>
@@ -65,8 +66,18 @@ const ConnectorDetails = () => {
           {connector.catalog_connector_source_code
             && (
               <div>
-                <Typography variant="h3" gutterBottom>{t('Integration documentation and code')}</Typography>
-                <a target="_blank" href={connector.catalog_connector_source_code} rel="noreferrer" className={classes.link}>
+                <Typography
+                  variant="h3"
+                  gutterBottom
+                >
+                  {t('Integration documentation and code')}
+                </Typography>
+                <a
+                  target="_blank"
+                  href={connector.catalog_connector_source_code}
+                  rel="noreferrer"
+                  className={classes.link}
+                >
                   <LibraryBooksOutlined />
                   {connector.catalog_connector_title}
                 </a>
@@ -76,8 +87,18 @@ const ConnectorDetails = () => {
           {connector.catalog_connector_subscription_link
             && (
               <div>
-                <Typography variant="h3" gutterBottom>{t('Visit the vendor\'s page to learn more and get in touch')}</Typography>
-                <a target="_blank" href={connector.catalog_connector_subscription_link} rel="noreferrer" className={classes.link}>
+                <Typography
+                  variant="h3"
+                  gutterBottom
+                >
+                  {t('Visit the vendor\'s page to learn more and get in touch')}
+                </Typography>
+                <a
+                  target="_blank"
+                  href={connector.catalog_connector_subscription_link}
+                  rel="noreferrer"
+                  className={classes.link}
+                >
                   <OpenInNewOutlined />
                   {t('VENDOR CONTACT')}
                 </a>

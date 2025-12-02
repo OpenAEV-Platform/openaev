@@ -34,9 +34,12 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'visible',
     textOverflow: 'unset',
   },
-  chipInList: {
+  chips: {
     gridColumn: 2,
     gridRow: 2,
+  },
+  chipInList: {
+    margin: theme.spacing(0.25),
     fontSize: 12,
     height: 20,
     flexShrink: 0,
@@ -67,6 +70,7 @@ type ConnectorHeaderProps = {
   connectorLogo?: string;
   connectorTitle: string;
   connectorType?: string;
+  connectorUseCases?: string[];
   detailsTitle?: boolean;
 };
 
@@ -75,6 +79,7 @@ const ConnectorTitle = ({
   connectorLogo,
   connectorTitle,
   connectorType,
+  connectorUseCases,
   detailsTitle = false,
 }: ConnectorHeaderProps) => {
   // Standard hooks
@@ -96,12 +101,24 @@ const ConnectorTitle = ({
           {connectorTitle}
         </Typography>
       </Tooltip>
-      <Chip
-        variant="outlined"
-        className={classes.chipInList}
-        color="primary"
-        label={connectorType}
-      />
+      <div className={classes.chips}>
+        <Chip
+          variant="outlined"
+          className={classes.chipInList}
+          color="primary"
+          label={connectorType}
+        />
+        {connectorUseCases && connectorUseCases.map((useCase: string) => (
+          <Chip
+            key={useCase}
+            variant="outlined"
+            className={classes.chipInList}
+            color="default"
+            label={useCase}
+          />
+        ))}
+      </div>
+
       {detailsTitle
         ? (
             <Chip

@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
+import java.util.Set;
 import lombok.Builder;
 import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -48,4 +49,10 @@ public class CatalogConnectorOutput {
 
   @JsonProperty("catalog_connector_last_verified_date")
   private Instant lastVerifiedDate;
+
+  @JsonProperty("catalog_connector_use_cases")
+  private Set<String> useCases;
+
+  @JsonProperty("catalog_connector_manager_supported")
+  private boolean isManagerSupported;
 }

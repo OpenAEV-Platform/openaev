@@ -1,4 +1,4 @@
-package io.openaev.service;
+package io.openaev.service.catalog_connectors;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
