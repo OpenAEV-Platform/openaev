@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAllById(assetIds));
   }
 
+  @Cacheable("lowRetentionCache")
   public List<Asset> assetsFromFilterGroups(@NotNull Filters.FilterGroup filterGroup) {
     if (filterGroup.getFilters() == null || filterGroup.getFilters().isEmpty()) {
       return List.of();
