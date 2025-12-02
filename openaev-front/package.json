@@ -9,7 +9,7 @@
     "@casl/ability": "6.7.3",
     "@casl/react": "5.0.0",
     "@ckeditor/ckeditor5-react": "9.5.0",
-    "@dagrejs/dagre": "1.1.5",
+    "@dagrejs/dagre": "1.1.8",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@fontsource/geologica": "5.2.8",
@@ -24,9 +24,9 @@
     "@mui/x-date-pickers": "8.16.0",
     "@redux-devtools/extension": "3.3.0",
     "@uiw/react-md-editor": "4.0.8",
-    "@xyflow/react": "12.9.1",
+    "@xyflow/react": "12.9.3",
     "apexcharts": "5.3.6",
-    "axios": "1.11.0",
+    "axios": "1.12.0",
     "ckeditor5": "45.2.2",
     "classcat": "5.0.5",
     "cronstrue": "3.9.0",
@@ -36,7 +36,7 @@
     "filigran-icon": "0.18.8",
     "final-form": "4.20.10",
     "final-form-arrays": "3.1.0",
-    "html-react-parser": "5.2.7",
+    "html-react-parser": "5.2.10",
     "html-to-image": "patch:html-to-image@npm%3A1.11.13#~/.yarn/patches/html-to-image-npm-1.11.13-86e990604f.patch",
     "http-proxy-middleware": "3.0.5",
     "immutable": "5.1.4",
@@ -121,7 +121,7 @@
   },
   "resolutions": {
     "@types/react": "19.2.2",
-    "form-data": "4.0.4"
+    "form-data": "4.0.5"
   },
   "engines": {
     "node": ">= 22.11.0"
