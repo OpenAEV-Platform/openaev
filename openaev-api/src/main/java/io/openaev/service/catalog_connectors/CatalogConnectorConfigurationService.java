@@ -7,5 +7,5 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class CatalogConnectorConfigurationService {
-  private final CatalogConnectorConfigurationRepository catalogConnectorConfigurationRepository;
+    private final CatalogConnectorConfigurationRepository catalogConnectorConfigurationRepository;
 }
