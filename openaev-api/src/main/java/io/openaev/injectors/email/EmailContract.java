@@ -16,15 +16,14 @@ import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaF
 
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
-import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.springframework.stereotype.Component;
 
 @Component
@@ -80,7 +79,8 @@ public class EmailContract extends Contractor {
             standardInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
+            Set.of(
+                DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
     standardEmail.addVariable(documentUriVariable);
     // Global contract
     List<ContractElement> globalInstance =
@@ -99,7 +99,8 @@ public class EmailContract extends Contractor {
             globalInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
+            Set.of(
+                DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
     globalEmail.addVariable(documentUriVariable);
     return List.of(standardEmail, globalEmail);
   }

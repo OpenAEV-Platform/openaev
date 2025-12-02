@@ -10,7 +10,6 @@ import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractTextArea.textareaField;
 
 import io.openaev.database.model.Endpoint;
-import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.Contractor;
@@ -18,12 +17,12 @@ import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.injectors.ovh.config.OvhSmsConfig;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -75,7 +74,9 @@ public class OvhSmsContract extends Contractor {
             instance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain())));
+            Set.of(
+                DefaultDomain.EMAIL_INFILTRATION.getDomain(),
+                DefaultDomain.TABLE_TOP.getDomain())));
   }
 
   @Override

@@ -50,7 +50,7 @@ public class DomainApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
-    return domainService.upsertDomain(input);
+    return domainService.upsert(input);
   }
 
   // -- OPTION --

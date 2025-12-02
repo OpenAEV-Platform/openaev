@@ -8,14 +8,20 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
+import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.DomainKeyWords;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -60,11 +66,11 @@ public class DomainService {
   }
 
   public Iterable<Domain> findAllById(final List<String> domainIds) {
-      return domainRepository.findAllById(domainIds);
+    return domainRepository.findAllById(domainIds);
   }
 
   @Transactional
-  public Domain upsertDomain(final DomainBaseInput input) {
+  public Domain upsert(final DomainBaseInput input) {
     return this.upsert(input.getName(), input.getColor());
   }
 
@@ -75,32 +81,35 @@ public class DomainService {
 
   @Transactional
   public Set<Domain> upserts(final Set<Domain> domains) {
+    if (domains == null) {
+        return Set.of();
+    }
+
     return domains.stream().map(this::upsert).collect(Collectors.toSet());
   }
 
-    public Domain upsert(final String name, final String color) {
-        Optional<Domain> existingDomain = domainRepository.findByName(name);
-        return existingDomain.orElseGet(
-                () ->
-                        domainRepository.save(
-                                new Domain(
-                                        null,
-                                        name,
-                                        color != null ? color : generateRandomColor(),
-                                        Instant.now(),
-                                        null)));
-    }
+  public Domain upsert(final String name, final String color) {
+    Optional<Domain> existingDomain = domainRepository.findByName(name);
+    return existingDomain.orElseGet(
+        () ->
+            domainRepository.save(
+                new Domain(
+                    null,
+                    name,
+                    color != null ? color : generateRandomColor(),
+                    Instant.now(),
+                    null)));
+  }
 
   public Set<Domain> mergeDomains(
       final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
     if (existingDomains == null
         || existingDomains.isEmpty()
         || (existingDomains.size() == 1
-<<<<<<< HEAD
-            && UNCLASSIFIED.equals(existingDomains.iterator().next().getName()))) {
-=======
-            && DefaultDomain.TOCLASSIFY.getDomain().getName().equals(existingDomains.iterator().next().getName()))) {
->>>>>>> fd9a0bc78 ([backend] feat(SCV): fix unclassified name (#4266))
+            && DefaultDomain.TOCLASSIFY
+                .getDomain()
+                .getName()
+                .equals(existingDomains.iterator().next().getName()))) {
       return addedDomains;
     }
 
@@ -109,39 +118,48 @@ public class DomainService {
   }
 
   public Set<Domain> findDomainByNameAndDescription(final String name, final String description) {
-      Set<Domain> domains = new HashSet<>();
+    Set<Domain> domains = new HashSet<>();
 
-      if (findInKeywords(DomainKeyWords.ENDPOINT, name) || findInKeywords(DomainKeyWords.ENDPOINT, description)) {
-          domains.add(DefaultDomain.ENDPOINT.getDomain());
-      }
-      if (findInKeywords(DomainKeyWords.NETWORK, name) || findInKeywords(DomainKeyWords.NETWORK, description)) {
-          domains.add(DefaultDomain.NETWORK.getDomain());
-      }
-      if (findInKeywords(DomainKeyWords.WEB_APP, name) || findInKeywords(DomainKeyWords.WEB_APP, description)) {
-          domains.add(DefaultDomain.WEB_APP.getDomain());
-      }
-      if (findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, name) || findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, description)) {
-          domains.add(DefaultDomain.EMAIL_INFILTRATION.getDomain());
-      }
-      if (findInKeywords(DomainKeyWords.DATA_EXFILTRATION, name) || findInKeywords(DomainKeyWords.DATA_EXFILTRATION, description)) {
-          domains.add(DefaultDomain.DATA_EXFILTRATION.getDomain());
-      }
-      if (findInKeywords(DomainKeyWords.URL_FILTERING, name) || findInKeywords(DomainKeyWords.URL_FILTERING, description)) {
-          domains.add(DefaultDomain.URL_FILTERING.getDomain());
-      }
-      if (findInKeywords(DomainKeyWords.CLOUD, name) || findInKeywords(DomainKeyWords.CLOUD, description)) {
-          domains.add(DefaultDomain.CLOUD.getDomain());
-      }
+    if (findInKeywords(DomainKeyWords.ENDPOINT, name)
+        || findInKeywords(DomainKeyWords.ENDPOINT, description)) {
+      domains.add(DefaultDomain.ENDPOINT.getDomain());
+    }
+    if (findInKeywords(DomainKeyWords.NETWORK, name)
+        || findInKeywords(DomainKeyWords.NETWORK, description)) {
+      domains.add(DefaultDomain.NETWORK.getDomain());
+    }
+    if (findInKeywords(DomainKeyWords.WEB_APP, name)
+        || findInKeywords(DomainKeyWords.WEB_APP, description)) {
+      domains.add(DefaultDomain.WEB_APP.getDomain());
+    }
+    if (findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, name)
+        || findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, description)) {
+      domains.add(DefaultDomain.EMAIL_INFILTRATION.getDomain());
+    }
+    if (findInKeywords(DomainKeyWords.DATA_EXFILTRATION, name)
+        || findInKeywords(DomainKeyWords.DATA_EXFILTRATION, description)) {
+      domains.add(DefaultDomain.DATA_EXFILTRATION.getDomain());
+    }
+    if (findInKeywords(DomainKeyWords.URL_FILTERING, name)
+        || findInKeywords(DomainKeyWords.URL_FILTERING, description)) {
+      domains.add(DefaultDomain.URL_FILTERING.getDomain());
+    }
+    if (findInKeywords(DomainKeyWords.CLOUD, name)
+        || findInKeywords(DomainKeyWords.CLOUD, description)) {
+      domains.add(DefaultDomain.CLOUD.getDomain());
+    }
 
-      if (domains.isEmpty()) {
-          domains.add(DefaultDomain.ENDPOINT.getDomain());
-      }
+    if (domains.isEmpty()) {
+      domains.add(DefaultDomain.ENDPOINT.getDomain());
+    }
 
-      return domains;
+    return domains;
   }
 
   private boolean findInKeywords(DomainKeyWords keywords, String searchValue) {
-      return keywords.getKeywords().stream().map(String::toLowerCase).anyMatch(keyword -> searchValue.toLowerCase().contains(keyword));
+    return keywords.getKeywords().stream()
+        .map(String::toLowerCase)
+            .anyMatch(keyword -> searchValue.toLowerCase().contains(keyword));
   }
 
   private String randomColor() {

@@ -14,7 +14,6 @@ import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaField;
 
 import io.openaev.database.model.Endpoint;
-import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
@@ -22,11 +21,11 @@ import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -100,7 +99,8 @@ public class ChallengeContract extends Contractor {
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
             false,
-            Set.of(DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
+            Set.of(
+                DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
     publishChallenge.setAtomicTesting(false);
     return List.of(publishChallenge);
   }

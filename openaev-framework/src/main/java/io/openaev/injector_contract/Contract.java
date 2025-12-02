@@ -9,9 +9,7 @@ import io.openaev.injector_contract.variables.VariableHelper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-
 import java.util.*;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -64,8 +62,7 @@ public class Contract {
       @NotEmpty final List<ContractElement> fields,
       final List<PLATFORM_TYPE> platforms,
       final boolean needsExecutor,
-      @NotEmpty final Set<Domain> domains
-  ) {
+      @NotEmpty final Set<Domain> domains) {
     this.config = config;
     this.id = id;
     this.label = label;
@@ -93,8 +90,7 @@ public class Contract {
       @NotEmpty final List<ContractElement> fields,
       final List<PLATFORM_TYPE> platforms,
       final boolean needsExecutor,
-      @NotEmpty final Set<Domain> domains
-  ) {
+      @NotEmpty final Set<Domain> domains) {
     Contract contract =
         new Contract(
             config,
@@ -104,8 +100,7 @@ public class Contract {
             fields,
             platforms == null ? List.of(PLATFORM_TYPE.Generic) : platforms,
             needsExecutor,
-            domains
-        );
+            domains);
     contract.setAtomicTesting(false);
     return contract;
   }
@@ -117,8 +112,7 @@ public class Contract {
       @NotEmpty final List<ContractElement> fields,
       final List<PLATFORM_TYPE> platforms,
       final boolean needsExecutor,
-      @NotEmpty final Set<Domain> domains
-  ) {
+      @NotEmpty final Set<Domain> domains) {
     return new Contract(
         config,
         id,

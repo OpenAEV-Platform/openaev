@@ -223,7 +223,10 @@ public class InjectorContractService {
 
     injectorContract.setInjector(
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
-    injectorContract.setDomains(!injectorContract.getInjector().isPayloads() ? this.domainService.upserts(input.getDomains()) : null);
+    injectorContract.setDomains(
+        !injectorContract.getInjector().isPayloads()
+            ? this.domainService.upserts(input.getDomains())
+            : Set.of());
     return injectorContractRepository.save(injectorContract);
   }
 
@@ -433,7 +436,7 @@ public class InjectorContractService {
       injectorContract.setAttackPatterns(new ArrayList<>());
     }
     if (!injector.isPayloads() && in.getDomains() != null) {
-        injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
+      injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
     }
     return injectorContract;
   }

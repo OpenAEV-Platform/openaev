@@ -54,14 +54,14 @@ public class Domain implements Base {
 
   @Override
   public boolean equals(Object obj) {
-      if (obj == null) {
-          return false;
-      }
+    if (obj == null) {
+      return false;
+    }
 
-      if (obj.getClass() != this.getClass()) {
-          return false;
-      }
+    if (obj.getClass() != this.getClass()) {
+      return false;
+    }
 
-      return this.getName().equals(((Domain) obj).getName());
+    return this.getName().equals(((Domain) obj).getName());
   }
 }

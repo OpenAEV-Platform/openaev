@@ -6,9 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Domain;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -56,5 +56,5 @@ public class InjectorContractAddInput {
   private String[] platforms = new String[0];
 
   @JsonProperty("contract_domains")
-  private Set<Domain>  domains;
+  private Set<Domain> domains;
 }

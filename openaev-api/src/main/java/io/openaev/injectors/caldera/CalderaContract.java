@@ -12,8 +12,6 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.rest.domain.DomainService;
-import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.*;
@@ -23,12 +21,12 @@ import io.openaev.injectors.caldera.config.CalderaInjectorConfig;
 import io.openaev.injectors.caldera.model.CalderaInjectContent;
 import io.openaev.injectors.caldera.model.Obfuscator;
 import io.openaev.injectors.caldera.service.CalderaInjectorService;
+import io.openaev.rest.domain.DomainService;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -156,7 +154,8 @@ public class CalderaContract extends Contractor {
                       builder.build(),
                       platforms,
                       true,
-                      domainService.findDomainByNameAndDescription(ability.getName(), ability.getDescription()));
+                      domainService.findDomainByNameAndDescription(
+                          ability.getName(), ability.getDescription()));
               contract.addAttackPattern(ability.getTechnique_id());
               return contract;
             }))

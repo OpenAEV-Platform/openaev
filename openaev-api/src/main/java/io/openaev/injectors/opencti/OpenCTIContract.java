@@ -14,17 +14,16 @@ import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaF
 
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
-import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

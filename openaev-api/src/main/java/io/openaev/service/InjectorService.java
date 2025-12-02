@@ -236,9 +236,10 @@ public class InjectorService {
                 }
 
                 if (!payloads) {
-                    Set<Domain> currentDomains = this.domainService.upserts(contract.getDomains());
-                    Set<Domain> domainsToAdd = this.domainService.upserts(current.get().getDomains());
-                    contract.setDomains(this.domainService.mergeDomains(currentDomains, domainsToAdd));
+                  Set<Domain> currentDomains = this.domainService.upserts(contract.getDomains());
+                  Set<Domain> domainsToAdd = this.domainService.upserts(current.get().getDomains());
+                  contract.setDomains(
+                      this.domainService.mergeDomains(currentDomains, domainsToAdd));
                 }
               } else if (!contract.getCustom()) {
                 toDeletes.add(contract.getId());

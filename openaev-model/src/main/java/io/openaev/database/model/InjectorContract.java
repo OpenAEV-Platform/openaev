@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -138,8 +139,7 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @Getter(AccessLevel.NONE)
-  @JsonProperty("injector_contract_domains")
+  @Getter(NONE)
   private Set<Domain> domains = new HashSet<>();
 
   @JsonProperty("injector_contract_domains")

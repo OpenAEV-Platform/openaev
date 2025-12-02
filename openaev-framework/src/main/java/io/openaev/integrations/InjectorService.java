@@ -25,7 +25,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -158,11 +157,12 @@ public class InjectorService {
                       contractDB.setAttackPatterns(attackPatterns);
                     }
                   }
-                  // Manage the update for domains by doing a merge, if payloads, domains will be hold by payloads
+                  // Manage the update for domains by doing a merge, if payloads, domains will be
+                  // hold by payloads
                   if (!isPayloads) {
-                      Set<Domain> currentDomains = this.upserts(contractDB.getDomains());
-                      Set<Domain> domainsToAdd = this.upserts(current.get().getDomains());
-                      contractDB.setDomains(this.mergeDomains(currentDomains, domainsToAdd));
+                    Set<Domain> currentDomains = this.upserts(contractDB.getDomains());
+                    Set<Domain> domainsToAdd = this.upserts(current.get().getDomains());
+                    contractDB.setDomains(this.mergeDomains(currentDomains, domainsToAdd));
                   }
                   try {
                     contractDB.setContent(mapper.writeValueAsString(current.get()));
@@ -208,7 +208,7 @@ public class InjectorService {
                       throw new RuntimeException(e);
                     }
                     if (!isPayloads && in.getDomains() != null) {
-                        injectorContract.setDomains(this.upserts(in.getDomains()));
+                      injectorContract.setDomains(this.upserts(in.getDomains()));
                     }
                     return injectorContract;
                   })
@@ -259,7 +259,7 @@ public class InjectorService {
                       throw new RuntimeException(e);
                     }
                     if (!isPayloads && in.getDomains() != null) {
-                        injectorContract.setDomains(this.upserts(in.getDomains()));
+                      injectorContract.setDomains(this.upserts(in.getDomains()));
                     }
                     return injectorContract;
                   })
@@ -273,31 +273,37 @@ public class InjectorService {
   }
 
   public Set<Domain> upserts(final Set<Domain> domains) {
-      return domains.stream().map(this::upsert).collect(Collectors.toSet());
+    return domains.stream().map(this::upsert).collect(Collectors.toSet());
   }
 
   private Domain upsert(final Domain domain) {
-      Optional<Domain> existingDomain = domainRepository.findByName(domain.getName());
-      return existingDomain.
-              orElseGet(() ->
-                      domainRepository.save(new Domain(null, domain.getName(), domain.getColor() != null ? domain.getColor() : randomColor(), Instant.now(), null)));
+    Optional<Domain> existingDomain = domainRepository.findByName(domain.getName());
+    return existingDomain.orElseGet(
+        () ->
+            domainRepository.save(
+                new Domain(
+                    null,
+                    domain.getName(),
+                    domain.getColor() != null ? domain.getColor() : randomColor(),
+                    Instant.now(),
+                    null)));
   }
 
   private String randomColor() {
-      Random rand = new Random();
-      return String.format("#%06x", rand.nextInt(0xffffff + 1));
+    Random rand = new Random();
+    return String.format("#%06x", rand.nextInt(0xffffff + 1));
   }
 
   public Set<Domain> mergeDomains(
-          final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
-      if (existingDomains == null
-              || existingDomains.isEmpty()
-              || (existingDomains.size() == 1
-              && TOCLASSIFY.equals(existingDomains.iterator().next().getName()))) {
-          return addedDomains;
-      }
+      final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
+    if (existingDomains == null
+        || existingDomains.isEmpty()
+        || (existingDomains.size() == 1
+            && TOCLASSIFY.equals(existingDomains.iterator().next().getName()))) {
+      return addedDomains;
+    }
 
-      return Stream.concat(existingDomains.stream(), addedDomains.stream())
-              .collect(Collectors.toSet());
+    return Stream.concat(existingDomains.stream(), addedDomains.stream())
+        .collect(Collectors.toSet());
   }
 }

@@ -15,11 +15,11 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.rest.domain.enums.DefaultDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -99,11 +99,7 @@ public class CrowdstrikeExecutorServiceTest {
     when(config.getWindowsScriptName()).thenReturn("MyScript");
     Command payloadCommand =
         PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami",
-            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+            "cmd", "whoami", List.of(), "whoami", Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
