@@ -1263,12 +1263,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@dagrejs/dagre@npm:1.1.5":
-  version: 1.1.5
-  resolution: "@dagrejs/dagre@npm:1.1.5"
+"@dagrejs/dagre@npm:1.1.8":
+  version: 1.1.8
+  resolution: "@dagrejs/dagre@npm:1.1.8"
   dependencies:
     "@dagrejs/graphlib": "npm:2.2.4"
-  checksum: 10c0/738e2d86ee093b99ec96098f1a4d0b6290b6ddaef51db912885df0ab5d09291edb82ef875575a4b321bc13bab78b1cb00347b246aad4099ce4af3202a72a8586
+  checksum: 10c0/3f4f99beb1c791c4c35fcab7a6891731a712931f076ae27b380afa4077e81a1f46341cd0ac8f21df29bf7b458e631b780e819846140a9e4f89e36faf907cdc66
   languageName: node
   linkType: hard
 
@@ -9838,7 +9838,7 @@ __metadata:
     "@casl/ability": "npm:6.7.3"
     "@casl/react": "npm:5.0.0"
     "@ckeditor/ckeditor5-react": "npm:9.5.0"
-    "@dagrejs/dagre": "npm:1.1.5"
+    "@dagrejs/dagre": "npm:1.1.8"
     "@emotion/react": "npm:11.14.0"
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.38.0"
