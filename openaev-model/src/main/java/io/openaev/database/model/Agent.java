@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.helper.AgentHelper;
 import io.openaev.helper.MonoIdDeserializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -109,9 +110,7 @@ public class Agent implements Base {
 
   @JsonProperty("agent_active")
   public boolean isActive() {
-    // Ignore this if you're doing a PR review, it's just for testing purposes when deployed on
-    // test-feature-branch and will be reverted as soon as it's deployed ...
-    return true;
+    return new AgentHelper().isAgentActiveFromLastSeen(this.getLastSeen());
   }
 
   /** Used for Caldera only */

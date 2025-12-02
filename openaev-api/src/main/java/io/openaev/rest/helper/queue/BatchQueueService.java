@@ -89,7 +89,7 @@ public class BatchQueueService<T extends Queueable> {
     establishConnection();
 
     // A scheduler to handle batches that did not reached the critical mass
-    ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
+    ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     scheduledExecutor.scheduleAtFixedRate(
         () -> queue.keySet().forEach(this::processBufferedBatch),
         this.queueConfig.getWorkerFrequency(),
@@ -212,7 +212,7 @@ public class BatchQueueService<T extends Queueable> {
    * @param cause the cause of the shutdown
    */
   private void handleConnectionShutdown(ShutdownSignalException cause) {
-    // If we're just closing openbas, all is good
+    // If we're just closing openaev, all is good
     if (cause.isInitiatedByApplication()) {
       log.info("Connection shut down by application");
       return;
@@ -223,7 +223,7 @@ public class BatchQueueService<T extends Queueable> {
     connection.removeShutdownListener(shutdownListener);
 
     // Start trying to reconnect
-    reconnectionExecutor.schedule(this::attemptReconnection, 10000, TimeUnit.MILLISECONDS);
+    reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
   }
 
   /** Reconnection attempt */
@@ -272,6 +272,7 @@ public class BatchQueueService<T extends Queueable> {
       log.warn("Error closing resources: {}", e.getMessage());
       throw e;
     } finally {
+      publisherChannels.clear();
       consumerChannels.clear();
     }
   }
