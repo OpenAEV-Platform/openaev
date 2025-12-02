@@ -48,10 +48,10 @@ public class Manager {
   public <T> T request(ComponentRequest request, Class<T> requestedType) {
     List<T> candidates =
         spawnedIntegrations.stream()
-            .map(
+            .flatMap(
                 si -> {
                   try {
-                    return si.requestComponent(request, requestedType);
+                    return si.requestComponent(request, requestedType).stream();
                   } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
                   }

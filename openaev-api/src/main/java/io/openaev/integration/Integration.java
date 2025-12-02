@@ -24,7 +24,7 @@ public abstract class Integration {
     }
   }
 
-  public <T> T requestComponent(ComponentRequest request, Class<T> componentType)
+  public <T> List<T> requestComponent(ComponentRequest request, Class<T> componentType)
       throws IllegalAccessException {
     List<Field> candidates =
         componentRequestEngine.validate(
@@ -33,12 +33,10 @@ public abstract class Integration {
                 .filter(f -> componentType.isAssignableFrom(f.getType()))
                 .toList());
 
-    if (candidates.isEmpty()) {
-      throw new UnsupportedOperationException("No component qualify for request.");
-    } else if (candidates.size() > 1) {
+    if (candidates.size() > 1) {
       throw new IllegalStateException("Too many components qualify for request.");
     }
 
-    return (T) FieldUtils.getField(this, candidates.getFirst());
+    return candidates.stream().map(candidate -> (T) FieldUtils.getField(this, candidate)).toList();
   }
 }
