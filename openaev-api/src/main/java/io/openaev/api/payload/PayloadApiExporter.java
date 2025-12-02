@@ -44,6 +44,6 @@ public class PayloadApiExporter extends RestBehavior {
 
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
-    return zipJsonApi.handleExport(payload);
+    return zipJsonApi.handleExport(payload, null, includeOptions);
   }
 }
