@@ -120,6 +120,8 @@ public class SentinelOneExecutorServiceTest {
     // Run method to test
     sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus);
+      // Executor scheduled so we have to wait before the execution
+      Thread.sleep(1000);
     // Asserts
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
