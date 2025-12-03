@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
 @Transactional
 public class CatalogConnectorIngestionService {
     private static final Set<String> PROTECTED_KEYS = Set.of(
-            "collector_id",
-            "injector_id",
-            "executor_id"
+            "COLLECTOR_ID",
+            "INJECTOR_ID",
+            "EXECUTOR_ID"
     );
     private final CatalogConnectorService catalogConnectorService;
     private final FileService fileService;
@@ -158,7 +158,7 @@ public class CatalogConnectorIngestionService {
                 // - schemaConf == null means the schema no longer defines this key
                 // - Protected system keys must NEVER be deleted
                 boolean keyRemovedFromSchema =
-                        schemaConf == null && !PROTECTED_KEYS.contains(instConf.getKey());
+                        schemaConf == null && !PROTECTED_KEYS.contains(instConf.getKey().toUpperCase());
 
                 // Configuration changed to "PASSWORD" format but the stored value is not encrypted:
                 // - schemaConf exists
