@@ -1,7 +1,5 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.database.model.Endpoint.PLATFORM_ARCH.arm64;
-import static io.openaev.database.model.Endpoint.PLATFORM_ARCH.x86_64;
 import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
@@ -83,46 +81,38 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);
+
     List<SentinelOneAction> actions = new ArrayList<>();
-    // Set implant script for Windows SentinelOne agents
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOSAndArch(sentinelOneAgents, Windows, x86_64),
-            injector,
-            inject.getId(),
-            x86_64.name()));
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOSAndArch(sentinelOneAgents, Windows, arm64),
-            injector,
-            inject.getId(),
-            arm64.name()));
-    // Set implant script for Linux SentinelOne agents
-    actions.addAll(
-        getLinuxActions(
-            getAgentsFromOSAndArch(sentinelOneAgents, Linux, x86_64),
-            injector,
-            inject.getId(),
-            x86_64.name()));
-    actions.addAll(
-        getLinuxActions(
-            getAgentsFromOSAndArch(sentinelOneAgents, Linux, arm64),
-            injector,
-            inject.getId(),
-            arm64.name()));
-    // Set implant script for MacOS SentinelOne agents
-    actions.addAll(
-        getMacOSActions(
-            getAgentsFromOSAndArch(sentinelOneAgents, MacOS, x86_64),
-            injector,
-            inject.getId(),
-            x86_64.name()));
-    actions.addAll(
-        getMacOSActions(
-            getAgentsFromOSAndArch(sentinelOneAgents, MacOS, arm64),
-            injector,
-            inject.getId(),
-            arm64.name()));
+    // Set implant script for each agent
+    for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
+      for (Endpoint.PLATFORM_ARCH arch : Endpoint.PLATFORM_ARCH.values()) {
+        switch (platform) {
+          case Windows ->
+              actions.addAll(
+                  getWindowsActions(
+                      getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch.name()));
+          case Linux ->
+              actions.addAll(
+                  getLinuxActions(
+                      getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch.name()));
+          case MacOS ->
+              actions.addAll(
+                  getMacOSActions(
+                      getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch.name()));
+          default -> { // No need, only Mac, Windows and Linux for now
+          }
+        }
+      }
+    }
     // Launch payloads with SentinelOne API
     executeActions(actions);
     return sentinelOneAgents;

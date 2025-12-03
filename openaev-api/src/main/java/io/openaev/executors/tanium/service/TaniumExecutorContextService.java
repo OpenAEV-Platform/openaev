@@ -1,7 +1,5 @@
 package io.openaev.executors.tanium.service;
 
-import static io.openaev.database.model.Endpoint.PLATFORM_ARCH.arm64;
-import static io.openaev.database.model.Endpoint.PLATFORM_ARCH.x86_64;
 import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
@@ -71,47 +69,32 @@ public class TaniumExecutorContextService extends ExecutorContextService {
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
     taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
+
     List<TaniumAction> actions = new ArrayList<>();
-    // Set implant script for Windows Tanium agents
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOSAndArch(taniumAgents, Windows, x86_64),
-            injector,
-            inject.getId(),
-            x86_64));
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOSAndArch(taniumAgents, Windows, arm64), injector, inject.getId(), arm64));
-    // Set implant script for Linux Tanium agents
-    actions.addAll(
-        getUnixActions(
-            getAgentsFromOSAndArch(taniumAgents, Linux, x86_64),
-            injector,
-            inject.getId(),
-            Linux,
-            x86_64));
-    actions.addAll(
-        getUnixActions(
-            getAgentsFromOSAndArch(taniumAgents, Linux, arm64),
-            injector,
-            inject.getId(),
-            Linux,
-            arm64));
-    // Set implant script for MacOS Tanium agents
-    actions.addAll(
-        getUnixActions(
-            getAgentsFromOSAndArch(taniumAgents, MacOS, x86_64),
-            injector,
-            inject.getId(),
-            MacOS,
-            x86_64));
-    actions.addAll(
-        getUnixActions(
-            getAgentsFromOSAndArch(taniumAgents, MacOS, arm64),
-            injector,
-            inject.getId(),
-            MacOS,
-            arm64));
+    // Set implant script for each agent
+    for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
+      for (Endpoint.PLATFORM_ARCH arch : Endpoint.PLATFORM_ARCH.values()) {
+        switch (platform) {
+          case Windows ->
+              actions.addAll(
+                  getWindowsActions(
+                      getAgentsFromOSAndArch(taniumAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch));
+          case Linux, MacOS ->
+              actions.addAll(
+                  getUnixActions(
+                      getAgentsFromOSAndArch(taniumAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      platform,
+                      arch));
+          default -> { // No need, only Mac, Windows and Linux for now
+          }
+        }
+      }
+    }
     // Launch payloads with Tanium API
     executeActions(actions);
     return taniumAgents;
