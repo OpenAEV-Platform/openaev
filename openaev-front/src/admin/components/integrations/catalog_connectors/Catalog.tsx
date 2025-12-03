@@ -1,40 +1,24 @@
 import { Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
+import { useOutletContext } from 'react-router';
 
-import { fetchCatalogConnectors } from '../../../../actions/catalog/catalog-actions';
-import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import CatalogFilters from './CatalogFilters';
 import ConnectorCard from './ConnectorCard';
 
+type CatalogContextType = { catalogConnectors: CatalogConnectorOutput[] };
+
 const Catalog = () => {
   // Standard hooks
-  const { t } = useFormatter();
-  const dispatch = useAppDispatch();
   const theme = useTheme();
 
-  const { catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({ catalogConnectors: helper.getCatalogConnectors() }));
-  const [filteredConnectors, setFilteredConnectors] = useState<CatalogConnectorOutput[]>(catalogConnectors);
+  const { catalogConnectors } = useOutletContext<CatalogContextType>();
 
-  useDataLoader(() => {
-    dispatch(fetchCatalogConnectors());
-  });
+  const [filteredConnectors, setFilteredConnectors] = useState<CatalogConnectorOutput[]>(catalogConnectors);
 
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Catalog') }, {
-          label: t('Connectors'),
-          current: true,
-        }]}
-      />
       <CatalogFilters
         connectors={catalogConnectors}
         onFiltered={setFilteredConnectors}
