@@ -74,7 +74,7 @@
     "usehooks-ts": "3.1.1",
     "uuid": "13.0.0",
     "zod": "3.25.76",
-    "zustand": "5.0.8"
+    "zustand": "5.0.9"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
