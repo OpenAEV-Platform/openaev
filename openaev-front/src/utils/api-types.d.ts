@@ -4770,7 +4770,7 @@ export interface PlatformSettings {
   enabled_dev_features?: (
     | "_RESERVED"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
-    | "BATCHING_INJECTS_EXECUTION_TRACE"
+    | "LEGACY_INGESTION_EXECUTION_TRACE"
   )[];
   /** True if the Caldera Executor is enabled */
   executor_caldera_enable?: boolean;

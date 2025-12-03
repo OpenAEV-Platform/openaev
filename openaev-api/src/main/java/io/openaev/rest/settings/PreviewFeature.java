@@ -13,7 +13,7 @@ public enum PreviewFeature {
   // Reserved for internal use.
   _RESERVED,
   STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES,
-  BATCHING_INJECTS_EXECUTION_TRACE;
+  LEGACY_INGESTION_EXECUTION_TRACE;
 
   public static PreviewFeature fromStringIgnoreCase(String str) {
     for (PreviewFeature feature : PreviewFeature.values()) {

@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -44,6 +45,7 @@ public class InjectExecutionService {
 
   @Resource protected ObjectMapper mapper;
 
+  @Transactional
   public void handleInjectExecutionCallback(
       String injectId, String agentId, InjectExecutionInput input) {
     Inject inject = null;
