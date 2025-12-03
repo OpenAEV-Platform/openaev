@@ -79,7 +79,7 @@ public class ExecutionExecutorService {
         atLeastOneExecution.set(true);
       } catch (Exception e) {
         log.error("Sentinelone launchBatchExecutorSubprocess error: {}", e.getMessage());
-        saveAgentsErrorTraces(e, crowdstrikeAgents, injectStatus);
+        saveAgentsErrorTraces(e, sentineloneAgents, injectStatus);
       }
     }
     // Manage remaining agents

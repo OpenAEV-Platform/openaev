@@ -52,8 +52,8 @@ public class AgentService {
     // Improve perfs for save all
     for (int i = 0; i < agents.size(); i++) {
       agentsSaved.add(agentRepository.save(agents.get(i)));
-      // Flush and clear the session every 250 (batch_size property) inserts
-      if (i % 250 == 0) {
+      // Flush and clear the session every 50 (batch_size property) inserts
+      if (i % 50 == 0) {
         entityManager.flush();
         entityManager.clear();
       }

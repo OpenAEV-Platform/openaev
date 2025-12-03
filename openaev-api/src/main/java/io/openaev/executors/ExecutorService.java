@@ -90,6 +90,14 @@ public class ExecutorService {
         .ifPresent(executor -> executorRepository.deleteById(executor.getId()));
   }
 
+  /**
+   * Manage agents with no platform: set and save execution traces for the given inject and agents
+   * without platform
+   *
+   * @param agents to manage
+   * @param injectStatus to manage
+   * @return the agents with platform
+   */
   public List<Agent> manageWithoutPlatformAgents(List<Agent> agents, InjectStatus injectStatus) {
     List<Agent> withoutPlatformAgents =
         agents.stream()

@@ -339,6 +339,14 @@ public class EndpointService {
     }
   }
 
+  /**
+   * Get agents from SentinelOne, Crowdstrike API and register them into OpenAEV agents and
+   * endpoints
+   *
+   * @param inputs from the API
+   * @param existingAgents in the database
+   * @return OpenAEV agents
+   */
   public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents) {
     List<Agent> agentsToSave = new ArrayList<>();

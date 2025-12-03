@@ -35,35 +35,38 @@ public class SentinelOneExecutorClient {
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final HttpClientFactory httpClientFactory;
 
+  /**
+   * Get SentinelOne agents for filters set in properties
+   *
+   * @return SentinelOne agents
+   */
   public Set<SentinelOneAgent> agents() {
     Set<SentinelOneAgent> agents = new HashSet<>();
     if (this.config.getAccountId() != null && !this.config.getAccountId().isBlank()) {
-      agents.addAll(getAllAgentsFromFilter(ACCOUNT_FILTER + this.config.getAccountId(), agents));
+      setAllAgentsFromFilter(ACCOUNT_FILTER + this.config.getAccountId(), agents);
     }
     if (this.config.getSiteId() != null && !this.config.getSiteId().isBlank()) {
-      agents.addAll(getAllAgentsFromFilter(SITE_FILTER + this.config.getSiteId(), agents));
+      setAllAgentsFromFilter(SITE_FILTER + this.config.getSiteId(), agents);
     }
     if (this.config.getGroupId() != null && !this.config.getGroupId().isBlank()) {
-      agents.addAll(getAllAgentsFromFilter(GROUP_FILTER + this.config.getGroupId(), agents));
+      setAllAgentsFromFilter(GROUP_FILTER + this.config.getGroupId(), agents);
     }
     return agents;
   }
 
-  private Set<SentinelOneAgent> getAllAgentsFromFilter(
-      String filter, Set<SentinelOneAgent> agents) {
+  private void setAllAgentsFromFilter(String filter, Set<SentinelOneAgent> agents) {
     ResponseAgent responseAgent = getSentinelOneAgents(filter);
     if (responseAgent.getErrors() != null && !responseAgent.getErrors().isEmpty()) {
       logErrors(responseAgent.getErrors(), "uri: " + AGENTS_URI + filter);
-    } else if (responseAgent.getData() == null || responseAgent.getData().isEmpty()) {
-      return agents;
     } else {
-      agents.addAll(responseAgent.getData());
+      if (responseAgent.getData() != null) {
+        agents.addAll(responseAgent.getData());
+      }
       if (responseAgent.getPagination().getNextCursor() != null) {
-        getAllAgentsFromFilter(
+        setAllAgentsFromFilter(
             filter + CURSOR_PARAM + responseAgent.getPagination().getNextCursor(), agents);
       }
     }
-    return agents;
   }
 
   private ResponseAgent getSentinelOneAgents(String filter) {
@@ -74,9 +77,10 @@ public class SentinelOneExecutorClient {
     } catch (Exception e) {
       log.error(
           String.format(
-              "Error occurred during SentinelOne agents API request. Error: %s", e.getMessage()),
+              "Error occurred during SentinelOne agents API request for filter %s. Error: %s",
+              filter, e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      return new ResponseAgent();
     }
   }
 
@@ -96,6 +100,13 @@ public class SentinelOneExecutorClient {
     log.error(msg.toString());
   }
 
+  /**
+   * Execute a payload through SentinelOne API executeScript
+   *
+   * @param agentsId to use for the payload
+   * @param scriptId to use for the payload
+   * @param command to use for the payload
+   */
   public void executeScript(List<String> agentsId, String scriptId, String command) {
     try {
       SentinelOneFilter filter = new SentinelOneFilter();
