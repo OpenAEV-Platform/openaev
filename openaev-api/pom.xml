@@ -20,7 +20,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
-        <apache-poi.version>5.4.1</apache-poi.version>
+        <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
         <elasticsearch.version>8.19.5</elasticsearch.version>
         <opentelemetry.version>1.55.0</opentelemetry.version>
