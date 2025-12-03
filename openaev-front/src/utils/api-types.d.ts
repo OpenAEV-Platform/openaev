@@ -605,7 +605,7 @@ export interface CatalogConnectorOutput {
   catalog_connector_source_code?: string;
   catalog_connector_subscription_link?: string;
   catalog_connector_title: string;
-  catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
   /** @uniqueItems true */
   catalog_connector_use_cases?: string[];
   catalog_connector_verified?: boolean;

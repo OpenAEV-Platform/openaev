@@ -5,6 +5,7 @@ import io.openaev.database.model.CatalogConnector;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Set;
 import lombok.Builder;
@@ -45,6 +46,7 @@ public class CatalogConnectorOutput {
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @JsonProperty("catalog_connector_type")
+  @NotNull
   private CatalogConnector.CONNECTOR_TYPE containerType;
 
   @JsonProperty("catalog_connector_last_verified_date")

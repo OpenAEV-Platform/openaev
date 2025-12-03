@@ -1,12 +1,10 @@
 import { LibraryBooksOutlined, OpenInNewOutlined } from '@mui/icons-material';
 import { Paper, Typography } from '@mui/material';
-import { useParams } from 'react-router';
+import { useOutletContext } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import type { CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import type { CatalogConnectorOutput } from '../../../../utils/api-types';
+import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import ConnectorTitle from './ConnectorTitle';
 
 const useStyles = makeStyles()(theme => ({
@@ -37,13 +35,14 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
+type CatalogContextType = { connector: CatalogConnectorOutput };
+
 const ConnectorDetails = () => {
   // Standard hooks
   const { t, nsdt } = useFormatter();
   const { classes } = useStyles();
 
-  const { connectorId } = useParams() as { connectorId: CatalogConnectorOutput['catalog_connector_id'] };
-  const { connector } = useHelper((helper: CatalogConnectorsHelper) => ({ connector: helper.getCatalogConnector(connectorId) }));
+  const { connector } = useOutletContext<CatalogContextType>();
 
   return (
     <>
