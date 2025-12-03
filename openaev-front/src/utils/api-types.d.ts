@@ -3263,6 +3263,8 @@ export interface InjectorContractAddInput {
   contract_attack_patterns_external_ids?: string[];
   contract_attack_patterns_ids?: string[];
   contract_content: string;
+  /** @uniqueItems true */
+  contract_domains?: Domain[];
   contract_id: string;
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
@@ -3328,6 +3330,8 @@ export interface InjectorContractFullOutput {
 export interface InjectorContractInput {
   contract_attack_patterns_external_ids?: string[];
   contract_content: string;
+  /** @uniqueItems true */
+  contract_domains?: Domain[];
   contract_id: string;
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
@@ -3388,6 +3392,8 @@ export interface InjectorContractSimple {
 export interface InjectorContractUpdateInput {
   contract_attack_patterns_ids?: string[];
   contract_content: string;
+  /** @uniqueItems true */
+  contract_domains?: Domain[];
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
   contract_platforms?: string[];
