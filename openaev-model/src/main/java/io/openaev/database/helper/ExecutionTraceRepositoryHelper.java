@@ -89,7 +89,7 @@ public class ExecutionTraceRepositoryHelper {
         return id;
       }
     } catch (SQLException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to insert execution trace", e);
     }
   }
 
@@ -134,7 +134,7 @@ public class ExecutionTraceRepositoryHelper {
       ps.executeUpdate();
 
     } catch (SQLException e) {
-      throw new RuntimeException("Failed to update inject status", e);
+      throw new RuntimeException("Failed to update inject update date", e);
     }
   }
 }
