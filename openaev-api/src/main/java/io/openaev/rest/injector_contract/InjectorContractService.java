@@ -59,6 +59,7 @@ public class InjectorContractService {
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternService attackPatternService;
   private final VulnerabilityService vulnerabilityService;
+  private final DomainService domainService;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;

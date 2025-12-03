@@ -78,6 +78,7 @@ class CreateInjectorContract extends Component {
       R.assoc('contract_labels', { en: data.injector_contract_name }),
       R.assoc('contract_attack_patterns_external_ids', R.pluck('id', data.injector_contract_attack_patterns)),
       R.assoc('contract_content', JSON.stringify(newInjectorContractContent)),
+      R.assoc('contract_domains', data.injector_contract_domains),
       R.dissoc('injector_contract_attack_patterns'),
     )(data);
     return this.props
