@@ -702,12 +702,12 @@ class InjectApiTest extends IntegrationTest {
       // -- PREPARE --
       Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
 
-        Command payloadCommand =
-                PayloadFixture.createCommand(
-                        "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
-        Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
+      Command payloadCommand =
+          PayloadFixture.createCommand(
+              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
+      Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
-        Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
+      Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContract(injector, payloadSaved);
       InjectorContract injectorContractSaved =
