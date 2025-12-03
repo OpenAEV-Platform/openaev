@@ -102,7 +102,6 @@ const InjectorContracts = () => {
     attackPatternsMap: helper.getAttackPatternsMap(),
     killChainPhasesMap: helper.getKillChainPhasesMap(),
   }));
-
   // Headers
   const headers = [
     {
@@ -263,6 +262,7 @@ const InjectorContracts = () => {
                 killChainPhasesMap={killChainPhasesMap}
                 attackPatternsMap={attackPatternsMap}
                 onUpdate={result => setInjectorContracts(injectorContracts.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
+                isPayloadInjector={injector.injector_payloads}
               />
             </ListItemSecondaryAction>
           </ListItem>
@@ -274,6 +274,9 @@ const InjectorContracts = () => {
           injectorContracts={injectorContracts}
           killChainPhasesMap={killChainPhasesMap}
           attackPatternsMap={attackPatternsMap}
+          onCreated={() => {
+            setSearchPaginationInput({ ...searchPaginationInput });
+          }}
         />
       )}
     </div>

@@ -3409,6 +3409,8 @@ export interface InjectorContractUpdateInput {
 
 export interface InjectorContractUpdateMappingInput {
   contract_attack_patterns_ids?: string[];
+  /** Set list of domains */
+  contract_domains: string[];
   contract_vulnerability_ids?: string[];
 }
 

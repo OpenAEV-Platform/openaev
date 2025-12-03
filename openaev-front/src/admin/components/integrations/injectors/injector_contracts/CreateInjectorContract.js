@@ -83,7 +83,15 @@ class CreateInjectorContract extends Component {
     )(data);
     return this.props
       .addInjectorContract(inputValues)
-      .then(result => (result.result ? this.handleClose() : result));
+      .then((result) => {
+        if (result.result) {
+          if (this.props.onCreated) {
+            this.props.onCreated();
+          }
+          this.handleClose();
+        }
+        return result;
+      });
   }
 
   renderInjectorContracts() {
@@ -159,6 +167,7 @@ CreateInjectorContract.propTypes = {
   killChainPhasesMap: PropTypes.object,
   attackPatternsMap: PropTypes.object,
   addInjectorContract: PropTypes.func,
+  onCreated: PropTypes.func,
 };
 
 export default R.compose(

@@ -4,6 +4,7 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
@@ -273,6 +274,7 @@ public class InjectorContractService {
     injectorContract.setVulnerabilities(
         vulnerabilityService.findAllByIdsOrThrowIfMissing(
             new HashSet<>(input.getVulnerabilityIds())));
+    injectorContract.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
