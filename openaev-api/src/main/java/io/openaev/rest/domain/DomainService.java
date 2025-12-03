@@ -10,13 +10,12 @@ import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.FilterUtilsJpa;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import io.openaev.utils.FilterUtilsJpa;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
