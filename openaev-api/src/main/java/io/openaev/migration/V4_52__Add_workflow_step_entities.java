@@ -12,26 +12,22 @@ public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement select = context.getConnection().createStatement()) {
+
       select.execute(
           """
-        CREATE TABLE inject_templates (
-            inject_template_id VARCHAR(255) NOT NULL CONSTRAINT inject_templates_pkey PRIMARY KEY,
-            inject_template_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            inject_template_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-          );
-        """);
-      select.execute(
-          """
-        CREATE TABLE inject_executions (
-            inject_execution_id VARCHAR(255) NOT NULL CONSTRAINT inject_execution_pkey PRIMARY KEY,
-            inject_execution_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            inject_execution_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+        CREATE TYPE step_type AS ENUM ('INJECT_EXECUTION', 'TIMESTAMP', 'CONDITION');
+        CREATE TABLE steps (
+            step_id VARCHAR(255) NOT NULL CONSTRAINT step_pkey PRIMARY KEY,
+            step_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+            step_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
           );
         """);
       select.execute(
           """
         CREATE TABLE edges (
             edge_id VARCHAR(255) NOT NULL CONSTRAINT edge_pkey PRIMARY KEY,
+            step_parent_id VARCHAR(255) NOT NULL UNIQUE REFERENCES steps(step_id),
+            step_children_id VARCHAR(255) NOT NULL UNIQUE REFERENCES steps(step_id),
             edge_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             edge_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
           );
