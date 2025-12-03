@@ -146,7 +146,8 @@ public class InjectorContract implements Base {
   @Queryable(
       filterable = true,
       dynamicValues = true,
-      paths = {"payload.domains.id", "domains.id"})
+      paths = {"payload.domains.id", "domains.id"},
+      clazz = String[].class)
   public Set<Domain> getDomains() {
     return this.payload != null ? this.payload.getDomains() : this.domains;
   }
