@@ -1,10 +1,15 @@
 package io.openaev.executors.crowdstrike.config;
 
+import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceConfiguration;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Setter
 @Component
@@ -30,4 +35,9 @@ public class CrowdStrikeExecutorConfig {
   @Getter @NotBlank private String windowsScriptName;
 
   @Getter @NotBlank private String unixScriptName;
+
+  public Set<ConnectorInstanceConfiguration> toConnectorInstanceConfigurations(ConnectorInstance relatedInstance) {
+    Set<ConnectorInstanceConfiguration> returned = new HashSet<>();
+    return Set.of();
+  }
 }

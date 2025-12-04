@@ -6,7 +6,7 @@ import static io.openaev.database.specification.EndpointSpecification.*;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.integration.impl.openaev.OpenAEVIntegration.OPENAEV_EXECUTOR_ID;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVIntegration.OPENAEV_EXECUTOR_ID;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.PaginationUtils.buildPageable;

@@ -6,7 +6,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
-import io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegration;
+import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeIntegration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
 import jakarta.persistence.EntityManager;

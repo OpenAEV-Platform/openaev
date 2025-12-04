@@ -14,10 +14,7 @@ public class Manager {
   @Getter private final List<Integration> spawnedIntegrations = new ArrayList<>();
 
   public Manager(
-      List<IntegrationFactory> factories,
-      List<ConfigurationMigration> migrations,
-      CatalogConnectorService catalogConnectorService,
-      ConnectorInstanceService connectorInstanceService) {
+      List<IntegrationFactory> factories) {
     this.factories = factories;
 
     initialise();

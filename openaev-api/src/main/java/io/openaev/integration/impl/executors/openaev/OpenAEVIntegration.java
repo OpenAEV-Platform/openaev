@@ -1,4 +1,4 @@
-package io.openaev.integration.impl.openaev;
+package io.openaev.integration.impl.executors.openaev;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;

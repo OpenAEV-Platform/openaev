@@ -1,4 +1,4 @@
-package io.openaev.integration.impl.crowdstrike;
+package io.openaev.integration.impl.executors.crowdstrike;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
