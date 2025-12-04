@@ -84,7 +84,9 @@ public class DomainService {
       return Set.of();
     }
 
-    return domains.stream().map(this::upsert).collect(Collectors.toSet());
+    return domains.stream()
+        .map(domain -> this.upsert(domain.getName(), domain.getColor()))
+        .collect(Collectors.toSet());
   }
 
   public Domain upsert(final String name, final String color) {
