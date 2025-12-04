@@ -157,8 +157,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput)))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2))
-            .andExpect(jsonPath("$.content[1].exercise_id").value(exercise1FromScenario.getId()))
-            .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()));
+            .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()))
+            .andExpect(jsonPath("$.content[1].exercise_id").value(exercise1FromScenario.getId()));
       }
 
       @Test

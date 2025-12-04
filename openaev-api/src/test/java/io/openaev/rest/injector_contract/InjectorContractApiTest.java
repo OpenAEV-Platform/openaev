@@ -761,6 +761,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Updating contract fails with NOT FOUND")
       void updateContractFailsWithNotFound() throws Exception {
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+        input.setDomains(domains);
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
         mvc.perform(
@@ -1098,7 +1100,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Updating contract fails with NOT FOUND")
       void updateContractFailsWithNotFound() throws Exception {
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+        input.setDomains(domains);
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
 
         mvc.perform(
