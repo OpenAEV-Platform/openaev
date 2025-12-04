@@ -1,0 +1,30 @@
+package io.openaev.utils.mapper;
+
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.Collector;
+import io.openaev.rest.collector.form.CollectorSimpleOutput;
+import jakarta.annotation.Nullable;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+@RequiredArgsConstructor
+@Component
+@Slf4j
+public class CollectorMapper {
+
+    private final CatalogConnectorMapper catalogConnectorMapper;
+
+    public CollectorSimpleOutput toCollectorSimpleOutput(
+            Collector collector, @Nullable CatalogConnector catalogConnector, boolean isVerified){
+        return CollectorSimpleOutput.builder()
+                .id(collector.getId())
+                .name(collector.getName())
+                .type(collector.getType())
+                .external(collector.isExternal())
+                .lastExecution(collector.getLastExecution())
+                .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
+                .verified(isVerified)
+                .build();
+    }
+}

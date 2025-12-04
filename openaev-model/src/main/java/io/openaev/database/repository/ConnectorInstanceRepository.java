@@ -1,8 +1,11 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import java.util.List;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,5 +13,15 @@ import org.springframework.stereotype.Repository;
 public interface ConnectorInstanceRepository
     extends CrudRepository<ConnectorInstance, String>, JpaSpecificationExecutor<ConnectorInstance> {
 
-  List<ConnectorInstance> findByCatalogConnectorId(String catalogConnectorId);
+  @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
+  @Query(
+      "SELECT DISTINCT instance FROM ConnectorInstance instance "
+          + "WHERE instance.catalogConnector.containerImage IS NOT NULL")
+  List<ConnectorInstance> findAllManagedByXtmComposerAndConfiguration();
+
+  List<ConnectorInstance> findAllByCatalogConnectorId(String catalogConnectorId);
+
+  @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
+  List<ConnectorInstance> findAllByCatalogConnectorContainerType(
+      CatalogConnector.CONNECTOR_TYPE containerType);
 }

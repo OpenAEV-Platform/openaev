@@ -18,6 +18,7 @@ interface Props {
   style?: CSSProperties;
   variant?: VariantButtonPopover;
   disabled?: boolean;
+  className?: string;
 }
 
 const ButtonPopover: FunctionComponent<Props> = ({
@@ -25,6 +26,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
   style,
   variant = 'toggle',
   disabled = false,
+  className,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -36,6 +38,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
       {variant === 'toggle' && !entries.every(entry => !entry.userRight)
         && (
           <ToggleButton
+            className={className}
             value="popover"
             size="small"
             color="primary"

@@ -152,7 +152,7 @@ const InjectContentFieldComponent = ({
             multiline={field.type == 'textarea'}
             rows={field.type == 'textarea' ? (field.settings?.rows ?? 10) : 1}
             required={field.settings?.required}
-            type={field.type === 'number' ? 'number' : 'text'}
+            type={field.type as ('number' | 'text' | 'password')}
           />
         );
       }

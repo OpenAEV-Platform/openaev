@@ -5,14 +5,16 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
-import Catalog from './catalog_connectors/Catalog';
-import ConnectorDetails from './catalog_connectors/ConnectorDetails';
 
+const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
 const CatalogLayout = lazy(() => import('./catalog_connectors/CatalogLayout'));
-const Injectors = lazy(() => import('./Injectors'));
+import ConnectorDetails from './catalog_connectors/ConnectorDetails';
+const Injectors = lazy(() => import('./injectors/Injectors'));
 const IndexInjector = lazy(() => import('./injectors/Index'));
-const Collectors = lazy(() => import('./Collectors'));
 const Executors = lazy(() => import('./Executors'));
+const Collectors = lazy(() => import('./collectors/Collectors'));
+const CollectorPage = lazy(() => import('./collectors/CollectorPage'));
+const CollectorsLayout = lazy(() => import('./collectors/CollectorsLayout'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
@@ -31,7 +33,12 @@ const Index = () => {
 
           <Route path="injectors" element={errorWrapper(Injectors)()} />
           <Route path="injectors/:injectorId/*" element={errorWrapper(IndexInjector)()} />
-          <Route path="collectors" element={errorWrapper(Collectors)()} />
+
+          <Route path="collectors" element={errorWrapper(CollectorsLayout)()}>
+            <Route index element={<Collectors />} />
+            <Route path=":collectorId" element={<CollectorPage />} />
+          </Route>
+
           <Route path="executors" element={errorWrapper(Executors)()} />
           {/* Not found */}
           <Route path="*" element={<NotFound />} />

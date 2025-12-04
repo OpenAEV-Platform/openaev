@@ -160,6 +160,10 @@ public class PlatformSettingsService {
     return new Setting(themeKey, value);
   }
 
+  public Setting save(Setting setting) {
+    return this.settingRepository.save(setting);
+  }
+
   // -- FIND SETTINGS --
   public PlatformSettings findSettings() {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
@@ -334,6 +338,14 @@ public class PlatformSettingsService {
     platformSettings.setXtmHubShouldSendConnectivityEmail(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
     return platformSettings;
+  }
+
+  public String getPlatformVersion() {
+    return openAEVConfig.getVersion();
+  }
+
+  public Map<String, Setting> findSettingsByKeys(List<String> keys) {
+    return mapOfSettings(fromIterable(this.settingRepository.findAllByKeyIn(keys)));
   }
 
   private ThemeInput createThemeInput(Map<String, Setting> dbSettings, String themeType) {
@@ -531,6 +543,25 @@ public class PlatformSettingsService {
     settingRepository.deleteAllById(delete);
     settingRepository.saveAll(update);
     return findSettings();
+  }
+
+  public Map<String, Setting> saveSettings(Map<String, String> settingsMap) {
+    Map<String, Setting> dbSettings =
+        this.findSettingsByKeys(new ArrayList<>(settingsMap.keySet()));
+
+    List<Setting> settingsToSave = new ArrayList<>();
+    settingsMap.forEach(
+        (key, value) -> {
+          settingsToSave.add(resolveFromMap(dbSettings, key, value));
+        });
+
+    return mapOfSettings(fromIterable(this.settingRepository.saveAll(settingsToSave)));
+  }
+
+  public Setting saveSetting(String key, String value) {
+    Setting setting = settingRepository.findByKey(key).orElse(new Setting(key, value));
+    setting.setValue(value);
+    return settingRepository.save(setting);
   }
 
   public PlatformSettings updateXTMHubRegistration(

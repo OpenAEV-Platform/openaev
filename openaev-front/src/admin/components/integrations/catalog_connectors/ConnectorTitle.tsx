@@ -1,17 +1,20 @@
 import { VerifiedOutlined } from '@mui/icons-material';
-import { Chip, Tooltip, Typography } from '@mui/material';
+import { Button, Chip, Tooltip, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import colorStyles from '../../../../components/Color';
+import ButtonPopover from '../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../components/i18n';
-
+import { type ConnectorInstance } from '../../../../utils/api-types';
+import { type ConnectorMainInfo } from '../common/ConnectorCard';
 const useStyles = makeStyles()(theme => ({
   content: {
     display: 'grid',
-    gridTemplateColumns: '60px auto 1fr',
-    gridTemplateRows: 'auto auto',
+    gridTemplateColumns: 'auto 1fr',
     columnGap: theme.spacing(2),
+    rowGap: theme.spacing(0.5),
     alignItems: 'start',
+    width: '100%',
   },
   img: {
     gridRow: 'span 2',
@@ -19,24 +22,23 @@ const useStyles = makeStyles()(theme => ({
     height: 60,
     borderRadius: 4,
   },
-  title: {
-    gridColumn: 2,
-    gridRow: 1,
+  firstLine: {
+    display: 'flex',
+    overflow: 'hidden',
+    gap: theme.spacing(2),
+  },
+  autoMarginLeft: { marginLeft: 'auto' },
+  cardTitle: {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    maxWidth: '100%',
+    maxHeight: '100%',
   },
-  titleNoEllipsis: {
-    gridColumn: 2,
-    gridRow: 1,
+  pageTitle: {
     whiteSpace: 'normal',
     overflow: 'visible',
     textOverflow: 'unset',
-  },
-  chips: {
-    gridColumn: 2,
-    gridRow: 2,
+    margin: '0px',
   },
   chipInList: {
     margin: theme.spacing(0.25),
@@ -52,13 +54,11 @@ const useStyles = makeStyles()(theme => ({
     padding: theme.spacing(2),
     fontSize: 12,
     height: 20,
-    flexShrink: 0,
-    justifySelf: 'start',
     textTransform: 'uppercase',
     width: 'auto',
     borderRadius: 4,
   },
-  customizable: {
+  verifiedOutlined: {
     position: 'absolute',
     top: 10,
     right: 10,
@@ -66,21 +66,23 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 type ConnectorHeaderProps = {
-  connectorId: string;
-  connectorLogo?: string;
-  connectorTitle: string;
-  connectorType?: string;
-  connectorUseCases?: string[];
+  connector: ConnectorMainInfo;
   detailsTitle?: boolean;
+  instanceCurrentStatus?: ConnectorInstance['connector_instance_current_status'];
+  showDeployButton?: boolean;
+  showUpdateButton?: boolean;
+  showUpdateStatusButton?: boolean;
+  onDeployBtnClick?: () => void;
 };
 
 const ConnectorTitle = ({
-  connectorId,
-  connectorLogo,
-  connectorTitle,
-  connectorType,
-  connectorUseCases,
+  connector,
   detailsTitle = false,
+  instanceCurrentStatus,
+  showDeployButton = false,
+  showUpdateButton = false,
+  showUpdateStatusButton = false,
+  onDeployBtnClick = () => {},
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -89,26 +91,86 @@ const ConnectorTitle = ({
   return (
     <div className={classes.content}>
       <img
-        src={`/api/images/catalog/connectors/logos/${connectorLogo}`}
-        alt={connectorId}
+        src={connector.connectorLogoUrl}
+        alt={connector.connectorLogoName}
         className={classes.img}
       />
-      <Tooltip title={connectorTitle}>
-        <Typography
-          variant="h1"
-          className={detailsTitle ? classes.titleNoEllipsis : classes.title}
-        >
-          {connectorTitle}
-        </Typography>
-      </Tooltip>
-      <div className={classes.chips}>
+      <div className={classes.firstLine}>
+        <Tooltip title={connector.connectorName}>
+          <Typography
+            variant="h1"
+            className={detailsTitle ? classes.pageTitle : classes.cardTitle}
+          >
+            {connector.connectorName}
+          </Typography>
+        </Tooltip>
+
+        {connector.isVerified && detailsTitle && (
+          <>
+            <Chip
+              variant="filled"
+              className={classes.chipVerified}
+              style={colorStyles.green}
+              icon={<VerifiedOutlined color="success" />}
+              label={t('Verified')}
+            />
+            { instanceCurrentStatus && (
+              <Chip
+                variant="filled"
+                className={classes.chipVerified}
+                style={instanceCurrentStatus == 'started' ? colorStyles.green : colorStyles.red}
+                label={instanceCurrentStatus == 'started' ? t('Started') : t('Stopped')}
+              />
+            )}
+            {showUpdateButton && (
+              <ButtonPopover
+                className={classes.autoMarginLeft}
+                entries={[{
+                  label: 'delete',
+                  action: () => console.log('test'),
+                  userRight: true, // TODO
+                }, {
+                  label: 'update',
+                  action: () => console.log('test'),
+                  userRight: true, // TODO
+                }]}
+                variant="toggle"
+              />
+            )}
+            {showDeployButton && (
+              <Button
+                className={classes.autoMarginLeft}
+                variant="contained"
+                color="primary"
+                size="small"
+                onClick={onDeployBtnClick}
+              >
+                {t('Deploy')}
+              </Button>
+            )}
+            {showUpdateStatusButton && (
+              <Button
+                className={!showUpdateButton ? classes.autoMarginLeft : ''}
+                variant="outlined"
+                color={instanceCurrentStatus == 'started' ? 'error' : 'success'}
+                size="small"
+                onClick={onDeployBtnClick}
+              >
+                {instanceCurrentStatus == 'started' ? t('Stop') : t('Start')}
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+
+      <div>
         <Chip
           variant="outlined"
           className={classes.chipInList}
           color="primary"
-          label={connectorType}
+          label={connector.connectorType}
         />
-        {connectorUseCases && connectorUseCases.map((useCase: string) => (
+        {connector.connectorUseCases && connector.connectorUseCases.map((useCase: string) => (
           <Chip
             key={useCase}
             variant="outlined"
@@ -118,23 +180,159 @@ const ConnectorTitle = ({
           />
         ))}
       </div>
-
-      {detailsTitle
-        ? (
-            <Chip
-              variant="filled"
-              className={classes.chipVerified}
-              style={colorStyles.green}
-              icon={<VerifiedOutlined color="success" />}
-              label={t('Verified')}
-            />
-          ) : (
-            <Tooltip title={t('Verified')} className={classes.customizable}>
-              <VerifiedOutlined color="success" />
-            </Tooltip>
-          )}
+      {connector.isVerified && (
+        <Tooltip title={t('Verified')} className={classes.verifiedOutlined}>
+          <VerifiedOutlined color="success" />
+        </Tooltip>
+      )}
     </div>
   );
 };
 
 export default ConnectorTitle;
+// const useStyles = makeStyles()(theme => ({
+//   content: {
+//     display: 'grid',
+//     gridTemplateColumns: 'auto auto 1fr',
+//     gridTemplateRows: 'auto auto',
+//     columnGap: theme.spacing(2),
+//     rowGap: theme.spacing(0.5),
+//     alignItems: 'start',
+//   },
+//   img: {
+//     gridRow: 'span 2',
+//     width: 60,
+//     height: 60,
+//     borderRadius: 4,
+//   },
+//   cardTitle: {
+//     gridColumn: 'span 2',
+//     whiteSpace: 'nowrap',
+//     overflow: 'hidden',
+//     textOverflow: 'ellipsis',
+//     maxHeight: '100%',
+//   },
+//   pageTitle: {
+//     whiteSpace: 'normal',
+//     overflow: 'visible',
+//     textOverflow: 'unset',
+//     margin: '0px',
+//   },
+//   chipInList: {
+//     margin: theme.spacing(0.25),
+//     fontSize: 12,
+//     height: 20,
+//     flexShrink: 0,
+//     justifySelf: 'start',
+//     textTransform: 'uppercase',
+//     width: 'auto',
+//     borderRadius: 4,
+//   },
+//   chipVerified: {
+//     padding: theme.spacing(2),
+//     fontSize: 12,
+//     height: 20,
+//     textTransform: 'uppercase',
+//     width: 'auto',
+//     borderRadius: 4,
+//   },
+//   verifiedOutlined: {
+//     position: 'absolute',
+//     top: 10,
+//     right: 10,
+//   },
+// }));
+//
+// type ConnectorHeaderProps = {
+//   connector: ConnectorMainInfo;
+//   detailsTitle?: boolean;
+//   instanceCurrentStatus: ConnectorInstance['connector_instance_current_status'];
+//   showDeployButton?: boolean;
+//   onDeployBtnClick?: () => void;
+// };
+//
+// const ConnectorTitle = ({
+//   connector,
+//   detailsTitle = false,
+//   instanceCurrentStatus,
+//   showDeployButton = false,
+//   onDeployBtnClick = () => {},
+// }: ConnectorHeaderProps) => {
+//   // Standard hooks
+//   const { classes } = useStyles();
+//   const { t } = useFormatter();
+//
+//   return (
+//     <div className={classes.content}>
+//       <img
+//         src={connector.connectorLogoUrl}
+//         alt={connector.connectorLogoName}
+//         className={classes.img}
+//       />
+//       <Tooltip title={connector.connectorName}>
+//         <Typography
+//           variant="h1"
+//           className={detailsTitle ? classes.pageTitle : classes.cardTitle}
+//         >
+//           {connector.connectorName}
+//         </Typography>
+//       </Tooltip>
+//
+//       {connector.isVerified && detailsTitle && (
+//         <div>
+//           <Chip
+//             variant="filled"
+//             className={classes.chipVerified}
+//             style={colorStyles.green}
+//             icon={<VerifiedOutlined color="success" />}
+//             label={t('Verified')}
+//           />
+//           { instanceCurrentStatus == 'stopped' && (
+//             <Chip
+//               variant="filled"
+//               style={colorStyles.red}
+//               icon={<VerifiedOutlined color="success" />}
+//               label={t('Verified')}
+//             />
+//           )}
+//           {showDeployButton && (
+//             <Button
+//               className={classes.deployBtn}
+//               variant="contained"
+//               color="primary"
+//               size="small"
+//               onClick={onDeployBtnClick}
+//             >
+//               {t('Deploy')}
+//             </Button>
+//           )}
+//         </div>
+//       )}
+//
+//       <div>
+//         <Chip
+//           variant="outlined"
+//           className={classes.chipInList}
+//           color="primary"
+//           label={connector.connectorType}
+//         />
+//         {connector.connectorUseCases && connector.connectorUseCases.map((useCase: string) => (
+//           <Chip
+//             key={useCase}
+//             variant="outlined"
+//             className={classes.chipInList}
+//             color="default"
+//             label={useCase}
+//           />
+//         ))}
+//       </div>
+//       {connector.isVerified && (
+//         <Tooltip title={t('Verified')} className={classes.verifiedOutlined}>
+//           <VerifiedOutlined color="success" />
+//         </Tooltip>
+//       )}
+//     </div>
+//   );
+// };
+//
+// export default ConnectorTitle;

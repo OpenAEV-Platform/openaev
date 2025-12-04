@@ -2,6 +2,7 @@ package io.openaev.rest.catalog_connector;
 
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
@@ -61,5 +63,15 @@ public class CatalogConnectorApi extends RestBehavior {
     }
 
     return ResponseEntity.notFound().build();
+  }
+
+  @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations")
+  @RBAC(
+      resourceId = "#catalogConnectorId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.CATALOG)
+  public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
+      @PathVariable String catalogConnectorId) {
+    return catalogConnectorService.getCatalogConnectorConfigurations(catalogConnectorId);
   }
 }

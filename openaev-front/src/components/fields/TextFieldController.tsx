@@ -1,9 +1,11 @@
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import {
+  IconButton,
   InputAdornment,
   TextField,
   type TextFieldVariants,
 } from '@mui/material';
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
@@ -20,7 +22,7 @@ interface Props {
   size?: 'medium' | 'small';
   endAdornmentLabel?: string;
   startAdornmentLabel?: string;
-  type?: 'number' | 'text';
+  type?: 'number' | 'text' | 'password';
   defaultValue?: string;
   noHelperText?: boolean;
 }
@@ -46,6 +48,8 @@ const TextFieldController = ({
 }: Props) => {
   const { control } = useFormContext();
   const { classes } = useStyles();
+  const [showPassword, setShowPassword] = useState(false);
+  const handleClickShowPassword = () => setShowPassword(show => !show);
 
   return (
     <Controller
@@ -55,7 +59,7 @@ const TextFieldController = ({
       render={({ field, fieldState: { error } }) => (
         <TextField
           {...field}
-          type={type}
+          type={showPassword ? 'text' : type}
           className={classes.root}
           label={required ? `${label}*` : label}
           fullWidth
@@ -71,6 +75,21 @@ const TextFieldController = ({
           size={size}
           slotProps={{
             input: {
+              ...(type === 'password'
+                ? {
+                    endAdornment: (
+                      <IconButton
+                        aria-label={
+                          showPassword ? 'Hide the password' : 'Display the password'
+                        }
+                        onClick={handleClickShowPassword}
+                        edge="end"
+                      >
+                        {showPassword ? (<VisibilityOff fontSize="small" />) : (<Visibility fontSize="small" />)}
+                      </IconButton>
+                    ),
+                  }
+                : {}),
               ...(endAdornmentLabel
                 ? {
                     endAdornment: (

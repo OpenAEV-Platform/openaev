@@ -21,6 +21,10 @@ public class CatalogConnectorOutput {
   @NotBlank
   private String id;
 
+  @JsonProperty("catalog_connector_slug")
+  @NotBlank
+  private String slug;
+
   @JsonProperty("catalog_connector_title")
   @NotBlank
   private String title;

@@ -594,6 +594,102 @@ export interface CVEBulkInsertInput {
   source_identifier: string;
 }
 
+export interface CatalogConnector {
+  /** Connector class name */
+  catalog_connector_class_name?: string;
+  /** @uniqueItems true */
+  catalog_connector_configuration: CatalogConnectorConfiguration[];
+  /** Connector container image */
+  catalog_connector_container_image?: string;
+  /** Connector container version */
+  catalog_connector_container_version?: string;
+  /**
+   * Connector deleted at
+   * @format date-time
+   */
+  catalog_connector_deleted_at?: string;
+  /** Connector description */
+  catalog_connector_description?: string;
+  /** @uniqueItems true */
+  catalog_connector_instances: ConnectorInstance[];
+  /**
+   * Connector last verified date
+   * @format date-time
+   */
+  catalog_connector_last_verified_date?: string;
+  /** Connector logo */
+  catalog_connector_logo_url?: string;
+  /** Connector manager supported */
+  catalog_connector_manager_supported?: boolean;
+  /**
+   * Connector max confidence level
+   * @format int32
+   */
+  catalog_connector_max_confidence_level?: number;
+  /** Connector playbook supported */
+  catalog_connector_playbook_supported?: boolean;
+  /** Connector description */
+  catalog_connector_short_description?: string;
+  /** Connector slug */
+  catalog_connector_slug?: string;
+  /** Connector source code */
+  catalog_connector_source_code?: string;
+  /** Connector subscription link */
+  catalog_connector_subscription_link?: string;
+  /** Connector support version */
+  catalog_connector_support_version?: string;
+  /** Connector type */
+  catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  /**
+   * Connector use cases
+   * @uniqueItems true
+   */
+  catalog_connector_use_cases?: string[];
+  /** Connector verified */
+  catalog_connector_verified?: boolean;
+  /** Connector ID */
+  connector_id: string;
+  /** Connector title */
+  connector_title: string;
+  listened?: boolean;
+}
+
+export interface CatalogConnectorConfiguration {
+  /** Configuration value */
+  connector_configuration_default?: JsonNode;
+  /** Connector configuration description */
+  connector_configuration_description?: string;
+  /**
+   * Connector configuration enum
+   * @uniqueItems true
+   */
+  connector_configuration_enum?: string[];
+  /** Connector configuration format */
+  connector_configuration_format?:
+    | "DATE"
+    | "DATETIME"
+    | "DURATION"
+    | "EMAIL"
+    | "PASSWORD"
+    | "URI";
+  /** Connector ID */
+  connector_configuration_id?: string;
+  /** Connector configuration key */
+  connector_configuration_key: string;
+  /** Connector configuration required */
+  connector_configuration_required?: boolean;
+  /** Connector configuration type */
+  connector_configuration_type:
+    | "ARRAY"
+    | "BOOLEAN"
+    | "INTEGER"
+    | "OBJECT"
+    | "STRING";
+  /** Connector configuration write only */
+  connector_configuration_writeonly?: boolean;
+  listened?: boolean;
+}
+
 export interface CatalogConnectorOutput {
   catalog_connector_description?: string;
   catalog_connector_id: string;
@@ -602,6 +698,7 @@ export interface CatalogConnectorOutput {
   catalog_connector_logo_url?: string;
   catalog_connector_manager_supported?: boolean;
   catalog_connector_short_description?: string;
+  catalog_connector_slug: string;
   catalog_connector_source_code?: string;
   catalog_connector_subscription_link?: string;
   catalog_connector_title: string;
@@ -609,6 +706,12 @@ export interface CatalogConnectorOutput {
   /** @uniqueItems true */
   catalog_connector_use_cases?: string[];
   catalog_connector_verified?: boolean;
+}
+
+/** Catalog simple output */
+export interface CatalogConnectorSimpleOutput {
+  catalog_connector_id?: string;
+  catalog_connector_short_description?: string;
 }
 
 export interface Challenge {
@@ -778,6 +881,20 @@ export interface CollectorCreateInput {
   collector_type: string;
 }
 
+/** Collector simple output */
+export interface CollectorSimpleOutput {
+  /** Catalog simple output */
+  catalog?: CatalogConnectorSimpleOutput;
+  collector_external?: boolean;
+  /** Collector id */
+  collector_id: string;
+  /** @format date-time */
+  collector_last_execution?: string;
+  collector_name: string;
+  collector_type: string;
+  is_verified?: boolean;
+}
+
 export interface CollectorUpdateInput {
   /** @format date-time */
   collector_last_execution?: string;
@@ -908,6 +1025,85 @@ export interface Condition {
   value?: boolean;
 }
 
+/** Connector Instance configuration */
+export interface Configuration {
+  /** Configuration value */
+  configuration_is_encrypted?: boolean;
+  /** Configuration key */
+  configuration_key: string;
+  /** Configuration value */
+  configuration_value?: string;
+}
+
+export interface ConfigurationInput {
+  /** Configuration key */
+  configuration_key: string;
+  /** Configuration value */
+  configuration_value?: JsonNode;
+}
+
+/** Define the ids linked to a collector */
+export interface ConnectorIds {
+  catalog_connector_id?: string;
+  connector_instance_id?: string;
+}
+
+export interface ConnectorInstance {
+  connector_instance_catalog: CatalogConnector;
+  /** @uniqueItems true */
+  connector_instance_configurations: ConnectorInstanceConfiguration[];
+  connector_instance_current_status: "started" | "stopped";
+  connector_instance_id: string;
+  connector_instance_is_in_reboot_loop?: boolean;
+  /** @uniqueItems true */
+  connector_instance_logs: ConnectorInstanceLog[];
+  connector_instance_requested_status?: "starting" | "stopping";
+  /** @format int32 */
+  connector_instance_restart_count?: number;
+  /** @format date-time */
+  connector_instance_started_at?: string;
+  listened?: boolean;
+}
+
+export interface ConnectorInstanceConfiguration {
+  connector_instance_configuration_id: string;
+  connector_instance_configuration_is_encrypted?: boolean;
+  connector_instance_configuration_key: string;
+  /** Configuration value */
+  connector_instance_configuration_value?: JsonNode;
+  listened?: boolean;
+}
+
+export interface ConnectorInstanceHealthInput {
+  /** The connector instance id */
+  connector_instance_is_in_reboot_loop?: boolean;
+  /**
+   * Connector instance restart count
+   * @format int32
+   */
+  connector_instance_restart_count?: number;
+  /**
+   * The connector instance id
+   * @format date-time
+   */
+  connector_instance_started_at?: string;
+}
+
+export interface ConnectorInstanceLog {
+  /** Connector instance log */
+  connector_instance_log?: string;
+  connector_instance_log_id: string;
+  listened?: boolean;
+}
+
+export interface ConnectorInstanceLogsInput {
+  /**
+   * The connector instance logs
+   * @uniqueItems true
+   */
+  connector_instance_logs?: string[];
+}
+
 export interface ContractOutputElement {
   /** @format date-time */
   contract_output_element_created_at: string;
@@ -988,6 +1184,11 @@ export interface ContractOutputElementSimple {
     | "ipv6"
     | "credentials"
     | "cve";
+}
+
+export interface CreateConnectorInstanceInput {
+  catalog_connector_id: string;
+  connector_instance_configurations?: ConfigurationInput[];
 }
 
 export interface CreateExerciseInput {
@@ -3460,6 +3661,7 @@ export interface JsonApiDocumentResourceObject {
   included?: object[];
 }
 
+/** Configuration value */
 export type JsonNode = object;
 
 export interface KillChainPhase {
@@ -6018,6 +6220,11 @@ export interface UpdateAssetsOnAssetGroupInput {
   asset_group_assets?: string[];
 }
 
+export interface UpdateConnectorInstanceStatusInput {
+  /** The connector instance current status */
+  connector_instance_current_status: "started" | "stopped";
+}
+
 export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
   exercise_category?: string;
@@ -6560,6 +6767,39 @@ export interface WidgetToEntitiesOutput {
   /** List of entities */
   es_entities?: EsBase[];
   list_configuration?: ListConfiguration;
+}
+
+export interface XtmComposerInstanceOutput {
+  /** Connector image */
+  connector_image: string;
+  /** Connector Instance configuration */
+  connector_instance_configuration: Configuration[];
+  /** Connector Instance current status */
+  connector_instance_current_status: "started" | "stopped";
+  /** Connector Instance hash */
+  connector_instance_hash: string;
+  /** Connector Instance Id */
+  connector_instance_id: string;
+  /** Connector Instance name */
+  connector_instance_name: string;
+  /** Connector Instance requested status */
+  connector_instance_requested_status: "starting" | "stopping";
+}
+
+export interface XtmComposerOutput {
+  /** XTM Composer Id */
+  xtm_composer_id: string;
+  /** XTM Composer Version */
+  xtm_composer_version: string;
+}
+
+export interface XtmComposerRegisterInput {
+  /** The XTM Composer Id */
+  id: string;
+  /** The XTM Composer Name */
+  name: string;
+  /** The registration public key */
+  public_key: string;
 }
 
 export interface XtmHubRegisterInput {
