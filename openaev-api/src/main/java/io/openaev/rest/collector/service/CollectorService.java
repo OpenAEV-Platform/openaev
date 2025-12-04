@@ -45,7 +45,7 @@ public class CollectorService {
   private final CatalogConnectorService catalogConnectorService;
 
   private final CollectorMapper collectorMapper;
-  @Autowired  private CatalogConnectorMapper catalogConnectorMapper;
+  private final CatalogConnectorMapper catalogConnectorMapper;
 
   // -- CRUD --
 

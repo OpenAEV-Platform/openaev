@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
@@ -131,6 +132,16 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   public Injector injector(@PathVariable String injectorId) {
     return injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
+  }
+
+  @GetMapping(INJECT0R_URI + "/{injectorId}/related-ids")
+  @RBAC(
+          resourceId = "#injectorId",
+          actionPerformed = Action.READ,
+          resourceType = ResourceType.INJECTOR)
+  @Operation(summary = "Retrieve injector related ids")
+  public ConnectorIds getInjectorRelatedIds(@PathVariable String injectorId){
+    return injectorService.getInjectorRelationsId(injectorId);
   }
 
   @PostMapping(

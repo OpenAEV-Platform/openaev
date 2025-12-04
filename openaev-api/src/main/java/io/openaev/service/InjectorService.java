@@ -10,10 +10,12 @@ import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.response.InjectorConnection;
@@ -21,6 +23,7 @@ import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -44,6 +47,8 @@ public class InjectorService {
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
+  private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
+
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
   private final CatalogConnectorService catalogConnectorService;
@@ -51,6 +56,7 @@ public class InjectorService {
   private final DomainService domainService;
 
   private final InjectorMapper injectorMapper;
+  private final CatalogConnectorMapper catalogConnectorMapper;
 
   @Resource private RabbitmqConfig rabbitmqConfig;
 
@@ -180,6 +186,23 @@ public class InjectorService {
                     });
 
     return result;
+  }
+
+  public ConnectorIds getInjectorRelationsId(String injectorId){
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase relatedIds = connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue("INJECTOR_ID", injectorId);
+    if (relatedIds != null) {
+      return catalogConnectorMapper.toConnectorIds(relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId());
+    }
+
+    // Injector already deployed without catalog, we will try to search matching catalog comparing collectorType and catalogSlug
+    Injector injector = injectorRepository.findById(injectorId).orElse(null);
+    CatalogConnector catalogConnector = catalogConnectorService.findBySlug(injector.getType().replace("openaev_", "")).orElse(null);
+    if (catalogConnector != null) {
+      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null);
+    }
+
+    // If nothing match this collector is manually deployed
+    return catalogConnectorMapper.toConnectorIds(null, null);
   }
 
   public InjectorRegistration registerInjector(
