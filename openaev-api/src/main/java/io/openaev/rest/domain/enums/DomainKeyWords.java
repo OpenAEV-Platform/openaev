@@ -36,7 +36,8 @@ public enum DomainKeyWords {
           "sandbox evasion",
           "reflective code",
           "access token",
-          "system binary proxy")),
+          "system binary proxy",
+          "Bitsadmin Download (PowerShell)")),
   NETWORK(
       List.of(
           "lateral movement",
@@ -181,9 +182,7 @@ public enum DomainKeyWords {
           "redirect",
           "proxy bypass",
           "dns over https",
-          "doh",
           "dns over tls",
-          "dot",
           "unicode domain",
           "url encode",
           "double encode",
@@ -195,7 +194,8 @@ public enum DomainKeyWords {
           "domain generation",
           "fast flux",
           "url confusion",
-          "subdomain takeover")),
+          "subdomain takeover",
+          "Bitsadmin Download (PowerShell)")),
   CLOUD(
       List.of(
           "aws",

@@ -11,7 +11,7 @@ public enum DefaultDomain {
   WEB_APP(new Domain(null, "Web App", "#FF9933", Instant.now(), null)),
   EMAIL_INFILTRATION(new Domain(null, "E-mail Infiltration", "#FF6666", Instant.now(), null)),
   DATA_EXFILTRATION(new Domain(null, "Data Exfiltration", "#9933CC", Instant.now(), null)),
-  URL_FILTERING(new Domain(null, "Url Filtering", "#66CCFF", Instant.now(), null)),
+  URL_FILTERING(new Domain(null, "URL Filtering", "#66CCFF", Instant.now(), null)),
   CLOUD(new Domain(null, "Cloud", "#9999CC", Instant.now(), null)),
   TABLE_TOP(new Domain(null, "Table-Top", "#FFCC33", Instant.now(), null)),
   TOCLASSIFY(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null));
