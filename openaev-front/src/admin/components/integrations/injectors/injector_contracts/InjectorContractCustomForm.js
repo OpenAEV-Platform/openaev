@@ -143,8 +143,6 @@ const InjectorContractForm = (props) => {
                   disableClearable={false}
                   openOnFocus
                   autoHighlight
-                  disabled={isPayloadInjector}
-                  helperText={isPayloadInjector ? t('This field is read only for payload injectors.') : null}
                   noOptionsText="No available options"
                   value={Array.isArray(input.value) ? input.value : []}
                   onChange={(_event, selectedOptions) => {
