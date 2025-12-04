@@ -105,6 +105,14 @@ public class OpenAEVConfig {
   @Value("${openbas.extra-trusted-certs-dir:${openaev.extra-trusted-certs-dir:#{null}}}")
   private String extraTrustedCertsDir;
 
+  @JsonProperty("logout_success_url")
+  @Value("${openbas.logout-success-url:${openaev.logout-success-url:/}}")
+  private String logoutSuccessUrl;
+
+  @JsonProperty("frontend_url")
+  @Value("${openbas.frontend-url:${openaev.frontend-url:}}")
+  private String frontendUrl;
+
   public String getBaseUrl() {
     return url(baseUrl);
   }
