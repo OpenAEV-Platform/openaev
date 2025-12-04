@@ -6,7 +6,7 @@ import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceStatusInput;
+import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.XtmComposerConnectorOrchestrationService;
 import io.openaev.service.XtmComposerService;
@@ -74,7 +74,7 @@ public class XtmComposerApi extends RestBehavior {
   public XtmComposerInstanceOutput updateConnectorInstanceStatus(
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
-      @Valid @RequestBody UpdateConnectorInstanceStatusInput input) {
+      @Valid @RequestBody XtmComposerUpdateStatusInput input) {
     return orchestrationService.updateConnectorInstanceStatus(
         xtmComposerId, connectorInstanceId, input.getCurrentStatus());
   }

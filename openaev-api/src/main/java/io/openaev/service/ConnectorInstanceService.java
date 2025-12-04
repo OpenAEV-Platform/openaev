@@ -63,6 +63,13 @@ public class ConnectorInstanceService {
     return this.save(instance);
   }
 
+  public ConnectorInstance updateRequestedStatus(
+          String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
+    ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
+    instance.setRequestedStatus(newRequestedStatus);
+    return this.save(instance);
+  }
+
   public ConnectorInstance save(ConnectorInstance connectorInstance) {
     return connectorInstanceRepository.save(connectorInstance);
   }

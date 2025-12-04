@@ -11,7 +11,7 @@ import io.openaev.database.model.Collector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.rest.collector.form.CollectorSimpleOutput;
+import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.ConnectorInstanceService;
@@ -89,37 +89,37 @@ public class CollectorService {
     return newCollector;
   }
 
-  private CollectorSimpleOutput toCollectorSimpleOutput(
+  private CollectorOutput toCollectorOutput(
       Collector collector, Map<String, ConnectorInstance> instanceMap) {
     ConnectorInstance instance = instanceMap.get(collector.getId());
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector = isVerified ? instance.getCatalogConnector():
             catalogConnectorService.findBySlug(collector.getType().replace("openaev_", "")).orElse(null);
-    return collectorMapper.toCollectorSimpleOutput(collector, catalogConnector, isVerified);
+    return collectorMapper.toCollectorOutput(collector, catalogConnector, isVerified);
   }
 
-  public Iterable<CollectorSimpleOutput> collectorsSimpleOutput() {
+  public Iterable<CollectorOutput> collectorsOutput() {
     List<ConnectorInstance> collectorInstances = connectorInstanceService.collectorConnectorInstances();
     Map<String, ConnectorInstance> instanceByCollectorIdMap = mapInstancesByCollectorId(collectorInstances);
     List<Collector> collectors = fromIterable(collectorRepository.findAll());
 
     return collectors.stream()
-        .map(collector -> toCollectorSimpleOutput(collector, instanceByCollectorIdMap))
+        .map(collector -> toCollectorOutput(collector, instanceByCollectorIdMap))
         .toList();
   }
 
-  public Iterable<CollectorSimpleOutput> getCollectorsSimpleOutputWithNextCollectors() {
+  public Iterable<CollectorOutput> getCollectorsOutputWithNextCollectors() {
     List<Collector> collectors = fromIterable(this.collectors());
     Set<String> existingCollectorIds = collectors.stream().map(Collector::getId).collect(Collectors.toSet());
 
     List<ConnectorInstance> collectorInstances = connectorInstanceService.collectorConnectorInstances();
     Map<String, ConnectorInstance> instanceMap = mapInstancesByCollectorId(collectorInstances);
 
-    List<CollectorSimpleOutput> result = new ArrayList<>();
+    List<CollectorOutput> result = new ArrayList<>();
 
     // Add existing collectors
     collectors.forEach(
-        collector -> result.add(toCollectorSimpleOutput(collector, instanceMap)));
+        collector -> result.add(toCollectorOutput(collector, instanceMap)));
 
     // Add new collectors from instances, these collectors are waiting to be deployed
     instanceMap.entrySet().stream()
@@ -128,7 +128,7 @@ public class CollectorService {
             entry -> {
               Collector newCollector = createExternalCollector(entry.getKey(), entry.getValue());
               result.add(
-                  collectorMapper.toCollectorSimpleOutput(
+                  collectorMapper.toCollectorOutput(
                       newCollector, entry.getValue().getCatalogConnector(), true));
             });
 

@@ -7,7 +7,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.collector.form.CollectorCreateInput;
-import io.openaev.rest.collector.form.CollectorSimpleOutput;
+import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -44,16 +44,15 @@ public class CollectorApi extends RestBehavior {
           responseCode = "200",
           content = @Content(
                   mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = CollectorSimpleOutput.class))
+                  array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))
           )
   )
-  public Iterable<CollectorSimpleOutput> collectors(
-      @RequestParam(value = "include_next", required = false, defaultValue = "false") boolean includeNext) {
+  public Iterable<CollectorOutput> collectors(@RequestParam(value = "include_next", required = false, defaultValue = "false") boolean includeNext) {
     if (includeNext) {
-      return collectorService.getCollectorsSimpleOutputWithNextCollectors();
+      return collectorService.getCollectorsOutputWithNextCollectors();
     }
 
-    return collectorService.collectorsSimpleOutput();
+    return collectorService.collectorsOutput();
   }
 
   private Collector updateCollector(

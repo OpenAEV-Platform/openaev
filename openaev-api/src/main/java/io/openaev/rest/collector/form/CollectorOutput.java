@@ -10,8 +10,8 @@ import lombok.Data;
 
 @Data
 @Builder
-@Schema(description = "Collector simple output")
-public class CollectorSimpleOutput {
+@Schema(description = "Collector output")
+public class CollectorOutput {
 
   @Schema(description = "Collector id")
   @JsonProperty("collector_id")
