@@ -75,7 +75,7 @@ const InjectorContractForm = (props) => {
                     renderInput={params => (
                       <TextField
                         {...params}
-                        label={t('Domains')}
+                        label={t('domains')}
                         variant="standard"
                         size="small"
                         fullWidth
