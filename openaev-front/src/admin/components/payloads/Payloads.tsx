@@ -123,7 +123,7 @@ const Payloads = () => {
     },
     {
       field: 'payload_domains',
-      label: 'Payload domains',
+      label: 'payload_domains',
       isSortable: true,
       value: (payload: Payload) => {
         return payload.payload_domains && payload.payload_domains?.length > 0
