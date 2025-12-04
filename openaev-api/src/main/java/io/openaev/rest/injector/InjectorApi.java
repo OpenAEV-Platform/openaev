@@ -11,14 +11,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
+import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.service.InjectorService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
@@ -58,13 +65,24 @@ public class InjectorApi extends RestBehavior {
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
 
-  @GetMapping("/api/injectors")
+  @GetMapping(INJECT0R_URI)
+  @Operation(summary = "Retrieve injectors")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
-  public Iterable<Injector> injectors() {
-    return injectorRepository.findAll();
+  @ApiResponse(
+          responseCode = "200",
+          content = @Content(
+                  mediaType = "application/json",
+                  array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))
+          )
+  )
+  public Iterable<InjectorOutput> injectors(@RequestParam(value = "include_next", required = false, defaultValue = "false") boolean includeNext) {
+    if (includeNext) {
+      return injectorService.getInjectorOutputWithNextInjectors();
+    }
+    return injectorService.injectorsOutput();
   }
 
-  @GetMapping("/api/injectors/{injectorId}/injector_contracts")
+  @GetMapping(INJECT0R_URI +"/{injectorId}/injector_contracts")
   @RBAC(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
@@ -85,7 +103,7 @@ public class InjectorApi extends RestBehavior {
         .toList();
   }
 
-  @PutMapping("/api/injectors/{injectorId}")
+  @PutMapping(INJECT0R_URI + "/{injectorId}")
   @RBAC(
       resourceId = "#injectorId",
       actionPerformed = Action.WRITE,
@@ -106,7 +124,7 @@ public class InjectorApi extends RestBehavior {
         input.getPayloads());
   }
 
-  @GetMapping("/api/injectors/{injectorId}")
+  @GetMapping(INJECT0R_URI + "/{injectorId}")
   @RBAC(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
@@ -116,7 +134,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = "/api/injectors",
+      value = INJECT0R_URI,
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)

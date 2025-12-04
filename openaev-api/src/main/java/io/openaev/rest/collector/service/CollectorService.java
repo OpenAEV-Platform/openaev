@@ -67,8 +67,7 @@ public class CollectorService {
         .orElse(null);
   }
 
-  private Map<String, ConnectorInstance> mapInstancesByCollectorId(
-      List<ConnectorInstance> instances) {
+  private Map<String, ConnectorInstance> mapInstancesByCollectorId(List<ConnectorInstance> instances) {
     Map<String, ConnectorInstance> map = new HashMap<>();
     instances.forEach(
         instance -> {
@@ -113,16 +112,16 @@ public class CollectorService {
     Set<String> existingCollectorIds = collectors.stream().map(Collector::getId).collect(Collectors.toSet());
 
     List<ConnectorInstance> collectorInstances = connectorInstanceService.collectorConnectorInstances();
-    Map<String, ConnectorInstance> instanceMap = mapInstancesByCollectorId(collectorInstances);
+    Map<String, ConnectorInstance> instanceByCollectorIdMap = mapInstancesByCollectorId(collectorInstances);
 
     List<CollectorOutput> result = new ArrayList<>();
 
     // Add existing collectors
     collectors.forEach(
-        collector -> result.add(toCollectorOutput(collector, instanceMap)));
+        collector -> result.add(toCollectorOutput(collector, instanceByCollectorIdMap)));
 
     // Add new collectors from instances, these collectors are waiting to be deployed
-    instanceMap.entrySet().stream()
+    instanceByCollectorIdMap.entrySet().stream()
         .filter(entry -> entry.getKey() != null && !existingCollectorIds.contains(entry.getKey()))
         .forEach(
             entry -> {

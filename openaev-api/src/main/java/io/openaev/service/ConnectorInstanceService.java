@@ -45,6 +45,9 @@ public class ConnectorInstanceService {
     return connectorInstanceRepository.findAllManagedByXtmComposerAndConfiguration();
   }
 
+  public List<ConnectorInstance> injectorConnectorInstances(){
+    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(CatalogConnector.CONNECTOR_TYPE.INJECTOR);
+  }
   public List<ConnectorInstance> collectorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
   }
