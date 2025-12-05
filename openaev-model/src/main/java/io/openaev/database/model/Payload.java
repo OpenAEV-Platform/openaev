@@ -236,6 +236,16 @@ public class Payload implements GrantableBase {
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 
+  @ManyToMany(fetch = FetchType.EAGER)
+  @NotEmpty
+  @Queryable(sortable = true)
+  @JoinTable(
+      name = "payloads_domains",
+      joinColumns = @JoinColumn(name = "payload_id"),
+      inverseJoinColumns = @JoinColumn(name = "domain_id"))
+  @JsonProperty("payload_domains")
+  private Set<Domain> domains = new HashSet<>();
+
   // -- AUDIT --
 
   @CreationTimestamp

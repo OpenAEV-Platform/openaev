@@ -15,6 +15,7 @@ import io.openaev.rest.role.form.RoleInput;
 import io.openaev.utils.fixtures.RoleFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
@@ -23,9 +24,13 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(PER_CLASS)
 public class RoleApiTest extends IntegrationTest {
 

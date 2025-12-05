@@ -74,6 +74,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private ChallengeService challengeService;
   @Autowired private EntityManager entityManager;
   @Autowired private InjectRepository injectRepository;
@@ -125,6 +126,8 @@ class InjectImportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> getInjectWrappers() {
+    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
     // Inject in exercise with an article attached
     ArticleComposer.Composer articleWrapper =
         getStaticArticleWrappers().get(KNOWN_ARTICLE_WRAPPER_KEY);
@@ -181,7 +184,7 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultCommand())
+                            .forPayload(PayloadFixture.createDefaultCommand(domains))
                             .withTag(
                                 tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(
@@ -197,7 +200,7 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultFileDrop())
+                            .forPayload(PayloadFixture.createDefaultFileDrop(domains))
                             .withFileDrop(
                                 documentComposer
                                     .forDocument(
@@ -217,7 +220,7 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultExecutable())
+                            .forPayload(PayloadFixture.createDefaultExecutable(domains))
                             .withExecutable(
                                 documentComposer
                                     .forDocument(

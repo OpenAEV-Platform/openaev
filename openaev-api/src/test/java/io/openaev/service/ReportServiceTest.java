@@ -16,6 +16,7 @@ import io.openaev.rest.report.model.ReportInformationsType;
 import io.openaev.rest.report.model.ReportInjectComment;
 import io.openaev.rest.report.repository.ReportRepository;
 import io.openaev.rest.report.service.ReportService;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,8 +26,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @ExtendWith(MockitoExtension.class)
 public class ReportServiceTest extends IntegrationTest {
 

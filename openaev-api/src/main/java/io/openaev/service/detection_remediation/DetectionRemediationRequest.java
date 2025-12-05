@@ -13,7 +13,6 @@ import lombok.Setter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-@Getter
 public class DetectionRemediationRequest {
   private final String TYPE_NOT_IMPLEMENTED_ERROR =
       "AI Webservice for FileDrop or Executable File not implemented";
@@ -21,12 +20,14 @@ public class DetectionRemediationRequest {
     FileDrop.FILE_DROP_TYPE, Executable.EXECUTABLE_TYPE
   };
 
+  @Getter
   @Schema(
       description =
           "Concatenated payload string containing: Name, Type, optional Hostname/Command details, Description, Platform, Attack patterns, Architecture, Arguments")
   private String payload;
 
   @Setter
+  @Getter
   @Schema(description = "Client Id and timestamps use to monitored AI usage from webservice")
   @JsonProperty("session_id")
   private String sessionId;

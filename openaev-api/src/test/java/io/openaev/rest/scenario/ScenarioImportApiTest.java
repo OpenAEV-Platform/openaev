@@ -14,6 +14,7 @@ import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.ScenarioService;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,11 +25,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @ExtendWith(MockitoExtension.class)
 public class ScenarioImportApiTest extends IntegrationTest {
 

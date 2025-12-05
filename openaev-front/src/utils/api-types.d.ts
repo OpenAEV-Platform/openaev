@@ -483,6 +483,8 @@ interface BasePayload {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
+  /** @uniqueItems true */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -538,6 +540,8 @@ interface BasePayloadCreateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /** Set list of domains */
+  payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -815,6 +819,8 @@ export interface Command {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  /** @uniqueItems true */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -1303,6 +1309,8 @@ export interface DnsResolution {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  /** @uniqueItems true */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -1396,6 +1404,24 @@ export interface DocumentUpdateInput {
   document_exercises?: string[];
   document_scenarios?: string[];
   document_tags?: string[];
+}
+
+export interface Domain {
+  domain_color: string;
+  /** @format date-time */
+  domain_created_at?: string;
+  domain_id: string;
+  domain_name: string;
+  /** @format date-time */
+  domain_updated_at?: string;
+  listened?: boolean;
+}
+
+export interface DomainBaseInput {
+  /** Color of the domain */
+  domain_color: string;
+  /** Name of the domain */
+  domain_name: string;
 }
 
 export interface Endpoint {
@@ -2002,6 +2028,8 @@ export interface Executable {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  /** @uniqueItems true */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -2344,6 +2372,8 @@ export interface FileDrop {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  /** @uniqueItems true */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -3176,6 +3206,8 @@ export interface InjectorContract {
   /** @format date-time */
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
+  /** @uniqueItems true */
+  injector_contract_domains?: Domain[];
   injector_contract_external_id?: string;
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
@@ -3235,6 +3267,8 @@ export interface InjectorContractFullOutput {
   injector_contract_attack_patterns?: string[];
   /** Content */
   injector_contract_content: string;
+  /** Domain IDs */
+  injector_contract_domains: string[];
   /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
@@ -3728,6 +3762,8 @@ export interface NetworkTraffic {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  /** @uniqueItems true */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -4560,6 +4596,8 @@ export interface PayloadInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /** Update list of domains */
+  payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -4618,6 +4656,8 @@ export interface PayloadUpdateInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /** Update list of domains */
+  payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "TEXT"
@@ -4663,6 +4703,11 @@ export interface PayloadUpsertInput {
   payload_description?: string;
   /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
+  /**
+   * Update list of domains
+   * @uniqueItems true
+   */
+  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -4725,6 +4770,7 @@ export interface PlatformSettings {
   enabled_dev_features?: (
     | "_RESERVED"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "LEGACY_INGESTION_EXECUTION_TRACE"
   )[];
   /** True if the Caldera Executor is enabled */
   executor_caldera_enable?: boolean;

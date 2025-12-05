@@ -33,17 +33,20 @@ import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.*;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
@@ -61,6 +64,7 @@ public class PayloadService {
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
   private final PayloadUtils payloadUtils;
+  @Autowired private DomainService domainService;
 
   public void updateInjectorContractsForPayload(Payload payload) {
     List<Injector> injectors = this.injectorRepository.findAllByPayloads(true);
@@ -76,6 +80,9 @@ public class PayloadService {
     injectorContract.setInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
+    injectorContract.setDomains(
+        domainService.upserts(
+            Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(

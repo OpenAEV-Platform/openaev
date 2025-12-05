@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.injectors.email.service.SmtpService;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -19,10 +20,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(properties = "spring.task.scheduling.enabled=false")
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 public class SmtpServiceTest {

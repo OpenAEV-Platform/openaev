@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Domain;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.rest.document.DocumentService;
@@ -24,6 +25,7 @@ import io.openaev.utils.fixtures.FileFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.composers.ChallengeComposer;
 import io.openaev.utils.fixtures.composers.DocumentComposer;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.BinaryFile;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -45,6 +47,7 @@ class DocumentApiTest extends IntegrationTest {
   @Autowired DocumentComposer documentComposer;
   @Autowired ChallengeComposer challengeComposer;
   @Autowired PayloadComposer payloadComposer;
+  @Autowired DomainComposer domainComposer;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private ChallengeRepository challengeRepository;
@@ -76,9 +79,9 @@ class DocumentApiTest extends IntegrationTest {
   }
 
   private Document getDocumentWithPayload() {
-
+    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
     PayloadComposer.Composer payload =
-        payloadComposer.forPayload(PayloadFixture.createDefaultExecutable());
+        payloadComposer.forPayload(PayloadFixture.createDefaultExecutable(domains));
 
     BinaryFile badCoffeeFileContent = FileFixture.getBadCoffeeFileContent();
     return documentComposer

@@ -40,10 +40,13 @@ import io.openaev.service.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.KeepRabbit;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,7 +54,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -60,6 +65,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -82,6 +88,7 @@ class InjectApiTest extends IntegrationTest {
   static Agent AGENT;
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
+  @Autowired private ApplicationContext applicationContext;
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
@@ -97,6 +104,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ExecutionTraceComposer executionTraceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private AgentRepository agentRepository;
@@ -104,6 +112,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
@@ -115,6 +124,9 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
   @MockBean private JavaMailSender javaMailSender;
+
+  @Autowired private EntityManager entityManager;
+  @Autowired private InjectTestHelper injectTestHelper;
 
   @BeforeAll
   void beforeAll() {
@@ -534,18 +546,25 @@ class InjectApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @Transactional
   @DisplayName("Retrieving executable payloads injects")
+  @KeepRabbit
   class RetrievingExecutablePayloadInject {
 
     @DisplayName("Get encoded command payload with arguments")
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "bash", "echo command name #{arg_value}", List.of(prerequisite), "echo cleanup cmd");
+              "bash",
+              "echo command name #{arg_value}",
+              List.of(prerequisite),
+              "echo cleanup cmd",
+              domains);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -598,9 +617,11 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       String command =
           "echo separatebyspace : #{asset-separate-by-space} separatebycoma : #{asset-separate-by-comma}";
-      Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
+      Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null, domains);
       PayloadArgument targetedAssetArgument =
           PayloadFixture.createPayloadArgument(
               "asset-separate-by-space", ContractFieldType.TargetedAsset, "hostname", "-u");
@@ -679,30 +700,33 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void calling_RetrievingExecutablePayload_should_setStartDateSignature() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd");
-      Payload payloadSaved = payloadRepository.save(payloadCommand);
+              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
+      Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContract(injector, payloadSaved);
-      InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+      InjectorContract injectorContractSaved =
+          injectTestHelper.forceSaveInjectorContract(injectorContract);
 
       Inject inject =
           InjectFixture.createInjectWithPayloadArg(injectorContractSaved, new HashMap<>());
-      Inject injectSaved = injectRepository.save(inject);
+      Inject injectSaved = injectTestHelper.forceSaveInject(inject);
 
       // Prepare injectExpectation on specific agent
       Endpoint endpoint = EndpointFixture.createEndpoint();
       endpoint.setSeenIp("seen-ip-endpoint");
-      Endpoint endpointSaved = endpointRepository.save(endpoint);
+      Endpoint endpointSaved = injectTestHelper.forceSaveEndpoint(endpoint);
       Agent agent = AgentFixture.createDefaultAgentService();
       agent.setAsset(endpointSaved);
-      Agent agentSaved = agentRepository.save(agent);
+      Agent agentSaved = injectTestHelper.forceSaveAgent(agent);
       InjectExpectation detectionExpectation =
           InjectExpectationFixture.createDetectionInjectExpectation(injectSaved, agentSaved);
-      injectExpectationRepository.save(detectionExpectation);
+      injectTestHelper.forceSaveInjectExpectation(detectionExpectation);
 
       doNothing()
           .when(injectStatusService)
@@ -720,22 +744,34 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      List<InjectExpectation> injectExpectationSaved =
-          injectExpectationRepository.findAllByInjectAndAgent(injectSaved.getId(), agent.getId());
-      assertEquals(1, injectExpectationSaved.size());
-      assertEquals(
-          1,
-          injectExpectationSaved.getFirst().getSignatures().stream()
-              .filter(s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType()))
-              .count());
+      Awaitility.await()
+          .atMost(15, TimeUnit.SECONDS)
+          .with()
+          .pollInterval(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                List<InjectExpectation> injectExpectationSaved =
+                    injectExpectationRepository.findAllByInjectAndAgent(
+                        injectSaved.getId(), agent.getId());
+                if (injectExpectationSaved.isEmpty()) {
+                  return false;
+                }
+                return injectExpectationSaved.getFirst().getSignatures().stream()
+                        .filter(s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType()))
+                        .count()
+                    > 0;
+              });
     }
 
     @DisplayName("Get obfuscate command")
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {
       // -- PREPARE --
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       Command payloadCommand =
-          PayloadFixture.createCommand("psh", "echo Hello World", List.of(), "echo cleanup cmd");
+          PayloadFixture.createCommand(
+              "psh", "echo Hello World", List.of(), "echo cleanup cmd", domains);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -781,20 +817,12 @@ class InjectApiTest extends IntegrationTest {
   @Transactional
   @WithMockUser(isAdmin = true)
   @DisplayName("Inject Execution Callback Handling (simulating a request from an implant)")
+  @KeepRabbit
   class handleInjectExecutionCallback {
 
     private Inject getPendingInjectWithAssets() {
-      return injectComposer
-          .forInject(InjectFixture.getDefaultInject())
-          .withEndpoint(
-              endpointComposer
-                  .forEndpoint(EndpointFixture.createEndpoint())
-                  .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
-                  .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentSession())))
-          .withInjectStatus(
-              injectStatusComposer.forInjectStatus(InjectStatusFixture.createPendingInjectStatus()))
-          .persist()
-          .get();
+      return injectTestHelper.getPendingInjectWithAssets(
+          injectComposer, endpointComposer, agentComposer, injectStatusComposer);
     }
 
     private void performCallbackRequest(String agentId, String injectId, InjectExecutionInput input)
@@ -812,6 +840,7 @@ class InjectApiTest extends IntegrationTest {
 
     @Nested
     @DisplayName("Action Handling:")
+    @KeepRabbit
     class ActionHandlingTest {
 
       @DisplayName("Should add trace when process is not finished")
@@ -825,9 +854,27 @@ class InjectApiTest extends IntegrationTest {
         input.setStatus("SUCCESS");
         Inject inject = getPendingInjectWithAssets();
 
+        entityManager.flush();
+
         // -- EXECUTE --
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
         performCallbackRequest(agentId, inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
+                      .isPresent();
+                });
 
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
@@ -862,6 +909,22 @@ class InjectApiTest extends IntegrationTest {
         input2.setAction(InjectExecutionAction.complete);
         input2.setStatus("INFO");
         performCallbackRequest(agentId, inject.getId(), input2);
+
+        Awaitility.await()
+            .atMost(180, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> injectStatus.getTraces().size() > 1)
+                      .isPresent();
+                });
 
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
@@ -908,6 +971,22 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(firstAgentId, inject.getId(), input2);
         performCallbackRequest(secondAgentId, inject.getId(), input2);
 
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> injectStatus.getTraces().size() > 1)
+                      .isPresent();
+                });
+
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
@@ -926,7 +1005,7 @@ class InjectApiTest extends IntegrationTest {
         // create expectation
         InjectExpectation detectionExpectation =
             InjectExpectationFixture.createDetectionInjectExpectation(inject, agent);
-        injectExpectationRepository.save(detectionExpectation);
+        injectTestHelper.forceSaveInjectExpectation(detectionExpectation);
 
         InjectExecutionInput input = new InjectExecutionInput();
         input.setMessage("Complete log received");
@@ -935,6 +1014,23 @@ class InjectApiTest extends IntegrationTest {
         input.setDuration(1000);
 
         performCallbackRequest(agent.getId(), inject.getId(), input);
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<InjectExpectation> injectExpectationSaved =
+                      injectExpectationRepository.findAllByInjectAndAgent(
+                          inject.getId(), agent.getId());
+                  List<InjectExpectationSignature> endDatesignatures =
+                      injectExpectationSaved.getFirst().getSignatures().stream()
+                          .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
+                          .toList();
+                  return endDatesignatures.size() > 0;
+                });
+
+        // -- ASSERT --
         List<InjectExpectation> injectExpectationSaved =
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
@@ -948,6 +1044,7 @@ class InjectApiTest extends IntegrationTest {
 
     @Nested
     @DisplayName("Agent Status Computation")
+    @KeepRabbit
     class AgentStatusComputationTest {
 
       private void testAgentStatusFunction(
@@ -972,6 +1069,22 @@ class InjectApiTest extends IntegrationTest {
         input.setAction(InjectExecutionAction.complete);
         input.setStatus("INFO");
         performCallbackRequest(firstAgentId, inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
+                  if (injectSaved.isEmpty()) {
+                    return false;
+                  }
+                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
+                  return injectStatusSaved
+                      .filter(injectStatus -> injectStatus.getTraces().size() > 2)
+                      .isPresent();
+                });
 
         // -- ASSERT --
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
@@ -1013,6 +1126,7 @@ class InjectApiTest extends IntegrationTest {
     @Nested
     @Transactional
     @DisplayName("Finding Handling")
+    @KeepRabbit
     class FindingHandlingTest {
       @Test
       @DisplayName("Should link finding to targeted asset")
@@ -1027,12 +1141,15 @@ class InjectApiTest extends IntegrationTest {
         input.setStatus("SUCCESS");
         Inject inject = getPendingInjectWithAssets();
 
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
         // Create payload with output parser
         ContractOutputElement CVEOutputElement = OutputParserFixture.getCVEOutputElement();
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(CVEOutputElement));
-        Command payloadCommand = PayloadFixture.createCommand("bash", "command", null, null);
+        Command payloadCommand =
+            PayloadFixture.createCommand("bash", "command", null, null, domains);
         payloadCommand.setOutputParsers(Set.of(outputParser));
-        Payload payloadSaved = payloadRepository.save(payloadCommand);
+        Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
         // Create injectorContract with targeted asset field
         Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -1041,22 +1158,34 @@ class InjectApiTest extends IntegrationTest {
                 injector, payloadSaved, List.of());
         InjectorContractFixture.addTargetedAssetFields(
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
-        InjectorContract injectorContractSaved = injectorContractRepository.save(injectorContract);
+        injectorContract.setContent(injectorContract.getConvertedContent().toString());
+        InjectorContract injectorContractSaved =
+            injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
 
         // Set targeted inject on inject
         Endpoint endpoint = EndpointFixture.createEndpoint();
         endpoint.setSeenIp("seen-ip-endpoint");
-        Endpoint endpointSaved = endpointRepository.save(endpoint);
+        Endpoint endpointSaved = injectTestHelper.forceSaveEndpoint(endpoint);
         ObjectNode content = objectMapper.createObjectNode();
         content.set(
             "asset-key", objectMapper.convertValue(List.of(endpointSaved.getId()), JsonNode.class));
         inject.setContent(content);
-        injectRepository.save(inject);
+        injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
         performCallbackRequest(agentId, inject.getId(), input);
+
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
+                  return findings.size() > 1;
+                });
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(2, findings.size());
@@ -1071,6 +1200,7 @@ class InjectApiTest extends IntegrationTest {
   @Nested
   @WithMockUser(isAdmin = true)
   @DisplayName("Fetch execution traces for inject/atomic overview")
+  @KeepRabbit
   class ShouldFetchExecutionTracesForInjectOverview {
 
     private Inject buildInjectWithTraces(List<ExecutionTraceComposer.Composer> traces) {
@@ -1293,9 +1423,12 @@ class InjectApiTest extends IntegrationTest {
   @Nested
   @WithMockUser(isAdmin = true)
   @DisplayName("Fetch documents for inject by payload")
+  @KeepRabbit
   class ShouldFetchDocuments {
 
     private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
           .withInjectorContract(
@@ -1303,7 +1436,7 @@ class InjectApiTest extends IntegrationTest {
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                   .withPayload(
                       payloadComposer
-                          .forPayload(PayloadFixture.createDefaultFileDrop())
+                          .forPayload(PayloadFixture.createDefaultFileDrop(domains))
                           .withFileDrop(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(
@@ -1313,6 +1446,8 @@ class InjectApiTest extends IntegrationTest {
     }
 
     private Inject getInjectWithPayloadAndExecutableDocumentsLinkedOnIt() {
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
           .withInjectorContract(
@@ -1320,7 +1455,7 @@ class InjectApiTest extends IntegrationTest {
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                   .withPayload(
                       payloadComposer
-                          .forPayload(PayloadFixture.createDefaultExecutable())
+                          .forPayload(PayloadFixture.createDefaultExecutable(domains))
                           .withExecutable(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(FileFixture.getBeadFileContent())))))

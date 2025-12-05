@@ -21,6 +21,7 @@ import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.channel.model.ChannelContent;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -80,6 +81,7 @@ public class V1_DataImporter implements Importer {
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
   private final CollectorRepository collectorRepository;
+  private final DomainService domainService;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
 
@@ -218,6 +220,42 @@ public class V1_DataImporter implements Importer {
     tag.setName(jsonNode.get("tag_name").textValue());
     tag.setColor(jsonNode.get("tag_color").textValue());
     return tag;
+  }
+
+  // -- DOMAINS --
+  private List<String> importDomains(
+      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    List<String> domainIds = new ArrayList<>();
+    resolveJsonElements(importNode, prefix + "domains")
+        .forEach(
+            nodeDomain -> {
+              JsonNode idNode = nodeDomain.get("domain_id");
+              if (idNode == null) {
+                return;
+              }
+              String id = idNode.textValue();
+
+              if (baseIds.get(id) != null) {
+                // Already import
+                domainIds.add(baseIds.get(id).getId());
+                return;
+              }
+
+              Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
+              if (existingDomain.isPresent()) {
+                baseIds.put(id, existingDomain.get());
+                domainIds.add(existingDomain.get().getId());
+              } else {
+                Domain createdDomain =
+                    this.domainService.upsert(
+                        nodeDomain.get("domain_name").textValue(),
+                        nodeDomain.get("domain_color").textValue());
+                baseIds.put(createdDomain.getId(), createdDomain);
+                domainIds.add(createdDomain.getId());
+              }
+            });
+
+    return domainIds;
   }
 
   // -- ATTACK PATTERN --
@@ -1353,8 +1391,10 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
+    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
+
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
     Payload payload = this.payloadCreationService.createPayload(payloadCreateInput);
@@ -1391,6 +1431,8 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
+
+    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
 
     List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
     payloadCreateInput.setAttackPatternsIds(attackPatternIds);

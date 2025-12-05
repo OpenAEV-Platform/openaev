@@ -1,6 +1,7 @@
 package io.openaev.execution;
 
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
@@ -47,6 +48,8 @@ public class ExecutionExecutorService {
     agents.removeAll(agentsWithoutExecutor);
     Set<Agent> crowdstrikeAgents = executorUtils.foundCrowdstrikeAgents(agents);
     agents.removeAll(crowdstrikeAgents);
+    Set<Agent> sentineloneAgents = executorUtils.foundSentineloneAgents(agents);
+    agents.removeAll(sentineloneAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
@@ -63,7 +66,20 @@ public class ExecutionExecutorService {
         atLeastOneExecution.set(true);
       } catch (Exception e) {
         log.error("Crowdstrike launchBatchExecutorSubprocess error: {}", e.getMessage());
-        saveCrowdstrikeAgentsErrorTraces(e, crowdstrikeAgents, injectStatus);
+        saveAgentsErrorTraces(e, crowdstrikeAgents, injectStatus);
+      }
+    }
+    // Manage Sentinelone agents for batch execution
+    if (!sentineloneAgents.isEmpty()) {
+      try {
+        ExecutorContextService executorContextService =
+            context.getBean(SENTINELONE_EXECUTOR_NAME, ExecutorContextService.class);
+        executorContextService.launchBatchExecutorSubprocess(
+            inject, sentineloneAgents, injectStatus);
+        atLeastOneExecution.set(true);
+      } catch (Exception e) {
+        log.error("Sentinelone launchBatchExecutorSubprocess error: {}", e.getMessage());
+        saveAgentsErrorTraces(e, sentineloneAgents, injectStatus);
       }
     }
     // Manage remaining agents
@@ -96,10 +112,9 @@ public class ExecutionExecutorService {
   }
 
   @VisibleForTesting
-  public void saveCrowdstrikeAgentsErrorTraces(
-      Exception e, Set<Agent> crowdstrikeAgents, InjectStatus injectStatus) {
+  public void saveAgentsErrorTraces(Exception e, Set<Agent> agents, InjectStatus injectStatus) {
     executionTraceRepository.saveAll(
-        crowdstrikeAgents.stream()
+        agents.stream()
             .map(
                 agent ->
                     new ExecutionTrace(

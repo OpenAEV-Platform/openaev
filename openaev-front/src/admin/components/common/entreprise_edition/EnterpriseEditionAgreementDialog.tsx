@@ -77,7 +77,7 @@ const EnterpriseEditionAgreementDialog = () => {
         <Alert severity="info">
           {t('OpenAEV Enterprise Edition requires a license key to be enabled. Filigran provides a free-to-use license for development and research purposes as well as for charity organizations.')}
           <p>
-            {t('To obtain a license, please', {
+            {t('To obtain a license, please {url}', {
               url: (
                 <Link
                   href="https://filigran.io/contact/"

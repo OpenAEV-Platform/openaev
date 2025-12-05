@@ -29,6 +29,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   private final TaniumExecutorClient taniumExecutorClient;
   public static final String SERVICE_NAME = TANIUM_EXECUTOR_NAME;
 
+  @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
@@ -101,6 +102,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
         Base64.getEncoder().encodeToString(command.getBytes()));
   }
 
+  @Override
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
     return new ArrayList<>();

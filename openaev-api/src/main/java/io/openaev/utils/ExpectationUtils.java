@@ -436,7 +436,11 @@ public class ExpectationUtils {
       @NotNull final InjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
         .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
+        .filter(
+            e ->
+                e.getAsset() != null
+                    && injectExpectation.getAsset() != null
+                    && e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
         .filter(e -> e.getType().equals(injectExpectation.getType()))
         .toList();
   }

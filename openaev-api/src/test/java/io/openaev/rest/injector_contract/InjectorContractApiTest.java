@@ -72,6 +72,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
 
   @Autowired private UserComposer userComposer;
@@ -408,7 +409,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId));
@@ -491,7 +493,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -549,7 +552,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -608,7 +612,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -670,7 +675,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -997,7 +1003,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
+                          "injector_contract_injector_type_name":"OpenAEV Implant",
+                          "injector_contract_domains":[]
                         }""",
                     newId));
       }
@@ -1211,12 +1218,15 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
+        icComposer.withPayload(
+            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {

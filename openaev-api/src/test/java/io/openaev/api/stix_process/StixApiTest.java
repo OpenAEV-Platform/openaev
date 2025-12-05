@@ -34,10 +34,7 @@ import jakarta.transaction.Transactional;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +68,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Autowired private InjectorFixture injectorFixture;
 
@@ -242,6 +240,7 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Eligible asset groups are assigned by tag rule")
     void eligibleAssetGroupsAreAssignedByTagRule() throws Exception {
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
       String label = "custom-label";
       tagRuleComposer
           .forTagRule(TagRuleFixture.createDefaultTagRule())
@@ -263,7 +262,7 @@ class StixApiTest extends IntegrationTest {
           .withAttackPattern(attackPatternWrapper)
           .withPayload(
               payloadComposer
-                  .forPayload(PayloadFixture.createDefaultCommand())
+                  .forPayload(PayloadFixture.createDefaultCommand(domains))
                   .withAttackPattern(attackPatternWrapper))
           .persist();
 

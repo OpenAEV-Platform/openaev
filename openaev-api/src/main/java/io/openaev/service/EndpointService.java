@@ -5,6 +5,7 @@ import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.database.specification.EndpointSpecification.*;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
@@ -338,7 +339,15 @@ public class EndpointService {
     }
   }
 
-  public List<Asset> syncAgentsEndpoints(
+  /**
+   * Get agents from SentinelOne, Crowdstrike API and register them into OpenAEV agents and
+   * endpoints
+   *
+   * @param inputs from the API
+   * @param existingAgents in the database
+   * @return OpenAEV agents
+   */
+  public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents) {
     List<Agent> agentsToSave = new ArrayList<>();
     List<Asset> endpointsToSave = new ArrayList<>();
@@ -390,7 +399,7 @@ public class EndpointService {
                                     Arrays.asList(input.getMacAddresses()).contains(macAddress)))
                 .findFirst();
         if (optionalInputToSave.isPresent()) {
-          // If no existing agent Crowdstrike in this endpoint, add to it
+          // If no existing agent Crowdstrike/SentinelOne in this endpoint, add to it
           if (existingAgents.stream()
               .noneMatch(agent -> agent.getAsset().getId().equals(endpointToUpdate.getId()))) {
             final AgentRegisterInput inputToSave = optionalInputToSave.get();
@@ -426,9 +435,8 @@ public class EndpointService {
       }
     }
     // Save all in database
-    List<Asset> endpoints = fromIterable(assetService.saveAllAssets(endpointsToSave));
-    agentService.saveAllAgents(agentsToSave);
-    return endpoints;
+    assetService.saveAllAssets(endpointsToSave);
+    return agentService.saveAllAgents(agentsToSave);
   }
 
   @Transactional
@@ -589,7 +597,8 @@ public class EndpointService {
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
-    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
+    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
+        || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       agent.setId(input.getExternalReference());
     }
     agent.setPrivilege(input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard);

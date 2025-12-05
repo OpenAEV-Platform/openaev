@@ -70,7 +70,7 @@ public class StreamApi extends RestBehavior {
   private static final EnumSet<ResourceType> RESOURCES_STREAM_BLACKLIST =
       EnumSet.of(ResourceType.VULNERABILITY, ResourceType.PAYLOAD);
 
-  @Async
+  @Async("streamExecutor")
   @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {

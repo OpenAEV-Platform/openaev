@@ -2,13 +2,14 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
+import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
@@ -46,13 +47,15 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
-  private final ExecutionTraceRepository executionTraceRepository;
+  private final ExecutorService executorService;
 
+  @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
       @NotNull final Agent agent) {}
 
+  @Override
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
 
@@ -74,7 +77,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
-    csAgents = manageWithoutPlatformAgents(csAgents, injectStatus);
+    csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
     actions.addAll(
@@ -90,47 +93,6 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
             getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject.getId()));
     // Launch payloads with CS API
     executeActions(actions);
-    return csAgents;
-  }
-
-  private List<Agent> getAgentsFromOS(List<Agent> agents, Endpoint.PLATFORM_TYPE platform) {
-    return agents.stream()
-        .filter(agent -> ((Endpoint) agent.getAsset()).getPlatform().equals(platform))
-        .toList();
-  }
-
-  private List<Agent> manageWithoutPlatformAgents(List<Agent> agents, InjectStatus injectStatus) {
-    List<Agent> csAgents = new ArrayList<>(agents);
-    List<Agent> withoutPlatformAgents =
-        csAgents.stream()
-            .filter(
-                agent ->
-                    ((Endpoint) agent.getAsset()).getPlatform() == null
-                        || ((Endpoint) agent.getAsset()).getPlatform()
-                            == Endpoint.PLATFORM_TYPE.Unknown
-                        || ((Endpoint) agent.getAsset()).getArch() == null)
-            .toList();
-    csAgents.removeAll(withoutPlatformAgents);
-    // Agents with no platform or unknown platform, traces to save
-    if (!withoutPlatformAgents.isEmpty()) {
-      executionTraceRepository.saveAll(
-          withoutPlatformAgents.stream()
-              .map(
-                  agent ->
-                      new ExecutionTrace(
-                          injectStatus,
-                          ExecutionTraceStatus.ERROR,
-                          List.of(),
-                          "Unsupported platform: "
-                              + ((Endpoint) agent.getAsset()).getPlatform()
-                              + " (arch:"
-                              + ((Endpoint) agent.getAsset()).getArch()
-                              + ")",
-                          ExecutionTraceAction.COMPLETE,
-                          agent,
-                          null))
-              .toList());
-    }
     return csAgents;
   }
 

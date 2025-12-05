@@ -14,6 +14,7 @@ import io.openaev.config.MinioConfig;
 import io.openaev.database.repository.*;
 import io.openaev.driver.MinioDriver;
 import io.openaev.service.exception.HealthCheckFailureException;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -22,8 +23,12 @@ import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HealthCheckServiceTest extends IntegrationTest {
 

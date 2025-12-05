@@ -17,6 +17,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
+import ItemDomains from '../../../../components/ItemDomains';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
@@ -68,11 +69,12 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   inject_type: { width: '15%' },
-  inject_title: { width: '25%' },
+  inject_title: { width: '15%' },
+  inject_contract_domain: { width: '15%' },
   inject_depends_duration: { width: '18%' },
   inject_platforms: { width: '10%' },
   inject_enabled: { width: '12%' },
-  inject_tags: { width: '20%' },
+  inject_tags: { width: '10%' },
 };
 
 interface Props {
@@ -126,6 +128,26 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Title',
       isSortable: true,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
+    },
+    {
+      field: 'inject_contract_domain',
+      label: t('domains'),
+      isSortable: true,
+      value: (inject: InjectOutputType) => {
+        const payloadDomains
+                  = inject.inject_injector_contract?.injector_contract_payload?.payload_domains;
+
+        const contractDomains
+                  = inject.inject_injector_contract?.injector_contract_domains;
+
+        const domains
+                  = (payloadDomains && payloadDomains.length > 0 && payloadDomains)
+                    || (contractDomains && contractDomains.length > 0 && contractDomains);
+
+        return domains
+          ? <ItemDomains domains={domains} variant="reduced-view" />
+          : <></>;
+      },
     },
     {
       field: 'inject_depends_duration',

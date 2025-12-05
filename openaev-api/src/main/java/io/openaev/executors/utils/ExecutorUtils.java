@@ -1,9 +1,12 @@
 package io.openaev.executors.utils;
 
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
 
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Endpoint;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -67,5 +70,49 @@ public class ExecutorUtils {
     return agents.stream()
         .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * Found all SentinelOne agents from a list of agents
+   *
+   * @param agents to filter
+   * @return founded sentinelone agents
+   */
+  public Set<Agent> foundSentineloneAgents(Set<Agent> agents) {
+    return agents.stream()
+        .filter(agent -> SENTINELONE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Found all agents from the given OS
+   *
+   * @param agents to filter
+   * @param platform to filter
+   * @return founded agents from the given OS
+   */
+  public static List<Agent> getAgentsFromOS(List<Agent> agents, Endpoint.PLATFORM_TYPE platform) {
+    return agents.stream()
+        .filter(agent -> ((Endpoint) agent.getAsset()).getPlatform().equals(platform))
+        .toList();
+  }
+
+  /**
+   * Found all agents from the given OS and arch
+   *
+   * @param agents to filter
+   * @param platform to filter
+   * @param arch to filter
+   * @return founded agents from the given OS and arch
+   */
+  public static List<Agent> getAgentsFromOSAndArch(
+      List<Agent> agents, Endpoint.PLATFORM_TYPE platform, Endpoint.PLATFORM_ARCH arch) {
+    return agents.stream()
+        .filter(
+            agent -> {
+              Endpoint endpoint = (Endpoint) agent.getAsset();
+              return endpoint.getPlatform().equals(platform) && endpoint.getArch().equals(arch);
+            })
+        .toList();
   }
 }

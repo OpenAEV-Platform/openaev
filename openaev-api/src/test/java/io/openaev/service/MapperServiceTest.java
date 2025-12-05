@@ -17,6 +17,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
 import io.openaev.utils.mockMapper.MockMapperUtils;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,8 +27,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @ExtendWith(MockitoExtension.class)
 public class MapperServiceTest extends IntegrationTest {
 
