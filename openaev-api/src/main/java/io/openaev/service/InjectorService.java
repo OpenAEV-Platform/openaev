@@ -23,6 +23,7 @@ import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
 import jakarta.annotation.Resource;
@@ -32,33 +33,82 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
-@RequiredArgsConstructor
 @Service("coreInjectorService")
 // TODO needs to be merged with integrations/InjectorService
-public class InjectorService {
+public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
   private static final String DUMMY_SUFFIX = "_dummy";
 
+  @Resource private RabbitmqConfig rabbitmqConfig;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
-  private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
 
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final CatalogConnectorService catalogConnectorService;
   private final InjectorContractService injectorContractService;
   private final DomainService domainService;
 
   private final InjectorMapper injectorMapper;
-  private final CatalogConnectorMapper catalogConnectorMapper;
 
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  @Autowired
+  public InjectorService(
+      InjectorRepository injectorRepository,
+      InjectorContractRepository injectorContractRepository,
+      AttackPatternRepository attackPatternRepository,
+      ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
+      FileService fileService,
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      InjectorContractService injectorContractService,
+      InjectorMapper injectorMapper,
+      CatalogConnectorMapper catalogConnectorMapper) {
+    super(
+        connectorInstanceConfigurationRepository, catalogConnectorService, catalogConnectorMapper);
+    this.injectorRepository = injectorRepository;
+    this.injectorContractRepository = injectorContractRepository;
+    this.attackPatternRepository = attackPatternRepository;
+    this.fileService = fileService;
+    this.connectorInstanceService = connectorInstanceService;
+    this.injectorContractService = injectorContractService;
+    this.injectorMapper = injectorMapper;
+  }
+
+  @Override
+  protected String getConfigurationKey() {
+    return "INJECTOR_ID";
+  }
+
+  @Override
+  protected List<ConnectorInstance> getRelatedInstances() {
+    return connectorInstanceService.injectorConnectorInstances();
+  }
+
+  @Override
+  protected List<Injector> getAllConnectors() {
+    return fromIterable(injectorRepository.findAll());
+  }
+
+  @Override
+  protected Injector getConnectorById(String injectorId) {
+    return injectorRepository.findById(injectorId).orElse(null);
+  }
+
+  @Override
+  protected InjectorOutput mapToOutput(
+      Injector injector, CatalogConnector catalogConnector, boolean isVerified) {
+    return injectorMapper.toInjectorOutput(injector, catalogConnector, isVerified);
+  }
+
+  @Override
+  protected Injector createNewConnector() {
+    return new Injector();
+  }
 
   /**
    * Create a dummmy injector, that is used when importing the starter pack before the real
@@ -103,106 +153,29 @@ public class InjectorService {
     return injectorType;
   }
 
-  public Optional<Injector> getInjectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByType(injectorType);
-  }
-
   public List<Injector> findAll() {
     return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
         .collect(Collectors.toList());
   }
 
-  private String getInjectorIdFromInstance(ConnectorInstance instance) {
-    return instance.getConfigurations().stream()
-            .filter(c -> "INJECTOR_ID".equals(c.getKey()))
-            .map(c -> c.getValue().asText())
-            .findFirst()
-            .orElse(null);
+  /**
+   * Retrieve all injectors.
+   *
+   * @param isIncludeNext Include pending injectors.
+   * @return List of injector output
+   */
+  public Iterable<InjectorOutput> injectorsOutput(boolean isIncludeNext) {
+    return getConnectorsOutput(isIncludeNext);
   }
 
-  private Map<String, ConnectorInstance> mapInstancesByInjectorId(List<ConnectorInstance> instances) {
-    Map<String, ConnectorInstance> map = new HashMap<>();
-    instances.forEach(
-            instance -> {
-              String injectorId = getInjectorIdFromInstance(instance);
-              if (injectorId != null) {
-                map.put(injectorId, instance);
-              }
-            });
-    return map;
-  }
-
-  private InjectorOutput toInjectorOutput(
-          Injector injector, Map<String, ConnectorInstance> instanceMap) {
-    ConnectorInstance instance = instanceMap.get(injector.getId());
-    boolean isVerified = instance != null;
-    CatalogConnector catalogConnector = isVerified ? instance.getCatalogConnector():
-            catalogConnectorService.findBySlug(injector.getType().replace("openaev_", "")).orElse(null);
-    return injectorMapper.toInjectorOutput(injector, catalogConnector, isVerified);
-  }
-
-  public Iterable<InjectorOutput> injectorsOutput(){
-    List<ConnectorInstance> injectorInstances = connectorInstanceService.injectorConnectorInstances();
-    Map<String, ConnectorInstance> instanceByInjectorIdMap = mapInstancesByInjectorId(injectorInstances);
-    List<Injector> injectors = fromIterable(injectorRepository.findAll());
-
-    return injectors.stream()
-            .map(injector -> toInjectorOutput(injector, instanceByInjectorIdMap))
-            .toList();
-
-  }
-
-  private Injector createExternalInjector(String injectorId, ConnectorInstance instance) {
-    Injector newInjector = new Injector();
-    newInjector.setId(injectorId);
-    newInjector.setName(instance.getCatalogConnector().getTitle());
-    newInjector.setExternal(true);
-    newInjector.setType(instance.getCatalogConnector().getSlug());
-    return newInjector;
-  }
-
-  public Iterable<InjectorOutput> getInjectorOutputWithNextInjectors(){
-    List<Injector> injectors = fromIterable(injectorRepository.findAll());
-    Set<String> existingInjectorIds = injectors.stream().map(Injector::getId).collect(Collectors.toSet());
-
-    List<ConnectorInstance> injectorInstances = connectorInstanceService.injectorConnectorInstances();
-    Map<String, ConnectorInstance> instanceByInjectorIdMap = mapInstancesByInjectorId(injectorInstances);
-
-    List<InjectorOutput> result = new ArrayList<>();
-
-    // Add existing injectors
-    injectors.forEach(
-            injector -> result.add(toInjectorOutput(injector, instanceByInjectorIdMap)));
-
-    // Add new injectors from instances, these injectors are waiting to be deployed
-    instanceByInjectorIdMap.entrySet().stream()
-            .filter(entry -> entry.getKey() != null && !existingInjectorIds.contains(entry.getKey()))
-            .forEach(
-                    entry -> {
-                      Injector newInjector = createExternalInjector(entry.getKey(), entry.getValue());
-                      result.add(
-                              injectorMapper.toInjectorOutput(
-                                      newInjector, entry.getValue().getCatalogConnector(), true));
-                    });
-
-    return result;
-  }
-
-  public ConnectorIds getInjectorRelationsId(String injectorId){
-    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase relatedIds = connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue("INJECTOR_ID", injectorId);
-    if (relatedIds != null) {
-      return catalogConnectorMapper.toConnectorIds(relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId());
-    }
-
-    // Injector already deployed without catalog, we will try to search matching catalog comparing collectorType and catalogSlug
-    Injector injector = injectorRepository.findById(injectorId).orElse(null);
-    CatalogConnector catalogConnector = catalogConnectorService.findBySlug(injector.getType().replace("openaev_", "")).orElse(null);
-    if (catalogConnector != null) {
-      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null);
-    }
-
-    // If nothing match this collector is manually deployed
-    return catalogConnectorMapper.toConnectorIds(null, null);
+  /**
+   * Retrieves IDs of resources associated with an injector.
+   *
+   * @param injectorId injector identifier.
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  public ConnectorIds getInjectorRelationsId(String injectorId) {
+    return getConnectorRelationsId(injectorId);
   }
 
   public InjectorRegistration registerInjector(

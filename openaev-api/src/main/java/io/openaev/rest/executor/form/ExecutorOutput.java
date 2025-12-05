@@ -1,4 +1,4 @@
-package io.openaev.rest.injector.form;
+package io.openaev.rest.executor.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
@@ -10,31 +10,28 @@ import lombok.Data;
 
 @Data
 @Builder
-@Schema(description = "Injector output")
-public class InjectorOutput {
-  @Schema(description = "Injector id")
-  @JsonProperty("injector_id")
+@Schema(description = "Executor output")
+public class ExecutorOutput {
+
+  @Schema(description = "Executor id")
+  @JsonProperty("executor_id")
   @NotBlank
   private String id;
 
-  @JsonProperty("injector_name")
+  @JsonProperty("executor_name")
   @NotBlank
   private String name;
 
-  @JsonProperty("injector_type")
+  @JsonProperty("executor_type")
   @NotBlank
   private String type;
 
-  @JsonProperty("injector_external")
-  private boolean external = false;
+  @JsonProperty("executor_updated_at")
+  private Instant updatedAt;
 
-  // TODO check need category, customContracts, executorCommands, executorClearCommands, payloads...
   @JsonProperty("catalog")
   private CatalogConnectorSimpleOutput catalog;
 
   @JsonProperty("is_verified")
   private boolean verified = false;
-
-  @JsonProperty("injector_updated_at")
-  private Instant updatedAt;
 }

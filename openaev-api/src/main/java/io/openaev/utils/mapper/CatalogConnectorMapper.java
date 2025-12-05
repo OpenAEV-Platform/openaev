@@ -32,19 +32,19 @@ public class CatalogConnectorMapper {
         .build();
   }
 
-  public CatalogConnectorSimpleOutput toCatalogSimpleOutput(@Nullable CatalogConnector catalogConnector){
+  public CatalogConnectorSimpleOutput toCatalogSimpleOutput(
+      @Nullable CatalogConnector catalogConnector) {
     if (catalogConnector == null) return null;
     return CatalogConnectorSimpleOutput.builder()
-            .id(catalogConnector.getId())
-            .shortDescription(catalogConnector.getShortDescription())
-            .build();
+        .id(catalogConnector.getId())
+        .shortDescription(catalogConnector.getShortDescription())
+        .build();
   }
 
   public ConnectorIds toConnectorIds(String catalogConnectorId, String connectorInstanceId) {
     return ConnectorIds.builder()
-            .catalogConnectorId(catalogConnectorId)
-            .connectorInstanceId(connectorInstanceId)
-            .build();
+        .catalogConnectorId(catalogConnectorId)
+        .connectorInstanceId(connectorInstanceId)
+        .build();
   }
-
 }

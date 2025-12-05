@@ -13,14 +13,20 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TokenRepository;
+import io.openaev.executors.ExecutorService;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
+import io.openaev.rest.executor.form.ExecutorOutput;
 import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
@@ -44,6 +50,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 public class ExecutorApi extends RestBehavior {
 
+  public static final String EXECUTOR_URI = "/api/executors";
+
   @Value("${info.app.version:unknown}")
   String version;
 
@@ -59,6 +67,7 @@ public class ExecutorApi extends RestBehavior {
   private TokenRepository tokenRepository;
 
   @Resource protected ObjectMapper mapper;
+  @Autowired private ExecutorService executorService;
 
   @Autowired
   public void setTokenRepository(TokenRepository tokenRepository) {
@@ -80,10 +89,35 @@ public class ExecutorApi extends RestBehavior {
     this.executorRepository = executorRepository;
   }
 
-  @GetMapping("/api/executors")
+  @GetMapping(EXECUTOR_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
-  public Iterable<Executor> executors() {
-    return executorRepository.findAll();
+  @Operation(
+      summary = "Retrieve executors",
+      description = "Retrieve all executors and pending executors if includeNext is true")
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(
+              mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = ExecutorOutput.class))))
+  public Iterable<ExecutorOutput> executors(
+      @Parameter(
+              name = "includeNext",
+              description = "Include executors pending deployment",
+              required = false)
+          @RequestParam(value = "include_next", required = false, defaultValue = "false")
+          boolean includeNext) {
+    return executorService.executorsOutput(includeNext);
+  }
+
+  @GetMapping(EXECUTOR_URI + "/{executorId}/related-ids")
+  @RBAC(
+      resourceId = "#executorId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  @Operation(summary = "Retrieve executor related ids")
+  public ConnectorIds getExecutorRelatedIds(@PathVariable String executorId) {
+    return executorService.getExecutorRelationsId(executorId);
   }
 
   private Executor updateExecutor(Executor executor, String type, String name, String[] platforms) {
@@ -94,7 +128,7 @@ public class ExecutorApi extends RestBehavior {
     return executorRepository.save(executor);
   }
 
-  @PutMapping("/api/executors/{executorId}")
+  @PutMapping(EXECUTOR_URI + "/{executorId}")
   @RBAC(
       resourceId = "#executorId",
       actionPerformed = Action.WRITE,
@@ -108,7 +142,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = "/api/executors",
+      value = EXECUTOR_URI,
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)

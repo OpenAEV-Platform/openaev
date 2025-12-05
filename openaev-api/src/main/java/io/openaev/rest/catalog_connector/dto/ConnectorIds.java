@@ -9,9 +9,9 @@ import lombok.Data;
 @Data
 @Schema(description = "Define the ids linked to a collector")
 public class ConnectorIds {
-    @JsonProperty("connector_instance_id")
-    private String connectorInstanceId;
+  @JsonProperty("connector_instance_id")
+  private String connectorInstanceId;
 
-    @JsonProperty("catalog_connector_id")
-    private String catalogConnectorId;
+  @JsonProperty("catalog_connector_id")
+  private String catalogConnectorId;
 }

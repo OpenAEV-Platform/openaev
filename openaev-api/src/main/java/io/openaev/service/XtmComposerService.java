@@ -10,7 +10,6 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.Setting;
 import io.openaev.rest.exception.BadRequestException;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -106,6 +105,7 @@ public class XtmComposerService {
 
   /**
    * Get XTM Composer settings from platform settings
+   *
    * @return Map of XTM Composer settings
    */
   public Map<String, Setting> getXtmComposerSettings() {
@@ -165,6 +165,7 @@ public class XtmComposerService {
 
   /**
    * Check if the last connectivity check is older than 1 day
+   *
    * @param lastConnectivityCheckValue Last connectivity check value as string
    * @return true if the last connectivity check is older than 1 day, false otherwise
    */
@@ -181,6 +182,7 @@ public class XtmComposerService {
 
   /**
    * Validate XTM Composer identifier
+   *
    * @param xtmComposerId XTM Composer id to validate
    */
   public void validateXtmComposerId(String xtmComposerId) {
@@ -192,17 +194,19 @@ public class XtmComposerService {
 
   /**
    * Validate XTM Composer reachability
+   *
    * @param xtmComposerId XTM Composer id
-   * @param xtmComposerLastConnectivityCheck XtmComposerLastConnectivityCheck Last connectivity check value
+   * @param xtmComposerLastConnectivityCheck XtmComposerLastConnectivityCheck Last connectivity
+   *     check value
    */
-  public void validateXtmComposerReachability(String xtmComposerId, String xtmComposerLastConnectivityCheck) {
-    if (xtmComposerId == null ) {
-        throw new IllegalArgumentException("XTM Composer is not configured in the platform settings");
+  public void validateXtmComposerReachability(
+      String xtmComposerId, String xtmComposerLastConnectivityCheck) {
+    if (xtmComposerId == null) {
+      throw new IllegalArgumentException("XTM Composer is not configured in the platform settings");
     }
-    if (xtmComposerLastConnectivityCheck == null ||
-            isLastConnectivityCheckTooOld(xtmComposerLastConnectivityCheck)) {
-        throw new IllegalArgumentException("XTM Composer is not reachable");
+    if (xtmComposerLastConnectivityCheck == null
+        || isLastConnectivityCheckTooOld(xtmComposerLastConnectivityCheck)) {
+      throw new IllegalArgumentException("XTM Composer is not reachable");
     }
   }
-
 }

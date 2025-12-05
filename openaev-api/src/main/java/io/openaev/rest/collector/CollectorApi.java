@@ -6,14 +6,15 @@ import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,20 +40,23 @@ public class CollectorApi extends RestBehavior {
 
   @GetMapping(COLLECTOR_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
-  @Operation(summary = "Retrieve collectors")
+  @Operation(
+      summary = "Retrieve collectors",
+      description = "Retrieve all collectors and pending collectors if includeNext is true")
   @ApiResponse(
-          responseCode = "200",
-          content = @Content(
-                  mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))
-          )
-  )
-  public Iterable<CollectorOutput> collectors(@RequestParam(value = "include_next", required = false, defaultValue = "false") boolean includeNext) {
-    if (includeNext) {
-      return collectorService.getCollectorsOutputWithNextCollectors();
-    }
-
-    return collectorService.collectorsOutput();
+      responseCode = "200",
+      content =
+          @Content(
+              mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))))
+  public Iterable<CollectorOutput> collectors(
+      @Parameter(
+              name = "includeNext",
+              description = "Include collectors pending deployment",
+              required = false)
+          @RequestParam(value = "include_next", required = false, defaultValue = "false")
+          boolean includeNext) {
+    return collectorService.collectorsOutput(includeNext);
   }
 
   private Collector updateCollector(
@@ -86,11 +90,11 @@ public class CollectorApi extends RestBehavior {
 
   @GetMapping(COLLECTOR_URI + "/{collectorId}/related-ids")
   @RBAC(
-          resourceId = "#collectorId",
-          actionPerformed = Action.READ,
-          resourceType = ResourceType.COLLECTOR)
-  @Operation(summary = "Retrieve connector related ids")
-   public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId){
+      resourceId = "#collectorId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.COLLECTOR)
+  @Operation(summary = "Retrieve collector related ids")
+  public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
   }
 

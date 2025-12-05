@@ -23,7 +23,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @Table(name = "injectors")
 @EntityListeners(ModelBaseListener.class)
-public class Injector implements Base {
+public class Injector extends BaseConnectorEntity {
 
   @Id
   @Column(name = "injector_id")

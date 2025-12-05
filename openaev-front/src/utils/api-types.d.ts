@@ -36,6 +36,16 @@ export interface Agent {
   listened?: boolean;
 }
 
+/** Agent executor */
+export interface AgentExecutorOutput {
+  /** Agent executor id */
+  executor_id?: string;
+  /** Agent executor name */
+  executor_name?: string;
+  /** Agent executor type */
+  executor_type?: string;
+}
+
 /** List of primary agents */
 export interface AgentOutput {
   /** Indicates whether the endpoint is active. The endpoint is considered active if it was seen in the last 3 minutes. */
@@ -45,7 +55,7 @@ export interface AgentOutput {
   /** The user who executed the agent */
   agent_executed_by_user?: string;
   /** Agent executor */
-  agent_executor?: ExecutorOutput;
+  agent_executor?: AgentExecutorOutput;
   /** Agent id */
   agent_id: string;
   /**
@@ -2371,6 +2381,7 @@ export interface Executor {
   executor_type: string;
   /** @format date-time */
   executor_updated_at: string;
+  external?: boolean;
   listened?: boolean;
 }
 
@@ -2381,14 +2392,17 @@ export interface ExecutorCreateInput {
   executor_type: string;
 }
 
-/** Agent executor */
+/** Executor output */
 export interface ExecutorOutput {
-  /** Agent executor id */
-  executor_id?: string;
-  /** Agent executor name */
-  executor_name?: string;
-  /** Agent executor type */
-  executor_type?: string;
+  /** Catalog simple output */
+  catalog?: CatalogConnectorSimpleOutput;
+  /** Executor id */
+  executor_id: string;
+  executor_name: string;
+  executor_type: string;
+  /** @format date-time */
+  executor_updated_at?: string;
+  is_verified?: boolean;
 }
 
 export interface ExecutorUpdateInput {

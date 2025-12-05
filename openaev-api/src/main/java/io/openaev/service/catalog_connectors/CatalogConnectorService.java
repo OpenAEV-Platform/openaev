@@ -7,10 +7,8 @@ import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
-
 import java.util.*;
 import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -38,18 +36,22 @@ public class CatalogConnectorService {
     return catalogConnectorRepository.findById(id);
   }
 
-  public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(String catalogConnectorId) {
+  public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
+      String catalogConnectorId) {
 
     Set<String> EXCLUDED_CONFIG_KEYS = Set.of("OPENAEV_TOKEN");
 
     return catalogConnectorRepository
-            .findById(catalogConnectorId)
-            .map(CatalogConnector::getCatalogConnectorConfigurations)
-            .orElse(Collections.emptySet())
-            .stream()
-            .filter(config -> !EXCLUDED_CONFIG_KEYS.contains(config.getConnectorConfigurationKey()))
-            .collect(Collectors.toCollection(
-                    () -> new TreeSet<>(Comparator.comparing(CatalogConnectorConfiguration::getConnectorConfigurationKey))
-            ));
+        .findById(catalogConnectorId)
+        .map(CatalogConnector::getCatalogConnectorConfigurations)
+        .orElse(Collections.emptySet())
+        .stream()
+        .filter(config -> !EXCLUDED_CONFIG_KEYS.contains(config.getConnectorConfigurationKey()))
+        .collect(
+            Collectors.toCollection(
+                () ->
+                    new TreeSet<>(
+                        Comparator.comparing(
+                            CatalogConnectorConfiguration::getConnectorConfigurationKey))));
   }
 }

@@ -20,7 +20,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @Table(name = "executors")
 @EntityListeners(ModelBaseListener.class)
-public class Executor implements Base {
+public class Executor extends BaseConnectorEntity {
 
   @Id
   @Column(name = "executor_id")

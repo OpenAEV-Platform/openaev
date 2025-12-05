@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Builder
 @JsonInclude(NON_NULL)
-public class ExecutorOutput {
+public class AgentExecutorOutput {
 
   @Schema(description = "Agent executor id")
   @JsonProperty("executor_id")

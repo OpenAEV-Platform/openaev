@@ -13,18 +13,18 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CollectorMapper {
 
-    private final CatalogConnectorMapper catalogConnectorMapper;
+  private final CatalogConnectorMapper catalogConnectorMapper;
 
-    public CollectorOutput toCollectorOutput(
-            Collector collector, @Nullable CatalogConnector catalogConnector, boolean isVerified){
-        return CollectorOutput.builder()
-                .id(collector.getId())
-                .name(collector.getName())
-                .type(collector.getType())
-                .external(collector.isExternal())
-                .lastExecution(collector.getLastExecution())
-                .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
-                .verified(isVerified)
-                .build();
-    }
+  public CollectorOutput toCollectorOutput(
+      Collector collector, @Nullable CatalogConnector catalogConnector, boolean isVerified) {
+    return CollectorOutput.builder()
+        .id(collector.getId())
+        .name(collector.getName())
+        .type(collector.getType())
+        .external(collector.isExternal())
+        .lastExecution(collector.getLastExecution())
+        .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
+        .verified(isVerified)
+        .build();
+  }
 }

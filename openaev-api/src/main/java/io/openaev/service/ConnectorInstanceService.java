@@ -1,5 +1,8 @@
 package io.openaev.service;
 
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.specification.TokenSpecification.fromUser;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
@@ -9,24 +12,18 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import jakarta.persistence.EntityNotFoundException;
-
 import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.specification.TokenSpecification.fromUser;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -45,11 +42,19 @@ public class ConnectorInstanceService {
     return connectorInstanceRepository.findAllManagedByXtmComposerAndConfiguration();
   }
 
-  public List<ConnectorInstance> injectorConnectorInstances(){
-    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(CatalogConnector.CONNECTOR_TYPE.INJECTOR);
+  public List<ConnectorInstance> injectorConnectorInstances() {
+    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
+        CatalogConnector.CONNECTOR_TYPE.INJECTOR);
   }
+
   public List<ConnectorInstance> collectorConnectorInstances() {
-    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
+    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
+        CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
+  }
+
+  public List<ConnectorInstance> executorConnectorInstances() {
+    return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
+        CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
   }
 
   public ConnectorInstance connectorInstanceById(String id) {
@@ -60,14 +65,14 @@ public class ConnectorInstanceService {
   }
 
   public ConnectorInstance updateCurrentStatus(
-          String connectorInstanceId, ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
+      String connectorInstanceId, ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
     ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
     instance.setCurrentStatus(newCurrentStatus);
     return this.save(instance);
   }
 
   public ConnectorInstance updateRequestedStatus(
-          String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
+      String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
     ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
     instance.setRequestedStatus(newRequestedStatus);
     return this.save(instance);
@@ -94,14 +99,16 @@ public class ConnectorInstanceService {
 
   private PublicKey parsePublicKey(String rsaPublicKeyPEM) throws Exception {
     // Remove PEM headers/footers and whitespace
-    String cleanedKey = rsaPublicKeyPEM
+    String cleanedKey =
+        rsaPublicKeyPEM
             .replace("-----BEGIN PUBLIC KEY-----", "")
             .replace("-----END PUBLIC KEY-----", "")
             .replace("-----BEGIN RSA PUBLIC KEY-----", "")
             .replace("-----END RSA PUBLIC KEY-----", "")
             .replaceAll("\\s", ""); // Remove all whitespace
 
-    X509EncodedKeySpec keySpecPublic = new X509EncodedKeySpec(Base64.getDecoder().decode(cleanedKey));
+    X509EncodedKeySpec keySpecPublic =
+        new X509EncodedKeySpec(Base64.getDecoder().decode(cleanedKey));
     KeyFactory keyFactory = KeyFactory.getInstance("RSA");
     return keyFactory.generatePublic(keySpecPublic);
   }
@@ -151,8 +158,8 @@ public class ConnectorInstanceService {
     PublicKey publicKey = parsePublicKey(rsaPublicKeyPEM);
 
     // 2. Generate AES key and IV
-    byte[] aesKey = generateRandomBytes(32);  // AES-256 key
-    byte[] aesIv = generateRandomBytes(12);   // GCM IV
+    byte[] aesKey = generateRandomBytes(32); // AES-256 key
+    byte[] aesIv = generateRandomBytes(12); // GCM IV
 
     // 3. Encrypt value with AES-GCM
     byte[] aesEncryptedValue = aesEncrypt(value, aesKey, aesIv);
@@ -166,7 +173,7 @@ public class ConnectorInstanceService {
     byte[] rsaEncryptedKeyIv = rsaCipher.doFinal(aesKeyAndIv);
 
     // 6. Build final structure: version + RSA(key+IV) + AES(data)
-    byte[] version = new byte[] { 0x01 };
+    byte[] version = new byte[] {0x01};
     byte[] result = concatenateBytes(version, rsaEncryptedKeyIv, aesEncryptedValue);
 
     // 7. Return as Base64
@@ -174,7 +181,7 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createConnectorInstanceConfiguration(
-          String key, JsonNode value, boolean isEncrypted, ConnectorInstance connectorInstance) {
+      String key, JsonNode value, boolean isEncrypted, ConnectorInstance connectorInstance) {
     ConnectorInstanceConfiguration confValue = new ConnectorInstanceConfiguration();
     confValue.setKey(key);
     confValue.setEncrypted(isEncrypted);
@@ -183,15 +190,22 @@ public class ConnectorInstanceService {
     return confValue;
   }
 
-  public ConnectorInstance createConnectorInstance(CreateConnectorInstanceInput input, String rsaPublicKey) {
-    Optional<CatalogConnector> catalogConnector = catalogConnectorService.findById(input.getCatalogConnectorId());
+  public ConnectorInstance createConnectorInstance(
+      CreateConnectorInstanceInput input, String rsaPublicKey) {
+    Optional<CatalogConnector> catalogConnector =
+        catalogConnectorService.findById(input.getCatalogConnectorId());
     if (catalogConnector.isEmpty()) {
-      throw new EntityNotFoundException("CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
+      throw new EntityNotFoundException(
+          "CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
     }
 
-    List<ConnectorInstance> existingInstances = connectorInstanceRepository.findAllByCatalogConnectorId(input.getCatalogConnectorId());
+    List<ConnectorInstance> existingInstances =
+        connectorInstanceRepository.findAllByCatalogConnectorId(input.getCatalogConnectorId());
     if (!existingInstances.isEmpty()) {
-      throw new IllegalArgumentException("ConnectorInstance with CatalogConnector id " + input.getCatalogConnectorId() + " already exists");
+      throw new IllegalArgumentException(
+          "ConnectorInstance with CatalogConnector id "
+              + input.getCatalogConnectorId()
+              + " already exists");
     }
 
     ConnectorInstance newInstance = new ConnectorInstance();
@@ -200,46 +214,67 @@ public class ConnectorInstanceService {
     newInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
     List<ConnectorInstanceConfiguration> configurationValues = new ArrayList<>();
-    List<CatalogConnectorConfiguration> configurationDefinitions = new ArrayList<>(catalogConnector.get().getCatalogConnectorConfigurations());
+    List<CatalogConnectorConfiguration> configurationDefinitions =
+        new ArrayList<>(catalogConnector.get().getCatalogConnectorConfigurations());
 
-    input.getConfigurations().forEach(confInput -> {
-      CatalogConnectorConfiguration matchingConfDef = configurationDefinitions.stream()
-          .filter(confDef -> confDef.getConnectorConfigurationKey().equals(confInput.getKey()))
-          .findFirst()
-          .orElseThrow(() -> new IllegalArgumentException("Configuration key " + confInput + " not found in CatalogConnector configurations"));
-      boolean isEncrypted = CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(matchingConfDef.getConnectorConfigurationFormat());
-      try {
-          configurationValues.add(createConnectorInstanceConfiguration(
-                  confInput.getKey(),
-                  isEncrypted ?
-                          objectMapper.getNodeFactory().textNode(encryptValue(confInput.getValue().asText(), rsaPublicKey))
-                          : confInput.getValue(),
-                  isEncrypted,
-                  newInstance
-          ));
-      } catch (Exception e) {
-          throw new RuntimeException(e);
-      }
-    });
+    input
+        .getConfigurations()
+        .forEach(
+            confInput -> {
+              CatalogConnectorConfiguration matchingConfDef =
+                  configurationDefinitions.stream()
+                      .filter(
+                          confDef ->
+                              confDef.getConnectorConfigurationKey().equals(confInput.getKey()))
+                      .findFirst()
+                      .orElseThrow(
+                          () ->
+                              new IllegalArgumentException(
+                                  "Configuration key "
+                                      + confInput
+                                      + " not found in CatalogConnector configurations"));
+              boolean isEncrypted =
+                  CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
+                      matchingConfDef.getConnectorConfigurationFormat());
+              try {
+                configurationValues.add(
+                    createConnectorInstanceConfiguration(
+                        confInput.getKey(),
+                        isEncrypted
+                            ? objectMapper
+                                .getNodeFactory()
+                                .textNode(encryptValue(confInput.getValue().asText(), rsaPublicKey))
+                            : confInput.getValue(),
+                        isEncrypted,
+                        newInstance));
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
 
     // TODO url automatically
-    Token token = tokenRepository.findAll(fromUser(currentUser().getId())).stream().findFirst().orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
-    configurationValues.add(createConnectorInstanceConfiguration(
+    Token token =
+        tokenRepository.findAll(fromUser(currentUser().getId())).stream()
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
+    configurationValues.add(
+        createConnectorInstanceConfiguration(
             "OPENAEV_TOKEN",
             objectMapper.getNodeFactory().textNode(token.getValue()),
             false,
-            newInstance
-    ));
+            newInstance));
     if (configurationValues.size() != configurationDefinitions.size()) {
-      throw new IllegalArgumentException("Not all required configurations are provided for CatalogConnector id " + input.getCatalogConnectorId());
+      throw new IllegalArgumentException(
+          "Not all required configurations are provided for CatalogConnector id "
+              + input.getCatalogConnectorId());
     }
 
-    configurationValues.add(createConnectorInstanceConfiguration(
+    configurationValues.add(
+        createConnectorInstanceConfiguration(
             catalogConnector.get().getContainerType().toString() + "_ID",
             objectMapper.getNodeFactory().textNode(UUID.randomUUID().toString()),
             false,
-            newInstance
-    ));
+            newInstance));
 
     newInstance.setConfigurations(Set.copyOf(configurationValues));
     return this.save(newInstance);
@@ -250,10 +285,12 @@ public class ConnectorInstanceService {
       return;
     }
     ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
-    this.connectorInstanceLogService.pushLogByConnectorInstance(instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
+    this.connectorInstanceLogService.pushLogByConnectorInstance(
+        instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }
 
-  public void patchConnectorInstanceHealthCheck(String connectorInstanceId, ConnectorInstanceHealthInput input){
+  public void patchConnectorInstanceHealthCheck(
+      String connectorInstanceId, ConnectorInstanceHealthInput input) {
     ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
 
     instance.setInRebootLoop(input.isInRebootLoop());
