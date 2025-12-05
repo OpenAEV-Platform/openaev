@@ -17,14 +17,13 @@ import java.time.Instant;
 import java.util.Map;
 
 @Entity
-@Table(name = "step")
+@Table(name = "steps")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(ModelBaseListener.class)
 public class Step {
-
 
     @Id
     @Column(name = "step_id")
@@ -52,6 +51,7 @@ public class Step {
     @Column(name="step_limit_execution")
     int limit_execution;
 
+    @Column(name = "step_status")
     private STEP_STATUS status;
 
     @Min(1)
