@@ -21,8 +21,6 @@ import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -121,18 +119,11 @@ public class TaniumExecutorServiceTest {
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
-    Awaitility.await()
-        .atMost(5, TimeUnit.SECONDS)
-        .with()
-        .pollInterval(1, TimeUnit.SECONDS)
-        .until(
-            () -> {
-              List<Agent> returnedAgents =
-                  taniumExecutorContextService.launchBatchExecutorSubprocess(
-                      inject, new HashSet<>(agents), injectStatus);
-              return !returnedAgents.isEmpty();
-            });
+    List<Agent> returnedAgents =
+        taniumExecutorContextService.launchBatchExecutorSubprocess(
+            inject, new HashSet<>(agents), injectStatus);
     // Asserts
+    assertEquals(1, returnedAgents.size());
     ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Integer> scriptId = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
