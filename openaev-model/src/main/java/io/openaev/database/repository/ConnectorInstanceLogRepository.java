@@ -8,6 +8,8 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ConnectorInstanceLogRepository
     extends CrudRepository<ConnectorInstanceLog, String>,
@@ -28,4 +30,6 @@ public interface ConnectorInstanceLogRepository
       nativeQuery = true)
   void deleteOldestLogByConnectorInstanceId(
       @Param("instanceId") String instanceId, @Param("limit") int limit);
+
+  List<ConnectorInstanceLog> findByConnectorInstanceId(String connectorInstanceId);
 }

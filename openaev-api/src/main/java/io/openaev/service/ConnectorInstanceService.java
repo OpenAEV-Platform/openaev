@@ -30,6 +30,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ConnectorInstanceService {
 
+  // TODO clean file + ADD JAVA DOC
+
   private final ObjectMapper objectMapper;
 
   private final ConnectorInstanceRepository connectorInstanceRepository;
@@ -280,12 +282,12 @@ public class ConnectorInstanceService {
     return this.save(newInstance);
   }
 
-  public void pushLogsByConnectorInstance(String connectorInstanceId, Set<String> logs) {
+  public ConnectorInstanceLog pushLogsByConnectorInstance(String connectorInstanceId, Set<String> logs) {
     if (logs.isEmpty()) {
-      return;
+      return null;
     }
     ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
-    this.connectorInstanceLogService.pushLogByConnectorInstance(
+    return this.connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }
 

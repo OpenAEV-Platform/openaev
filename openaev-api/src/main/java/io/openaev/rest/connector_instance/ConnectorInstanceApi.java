@@ -3,15 +3,21 @@ package io.openaev.rest.connector_instance;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.ConnectorInstanceLogService;
 import io.openaev.service.ConnectorInstanceService;
 import io.openaev.service.XtmComposerConnectorOrchestrationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +26,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Connector Instance API", description = "Operations related to Connector Instances")
@@ -27,6 +35,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   private static final String CONNECTOR_INSTANCE_URI = "/api/connector-instances";
 
   private final ConnectorInstanceService connectorInstanceService;
+  private final ConnectorInstanceLogService connectorInstanceLogService;
   private final XtmComposerConnectorOrchestrationService orchestrationService;
 
   @PostMapping(value = CONNECTOR_INSTANCE_URI)
@@ -58,6 +67,20 @@ public class ConnectorInstanceApi extends RestBehavior {
     return connectorInstanceService.connectorInstanceById(connectorInstanceId);
   }
 
+  @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")
+  @Operation(
+          summary = "Retrieve connector instance logs")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @ApiResponse(
+          responseCode = "200",
+          content =
+          @Content(
+                  mediaType = "application/json",
+                  array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceLog.class))))
+  public List<ConnectorInstanceLog> retrieveConnectorInstanceLogs(@PathVariable @NotBlank final String connectorInstanceId) {
+    return connectorInstanceLogService.findLogsByConnectorInstanceId(connectorInstanceId);
+  }
+
   // TODO should be inside XTMComposerAPI
   @PostMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")
   @Operation(
@@ -65,10 +88,10 @@ public class ConnectorInstanceApi extends RestBehavior {
       description = "Receive logs from connector instances")
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful reception")})
-  public void receiveConnectorInstanceLogs(
+  public ConnectorInstanceLog receiveConnectorInstanceLogs(
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceLogsInput input) {
-    connectorInstanceService.pushLogsByConnectorInstance(connectorInstanceId, input.getLogs());
+    return connectorInstanceService.pushLogsByConnectorInstance(connectorInstanceId, input.getLogs());
   }
 
   // TODO should be inside XTMComposerAPI
