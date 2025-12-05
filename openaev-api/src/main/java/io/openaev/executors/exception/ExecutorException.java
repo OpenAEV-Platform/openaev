@@ -5,11 +5,13 @@ import lombok.Getter;
 @Getter
 public class ExecutorException extends RuntimeException {
 
+  private static final String EXECUTOR_EXCEPTION = " executor exception - ";
+
   public ExecutorException(String message, String executorName) {
-    super(executorName + " executor exception -" + message);
+    super(executorName + EXECUTOR_EXCEPTION + message);
   }
 
   public ExecutorException(Throwable cause, String message, String executorName) {
-    super(executorName + " executor exception -" + message, cause);
+    super(executorName + EXECUTOR_EXCEPTION + message, cause);
   }
 }

@@ -19,6 +19,8 @@ import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -118,10 +120,17 @@ public class SentinelOneExecutorServiceTest {
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
-    sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
-        inject, new HashSet<>(agents), injectStatus);
-    // Executor scheduled so we have to wait before the execution
-    Thread.sleep(1000);
+    Awaitility.await()
+        .atMost(5, TimeUnit.SECONDS)
+        .with()
+        .pollInterval(1, TimeUnit.SECONDS)
+        .until(
+            () -> {
+              List<Agent> returnedAgents =
+                  sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
+                      inject, new HashSet<>(agents), injectStatus);
+              return !returnedAgents.isEmpty();
+            });
     // Asserts
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
