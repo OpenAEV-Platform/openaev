@@ -39,6 +39,7 @@ const InjectorPage = () => {
     <>
       <ConnectorTitle
         connector={{
+          instanceId: instance?.connector_instance_id,
           connectorName: injector?.injector_name || catalogConnector?.catalog_connector_title,
           connectorType: 'INJECTOR',
           connectorLogoName: injector?.injector_type || catalogConnector?.catalog_connector_slug,

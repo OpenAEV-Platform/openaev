@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchExecutors } from '../../../../../actions/Executor';
+import { fetchExecutors } from '../../../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../../../actions/executors/executor-helper';
 import type { LoggedHelper } from '../../../../../actions/helper';
 import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';

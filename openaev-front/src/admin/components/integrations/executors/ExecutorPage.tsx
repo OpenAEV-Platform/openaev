@@ -2,14 +2,14 @@ import { useOutletContext } from 'react-router';
 
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
-import { type CatalogConnectorOutput, type Collector, type ConnectorInstance } from '../../../../utils/api-types';
+import { type CatalogConnectorOutput, type ConnectorInstance, type Executor } from '../../../../utils/api-types';
 import ConnectorTitle from '../catalog_connectors/ConnectorTitle';
 import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
 import ConnectorLogs from '../common/ConnectorLogs';
 
-const CollectorPage = () => {
-  const { collector, instance, catalogConnector }: {
-    collector: Collector;
+const ExecutorPage = () => {
+  const { executor, instance, catalogConnector }: {
+    executor: Executor;
     instance: ConnectorInstance;
     catalogConnector: CatalogConnectorOutput;
   } = useOutletContext();
@@ -28,10 +28,10 @@ const CollectorPage = () => {
       <ConnectorTitle
         connector={{
           instanceId: instance?.connector_instance_id,
-          connectorName: collector?.collector_name || catalogConnector?.catalog_connector_title,
-          connectorType: 'COLLECTOR',
-          connectorLogoName: collector?.collector_type || catalogConnector?.catalog_connector_slug,
-          connectorLogoUrl: collector?.collector_type ? `/api/images/collectors/${collector.collector_type}` : `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`,
+          connectorName: executor?.executor_name || catalogConnector?.catalog_connector_title,
+          connectorType: 'EXECUTOR',
+          connectorLogoName: executor?.executor_type || catalogConnector?.catalog_connector_slug,
+          connectorLogoUrl: executor?.executor_type ? `/api/images/executors/${executor.executor_type}` : `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`,
           connectorDescription: catalogConnector?.catalog_connector_description,
           isExternal: catalogConnector?.catalog_connector_manager_supported,
           isVerified: instance != null,
@@ -39,7 +39,6 @@ const CollectorPage = () => {
         }}
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
-        // instanceRequestedStatus={instance?.connector_instance_requested_status}
         showUpdateButton
         showUpdateStatusButton
         // onDeployBtnClick={onOpenCreateConnectorInstanceDrawer}
@@ -59,4 +58,4 @@ const CollectorPage = () => {
   );
 };
 
-export default CollectorPage;
+export default ExecutorPage;

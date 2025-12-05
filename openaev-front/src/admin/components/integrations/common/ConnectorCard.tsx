@@ -1,4 +1,4 @@
-import { Card, CardActionArea, CardContent, Chip, Grid, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -56,6 +56,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 export type ConnectorMainInfo = {
+  instanceId: string;
   connectorName: string;
   connectorType: CatalogConnector['catalog_connector_type'];
   connectorLogoName: string;

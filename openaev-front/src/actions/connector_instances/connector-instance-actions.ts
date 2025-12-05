@@ -1,7 +1,11 @@
 import type { Dispatch } from 'redux';
 
-import { getReferential, simplePostCall } from '../../utils/Action';
-import { type ConnectorInstance, type CreateConnectorInstanceInput } from '../../utils/api-types';
+import { delReferential, getReferential, putReferential, simplePostCall } from '../../utils/Action';
+import {
+  type ConnectorInstance,
+  type CreateConnectorInstanceInput,
+  type UpdateConnectorInstanceRequestedStatus,
+} from '../../utils/api-types';
 import { connectorInstance } from './connector-instance-schema';
 
 const CONNECTOR_INSTANCE_URI = '/api/connector-instances';
@@ -13,4 +17,14 @@ export const createConnectorInstance = (input: CreateConnectorInstanceInput): Pr
 export const fetchConnectorInstance = (instanceId: string) => (dispatch: Dispatch) => {
   const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}`;
   return getReferential(connectorInstance, uri)(dispatch);
+};
+
+export const updateRequestedStatus = (instanceId: string, data: UpdateConnectorInstanceRequestedStatus) => (dispatch: Dispatch) => {
+  const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}/requested-status`;
+  return putReferential(connectorInstance, uri, data)(dispatch);
+};
+
+export const deleteConnectorInstance = (instanceId: string) => (dispatch: Dispatch) => {
+  const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}`;
+  return delReferential(uri, connectorInstance.key, instanceId)(dispatch);
 };

@@ -6,15 +6,19 @@ import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
 import ConnectorDetails from './catalog_connectors/ConnectorDetails';
+import ExecutorPage from './executors/ExecutorPage';
 import InjectorPage from './injectors/InjectorPage';
 
 const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
 const CatalogLayout = lazy(() => import('./catalog_connectors/CatalogLayout'));
 
 const Injectors = lazy(() => import('./injectors/Injectors'));
+
 const InjectorsLayout = lazy(() => import('./injectors/InjectorsLayout'));
 
-const Executors = lazy(() => import('./Executors'));
+const Executors = lazy(() => import('./executors/Executors'));
+const ExecutorsLayout = lazy(() => import('./executors/ExecutorsLayout'));
+
 const Collectors = lazy(() => import('./collectors/Collectors'));
 const CollectorPage = lazy(() => import('./collectors/CollectorPage'));
 const CollectorsLayout = lazy(() => import('./collectors/CollectorsLayout'));
@@ -44,7 +48,11 @@ const Index = () => {
             <Route path=":collectorId" element={<CollectorPage />} />
           </Route>
 
-          <Route path="executors" element={errorWrapper(Executors)()} />
+          <Route path="executors" element={errorWrapper(ExecutorsLayout)()}>
+            <Route index element={<Executors />} />
+            <Route path=":executorId" element={<ExecutorPage />} />
+          </Route>
+
           {/* Not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>

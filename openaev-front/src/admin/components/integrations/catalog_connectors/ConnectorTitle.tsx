@@ -2,11 +2,14 @@ import { VerifiedOutlined } from '@mui/icons-material';
 import { Button, Chip, Tooltip, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
+import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
 import colorStyles from '../../../../components/Color';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../components/i18n';
-import { type ConnectorInstance } from '../../../../utils/api-types';
+import { type ConnectorInstance, type UpdateConnectorInstanceRequestedStatus } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { type ConnectorMainInfo } from '../common/ConnectorCard';
+import ConnectorPopover from './ConnectorPopover';
+
 const useStyles = makeStyles()(theme => ({
   content: {
     display: 'grid',
@@ -69,6 +72,7 @@ type ConnectorHeaderProps = {
   connector: ConnectorMainInfo;
   detailsTitle?: boolean;
   instanceCurrentStatus?: ConnectorInstance['connector_instance_current_status'];
+  // instanceRequestedStatus?: ConnectorInstance['connector_instance_requested_status'];
   showDeployButton?: boolean;
   showUpdateButton?: boolean;
   showUpdateStatusButton?: boolean;
@@ -79,14 +83,32 @@ const ConnectorTitle = ({
   connector,
   detailsTitle = false,
   instanceCurrentStatus,
+  // instanceRequestedStatus,
   showDeployButton = false,
   showUpdateButton = false,
   showUpdateStatusButton = false,
-  onDeployBtnClick = () => {},
+  onDeployBtnClick = () => {
+  },
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
+
+  const onUpdateRequestedStatusClick = () => {
+    // const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceRequestedStatus === 'starting' ? 'starting' : 'stopping' };
+    const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceCurrentStatus === 'started' ? 'stopping' : 'starting' };
+    dispatch(updateRequestedStatus(connector.instanceId, newStatus));
+  };
+    // const [statusLoader, setStatusLoader] = useState<boolean>(false);
+
+  // useEffect(() => {
+  //   const isLoading
+  //           = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
+  //             || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
+  //
+  //   setStatusLoader(isLoading);
+  // }, [instanceCurrentStatus, instanceRequestedStatus]);
 
   return (
     <div className={classes.content}>
@@ -114,27 +136,19 @@ const ConnectorTitle = ({
               icon={<VerifiedOutlined color="success" />}
               label={t('Verified')}
             />
-            { instanceCurrentStatus && (
+            {instanceCurrentStatus && (
               <Chip
                 variant="filled"
                 className={classes.chipVerified}
+                //   disabled={statusLoader}
                 style={instanceCurrentStatus == 'started' ? colorStyles.green : colorStyles.red}
                 label={instanceCurrentStatus == 'started' ? t('Started') : t('Stopped')}
               />
             )}
             {showUpdateButton && (
-              <ButtonPopover
-                className={classes.autoMarginLeft}
-                entries={[{
-                  label: 'delete',
-                  action: () => console.log('test'),
-                  userRight: true, // TODO
-                }, {
-                  label: 'update',
-                  action: () => console.log('test'),
-                  userRight: true, // TODO
-                }]}
-                variant="toggle"
+              <ConnectorPopover
+                connectorInstanceId={connector.instanceId}
+                connectorName={connector.connectorName}
               />
             )}
             {showDeployButton && (
@@ -154,7 +168,7 @@ const ConnectorTitle = ({
                 variant="outlined"
                 color={instanceCurrentStatus == 'started' ? 'error' : 'success'}
                 size="small"
-                onClick={onDeployBtnClick}
+                onClick={onUpdateRequestedStatusClick}
               >
                 {instanceCurrentStatus == 'started' ? t('Stop') : t('Start')}
               </Button>
@@ -190,149 +204,3 @@ const ConnectorTitle = ({
 };
 
 export default ConnectorTitle;
-// const useStyles = makeStyles()(theme => ({
-//   content: {
-//     display: 'grid',
-//     gridTemplateColumns: 'auto auto 1fr',
-//     gridTemplateRows: 'auto auto',
-//     columnGap: theme.spacing(2),
-//     rowGap: theme.spacing(0.5),
-//     alignItems: 'start',
-//   },
-//   img: {
-//     gridRow: 'span 2',
-//     width: 60,
-//     height: 60,
-//     borderRadius: 4,
-//   },
-//   cardTitle: {
-//     gridColumn: 'span 2',
-//     whiteSpace: 'nowrap',
-//     overflow: 'hidden',
-//     textOverflow: 'ellipsis',
-//     maxHeight: '100%',
-//   },
-//   pageTitle: {
-//     whiteSpace: 'normal',
-//     overflow: 'visible',
-//     textOverflow: 'unset',
-//     margin: '0px',
-//   },
-//   chipInList: {
-//     margin: theme.spacing(0.25),
-//     fontSize: 12,
-//     height: 20,
-//     flexShrink: 0,
-//     justifySelf: 'start',
-//     textTransform: 'uppercase',
-//     width: 'auto',
-//     borderRadius: 4,
-//   },
-//   chipVerified: {
-//     padding: theme.spacing(2),
-//     fontSize: 12,
-//     height: 20,
-//     textTransform: 'uppercase',
-//     width: 'auto',
-//     borderRadius: 4,
-//   },
-//   verifiedOutlined: {
-//     position: 'absolute',
-//     top: 10,
-//     right: 10,
-//   },
-// }));
-//
-// type ConnectorHeaderProps = {
-//   connector: ConnectorMainInfo;
-//   detailsTitle?: boolean;
-//   instanceCurrentStatus: ConnectorInstance['connector_instance_current_status'];
-//   showDeployButton?: boolean;
-//   onDeployBtnClick?: () => void;
-// };
-//
-// const ConnectorTitle = ({
-//   connector,
-//   detailsTitle = false,
-//   instanceCurrentStatus,
-//   showDeployButton = false,
-//   onDeployBtnClick = () => {},
-// }: ConnectorHeaderProps) => {
-//   // Standard hooks
-//   const { classes } = useStyles();
-//   const { t } = useFormatter();
-//
-//   return (
-//     <div className={classes.content}>
-//       <img
-//         src={connector.connectorLogoUrl}
-//         alt={connector.connectorLogoName}
-//         className={classes.img}
-//       />
-//       <Tooltip title={connector.connectorName}>
-//         <Typography
-//           variant="h1"
-//           className={detailsTitle ? classes.pageTitle : classes.cardTitle}
-//         >
-//           {connector.connectorName}
-//         </Typography>
-//       </Tooltip>
-//
-//       {connector.isVerified && detailsTitle && (
-//         <div>
-//           <Chip
-//             variant="filled"
-//             className={classes.chipVerified}
-//             style={colorStyles.green}
-//             icon={<VerifiedOutlined color="success" />}
-//             label={t('Verified')}
-//           />
-//           { instanceCurrentStatus == 'stopped' && (
-//             <Chip
-//               variant="filled"
-//               style={colorStyles.red}
-//               icon={<VerifiedOutlined color="success" />}
-//               label={t('Verified')}
-//             />
-//           )}
-//           {showDeployButton && (
-//             <Button
-//               className={classes.deployBtn}
-//               variant="contained"
-//               color="primary"
-//               size="small"
-//               onClick={onDeployBtnClick}
-//             >
-//               {t('Deploy')}
-//             </Button>
-//           )}
-//         </div>
-//       )}
-//
-//       <div>
-//         <Chip
-//           variant="outlined"
-//           className={classes.chipInList}
-//           color="primary"
-//           label={connector.connectorType}
-//         />
-//         {connector.connectorUseCases && connector.connectorUseCases.map((useCase: string) => (
-//           <Chip
-//             key={useCase}
-//             variant="outlined"
-//             className={classes.chipInList}
-//             color="default"
-//             label={useCase}
-//           />
-//         ))}
-//       </div>
-//       {connector.isVerified && (
-//         <Tooltip title={t('Verified')} className={classes.verifiedOutlined}>
-//           <VerifiedOutlined color="success" />
-//         </Tooltip>
-//       )}
-//     </div>
-//   );
-// };
-//
-// export default ConnectorTitle;

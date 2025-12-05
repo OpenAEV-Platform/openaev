@@ -24,6 +24,7 @@ const ConnectorDetails = () => {
     <>
       <ConnectorTitle
         connector={{
+          connectorId: connector.catalog_connector_id,
           connectorName: connector.catalog_connector_title,
           connectorType: connector.catalog_connector_type,
           connectorLogoName: `connector-logo-${connector.catalog_connector_id}`,
