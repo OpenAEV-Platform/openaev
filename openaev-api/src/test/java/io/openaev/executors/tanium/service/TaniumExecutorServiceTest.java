@@ -119,11 +119,9 @@ public class TaniumExecutorServiceTest {
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
-    List<Agent> returnedAgents =
-        taniumExecutorContextService.launchBatchExecutorSubprocess(
-            inject, new HashSet<>(agents), injectStatus);
+    taniumExecutorContextService.launchBatchExecutorSubprocess(
+        inject, new HashSet<>(agents), injectStatus);
     // Asserts
-    assertEquals(1, returnedAgents.size());
     ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Integer> scriptId = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);

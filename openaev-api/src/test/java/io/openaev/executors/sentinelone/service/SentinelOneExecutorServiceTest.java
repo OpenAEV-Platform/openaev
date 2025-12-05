@@ -117,11 +117,9 @@ public class SentinelOneExecutorServiceTest {
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
-    List<Agent> returnedAgents =
-        sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
-            inject, new HashSet<>(agents), injectStatus);
+    sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
+        inject, new HashSet<>(agents), injectStatus);
     // Asserts
-    assertEquals(1, returnedAgents.size());
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
