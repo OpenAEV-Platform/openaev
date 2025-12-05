@@ -89,7 +89,8 @@ public class CrowdstrikeExecutorServiceTest {
   }
 
   @Test
-  void test_launchBatchExecutorSubprocess_crowdstrike() throws JsonProcessingException {
+  void test_launchBatchExecutorSubprocess_crowdstrike()
+      throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
@@ -121,6 +122,8 @@ public class CrowdstrikeExecutorServiceTest {
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus);
+    // Executor scheduled so we have to wait before the execution
+    Thread.sleep(1000);
     // Asserts
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);

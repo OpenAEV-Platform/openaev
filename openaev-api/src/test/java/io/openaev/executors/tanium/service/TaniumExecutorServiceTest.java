@@ -89,7 +89,8 @@ public class TaniumExecutorServiceTest {
   }
 
   @Test
-  void test_launchBatchExecutorSubprocess_tanium() throws JsonProcessingException {
+  void test_launchBatchExecutorSubprocess_tanium()
+      throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
@@ -121,6 +122,8 @@ public class TaniumExecutorServiceTest {
     // Run method to test
     taniumExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus);
+    // Executor scheduled so we have to wait before the execution
+    Thread.sleep(1000);
     // Asserts
     ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Integer> scriptId = ArgumentCaptor.forClass(Integer.class);
