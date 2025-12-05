@@ -655,7 +655,6 @@ export interface CatalogConnector {
 }
 
 export interface CatalogConnectorConfiguration {
-  /** Configuration value */
   connector_configuration_default?: JsonNode;
   /** Connector configuration description */
   connector_configuration_description?: string;
@@ -881,8 +880,8 @@ export interface CollectorCreateInput {
   collector_type: string;
 }
 
-/** Collector simple output */
-export interface CollectorSimpleOutput {
+/** Collector output */
+export interface CollectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   collector_external?: boolean;
@@ -1038,7 +1037,6 @@ export interface Configuration {
 export interface ConfigurationInput {
   /** Configuration key */
   configuration_key: string;
-  /** Configuration value */
   configuration_value?: JsonNode;
 }
 
@@ -1069,7 +1067,6 @@ export interface ConnectorInstanceConfiguration {
   connector_instance_configuration_id: string;
   connector_instance_configuration_is_encrypted?: boolean;
   connector_instance_configuration_key: string;
-  /** Configuration value */
   connector_instance_configuration_value?: JsonNode;
   listened?: boolean;
 }
@@ -3625,6 +3622,20 @@ export interface InjectorCreateInput {
   injector_type: string;
 }
 
+/** Injector output */
+export interface InjectorOutput {
+  /** Catalog simple output */
+  catalog?: CatalogConnectorSimpleOutput;
+  injector_external?: boolean;
+  /** Injector id */
+  injector_id: string;
+  injector_name: string;
+  injector_type: string;
+  /** @format date-time */
+  injector_updated_at?: string;
+  is_verified?: boolean;
+}
+
 export interface InjectorRegistration {
   connection?: InjectorConnection;
   listen?: string;
@@ -3661,7 +3672,6 @@ export interface JsonApiDocumentResourceObject {
   included?: object[];
 }
 
-/** Configuration value */
 export type JsonNode = object;
 
 export interface KillChainPhase {
@@ -6220,9 +6230,9 @@ export interface UpdateAssetsOnAssetGroupInput {
   asset_group_assets?: string[];
 }
 
-export interface UpdateConnectorInstanceStatusInput {
+export interface UpdateConnectorInstanceRequestedStatus {
   /** The connector instance current status */
-  connector_instance_current_status: "started" | "stopped";
+  connector_instance_requested_status: "starting" | "stopping";
 }
 
 export interface UpdateExerciseInput {
@@ -6800,6 +6810,11 @@ export interface XtmComposerRegisterInput {
   name: string;
   /** The registration public key */
   public_key: string;
+}
+
+export interface XtmComposerUpdateStatusInput {
+  /** The connector instance current status */
+  connector_instance_current_status: "started" | "stopped";
 }
 
 export interface XtmHubRegisterInput {

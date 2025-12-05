@@ -16,7 +16,6 @@ import CreateInjectorContract from './injector_contracts/CreateInjectorContract'
 import InjectorContractPopover from './injector_contracts/InjectorContractPopover';
 
 const useStyles = makeStyles()(() => ({
-  container: { marginTop: 20 },
   list: { marginTop: 10 },
   itemHead: {
     paddingLeft: 10,
@@ -239,7 +238,10 @@ const InjectorContracts = () => {
                     className={classes.bodyItem}
                     style={inlineStyles.injector_contract_domains}
                   >
-                    <ItemDomains domains={injectorContract.injector_contract_domains} variant="reduced-view" />
+                    <ItemDomains
+                      domains={injectorContract.injector_contract_domains}
+                      variant="reduced-view"
+                    />
                   </div>
 
                   <div

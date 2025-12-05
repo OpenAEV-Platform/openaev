@@ -1,25 +1,16 @@
-import { AutoModeOutlined, SubscriptionsOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Chip, Grid, GridLegacy, Tooltip, Typography } from '@mui/material';
+import { Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Link } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
-import { fetchInjectors } from '../../../../actions/Injectors';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { type Collector, type Injector } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { type InjectorOutput } from '../../../../utils/api-types';
 import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import ConnectorCard from '../common/ConnectorCard';
 
 const Injectors = () => {
   // Standard hooks
-  const { t } = useFormatter();
   const theme = useTheme();
-  const dispatch = useAppDispatch();
 
   // Filter and sort hook
   const searchColumns = ['name', 'description'];
@@ -31,29 +22,34 @@ const Injectors = () => {
 
   // Fetching data
   const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectors() }));
-  useDataLoader(() => {
-    dispatch(fetchInjectors());
-  });
+
   const sortedInjectors = filtering.filterAndSort(injectors);
+
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Integrations') }, {
-          label: t('Injectors'),
-          current: true,
-        }]}
-      />
       <SearchFilter
         variant="small"
         onChange={filtering.handleSearch}
         keyword={filtering.keyword}
       />
-      <div className="clearfix" />
       <Grid container={true} spacing={3} style={{ marginTop: theme.spacing(2) }}>
-        {sortedInjectors.map((injector: Injector) => (
+        {sortedInjectors.map((injector: InjectorOutput) => (
           <Grid key={injector.injector_id} size={{ xs: 4 }}>
-            // TODO
+            <ConnectorCard
+              connector={{
+                connectorName: injector.injector_name,
+                connectorType: 'INJECTOR',
+                connectorLogoName: injector.injector_type,
+                connectorLogoUrl: `/api/images/injectors/${injector.injector_type}`,
+                connectorDescription: injector.catalog?.catalog_connector_short_description,
+                lastUpdatedAt: injector.injector_updated_at,
+                isExternal: injector.injector_external,
+                isVerified: injector.is_verified,
+                connectorUseCases: [],
+              }}
+              cardActionUrl={`/admin/integrations/injectors/${injector.injector_id}`}
+              showLastUpdatedAt
+            />
           </Grid>
         ))}
       </Grid>

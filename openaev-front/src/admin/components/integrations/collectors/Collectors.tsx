@@ -5,7 +5,7 @@ import { fetchCollectors } from '../../../../actions/Collector';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { type CollectorSimpleOutput } from '../../../../utils/api-types';
+import { type CollectorOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAnFilter from '../../../../utils/SortingFiltering';
@@ -39,7 +39,7 @@ const Collectors = () => {
       />
       <div className="clearfix" />
       <Grid container={true} spacing={3} style={{ marginTop: theme.spacing(2) }}>
-        {sortedCollectors.map((collector: CollectorSimpleOutput) => (
+        {sortedCollectors.map((collector: CollectorOutput) => (
           <Grid key={collector.collector_id} size={{ xs: 4 }}>
             <ConnectorCard
               connector={{
