@@ -91,8 +91,7 @@ public class CrowdstrikeExecutorServiceTest {
   }
 
   @Test
-  void test_launchBatchExecutorSubprocess_crowdstrike()
-      throws InterruptedException, JsonProcessingException {
+  void test_launchBatchExecutorSubprocess_crowdstrike() throws JsonProcessingException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());

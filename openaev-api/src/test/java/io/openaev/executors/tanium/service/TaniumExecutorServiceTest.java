@@ -91,8 +91,7 @@ public class TaniumExecutorServiceTest {
   }
 
   @Test
-  void test_launchBatchExecutorSubprocess_tanium()
-      throws InterruptedException, JsonProcessingException {
+  void test_launchBatchExecutorSubprocess_tanium() throws JsonProcessingException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());

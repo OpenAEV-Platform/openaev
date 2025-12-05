@@ -89,8 +89,7 @@ public class SentinelOneExecutorServiceTest {
   }
 
   @Test
-  void test_launchBatchExecutorSubprocess_sentinelone()
-      throws InterruptedException, JsonProcessingException {
+  void test_launchBatchExecutorSubprocess_sentinelone() throws JsonProcessingException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
