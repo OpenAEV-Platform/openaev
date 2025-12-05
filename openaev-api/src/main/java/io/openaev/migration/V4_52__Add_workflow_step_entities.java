@@ -16,8 +16,17 @@ public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
       select.execute(
           """
         CREATE TYPE step_type AS ENUM ('INJECT_EXECUTION', 'TIMESTAMP', 'CONDITION');
+        CREATE TYPE step_status AS ENUM ('WAIT', 'RUN', 'END');
+        CREATE TYPE step_action_class AS ENUM ('INJECT_EXECUTION');
         CREATE TABLE steps (
             step_id VARCHAR(255) NOT NULL CONSTRAINT step_pkey PRIMARY KEY,
+            step_action_class step_action_class,    
+            step_output JSONB,
+            step_input JSONB,
+            step_data JSONB,
+            step_limit_execution INTEGER,
+            step_status step_status,
+            step_order INTEGER CHECK (step_order >= 1),
             step_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             step_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
           );
