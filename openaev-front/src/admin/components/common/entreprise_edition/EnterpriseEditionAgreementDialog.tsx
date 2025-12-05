@@ -78,16 +78,16 @@ const EnterpriseEditionAgreementDialog = () => {
           {t('OpenAEV Enterprise Edition requires a license key to be enabled. Filigran provides a free-to-use license for development and research purposes as well as for charity organizations.')}
           <p>
             {t('To obtain a license, please {contact}', {
-                contact: (
-                    <Link
-                        href="https://filigran.io/contact/"
-                        target="_blank"
-                        style={{ textDecoration: 'none' }}
-                        rel="noreferrer"
-                    >
-                        {t('reach out to the Filigran team')}
-                    </Link>
-                ),
+              contact: (
+                <Link
+                  href="https://filigran.io/contact/"
+                  target="_blank"
+                  style={{ textDecoration: 'none' }}
+                  rel="noreferrer"
+                >
+                  {t('reach out to the Filigran team')}
+                </Link>
+              ),
             })}
           </p>
           <p>
