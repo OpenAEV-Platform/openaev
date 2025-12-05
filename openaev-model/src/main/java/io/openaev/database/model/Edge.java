@@ -1,16 +1,12 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
-import java.util.Objects;
 
 @Setter
 @Getter
@@ -37,5 +33,4 @@ public class Edge {
   @Column(name = "edge_updated_at")
   @JsonProperty("dependency_updated_at")
   private Instant updateDate;
-
 }

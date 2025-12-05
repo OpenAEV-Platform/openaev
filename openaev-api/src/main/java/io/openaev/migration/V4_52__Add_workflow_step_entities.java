@@ -1,10 +1,9 @@
 package io.openaev.migration;
 
+import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
-
-import java.sql.Statement;
 
 @Component
 public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
@@ -20,7 +19,7 @@ public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
         CREATE TYPE step_action_class AS ENUM ('INJECT_EXECUTION');
         CREATE TABLE steps (
             step_id VARCHAR(255) NOT NULL CONSTRAINT step_pkey PRIMARY KEY,
-            step_action_class step_action_class,    
+            step_action_class step_action_class,
             step_output JSONB,
             step_input JSONB,
             step_data JSONB,

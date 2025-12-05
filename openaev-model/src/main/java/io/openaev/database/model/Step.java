@@ -5,6 +5,8 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
+import java.time.Instant;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,9 +14,6 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
-import java.util.Map;
 
 @Entity
 @Table(name = "steps")
@@ -25,42 +24,41 @@ import java.util.Map;
 @EntityListeners(ModelBaseListener.class)
 public class Step {
 
-    @Id
-    @Column(name = "step_id")
-    private String id;
+  @Id
+  @Column(name = "step_id")
+  private String id;
 
-    @Column(name = "step_action_class")
-    private STEP_ACTION_CLASS stepAction;
-    //action_class (Enum)
+  @Column(name = "step_action_class")
+  private STEP_ACTION_CLASS stepAction;
 
-    @Type(JsonType.class)
-    @JsonProperty("step_output")
-    @Column(name="output", columnDefinition = "jsonb")
-    private Map<String, Object> output;
+  // action_class (Enum)
 
-    @Type(JsonType.class)
-    @JsonProperty("step_input")
-    @Column(name="input", columnDefinition = "jsonb")
-    private Map<String, Object> input;
+  @Type(JsonType.class)
+  @JsonProperty("step_output")
+  @Column(name = "output", columnDefinition = "jsonb")
+  private Map<String, Object> output;
 
-    @Type(JsonType.class)
-    @JsonProperty("step_data")
-    @Column(name="data", columnDefinition = "jsonb")
-    private Map<String, Object> data;
+  @Type(JsonType.class)
+  @JsonProperty("step_input")
+  @Column(name = "input", columnDefinition = "jsonb")
+  private Map<String, Object> input;
 
-    @Column(name="step_limit_execution")
-    int limit_execution;
+  @Type(JsonType.class)
+  @JsonProperty("step_data")
+  @Column(name = "data", columnDefinition = "jsonb")
+  private Map<String, Object> data;
 
-    @Column(name = "step_status")
-    private STEP_STATUS status;
+  @Column(name = "step_limit_execution")
+  int limit_execution;
 
-    @Min(1)
-    @Column(name="step_order")
-    int order;
+  @Column(name = "step_status")
+  private STEP_STATUS status;
 
-    @CreationTimestamp
-    private Instant createdAt;
+  @Min(1)
+  @Column(name = "step_order")
+  int order;
 
-    @UpdateTimestamp
-    private Instant updatedAt;
+  @CreationTimestamp private Instant createdAt;
+
+  @UpdateTimestamp private Instant updatedAt;
 }
