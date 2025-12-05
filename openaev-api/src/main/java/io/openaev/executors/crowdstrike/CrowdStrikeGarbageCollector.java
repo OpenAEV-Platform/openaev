@@ -27,7 +27,8 @@ public class CrowdStrikeGarbageCollector {
       CrowdStrikeGarbageCollectorService service =
           new CrowdStrikeGarbageCollectorService(
               this.config, this.crowdStrikeExecutorContextService, this.agentService);
-      this.taskScheduler.scheduleAtFixedRate(service, Duration.ofHours(8));
+      this.taskScheduler.scheduleAtFixedRate(
+          service, Duration.ofHours(this.config.getCleanImplantInterval()));
     }
   }
 }

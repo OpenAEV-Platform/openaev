@@ -1,5 +1,6 @@
 package io.openaev.executors.tanium.client;
 
+import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -7,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.DataComputerGroup;
 import io.openaev.executors.tanium.model.DataEndpoints;
@@ -42,6 +44,61 @@ public class TaniumExecutorClient {
 
   private static final String KEY_HEADER = "session";
   private static final String QUERY = "query";
+  private static final String QUERY_ENDPOINTS =
+      """
+                              query {
+                                endpoints(after: %s, first: 5000, filter: {
+                                  any: false,
+                                  filters: [
+                                    {memberOf: {id: %s}},
+                                    {path: "eidLastSeen", op: GT, value: "%s"}
+                                  ]
+                                }) {
+                                  edges {
+                                    node {
+                                      id computerID name ipAddresses macAddresses eidLastSeen
+                                      os { platform }
+                                      processor { architecture }
+                                    }
+                                  }
+                                  pageInfo {
+                                    endCursor
+                                    hasNextPage
+                                  }
+                                }
+                              }
+                              """;
+  private static final String QUERY_COMPUTER_GROUP =
+      """
+                          query {
+                            computerGroup(ref: {
+                              id: %s
+                            }) {
+                            id
+                            name
+                            }
+                          }
+                          """;
+  private static final String MUTATION_ACTION_CREATE =
+      """
+                  mutation {
+                    actionCreate(
+                      input: {
+                        name: "OpenAEV Action",
+                        package: {
+                          id: %d,
+                          params: ["%s"]
+                        },
+                        targets: {
+                          actionGroup: { id: %d },
+                          endpoints: ["%s"]
+                        }
+                      }
+                    ) {
+                      action { id }
+                    }
+                  }
+                  """;
 
   private final TaniumExecutorConfig config;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -72,32 +129,7 @@ public class TaniumExecutorClient {
               .withZone(ZoneOffset.UTC)
               .format(Instant.now().minusMillis(EndpointService.DELETE_TTL));
       // https://help.tanium.com/bundle/ug_gateway_cloud/page/gateway/filter_syntax.html
-      String query =
-          String.format(
-              """
-                              query {
-                                endpoints(after: %s, first: 5000, filter: {
-                                  any: false,
-                                  filters: [
-                                    {memberOf: {id: %s}},
-                                    {path: "eidLastSeen", op: GT, value: "%s"}
-                                  ]
-                                }) {
-                                  edges {
-                                    node {
-                                      id computerID name ipAddresses macAddresses eidLastSeen
-                                      os { platform }
-                                      processor { architecture }
-                                    }
-                                  }
-                                  pageInfo {
-                                    endCursor
-                                    hasNextPage
-                                  }
-                                }
-                              }
-                              """,
-              after, computerGroupId, formattedDateTime);
+      String query = String.format(QUERY_ENDPOINTS, after, computerGroupId, formattedDateTime);
 
       Map<String, Object> body = new HashMap<>();
       body.put(QUERY, query);
@@ -107,9 +139,10 @@ public class TaniumExecutorClient {
           objectMapper.readValue(jsonResponse, new TypeReference<>() {});
 
       if (response == null || response.data == null) {
-        throw new RuntimeException(
+        throw new ExecutorException(
             "API response for Tanium endpoints is malformed or empty, computerGroupId: "
-                + computerGroupId);
+                + computerGroupId,
+            TANIUM_EXECUTOR_NAME);
       }
 
       return response.data.getEndpoints();
@@ -119,32 +152,20 @@ public class TaniumExecutorClient {
               "Failed to parse JSON response for Tanium API endpoints, computerGroupId: %s. Error: %s",
               computerGroupId, e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), TANIUM_EXECUTOR_NAME);
     } catch (IOException e) {
       log.error(
           String.format(
               "Error while querying Tanium API endpoints, computerGroupId %S. Error: %s",
               computerGroupId, e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), TANIUM_EXECUTOR_NAME);
     }
   }
 
   public DataComputerGroup computerGroup(String computerGroup) {
     try {
-      String query =
-          String.format(
-              """
-                          query {
-                            computerGroup(ref: {
-                              id: %s
-                            }) {
-                            id
-                            name
-                            }
-                          }
-                          """,
-              computerGroup);
+      String query = String.format(QUERY_COMPUTER_GROUP, computerGroup);
 
       Map<String, Object> body = new HashMap<>();
       body.put(QUERY, query);
@@ -154,7 +175,8 @@ public class TaniumExecutorClient {
           objectMapper.readValue(jsonResponse, new TypeReference<>() {});
 
       if (response == null || response.data == null) {
-        throw new RuntimeException("API response for Tanium computerGroup is malformed or empty");
+        throw new ExecutorException(
+            "API response for Tanium computerGroup is malformed or empty", TANIUM_EXECUTOR_NAME);
       }
 
       return response.data;
@@ -164,12 +186,12 @@ public class TaniumExecutorClient {
               "Failed to parse JSON response for Tanium API computerGroup. Error: %s",
               e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), TANIUM_EXECUTOR_NAME);
     } catch (IOException e) {
       log.error(
           String.format("Error while querying Tanium API computerGroup. Error: %s", e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), TANIUM_EXECUTOR_NAME);
     }
   }
 
@@ -179,26 +201,11 @@ public class TaniumExecutorClient {
 
       String mutation =
           String.format(
-              """
-                  mutation {
-                    actionCreate(
-                      input: {
-                        name: "OpenAEV Action",
-                        package: {
-                          id: %d,
-                          params: ["%s"]
-                        },
-                        targets: {
-                          actionGroup: { id: %d },
-                          endpoints: ["%s"]
-                        }
-                      }
-                    ) {
-                      action { id }
-                    }
-                  }
-                  """,
-              packageID, escapedCommand, config.getActionGroupId(), endpointId);
+              MUTATION_ACTION_CREATE,
+              packageID,
+              escapedCommand,
+              config.getActionGroupId(),
+              endpointId);
 
       Map<String, Object> requestBody = new HashMap<>();
       requestBody.put(QUERY, mutation);
@@ -208,7 +215,7 @@ public class TaniumExecutorClient {
       log.error(
           String.format("Error while executing action with Tanium API. Error: %s", e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), TANIUM_EXECUTOR_NAME);
     }
   }
 
@@ -261,7 +268,7 @@ public class TaniumExecutorClient {
                     }
                   }
                 }
-                throw new RuntimeException(errorMessage.toString());
+                throw new ExecutorException(errorMessage.toString(), TANIUM_EXECUTOR_NAME);
               }
 
               return result;

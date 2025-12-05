@@ -23,6 +23,8 @@ public class TaniumExecutorConfig {
 
   @Getter @NotBlank private Integer apiRegisterInterval = 1200;
 
+  @Getter @NotBlank private Integer cleanImplantInterval = 8;
+
   @Getter @NotBlank private String apiKey;
 
   @Getter @NotBlank private String computerGroupId = "1";

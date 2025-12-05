@@ -1,11 +1,11 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Endpoint;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import io.openaev.service.AgentService;
@@ -43,7 +43,7 @@ public class SentinelOneGarbageCollectorService implements Runnable {
     if (!agents.isEmpty()) {
       List<SentinelOneAction> actions = new ArrayList<>();
       log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");
-      List<Agent> windowsAgents = getAgentsFromOS(agents, Windows);
+      List<Agent> windowsAgents = getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Windows);
       if (!windowsAgents.isEmpty()) {
         SentinelOneAction action = new SentinelOneAction();
         action.setAgents(windowsAgents);
@@ -55,8 +55,8 @@ public class SentinelOneGarbageCollectorService implements Runnable {
         actions.add(action);
       }
       List<Agent> unixAgents = new ArrayList<>();
-      unixAgents.addAll(getAgentsFromOS(agents, Linux));
-      unixAgents.addAll(getAgentsFromOS(agents, MacOS));
+      unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Linux));
+      unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.MacOS));
       if (!unixAgents.isEmpty()) {
         SentinelOneAction action = new SentinelOneAction();
         action.setAgents(unixAgents);

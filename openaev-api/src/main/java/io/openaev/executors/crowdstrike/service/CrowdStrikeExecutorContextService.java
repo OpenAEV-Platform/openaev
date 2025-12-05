@@ -1,6 +1,5 @@
 package io.openaev.executors.crowdstrike.service;
 
-import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
@@ -14,6 +13,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
+import io.openaev.executors.exception.ExecutorException;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -67,7 +67,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.crowdStrikeExecutorConfig.isEnable()) {
-      throw new RuntimeException("Fatal error: CrowdStrike executor is not enabled");
+      throw new ExecutorException(
+          "Fatal error: CrowdStrike executor is not enabled", CROWDSTRIKE_EXECUTOR_NAME);
     }
     List<Agent> csAgents = new ArrayList<>(agents);
 
@@ -84,11 +85,17 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
-    actions.addAll(getWindowsActions(getAgentsFromOS(csAgents, Windows), injector, inject.getId()));
+    actions.addAll(
+        getWindowsActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows), injector, inject.getId()));
     // Set implant script for Linux CS agents
-    actions.addAll(getLinuxActions(getAgentsFromOS(csAgents, Linux), injector, inject.getId()));
+    actions.addAll(
+        getLinuxActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux), injector, inject.getId()));
     // Set implant script for MacOS CS agents
-    actions.addAll(getMacOSActions(getAgentsFromOS(csAgents, MacOS), injector, inject.getId()));
+    actions.addAll(
+        getMacOSActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject.getId()));
     // Launch payloads with CS API
     executeActions(actions);
     return csAgents;
@@ -128,7 +135,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
               + ExecutorHelper.IMPLANT_BASE_NAME
               + UUID.randomUUID()
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Windows;
+      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
       // x86_64 by default in the register because CS API doesn't provide the platform architecture
       // (we update this when the download implant script is launched on the endpoint)
       String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
@@ -167,7 +174,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       CrowdStrikeAction actionLinux = new CrowdStrikeAction();
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
-          getUnixCommand(Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE));
+          getUnixCommand(
+              Endpoint.PLATFORM_TYPE.Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -181,7 +189,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       CrowdStrikeAction actionMac = new CrowdStrikeAction();
       actionMac.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionMac.setCommandEncoded(
-          getUnixCommand(MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE));
+          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE));
       actionMac.setAgents(agents);
       actions.add(actionMac);
     }

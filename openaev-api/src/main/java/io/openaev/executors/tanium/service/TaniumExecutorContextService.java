@@ -1,6 +1,5 @@
 package io.openaev.executors.tanium.service;
 
-import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
@@ -11,6 +10,7 @@ import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
@@ -53,7 +53,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.taniumExecutorConfig.isEnable()) {
-      throw new RuntimeException("Fatal error: Tanium executor is not enabled");
+      throw new ExecutorException(
+          "Fatal error: Tanium executor is not enabled", TANIUM_EXECUTOR_NAME);
     }
 
     List<Agent> taniumAgents = new ArrayList<>(agents);
@@ -136,9 +137,9 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               + ExecutorHelper.IMPLANT_BASE_NAME
               + UUID.randomUUID()
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      String executorCommandKey = Windows.name() + "." + arch.name();
+      String executorCommandKey = Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
-      command = replaceArgs(Windows, command, injectId, agent.getId());
+      command = replaceArgs(Endpoint.PLATFORM_TYPE.Windows, command, injectId, agent.getId());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",

@@ -27,7 +27,8 @@ public class TaniumGarbageCollector {
       TaniumGarbageCollectorService service =
           new TaniumGarbageCollectorService(
               this.config, this.taniumExecutorContextService, this.agentService);
-      this.taskScheduler.scheduleAtFixedRate(service, Duration.ofHours(8));
+      this.taskScheduler.scheduleAtFixedRate(
+          service, Duration.ofHours(this.config.getCleanImplantInterval()));
     }
   }
 }

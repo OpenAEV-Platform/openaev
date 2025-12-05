@@ -27,7 +27,8 @@ public class SentinelOneGarbageCollector {
       SentinelOneGarbageCollectorService service =
           new SentinelOneGarbageCollectorService(
               this.config, this.sentinelOneExecutorContextService, this.agentService);
-      this.taskScheduler.scheduleAtFixedRate(service, Duration.ofHours(8));
+      this.taskScheduler.scheduleAtFixedRate(
+          service, Duration.ofHours(this.config.getCleanImplantInterval()));
     }
   }
 }

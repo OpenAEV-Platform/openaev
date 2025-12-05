@@ -1,6 +1,5 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.*;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
@@ -11,6 +10,7 @@ import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
@@ -65,7 +65,8 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.config.isEnable()) {
-      throw new RuntimeException("Fatal error: SentinelOne executor is not enabled");
+      throw new ExecutorException(
+          "Fatal error: SentinelOne executor is not enabled", SENTINELONE_EXECUTOR_NAME);
     }
     List<Agent> sentinelOneAgents = new ArrayList<>(agents);
 
@@ -152,7 +153,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
               + ExecutorHelper.IMPLANT_BASE_NAME
               + UUID.randomUUID()
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Windows;
+      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
       String executorCommandKey = platform.name() + "." + arch;
       String command = injector.getExecutorCommands().get(executorCommandKey);
       // The default command to download the openaev implant and execute the attack is modified for
@@ -182,7 +183,8 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       SentinelOneAction actionLinux = new SentinelOneAction();
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
-          getUnixCommand(Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE, arch));
+          getUnixCommand(
+              Endpoint.PLATFORM_TYPE.Linux, injector, injectId, LINUX_EXTERNAL_REFERENCE, arch));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -196,7 +198,8 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       SentinelOneAction actionMac = new SentinelOneAction();
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
-          getUnixCommand(MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE, arch));
+          getUnixCommand(
+              Endpoint.PLATFORM_TYPE.MacOS, injector, injectId, MAC_EXTERNAL_REFERENCE, arch));
       actionMac.setAgents(agents);
       actions.add(actionMac);
     }
