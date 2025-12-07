@@ -3867,9 +3867,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@uiw/react-md-editor@npm:4.0.9":
-  version: 4.0.9
-  resolution: "@uiw/react-md-editor@npm:4.0.9"
+"@uiw/react-md-editor@npm:4.0.11":
+  version: 4.0.11
+  resolution: "@uiw/react-md-editor@npm:4.0.11"
   dependencies:
     "@babel/runtime": "npm:^7.14.6"
     "@uiw/react-markdown-preview": "npm:^5.0.6"
@@ -3878,7 +3878,7 @@ __metadata:
   peerDependencies:
     react: ">=16.8.0"
     react-dom: ">=16.8.0"
-  checksum: 10c0/c6632518d9e61dc0044a40216c120b6ab1011b3ba4462ed07f0e4f2bbccc8eddb99159df1752a8d621a0b349c5347bd76b2332bf6c38b266e0661575f0bbc55c
+  checksum: 10c0/337ad6c3e064bb63c52c8abc1b163d81b0499541f5f20ffcd1797fcfab51697c02492b53b85474c3fc31493e05cb3e3e58be4f60d445b89c5ddbb5b80b6161d5
   languageName: node
   linkType: hard
 
@@ -10002,7 +10002,7 @@ __metadata:
     "@types/react-grid-layout": "npm:^1"
     "@types/react-syntax-highlighter": "npm:15"
     "@typescript-eslint/utils": "npm:8.48.0"
-    "@uiw/react-md-editor": "npm:4.0.9"
+    "@uiw/react-md-editor": "npm:4.0.11"
     "@vitejs/plugin-react": "npm:5.1.1"
     "@vitest/eslint-plugin": "npm:1.5.0"
     "@xyflow/react": "npm:12.9.3"
