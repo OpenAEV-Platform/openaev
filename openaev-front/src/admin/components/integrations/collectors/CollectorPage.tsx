@@ -25,10 +25,14 @@ const CollectorPage = () => {
   const tabEntries: TabsEntry[] = [{
     key: 'overview',
     label: 'Overview',
-  }, {
-    key: 'logs',
-    label: 'Logs',
   }];
+
+  if (instance?.connector_instance_id) {
+    tabEntries.push({
+      key: 'logs',
+      label: 'Logs',
+    });
+  }
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   return (
@@ -53,6 +57,7 @@ const CollectorPage = () => {
         }}
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
+        instanceRequestedStatus={instance?.connector_instance_requested_status}
         showUpdateButtons={isEnterpriseEdition && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
         disabledUpdateButtons={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
       />
@@ -65,7 +70,7 @@ const CollectorPage = () => {
         <ConnectorCatalogInfo catalogConnector={catalogConnector} />
       )}
       {currentTab === 'logs' && (
-        <ConnectorLogs />
+        <ConnectorLogs connectorInstanceId={instance.connector_instance_id} />
       )}
     </>
   );

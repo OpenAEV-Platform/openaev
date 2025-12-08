@@ -1,15 +1,17 @@
 import { VerifiedOutlined } from '@mui/icons-material';
 import { Button, Chip, Tooltip, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
 import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
-import { type ConnectorInstance, type UpdateConnectorInstanceRequestedStatus } from '../../../../utils/api-types';
+import { type ConnectorInstance } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type ConnectorMainInfo } from './ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
 import DeployButton from './DeployButton';
+import ConnectorStatus from './ConnectorStatus';
 
 const useStyles = makeStyles()(theme => ({
   content: {
@@ -73,6 +75,7 @@ type ConnectorHeaderProps = {
   connector: ConnectorMainInfo;
   detailsTitle?: boolean;
   instanceCurrentStatus?: ConnectorInstance['connector_instance_current_status'];
+  instanceRequestedStatus?: ConnectorInstance['connector_instance_requested_status'];
   showDeployButton?: boolean;
   showUpdateButtons?: boolean;
   onDeployBtnClick?: () => void;
@@ -83,10 +86,12 @@ const ConnectorTitle = ({
   connector,
   detailsTitle = false,
   instanceCurrentStatus,
+  instanceRequestedStatus,
   showDeployButton = false,
   showUpdateButtons = false,
   disabledUpdateButtons = false,
-  onDeployBtnClick = () => {},
+  onDeployBtnClick = () => {
+  },
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -94,11 +99,31 @@ const ConnectorTitle = ({
   const dispatch = useAppDispatch();
 
   const onUpdateRequestedStatusClick = () => {
-    if (connector.instanceId) {
-      const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceCurrentStatus === 'started' ? 'stopping' : 'starting' };
-      dispatch(updateRequestedStatus(connector.instanceId, newStatus));
+    if (!connector.instanceId) return;
+
+    // If we're already in a transition (starting or stopping),
+    // user intention is to reverse the current requested action.
+    let next: 'starting' | 'stopping';
+
+    if (instanceRequestedStatus === 'starting') {
+      next = 'stopping';
+    } else if (instanceRequestedStatus === 'stopping') {
+      next = 'starting';
+    } else {
+      next = instanceCurrentStatus === 'started' ? 'stopping' : 'starting';
     }
+    dispatch(updateRequestedStatus(connector.instanceId, { connector_instance_requested_status: next }));
   };
+
+  const [isStatusLoading, setIsStatusLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    const isLoading
+            = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
+              || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
+
+    setIsStatusLoading(isLoading);
+  }, [instanceCurrentStatus, instanceRequestedStatus]);
 
   return (
     <div className={classes.content}>
@@ -126,14 +151,11 @@ const ConnectorTitle = ({
               icon={<VerifiedOutlined color="success" />}
               label={t('Verified')}
             />
-            { instanceCurrentStatus && (
-              <Chip
-                variant="filled"
-                className={classes.chipVerified}
-                style={instanceCurrentStatus == 'started' ? colorStyles.green : colorStyles.red}
-                label={instanceCurrentStatus == 'started' ? t('Started') : t('Stopped')}
-              />
-            )}
+            {
+              instanceCurrentStatus
+              && <ConnectorStatus variant={isStatusLoading ? 'loading' : instanceCurrentStatus} />
+            }
+
             {showUpdateButtons && connector?.instanceId && (
               <ConnectorPopover
                 connectorInstanceId={connector.instanceId}
@@ -151,12 +173,12 @@ const ConnectorTitle = ({
             {showUpdateButtons && (
               <Button
                 variant="outlined"
-                color={instanceCurrentStatus == 'started' ? 'error' : 'success'}
+                color={instanceRequestedStatus == 'starting' ? 'error' : 'success'}
                 size="small"
                 onClick={onUpdateRequestedStatusClick}
                 disabled={disabledUpdateButtons}
               >
-                {instanceCurrentStatus == 'started' ? t('Stop') : t('Start')}
+                {instanceRequestedStatus == 'starting' ? t('Stop') : t('Start')}
               </Button>
             )}
           </>

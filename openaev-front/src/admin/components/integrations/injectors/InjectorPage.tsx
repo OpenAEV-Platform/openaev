@@ -35,10 +35,15 @@ const InjectorPage = () => {
   const tabEntries: TabsEntry[] = [{
     key: 'overview',
     label: 'Overview',
-  }, {
-    key: 'logs',
-    label: 'Logs',
   }];
+
+  if (instance?.connector_instance_id) {
+    tabEntries.push({
+      key: 'logs',
+      label: 'Logs',
+    });
+  }
+
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   return (
@@ -84,7 +89,7 @@ const InjectorPage = () => {
                 </>
               )}
               {currentTab === 'logs' && (
-                <ConnectorLogs />
+                <ConnectorLogs connectorInstanceId={instance.connector_instance_id} />
               )}
             </>
           )

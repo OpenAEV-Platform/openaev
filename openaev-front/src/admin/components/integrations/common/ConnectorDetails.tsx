@@ -5,10 +5,10 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
-import ConnectorTitle from '../common/ConnectorTitle';
+import { type CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
-import { type CatalogContextType } from './CatalogLayout';
+import ConnectorCatalogInfo from './ConnectorCatalogInfo';
+import ConnectorTitle from './ConnectorTitle';
 
 const ConnectorDetails = () => {
   // Standard hooks
@@ -29,6 +29,7 @@ const ConnectorDetails = () => {
     <>
       <ConnectorTitle
         connector={{
+          instanceId: catalogConnector.catalog_connector_id,
           connectorName: catalogConnector.catalog_connector_title,
           connectorType: catalogConnector.catalog_connector_type,
           connectorLogoName: `connector-logo-${catalogConnector.catalog_connector_id}`,

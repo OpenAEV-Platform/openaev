@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
-import ConnectorDetails from './catalog_connectors/ConnectorDetails';
+import ConnectorDetails from './common/ConnectorDetails';
 import ExecutorPage from './executors/ExecutorPage';
 import InjectorPage from './injectors/InjectorPage';
 

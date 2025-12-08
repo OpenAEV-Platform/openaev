@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, getReferential, putReferential, simplePostCall } from '../../utils/Action';
+import { delReferential, getReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import {
   type ConnectorInstance,
   type CreateConnectorInstanceInput,
@@ -27,4 +27,9 @@ export const updateRequestedStatus = (instanceId: string, data: UpdateConnectorI
 export const deleteConnectorInstance = (instanceId: string) => (dispatch: Dispatch) => {
   const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}`;
   return delReferential(uri, connectorInstance.key, instanceId)(dispatch);
+};
+
+export const fetchConnectorInstanceLogs = (instanceId: string) => () => {
+  const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}/logs`;
+  return simpleCall(uri);
 };

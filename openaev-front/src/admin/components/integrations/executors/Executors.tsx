@@ -43,7 +43,6 @@ const Executors = () => {
           <Grid key={executor.executor_id} size={{ xs: 4 }}>
             <ConnectorCard
               connector={{
-                connectorId: executor.executor_id,
                 connectorName: executor.executor_name,
                 connectorType: 'EXECUTOR',
                 connectorLogoName: executor.executor_type,
