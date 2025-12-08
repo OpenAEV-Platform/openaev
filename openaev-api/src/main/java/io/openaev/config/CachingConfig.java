@@ -37,6 +37,6 @@ public class CachingConfig {
   @CacheEvict(value = "adminUsers", allEntries = true)
   @Scheduled(fixedRateString = "1000")
   public void emptyAdminUsersCache() {
-    log.info("emptying admin users cache");
+    log.debug("emptying admin users cache");
   }
 }

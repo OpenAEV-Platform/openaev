@@ -1735,7 +1735,7 @@
   "To install, copy and paste the following bash snippet into a terminal with root privileges, or download the .sh script and run it as root.": "要安装，请将以下 bash 代码粘贴到具有 root 权限的终端中，或者下载 .sh 脚本并以 root 用户身份运行。",
   "To install, copy and paste the following PowerShell snippet into an elevated prompt or download the .ps1 script and run it with administrator privileges.": "要安装，请将以下 PowerShell 代码粘贴到提升的命令提示符中，或者下载 .ps1 脚本并以管理员权限运行。",
   "To install, copy and paste the following PowerShell snippet into an elevated prompt or download the .ps1 script.": "要安装，请将以下 PowerShell 代码粘贴到提升的命令提示符中，或者下载 .ps1 脚本。",
-  "To obtain a license, please": "要获取许可证，请 {url}.",
+  "To obtain a license, please {contact}": "要获取许可证，请 {contact}",
   "To put arguments in the command line, use #{argument_key}": "要在命令行中加入参数，请使用 #{argument_key}",
   "To use AI, please enable it in the configuration of your platform.": "要使用人工智能，请在平台配置中启用它。",
   "toggle": "切换",

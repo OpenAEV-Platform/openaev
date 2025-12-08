@@ -16,6 +16,7 @@ import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.MonoIdDeserializer;
 import io.openaev.helper.MultiIdListDeserializer;
 import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -191,6 +192,7 @@ public class Payload implements GrantableBase {
   @JoinColumn(name = "payload_collector")
   @JsonSerialize(using = MonoIdDeserializer.class)
   @JsonProperty("payload_collector")
+  @IncludeOption(key = "exclude from payload export")
   @Schema(type = "string")
   private Collector collector;
 

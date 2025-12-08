@@ -41,12 +41,16 @@ public class XtmHubService {
 
   public PlatformSettings refreshConnectivity() {
     PlatformSettings settings = platformSettingsService.findSettings();
-
     if (!isRegisteredWithXtmHub(settings)) {
       return settings;
     }
 
     ConnectivityCheckResult checkResult = checkConnectivityStatus(settings);
+    if (checkResult.status == XtmHubConnectivityStatus.NOT_FOUND) {
+      log.warn("Platform was not found on XTM Hub");
+      return platformSettingsService.deleteXTMHubRegistration();
+    }
+
     handleConnectivityLossNotification(settings, checkResult);
 
     return updateRegistrationStatus(settings, checkResult);
@@ -61,10 +65,9 @@ public class XtmHubService {
         xtmHubClient.refreshRegistrationStatus(
             settings.getPlatformId(), settings.getPlatformVersion(), settings.getXtmHubToken());
 
-    boolean isActive = status == XtmHubConnectivityStatus.ACTIVE;
     LocalDateTime lastCheck = parseLastConnectivityCheck(settings);
 
-    return new ConnectivityCheckResult(isActive, lastCheck);
+    return new ConnectivityCheckResult(status, lastCheck);
   }
 
   private LocalDateTime parseLastConnectivityCheck(PlatformSettings settings) {
@@ -83,7 +86,7 @@ public class XtmHubService {
   private boolean shouldSendConnectivityLossEmail(
       PlatformSettings settings, ConnectivityCheckResult checkResult) {
 
-    return !checkResult.isActive()
+    return checkResult.status() != XtmHubConnectivityStatus.ACTIVE
         && hasConnectivityBeenLostForTooLong(checkResult.lastCheck())
         && isEmailNotificationEnabled(settings);
   }
@@ -101,12 +104,14 @@ public class XtmHubService {
       PlatformSettings settings, ConnectivityCheckResult checkResult) {
 
     XtmHubRegistrationStatus newStatus =
-        checkResult.isActive()
+        checkResult.status() == XtmHubConnectivityStatus.ACTIVE
             ? XtmHubRegistrationStatus.REGISTERED
             : XtmHubRegistrationStatus.LOST_CONNECTIVITY;
 
     LocalDateTime updatedLastCheck =
-        checkResult.isActive() ? LocalDateTime.now() : checkResult.lastCheck();
+        checkResult.status() == XtmHubConnectivityStatus.ACTIVE
+            ? LocalDateTime.now()
+            : checkResult.lastCheck();
 
     boolean shouldKeepEmailNotificationEnabled =
         !shouldSendConnectivityLossEmail(settings, checkResult);
@@ -126,5 +131,6 @@ public class XtmHubService {
   }
 
   /** Encapsulates the result of a connectivity check */
-  private record ConnectivityCheckResult(boolean isActive, LocalDateTime lastCheck) {}
+  private record ConnectivityCheckResult(
+      XtmHubConnectivityStatus status, LocalDateTime lastCheck) {}
 }

@@ -1735,7 +1735,7 @@
   "To install, copy and paste the following bash snippet into a terminal with root privileges, or download the .sh script and run it as root.": "Pour installer, copiez et collez le code bash suivant dans un terminal avec des privilèges root, ou téléchargez le script .sh et exécutez-le en tant que root.",
   "To install, copy and paste the following PowerShell snippet into an elevated prompt or download the .ps1 script and run it with administrator privileges.": "Pour installer, copiez et collez le code PowerShell suivant dans une invite élevée ou téléchargez le script .ps1 et exécutez-le avec des privilèges d'administrateur.",
   "To install, copy and paste the following PowerShell snippet into an elevated prompt or download the .ps1 script.": "Pour installer, copiez et collez le code PowerShell suivant dans une invite élevée ou téléchargez le script .ps1.",
-  "To obtain a license, please": "Pour obtenir une licence, veuillez {url}.",
+  "To obtain a license, please {contact}": "Pour obtenir une licence, veuillez {contact}",
   "To put arguments in the command line, use #{argument_key}": "Pour ajouter des arguments à la ligne de commande, utilisez #{argument_key}",
   "To use AI, please enable it in the configuration of your platform.": "Pour utiliser l'IA, veuillez l'activer dans la configuration de votre plateforme.",
   "toggle": "Basculer",

@@ -10,7 +10,9 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -27,6 +29,12 @@ public class ConnectorInstance implements Base {
   public enum REQUESTED_STATUS_TYPE {
     starting,
     stopping
+  }
+
+  public enum SOURCE {
+    PROPERTIES_MIGRATION,
+    CATALOG_DEPLOYMENT,
+    OTHER
   }
 
   @Id
@@ -48,6 +56,13 @@ public class ConnectorInstance implements Base {
   @JsonProperty("connector_instance_current_status")
   @NotBlank
   private CURRENT_STATUS_TYPE currentStatus;
+
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "connector_instance_source")
+  @JsonProperty("connector_instance_source")
+  @NotBlank
+  private SOURCE source = SOURCE.OTHER;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "connector_instance_requested_status")

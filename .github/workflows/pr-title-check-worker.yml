@@ -1,0 +1,126 @@
+name: "PR Title check worker"
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, ready_for_review, synchronize]
+
+jobs:
+  validate-pr-title:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+      - name: Validate PR title and create check
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "PR title: $TITLE"
+
+          # Skip validation for renovate
+          if [[ "$TITLE" == *"chore(deps)"* ]]; then
+            echo "⚠️ Skipping validation for renovate PRs."
+            OUTPUT_TITLE="⚠️ Skipping validation for Renovate PRs."
+            OUTPUT_SUMMARY="⚠️ Skipping validation for Renovate PRs."
+            CONCLUSION="success"
+          else
+            # Full pattern:
+            # [category/subcategory] type(scope?): description (#123)
+            FULL_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z].*( \(#[0-9]+\))$'
+
+            if [[ "$TITLE" =~ $FULL_PATTERN ]]; then
+              echo "✅ PR title is valid."
+              OUTPUT_TITLE="✅ PR title is valid."
+              OUTPUT_SUMMARY="✅ PR title is valid."
+              CONCLUSION="success"
+            else
+              # Diagnose common failures
+
+              # 1) Check category block: [category/category]
+              CATEGORY_PATTERN='^\[([a-z]+(/[a-z]+)*)\]'
+              if ! [[ "$TITLE" =~ $CATEGORY_PATTERN ]]; then
+                REASON="Bad [category] block. Expected: [category] or [category/category]"
+              fi
+
+              # 2) Check type + optional scope
+              TYPE_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: '
+              if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $TYPE_PATTERN ]]; then
+                REASON="Bad type(scope): block. Expected type: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert (optionally with scope: type(scope):)"
+              fi
+
+              # 3) Check description starts with lowercase letter
+              DESC_PATTERN='^\[([a-z]+(/[a-z]+)*)\] (feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z-]+\))?: [a-z]'
+              if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $DESC_PATTERN ]]; then
+                REASON="Bad description. Must start with a lowercase letter after ': '"
+              fi
+
+              # 4) Check issue reference at the end: (#XXX)
+              ISSUE_PATTERN='\(#[0-9]+\)$'
+              if [[ -z "${REASON:-}" ]] && ! [[ "$TITLE" =~ $ISSUE_PATTERN ]]; then
+                REASON="Bad (#XXX) ending block. Missing issue reference"
+              fi
+
+              if [[ -z "${REASON:-}" ]]; then
+                REASON="Bad title. Does not match the required pattern"
+              fi
+
+              echo "❌ Invalid PR title: $REASON"
+              echo "Required format:"
+              echo "[category] type(scope?): description (#123)"
+
+              OUTPUT_TITLE="$REASON"
+              OUTPUT_SUMMARY="❌ Invalid PR title: $REASON. \nRequired: [category] type(scope?): description (#XXX)"
+              CONCLUSION="failure"
+            fi
+          fi
+
+          # Create custom check run
+          CHECK_RUN=$(
+            curl -sS -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$REPO/check-runs \
+              -d @- <<EOF
+          {
+            "name": "Validate PR Title (optional)",
+            "head_sha": "$SHA",
+            "status": "in_progress"
+          }
+          EOF
+          )
+
+          CHECK_RUN_ID=$(echo "$CHECK_RUN" | jq -r '.id')
+          echo "Created check run ID: $CHECK_RUN_ID"
+
+          # Complete the check run with conclusion + detailed summary
+          curl -sS -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$REPO/check-runs/$CHECK_RUN_ID \
+            -d @- <<EOF
+          {
+            "status": "completed",
+            "conclusion": "$CONCLUSION",
+            "output": {
+              "title": "$OUTPUT_TITLE",
+              "summary": "$OUTPUT_SUMMARY"
+            }
+          }
+          EOF
+
+          # Do not fail job (continue-on-error is true)
+          exit 0
