@@ -8,4 +8,5 @@ export interface IconBarElement {
   function: () => void;
   count?: number;
   results?: () => ReactElement;
+  expandedResults?: () => ReactElement;
 }
