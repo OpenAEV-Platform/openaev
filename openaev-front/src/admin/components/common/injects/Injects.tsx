@@ -135,14 +135,14 @@ const Injects: FunctionComponent<Props> = ({
       isSortable: true,
       value: (inject: InjectOutputType) => {
         const payloadDomains
-                  = inject.inject_injector_contract?.injector_contract_payload?.payload_domains;
+          = inject.inject_injector_contract?.injector_contract_payload?.payload_domains;
 
         const contractDomains
-                  = inject.inject_injector_contract?.injector_contract_domains;
+          = inject.inject_injector_contract?.injector_contract_domains;
 
         const domains
-                  = (payloadDomains && payloadDomains.length > 0 && payloadDomains)
-                    || (contractDomains && contractDomains.length > 0 && contractDomains);
+          = (payloadDomains && payloadDomains.length > 0 && payloadDomains)
+            || (contractDomains && contractDomains.length > 0 && contractDomains);
 
         return domains
           ? <ItemDomains domains={domains} variant="reduced-view" />
