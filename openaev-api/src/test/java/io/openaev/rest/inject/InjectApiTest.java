@@ -12,6 +12,7 @@ import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.*;
@@ -825,6 +826,19 @@ class InjectApiTest extends IntegrationTest {
           injectComposer, endpointComposer, agentComposer, injectStatusComposer);
     }
 
+    private void performAgentlessCallbackRequest(String injectId, InjectExecutionInput input)
+        throws Exception {
+      mvc.perform(
+              post(INJECT_URI + "/execution/callback/" + injectId)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
     private void performCallbackRequest(String agentId, String injectId, InjectExecutionInput input)
         throws Exception {
       mvc.perform(
@@ -1039,6 +1053,44 @@ class InjectApiTest extends IntegrationTest {
                 .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
                 .toList();
         assertEquals(1, endDatesignatures.size());
+      }
+
+      @DisplayName(
+          "Should add a trace when inject completed without agent (e.g. external injectors")
+      @Test
+      void given_completeTraceAndNullAgent_should_addTrace() throws Exception {
+
+        // -- PREPARE --
+        Inject inject = getPendingInjectWithAssets();
+        injectTestHelper.forceSaveInject(inject);
+
+        String traceMessage = "Complete log received";
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(traceMessage);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("INFO");
+        input.setDuration(1000);
+
+        performAgentlessCallbackRequest(inject.getId(), input);
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
+                  return dbInject.getStatus().isPresent()
+                      && !dbInject.getStatus().get().getTraces().isEmpty();
+                });
+
+        // -- ASSERT --
+        Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
+        assertThat(dbInject.getStatus().get().getTraces()).isNotEmpty();
+        assertThat(dbInject.getStatus().get().getTraces().size()).isEqualTo(1);
+        ExecutionTrace singleTrace = dbInject.getStatus().get().getTraces().getFirst();
+        assertThat(singleTrace.getMessage()).isEqualTo(traceMessage);
+        assertThat(singleTrace.getAction()).isEqualTo(ExecutionTraceAction.COMPLETE);
+        assertThat(singleTrace.getStatus()).isEqualTo(ExecutionTraceStatus.INFO);
       }
     }
 

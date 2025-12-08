@@ -38,6 +38,17 @@ public class InjectExpectationFixture {
     return injectExpectation;
   }
 
+  public static InjectExpectation createDetectionInjectExpectationForAsset(
+      Inject inject, @Nullable Endpoint endpoint) {
+    InjectExpectation injectExpectation = new InjectExpectation();
+    injectExpectation.setInject(inject);
+    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
+    injectExpectation.setAsset(endpoint);
+    injectExpectation.setExpectedScore(EXPECTED_SCORE);
+    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return injectExpectation;
+  }
+
   public static InjectExpectation createDetectionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
     InjectExpectation injectExpectation = new InjectExpectation();
