@@ -80,7 +80,7 @@ public class DomainService {
   @Transactional
   public Set<Domain> upserts(final Set<Domain> domains) {
     if (domains == null) {
-      return Set.of();
+      return new HashSet<>();
     }
 
     return domains.stream()
