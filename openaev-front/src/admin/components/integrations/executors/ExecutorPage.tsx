@@ -9,9 +9,9 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConnectorTitle from '../catalog_connectors/ConnectorTitle';
 import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
 import ConnectorLogs from '../common/ConnectorLogs';
+import ConnectorTitle from '../common/ConnectorTitle';
 import { type ExecutorsContextType } from './ExecutorsLayout';
 
 const ExecutorPage = () => {

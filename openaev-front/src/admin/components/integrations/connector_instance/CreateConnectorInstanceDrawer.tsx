@@ -14,6 +14,8 @@ import type {
   ConfigurationInput,
   CreateConnectorInstanceInput,
 } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
+import { notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 import ConnectorInstanceForm from './ConnectorInstanceForm';
 
 interface Props {
@@ -65,6 +67,13 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
         navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${collectorId}`);
       }
       onClose();
+    }).catch((error) => {
+      console.log('ERROR', error);
+      if (error?.status === 500) {
+        MESSAGING$.notifyError(t(error.message));
+      } else {
+        notifyErrorHandler(error);
+      }
     });
   };
 
@@ -76,7 +85,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     >
       <>
         {loading && <Loader />}
-        {disabledMessage && <Alert style={{ marginBottom: theme.spacing(2) }} severity="warning">{disabledMessage}</Alert>}
+        {disabledMessage && disabled && <Alert style={{ marginBottom: theme.spacing(2) }} severity="warning">{disabledMessage}</Alert>}
         {!loading
           && (
             <ConnectorInstanceForm

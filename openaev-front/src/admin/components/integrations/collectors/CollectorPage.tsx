@@ -3,14 +3,13 @@ import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { useOutletContext } from 'react-router';
 
-import { isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConnectorTitle from '../catalog_connectors/ConnectorTitle';
+import ConnectorTitle from '../common/ConnectorTitle';
 import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
 import ConnectorLogs from '../common/ConnectorLogs';
 import { type CollectorsContextType } from './CollectorsLayout';

@@ -4,7 +4,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnector } from '../../../../utils/api-types';
-import ConnectorTitle from '../catalog_connectors/ConnectorTitle';
+import ConnectorTitle from './ConnectorTitle';
 
 const useStyles = makeStyles()(theme => ({
   card: {

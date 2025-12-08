@@ -11,7 +11,7 @@ import { connectorInstance } from './connector-instance-schema';
 const CONNECTOR_INSTANCE_URI = '/api/connector-instances';
 
 export const createConnectorInstance = (input: CreateConnectorInstanceInput): Promise<{ data: ConnectorInstance }> => {
-  return simplePostCall(CONNECTOR_INSTANCE_URI, input);
+  return simplePostCall(CONNECTOR_INSTANCE_URI, input, undefined, false);
 };
 
 export const fetchConnectorInstance = (instanceId: string) => (dispatch: Dispatch) => {

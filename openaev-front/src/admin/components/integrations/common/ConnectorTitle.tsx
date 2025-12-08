@@ -9,7 +9,7 @@ import { type ConnectorInstance, type UpdateConnectorInstanceRequestedStatus } f
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import EEChip from '../../common/entreprise_edition/EEChip';
-import { type ConnectorMainInfo } from '../common/ConnectorCard';
+import { type ConnectorMainInfo } from './ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
 
 const useStyles = makeStyles()(theme => ({

@@ -6,9 +6,9 @@ import Loader from '../../../../components/Loader';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
+import ConnectorTitle from '../common/ConnectorTitle';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { type CatalogContextType } from './CatalogLayout';
-import ConnectorTitle from './ConnectorTitle';
 
 const ConnectorDetails = () => {
   // Standard hooks
@@ -49,7 +49,7 @@ const ConnectorDetails = () => {
         onClose={onCloseCreateConnectorInstanceDrawer}
         connectorType={catalogConnector.catalog_connector_type}
         disabled={!isXtmComposerUp}
-        disabledMessage={t('This {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
+        disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
       />
       <ConnectorCatalogInfo catalogConnector={catalogConnector} />
     </>
