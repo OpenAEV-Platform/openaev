@@ -258,8 +258,7 @@ const InjectorContracts = () => {
             />
             <ListItemSecondaryAction>
               <InjectorContractPopover
-                injectorContra
-                ct={injectorContract}
+                injectorContract={injectorContract}
                 killChainPhasesMap={killChainPhasesMap}
                 attackPatternsMap={attackPatternsMap}
                 onUpdate={result => setInjectorContracts(injectorContracts.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}

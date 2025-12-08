@@ -143,7 +143,7 @@ const InjectorContractForm = (props) => {
                   disableClearable={false}
                   openOnFocus
                   autoHighlight
-                  noOptionsText="No available options"
+                  noOptionsText={t('No available options')}
                   value={Array.isArray(input.value) ? input.value : []}
                   onChange={(_event, selectedOptions) => {
                     input.onChange(selectedOptions);
