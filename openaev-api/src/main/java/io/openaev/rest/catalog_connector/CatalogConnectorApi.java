@@ -37,17 +37,13 @@ public class CatalogConnectorApi extends RestBehavior {
     return this.catalogConnectorService.catalogConnectors();
   }
 
-  @GetMapping(CATALOG_CONNECTOR_URI + "/{connectorId}")
+  @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}")
   @RBAC(
-      resourceId = "#connectorId",
+      resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
-  public CatalogConnectorOutput getConnector(@PathVariable String connectorId) {
-    return catalogConnectorService
-        .findById(connectorId)
-        .map(catalogConnectorMapper::toCatalogConnectorOutput)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Connector not found with id: " + connectorId));
+  public CatalogConnectorOutput getConnector(@PathVariable String catalogConnectorId) {
+    return this.catalogConnectorService.catalogConnectorOutput(catalogConnectorId);
   }
 
   @GetMapping(

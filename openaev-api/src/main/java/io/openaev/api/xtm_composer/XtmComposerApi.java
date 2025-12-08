@@ -8,7 +8,7 @@ import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.XtmComposerConnectorOrchestrationService;
+import io.openaev.service.ConnectorOrchestrationService;
 import io.openaev.service.XtmComposerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -29,7 +29,7 @@ public class XtmComposerApi extends RestBehavior {
   private static final String XTMCOMPOSER_URI = "/api/xtm-composer";
 
   private final XtmComposerService xtmComposerService;
-  private final XtmComposerConnectorOrchestrationService orchestrationService;
+  private final ConnectorOrchestrationService orchestrationService;
 
   @PostMapping(value = XTMCOMPOSER_URI + "/register")
   @Operation(

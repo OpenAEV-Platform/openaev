@@ -7,6 +7,8 @@ import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstance, type UpdateConnectorInstanceRequestedStatus } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
+import EEChip from '../../common/entreprise_edition/EEChip';
 import { type ConnectorMainInfo } from '../common/ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
 
@@ -72,7 +74,6 @@ type ConnectorHeaderProps = {
   connector: ConnectorMainInfo;
   detailsTitle?: boolean;
   instanceCurrentStatus?: ConnectorInstance['connector_instance_current_status'];
-  // instanceRequestedStatus?: ConnectorInstance['connector_instance_requested_status'];
   showDeployButton?: boolean;
   showUpdateButton?: boolean;
   showUpdateStatusButton?: boolean;
@@ -83,32 +84,35 @@ const ConnectorTitle = ({
   connector,
   detailsTitle = false,
   instanceCurrentStatus,
-  // instanceRequestedStatus,
   showDeployButton = false,
   showUpdateButton = false,
   showUpdateStatusButton = false,
-  onDeployBtnClick = () => {
-  },
+  onDeployBtnClick = () => {},
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
+  const {
+    isValidated: isEnterpriseEdition,
+    openDialog: openEnterpriseEditionDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
+
   const onUpdateRequestedStatusClick = () => {
-    // const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceRequestedStatus === 'starting' ? 'starting' : 'stopping' };
     const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceCurrentStatus === 'started' ? 'stopping' : 'starting' };
     dispatch(updateRequestedStatus(connector.instanceId, newStatus));
   };
-    // const [statusLoader, setStatusLoader] = useState<boolean>(false);
 
-  // useEffect(() => {
-  //   const isLoading
-  //           = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
-  //             || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
-  //
-  //   setStatusLoader(isLoading);
-  // }, [instanceCurrentStatus, instanceRequestedStatus]);
+  const onDeployClickAction = () => {
+    if (!isEnterpriseEdition) {
+      setEEFeatureDetectedInfo(t('Connectors deployment'));
+      openEnterpriseEditionDialog();
+    } else {
+      onDeployBtnClick();
+    }
+  };
 
   return (
     <div className={classes.content}>
@@ -136,11 +140,10 @@ const ConnectorTitle = ({
               icon={<VerifiedOutlined color="success" />}
               label={t('Verified')}
             />
-            {instanceCurrentStatus && (
+            { instanceCurrentStatus && (
               <Chip
                 variant="filled"
                 className={classes.chipVerified}
-                //   disabled={statusLoader}
                 style={instanceCurrentStatus == 'started' ? colorStyles.green : colorStyles.red}
                 label={instanceCurrentStatus == 'started' ? t('Started') : t('Stopped')}
               />
@@ -153,11 +156,15 @@ const ConnectorTitle = ({
             )}
             {showDeployButton && (
               <Button
-                className={classes.autoMarginLeft}
-                variant="contained"
-                color="primary"
+                variant="outlined"
+                sx={{
+                  marginLeft: 'auto',
+                  color: isEnterpriseEdition ? 'primary' : 'action.disabled',
+                  borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
+                }}
                 size="small"
-                onClick={onDeployBtnClick}
+                onClick={onDeployClickAction}
+                endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
               >
                 {t('Deploy')}
               </Button>

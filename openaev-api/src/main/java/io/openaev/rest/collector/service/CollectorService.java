@@ -14,7 +14,7 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connectors.AbstractConnectorService;
@@ -54,7 +54,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     super(
         connectorInstanceConfigurationRepository,
         catalogConnectorService,
-        catalogConnectorMapper); // Pass to parent
+        catalogConnectorMapper);
     this.collectorRepository = collectorRepository;
     this.fileService = fileService;
     this.connectorInstanceService = connectorInstanceService;
@@ -125,9 +125,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   public Collector collectorByType(String type) {
-    return collectorRepository
-        .findByType(type)
-        .orElseThrow(() -> new ElementNotFoundException("Collector not found with type: " + type));
+    return findCollectorByType(type).orElseThrow(() -> new ElementNotFoundException("Collector not found with type: " + type));
+  }
+  public Optional<Collector> findCollectorByType(String type) {
+    return collectorRepository.findByType(type);
   }
 
   public List<Collector> securityPlatformCollectors() {

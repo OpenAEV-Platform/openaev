@@ -5,15 +5,14 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.collector.form.CollectorOutput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.ConnectorInstanceLogService;
-import io.openaev.service.ConnectorInstanceService;
-import io.openaev.service.XtmComposerConnectorOrchestrationService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.ConnectorOrchestrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,7 +35,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceLogService connectorInstanceLogService;
-  private final XtmComposerConnectorOrchestrationService orchestrationService;
+  private final ConnectorOrchestrationService orchestrationService;
 
   @PostMapping(value = CONNECTOR_INSTANCE_URI)
   @Operation(
@@ -122,8 +121,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   public ConnectorInstance updateRequestedStatus(
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody UpdateConnectorInstanceRequestedStatus input) {
-    return connectorInstanceService.updateRequestedStatus(
-        connectorInstanceId, input.getRequestedStatus());
+    return orchestrationService.updateRequestedStatus(connectorInstanceId, input.getRequestedStatus());
   }
 
   @DeleteMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")

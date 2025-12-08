@@ -4,8 +4,11 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
+import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -17,11 +20,25 @@ import org.springframework.stereotype.Service;
 public class CatalogConnectorService {
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final CatalogConnectorMapper catalogConnectorMapper;
+  private final ConnectorInstanceService connectorInstanceService;
 
   public List<CatalogConnectorOutput> catalogConnectors() {
+    List<ConnectorInstance> instances = connectorInstanceService.connectorInstances();
     return fromIterable(catalogConnectorRepository.findAll()).stream()
-        .map(catalogConnectorMapper::toCatalogConnectorOutput)
+        .map(c-> {
+          List<ConnectorInstance> instancesMatching = instances.stream().filter(i -> i.getCatalogConnector().getId().equals(c.getId())).toList();
+          return catalogConnectorMapper.toCatalogConnectorOutput(c, instancesMatching.size());
+        })
         .toList();
+  }
+
+  public CatalogConnectorOutput catalogConnectorOutput(String catalogConnectorId) {
+    List<ConnectorInstance> instances = connectorInstanceService.findAllByCatalogConnectorId(catalogConnectorId);
+
+    return this.findById(catalogConnectorId)
+            .map(c-> catalogConnectorMapper.toCatalogConnectorOutput(c, instances.size()))
+            .orElseThrow(
+                    () -> new ElementNotFoundException("Connector not found with id: " + catalogConnectorId));
   }
 
   public List<CatalogConnector> saveAll(List<CatalogConnector> connectors) {

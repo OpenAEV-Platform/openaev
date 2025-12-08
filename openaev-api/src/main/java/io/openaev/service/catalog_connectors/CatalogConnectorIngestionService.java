@@ -6,7 +6,7 @@ import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.FileService;
 import io.openaev.utils.TimeUtils;
 import java.io.ByteArrayInputStream;

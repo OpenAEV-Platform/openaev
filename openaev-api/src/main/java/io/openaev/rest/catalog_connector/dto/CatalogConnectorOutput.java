@@ -61,4 +61,7 @@ public class CatalogConnectorOutput {
 
   @JsonProperty("catalog_connector_manager_supported")
   private boolean isManagerSupported;
+
+  @JsonProperty("instance_deployed_count")
+  private Integer instanceDeployedCount = 0;
 }

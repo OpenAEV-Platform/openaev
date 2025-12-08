@@ -23,6 +23,7 @@ import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
@@ -166,6 +167,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    */
   public Iterable<InjectorOutput> injectorsOutput(boolean isIncludeNext) {
     return getConnectorsOutput(isIncludeNext);
+  }
+
+  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
+    return injectorRepository.findByType(injectorType);
   }
 
   /**
