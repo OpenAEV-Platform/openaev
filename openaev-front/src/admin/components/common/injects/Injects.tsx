@@ -141,10 +141,10 @@ const Injects: FunctionComponent<Props> = ({
     },
     {
       field: 'inject_domains',
-      label: t('domains'),
+      label: 'Payload domains',
       isSortable: true,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
-        return inject.inject_contract_domains && inject.inject_contract_domains.length > 0
+        return inject.inject_contract_domains?.length
           ? (
               <ItemDomains domains={inject.inject_contract_domains} variant="reduced-view" />
             )

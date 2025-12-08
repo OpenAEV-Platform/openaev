@@ -127,7 +127,7 @@ const CreateInject: FunctionComponent<Props> = ({
     },
     {
       field: 'injector_contract_domains',
-      label: 'Domains',
+      label: 'Payload domains',
       isSortable: false,
       value: (contract: InjectorContractFullOutput, _: KillChainPhase, __: Record<string, AttackPattern>) => {
         return contract.injector_contract_domains && contract.injector_contract_domains.length > 0
