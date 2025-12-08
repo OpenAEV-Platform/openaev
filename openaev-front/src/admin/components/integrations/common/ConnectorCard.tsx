@@ -56,7 +56,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 export type ConnectorMainInfo = {
-  instanceId: string;
+  instanceId?: string;
   connectorName: string;
   connectorType: CatalogConnector['catalog_connector_type'];
   connectorLogoName: string;

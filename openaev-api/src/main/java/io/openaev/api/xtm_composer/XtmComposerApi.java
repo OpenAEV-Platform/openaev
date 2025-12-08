@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,21 @@ public class XtmComposerApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public XtmComposerOutput refreshConnectivity(@Valid @RequestBody String composerId) {
     return xtmComposerService.refreshConnectivity(composerId, LocalDateTime.now());
+  }
+
+  @GetMapping(value=XTMCOMPOSER_URI+"/reachable")
+  @Operation(
+          summary = "Check if XtmComposer is reachable and registered in OpenAEV",
+          description = "Returns true if XtmComposer is reachable, false otherwise"
+  )
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  public boolean isXtmComposerReachable() {
+    try {
+      this.xtmComposerService.validateXtmComposerReachability();
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   @GetMapping(value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances")

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
-import { fetchConnector } from '../../../../actions/catalog/catalog-actions';
+import { fetchConnector, isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
 import type { CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import { fetchCollector, fetchCollectorRelatedIds } from '../../../../actions/Collector';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
@@ -11,9 +11,21 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { useHelper } from '../../../../store';
-import { type ConnectorIds } from '../../../../utils/api-types';
+import {
+  type CatalogConnectorOutput,
+  type Collector,
+  type ConnectorIds,
+  type ConnectorInstance,
+} from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+
+export type CollectorsContextType = {
+  collector: Collector;
+  instance: ConnectorInstance;
+  catalogConnector: CatalogConnectorOutput;
+  isXtmComposerUp: boolean;
+};
 
 const CollectorsLayout = () => {
   const { collectorId } = useParams() as { collectorId: string };
@@ -21,8 +33,10 @@ const CollectorsLayout = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(true);
   const [relatedIds, setRelatedIds] = useState<ConnectorIds>();
+  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
 
   useEffect(() => {
+    isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
     if (!collectorId) {
       setLoading(false);
       return;
@@ -82,14 +96,9 @@ const CollectorsLayout = () => {
           collector,
           catalogConnector,
           instance,
+          isXtmComposerUp,
         }}
         />
-        // <Outlet context={{
-        //   collectorId: collectorId,
-        //   instanceId: relatedIds?.connector_instance_id,
-        //   catalogConnectorId: relatedIds?.catalog_connector_id,
-        // }}
-        // />
       )}
     </>
   );

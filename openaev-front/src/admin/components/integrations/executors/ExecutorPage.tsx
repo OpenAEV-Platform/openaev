@@ -1,18 +1,26 @@
+import { Alert } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { useContext } from 'react';
 import { useOutletContext } from 'react-router';
 
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
-import { type CatalogConnectorOutput, type ConnectorInstance, type Executor } from '../../../../utils/api-types';
+import { useFormatter } from '../../../../components/i18n';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ConnectorTitle from '../catalog_connectors/ConnectorTitle';
 import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
 import ConnectorLogs from '../common/ConnectorLogs';
+import { type ExecutorsContextType } from './ExecutorsLayout';
 
 const ExecutorPage = () => {
-  const { executor, instance, catalogConnector }: {
-    executor: Executor;
-    instance: ConnectorInstance;
-    catalogConnector: CatalogConnectorOutput;
-  } = useOutletContext();
+  const { t } = useFormatter();
+  const theme = useTheme();
+
+  const { executor, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ExecutorsContextType>();
+  const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
+  const ability = useContext(AbilityContext);
 
   const tabEntries: TabsEntry[] = [{
     key: 'overview',
@@ -25,6 +33,12 @@ const ExecutorPage = () => {
 
   return (
     <>
+      {isEnterpriseEdition && !isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported
+        && (
+          <Alert severity="warning" style={{ marginBottom: theme.spacing(2) }}>
+            {t('Xtm composer is not reachable', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
+          </Alert>
+        )}
       <ConnectorTitle
         connector={{
           instanceId: instance?.connector_instance_id,
@@ -39,9 +53,8 @@ const ExecutorPage = () => {
         }}
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
-        showUpdateButton
-        showUpdateStatusButton
-        // onDeployBtnClick={onOpenCreateConnectorInstanceDrawer}
+        showUpdateButtons={isEnterpriseEdition && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        disabledUpdateButtons={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
       />
       <Tabs
         entries={tabEntries}

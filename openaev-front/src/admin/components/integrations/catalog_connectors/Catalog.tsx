@@ -4,26 +4,27 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router';
 
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
-import CatalogFilters from './CatalogFilters';
 import ConnectorCard from '../common/ConnectorCard';
-
-type CatalogContextType = { catalogConnectors: CatalogConnectorOutput[] };
+import CatalogFilters from './CatalogFilters';
+import { type CatalogContextType } from './CatalogLayout';
 
 const Catalog = () => {
   // Standard hooks
   const theme = useTheme();
-
   const { catalogConnectors } = useOutletContext<CatalogContextType>();
-
   const [filteredConnectors, setFilteredConnectors] = useState<CatalogConnectorOutput[]>(catalogConnectors);
 
   return (
-    <>
+    <div style={{
+      display: 'grid',
+      gap: theme.spacing(2),
+    }}
+    >
       <CatalogFilters
         connectors={catalogConnectors}
         onFiltered={setFilteredConnectors}
       />
-      <Grid container={true} spacing={3} style={{ marginTop: theme.spacing(2) }}>
+      <Grid container={true} spacing={3}>
         {filteredConnectors.map((connector: CatalogConnectorOutput) => {
           return (
             <Grid key={connector.catalog_connector_id} size={{ xs: 4 }}>
@@ -44,7 +45,7 @@ const Catalog = () => {
           );
         })}
       </Grid>
-    </>
+    </div>
   );
 };
 

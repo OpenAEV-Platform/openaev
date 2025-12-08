@@ -24,9 +24,10 @@ interface Props {
   onSubmit: SubmitHandler<Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>>;
   onClose: () => void;
   isEditing?: boolean;
+  disabled?: boolean;
 }
 
-const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefinition, catalogConnectorSlug, onClose, isEditing = false, onSubmit }: Props) => {
+const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefinition, catalogConnectorSlug, onClose, isEditing = false, onSubmit, disabled = false }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -222,6 +223,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
           name={`connector_instance_configurations.${nameFieldIndex}.configuration_value`}
           label={t('Display name')}
           required
+          disabled={disabled}
         />
         <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
@@ -236,7 +238,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
             <InjectContentFieldComponent
               key={field.id}
               field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
-              readOnly={false}
+              readOnly={disabled}
             />
             <Tooltip title={definition.connector_configuration_description}>
               <InfoOutlined
@@ -247,44 +249,48 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
             </Tooltip>
           </div>
         ))}
-        <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Configuration')}</Typography>
-        <Accordion>
-          <AccordionSummary
-            aria-controls="panel1-content"
-            id="advanced-options-header"
-          >
-            <Typography component="span">{t('Advanced options')}</Typography>
-          </AccordionSummary>
-          <AccordionDetails style={{
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: '100%',
-            gap: theme.spacing(2),
-          }}
-          >
-            {optionalFields.map(({ index, field, definition }) => (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                alignItems: 'end',
+        {optionalFields.length > 0 && (
+          <>
+            <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Configuration')}</Typography>
+            <Accordion>
+              <AccordionSummary
+                aria-controls="panel1-content"
+                id="advanced-options-header"
+              >
+                <Typography component="span">{t('Advanced options')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails style={{
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: '100%',
                 gap: theme.spacing(2),
               }}
               >
-                <InjectContentFieldComponent
-                  key={field.id}
-                  field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
-                  readOnly={false}
-                />
-                <Tooltip title={definition.connector_configuration_description}>
-                  <InfoOutlined
-                    fontSize="small"
-                    color="primary"
-                  />
-                </Tooltip>
-              </div>
-            ))}
-          </AccordionDetails>
-        </Accordion>
+                {optionalFields.map(({ index, field, definition }) => (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    alignItems: 'end',
+                    gap: theme.spacing(2),
+                  }}
+                  >
+                    <InjectContentFieldComponent
+                      key={field.id}
+                      field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
+                      readOnly={disabled}
+                    />
+                    <Tooltip title={definition.connector_configuration_description}>
+                      <InfoOutlined
+                        fontSize="small"
+                        color="primary"
+                      />
+                    </Tooltip>
+                  </div>
+                ))}
+              </AccordionDetails>
+            </Accordion>
+          </>
+        )}
 
         <div style={{
           marginTop: 'auto',
@@ -297,7 +303,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
             variant="contained"
             color="secondary"
             type="submit"
-            disabled={isSubmitting || !isDirty}
+            disabled={isSubmitting || !isDirty || disabled}
           >
             {isEditing ? t('Update') : t('Create')}
           </Button>

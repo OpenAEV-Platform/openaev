@@ -270,7 +270,7 @@ const InjectorContracts = () => {
           </ListItem>
         ))}
       </List>
-      {injector.injector_custom_contracts && (
+      {injector?.injector_custom_contracts && (
         <CreateInjectorContract
           injector={injector}
           injectorContracts={injectorContracts}

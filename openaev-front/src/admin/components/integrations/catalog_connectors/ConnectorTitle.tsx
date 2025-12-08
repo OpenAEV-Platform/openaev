@@ -75,9 +75,9 @@ type ConnectorHeaderProps = {
   detailsTitle?: boolean;
   instanceCurrentStatus?: ConnectorInstance['connector_instance_current_status'];
   showDeployButton?: boolean;
-  showUpdateButton?: boolean;
-  showUpdateStatusButton?: boolean;
+  showUpdateButtons?: boolean;
   onDeployBtnClick?: () => void;
+  disabledUpdateButtons?: boolean;
 };
 
 const ConnectorTitle = ({
@@ -85,8 +85,8 @@ const ConnectorTitle = ({
   detailsTitle = false,
   instanceCurrentStatus,
   showDeployButton = false,
-  showUpdateButton = false,
-  showUpdateStatusButton = false,
+  showUpdateButtons = false,
+  disabledUpdateButtons = false,
   onDeployBtnClick = () => {},
 }: ConnectorHeaderProps) => {
   // Standard hooks
@@ -101,8 +101,10 @@ const ConnectorTitle = ({
   } = useEnterpriseEdition();
 
   const onUpdateRequestedStatusClick = () => {
-    const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceCurrentStatus === 'started' ? 'stopping' : 'starting' };
-    dispatch(updateRequestedStatus(connector.instanceId, newStatus));
+    if (connector.instanceId) {
+      const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceCurrentStatus === 'started' ? 'stopping' : 'starting' };
+      dispatch(updateRequestedStatus(connector.instanceId, newStatus));
+    }
   };
 
   const onDeployClickAction = () => {
@@ -148,10 +150,11 @@ const ConnectorTitle = ({
                 label={instanceCurrentStatus == 'started' ? t('Started') : t('Stopped')}
               />
             )}
-            {showUpdateButton && (
+            {showUpdateButtons && connector?.instanceId && (
               <ConnectorPopover
                 connectorInstanceId={connector.instanceId}
                 connectorName={connector.connectorName}
+                disabled={disabledUpdateButtons}
               />
             )}
             {showDeployButton && (
@@ -169,13 +172,13 @@ const ConnectorTitle = ({
                 {t('Deploy')}
               </Button>
             )}
-            {showUpdateStatusButton && (
+            {showUpdateButtons && (
               <Button
-                className={!showUpdateButton ? classes.autoMarginLeft : ''}
                 variant="outlined"
                 color={instanceCurrentStatus == 'started' ? 'error' : 'success'}
                 size="small"
                 onClick={onUpdateRequestedStatusClick}
+                disabled={disabledUpdateButtons}
               >
                 {instanceCurrentStatus == 'started' ? t('Stop') : t('Start')}
               </Button>

@@ -86,10 +86,7 @@ public class ConnectorOrchestrationService {
 
   private void validateXtmComposerIfRequired(CatalogConnector catalogConnector) {
     if (catalogConnector.isManagerSupported()) {
-      Map<String, Setting> xtmComposerInformation = xtmComposerService.getXtmComposerSettings();
-      this.xtmComposerService.validateXtmComposerReachability(
-              xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue(),
-              xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue());
+      this.xtmComposerService.validateXtmComposerReachability();
     }
   }
 

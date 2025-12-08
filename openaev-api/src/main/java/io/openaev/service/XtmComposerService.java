@@ -13,6 +13,7 @@ import io.openaev.rest.exception.BadRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -194,18 +195,15 @@ public class XtmComposerService {
 
   /**
    * Validate XTM Composer reachability
-   *
-   * @param xtmComposerId XTM Composer id
-   * @param xtmComposerLastConnectivityCheck XtmComposerLastConnectivityCheck Last connectivity
-   *     check value
    */
-  public void validateXtmComposerReachability(
-      String xtmComposerId, String xtmComposerLastConnectivityCheck) {
-    if (xtmComposerId == null) {
+  public void validateXtmComposerReachability() {
+    Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
+
+    if (xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue() == null) {
       throw new IllegalArgumentException("XTM Composer is not configured in the platform settings");
     }
-    if (xtmComposerLastConnectivityCheck == null
-        || isLastConnectivityCheckTooOld(xtmComposerLastConnectivityCheck)) {
+    if (xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue() == null
+        || isLastConnectivityCheckTooOld(xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue())) {
       throw new IllegalArgumentException("XTM Composer is not reachable");
     }
   }

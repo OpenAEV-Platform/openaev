@@ -1,3 +1,5 @@
+import { Alert } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -12,7 +14,7 @@ import type {
   ConfigurationInput,
   CreateConnectorInstanceInput,
 } from '../../../../utils/api-types';
-import ConnectorInstanceForm from '../catalog_connectors/ConnectorInstanceForm';
+import ConnectorInstanceForm from './ConnectorInstanceForm';
 
 interface Props {
   open: boolean;
@@ -20,10 +22,13 @@ interface Props {
   catalogConnectorId: string;
   catalogConnectorSlug: string;
   connectorType: CatalogConnector['catalog_connector_type'];
+  disabled?: boolean;
+  disabledMessage?: string;
 }
 
-const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType }: Props) => {
+const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage }: Props) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -71,6 +76,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     >
       <>
         {loading && <Loader />}
+        {disabledMessage && <Alert style={{ marginBottom: theme.spacing(2) }} severity="warning">{disabledMessage}</Alert>}
         {!loading
           && (
             <ConnectorInstanceForm
@@ -79,6 +85,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
               configurationsDefinition={configurations}
               onSubmit={onCreateConnectorInstance}
               onClose={onClose}
+              disabled={disabled}
             />
           )}
       </>

@@ -35,7 +35,7 @@ const Index = () => {
 
           <Route path="catalog" element={errorWrapper(CatalogLayout)()}>
             <Route index element={<Catalog />} />
-            <Route path=":connectorId" element={<ConnectorDetails />} />
+            <Route path=":catalogConnectorId" element={<ConnectorDetails />} />
           </Route>
 
           <Route path="injectors" element={errorWrapper(InjectorsLayout)()}>

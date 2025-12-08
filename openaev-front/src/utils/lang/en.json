@@ -1,4 +1,5 @@
 {
+  "Deployment of this {catalogType} requires the installation of our Integration Manager.": "This {catalogType} requires the installation of our Integration Manager.",
   " (coming soon)": " (coming soon)",
   " is locked until required fields are filled.": " is locked until required fields are filled.",
   " is not available for current collector": " is not available for current collector",

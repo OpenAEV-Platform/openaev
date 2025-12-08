@@ -9,6 +9,10 @@ export const fetchCatalogConnectors = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfCatalogConnectors, CATALOG_CONNECTORS_URI)(dispatch);
 };
 
+export const isXtmComposerIsReachable = () => {
+  return simpleCall(`/api/xtm-composer/reachable`);
+};
+
 export const fetchConnector = (connectorId: string) => (dispatch: Dispatch) => {
   const uri = `${CATALOG_CONNECTORS_URI}/${connectorId}`;
   return getReferential(catalogConnector, uri)(dispatch);
