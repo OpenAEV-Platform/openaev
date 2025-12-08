@@ -8,8 +8,7 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
-import io.openaev.rest.domain.enums.DefaultDomain;
-import io.openaev.rest.domain.enums.DomainKeyWords;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
@@ -107,8 +106,7 @@ public class DomainService {
     if (existingDomains == null
         || existingDomains.isEmpty()
         || (existingDomains.size() == 1
-            && DefaultDomain.TOCLASSIFY
-                .getDomain()
+            && PresetDomain.TOCLASSIFY
                 .getName()
                 .equals(existingDomains.iterator().next().getName()))) {
       return addedDomains;
@@ -120,52 +118,10 @@ public class DomainService {
 
   public Set<Domain> findDomainByNameAndDescription(final String name, final String description) {
     Set<Domain> domains = new HashSet<>();
-
-    if (findInKeywords(DomainKeyWords.ENDPOINT, name)
-        || findInKeywords(DomainKeyWords.ENDPOINT, description)) {
-      domains.add(DefaultDomain.ENDPOINT.getDomain());
-    }
-    if (findInKeywords(DomainKeyWords.NETWORK, name)
-        || findInKeywords(DomainKeyWords.NETWORK, description)) {
-      domains.add(DefaultDomain.NETWORK.getDomain());
-    }
-    if (findInKeywords(DomainKeyWords.WEB_APP, name)
-        || findInKeywords(DomainKeyWords.WEB_APP, description)) {
-      domains.add(DefaultDomain.WEB_APP.getDomain());
-    }
-    if (findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, name)
-        || findInKeywords(DomainKeyWords.EMAIL_INFILTRATION, description)) {
-      domains.add(DefaultDomain.EMAIL_INFILTRATION.getDomain());
-    }
-    if (findInKeywords(DomainKeyWords.DATA_EXFILTRATION, name)
-        || findInKeywords(DomainKeyWords.DATA_EXFILTRATION, description)) {
-      domains.add(DefaultDomain.DATA_EXFILTRATION.getDomain());
-    }
-    if (findInKeywords(DomainKeyWords.URL_FILTERING, name)
-        || findInKeywords(DomainKeyWords.URL_FILTERING, description)) {
-      domains.add(DefaultDomain.URL_FILTERING.getDomain());
-    }
-    if (findInKeywords(DomainKeyWords.CLOUD, name)
-        || findInKeywords(DomainKeyWords.CLOUD, description)) {
-      domains.add(DefaultDomain.CLOUD.getDomain());
-    }
-
-    if (domains.isEmpty()) {
-      domains.add(DefaultDomain.ENDPOINT.getDomain());
-    }
-
+    domains.add(PresetDomain.ENDPOINT);
+    domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(name));
+    domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(description));
     return domains;
-  }
-
-  private boolean findInKeywords(DomainKeyWords keywords, String searchValue) {
-    return keywords.getKeywords().stream()
-        .map(String::toLowerCase)
-        .anyMatch(keyword -> searchValue.toLowerCase().contains(keyword));
-  }
-
-  private String randomColor() {
-    Random rand = new Random();
-    return String.format("#%06x", rand.nextInt(0xffffff + 1));
   }
 
   // -- OPTION --

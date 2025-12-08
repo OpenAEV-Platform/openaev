@@ -17,7 +17,7 @@ import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.injectors.ovh.config.OvhSmsConfig;
-import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -74,9 +74,7 @@ public class OvhSmsContract extends Contractor {
             instance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(
-                DefaultDomain.EMAIL_INFILTRATION.getDomain(),
-                DefaultDomain.TABLE_TOP.getDomain())));
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP)));
   }
 
   @Override

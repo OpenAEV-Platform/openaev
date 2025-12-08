@@ -2,7 +2,7 @@ package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
-import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,10 +64,10 @@ public class DomainComposer extends ComposerBase<Domain> {
   }
 
   public Composer forDomain(Domain domain) {
-    return new Composer(domain != null ? domain : DefaultDomain.TOCLASSIFY.getDomain());
+    return new Composer(domain != null ? domain : PresetDomain.TOCLASSIFY);
   }
 
   public Composer forDefaultToClassifyDomain() {
-    return new Composer(DefaultDomain.TOCLASSIFY.getDomain());
+    return new Composer(PresetDomain.TOCLASSIFY);
   }
 }

@@ -226,7 +226,7 @@ public class InjectorContractService {
     injectorContract.setDomains(
         !injectorContract.getInjector().isPayloads()
             ? this.domainService.upserts(input.getDomains())
-            : Set.of());
+            : new HashSet<>());
     return injectorContractRepository.save(injectorContract);
   }
 

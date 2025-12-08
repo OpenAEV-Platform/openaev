@@ -34,7 +34,7 @@ import io.openaev.injector_contract.fields.*;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.domain.DomainService;
-import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -80,8 +80,7 @@ public class PayloadService {
     injectorContract.setInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
-    injectorContract.setDomains(
-        domainService.upserts(Set.of(DefaultDomain.TOCLASSIFY.getDomain())));
+    injectorContract.setDomains(domainService.upserts(Set.of(PresetDomain.TOCLASSIFY)));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(

@@ -38,5 +38,5 @@ public class InjectorContractInput {
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
   @JsonProperty("contract_domains")
-  private Set<Domain> domains;
+  private Set<Domain> domains = new HashSet<>();
 }

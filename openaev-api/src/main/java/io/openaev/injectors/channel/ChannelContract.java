@@ -27,7 +27,7 @@ import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractCheckbox;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
-import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -129,8 +129,7 @@ public class ChannelContract extends Contractor {
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
             false,
-            Set.of(
-                DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     // Adding generated variables
     publishArticle.addVariable(
         variable(

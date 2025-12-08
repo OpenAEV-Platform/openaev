@@ -26,7 +26,7 @@ import io.openaev.injectors.lade.config.LadeConfig;
 import io.openaev.injectors.lade.model.LadeAuth;
 import io.openaev.injectors.lade.model.LadeWorkflow;
 import io.openaev.injectors.lade.model.LadeWorkzone;
-import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.PresetDomain;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
@@ -270,7 +270,7 @@ public class LadeService {
                     builder.build(),
                     List.of(Endpoint.PLATFORM_TYPE.Service),
                     false,
-                    Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
+                    Set.of(PresetDomain.TOCLASSIFY));
             contractInstance.addContext("lade_type", "action");
             contractInstance.addContext("bundle_identifier", bundleIdentifier);
             contracts.add(contractInstance);
@@ -299,7 +299,7 @@ public class LadeService {
                   builder.build(),
                   List.of(Endpoint.PLATFORM_TYPE.Service),
                   false,
-                  Set.of(DefaultDomain.TOCLASSIFY.getDomain()));
+                  Set.of(PresetDomain.TOCLASSIFY));
           contractInstance.addContext("lade_type", "scenario");
           contractInstance.addContext("bundle_identifier", bundleIdentifier);
           contracts.add(contractInstance);

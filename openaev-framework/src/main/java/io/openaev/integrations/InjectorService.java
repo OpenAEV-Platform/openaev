@@ -294,16 +294,30 @@ public class InjectorService {
     return String.format("#%06x", rand.nextInt(0xffffff + 1));
   }
 
-  public Set<Domain> mergeDomains(
-      final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
-    if (existingDomains == null
-        || existingDomains.isEmpty()
-        || (existingDomains.size() == 1
-            && TOCLASSIFY.equals(existingDomains.iterator().next().getName()))) {
-      return addedDomains;
+  public Set<Domain> mergeDomains(final Set<Domain> existingDomains, final Set<Domain> domains) {
+    final boolean isExistingDomainsEmptyOrToClassify = isEmptyOrToClassify(existingDomains);
+    final boolean domainsEmptyOrToClassify = isEmptyOrToClassify(domains);
+
+    if (isExistingDomainsEmptyOrToClassify && domainsEmptyOrToClassify) {
+      return Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null));
     }
 
-    return Stream.concat(existingDomains.stream(), addedDomains.stream())
+    Set<Domain> domainsToAdd = domains;
+    if (domainsEmptyOrToClassify) {
+      domainsToAdd = Set.of();
+    }
+
+    if (isExistingDomainsEmptyOrToClassify) {
+      return domainsToAdd;
+    }
+
+    return Stream.concat(existingDomains.stream(), domainsToAdd.stream())
         .collect(Collectors.toSet());
+  }
+
+  private boolean isEmptyOrToClassify(final Set<Domain> domains) {
+    return domains == null
+        || domains.isEmpty()
+        || (domains.size() == 1 && TOCLASSIFY.equals(domains.iterator().next().getName()));
   }
 }

@@ -19,7 +19,7 @@ import io.openaev.database.model.Variable.VariableType;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
-import io.openaev.rest.domain.enums.DefaultDomain;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -79,8 +79,7 @@ public class EmailContract extends Contractor {
             standardInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(
-                DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     standardEmail.addVariable(documentUriVariable);
     // Global contract
     List<ContractElement> globalInstance =
@@ -99,8 +98,7 @@ public class EmailContract extends Contractor {
             globalInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            Set.of(
-                DefaultDomain.EMAIL_INFILTRATION.getDomain(), DefaultDomain.TABLE_TOP.getDomain()));
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     globalEmail.addVariable(documentUriVariable);
     return List.of(standardEmail, globalEmail);
   }
