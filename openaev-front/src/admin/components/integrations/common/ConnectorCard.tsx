@@ -1,10 +1,12 @@
 import { Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
+import type { SyntheticEvent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnector } from '../../../../utils/api-types';
 import ConnectorTitle from './ConnectorTitle';
+import DeployButton from './DeployButton';
 
 const useStyles = makeStyles()(theme => ({
   card: {
@@ -66,6 +68,7 @@ export type ConnectorMainInfo = {
   isExternal?: boolean;
   isVerified?: boolean;
   connectorUseCases?: string[];
+  connectorInstancesCount?: number;
 };
 
 type ConnectorCardProps = {
@@ -73,6 +76,7 @@ type ConnectorCardProps = {
   showLastUpdatedAt?: boolean;
   isNotClickable?: boolean;
   connector: ConnectorMainInfo;
+  onDeployBtnClick?: (e: SyntheticEvent) => void;
 };
 
 const ConnectorCard = ({
@@ -80,6 +84,7 @@ const ConnectorCard = ({
   cardActionUrl,
   showLastUpdatedAt = false,
   isNotClickable = false,
+  onDeployBtnClick,
 }: ConnectorCardProps) => {
   const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
@@ -116,6 +121,8 @@ const ConnectorCard = ({
                   </Typography>
                 </div>
               )}
+            {onDeployBtnClick
+              && <DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={connector.connectorInstancesCount ?? 0} />}
           </div>
         </CardContent>
       </CardActionArea>

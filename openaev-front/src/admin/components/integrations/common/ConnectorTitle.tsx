@@ -7,10 +7,9 @@ import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstance, type UpdateConnectorInstanceRequestedStatus } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import EEChip from '../../common/entreprise_edition/EEChip';
 import { type ConnectorMainInfo } from './ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
+import DeployButton from './DeployButton';
 
 const useStyles = makeStyles()(theme => ({
   content: {
@@ -94,25 +93,10 @@ const ConnectorTitle = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
-  const {
-    isValidated: isEnterpriseEdition,
-    openDialog: openEnterpriseEditionDialog,
-    setEEFeatureDetectedInfo,
-  } = useEnterpriseEdition();
-
   const onUpdateRequestedStatusClick = () => {
     if (connector.instanceId) {
       const newStatus: UpdateConnectorInstanceRequestedStatus = { connector_instance_requested_status: instanceCurrentStatus === 'started' ? 'stopping' : 'starting' };
       dispatch(updateRequestedStatus(connector.instanceId, newStatus));
-    }
-  };
-
-  const onDeployClickAction = () => {
-    if (!isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('Connectors deployment'));
-      openEnterpriseEditionDialog();
-    } else {
-      onDeployBtnClick();
     }
   };
 
@@ -158,19 +142,11 @@ const ConnectorTitle = ({
               />
             )}
             {showDeployButton && (
-              <Button
-                variant="outlined"
-                sx={{
-                  marginLeft: 'auto',
-                  color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-                  borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-                }}
-                size="small"
-                onClick={onDeployClickAction}
-                endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
-              >
-                {t('Deploy')}
-              </Button>
+              <DeployButton
+                style={{ marginLeft: 'auto' }}
+                onDeployBtnClick={onDeployBtnClick}
+                deploymentCount={connector.connectorInstancesCount ?? 0}
+              />
             )}
             {showUpdateButtons && (
               <Button

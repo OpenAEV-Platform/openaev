@@ -715,6 +715,8 @@ export interface CatalogConnectorOutput {
   /** @uniqueItems true */
   catalog_connector_use_cases?: string[];
   catalog_connector_verified?: boolean;
+  /** @format int32 */
+  instance_deployed_count?: number;
 }
 
 /** Catalog simple output */

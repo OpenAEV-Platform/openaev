@@ -37,6 +37,7 @@ const ConnectorDetails = () => {
           isExternal: catalogConnector.catalog_connector_manager_supported,
           isVerified: true,
           connectorUseCases: catalogConnector.catalog_connector_use_cases,
+          connectorInstancesCount: catalogConnector.instance_deployed_count,
         }}
         detailsTitle
         showDeployButton={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}

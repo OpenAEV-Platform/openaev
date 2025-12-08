@@ -56,19 +56,16 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
   }, [open, catalogConnectorId]);
 
   const onCreateConnectorInstance = (data: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>) => {
-    console.log('Create connector instance with data: ', data);
     createConnectorInstance({
       catalog_connector_id: catalogConnectorId,
       ...data,
     }).then(({ data }) => {
-      console.log('Connector instance created: ', data);
       const collectorId = data.connector_instance_configurations.find(conf => conf.connector_instance_configuration_key === `${connectorType}_ID`)?.connector_instance_configuration_value;
       if (collectorId) {
         navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${collectorId}`);
       }
       onClose();
     }).catch((error) => {
-      console.log('ERROR', error);
       if (error?.status === 500) {
         MESSAGING$.notifyError(t(error.message));
       } else {

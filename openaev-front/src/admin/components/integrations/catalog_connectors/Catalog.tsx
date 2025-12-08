@@ -1,18 +1,33 @@
 import { Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { type SyntheticEvent, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
+import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import ConnectorCard from '../common/ConnectorCard';
+import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import CatalogFilters from './CatalogFilters';
 import { type CatalogContextType } from './CatalogLayout';
 
 const Catalog = () => {
   // Standard hooks
   const theme = useTheme();
-  const { catalogConnectors } = useOutletContext<CatalogContextType>();
+  const { t } = useFormatter();
+  const { catalogConnectors, isXtmComposerUp } = useOutletContext<CatalogContextType>();
   const [filteredConnectors, setFilteredConnectors] = useState<CatalogConnectorOutput[]>(catalogConnectors);
+
+  const [selectedConnector, setSelectedConnector] = useState<CatalogConnectorOutput>();
+  const [openCreateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
+  const onOpenCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
+  const onCloseCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
+
+  const onDeployBtnClick = (e: SyntheticEvent, catalogConnector: CatalogConnectorOutput) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedConnector(catalogConnector);
+    onOpenCreateConnectorInstanceDrawer();
+  };
 
   return (
     <div style={{
@@ -38,13 +53,26 @@ const Catalog = () => {
                   isExternal: connector.catalog_connector_manager_supported,
                   isVerified: true,
                   connectorUseCases: connector.catalog_connector_use_cases,
+                  connectorInstancesCount: connector.instance_deployed_count,
                 }}
                 cardActionUrl={`/admin/integrations/catalog/${connector.catalog_connector_id}`}
+                onDeployBtnClick={e => onDeployBtnClick(e, connector)}
               />
             </Grid>
           );
         })}
       </Grid>
+      {selectedConnector && openCreateConnectorInstanceDrawer && (
+        <CreateConnectorInstanceDrawer
+          open={openCreateConnectorInstanceDrawer}
+          catalogConnectorId={selectedConnector.catalog_connector_id}
+          catalogConnectorSlug={selectedConnector.catalog_connector_slug}
+          onClose={onCloseCreateConnectorInstanceDrawer}
+          connectorType={selectedConnector.catalog_connector_type}
+          disabled={!isXtmComposerUp}
+          disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedConnector.catalog_connector_type.toLowerCase() })}
+        />
+      )}
     </div>
   );
 };
