@@ -52,8 +52,8 @@ public class StixService {
       return scenario;
     } catch (BadRequestException | ParsingException e) {
       log.error("Error while processing STIX bundle: {}", e.getMessage(), e);
+      throw e;
     }
-    return scenario;
   }
 
   /**
