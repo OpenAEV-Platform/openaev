@@ -6,18 +6,20 @@ import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
+import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.ConnectorOrchestrationService;
-import io.openaev.service.XtmComposerService;
+import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.connectors.XtmComposerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,11 +57,10 @@ public class XtmComposerApi extends RestBehavior {
     return xtmComposerService.refreshConnectivity(composerId, LocalDateTime.now());
   }
 
-  @GetMapping(value=XTMCOMPOSER_URI+"/reachable")
+  @GetMapping(value = XTMCOMPOSER_URI + "/reachable")
   @Operation(
-          summary = "Check if XtmComposer is reachable and registered in OpenAEV",
-          description = "Returns true if XtmComposer is reachable, false otherwise"
-  )
+      summary = "Check if XtmComposer is reachable and registered in OpenAEV",
+      description = "Returns true if XtmComposer is reachable, false otherwise")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public boolean isXtmComposerReachable() {
     try {
@@ -94,5 +95,40 @@ public class XtmComposerApi extends RestBehavior {
       @Valid @RequestBody XtmComposerUpdateStatusInput input) {
     return orchestrationService.updateConnectorInstanceStatus(
         xtmComposerId, connectorInstanceId, input.getCurrentStatus());
+  }
+
+  @PostMapping(
+      value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/logs")
+  @Operation(
+      summary = "Received connector instance logs",
+      description = "Receive logs from connector instances")
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful reception")})
+  public ConnectorInstanceLog receiveConnectorInstanceLogs(
+      @PathVariable @NotBlank final String xtmComposerId,
+      @PathVariable @NotBlank final String connectorInstanceId,
+      @Valid @RequestBody ConnectorInstanceLogsInput input) {
+    return orchestrationService.pushLogsByConnectorInstance(
+        xtmComposerId, connectorInstanceId, input.getLogs());
+  }
+
+  @PutMapping(
+      value =
+          XTMCOMPOSER_URI
+              + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/health-check")
+  @Operation(
+      summary = "Health check of connector instance",
+      description = "Receive health check of connector instances from xtm composer")
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Successful health check reception")
+      })
+  public ConnectorInstance receiveConnectorInstanceHealthCheck(
+      @PathVariable @NotBlank final String xtmComposerId,
+      @PathVariable @NotBlank final String connectorInstanceId,
+      @Valid @RequestBody ConnectorInstanceHealthInput input) {
+    return orchestrationService.patchConnectorInstanceHealthCheck(
+        xtmComposerId, connectorInstanceId, input);
   }
 }

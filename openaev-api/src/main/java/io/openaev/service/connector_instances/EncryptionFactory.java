@@ -10,19 +10,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class EncryptionFactory {
 
-    private final XtmComposerEncryptionService xtmComposerEncryptionService;
+  private final XtmComposerEncryptionService xtmComposerEncryptionService;
 
-    /**
-     * Gets the appropriate encryption strategy based on connector instance type.
-     *
-     * @param instance the connector instance
-     * @return the encryption strategy, or null if no encryption needed
-     */
-    public EncryptionService getEncryptionService(ConnectorInstance instance) {
-        if (instance.getCatalogConnector().isManagerSupported()) {
-            return xtmComposerEncryptionService;
-        }
-        log.warn("Built-in encryption not yet implemented for instance: {}", instance.getId());
-        return null;  // TODO Later
+  /**
+   * Gets the appropriate encryption strategy based on connector instance type.
+   *
+   * @param instance the connector instance
+   * @return the encryption strategy, or null if no encryption needed
+   */
+  public EncryptionService getEncryptionService(ConnectorInstance instance) {
+    if (instance.getCatalogConnector().isManagerSupported()) {
+      return xtmComposerEncryptionService;
     }
+    log.warn("Built-in encryption not yet implemented for instance: {}", instance.getId());
+    return null; // TODO Later
+  }
 }

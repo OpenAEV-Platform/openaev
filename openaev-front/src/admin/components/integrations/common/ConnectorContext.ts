@@ -106,13 +106,16 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
   }),
 };
 
-export const ConnectorContext = createContext<ConnectorContextType<any>>({
+export const ConnectorContext = createContext<
+  ConnectorContextType<ExecutorOutput>
+  | ConnectorContextType<CollectorOutput>
+  | ConnectorContextType<InjectorOutput>>({
   connectorType: 'collector',
   logoUrl: _type => '',
   apiRequest: {
-    fetchAll: () => async (_dispatch: Dispatch) => ([] as ExecutorOutput[] | InjectorOutput[] | CollectorOutput[]),
-    fetchSingle: (_id: string) => async (_dispatch: Dispatch) => ({} as ExecutorOutput | InjectorOutput | CollectorOutput),
-    getRelatedIds: (id: string) => Promise.resolve({ data: {} }) as Promise<AxiosResponse<ConnectorIds>>,
+    fetchAll: () => async (_dispatch: Dispatch) => [],
+    fetchSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve({} as InjectorOutput),
+    getRelatedIds: (_id: string) => Promise.resolve({ data: {} }) as Promise<AxiosResponse<ConnectorIds>>,
   },
   routes: {
     list: '/admin/integrations',

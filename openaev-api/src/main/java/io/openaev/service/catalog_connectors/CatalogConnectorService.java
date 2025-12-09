@@ -25,20 +25,26 @@ public class CatalogConnectorService {
   public List<CatalogConnectorOutput> catalogConnectors() {
     List<ConnectorInstance> instances = connectorInstanceService.connectorInstances();
     return fromIterable(catalogConnectorRepository.findAll()).stream()
-        .map(c-> {
-          List<ConnectorInstance> instancesMatching = instances.stream().filter(i -> i.getCatalogConnector().getId().equals(c.getId())).toList();
-          return catalogConnectorMapper.toCatalogConnectorOutput(c, instancesMatching.size());
-        })
+        .map(
+            c -> {
+              List<ConnectorInstance> instancesMatching =
+                  instances.stream()
+                      .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
+                      .toList();
+              return catalogConnectorMapper.toCatalogConnectorOutput(c, instancesMatching.size());
+            })
         .toList();
   }
 
   public CatalogConnectorOutput catalogConnectorOutput(String catalogConnectorId) {
-    List<ConnectorInstance> instances = connectorInstanceService.findAllByCatalogConnectorId(catalogConnectorId);
+    List<ConnectorInstance> instances =
+        connectorInstanceService.findAllByCatalogConnectorId(catalogConnectorId);
 
     return this.findById(catalogConnectorId)
-            .map(c-> catalogConnectorMapper.toCatalogConnectorOutput(c, instances.size()))
-            .orElseThrow(
-                    () -> new ElementNotFoundException("Connector not found with id: " + catalogConnectorId));
+        .map(c -> catalogConnectorMapper.toCatalogConnectorOutput(c, instances.size()))
+        .orElseThrow(
+            () ->
+                new ElementNotFoundException("Connector not found with id: " + catalogConnectorId));
   }
 
   public List<CatalogConnector> saveAll(List<CatalogConnector> connectors) {

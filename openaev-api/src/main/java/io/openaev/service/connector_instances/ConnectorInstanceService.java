@@ -13,14 +13,11 @@ import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
-import io.openaev.service.ConnectorInstanceLogService;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityNotFoundException;
-
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,8 +27,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ConnectorInstanceService {
 
-  // TODO clean file + ADD JAVA DOC
-
   private final ObjectMapper objectMapper;
   private final ConnectorInstanceMapper connectorInstanceMapper;
 
@@ -39,7 +34,6 @@ public class ConnectorInstanceService {
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   private final TokenRepository tokenRepository;
 
-  private final ConnectorInstanceLogService connectorInstanceLogService;
   private final EncryptionFactory encryptionFactory;
 
   public List<ConnectorInstance> connectorInstancesManagedByXtmComposer() {
@@ -61,7 +55,7 @@ public class ConnectorInstanceService {
         CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
   }
 
-  public List<ConnectorInstance> connectorInstances(){
+  public List<ConnectorInstance> connectorInstances() {
     return fromIterable(connectorInstanceRepository.findAll());
   }
 
@@ -76,7 +70,7 @@ public class ConnectorInstanceService {
     return connectorInstanceMapper.toConnectorInstanceOutput(connectorInstanceById(id));
   }
 
-  public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(String id){
+  public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(String id) {
     ConnectorInstance connectorInstance = connectorInstanceById(id);
     return connectorInstance.getConfigurations();
   }
@@ -89,7 +83,7 @@ public class ConnectorInstanceService {
   }
 
   public ConnectorInstance updateRequestedStatus(
-          ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
+      ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
     instance.setRequestedStatus(newRequestedStatus);
     return this.save(instance);
   }
@@ -114,7 +108,8 @@ public class ConnectorInstanceService {
     return connectorInstanceRepository.findAllByCatalogConnectorId(catalogId);
   }
 
-  private ConnectorInstance buildNewConnectorInstanceFromCatalog(CatalogConnector catalogConnector){
+  private ConnectorInstance buildNewConnectorInstanceFromCatalog(
+      CatalogConnector catalogConnector) {
     ConnectorInstance newInstance = new ConnectorInstance();
     newInstance.setCatalogConnector(catalogConnector);
     newInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
@@ -122,7 +117,8 @@ public class ConnectorInstanceService {
     return newInstance;
   }
 
-  private ConnectorInstanceConfiguration createConfiguration(String key, JsonNode value, boolean isEncrypted, ConnectorInstance instance){
+  private ConnectorInstanceConfiguration createConfiguration(
+      String key, JsonNode value, boolean isEncrypted, ConnectorInstance instance) {
     ConnectorInstanceConfiguration conf = new ConnectorInstanceConfiguration();
     conf.setKey(key);
     conf.setValue(value);
@@ -132,18 +128,22 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createConfigurationFromInput(
-          CreateConnectorInstanceInput.ConfigurationInput input,
-          CatalogConnectorConfiguration definition,
-          ConnectorInstance instance,
-          EncryptionService encryptionService) {
+      CreateConnectorInstanceInput.ConfigurationInput input,
+      CatalogConnectorConfiguration definition,
+      ConnectorInstance instance,
+      EncryptionService encryptionService) {
 
-    boolean isEncrypted = CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
+    boolean isEncrypted =
+        CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
             definition.getConnectorConfigurationFormat());
     JsonNode value = input.getValue();
 
     if (isEncrypted) {
       try {
-        value = objectMapper.getNodeFactory().textNode(encryptionService.encrypt(input.getValue().asText()));
+        value =
+            objectMapper
+                .getNodeFactory()
+                .textNode(encryptionService.encrypt(input.getValue().asText()));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -151,69 +151,79 @@ public class ConnectorInstanceService {
     return createConfiguration(input.getKey(), value, isEncrypted, instance);
   }
 
-
   private List<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsFromInput(
-          ConnectorInstance instance, CatalogConnector catalogConnector, CreateConnectorInstanceInput input){
+      ConnectorInstance instance,
+      CatalogConnector catalogConnector,
+      CreateConnectorInstanceInput input) {
     List<ConnectorInstanceConfiguration> configurations = new ArrayList<>();
     Map<String, CatalogConnectorConfiguration> definitionsMap =
-            catalogConnector.getCatalogConnectorConfigurations().stream()
-                    .collect(Collectors.toMap(
-                            CatalogConnectorConfiguration::getConnectorConfigurationKey,
-                            Function.identity()
-                    ));
+        catalogConnector.getCatalogConnectorConfigurations().stream()
+            .collect(
+                Collectors.toMap(
+                    CatalogConnectorConfiguration::getConnectorConfigurationKey,
+                    Function.identity()));
     EncryptionService encryptionService = encryptionFactory.getEncryptionService(instance);
 
-    for(CreateConnectorInstanceInput.ConfigurationInput confInput : input.getConfigurations()) {
+    for (CreateConnectorInstanceInput.ConfigurationInput confInput : input.getConfigurations()) {
       CatalogConnectorConfiguration definition = definitionsMap.get(confInput.getKey());
       if (definition == null) {
         throw new IllegalArgumentException(
-                String.format("Configuration key '%s' not found in CatalogConnector configurations",confInput.getKey()));
+            String.format(
+                "Configuration key '%s' not found in CatalogConnector configurations",
+                confInput.getKey()));
       }
-      ConnectorInstanceConfiguration config = createConfigurationFromInput(
-              confInput,
-              definition,
-              instance,
-              encryptionService
-      );
+      ConnectorInstanceConfiguration config =
+          createConfigurationFromInput(confInput, definition, instance, encryptionService);
       configurations.add(config);
     }
 
     return configurations;
   }
 
-  private ConnectorInstanceConfiguration createTokenConfiguration(ConnectorInstance instance){
+  private ConnectorInstanceConfiguration createTokenConfiguration(ConnectorInstance instance) {
     Token token =
-            tokenRepository.findAll(fromUser(currentUser().getId())).stream()
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
-    return createConfiguration("OPENAEV_TOKEN",  objectMapper.getNodeFactory().textNode(token.getValue()), false, instance);
+        tokenRepository.findAll(fromUser(currentUser().getId())).stream()
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
+    return createConfiguration(
+        "OPENAEV_TOKEN", objectMapper.getNodeFactory().textNode(token.getValue()), false, instance);
   }
 
-  private ConnectorInstanceConfiguration createContainerIdConfiguration(ConnectorInstance instance, CatalogConnector.CONNECTOR_TYPE type){
-    return createConfiguration(type.toString() + "_ID",  objectMapper.getNodeFactory().textNode(UUID.randomUUID().toString()), false, instance);
+  private ConnectorInstanceConfiguration createContainerIdConfiguration(
+      ConnectorInstance instance, CatalogConnector.CONNECTOR_TYPE type) {
+    return createConfiguration(
+        type.toString() + "_ID",
+        objectMapper.getNodeFactory().textNode(UUID.randomUUID().toString()),
+        false,
+        instance);
   }
 
-  public ConnectorInstance createConnectorInstance(CatalogConnector catalogConnector, CreateConnectorInstanceInput input) {
+  public ConnectorInstance createConnectorInstance(
+      CatalogConnector catalogConnector, CreateConnectorInstanceInput input) {
     ConnectorInstance newInstance = buildNewConnectorInstanceFromCatalog(catalogConnector);
-    List<ConnectorInstanceConfiguration> configurations = getConnectorInstanceConfigurationsFromInput(newInstance, catalogConnector, input);
+    List<ConnectorInstanceConfiguration> configurations =
+        getConnectorInstanceConfigurationsFromInput(newInstance, catalogConnector, input);
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
     // Add container ID
-    configurations.add(createContainerIdConfiguration(newInstance, catalogConnector.getContainerType()));
+    configurations.add(
+        createContainerIdConfiguration(newInstance, catalogConnector.getContainerType()));
 
     newInstance.setConfigurations(Set.copyOf(configurations));
     return this.save(newInstance);
   }
 
   private List<ConnectorInstanceConfiguration> mergeConfigurations(
-          ConnectorInstance instance,
-          Map<String, ConnectorInstanceConfiguration> existingConfigurationMap,
-          List<ConnectorInstanceConfiguration> newConfigurations) {
+      ConnectorInstance instance,
+      Map<String, ConnectorInstanceConfiguration> existingConfigurationMap,
+      List<ConnectorInstanceConfiguration> newConfigurations) {
 
     return newConfigurations.stream()
-            .map(newConfig ->{
-              ConnectorInstanceConfiguration existingConfig = existingConfigurationMap.get(newConfig.getKey());
+        .map(
+            newConfig -> {
+              ConnectorInstanceConfiguration existingConfig =
+                  existingConfigurationMap.get(newConfig.getKey());
 
               if (existingConfig != null) {
                 existingConfig.setValue(newConfig.getValue());
@@ -221,41 +231,31 @@ public class ConnectorInstanceService {
                 return existingConfig;
               } else {
                 return createConfiguration(
-                        newConfig.getKey(),
-                        newConfig.getValue(),
-                        newConfig.isEncrypted(),
-                        instance
-                );
+                    newConfig.getKey(), newConfig.getValue(), newConfig.isEncrypted(), instance);
               }
             })
-            .collect(Collectors.toList());
+        .collect(Collectors.toList());
   }
 
-  public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfiguration(String connectorInstanceId, CatalogConnector catalogConnector, CreateConnectorInstanceInput input){
+  public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfiguration(
+      String connectorInstanceId,
+      CatalogConnector catalogConnector,
+      CreateConnectorInstanceInput input) {
     ConnectorInstance instance = connectorInstanceById(connectorInstanceId);
     Map<String, ConnectorInstanceConfiguration> existingConfigurationMap =
-            instance.getConfigurations().stream()
-                    .collect(Collectors.toMap(
-                            ConnectorInstanceConfiguration::getKey,
-                            Function.identity()
-                    ));
+        instance.getConfigurations().stream()
+            .collect(Collectors.toMap(ConnectorInstanceConfiguration::getKey, Function.identity()));
 
-    List<ConnectorInstanceConfiguration> newConfigurations = getConnectorInstanceConfigurationsFromInput(instance, catalogConnector, input);
+    List<ConnectorInstanceConfiguration> newConfigurations =
+        getConnectorInstanceConfigurationsFromInput(instance, catalogConnector, input);
     List<ConnectorInstanceConfiguration> configurationsToSave =
-            mergeConfigurations(instance, existingConfigurationMap, newConfigurations);
+        mergeConfigurations(instance, existingConfigurationMap, newConfigurations);
 
-    return fromIterable(this.connectorInstanceConfigurationRepository.saveAll(configurationsToSave));
+    return fromIterable(
+        this.connectorInstanceConfigurationRepository.saveAll(configurationsToSave));
   }
 
-  public ConnectorInstanceLog pushLogsByConnectorInstance(String connectorInstanceId, Set<String> logs) {
-    if (logs.isEmpty()) {
-      return null;
-    }
-    ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
-    return this.connectorInstanceLogService.pushLogByConnectorInstance(instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
-  }
-
-  public void patchConnectorInstanceHealthCheck(
+  public ConnectorInstance patchConnectorInstanceHealthCheck(
       String connectorInstanceId, ConnectorInstanceHealthInput input) {
     ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
 
@@ -263,6 +263,6 @@ public class ConnectorInstanceService {
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
 
-    this.save(instance);
+    return this.save(instance);
   }
 }

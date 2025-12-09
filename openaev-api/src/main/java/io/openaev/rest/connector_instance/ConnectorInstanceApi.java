@@ -4,9 +4,9 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.ConnectorInstanceLogService;
+import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.ConnectorOrchestrationService;
+import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,11 +16,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -65,73 +64,47 @@ public class ConnectorInstanceApi extends RestBehavior {
   @Operation(summary = "Retrieve connector Instance configuratiosn by instance id")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
-          responseCode = "200",
-          content =
+      responseCode = "200",
+      content =
           @Content(
-                  mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
+              mediaType = "application/json",
+              array =
+                  @ArraySchema(
+                      schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfiguration(
-          @PathVariable @NotBlank final String connectorInstanceId) {
+      @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceService.getConnectorInstanceConfigurations(connectorInstanceId);
   }
 
   @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations")
-  @Operation(
-          summary = "Update connector instance configuration")
+  @Operation(summary = "Update connector instance configuration")
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponse(
-          responseCode = "200",
-          content =
+      responseCode = "200",
+      content =
           @Content(
-                  mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
+              mediaType = "application/json",
+              array =
+                  @ArraySchema(
+                      schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
   public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfigurations(
-          @PathVariable @NotBlank final String connectorInstanceId,
-          @Valid @RequestBody CreateConnectorInstanceInput input) {
+      @PathVariable @NotBlank final String connectorInstanceId,
+      @Valid @RequestBody CreateConnectorInstanceInput input) {
     return orchestrationService.updateConnectorInstanceConfiguration(connectorInstanceId, input);
   }
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")
-  @Operation(
-          summary = "Retrieve connector instance logs")
+  @Operation(summary = "Retrieve connector instance logs")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
-          responseCode = "200",
-          content =
+      responseCode = "200",
+      content =
           @Content(
-                  mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceLog.class))))
-  public List<ConnectorInstanceLog> retrieveConnectorInstanceLogs(@PathVariable @NotBlank final String connectorInstanceId) {
+              mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceLog.class))))
+  public List<ConnectorInstanceLog> retrieveConnectorInstanceLogs(
+      @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceLogService.findLogsByConnectorInstanceId(connectorInstanceId);
-  }
-
-  // TODO should be inside XTMComposerAPI
-  @PostMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")
-  @Operation(
-      summary = "Received connector instance logs",
-      description = "Receive logs from connector instances")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful reception")})
-  public ConnectorInstanceLog receiveConnectorInstanceLogs(
-      @PathVariable @NotBlank final String connectorInstanceId,
-      @Valid @RequestBody ConnectorInstanceLogsInput input) {
-    return connectorInstanceService.pushLogsByConnectorInstance(connectorInstanceId, input.getLogs());
-  }
-
-  // TODO should be inside XTMComposerAPI
-  @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/health-check")
-  @Operation(
-      summary = "Health check of connector instance",
-      description = "Receive health check of connector instances from xtm composer")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Successful health check reception")
-      })
-  public void receiveConnectorInstanceHealthCheck(
-      @PathVariable @NotBlank final String connectorInstanceId,
-      @Valid @RequestBody ConnectorInstanceHealthInput input) {
-    connectorInstanceService.patchConnectorInstanceHealthCheck(connectorInstanceId, input);
   }
 
   @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status")
@@ -146,7 +119,8 @@ public class ConnectorInstanceApi extends RestBehavior {
   public ConnectorInstance updateRequestedStatus(
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody UpdateConnectorInstanceRequestedStatus input) {
-    return orchestrationService.updateRequestedStatus(connectorInstanceId, input.getRequestedStatus());
+    return orchestrationService.updateRequestedStatus(
+        connectorInstanceId, input.getRequestedStatus());
   }
 
   @DeleteMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")

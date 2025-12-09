@@ -14,7 +14,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CatalogConnectorMapper {
 
-  public CatalogConnectorOutput toCatalogConnectorOutput(CatalogConnector catalogConnector, Integer instanceDeployedCount) {
+  public CatalogConnectorOutput toCatalogConnectorOutput(
+      CatalogConnector catalogConnector, Integer instanceDeployedCount) {
     return CatalogConnectorOutput.builder()
         .id(catalogConnector.getId())
         .slug(catalogConnector.getSlug())

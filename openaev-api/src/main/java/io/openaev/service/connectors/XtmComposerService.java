@@ -1,4 +1,4 @@
-package io.openaev.service;
+package io.openaev.service.connectors;
 
 import static io.openaev.database.model.SettingKeys.*;
 
@@ -10,10 +10,10 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.Setting;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.PlatformSettingsService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -63,7 +63,6 @@ public class XtmComposerService {
         "%s:%s", catalogConnector.getContainerImage(), catalogConnector.getContainerVersion());
   }
 
-  // TODO becareful with the fact new configurations may be added in the future
   private String transformConnectorInstanceConfigurationToString(
       Set<ConnectorInstanceConfiguration> configurations) {
     return configurations.stream()
@@ -193,9 +192,7 @@ public class XtmComposerService {
     }
   }
 
-  /**
-   * Validate XTM Composer reachability
-   */
+  /** Validate XTM Composer reachability */
   public void validateXtmComposerReachability() {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
 
@@ -203,7 +200,8 @@ public class XtmComposerService {
       throw new IllegalArgumentException("XTM Composer is not configured in the platform settings");
     }
     if (xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue() == null
-        || isLastConnectivityCheckTooOld(xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue())) {
+        || isLastConnectivityCheckTooOld(
+            xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue())) {
       throw new IllegalArgumentException("XTM Composer is not reachable");
     }
   }

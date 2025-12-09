@@ -1,10 +1,9 @@
-package io.openaev.service;
+package io.openaev.service.connector_instances;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import jakarta.transaction.Transactional;
-
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,14 +16,14 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ConnectorInstanceLogService {
-  @Getter private final Integer LOG_SIZE_LIMIT = 5; // TODO update this number
+  @Getter private final Integer LOG_SIZE_LIMIT = 10000;
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
   public String transformRawLogsLineToLog(Set<String> rawLogLines) {
     return rawLogLines.stream()
-        .map(line -> line.replaceAll("^,", "")) // Remove leading commas
-        .map(String::trim) // Trim whitespace
-        .filter(line -> !line.isEmpty()) // Remove empty lines
+        .map(line -> line.replaceAll("^,", ""))
+        .map(String::trim)
+        .filter(line -> !line.isEmpty())
         .collect(Collectors.joining("\n"));
   }
 
@@ -71,7 +70,7 @@ public class ConnectorInstanceLogService {
    * @param connectorInstanceId the connector instance identifier
    * @return list of logs for the connector instance, empty if none found
    */
-  public List<ConnectorInstanceLog> findLogsByConnectorInstanceId(String connectorInstanceId){
+  public List<ConnectorInstanceLog> findLogsByConnectorInstanceId(String connectorInstanceId) {
     return connectorInstanceLogRepository.findByConnectorInstanceId(connectorInstanceId);
   }
 }

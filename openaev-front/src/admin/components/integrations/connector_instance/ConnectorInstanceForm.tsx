@@ -106,6 +106,8 @@ const ConnectorInstanceForm = ({
 
   const methods = useForm<{ connector_instance_configurations: ConfigurationInput[] }>({
     mode: 'onTouched',
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     resolver: zodResolver(validationSchema),
     defaultValues: { connector_instance_configurations: initialConfigurationValues },
   });

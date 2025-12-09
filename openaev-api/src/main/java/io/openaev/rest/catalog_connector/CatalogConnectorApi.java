@@ -5,7 +5,6 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;

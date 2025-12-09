@@ -15,12 +15,11 @@ import type { ConnectorContextLayoutType } from './ConnectorLayout';
 type ConnectorPopoverProps = {
   connectorInstanceId: string;
   connectorName: string;
-  disabled?: boolean;
 };
 
 const useStyles = makeStyles()(() => ({ autoMarginLeft: { marginLeft: 'auto' } }));
 
-const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false }: ConnectorPopoverProps) => {
+const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopoverProps) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();

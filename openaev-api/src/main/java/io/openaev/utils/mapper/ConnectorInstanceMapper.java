@@ -11,11 +11,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ConnectorInstanceMapper {
 
-    public ConnectorInstanceOutput toConnectorInstanceOutput(ConnectorInstance connectorInstance) {
-        return ConnectorInstanceOutput.builder()
-                .id(connectorInstance.getId())
-                .currentStatus(connectorInstance.getCurrentStatus())
-                .requestedStatus(connectorInstance.getRequestedStatus())
-                .build();
-    }
+  public ConnectorInstanceOutput toConnectorInstanceOutput(ConnectorInstance connectorInstance) {
+    return ConnectorInstanceOutput.builder()
+        .id(connectorInstance.getId())
+        .currentStatus(connectorInstance.getCurrentStatus())
+        .requestedStatus(connectorInstance.getRequestedStatus())
+        .build();
+  }
 }

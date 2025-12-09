@@ -10,7 +10,6 @@ import {
 } from '../../utils/Action';
 import {
   type ConnectorInstance,
-  type ConnectorInstanceOutput,
   type CreateConnectorInstanceInput,
   type UpdateConnectorInstanceRequestedStatus,
 } from '../../utils/api-types';

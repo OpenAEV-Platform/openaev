@@ -10,14 +10,14 @@ import lombok.Data;
 @Builder
 @Data
 public class ConnectorInstanceOutput {
-    @JsonProperty("connector_instance_id")
-    @NotBlank
-    private String id;
+  @JsonProperty("connector_instance_id")
+  @NotBlank
+  private String id;
 
-    @JsonProperty("connector_instance_current_status")
-    @NotNull
-    private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
+  @JsonProperty("connector_instance_current_status")
+  @NotNull
+  private ConnectorInstance.CURRENT_STATUS_TYPE currentStatus;
 
-    @JsonProperty("connector_instance_requested_status")
-    private ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus;
+  @JsonProperty("connector_instance_requested_status")
+  private ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus;
 }

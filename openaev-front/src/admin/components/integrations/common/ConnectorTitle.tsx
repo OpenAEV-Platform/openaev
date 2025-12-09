@@ -118,9 +118,8 @@ const ConnectorTitle = ({
   const [isStatusLoading, setIsStatusLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    const isLoading
-            = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
-              || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
+    const isLoading = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
+      || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
 
     setIsStatusLoading(isLoading);
   }, [instanceCurrentStatus, instanceRequestedStatus]);
@@ -160,7 +159,6 @@ const ConnectorTitle = ({
               <ConnectorPopover
                 connectorInstanceId={connector.instanceId}
                 connectorName={connector.connectorName}
-                disabled={disabledUpdateButtons}
               />
             )}
             {showDeployButton && (
