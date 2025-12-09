@@ -1,5 +1,7 @@
 package io.openaev.service.stix;
 
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.stix.parsing.ParsingException;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StixService {
 
+  private static final String PROCESS_BUNDLE_EXCLUSIVE_LOCK = "PROCESS_BUNDLE_EXCLUSIVE_LOCK";
   private final SecurityCoverageService securityCoverageService;
 
   /**
@@ -23,6 +26,7 @@ public class StixService {
    * @return Scenario
    */
   @Transactional(rollbackFor = Exception.class)
+  @Lock(type = LockResourceType.SECURITY_COVERAGE, key = PROCESS_BUNDLE_EXCLUSIVE_LOCK)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
     // Update securityCoverage with the last bundle
     SecurityCoverage securityCoverage =
