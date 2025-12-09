@@ -13,13 +13,19 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @DisplayName("Catalog connectors process tests")
 @Transactional
 public class CatalogConnectorIngestionServiceTest {
