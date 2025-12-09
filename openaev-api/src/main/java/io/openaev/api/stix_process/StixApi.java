@@ -76,8 +76,7 @@ public class StixApi extends RestBehavior {
       log.error(
           String.format(
               "Parsing error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()),
-          e);
+              workId, ctiEvent, e.getMessage()));
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "Parsing error while processing STIX bundle", true);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -86,8 +85,7 @@ public class StixApi extends RestBehavior {
       log.error(
           String.format(
               "Unexpected error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()),
-          e);
+              workId, ctiEvent, e.getMessage()));
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "An unexpected server error occurred", true);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
