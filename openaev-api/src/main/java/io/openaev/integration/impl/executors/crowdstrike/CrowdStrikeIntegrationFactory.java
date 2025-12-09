@@ -32,7 +32,6 @@ public class CrowdStrikeIntegrationFactory implements IntegrationFactory {
   private final ExecutorService executorService;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
-  private final ExecutionTraceRepository executionTraceRepository;
   private final ComponentRequestEngine componentRequestEngine;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CatalogConnectorService catalogConnectorService;
@@ -77,7 +76,6 @@ public class CrowdStrikeIntegrationFactory implements IntegrationFactory {
         executorService,
         eeService,
         licenseCacheManager,
-        executionTraceRepository,
         componentRequestEngine,
         taskScheduler);
   }

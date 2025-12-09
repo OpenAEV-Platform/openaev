@@ -48,7 +48,6 @@ public class CrowdStrikeIntegration extends Integration {
   private final ExecutorService executorService;
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
-  private final ExecutionTraceRepository executionTraceRepository;
   private final ThreadPoolTaskScheduler taskScheduler;
 
   public CrowdStrikeIntegration(
@@ -61,7 +60,6 @@ public class CrowdStrikeIntegration extends Integration {
       ExecutorService executorService,
       Ee eeService,
       LicenseCacheManager licenseCacheManager,
-      ExecutionTraceRepository executionTraceRepository,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler) {
     super(componentRequestEngine, connectorInstance);
@@ -74,7 +72,6 @@ public class CrowdStrikeIntegration extends Integration {
     this.executorService = executorService;
     this.eeService = eeService;
     this.licenseCacheManager = licenseCacheManager;
-    this.executionTraceRepository = executionTraceRepository;
   }
 
   @Override
@@ -94,14 +91,15 @@ public class CrowdStrikeIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    crowdStrikeExecutorContextService =
+            new CrowdStrikeExecutorContextService(
+                    config, client, eeService, licenseCacheManager, executorService);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
     crowdStrikeGarbageCollectorService =
-        new CrowdStrikeGarbageCollectorService(config, client, agentService);
-    crowdStrikeExecutorContextService =
-        new CrowdStrikeExecutorContextService(
-            config, client, eeService, licenseCacheManager, executionTraceRepository);
+        new CrowdStrikeGarbageCollectorService(config, crowdStrikeExecutorContextService, agentService);
+
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(
