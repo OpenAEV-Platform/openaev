@@ -493,7 +493,6 @@ public class Inject implements GrantableBase, Injection {
         .orElse(new Endpoint.PLATFORM_TYPE[0]);
   }
 
-  @JsonIgnore
   @JsonProperty("inject_contract_domains")
   @Queryable(
       filterable = true,

@@ -871,6 +871,7 @@
   "inject_asset_groups": "Grupos de activos",
   "inject_assets": "Activos",
   "inject_attack_patterns": "Patrón de ataque",
+  "inject_contract_domains": "Dominios",
   "inject_expectation_description": "Descripción",
   "inject_expectation_expected_score": "Puntuación esperada",
   "inject_expectation_expiration_time": "Tiempo de expiración",

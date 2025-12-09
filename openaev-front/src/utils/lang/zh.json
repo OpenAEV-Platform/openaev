@@ -871,6 +871,7 @@
   "inject_asset_groups": "资产组",
   "inject_assets": "资产",
   "inject_attack_patterns": "攻击模式",
+  "inject_contract_domains": "领域",
   "inject_expectation_description": "说明",
   "inject_expectation_expected_score": "预期得分",
   "inject_expectation_expiration_time": "到期时间",

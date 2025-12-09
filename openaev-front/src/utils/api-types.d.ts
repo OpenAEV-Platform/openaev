@@ -2688,6 +2688,8 @@ export interface Inject {
   /** @format int64 */
   inject_communications_number?: number;
   inject_content?: object;
+  /** @uniqueItems true */
+  inject_contract_domains?: Domain[];
   inject_country?: string;
   /** @format date-time */
   inject_created_at: string;
