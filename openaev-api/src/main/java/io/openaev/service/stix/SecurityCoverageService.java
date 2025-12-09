@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
+import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
@@ -8,6 +9,8 @@ import static io.openaev.utils.constants.StixConstants.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
@@ -84,22 +87,21 @@ public class SecurityCoverageService {
    * SecurityCoverage} domain object, and saves it. It also extracts referenced attack patterns and
    * sets optional fields like description and scheduling.
    *
-   * @param stixJson STIX-formatted JSON string representing a security coverage
+   * @param stixCoverageObj STIX-formatted JSON string representing a security coverage
    * @return the saved {@link SecurityCoverage} object
    * @throws IOException if the input cannot be parsed into JSON
    * @throws ParsingException if the STIX bundle is malformed
    */
-  public SecurityCoverage buildSecurityCoverageFromStix(String stixJson)
+  @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
+  public SecurityCoverage buildSecurityCoverageFromStix(ObjectBase stixCoverageObj, Bundle bundle, String externalId)
       throws IOException, ParsingException {
 
-    JsonNode root = objectMapper.readTree(stixJson);
-    Bundle bundle = stixParser.parseBundle(root.toString());
-
-    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
-
     // Mandatory fields
-    String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
+    // Check created date: if date is last recent I update if not return
+    // stixCoverageObj.getRequiredProperty(STIX_MODIFIED);
+    securityCoverage.getUpdatedAt().isAfter(bundle.getDomainObjects().get(MODIFIED).toString()) ? return;
+
     securityCoverage.setExternalId(externalId);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
@@ -297,7 +299,7 @@ public class SecurityCoverageService {
     // create the main coverage object
     SecurityCoverage assessment = exercise.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
-    coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
+    coverage.setProperty(MODIFIED.toString(), new Timestamp(Instant.now()));
     coverage.setProperty(CommonProperties.AUTO_ENRICHMENT_DISABLE.toString(), new Boolean(false));
 
     String externalLink;

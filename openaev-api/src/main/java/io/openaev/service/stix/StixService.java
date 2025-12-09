@@ -1,9 +1,15 @@
 package io.openaev.service.stix;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
+import io.openaev.stix.objects.Bundle;
+import io.openaev.stix.objects.ObjectBase;
+import io.openaev.stix.objects.constants.CommonProperties;
+import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -11,14 +17,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
+
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class StixService {
 
-  private static final String PROCESS_BUNDLE_EXCLUSIVE_LOCK = "PROCESS_BUNDLE_EXCLUSIVE_LOCK";
   private final SecurityCoverageService securityCoverageService;
-
+  private final ObjectMapper objectMapper;
+  private final Parser stixParser;
   /**
    * Generate or update a Scenario from Stix bundle
    *
@@ -26,11 +34,18 @@ public class StixService {
    * @return Scenario
    */
   @Transactional(rollbackFor = Exception.class)
-  @Lock(type = LockResourceType.SECURITY_COVERAGE, key = PROCESS_BUNDLE_EXCLUSIVE_LOCK)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
     // Update securityCoverage with the last bundle
+
+    JsonNode root = objectMapper.readTree(stixJson);
+    Bundle bundle = stixParser.parseBundle(root.toString());
+
+    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
+
+    String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+
     SecurityCoverage securityCoverage =
-        securityCoverageService.buildSecurityCoverageFromStix(stixJson);
+        securityCoverageService.buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId);
     // Update Scenario using the last SecurityCoverage
     Scenario scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
     return scenario;
