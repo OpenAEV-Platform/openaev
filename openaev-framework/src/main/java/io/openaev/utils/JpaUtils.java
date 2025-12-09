@@ -112,6 +112,14 @@ public class JpaUtils {
     return arrayAggOnId((HibernateCriteriaBuilder) cb, join);
   }
 
+  public static <X, Y> Expression<String[]> createJoinArrayAggOnIdForJoin(
+      CriteriaBuilder cb, From<?, ?> from, String attributeName) {
+
+    Join<X, Y> join = from.join(attributeName, JoinType.LEFT);
+
+    return arrayAggOnId((HibernateCriteriaBuilder) cb, join);
+  }
+
   /**
    * Create a "in" specification for searches
    *

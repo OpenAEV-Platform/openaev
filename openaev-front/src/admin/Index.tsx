@@ -7,6 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchAttackPatterns } from '../actions/AttackPattern';
+import fetchDomains from '../actions/domains/domain-actions';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
 import { fetchTags } from '../actions/Tag';
@@ -81,6 +82,7 @@ const Index = () => {
     dispatch(fetchAttackPatterns());
     dispatch(fetchKillChainPhases());
     dispatch(fetchTags());
+    dispatch(fetchDomains());
   });
   const { bannerHeight } = computeBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);

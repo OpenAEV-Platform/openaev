@@ -5,6 +5,8 @@ import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorServic
 import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
 import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_NAME;
 import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_TYPE;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
 import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_TYPE;
 
@@ -48,6 +50,14 @@ public class ExecutorFixture {
     return executor;
   }
 
+  public Executor createSentineloneExecutor() {
+    Executor executor = new Executor();
+    executor.setType(SENTINELONE_EXECUTOR_TYPE);
+    executor.setName(SENTINELONE_EXECUTOR_NAME);
+    executor.setId(UUID.randomUUID().toString());
+    return executor;
+  }
+
   public Executor getCrowdstrikeExecutor() {
     Optional<Executor> executorOptional = executorRepository.findByType(CROWDSTRIKE_EXECUTOR_TYPE);
     return executorOptional.orElseGet(() -> executorRepository.save(createCrowdstrikeExecutor()));
@@ -56,5 +66,10 @@ public class ExecutorFixture {
   public Executor getTaniumExecutor() {
     Optional<Executor> executorOptional = executorRepository.findByType(TANIUM_EXECUTOR_TYPE);
     return executorOptional.orElseGet(() -> executorRepository.save(createTaniumExecutor()));
+  }
+
+  public Executor getSentineloneExecutor() {
+    Optional<Executor> executorOptional = executorRepository.findByType(SENTINELONE_EXECUTOR_TYPE);
+    return executorOptional.orElseGet(() -> executorRepository.save(createSentineloneExecutor()));
   }
 }

@@ -55,6 +55,7 @@ export const entitiesInitializer = Map({
     executors: Map({}),
     mitigations: Map({}),
     agents: Map({}),
+    domains: Map({}),
   }),
 });
 

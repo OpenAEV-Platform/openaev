@@ -64,6 +64,7 @@ public class InjectExportTest extends IntegrationTest {
   @Autowired private GrantComposer grantComposer;
   @Autowired private GroupComposer groupComposer;
   @Autowired private RoleComposer roleComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
   @Autowired private FileService fileService;
@@ -139,6 +140,8 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> createDefaultInjectWrappers() {
+    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
     ArticleComposer.Composer articleToExportFromExercise =
         articleComposer
             .forArticle(ArticleFixture.getDefaultArticle())
@@ -170,7 +173,7 @@ public class InjectExportTest extends IntegrationTest {
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(InjectorFixture.createDefaultPayloadInjector())
                     .withPayload(
-                        payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
+                        payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
     // wrap it in a persisted exercise
     exerciseComposer
         .forExercise(ExerciseFixture.createDefaultExercise())

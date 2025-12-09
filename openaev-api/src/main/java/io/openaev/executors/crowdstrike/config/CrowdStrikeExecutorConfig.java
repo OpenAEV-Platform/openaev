@@ -26,6 +26,8 @@ public class CrowdStrikeExecutorConfig {
 
   @Getter @NotBlank private Integer apiRegisterInterval = 1200;
 
+  @Getter @NotBlank private Integer cleanImplantInterval = 8;
+
   @Getter @NotBlank private String clientId;
 
   @Getter @NotBlank private String clientSecret;

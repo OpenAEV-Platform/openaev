@@ -21,6 +21,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.ScenarioService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -56,6 +57,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private InjectRepository injectRepository;
@@ -226,6 +228,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         AttackPattern attackPattern,
         Endpoint.PLATFORM_TYPE[] platforms,
         Payload.PAYLOAD_EXECUTION_ARCH architecture) {
+      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
       InjectorContractComposer.Composer newInjectorContractComposer =
           injectorContractComposer
               .forInjectorContract(
@@ -235,7 +238,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .withPayload(
                   payloadComposer.forPayload(
                       PayloadFixture.createDefaultCommandWithPlatformsAndArchitecture(
-                          platforms, architecture)))
+                          platforms, architecture, domains)))
               .persist();
       injectorContractWrapperComposers.add(newInjectorContractComposer);
       return newInjectorContractComposer.get();

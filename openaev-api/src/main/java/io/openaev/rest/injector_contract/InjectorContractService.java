@@ -4,8 +4,7 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
-import static io.openaev.utils.JpaUtils.createLeftJoin;
+import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -319,6 +318,12 @@ public class InjectorContractService {
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
 
+    Expression<String[]> domainsIdsExpression =
+        createJoinArrayAggOnId(cb, injectorContractRoot, "domains");
+
+    Expression<String[]> payloadDomainsIdsExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractPayloadJoin, "domains");
+
     // SELECT
     cq.multiselect(
             injectorContractRoot.get("id").alias("injector_contract_id"),
@@ -331,6 +336,8 @@ public class InjectorContractService {
             injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
             injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
             attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
+            payloadDomainsIdsExpression.alias("payload_domains"),
+            domainsIdsExpression.alias("injector_contract_domains"),
             injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
             injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"))
         .distinct(true);
@@ -359,9 +366,21 @@ public class InjectorContractService {
                     tuple.get("collector_type", String.class),
                     tuple.get("injector_contract_injector_type", String.class),
                     tuple.get("injector_contract_attack_patterns", String[].class),
+                    resolveEffectiveDomains(
+                        tuple.get("injector_contract_domains", String[].class),
+                        tuple.get("payload_domains", String[].class)),
                     tuple.get("injector_contract_updated_at", Instant.class),
                     tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
         .toList();
+  }
+
+  private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
+    String[] effectiveDomains =
+        (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
+    if (effectiveDomains == null) {
+      return List.of();
+    }
+    return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
   }
 
   private void selectForInjectorContractBase(

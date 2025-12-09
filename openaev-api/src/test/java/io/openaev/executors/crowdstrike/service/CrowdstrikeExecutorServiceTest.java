@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.Ee;
+import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
@@ -18,10 +19,8 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class CrowdstrikeExecutorServiceTest {
 
-  public static final String HOST_GROUP_CS = "hostGroupCs";
+  private static final String HOST_GROUP_CS = "hostGroupCs";
 
   @Mock private CrowdStrikeExecutorClient client;
   @Mock private CrowdStrikeExecutorConfig config;
@@ -42,6 +41,7 @@ public class CrowdstrikeExecutorServiceTest {
   @Mock private Ee eeService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
+  @Mock private ExecutorService executorService;
 
   @InjectMocks private CrowdStrikeExecutorService crowdStrikeExecutorService;
 
@@ -90,14 +90,20 @@ public class CrowdstrikeExecutorServiceTest {
 
   @Test
   void test_launchBatchExecutorSubprocess_crowdstrike()
-      throws InterruptedException, JsonProcessingException {
+      throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
     when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("MyScript");
-    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
+    Command payloadCommand =
+        PayloadFixture.createCommand(
+            "cmd",
+            "whoami",
+            List.of(),
+            "whoami",
+            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
@@ -109,11 +115,15 @@ public class CrowdstrikeExecutorServiceTest {
             "Inject",
             EndpointFixture.createEndpoint());
     inject.setId("1234567890");
+    List<Agent> agents =
+        List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
-        inject,
-        Set.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345")),
-        InjectStatusFixture.createPendingInjectStatus());
+        inject, new HashSet<>(agents), injectStatus);
+    // Executor scheduled so we have to wait before the execution
+    Thread.sleep(1000);
     // Asserts
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);

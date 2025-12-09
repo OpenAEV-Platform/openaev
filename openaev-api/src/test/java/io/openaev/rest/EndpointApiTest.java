@@ -268,6 +268,11 @@ class EndpointApiTest extends IntegrationTest {
             delete(ENDPOINT_URI + "/" + endpointCreated.getId()).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().is2xxSuccessful());
 
+    // The 2 calls (delete then get) should not be in the same transaction
+    // so we use this workaround to make it work
+    entityManager.flush();
+    entityManager.clear();
+
     // -- ASSERT --
     mvc.perform(
             get(ENDPOINT_URI + "/" + endpointCreated.getId()).accept(MediaType.APPLICATION_JSON))

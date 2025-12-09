@@ -1,13 +1,14 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent } from 'react';
+import { type CSSProperties, Fragment, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import AttackPatternChip from '../../../components/AttackPatternChip';
 import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
+import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
@@ -188,6 +189,20 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
             variant="h3"
             gutterBottom
           >
+            {t('payload_domains')}
+          </Typography>
+          {selectedPayload && (
+            <ItemDomains
+              variant="list"
+              domains={selectedPayload?.payload_domains}
+            />
+          )}
+        </div>
+        <div>
+          <Typography
+            variant="h3"
+            gutterBottom
+          >
             {t('Type')}
           </Typography>
 
@@ -198,6 +213,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
             {t(emptyFilled(selectedPayload?.payload_type))}
           </Typography>
         </div>
+
       </div>
       {selectedPayload?.payload_type === 'Command' && (
         <>
@@ -310,10 +326,8 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                     <TableBody>
                       {selectedPayload?.payload_arguments?.map((argument: PayloadArgument) => {
                         return (
-                          <>
-                            <TableRow
-                              key={argument.key}
-                            >
+                          <Fragment key={argument.key}>
+                            <TableRow>
                               <TableCell>
                                 {argument.type}
                               </TableCell>
@@ -326,7 +340,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                                 </pre>
                               </TableCell>
                             </TableRow>
-                          </>
+                          </Fragment>
                         );
                       })}
                     </TableBody>

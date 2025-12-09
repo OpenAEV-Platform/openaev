@@ -1,6 +1,11 @@
 package io.openaev.execution;
 
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
+import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
@@ -9,6 +14,7 @@ import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.ComponentRequest;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -46,8 +52,14 @@ public class ExecutionExecutorService {
     agents.removeAll(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.foundAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
-    Set<Agent> crowdstrikeAgents = executorUtils.foundCrowdstrikeAgents(agents);
+    Set<Agent> crowdstrikeAgents =
+        executorUtils.foundAgentsByExecutorType(agents, CROWDSTRIKE_EXECUTOR_TYPE);
     agents.removeAll(crowdstrikeAgents);
+    Set<Agent> sentineloneAgents =
+        executorUtils.foundAgentsByExecutorType(agents, SENTINELONE_EXECUTOR_TYPE);
+    agents.removeAll(sentineloneAgents);
+    Set<Agent> taniumAgents = executorUtils.foundAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
+    agents.removeAll(taniumAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
@@ -55,21 +67,14 @@ public class ExecutionExecutorService {
     // Manage without executor agents
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
     // Manage Crowdstrike agents for batch execution
-    if (!crowdstrikeAgents.isEmpty()) {
-      try {
-        ExecutorContextService executorContextService =
-            managerFactory
-                .getManager()
-                .request(
-                    new ComponentRequest(CROWDSTRIKE_EXECUTOR_NAME), ExecutorContextService.class);
-        executorContextService.launchBatchExecutorSubprocess(
-            inject, crowdstrikeAgents, injectStatus);
-        atLeastOneExecution.set(true);
-      } catch (Exception e) {
-        log.error("Crowdstrike launchBatchExecutorSubprocess error: {}", e.getMessage());
-        saveCrowdstrikeAgentsErrorTraces(e, crowdstrikeAgents, injectStatus);
-      }
-    }
+    launchBatchExecutorContextForAgent(
+        crowdstrikeAgents, CROWDSTRIKE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
+    // Manage Sentinelone agents for batch execution
+    launchBatchExecutorContextForAgent(
+        sentineloneAgents, SENTINELONE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
+    // Manage Tanium agents for batch execution
+    launchBatchExecutorContextForAgent(
+        taniumAgents, TANIUM_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
     // Manage remaining agents
     agents.forEach(
         agent -> {
@@ -83,6 +88,28 @@ public class ExecutionExecutorService {
         });
     if (!atLeastOneExecution.get()) {
       throw new ExecutionExecutorException("No asset executed");
+    }
+  }
+
+  private void launchBatchExecutorContextForAgent(
+      Set<Agent> agents,
+      String executorName,
+      Inject inject,
+      InjectStatus injectStatus,
+      AtomicBoolean atLeastOneExecution) {
+    if (!agents.isEmpty()) {
+      try {
+        ExecutorContextService executorContextService =
+                managerFactory
+                        .getManager()
+                        .request(
+                                new ComponentRequest(executorName), ExecutorContextService.class);
+        executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+        atLeastOneExecution.set(true);
+      } catch (Exception e) {
+        log.error("{} launchBatchExecutorSubprocess error: {}", executorName, e.getMessage());
+        saveAgentsErrorTraces(e, agents, injectStatus);
+      }
     }
   }
 
@@ -100,10 +127,9 @@ public class ExecutionExecutorService {
   }
 
   @VisibleForTesting
-  public void saveCrowdstrikeAgentsErrorTraces(
-      Exception e, Set<Agent> crowdstrikeAgents, InjectStatus injectStatus) {
+  public void saveAgentsErrorTraces(Exception e, Set<Agent> agents, InjectStatus injectStatus) {
     executionTraceRepository.saveAll(
-        crowdstrikeAgents.stream()
+        agents.stream()
             .map(
                 agent ->
                     new ExecutionTrace(

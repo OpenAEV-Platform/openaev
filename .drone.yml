@@ -15,6 +15,7 @@ steps:
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
+      OPENBAS_RABBITMQ_HOSTNAME: rabbitmq
     commands:
       - mvn spotless:check
       - sleep 60
@@ -53,6 +54,7 @@ steps:
       OPENAEV_ADMIN_PASSWORD: admin
       OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
       SPRING_PROFILES_ACTIVE: ci
+      OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
     commands:
       - apt update && apt install -y gnupg
       - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
@@ -177,6 +179,13 @@ services:
       POSTGRES_USER: openaev
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
+    commands: 
+      - docker-entrypoint.sh -c 'max_connections=500'
+  - name: rabbitmq
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
   - name: minio-e2e
     image: minio/minio:RELEASE.2025-06-13T11-33-47Z
     environment:
@@ -189,6 +198,13 @@ services:
       POSTGRES_USER: openaev
       POSTGRES_PASSWORD: openaev
       POSTGRES_DB: openaev
+    commands: 
+      - docker-entrypoint.sh -c 'max_connections=500'
+  - name: rabbitmq-e2e
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
   - name: elastic
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
     environment:

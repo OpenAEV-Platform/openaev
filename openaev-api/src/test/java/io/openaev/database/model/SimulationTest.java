@@ -6,14 +6,19 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(PER_CLASS)
 @Transactional
 class SimulationTest extends IntegrationTest {

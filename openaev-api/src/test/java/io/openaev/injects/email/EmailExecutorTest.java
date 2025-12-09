@@ -19,14 +19,19 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailExecutor;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class EmailExecutorTest extends IntegrationTest {
 
   @Autowired private EmailExecutor emailExecutor;

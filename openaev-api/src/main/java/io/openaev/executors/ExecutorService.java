@@ -3,34 +3,28 @@ package io.openaev.executors;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class ExecutorService {
 
   public static final String EXT_PNG = ".png";
   @Resource protected ObjectMapper mapper;
 
-  private FileService fileService;
-
-  private ExecutorRepository executorRepository;
-
-  @Resource
-  public void setFileService(FileService fileService) {
-    this.fileService = fileService;
-  }
-
-  @Autowired
-  public void setExecutorRepository(ExecutorRepository executorRepository) {
-    this.executorRepository = executorRepository;
-  }
+  private final FileService fileService;
+  private final ExecutorRepository executorRepository;
+  private final ExecutionTraceRepository executionTraceRepository;
 
   public Iterable<Executor> executors() {
     return this.executorRepository.findAll();
@@ -94,5 +88,47 @@ public class ExecutorService {
     executorRepository
         .findByType(type)
         .ifPresent(executor -> executorRepository.deleteById(executor.getId()));
+  }
+
+  /**
+   * Manage agents with no platform: set and save execution traces for the given inject and agents
+   * without platform
+   *
+   * @param agents to manage
+   * @param injectStatus to manage
+   * @return the agents with platform
+   */
+  public List<Agent> manageWithoutPlatformAgents(List<Agent> agents, InjectStatus injectStatus) {
+    List<Agent> withoutPlatformAgents =
+        agents.stream()
+            .filter(
+                agent ->
+                    ((Endpoint) agent.getAsset()).getPlatform() == null
+                        || ((Endpoint) agent.getAsset()).getPlatform()
+                            == Endpoint.PLATFORM_TYPE.Unknown
+                        || ((Endpoint) agent.getAsset()).getArch() == null)
+            .toList();
+    agents.removeAll(withoutPlatformAgents);
+    // Agents with no platform or unknown platform, traces to save
+    if (!withoutPlatformAgents.isEmpty()) {
+      executionTraceRepository.saveAll(
+          withoutPlatformAgents.stream()
+              .map(
+                  agent ->
+                      new ExecutionTrace(
+                          injectStatus,
+                          ExecutionTraceStatus.ERROR,
+                          List.of(),
+                          "Unsupported platform: "
+                              + ((Endpoint) agent.getAsset()).getPlatform()
+                              + " (arch:"
+                              + ((Endpoint) agent.getAsset()).getArch()
+                              + ")",
+                          ExecutionTraceAction.COMPLETE,
+                          agent,
+                          null))
+              .toList());
+    }
+    return agents;
   }
 }

@@ -17,6 +17,7 @@ import useBodyItemsStyles from '../../../components/common/queryable/style/style
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
+import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PayloadIcon from '../../../components/PayloadIcon';
@@ -62,10 +63,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   payload_type: { width: '10%' },
   payload_name: { width: '20%' },
   payload_platforms: { width: '10%' },
-  payload_description: {
-    width: '20%',
-    maxWidth: '300px',
-  }, // Workaround: we should change flex to grid
+  payload_domains: { width: '15%' },
   payload_tags: { width: '10%' },
   payload_source: { width: '10%' },
   payload_status: { width: '10%' },
@@ -124,6 +122,18 @@ const Payloads = () => {
       value: (payload: Payload) => <>{payload.payload_name}</>,
     },
     {
+      field: 'payload_domains',
+      label: 'Domains',
+      isSortable: true,
+      value: (payload: Payload) => {
+        return payload.payload_domains && payload.payload_domains?.length > 0
+          ? (
+              <ItemDomains domains={payload.payload_domains} variant="reduced-view" />
+            )
+          : <></>;
+      },
+    },
+    {
       field: 'payload_platforms',
       label: 'Platforms',
       isSortable: false,
@@ -134,12 +144,6 @@ const Payloads = () => {
           )}
         </>
       ),
-    },
-    {
-      field: 'payload_description',
-      label: 'Description',
-      isSortable: true,
-      value: (payload: Payload) => <>{payload.payload_description}</>,
     },
     {
       field: 'payload_tags',

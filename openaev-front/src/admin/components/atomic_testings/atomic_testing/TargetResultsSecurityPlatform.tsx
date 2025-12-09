@@ -15,7 +15,7 @@ const useStyles = makeStyles()(() => ({ flexContainer: { display: 'flex' } }));
 interface Props {
   injectExpectation: InjectExpectationsStore;
   sourceId: string;
-  expectationResult: InjectExpectationResult;
+  expectationResult: InjectExpectationResult | null;
   open: boolean;
   handleClose: () => void;
 }
@@ -40,7 +40,7 @@ const TargetResultsSecurityPlatform: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={t(expectationResult.sourceName || '-')}
+      title={expectationResult ? t(expectationResult.sourceName || '-') : '-'}
     >
       <>
         <Typography variant="body1">

@@ -42,8 +42,15 @@ public class ExecutionExecutorServiceTest {
 
   @Test
   void test_launchExecutorContext_noAssetException() throws Exception {
+
     // Init datas
-    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
+    Command payloadCommand =
+        PayloadFixture.createCommand(
+            "cmd",
+            "whoami",
+            List.of(),
+            "whoami",
+            Set.of(new Domain(null, "To classify", "F0F0F0", Instant.now(), null)));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
@@ -170,7 +177,7 @@ public class ExecutionExecutorServiceTest {
   }
 
   @Test
-  void test_saveCrowdstrikeAgentsErrorTraces() {
+  void test_saveCrowdstrikeSentineloneAgentsErrorTraces() {
     // Init datas
     Endpoint endpoint = EndpointFixture.createEndpoint();
     Agent agent = AgentFixture.createDefaultAgentSession();
@@ -178,7 +185,7 @@ public class ExecutionExecutorServiceTest {
     endpoint.setAgents(List.of(agent));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveCrowdstrikeAgentsErrorTraces(
+    executorService.saveAgentsErrorTraces(
         new Exception("EXCEPTION !!"), Set.of(agent), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);

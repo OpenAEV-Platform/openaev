@@ -17,21 +17,28 @@ import io.openaev.service.*;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("StarterPack process tests")
 @Transactional
@@ -58,6 +65,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Mock private ResourcePatternResolver mockResolver;
 
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectRepository injectRepository;
 
@@ -325,13 +333,16 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with honey.scan.me asset")
   public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
     // PREPARE
+    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
     ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
     contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand();
+    Payload payload = PayloadFixture.createDefaultCommand(domains);
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAsset));
+    // Be careful should match inject into the zip scenario
     injectorContract.setId("2e7fc079-4444-4531-4444-928fe4a1fc0b");
     injectorContractComposer
         .forInjectorContract(injectorContract)
@@ -381,15 +392,18 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
+    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
     contractAssetGroup.setLinkedFields(
         InjectorContractFixture.buildMandatoryOnConditionValue("asset_groups"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand();
+    Payload payload = PayloadFixture.createDefaultCommand(domains);
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAssetGroup));
-    injectorContract.setId("ea43ae39-1a8c-47dc-93e1-80ef8b0e70c4");
+    // Be careful should match inject into the zip scenario
+    injectorContract.setId("df0d6fe6-ffb1-4e4c-a5f8-11a45b30dd69");
     injectorContractComposer
         .forInjectorContract(injectorContract)
         .withInjector(injector)

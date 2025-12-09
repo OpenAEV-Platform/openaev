@@ -11,6 +11,7 @@ import static io.openaev.utils.inject_expectation_result.InjectExpectationResult
 import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.computeScore;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.helper.InjectExpectationRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
@@ -55,6 +56,7 @@ public class InjectExpectationService {
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
   private final InjectExpectationRepository injectExpectationRepository;
+  private final InjectExpectationRepositoryHelper injectExpectationRepositoryHelper;
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
@@ -527,16 +529,9 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    List<InjectExpectation> injectExpectations =
-        this.injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
-
-    injectExpectations.forEach(
-        expectation -> {
-          List<InjectExpectationSignature> signatures = expectation.getSignatures();
-          signatures.add(new InjectExpectationSignature(signatureType, date.toString()));
-        });
-
-    injectExpectationRepository.saveAll(injectExpectations);
+    // Insert the signature for all agent and inject in one query
+    injectExpectationRepositoryHelper.insertSignatureForAgentAndInject(
+        injectId, agentId, signatureType, date.toString());
   }
 
   /**

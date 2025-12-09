@@ -48,6 +48,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
       R.assoc('payload_platforms', data.payload_platforms),
       R.assoc('payload_tags', data.payload_tags),
       R.assoc('payload_attack_patterns', data.payload_attack_patterns),
+      R.assoc('payload_domains', data.payload_domains.map(domain => domain.domain_id)),
       R.assoc('executable_file', data.executable_file),
       R.assoc('payload_cleanup_executor', handleCleanupExecutorValue(data.payload_cleanup_executor, data.payload_cleanup_command)),
       R.assoc('payload_cleanup_command', handleCleanupCommandValue(data.payload_cleanup_command)),
@@ -124,6 +125,7 @@ const PayloadPopover = ({ payload, onUpdate, onDelete, onDuplicate, disableUpdat
     payload_cleanup_executor: payload.payload_cleanup_executor === null ? '' : payload.payload_cleanup_executor,
     payload_cleanup_command: payload.payload_cleanup_command === null ? '' : payload.payload_cleanup_command,
     remediations: {},
+    payload_domains: payload.payload_domains,
   };
   payload.payload_detection_remediations?.forEach((remediation) => {
     initialValues.remediations[remediation.detection_remediation_collector_type] = {
