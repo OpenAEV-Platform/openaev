@@ -65,6 +65,10 @@ public class ExecutionTraceRepositoryHelper {
         if (executionTrace.getInjectTestStatus() != null) {
           injectTestStatusId = executionTrace.getInjectTestStatus().getId();
         }
+        String agentId = null;
+        if (executionTrace.getAgent() != null) {
+          agentId = executionTrace.getAgent().getId();
+        }
         String structuredOutputAsText = null;
         if (executionTrace.getStructuredOutput() != null) {
           structuredOutputAsText = executionTrace.getStructuredOutput().asText();
@@ -74,7 +78,7 @@ public class ExecutionTraceRepositoryHelper {
         ps.setString(1, id);
         ps.setString(2, injectStatusId);
         ps.setString(3, injectTestStatusId);
-        ps.setString(4, executionTrace.getAgent().getId());
+        ps.setString(4, agentId);
         ps.setString(5, executionTrace.getMessage());
         ps.setString(6, structuredOutputAsText);
         ps.setString(7, executionTrace.getAction().name());

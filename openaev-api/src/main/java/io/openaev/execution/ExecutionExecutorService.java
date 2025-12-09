@@ -1,7 +1,11 @@
 package io.openaev.execution;
 
 import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
+import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
@@ -46,10 +50,14 @@ public class ExecutionExecutorService {
     agents.removeAll(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.foundAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
-    Set<Agent> crowdstrikeAgents = executorUtils.foundCrowdstrikeAgents(agents);
+    Set<Agent> crowdstrikeAgents =
+        executorUtils.foundAgentsByExecutorType(agents, CROWDSTRIKE_EXECUTOR_TYPE);
     agents.removeAll(crowdstrikeAgents);
-    Set<Agent> sentineloneAgents = executorUtils.foundSentineloneAgents(agents);
+    Set<Agent> sentineloneAgents =
+        executorUtils.foundAgentsByExecutorType(agents, SENTINELONE_EXECUTOR_TYPE);
     agents.removeAll(sentineloneAgents);
+    Set<Agent> taniumAgents = executorUtils.foundAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
+    agents.removeAll(taniumAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
@@ -57,31 +65,14 @@ public class ExecutionExecutorService {
     // Manage without executor agents
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
     // Manage Crowdstrike agents for batch execution
-    if (!crowdstrikeAgents.isEmpty()) {
-      try {
-        ExecutorContextService executorContextService =
-            context.getBean(CROWDSTRIKE_EXECUTOR_NAME, ExecutorContextService.class);
-        executorContextService.launchBatchExecutorSubprocess(
-            inject, crowdstrikeAgents, injectStatus);
-        atLeastOneExecution.set(true);
-      } catch (Exception e) {
-        log.error("Crowdstrike launchBatchExecutorSubprocess error: {}", e.getMessage());
-        saveAgentsErrorTraces(e, crowdstrikeAgents, injectStatus);
-      }
-    }
+    launchBatchExecutorContextForAgent(
+        crowdstrikeAgents, CROWDSTRIKE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
     // Manage Sentinelone agents for batch execution
-    if (!sentineloneAgents.isEmpty()) {
-      try {
-        ExecutorContextService executorContextService =
-            context.getBean(SENTINELONE_EXECUTOR_NAME, ExecutorContextService.class);
-        executorContextService.launchBatchExecutorSubprocess(
-            inject, sentineloneAgents, injectStatus);
-        atLeastOneExecution.set(true);
-      } catch (Exception e) {
-        log.error("Sentinelone launchBatchExecutorSubprocess error: {}", e.getMessage());
-        saveAgentsErrorTraces(e, sentineloneAgents, injectStatus);
-      }
-    }
+    launchBatchExecutorContextForAgent(
+        sentineloneAgents, SENTINELONE_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
+    // Manage Tanium agents for batch execution
+    launchBatchExecutorContextForAgent(
+        taniumAgents, TANIUM_EXECUTOR_NAME, inject, injectStatus, atLeastOneExecution);
     // Manage remaining agents
     agents.forEach(
         agent -> {
@@ -95,6 +86,25 @@ public class ExecutionExecutorService {
         });
     if (!atLeastOneExecution.get()) {
       throw new ExecutionExecutorException("No asset executed");
+    }
+  }
+
+  private void launchBatchExecutorContextForAgent(
+      Set<Agent> agents,
+      String executorName,
+      Inject inject,
+      InjectStatus injectStatus,
+      AtomicBoolean atLeastOneExecution) {
+    if (!agents.isEmpty()) {
+      try {
+        ExecutorContextService executorContextService =
+            context.getBean(executorName, ExecutorContextService.class);
+        executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+        atLeastOneExecution.set(true);
+      } catch (Exception e) {
+        log.error("{} launchBatchExecutorSubprocess error: {}", executorName, e.getMessage());
+        saveAgentsErrorTraces(e, agents, injectStatus);
+      }
     }
   }
 

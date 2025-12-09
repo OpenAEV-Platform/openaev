@@ -1,4 +1,4 @@
-package io.openaev.executors.sentinelone.service;
+package io.openaev.executors.tanium.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,9 +10,11 @@ import io.openaev.database.model.*;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
-import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
-import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
-import io.openaev.executors.sentinelone.model.SentinelOneAgent;
+import io.openaev.executors.tanium.client.TaniumExecutorClient;
+import io.openaev.executors.tanium.config.TaniumExecutorConfig;
+import io.openaev.executors.tanium.model.DataComputerGroup;
+import io.openaev.executors.tanium.model.NodeEndpoint;
+import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -28,10 +30,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class SentinelOneExecutorServiceTest {
+public class TaniumExecutorServiceTest {
 
-  @Mock private SentinelOneExecutorClient client;
-  @Mock private SentinelOneExecutorConfig config;
+  private static final String HOST_GROUP_TANIUM = "hostGroupTanium";
+
+  @Mock private TaniumExecutorClient client;
+  @Mock private TaniumExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
   @Mock private Ee eeService;
@@ -39,31 +43,38 @@ public class SentinelOneExecutorServiceTest {
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
 
-  @InjectMocks private SentinelOneExecutorService sentinelOneExecutorService;
+  @InjectMocks private TaniumExecutorService taniumExecutorService;
 
-  @InjectMocks private SentinelOneExecutorContextService sentinelOneExecutorContextService;
+  @InjectMocks private TaniumExecutorContextService taniumExecutorContextService;
 
-  private SentinelOneAgent sentinelOneAgent;
-  private Executor sentinelOneExecutor;
+  private NodeEndpoint taniumEndpoint;
+  private Executor taniumExecutor;
 
   @BeforeEach
   void setUp() {
-    sentinelOneAgent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
-    sentinelOneExecutor = new Executor();
-    sentinelOneExecutor.setName(SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME);
-    sentinelOneExecutor.setType(SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE);
+    taniumEndpoint = TaniumDeviceFixture.createDefaultTaniumEndpoint();
+    taniumExecutor = new Executor();
+    taniumExecutor.setName(TaniumExecutorService.TANIUM_EXECUTOR_NAME);
+    taniumExecutor.setType(TaniumExecutorService.TANIUM_EXECUTOR_TYPE);
   }
 
   @Test
-  void test_run_sentinelone() {
+  void test_run_tanium() {
     // Init datas
-    when(client.agents()).thenReturn(Set.of(sentinelOneAgent));
+    DataComputerGroup dataComputerGroup = new DataComputerGroup();
+    TaniumComputerGroup computerGroup = new TaniumComputerGroup();
+    computerGroup.setId(HOST_GROUP_TANIUM);
+    computerGroup.setName("tanium");
+    dataComputerGroup.setComputerGroup(computerGroup);
+    when(config.getComputerGroupId()).thenReturn(HOST_GROUP_TANIUM);
+    when(client.computerGroup(HOST_GROUP_TANIUM)).thenReturn(dataComputerGroup);
+    when(client.endpoints(HOST_GROUP_TANIUM)).thenReturn(List.of(taniumEndpoint));
     // Run method to test
-    sentinelOneExecutorService.run();
+    taniumExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
     verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture());
-    assertEquals(sentinelOneExecutor.getType(), executorTypeCaptor.getValue());
+    assertEquals(taniumExecutor.getType(), executorTypeCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
@@ -72,29 +83,20 @@ public class SentinelOneExecutorServiceTest {
     assertEquals(0, agents.getValue().size());
 
     ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
-    verify(assetGroupService, times(3))
+    verify(assetGroupService)
         .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture());
-    assertEquals(3, assetGroupCaptor.getAllValues().size());
-    assertEquals(
-        sentinelOneAgent.getAccountId(),
-        assetGroupCaptor.getAllValues().get(0).getExternalReference());
-    assertEquals(
-        sentinelOneAgent.getGroupId(),
-        assetGroupCaptor.getAllValues().get(1).getExternalReference());
-    assertEquals(
-        sentinelOneAgent.getSiteId(),
-        assetGroupCaptor.getAllValues().get(2).getExternalReference());
+    assertEquals(HOST_GROUP_TANIUM, assetGroupCaptor.getValue().getExternalReference());
   }
 
   @Test
-  void test_launchBatchExecutorSubprocess_sentinelone()
+  void test_launchBatchExecutorSubprocess_tanium()
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
     when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
-    when(config.getWindowsScriptId()).thenReturn("1234567890");
+    when(config.getWindowsPackageId()).thenReturn(112200);
     Command payloadCommand =
         PayloadFixture.createCommand(
             "cmd",
@@ -112,26 +114,23 @@ public class SentinelOneExecutorServiceTest {
             InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand),
             "Inject",
             EndpointFixture.createEndpoint());
-    inject.setId("injectId");
+    inject.setId("1234567890");
     List<Agent> agents =
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
-    sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
+    taniumExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus);
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
-    ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
-    ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Integer> scriptId = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
-    verify(client)
-        .executeScript(agentIds.capture(), scriptName.capture(), commandEncoded.capture());
-    assertEquals(1, agentIds.getValue().size());
-    assertEquals("1234567890", scriptName.getValue());
-    assertEquals(
-        "JABhAGcAZQBuAHQASQBEAD0AJgAgACcAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwBcAFMAZQBuAHQAaQBuAGUAbABPAG4AZQBcAFMAZQBuAHQAaQBuAGUAbAAgAEEAZwBlAG4AdAAgACoAXABTAGUAbgB0AGkAbgBlAGwAQwB0AGwALgBlAHgAZQAnACAAYQBnAGUAbgB0AF8AaQBkADsAeAA4ADYAXwA2ADQA",
-        commandEncoded.getValue());
+    verify(client).executeAction(agentId.capture(), scriptId.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
+    assertEquals(112200, scriptId.getValue());
+    assertEquals("eDg2XzY0", commandEncoded.getValue());
   }
 }

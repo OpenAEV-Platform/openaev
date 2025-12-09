@@ -13,9 +13,13 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
+import io.openaev.executors.exception.ExecutorException;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +31,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
-
-  private static final int SLEEP_INTERVAL_BATCH_EXECUTIONS = 1000;
 
   private static final String AGENT_ID_VARIABLE = "$agentID";
   private static final String ARCH_VARIABLE = "$architecture";
@@ -49,6 +51,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
+  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+
   @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
@@ -57,13 +61,14 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.crowdStrikeExecutorConfig.isEnable()) {
-      throw new RuntimeException("Fatal error: CrowdStrike executor is not enabled");
+      throw new ExecutorException(
+          "Fatal error: CrowdStrike executor is not enabled", CROWDSTRIKE_EXECUTOR_NAME);
     }
     List<Agent> csAgents = new ArrayList<>(agents);
 
@@ -96,29 +101,24 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     return csAgents;
   }
 
-  private void executeActions(List<CrowdStrikeAction> actions) throws InterruptedException {
+  public void executeActions(List<CrowdStrikeAction> actions) {
+    int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
     for (CrowdStrikeAction action : actions) {
-      int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
-      // Pagination with 1s wait if needed because each implant will call OpenAEV API to set traces
-      if (action.getAgents().size() > paginationLimit) {
-        int numberOfExecution = Math.ceilDiv(action.getAgents().size(), paginationLimit);
-        int fromIndex = 0;
-        int toIndex = paginationLimit;
-        for (int callNumber = 0; callNumber < numberOfExecution; callNumber += 1) {
-          this.crowdStrikeExecutorClient.executeAction(
-              action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList(),
-              action.getScriptName(),
-              action.getCommandEncoded());
-          fromIndex = toIndex;
-          toIndex = Math.min(action.getAgents().size(), fromIndex + paginationLimit);
-          Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
-        }
-      } else {
-        this.crowdStrikeExecutorClient.executeAction(
-            action.getAgents().stream().map(Agent::getId).toList(),
-            action.getScriptName(),
-            action.getCommandEncoded());
-        Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
+      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
+      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
+        int fromIndex = (batchIndex * paginationLimit);
+        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
+        List<String> batchAgentIds =
+            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
+        // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
+        // because each XXX actions will call the CS API to execute the implants
+        // and each implant will call OpenAEV API to set traces
+        scheduledExecutorService.schedule(
+            () ->
+                this.crowdStrikeExecutorClient.executeAction(
+                    batchAgentIds, action.getScriptName(), action.getCommandEncoded()),
+            batchIndex * 5L,
+            TimeUnit.SECONDS);
       }
     }
   }

@@ -25,6 +25,8 @@ public class SentinelOneExecutorConfig {
 
   @Getter @NotBlank private Integer apiRegisterInterval = 1200;
 
+  @Getter @NotBlank private Integer cleanImplantInterval = 8;
+
   @Getter @NotBlank private String accountId;
 
   @Getter @NotBlank private String siteId;

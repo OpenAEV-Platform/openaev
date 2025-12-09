@@ -32,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class CrowdstrikeExecutorServiceTest {
 
-  public static final String HOST_GROUP_CS = "hostGroupCs";
+  private static final String HOST_GROUP_CS = "hostGroupCs";
 
   @Mock private CrowdStrikeExecutorClient client;
   @Mock private CrowdStrikeExecutorConfig config;
@@ -90,7 +90,7 @@ public class CrowdstrikeExecutorServiceTest {
 
   @Test
   void test_launchBatchExecutorSubprocess_crowdstrike()
-      throws InterruptedException, JsonProcessingException {
+      throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
@@ -122,6 +122,8 @@ public class CrowdstrikeExecutorServiceTest {
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus);
+    // Executor scheduled so we have to wait before the execution
+    Thread.sleep(1000);
     // Asserts
     ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);

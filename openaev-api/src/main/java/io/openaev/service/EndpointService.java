@@ -321,23 +321,6 @@ public class EndpointService {
   }
 
   // -- INSTALLATION AGENT --
-  @Transactional
-  public void registerAgentEndpoint(AgentRegisterInput input) {
-    // Check if agent exists (only 1 agent can be found for Tanium)
-    List<Agent> existingAgents = agentService.findByExternalReference(input.getExternalReference());
-    if (!existingAgents.isEmpty()) {
-      updateExistingAgent(existingAgents.getFirst(), input);
-    } else {
-      // Check if endpoint exists
-      Optional<Endpoint> existingEndpoint =
-          findEndpointByAtLeastOneMacAddress(input.getMacAddresses());
-      if (existingEndpoint.isPresent()) {
-        updateExistingEndpointAndManageAgent(existingEndpoint.get(), input);
-      } else {
-        createNewEndpointAndAgent(input);
-      }
-    }
-  }
 
   /**
    * Get agents from SentinelOne, Crowdstrike API and register them into OpenAEV agents and

@@ -10,12 +10,16 @@ import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,8 +32,6 @@ import org.springframework.stereotype.Service;
 public class SentinelOneExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = SENTINELONE_EXECUTOR_NAME;
 
-  private static final int SLEEP_INTERVAL_BATCH_EXECUTIONS = 1000;
-
   private static final String AGENT_ID_VARIABLE = "$agentID";
 
   private static final String WINDOWS_EXTERNAL_REFERENCE =
@@ -38,6 +40,8 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       "agentID=$(sudo /opt/sentinelone/bin/sentinelctl management status | grep UUID | sed 's/UUID //g; s/ //g');";
   private static final String MAC_EXTERNAL_REFERENCE =
       "agentID=$(sudo /Library/Sentinel/sentinel-agent.bundle/Contents/MacOS/sentinelctl status | grep ID: | sed 's/ID: //g; s/ //g');";
+
+  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
@@ -55,13 +59,14 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     if (!this.config.isEnable()) {
-      throw new RuntimeException("Fatal error: SentinelOne executor is not enabled");
+      throw new ExecutorException(
+          "Fatal error: SentinelOne executor is not enabled", SENTINELONE_EXECUTOR_NAME);
     }
     List<Agent> sentinelOneAgents = new ArrayList<>(agents);
 
@@ -77,80 +82,61 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);
+
     List<SentinelOneAction> actions = new ArrayList<>();
-    // Set implant script for Windows SentinelOne agents
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_ARCH.x86_64),
-            injector,
-            inject.getId(),
-            Endpoint.PLATFORM_ARCH.x86_64.name()));
-    actions.addAll(
-        getWindowsActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_ARCH.arm64),
-            injector,
-            inject.getId(),
-            Endpoint.PLATFORM_ARCH.arm64.name()));
-    // Set implant script for Linux SentinelOne agents
-    actions.addAll(
-        getLinuxActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_ARCH.x86_64),
-            injector,
-            inject.getId(),
-            Endpoint.PLATFORM_ARCH.x86_64.name()));
-    actions.addAll(
-        getLinuxActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_ARCH.arm64),
-            injector,
-            inject.getId(),
-            Endpoint.PLATFORM_ARCH.arm64.name()));
-    // Set implant script for MacOS SentinelOne agents
-    actions.addAll(
-        getMacOSActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.MacOS, Endpoint.PLATFORM_ARCH.x86_64),
-            injector,
-            inject.getId(),
-            Endpoint.PLATFORM_ARCH.x86_64.name()));
-    actions.addAll(
-        getMacOSActions(
-            getAgentsFromOSAndArch(
-                sentinelOneAgents, Endpoint.PLATFORM_TYPE.MacOS, Endpoint.PLATFORM_ARCH.arm64),
-            injector,
-            inject.getId(),
-            Endpoint.PLATFORM_ARCH.arm64.name()));
+    // Set implant script for each agent
+    for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
+      for (Endpoint.PLATFORM_ARCH arch : Endpoint.PLATFORM_ARCH.values()) {
+        switch (platform) {
+          case Windows ->
+              actions.addAll(
+                  getWindowsActions(
+                      getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch.name()));
+          case Linux ->
+              actions.addAll(
+                  getLinuxActions(
+                      getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch.name()));
+          case MacOS ->
+              actions.addAll(
+                  getMacOSActions(
+                      getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
+                      injector,
+                      inject.getId(),
+                      arch.name()));
+          default -> { // No need, only Mac, Windows and Linux for now
+          }
+        }
+      }
+    }
     // Launch payloads with SentinelOne API
     executeActions(actions);
     return sentinelOneAgents;
   }
 
-  private void executeActions(List<SentinelOneAction> actions) throws InterruptedException {
+  public void executeActions(List<SentinelOneAction> actions) {
+    int paginationLimit = this.config.getApiBatchExecutionActionPagination();
     for (SentinelOneAction action : actions) {
-      int paginationLimit = this.config.getApiBatchExecutionActionPagination();
-      // Pagination with 1s wait if needed because each implant will call OpenAEV API to set traces
-      if (action.getAgents().size() > paginationLimit) {
-        int numberOfExecution = Math.ceilDiv(action.getAgents().size(), paginationLimit);
-        int fromIndex = 0;
-        int toIndex = paginationLimit;
-        for (int callNumber = 0; callNumber < numberOfExecution; callNumber += 1) {
-          this.client.executeScript(
-              action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList(),
-              action.getScriptId(),
-              action.getCommandEncoded());
-          fromIndex = toIndex;
-          toIndex = Math.min(action.getAgents().size(), fromIndex + paginationLimit);
-          Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
-        }
-      } else {
-        this.client.executeScript(
-            action.getAgents().stream().map(Agent::getId).toList(),
-            action.getScriptId(),
-            action.getCommandEncoded());
-        Thread.sleep(SLEEP_INTERVAL_BATCH_EXECUTIONS);
+      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
+      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
+        int fromIndex = (batchIndex * paginationLimit);
+        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
+        List<String> batchAgentIds =
+            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
+        // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
+        // because each XXX actions will call the SentinelOne API to execute the implants
+        // and each implant will call OpenAEV API to set traces
+        scheduledExecutorService.schedule(
+            () ->
+                this.client.executeScript(
+                    batchAgentIds, action.getScriptId(), action.getCommandEncoded()),
+            batchIndex * 5L,
+            TimeUnit.SECONDS);
       }
     }
   }

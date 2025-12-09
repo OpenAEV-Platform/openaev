@@ -1,8 +1,11 @@
 package io.openaev.executors.sentinelone.client;
 
+import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.*;
 import jakarta.validation.constraints.NotBlank;
@@ -129,7 +132,7 @@ public class SentinelOneExecutorClient {
               "Error occurred during SentinelOne executeScript API request. Error: %s",
               e.getMessage()),
           e);
-      throw new RuntimeException(e);
+      throw new ExecutorException(e, e.getMessage(), SENTINELONE_EXECUTOR_NAME);
     }
   }
 

@@ -32,5 +32,5 @@ public abstract class ExecutorContextService {
    * @throws InterruptedException if problem
    */
   public abstract List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) throws InterruptedException;
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus);
 }
