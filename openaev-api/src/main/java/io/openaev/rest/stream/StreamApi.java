@@ -75,7 +75,7 @@ public class StreamApi extends RestBehavior {
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
     if (RESOURCES_STREAM_BLACKLIST.contains(event.getInstance().getResourceType())
-        | !event.isListened()) {
+        || !event.isListened()) {
       return;
     }
     if (lastUpdate.isBefore(Instant.now().minus(5, ChronoUnit.MINUTES))) {

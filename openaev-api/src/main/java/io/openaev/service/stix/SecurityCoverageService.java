@@ -145,6 +145,8 @@ public class SecurityCoverageService {
     }
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
+
+    log.info("Saving Security coverage with external ID: {}", securityCoverage.getExternalId());
     return save(securityCoverage);
   }
 
@@ -185,6 +187,10 @@ public class SecurityCoverageService {
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
             scenario, securityCoverage);
     scenario.setInjects(injects);
+    log.info(
+        "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
+        scenario.getId(),
+        securityCoverage.getExternalId());
     return scenario;
   }
 
