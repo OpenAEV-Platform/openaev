@@ -62,6 +62,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
   }),
 };
 
+type ConnectorUnion = ExecutorOutput | InjectorOutput | CollectorOutput;
 export const collectorConfig: ConnectorContextType<CollectorOutput> = {
   connectorType: 'collector',
   apiRequest: {
@@ -106,10 +107,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
   }),
 };
 
-export const ConnectorContext = createContext<
-  ConnectorContextType<ExecutorOutput>
-  | ConnectorContextType<CollectorOutput>
-  | ConnectorContextType<InjectorOutput>>({
+export const ConnectorContext = createContext<ConnectorContextType<ConnectorUnion>>({
   connectorType: 'collector',
   logoUrl: _type => '',
   apiRequest: {
@@ -121,5 +119,5 @@ export const ConnectorContext = createContext<
     list: '/admin/integrations',
     detail: (_id: string) => '/admin/integrations',
   },
-  normalizeSingle: (_data: ExecutorOutput | InjectorOutput | CollectorOutput) => ({} as ConnectorOutput),
+  normalizeSingle: (_data: ConnectorUnion) => ({} as ConnectorOutput),
 });

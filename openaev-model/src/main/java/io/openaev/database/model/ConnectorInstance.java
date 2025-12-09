@@ -62,7 +62,7 @@ public class ConnectorInstance implements Base {
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_instance_source")
   @JsonProperty("connector_instance_source")
-  @NotBlank
+  @NotNull
   private SOURCE source = SOURCE.OTHER;
 
   @Enumerated(EnumType.STRING)

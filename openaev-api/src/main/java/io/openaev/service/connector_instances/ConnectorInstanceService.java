@@ -114,6 +114,7 @@ public class ConnectorInstanceService {
     newInstance.setCatalogConnector(catalogConnector);
     newInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     newInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    newInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);
     return newInstance;
   }
 

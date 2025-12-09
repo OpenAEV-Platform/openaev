@@ -18,7 +18,6 @@ import io.openaev.ee.Ee;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -56,7 +55,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private HealthCheckUtils healthCheckUtils;
 
   @Mock Ee eeService;
-  @Mock GrantService grantService;
   @Mock VariableService variableService;
   @Mock ChallengeService challengeService;
   @Autowired private TeamService teamService;
@@ -65,7 +63,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
-  @Mock private CollectorService collectorService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
 

@@ -192,6 +192,9 @@ public class CatalogConnectorIngestionService {
 
     for (Iterator<String> it = properties.fieldNames(); it.hasNext(); ) {
       String key = it.next();
+      if ("OPENAEV_URL".equals(key)) {
+        continue;
+      }
       JsonNode prop = properties.get(key);
 
       CatalogConnectorConfiguration conf =
