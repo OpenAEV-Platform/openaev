@@ -40,6 +40,12 @@ public class CrowdStrikeExecutorConfig {
 
   public Set<ConnectorInstanceConfiguration> toConnectorInstanceConfigurations(ConnectorInstance relatedInstance) {
     Set<ConnectorInstanceConfiguration> returned = new HashSet<>();
+    ConnectorInstanceConfiguration idConfig = ConnectorInstanceConfiguration.builder()
+            .connectorInstance(relatedInstance)
+            .key("EXECUTOR_ID")
+            //.value(id)
+            .isEncrypted(false)
+            .build();
     return Set.of();
   }
 }

@@ -10,14 +10,16 @@ import io.openaev.helper.MonoIdDeserializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
 @Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "connector_instance_configurations")
 @EntityListeners(ModelBaseListener.class)
 public class ConnectorInstanceConfiguration implements Base {
