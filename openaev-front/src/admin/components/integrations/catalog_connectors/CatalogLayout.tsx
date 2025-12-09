@@ -27,26 +27,26 @@ const CatalogLayout = () => {
   });
 
   const breadcrumbElements
-        = connectorId
-          ? [
-              { label: t('Catalog') },
-              {
-                label: t('Connectors'),
-                link: '/admin/integrations/catalog',
-              },
-              {
-                label: connector.catalog_connector_title,
-                current: true,
-              },
-            ]
-          : [
-              { label: t('Catalog') },
-              {
-                label: t('Connectors'),
-                link: '/admin/integrations/catalog',
-                current: true,
-              },
-            ];
+    = connectorId
+      ? [
+          { label: t('Catalog') },
+          {
+            label: t('Connectors'),
+            link: '/admin/integrations/catalog',
+          },
+          {
+            label: connector.catalog_connector_title,
+            current: true,
+          },
+        ]
+      : [
+          { label: t('Catalog') },
+          {
+            label: t('Connectors'),
+            link: '/admin/integrations/catalog',
+            current: true,
+          },
+        ];
 
   return (
     <>
