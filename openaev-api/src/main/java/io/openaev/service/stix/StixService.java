@@ -36,7 +36,8 @@ public class StixService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
-    try {
+      Scenario scenario = new Scenario();
+      try {
       JsonNode root = objectMapper.readTree(stixJson);
       Bundle bundle = stixParser.parseBundle(root.toString());
 
@@ -47,7 +48,7 @@ public class StixService {
           securityCoverageService.buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId);
 
       // Update Scenario using the last SecurityCoverage
-      Scenario scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
       return scenario;
     } catch (BadRequestException e) {
       log.error(e.getMessage(), e);
