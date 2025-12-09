@@ -22,7 +22,17 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { type Article, type Inject, type InjectBulkUpdateOperation, type InjectExportFromSearchRequestInput, type InjectInput, type InjectTestStatusOutput, type SearchPaginationInput, type Team, type Variable } from '../../../../utils/api-types';
+import {
+  type Article,
+  type Inject,
+  type InjectBulkUpdateOperation,
+  type InjectExportFromSearchRequestInput,
+  type InjectInput,
+  type InjectTestStatusOutput,
+  type SearchPaginationInput,
+  type Team,
+  type Variable,
+} from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
@@ -135,14 +145,14 @@ const Injects: FunctionComponent<Props> = ({
       isSortable: true,
       value: (inject: InjectOutputType) => {
         const payloadDomains
-                  = inject.inject_injector_contract?.injector_contract_payload?.payload_domains;
+                    = inject.inject_injector_contract?.injector_contract_payload?.payload_domains;
 
         const contractDomains
-                  = inject.inject_injector_contract?.injector_contract_domains;
+                    = inject.inject_injector_contract?.injector_contract_domains;
 
         const domains
-                  = (payloadDomains && payloadDomains.length > 0 && payloadDomains)
-                    || (contractDomains && contractDomains.length > 0 && contractDomains);
+                    = (payloadDomains && payloadDomains.length > 0 && payloadDomains)
+                      || (contractDomains && contractDomains.length > 0 && contractDomains);
 
         return domains
           ? <ItemDomains domains={domains} variant="reduced-view" />
@@ -215,7 +225,12 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_tags',
       label: 'Tags',
       isSortable: false,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <ItemTags variant="list" tags={inject.inject_tags} />,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+        <ItemTags
+          variant="list"
+          tags={inject.inject_tags}
+        />
+      ),
     },
   ], []);
 
@@ -232,7 +247,10 @@ const Injects: FunctionComponent<Props> = ({
     'inject_tags',
   ];
 
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
+  const {
+    queryableHelpers,
+    searchPaginationInput,
+  } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
     sorts: initSorting('inject_depends_duration', 'ASC'),
     size: 20,
   }));
@@ -466,7 +484,15 @@ const Injects: FunctionComponent<Props> = ({
       data: InjectTestStatusOutput[];
     }) => {
       if (numberOfSelectedElements === 1) {
-        MESSAGING$.notifySuccess(t('Inject test has been sent, you can view test logs details on {itsDedicatedPage}.', { itsDedicatedPage: <Link to={`${result.uri}/${result.data[0].status_id}`}>{t('its dedicated page')}</Link> }));
+        MESSAGING$.notifySuccess(t('Inject test has been sent, you can view test logs details on {itsDedicatedPage}.', {
+          itsDedicatedPage: (
+            <Link
+              to={`${result.uri}/${result.data[0].status_id}`}
+            >
+              {t('its dedicated page')}
+            </Link>
+          ),
+        }));
       } else {
         MESSAGING$.notifySuccess(t('Inject test has been sent, you can view test logs details on {itsDedicatedPage}.', { itsDedicatedPage: <Link to={`${result.uri}`}>{t('its dedicated page')}</Link> }));
       }
