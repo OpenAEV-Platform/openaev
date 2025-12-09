@@ -40,8 +40,10 @@
       "matchDatasources": [
         "maven"
       ],
-      "matchPackagePatterns": ["^io\\.openaev:"],
-      "enabled": false
+      "enabled": false,
+      "matchPackageNames": [
+        "/^io\\.openaev:/"
+      ]
     },
     {
       "matchDatasources": [
@@ -95,4 +97,3 @@
     "enabled": true
   }
 }
-
