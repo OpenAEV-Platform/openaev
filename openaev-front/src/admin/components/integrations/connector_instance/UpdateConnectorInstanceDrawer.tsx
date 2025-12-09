@@ -1,13 +1,13 @@
 import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useNavigate } from 'react-router';
 
-import { createConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
+import { updateConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import type {
   CatalogConnector,
+  ConnectorInstanceOutput,
   CreateConnectorInstanceInput,
 } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
@@ -21,31 +21,34 @@ interface Props {
   catalogConnectorId: string;
   catalogConnectorSlug: string;
   connectorType: CatalogConnector['catalog_connector_type'];
+  connectorInstanceId: ConnectorInstanceOutput['connector_instance_id'];
   disabled?: boolean;
   disabledMessage?: string;
 }
 
-const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage }: Props) => {
+const UpdateConnectorInstanceDrawer = ({
+  open,
+  onClose,
+  catalogConnectorId,
+  catalogConnectorSlug,
+  connectorInstanceId,
+  disabled = false, disabledMessage,
+}: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const navigate = useNavigate();
 
   const { loading, configurationsDefinitionMap, initialValues } = useConnectorInstanceForm(
-    false,
+    true,
     catalogConnectorId,
-    undefined,
+    connectorInstanceId,
     open,
   );
 
-  const onCreateConnectorInstance = (data: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>) => {
-    createConnectorInstance({
+  const onUpdateConnectorInstance = (data: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>) => {
+    updateConnectorInstance(connectorInstanceId, {
       catalog_connector_id: catalogConnectorId,
       ...data,
-    }).then(({ data }) => {
-      const connectorId = data.connector_instance_configurations.find(conf => conf.connector_instance_configuration_key === `${connectorType}_ID`)?.connector_instance_configuration_value;
-      if (connectorId) {
-        navigate(`/admin/integrations/${connectorType?.toLowerCase()}s/${connectorId}`);
-      }
+    }).then(() => {
       onClose();
     }).catch((error) => {
       if (error?.status === 500) {
@@ -60,24 +63,26 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Create a new connector instance')}
+      title={t('Update connector instance')}
     >
       <>
         {loading && <Loader />}
         {disabledMessage && disabled && <Alert style={{ marginBottom: theme.spacing(2) }} severity="warning">{disabledMessage}</Alert>}
-        {!loading && (
-          <ConnectorInstanceForm
-            catalogConnectorSlug={catalogConnectorSlug}
-            initialConfigurationValues={initialValues}
-            configurationsDefinitionMap={configurationsDefinitionMap}
-            onSubmit={onCreateConnectorInstance}
-            onClose={onClose}
-            disabled={disabled}
-          />
-        )}
+        {!loading
+          && (
+            <ConnectorInstanceForm
+              catalogConnectorSlug={catalogConnectorSlug}
+              initialConfigurationValues={initialValues}
+              configurationsDefinitionMap={configurationsDefinitionMap}
+              onSubmit={onUpdateConnectorInstance}
+              onClose={onClose}
+              disabled={disabled}
+              isEditing
+            />
+          )}
       </>
     </Drawer>
   );
 };
 
-export default CreateConnectorInstanceDrawer;
+export default UpdateConnectorInstanceDrawer;

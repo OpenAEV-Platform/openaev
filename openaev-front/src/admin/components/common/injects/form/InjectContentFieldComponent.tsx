@@ -19,12 +19,12 @@ import InjectEndpointsList from './endpoints/InjectEndpointsList';
 
 interface Props {
   field: EnhancedContractElement;
-  readOnly: boolean;
+  readOnly?: boolean;
 }
 
 const InjectContentFieldComponent = ({
   field,
-  readOnly,
+  readOnly = false,
 }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -153,6 +153,7 @@ const InjectContentFieldComponent = ({
             rows={field.type == 'textarea' ? (field.settings?.rows ?? 10) : 1}
             required={field.settings?.required}
             type={field.type as ('number' | 'text' | 'password')}
+            writeOnly={field.writeOnly}
           />
         );
       }

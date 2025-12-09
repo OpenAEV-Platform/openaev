@@ -11,7 +11,7 @@ import TextField from '../../../../components/fields/TextField';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import {
-  type CatalogConnectorConfiguration,
+  type CatalogConnectorConfiguration, type ConfigurationInput,
   type CreateConnectorInstanceInput,
 } from '../../../../utils/api-types';
 import { type ContractType, type EnhancedContractElement } from '../../../../utils/api-types-custom';
@@ -19,19 +19,27 @@ import InjectContentFieldComponent from '../../common/injects/form/InjectContent
 
 interface Props {
   catalogConnectorSlug: string;
-  initialConfigurationValues: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>;
-  configurationsDefinition: CatalogConnectorConfiguration[];
+  initialConfigurationValues: ConfigurationInput[];
+  configurationsDefinitionMap: Record<string, CatalogConnectorConfiguration>;
   onSubmit: SubmitHandler<Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>>;
   onClose: () => void;
   isEditing?: boolean;
   disabled?: boolean;
 }
 
-const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefinition, catalogConnectorSlug, onClose, isEditing = false, onSubmit, disabled = false }: Props) => {
+const ConnectorInstanceForm = ({
+  initialConfigurationValues,
+  configurationsDefinitionMap,
+  catalogConnectorSlug,
+  onClose,
+  isEditing = false,
+  onSubmit,
+  disabled = false,
+}: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const createDynamicSchema = (configurations: CatalogConnectorConfiguration[]) => {
+  const createDynamicSchema = (configurationsDefMap: Record<string, CatalogConnectorConfiguration>) => {
     const getZodType = (typeFromConf: CatalogConnectorConfiguration['connector_configuration_type'], formatFromConf: CatalogConnectorConfiguration['connector_configuration_format']) => {
       if (formatFromConf === 'URI') {
         return z.string().url(t('Must be a valid URI'));
@@ -53,18 +61,17 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
     };
     const configurationsSchema = z.array(z.object({
       configuration_key: z.string().nonempty(t('Should not be empty')),
-      configuration_value: z.unknown().or(z.undefined()).optional(), // This allows undefined but not null
-      // configuration_value: z.union([
-      //   z.string(),
-      //   z.number(),
-      //   z.boolean(),
-      //   z.object({}),
-      // ]).or(z.undefined()).optional(), // This allows undefined but not null
+      configuration_value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.object({}),
+      ]).or(z.undefined()).optional(), // This allows undefined but not null
     })).superRefine((confValues, ctx) => {
       confValues.forEach((confValue, index) => {
         const { configuration_value: value, configuration_key: key } = confValue;
-        const matchingConf = configurations.find(c => c.connector_configuration_key === key);
-        if (!matchingConf) {
+        const matchingConf = configurationsDefMap[key];
+        if (configurationsDefMap) {
           return;
         }
         const expectedSchema = getZodType(matchingConf.connector_configuration_type, matchingConf.connector_configuration_format);
@@ -94,13 +101,13 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
   };
 
   const validationSchema = useMemo(() => {
-    return createDynamicSchema(configurationsDefinition);
-  }, [configurationsDefinition]);
+    return createDynamicSchema(configurationsDefinitionMap);
+  }, [configurationsDefinitionMap]);
 
-  const methods = useForm<Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>>({
+  const methods = useForm<{ connector_instance_configurations: ConfigurationInput[] }>({
     mode: 'onTouched',
     resolver: zodResolver(validationSchema),
-    defaultValues: initialConfigurationValues,
+    defaultValues: { connector_instance_configurations: initialConfigurationValues },
   });
 
   const {
@@ -149,7 +156,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
       key: `connector_instance_configurations.${index}.configuration_value`,
-      type: formatFieldType(definition.connector_configuration_type, definition.connector_configuration_format, definition.connector_configuration_enum?.length > 0),
+      type: formatFieldType(definition.connector_configuration_type, definition.connector_configuration_format, !!definition.connector_configuration_enum?.length),
       mandatory: required,
       label: formatKeyToLabel(definition.connector_configuration_key || ''), // TODO should be not null
       readOnly: false,
@@ -160,6 +167,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
       cardinality: definition.connector_configuration_type == 'ARRAY' ? 'n' : '1',
       defaultValue: definition.connector_configuration_default || '',
       settings: { required },
+      writeOnly: isEditing && definition.connector_configuration_writeonly,
     };
   };
 
@@ -183,7 +191,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
         return;
       }
 
-      const configDef = configurationsDefinition.find(c => c.connector_configuration_key === field.configuration_key);
+      const configDef = configurationsDefinitionMap[field.configuration_key];
 
       if (configDef?.connector_configuration_required) {
         requiredFields.push({
@@ -205,7 +213,7 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
       requiredFields,
       optionalFields,
     };
-  }, [configurationFields, configurationsDefinition]);
+  }, [configurationFields, configurationsDefinitionMap]);
 
   return (
     <FormProvider {...methods}>
@@ -223,11 +231,12 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
           name={`connector_instance_configurations.${nameFieldIndex}.configuration_value`}
           label={t('Display name')}
           required
-          disabled={disabled}
+          disabled={disabled || isEditing}
         />
         <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
           <div
+            key={field.id}
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr auto',
@@ -267,12 +276,14 @@ const ConnectorInstanceForm = ({ initialConfigurationValues, configurationsDefin
               }}
               >
                 {optionalFields.map(({ index, field, definition }) => (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto',
-                    alignItems: 'end',
-                    gap: theme.spacing(2),
-                  }}
+                  <div
+                    key={field.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto',
+                      alignItems: 'end',
+                      gap: theme.spacing(2),
+                    }}
                   >
                     <InjectContentFieldComponent
                       key={field.id}

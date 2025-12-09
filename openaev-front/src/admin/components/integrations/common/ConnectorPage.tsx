@@ -1,6 +1,6 @@
 import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
+import { type ReactNode, useContext } from 'react';
 import { useOutletContext } from 'react-router';
 
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
@@ -9,18 +9,20 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConnectorCatalogInfo from '../common/ConnectorCatalogInfo';
-import ConnectorLogs from '../common/ConnectorLogs';
-import ConnectorTitle from '../common/ConnectorTitle';
-import { type ExecutorsContextType } from './ExecutorsLayout';
+import ConnectorCatalogInfo from './ConnectorCatalogInfo';
+import { ConnectorContext } from './ConnectorContext';
+import type { ConnectorContextType } from './ConnectorLayout';
+import ConnectorLogs from './ConnectorLogs';
+import ConnectorTitle from './ConnectorTitle';
 
-const ExecutorPage = () => {
+const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { executor, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ExecutorsContextType>();
+  const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
+  const { logoUrl } = useContext(ConnectorContext);
 
   const tabEntries: TabsEntry[] = [{
     key: 'overview',
@@ -47,10 +49,10 @@ const ExecutorPage = () => {
       <ConnectorTitle
         connector={{
           instanceId: instance?.connector_instance_id,
-          connectorName: executor?.executor_name || catalogConnector?.catalog_connector_title,
+          connectorName: connector?.name || catalogConnector?.catalog_connector_title,
           connectorType: 'EXECUTOR',
-          connectorLogoName: executor?.executor_type || catalogConnector?.catalog_connector_slug,
-          connectorLogoUrl: executor?.executor_type ? `/api/images/executors/${executor.executor_type}` : `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`,
+          connectorLogoName: connector?.type || catalogConnector?.catalog_connector_slug,
+          connectorLogoUrl: connector?.isVerified ? `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}` : logoUrl(connector?.type),
           connectorDescription: catalogConnector?.catalog_connector_description,
           isExternal: catalogConnector?.catalog_connector_manager_supported,
           isVerified: instance != null,
@@ -58,6 +60,7 @@ const ExecutorPage = () => {
         }}
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
+        instanceRequestedStatus={instance?.connector_instance_requested_status}
         showUpdateButtons={isEnterpriseEdition && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
         disabledUpdateButtons={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
       />
@@ -67,7 +70,10 @@ const ExecutorPage = () => {
         onChange={newValue => handleChangeTab(newValue)}
       />
       {currentTab === 'overview' && catalogConnector && (
-        <ConnectorCatalogInfo catalogConnector={catalogConnector} />
+        <>
+          <ConnectorCatalogInfo catalogConnector={catalogConnector} />
+          {extraInfoComponent}
+        </>
       )}
       {currentTab === 'logs' && (
         <ConnectorLogs connectorInstanceId={instance.connector_instance_id} />
@@ -76,4 +82,4 @@ const ExecutorPage = () => {
   );
 };
 
-export default ExecutorPage;
+export default ConnectorPage;

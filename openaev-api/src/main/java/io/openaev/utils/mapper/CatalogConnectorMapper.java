@@ -39,6 +39,7 @@ public class CatalogConnectorMapper {
     return CatalogConnectorSimpleOutput.builder()
         .id(catalogConnector.getId())
         .shortDescription(catalogConnector.getShortDescription())
+        .logoUrl(catalogConnector.getLogoUrl())
         .build();
   }
 

@@ -6,12 +6,12 @@ import { makeStyles } from 'tss-react/mui';
 import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
 import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
-import { type ConnectorInstance } from '../../../../utils/api-types';
+import { type ConnectorInstanceOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type ConnectorMainInfo } from './ConnectorCard';
 import ConnectorPopover from './ConnectorPopover';
-import DeployButton from './DeployButton';
 import ConnectorStatus from './ConnectorStatus';
+import DeployButton from './DeployButton';
 
 const useStyles = makeStyles()(theme => ({
   content: {
@@ -74,8 +74,8 @@ const useStyles = makeStyles()(theme => ({
 type ConnectorHeaderProps = {
   connector: ConnectorMainInfo;
   detailsTitle?: boolean;
-  instanceCurrentStatus?: ConnectorInstance['connector_instance_current_status'];
-  instanceRequestedStatus?: ConnectorInstance['connector_instance_requested_status'];
+  instanceCurrentStatus?: ConnectorInstanceOutput['connector_instance_current_status'];
+  instanceRequestedStatus?: ConnectorInstanceOutput['connector_instance_requested_status'];
   showDeployButton?: boolean;
   showUpdateButtons?: boolean;
   onDeployBtnClick?: () => void;

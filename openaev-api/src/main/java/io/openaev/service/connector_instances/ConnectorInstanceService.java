@@ -7,11 +7,14 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
+import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.ConnectorInstanceLogService;
+import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityNotFoundException;
 
 import java.util.*;
@@ -30,8 +33,10 @@ public class ConnectorInstanceService {
   // TODO clean file + ADD JAVA DOC
 
   private final ObjectMapper objectMapper;
+  private final ConnectorInstanceMapper connectorInstanceMapper;
 
   private final ConnectorInstanceRepository connectorInstanceRepository;
+  private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   private final TokenRepository tokenRepository;
 
   private final ConnectorInstanceLogService connectorInstanceLogService;
@@ -65,6 +70,15 @@ public class ConnectorInstanceService {
         .findById(id)
         .orElseThrow(
             () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+  }
+
+  public ConnectorInstanceOutput connectorInstanceOutputById(String id) {
+    return connectorInstanceMapper.toConnectorInstanceOutput(connectorInstanceById(id));
+  }
+
+  public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(String id){
+    ConnectorInstance connectorInstance = connectorInstanceById(id);
+    return connectorInstance.getConfigurations();
   }
 
   public ConnectorInstance updateCurrentStatus(
@@ -138,8 +152,8 @@ public class ConnectorInstanceService {
   }
 
 
-  private List<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(
-          ConnectorInstance instance, CatalogConnector catalogConnector, CreateConnectorInstanceInput input ){
+  private List<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsFromInput(
+          ConnectorInstance instance, CatalogConnector catalogConnector, CreateConnectorInstanceInput input){
     List<ConnectorInstanceConfiguration> configurations = new ArrayList<>();
     Map<String, CatalogConnectorConfiguration> definitionsMap =
             catalogConnector.getCatalogConnectorConfigurations().stream()
@@ -181,7 +195,7 @@ public class ConnectorInstanceService {
 
   public ConnectorInstance createConnectorInstance(CatalogConnector catalogConnector, CreateConnectorInstanceInput input) {
     ConnectorInstance newInstance = buildNewConnectorInstanceFromCatalog(catalogConnector);
-    List<ConnectorInstanceConfiguration> configurations = getConnectorInstanceConfigurations(newInstance, catalogConnector, input);
+    List<ConnectorInstanceConfiguration> configurations = getConnectorInstanceConfigurationsFromInput(newInstance, catalogConnector, input);
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
@@ -190,6 +204,47 @@ public class ConnectorInstanceService {
 
     newInstance.setConfigurations(Set.copyOf(configurations));
     return this.save(newInstance);
+  }
+
+  private List<ConnectorInstanceConfiguration> mergeConfigurations(
+          ConnectorInstance instance,
+          Map<String, ConnectorInstanceConfiguration> existingConfigurationMap,
+          List<ConnectorInstanceConfiguration> newConfigurations) {
+
+    return newConfigurations.stream()
+            .map(newConfig ->{
+              ConnectorInstanceConfiguration existingConfig = existingConfigurationMap.get(newConfig.getKey());
+
+              if (existingConfig != null) {
+                existingConfig.setValue(newConfig.getValue());
+                existingConfig.setEncrypted(newConfig.isEncrypted());
+                return existingConfig;
+              } else {
+                return createConfiguration(
+                        newConfig.getKey(),
+                        newConfig.getValue(),
+                        newConfig.isEncrypted(),
+                        instance
+                );
+              }
+            })
+            .collect(Collectors.toList());
+  }
+
+  public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfiguration(String connectorInstanceId, CatalogConnector catalogConnector, CreateConnectorInstanceInput input){
+    ConnectorInstance instance = connectorInstanceById(connectorInstanceId);
+    Map<String, ConnectorInstanceConfiguration> existingConfigurationMap =
+            instance.getConfigurations().stream()
+                    .collect(Collectors.toMap(
+                            ConnectorInstanceConfiguration::getKey,
+                            Function.identity()
+                    ));
+
+    List<ConnectorInstanceConfiguration> newConfigurations = getConnectorInstanceConfigurationsFromInput(instance, catalogConnector, input);
+    List<ConnectorInstanceConfiguration> configurationsToSave =
+            mergeConfigurations(instance, existingConfigurationMap, newConfigurations);
+
+    return fromIterable(this.connectorInstanceConfigurationRepository.saveAll(configurationsToSave));
   }
 
   public ConnectorInstanceLog pushLogsByConnectorInstance(String connectorInstanceId, Set<String> logs) {

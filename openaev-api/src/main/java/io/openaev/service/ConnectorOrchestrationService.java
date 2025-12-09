@@ -1,19 +1,14 @@
 package io.openaev.service;
 
-import static io.openaev.database.model.SettingKeys.*;
 
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.BaseConnectorEntity;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.Setting;
+import io.openaev.database.model.*;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import io.openaev.rest.exception.LicenseRestrictionException;
@@ -152,6 +147,26 @@ public class ConnectorOrchestrationService {
     validateCatalogInstanceCreation(catalogConnector.get().getId(), catalogConnector.get().getSlug(), catalogConnector.get().getContainerType());
 
     return connectorInstanceService.createConnectorInstance(catalogConnector.get(), input);
+  }
+
+  /**
+   * Update connector instance configurations
+   *
+   * @param connectorInstanceId the identifier of the connector instance to update
+   * @param input CreateConnectorInstanceInput
+   * @return list of connector instance configuration updated
+   */
+  public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfiguration(String connectorInstanceId, CreateConnectorInstanceInput input) {
+    validateEnterpriseLicense();
+
+    Optional<CatalogConnector> catalogConnector = catalogConnectorService.findById(input.getCatalogConnectorId());
+    if (catalogConnector.isEmpty()) {
+      throw new EntityNotFoundException(
+              "CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
+    }
+    validateXtmComposerIfRequired(catalogConnector.get());
+
+    return connectorInstanceService.updateConnectorInstanceConfiguration(connectorInstanceId, catalogConnector.get(), input);
   }
 
 }

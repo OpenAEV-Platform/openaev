@@ -14,4 +14,7 @@ public class CatalogConnectorSimpleOutput {
 
   @JsonProperty("catalog_connector_short_description")
   private String shortDescription;
+
+  @JsonProperty("catalog_connector_logo_url")
+  private String logoUrl;
 }

@@ -722,6 +722,7 @@ export interface CatalogConnectorOutput {
 /** Catalog simple output */
 export interface CatalogConnectorSimpleOutput {
   catalog_connector_id?: string;
+  catalog_connector_logo_url?: string;
   catalog_connector_short_description?: string;
 }
 
@@ -1111,6 +1112,12 @@ export interface ConnectorInstanceLogsInput {
    * @uniqueItems true
    */
   connector_instance_logs?: string[];
+}
+
+export interface ConnectorInstanceOutput {
+  connector_instance_current_status: "started" | "stopped";
+  connector_instance_id: string;
+  connector_instance_requested_status?: "starting" | "stopping";
 }
 
 export interface ContractOutputElement {
