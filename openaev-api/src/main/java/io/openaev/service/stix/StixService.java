@@ -1,9 +1,9 @@
 package io.openaev.service.stix;
 
+import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.aop.lock.Lock;
-import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.stix.objects.Bundle;
@@ -18,8 +18,6 @@ import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
-
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -28,6 +26,7 @@ public class StixService {
   private final SecurityCoverageService securityCoverageService;
   private final ObjectMapper objectMapper;
   private final Parser stixParser;
+
   /**
    * Generate or update a Scenario from Stix bundle
    *
@@ -36,8 +35,8 @@ public class StixService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
-      Scenario scenario = new Scenario();
-      try {
+    Scenario scenario = new Scenario();
+    try {
       JsonNode root = objectMapper.readTree(stixJson);
       Bundle bundle = stixParser.parseBundle(root.toString());
 
@@ -45,13 +44,14 @@ public class StixService {
 
       String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
       SecurityCoverage securityCoverage =
-          securityCoverageService.buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId);
+          securityCoverageService.buildSecurityCoverageFromStix(
+              stixCoverageObj, bundle, externalId);
 
       // Update Scenario using the last SecurityCoverage
       scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
       return scenario;
-    } catch (BadRequestException e) {
-      log.error(e.getMessage(), e);
+    } catch (BadRequestException | ParsingException e) {
+      log.error("Error while processing STIX bundle: {}", e.getMessage(), e);
     }
     return scenario;
   }
