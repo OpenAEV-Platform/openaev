@@ -9,6 +9,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.stix.StixService;
+import io.openaev.service.stix.StixService.ScenarioSecurityCoverage;
 import io.openaev.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -64,9 +65,9 @@ public class StixApi extends RestBehavior {
       openCTIService.acknowledgeReceivedOfCoverage(
           workId, "OpenAEV ready to process the operation");
       // Create scenario from stix bundle
-      Scenario scenario = stixService.processBundle(stixJson);
-      // TODO Schedule or not, start directly on execution after create/update
+      ScenarioSecurityCoverage scenarioSecurityCoverage = stixService.processBundle(stixJson);
       // If no simulation for this scenario is in progress, start an execution right away
+      Scenario scenario = stixService.setRecurrence(scenarioSecurityCoverage);
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "Coverage successfully created or updated", false);
       // Generate response
