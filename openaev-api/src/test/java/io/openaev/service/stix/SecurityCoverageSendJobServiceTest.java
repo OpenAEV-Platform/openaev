@@ -8,6 +8,7 @@ import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
@@ -17,8 +18,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
+@SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @Transactional
 public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
