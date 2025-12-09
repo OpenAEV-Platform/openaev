@@ -50,6 +50,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
@@ -99,8 +100,9 @@ public class SecurityCoverageService {
     // Mandatory fields
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
     // Check created date: if date is last recent I update if not return
-    // stixCoverageObj.getRequiredProperty(STIX_MODIFIED);
-    securityCoverage.getUpdatedAt().isAfter(bundle.getDomainObjects().get(MODIFIED).toString()) ? return;
+    if(securityCoverage.getUpdatedAt().isAfter(Instant.parse((String) stixCoverageObj.getProperty(MODIFIED).getValue()))) {
+      throw new BadRequestException("STIX bundle is Obsolete");
+    }
 
     securityCoverage.setExternalId(externalId);
 

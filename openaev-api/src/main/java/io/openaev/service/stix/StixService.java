@@ -14,6 +14,7 @@ import io.openaev.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,19 +36,22 @@ public class StixService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
-    // Update securityCoverage with the last bundle
+    try {
+      JsonNode root = objectMapper.readTree(stixJson);
+      Bundle bundle = stixParser.parseBundle(root.toString());
 
-    JsonNode root = objectMapper.readTree(stixJson);
-    Bundle bundle = stixParser.parseBundle(root.toString());
+      ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
 
-    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
+      String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+      SecurityCoverage securityCoverage =
+          securityCoverageService.buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId);
 
-    String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
-
-    SecurityCoverage securityCoverage =
-        securityCoverageService.buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId);
-    // Update Scenario using the last SecurityCoverage
-    Scenario scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      // Update Scenario using the last SecurityCoverage
+      Scenario scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      return scenario;
+    } catch (BadRequestException e) {
+      log.error(e.getMessage(), e);
+    }
     return scenario;
   }
 
