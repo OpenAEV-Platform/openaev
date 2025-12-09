@@ -49,7 +49,7 @@ SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_{registrationId}_CLIENT_SECRET=
 
       *{registrationId} is an arbitrary identifier you choose.*
 
-#### SAML2
+### SAML2
 
 This strategy can be used to authenticate your user with your company SAML.
 
