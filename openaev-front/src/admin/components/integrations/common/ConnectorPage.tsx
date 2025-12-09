@@ -11,7 +11,7 @@ import { AbilityContext } from '../../../../utils/permissions/PermissionsProvide
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext } from './ConnectorContext';
-import type { ConnectorContextType } from './ConnectorLayout';
+import type { ConnectorContextLayoutType } from './ConnectorLayout';
 import ConnectorLogs from './ConnectorLogs';
 import ConnectorTitle from './ConnectorTitle';
 
@@ -19,7 +19,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextType>();
+  const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
   const { logoUrl } = useContext(ConnectorContext);

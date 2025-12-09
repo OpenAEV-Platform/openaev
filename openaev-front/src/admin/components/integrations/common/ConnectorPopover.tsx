@@ -10,7 +10,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UpdateConnectorInstanceDrawer from '../connector_instance/UpdateConnectorInstanceDrawer';
-import type { ConnectorContextType } from './ConnectorLayout';
+import type { ConnectorContextLayoutType } from './ConnectorLayout';
 
 type ConnectorPopoverProps = {
   connectorInstanceId: string;
@@ -26,7 +26,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-  const { instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextType>();
+  const { instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
 
   const [openDialogDelete, setOpenDialogDelete] = useState(false);
 
@@ -60,7 +60,6 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
         className={classes.autoMarginLeft}
         entries={entries}
         variant="toggle"
-        disabled={disabled}
       />
       <DialogDelete
         open={openDialogDelete}
