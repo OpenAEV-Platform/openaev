@@ -10,11 +10,10 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorIngestionService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
-        value = {RabbitMQTestListener.class},
-        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @DisplayName("Catalog connectors process tests")
 @Transactional
 public class CatalogConnectorIngestionServiceTest {
