@@ -155,6 +155,7 @@ const InjectorContractForm = (props) => {
                       variant="standard"
                       size="small"
                       fullWidth
+                      style={{ marginTop: 20 }}
                       error={meta.error && meta.touched}
                       helperText={meta.touched && meta.error ? meta.error : null}
                     />

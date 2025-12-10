@@ -30,22 +30,34 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
-  const onSubmitEditMapping = (data) => {
-    const inputValues = R.pipe(
-      R.assoc('contract_attack_patterns_ids', R.pluck('id', data.injector_contract_attack_patterns)),
-      R.assoc('contract_domains', data.injector_contract_domains),
-      R.dissoc('injector_contract_attack_patterns'),
-      R.dissoc('injector_contract_domains'),
-    )(data);
 
-    return dispatch(updateInjectorContractMapping(injectorContract.injector_contract_id, inputValues))
-      .then((result) => {
-        if (result.entities && onUpdate) {
-          onUpdate(result.entities.injector_contracts[result.result]);
-        }
-        handleCloseEdit();
-      });
+  const onSubmitEditMapping = (data) => {
+    const {
+      injector_contract_attack_patterns,
+      injector_contract_domains,
+      ...restData
+    } = data;
+
+    const inputValues = {
+      ...restData,
+      contract_attack_patterns_ids:
+        injector_contract_attack_patterns?.map(p => p.id),
+      contract_domains: injector_contract_domains?.map(p => p.domain_id),
+    };
+
+    return dispatch(
+      updateInjectorContractMapping(
+        injectorContract.injector_contract_id,
+        inputValues,
+      ),
+    ).then((result) => {
+      if (result.entities && onUpdate) {
+        onUpdate(result.entities.injector_contracts[result.result]);
+      }
+      handleCloseEdit();
+    });
   };
+
   const onSubmitEdit = (data, fields) => {
     const injectorContractContent = JSON.parse(injectorContract.injector_contract_content);
     const newInjectorContractContent = {
@@ -88,19 +100,23 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
     handleCloseDelete();
   };
   const injectorContractAttackPatterns = attackPatternOptions(injectorContract.injector_contract_attack_patterns, attackPatternsMap, killChainPhasesMap);
-  let initialValues = null;
+
+  let initialValues;
+
   if (injectorContract.injector_contract_custom) {
-    initialValues = R.pipe(
-      R.assoc('injector_contract_name', injectorContract.injector_contract_labels.en),
-      R.assoc('injector_contract_attack_patterns', injectorContractAttackPatterns),
-      R.assoc('injector_contract_domains', injectorContract.injector_contract_domains),
-    )(injectorContract);
+    initialValues = {
+      ...injectorContract,
+      injector_contract_name: injectorContract.injector_contract_labels.en,
+      injector_contract_attack_patterns: injectorContractAttackPatterns,
+      injector_contract_domains: injectorContract.injector_contract_domains,
+    };
   } else {
     initialValues = {
       injector_contract_attack_patterns: injectorContractAttackPatterns,
       injector_contract_domains: injectorContract.injector_contract_domains,
     };
   }
+
   return (
     <>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>

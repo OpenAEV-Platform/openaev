@@ -49,13 +49,18 @@ const InjectorContractForm = (props) => {
             style={{ marginTop: theme.spacing(2) }}
           />
           {!isPayloadInjector && (
-            <Field name="injector_contract_domains">
+            <Field
+              name="injector_contract_domains"
+            >
               {({ input, meta }) => {
-                const safeValue = Array.isArray(input.value)
-                  ? input.value
-                      .map(id => filteredDomains.find(d => d.domain_id === id))
-                      .filter(Boolean)
-                  : [];
+                const safeValue = (Array.isArray(input.value) ? input.value : [])
+                  .map((val) => {
+                    if (typeof val === 'string') {
+                      return filteredDomains.find(d => d.domain_id === val);
+                    }
+                    return val;
+                  })
+                  .filter(Boolean);
 
                 return (
                   <Autocomplete
@@ -67,18 +72,19 @@ const InjectorContractForm = (props) => {
                     disableClearable={false}
                     openOnFocus
                     autoHighlight
-                    noOptionsText="No available options"
+                    noOptionsText={t('No available options')}
                     value={safeValue}
                     onChange={(_event, selectedOptions) => {
-                      input.onChange(selectedOptions.map(o => o.domain_id));
+                      input.onChange(selectedOptions);
                     }}
                     renderInput={params => (
                       <TextField
                         {...params}
-                        label={t('domains')}
+                        label={t('Domains')}
                         variant="standard"
                         size="small"
                         fullWidth
+                        style={{ marginTop: 20 }}
                         error={meta.error && meta.touched}
                         helperText={meta.touched && meta.error ? meta.error : null}
                       />
