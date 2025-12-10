@@ -901,6 +901,7 @@
   "inject-singular": "父母",
   "InjectExpectation": "注入期望",
   "injector_contract_arch": "建築",
+  "injector_contract_domains": "领域",
   "injector_contract_injector": "注入器",
   "injector_contract_kill_chain_phases": "杀伤链阶段",
   "injector_contract_labels": "标签",
