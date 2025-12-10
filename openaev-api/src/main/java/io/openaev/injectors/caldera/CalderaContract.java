@@ -154,8 +154,7 @@ public class CalderaContract extends Contractor {
                       builder.build(),
                       platforms,
                       true,
-                      domainService.findDomainByNameAndDescription(
-                          ability.getName(), ability.getDescription()));
+                      domainService.findDomainByNameAndDescription(ability.getName()));
               contract.addAttackPattern(ability.getTechnique_id());
               return contract;
             }))

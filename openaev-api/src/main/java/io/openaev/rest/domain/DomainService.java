@@ -21,7 +21,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -116,11 +115,10 @@ public class DomainService {
         .collect(Collectors.toSet());
   }
 
-  public Set<Domain> findDomainByNameAndDescription(final String name, final String description) {
+  public Set<Domain> findDomainByNameAndDescription(final String name) {
     Set<Domain> domains = new HashSet<>();
     domains.add(PresetDomain.ENDPOINT);
     domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(name));
-    domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(description));
     return domains;
   }
 

@@ -73,8 +73,7 @@ public class DomainServiceTest extends IntegrationTest {
   @Test
   @DisplayName("Should find Endpoint because no any keyword match")
   void shouldFindEndpointBecauseNoAnyKeywordMatch() {
-    Set<Domain> domains =
-        this.domainService.findDomainByNameAndDescription("123456789", "123456789");
+    Set<Domain> domains = this.domainService.findDomainByNameAndDescription("123456789");
 
     assertThat(domains).containsExactly(PresetDomain.ENDPOINT);
   }
@@ -84,8 +83,7 @@ public class DomainServiceTest extends IntegrationTest {
   void shouldFindAllDomainsBecauseNoAllKeywordMatch() {
     Set<Domain> domains =
         this.domainService.findDomainByNameAndDescription(
-            "lsass lateral movement sql injection spearphishing attachment",
-            "exfiltrat domain fronting aws");
+            "lsass lateral movement sql injection spearphishing attachment exfiltrat domain fronting aws");
 
     assertThat(domains)
         .containsExactlyInAnyOrder(
