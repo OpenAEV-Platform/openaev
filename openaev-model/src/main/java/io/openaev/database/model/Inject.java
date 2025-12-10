@@ -493,6 +493,16 @@ public class Inject implements GrantableBase, Injection {
         .orElse(new Endpoint.PLATFORM_TYPE[0]);
   }
 
+  @JsonProperty("inject_contract_domains")
+  @Queryable(
+      filterable = true,
+      paths = {"injectorContract.domains.id", "injectorContract.payload.domains.id"},
+      dynamicValues = true,
+      clazz = String[].class)
+  private Set<Domain> getDomains() {
+    return getInjectorContract().map(InjectorContract::getDomains).orElseGet(HashSet::new);
+  }
+
   @JsonIgnore
   public boolean isAtomicTesting() {
     return this.exercise == null && this.scenario == null;

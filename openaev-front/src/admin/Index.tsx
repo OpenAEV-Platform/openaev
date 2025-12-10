@@ -233,6 +233,7 @@ const Index = () => {
                 />
               )}
             />
+
             {/* Not found */}
             <Route path="*" element={<NotFound />} />
           </Routes>

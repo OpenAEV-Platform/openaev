@@ -30,6 +30,7 @@ public class CatalogConnector implements Base {
   }
 
   @Id
+  @NotNull
   @Column(name = "catalog_connector_id")
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
@@ -138,7 +139,7 @@ public class CatalogConnector implements Base {
 
   @OneToMany(
       mappedBy = "catalogConnector",
-      fetch = FetchType.EAGER,
+      fetch = FetchType.LAZY,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("catalog_connector_configuration")

@@ -2,10 +2,12 @@ package io.openaev.rest.connector_instance.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,5 +46,13 @@ public class ConnectorInstanceService {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     return instance;
+  }
+
+  public List<ConnectorInstance> findAllByCatalogConnector(CatalogConnector connector) {
+    return connectorInstanceRepository.findByCatalogConnectorId(connector.getId());
+  }
+
+  public void saveAll(Set<ConnectorInstance> instances) {
+    connectorInstanceRepository.saveAll(instances);
   }
 }

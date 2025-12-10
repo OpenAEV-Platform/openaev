@@ -23,6 +23,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import javax.annotation.Nullable;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -137,8 +138,19 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
+  @Getter(AccessLevel.NONE)
   @JsonProperty("injector_contract_domains")
   private Set<Domain> domains = new HashSet<>();
+
+  @JsonProperty("injector_contract_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"payload.domains.id", "domains.id"},
+      clazz = String[].class)
+  public Set<Domain> getDomains() {
+    return this.payload != null ? this.payload.getDomains() : this.domains;
+  }
 
   @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.EAGER)

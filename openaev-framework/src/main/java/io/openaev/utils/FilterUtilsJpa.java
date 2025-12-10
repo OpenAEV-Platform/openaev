@@ -115,7 +115,14 @@ public class FilterUtilsJpa {
                       ? String.class
                       : filterableProperty.getType()));
         }
-        return cb.or(predicates.toArray(Predicate[]::new));
+        if (filter.getOperator().equals(FilterOperator.not_contains)
+            || filter.getOperator().equals(FilterOperator.not_empty)
+            || filter.getOperator().equals(FilterOperator.not_eq)
+            || filter.getOperator().equals(FilterOperator.not_starts_with)) {
+          return cb.and(predicates.toArray(Predicate[]::new));
+        } else {
+          return cb.or(predicates.toArray(Predicate[]::new));
+        }
       }
 
       // Single path or no path case

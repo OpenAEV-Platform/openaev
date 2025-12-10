@@ -594,6 +594,23 @@ export interface CVEBulkInsertInput {
   source_identifier: string;
 }
 
+export interface CatalogConnectorOutput {
+  catalog_connector_description?: string;
+  catalog_connector_id: string;
+  /** @format date-time */
+  catalog_connector_last_verified_date?: string;
+  catalog_connector_logo_url?: string;
+  catalog_connector_manager_supported?: boolean;
+  catalog_connector_short_description?: string;
+  catalog_connector_source_code?: string;
+  catalog_connector_subscription_link?: string;
+  catalog_connector_title: string;
+  catalog_connector_type: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  /** @uniqueItems true */
+  catalog_connector_use_cases?: string[];
+  catalog_connector_verified?: boolean;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -1406,6 +1423,7 @@ export interface DocumentUpdateInput {
   document_tags?: string[];
 }
 
+/** Domain of the inject */
 export interface Domain {
   domain_color: string;
   /** @format date-time */
@@ -2670,6 +2688,8 @@ export interface Inject {
   /** @format int64 */
   inject_communications_number?: number;
   inject_content?: object;
+  /** @uniqueItems true */
+  inject_contract_domains?: Domain[];
   inject_country?: string;
   /** @format date-time */
   inject_created_at: string;
@@ -2989,6 +3009,11 @@ export interface InjectOutput {
   inject_asset_groups?: string[];
   inject_assets?: string[];
   inject_content?: object;
+  /**
+   * Domain of the inject
+   * @uniqueItems true
+   */
+  inject_contract_domains?: Domain[];
   /**
    * Depend duration of the inject
    * @format int64

@@ -24,6 +24,7 @@ public class FileService {
   public static final String COLLECTORS_IMAGES_BASE_PATH = "/collectors/images/";
   public static final String EXECUTORS_IMAGES_ICONS_BASE_PATH = "/executors/images/icons/";
   public static final String EXECUTORS_IMAGES_BANNERS_BASE_PATH = "/executors/images/banners/";
+  public static final String CONNECTORS_LOGO_PATH = "/connectors/logos/";
   public static final String EXT_PNG = ".png";
   private MinioConfig minioConfig;
   private MinioClient minioClient;
@@ -132,6 +133,10 @@ public class FileService {
 
   public Optional<InputStream> getExecutorBannerImage(String executorId) {
     return getFilePath(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
+  }
+
+  public Optional<InputStream> getCatalogConnectorImage(String fileName) {
+    return getFilePath(CONNECTORS_LOGO_PATH + fileName);
   }
 
   public Optional<FileContainer> getFileContainer(String fileTarget) {

@@ -1,12 +1,16 @@
 package io.openaev.rest.domain;
 
+import static io.openaev.database.specification.DomainSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.FilterUtilsJpa.PAGE_NUMBER_OPTION;
+import static io.openaev.utils.FilterUtilsJpa.PAGE_SIZE_OPTION;
 import static io.openaev.utils.StringUtils.generateRandomColor;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.FilterUtilsJpa;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +18,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -80,5 +87,21 @@ public class DomainService {
 
   public Set<Domain> upserts(final Set<Domain> domains) {
     return domains.stream().map(this::upsert).collect(Collectors.toSet());
+  }
+
+  // -- OPTION --
+
+  public List<FilterUtilsJpa.Option> findAllAsOptionsByName(final String searchText) {
+    Pageable pageable =
+        PageRequest.of(PAGE_NUMBER_OPTION, PAGE_SIZE_OPTION, Sort.by(Sort.Direction.ASC, "name"));
+    return fromIterable(domainRepository.findAll(byName(searchText), pageable)).stream()
+        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .toList();
+  }
+
+  public List<FilterUtilsJpa.Option> findAllAsOptionsById(final List<String> ids) {
+    return fromIterable(domainRepository.findAllById(ids)).stream()
+        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .toList();
   }
 }
