@@ -62,7 +62,6 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
   }),
 };
 
-type ConnectorUnion = ExecutorOutput | InjectorOutput | CollectorOutput;
 export const collectorConfig: ConnectorContextType<CollectorOutput> = {
   connectorType: 'collector',
   apiRequest: {
@@ -107,17 +106,17 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
   }),
 };
 
-export const ConnectorContext = createContext<ConnectorContextType<ConnectorUnion>>({
+export const ConnectorContext = createContext<ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput>>({
   connectorType: 'collector',
   logoUrl: _type => '',
   apiRequest: {
     fetchAll: () => async (_dispatch: Dispatch) => [],
-    fetchSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve({} as InjectorOutput),
+    fetchSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve({}) as Promise<InjectorOutput | CollectorOutput | ExecutorOutput>,
     getRelatedIds: (_id: string) => Promise.resolve({ data: {} }) as Promise<AxiosResponse<ConnectorIds>>,
   },
   routes: {
     list: '/admin/integrations',
     detail: (_id: string) => '/admin/integrations',
   },
-  normalizeSingle: (_data: ConnectorUnion) => ({} as ConnectorOutput),
+  normalizeSingle: (_data: InjectorOutput | CollectorOutput | ExecutorOutput) => ({} as ConnectorOutput),
 });

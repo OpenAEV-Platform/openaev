@@ -1,9 +1,14 @@
 import { type ReactNode } from 'react';
 
-import type { CatalogConnectorOutput } from '../../../../utils/api-types';
+import type {
+  CatalogConnectorOutput,
+  CollectorOutput,
+  ExecutorOutput,
+  InjectorOutput,
+} from '../../../../utils/api-types';
 import {
   collectorConfig,
-  ConnectorContext,
+  ConnectorContext, type ConnectorContextType,
   executorConfig,
   injectorConfig,
 } from './ConnectorContext';
@@ -21,7 +26,7 @@ const ConnectorProvider = ({ children, type }: Props) => {
   };
 
   return (
-    <ConnectorContext.Provider value={config[type]}>
+    <ConnectorContext.Provider value={config[type] as ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput>}>
       {children}
     </ConnectorContext.Provider>
   );
