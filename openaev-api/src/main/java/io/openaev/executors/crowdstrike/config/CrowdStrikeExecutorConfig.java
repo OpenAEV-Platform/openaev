@@ -58,7 +58,7 @@ public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
       description =
           """
-          Crowdstrike API interval before requesting a new implant image from the API
+          Interval before requesting a new implant image from the API
           """)
   @Getter
   @NotBlank

@@ -51,7 +51,8 @@ public class CrowdStrikeExecutorIntegrationFactory implements IntegrationFactory
       connector.setSlug(className);
       connector.setClassName(className);
       connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
-      connector.setCatalogConnectorConfigurations(new CrowdStrikeExecutorConfig().toCatalogConfigurationSet(connector));
+      connector.setCatalogConnectorConfigurations(
+          new CrowdStrikeExecutorConfig().toCatalogConfigurationSet(connector));
       catalogConnectorService.saveAll(List.of(connector));
     }
 

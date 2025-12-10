@@ -1,46 +1,84 @@
 package io.openaev.integration.impl.executors.tanium;
 
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
-import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
+import io.openaev.executors.tanium.client.TaniumExecutorClient;
+import io.openaev.executors.tanium.config.TaniumExecutorConfig;
+import io.openaev.executors.tanium.service.TaniumExecutorContextService;
+import io.openaev.executors.tanium.service.TaniumExecutorService;
+import io.openaev.executors.tanium.service.TaniumGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.service.AgentService;
+import io.openaev.service.AssetGroupService;
+import io.openaev.service.EndpointService;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ScheduledFuture;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 public class TaniumExecutorIntegration extends Integration {
+  public static final String TANIUM_EXECUTOR_TYPE = "openaev_tanium";
+  public static final String TANIUM_EXECUTOR_NAME = "Tanium";
+  private static final String TANIUM_EXECUTOR_DOCUMENTATION_LINK =
+      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#tanium-agent";
+  private static final String TANIUM_EXECUTOR_BACKGROUND_COLOR = "#E03E41";
+
+  @QualifiedComponent(identifier = TANIUM_EXECUTOR_NAME)
+  private TaniumExecutorContextService taniumExecutorContextService;
+
+  private TaniumExecutorService taniumExecutorService;
+  private TaniumGarbageCollectorService taniumGarbageCollectorService;
+
+  private final TaniumExecutorConfig config;
+  private final TaniumExecutorClient client;
+  private final AgentService agentService;
+  private final EndpointService endpointService;
+  private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final AssetAgentJobRepository assetAgentJobRepository;
+  private final Ee eeService;
+  private final LicenseCacheManager licenseCacheManager;
+  private final ThreadPoolTaskScheduler taskScheduler;
 
-  public static final String OPENAEV_EXECUTOR_ID = "2f9a0936-c327-4e95-b406-d161d32a2501";
-  public static final String OPENAEV_EXECUTOR_TYPE = "openaev_agent";
-  public static final String OPENAEV_EXECUTOR_NAME = "OpenAEV Agent";
-  public static final String OPENAEV_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/usage/openaev-agent/";
-  private static final String OPENAEV_EXECUTOR_BACKGROUND_COLOR = "#001BDB";
-
-  @QualifiedComponent(identifier = OPENAEV_EXECUTOR_NAME)
-  private OpenAEVExecutorContextService openAEVExecutorContextService;
+  private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public TaniumExecutorIntegration(
-      ConnectorInstance instance,
+      ConnectorInstance connectorInstance,
+      TaniumExecutorClient client,
+      TaniumExecutorConfig config,
+      EndpointService endpointService,
+      AgentService agentService,
+      AssetGroupService assetGroupService,
+      Ee eeService,
+      LicenseCacheManager licenseCacheManager,
+      ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
-      AssetAgentJobRepository assetAgentJobRepository,
-      ComponentRequestEngine componentRequestEngine) {
-    super(componentRequestEngine, instance);
-    this.assetAgentJobRepository = assetAgentJobRepository;
+      ThreadPoolTaskScheduler taskScheduler) {
+    super(componentRequestEngine, connectorInstance);
+    this.client = client;
+    this.config = config;
+    this.endpointService = endpointService;
+    this.agentService = agentService;
+    this.assetGroupService = assetGroupService;
+    this.eeService = eeService;
+    this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
+    this.taskScheduler = taskScheduler;
   }
 
   @Override
   public void start() throws Exception {
     executorService.register(
-        OPENAEV_EXECUTOR_ID,
-        OPENAEV_EXECUTOR_TYPE,
-        OPENAEV_EXECUTOR_NAME,
-        OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
-        OPENAEV_EXECUTOR_BACKGROUND_COLOR,
+        config.getId(),
+        TANIUM_EXECUTOR_TYPE,
+        TANIUM_EXECUTOR_NAME,
+        TANIUM_EXECUTOR_DOCUMENTATION_LINK,
+        TANIUM_EXECUTOR_BACKGROUND_COLOR,
         getClass().getResourceAsStream("/img/icon-openaev.png"),
         getClass().getResourceAsStream("/img/banner-openaev.png"),
         new String[] {
@@ -49,11 +87,27 @@ public class TaniumExecutorIntegration extends Integration {
           Endpoint.PLATFORM_TYPE.MacOS.name()
         });
 
-    this.openAEVExecutorContextService = new OpenAEVExecutorContextService(assetAgentJobRepository);
+    taniumExecutorContextService =
+        new TaniumExecutorContextService(
+            eeService, licenseCacheManager, config, client, executorService);
+    taniumExecutorService =
+        new TaniumExecutorService(
+            executorService, client, config, endpointService, agentService, assetGroupService);
+    taniumGarbageCollectorService =
+        new TaniumGarbageCollectorService(config, taniumExecutorContextService, agentService);
+
+    timers.add(
+        taskScheduler.scheduleAtFixedRate(
+            taniumExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
+    timers.add(
+        taskScheduler.scheduleAtFixedRate(
+            taniumGarbageCollectorService,
+            Duration.ofHours(this.config.getCleanImplantInterval())));
   }
 
   @Override
   public void stop() {
-    // it is not possible to stop this integration
+    executorService.remove(config.getId());
+    timers.forEach(timer -> timer.cancel(true));
   }
 }
