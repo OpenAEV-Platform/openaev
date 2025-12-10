@@ -2,8 +2,6 @@ package io.openaev.service.stix;
 
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
-import io.openaev.service.ScenarioService;
-import io.openaev.service.cron.CronService;
 import io.openaev.stix.parsing.ParsingException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class StixService {
 
   private final SecurityCoverageService securityCoverageService;
-  private final CronService cronService;
-  private final ScenarioService scenarioService;
 
   /**
    * Generate or update a Scenario from Stix bundle
