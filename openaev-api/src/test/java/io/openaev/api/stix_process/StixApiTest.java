@@ -500,7 +500,8 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      String stixSecurityCoverageModified = stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-08T14:00:00Z");
+      String stixSecurityCoverageModified =
+          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-08T14:00:00Z");
 
       // Push same stix in order to check the number of created injects
       String updatedResponse =
@@ -512,7 +513,7 @@ class StixApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-        assertTrue(updatedResponse.contains("STIX bundle is obsolete"));
+      assertTrue(updatedResponse.contains("STIX bundle is obsolete"));
     }
 
     @Test
@@ -592,7 +593,7 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       String modifiedSecurityCoverageWithoutVulns =
-                stixSecurityCoverageWithoutVulns.replace("2025-08-04T14:00:00Z", "2025-12-20T14:00:00Z");
+          stixSecurityCoverageWithoutVulns.replace("2025-08-04T14:00:00Z", "2025-12-20T14:00:00Z");
 
       // Push stix without object type attack-pattern
       String updatedResponse =

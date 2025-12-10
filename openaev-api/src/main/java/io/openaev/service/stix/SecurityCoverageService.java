@@ -2,6 +2,7 @@ package io.openaev.service.stix;
 
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
+import static io.openaev.stix.objects.constants.ExtendedProperties.OPENCTI_MODIFIED_AT;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
@@ -101,7 +102,7 @@ public class SecurityCoverageService {
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
 
     // Check If stix coverage is the last one
-    Object modifiedObj = stixCoverageObj.getProperty(MODIFIED).getValue();
+    Object modifiedObj = stixCoverageObj.getExtension(OPENCTI_MODIFIED_AT).getValue();
     if (modifiedObj == null) {
       throw new ParsingException("STIX object missing mandatory modified date");
     }
