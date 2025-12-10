@@ -1,10 +1,10 @@
 package io.openaev.executors.sentinelone.service;
 
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+
 import io.openaev.database.model.*;
-import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
-import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAgent;
 import io.openaev.executors.sentinelone.model.SentinelOneNetwork;
 import io.openaev.service.AgentService;
@@ -15,24 +15,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
 
-@ConditionalOnProperty(prefix = "executor.sentinelone", name = "enable")
 @Slf4j
-@Service
 public class SentinelOneExecutorService implements Runnable {
-
-  public static final String SENTINELONE_EXECUTOR_TYPE = "openaev_sentinelone";
-  public static final String SENTINELONE_EXECUTOR_NAME = "SentinelOne";
-  private static final String SENTINELONE_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#sentinelone-agent";
-
-  private static final String SENTINELONE_EXECUTOR_BACKGROUND_COLOR = "#6001FC";
-
   private final SentinelOneExecutorClient client;
-  private final SentinelOneExecutorConfig config;
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
@@ -56,43 +42,17 @@ public class SentinelOneExecutorService implements Runnable {
     };
   }
 
-  @Autowired
   public SentinelOneExecutorService(
-      ExecutorService executorService,
+      Executor executor,
       SentinelOneExecutorClient client,
-      SentinelOneExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService) {
+    this.executor = executor;
     this.client = client;
-    this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    try {
-      if (config.isEnable()) {
-        this.executor =
-            executorService.register(
-                config.getId(),
-                SENTINELONE_EXECUTOR_TYPE,
-                SENTINELONE_EXECUTOR_NAME,
-                SENTINELONE_EXECUTOR_DOCUMENTATION_LINK,
-                SENTINELONE_EXECUTOR_BACKGROUND_COLOR,
-                getClass().getResourceAsStream("/img/icon-sentinelone.png"),
-                getClass().getResourceAsStream("/img/banner-sentinelone.png"),
-                new String[] {
-                  Endpoint.PLATFORM_TYPE.Windows.name(),
-                  Endpoint.PLATFORM_TYPE.Linux.name(),
-                  Endpoint.PLATFORM_TYPE.MacOS.name()
-                });
-      } else {
-        if (executor != null) {
-          executorService.remove(config.getId());
-        }
-      }
-    } catch (Exception e) {
-      log.error(String.format("Error creating SentinelOne executor: %s", e.getMessage()), e);
-    }
   }
 
   @Override

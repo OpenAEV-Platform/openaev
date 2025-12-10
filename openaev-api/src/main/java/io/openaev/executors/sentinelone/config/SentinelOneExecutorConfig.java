@@ -1,5 +1,6 @@
 package io.openaev.executors.sentinelone.config;
 
+import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "executor.sentinelone")
-public class SentinelOneExecutorConfig {
+public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
 
   private static final String API_URI = "/web/api/v2.1/";
 

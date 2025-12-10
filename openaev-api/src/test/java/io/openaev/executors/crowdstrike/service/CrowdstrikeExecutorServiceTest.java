@@ -1,5 +1,7 @@
 package io.openaev.executors.crowdstrike.service;
 
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -54,8 +56,8 @@ public class CrowdstrikeExecutorServiceTest {
   void setUp() {
     crowdstrikeAgent = CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice();
     crowdstrikeExecutor = new Executor();
-    crowdstrikeExecutor.setName(CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME);
-    crowdstrikeExecutor.setType(CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE);
+    crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
+    crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
   }
 
   @Test

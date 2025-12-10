@@ -14,6 +14,7 @@ import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorInte
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,9 @@ public class ManagerTest {
   @Test
   public void test2() throws Exception {
     String className = "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory";
-    CatalogConnector cc = catalogConnectorService.createBuiltIn(className);
+    CatalogConnector cc = new CatalogConnector();
+    cc.setClassName(className);
+    catalogConnectorService.saveAll(List.of(cc));
     ConnectorInstance alreadyCreated = new ConnectorInstance();
     alreadyCreated.setCatalogConnector(cc);
     alreadyCreated.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
@@ -74,7 +77,9 @@ public class ManagerTest {
   @Test
   public void test3() throws Exception {
     String className = "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory";
-    CatalogConnector cc = catalogConnectorService.createBuiltIn(className);
+    CatalogConnector cc = new CatalogConnector();
+    cc.setClassName(className);
+    catalogConnectorService.saveAll(List.of(cc));
     ConnectorInstance alreadyCreated = new ConnectorInstance();
     alreadyCreated.setCatalogConnector(cc);
     alreadyCreated.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
