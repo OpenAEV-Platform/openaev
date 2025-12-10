@@ -22,7 +22,7 @@ public class CollectorMapper {
         .name(collector.getName())
         .type(collector.getType())
         .external(collector.isExternal())
-        .lastExecution(collector.getLastExecution())
+        .lastExecution(collector.getUpdatedAt())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(isVerified)
         .build();

@@ -8,11 +8,13 @@ import java.io.InputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @RequiredArgsConstructor
 @Component
+@Profile("!test")
 public class CatalogConnectorIngestionRunner implements CommandLineRunner {
   private static final ObjectMapper mapper = new ObjectMapper();
   private static final String resourcePath = "/catalog/catalog-integrators.json";
