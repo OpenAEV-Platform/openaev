@@ -2,13 +2,17 @@ package io.openaev.integration.configuration;
 
 import static io.openaev.database.model.CatalogConnectorConfiguration.ENCRYPTED_FORMATS;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
+import jakarta.validation.constraints.NotNull;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +20,28 @@ import java.util.stream.Collectors;
 
 public class BaseIntegrationConfiguration {
   private final ObjectMapper mapper = new ObjectMapper();
+
+  public static <T extends BaseIntegrationConfiguration> T fromConnectorInstanceConfigurationSet(
+      @NotNull Set<ConnectorInstanceConfiguration> configurations, Class<T> targetClass)
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
+          IllegalAccessException,
+          JsonProcessingException {
+    T newObj = targetClass.getDeclaredConstructor().newInstance();
+    List<Field> annotatedFields =
+        FieldUtils.getAllDeclaredAnnotatedFields(targetClass, IntegrationConfigKey.class);
+    for (Field field : annotatedFields) {
+      ConnectorInstanceConfiguration config =
+          configurations.stream()
+              .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
+              .findFirst()
+              .orElseThrow();
+      FieldUtils.setField(
+          newObj, field, JsonUtils.fromJsonNode(config.getValue(), field.getType()));
+    }
+    return newObj;
+  }
 
   public Set<ConnectorInstanceConfiguration> toInstanceConfigurationSet(
       ConnectorInstance relatedInstance) {

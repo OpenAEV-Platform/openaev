@@ -55,6 +55,8 @@ public class CrowdStrikeExecutorConfigurationMigration implements ConfigurationM
     }
     instance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
 
+    instance.setConfigurations(config.toInstanceConfigurationSet(instance));
+
     connectorInstanceService.save(instance);
   }
 }

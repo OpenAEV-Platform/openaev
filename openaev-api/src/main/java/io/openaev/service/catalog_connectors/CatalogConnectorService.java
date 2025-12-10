@@ -38,13 +38,4 @@ public class CatalogConnectorService {
   public Optional<CatalogConnector> findByFactoryClassName(String factoryClass) {
     return catalogConnectorRepository.findByClassName(factoryClass);
   }
-
-  public CatalogConnector createBuiltIn(String className) {
-    CatalogConnector connector = new CatalogConnector();
-    connector.setTitle(className);
-    connector.setSlug(className);
-    connector.setClassName(className);
-    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
-    return catalogConnectorRepository.save(connector);
-  }
 }

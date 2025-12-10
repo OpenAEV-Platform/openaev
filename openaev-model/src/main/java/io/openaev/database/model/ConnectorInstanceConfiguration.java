@@ -40,7 +40,7 @@ public class ConnectorInstanceConfiguration implements Base {
   @Column(name = "connector_instance_configuration_value", columnDefinition = "jsonb")
   @Type(JsonType.class)
   @JsonProperty("connector_instance_configuration_value")
-  @NotBlank
+  @NotNull
   private JsonNode value;
 
   @ManyToOne(fetch = FetchType.LAZY)
