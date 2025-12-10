@@ -83,7 +83,7 @@ public class DomainServiceTest extends IntegrationTest {
   void shouldFindAllDomainsBecauseNoAllKeywordMatch() {
     Set<Domain> domains =
         this.domainService.findDomainByNameAndDescription(
-            "lsass lateral movement sql injection spearphishing attachment exfiltrat domain fronting aws");
+            "network web email exfiltrat bitsadmin aws");
 
     assertThat(domains)
         .containsExactlyInAnyOrder(
