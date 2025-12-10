@@ -10,6 +10,7 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.CrowdstrikeError;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -22,14 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class CrowdStrikeExecutorService implements Runnable {
-
-  public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike";
-  public static final String CROWDSTRIKE_EXECUTOR_NAME = "CrowdStrike";
-  private static final String CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#crowdstrike-falcon-agent";
-
-  private static final String CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR = "#E12E37";
-
   private final CrowdStrikeExecutorClient client;
   private final CrowdStrikeExecutorConfig config;
   private final EndpointService endpointService;
@@ -105,7 +98,8 @@ public class CrowdStrikeExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(devices),
-                agentService.getAgentsByExecutorType(CROWDSTRIKE_EXECUTOR_TYPE));
+                agentService.getAgentsByExecutorType(
+                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

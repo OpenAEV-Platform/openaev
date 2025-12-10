@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.tanium;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -73,26 +74,27 @@ public class TaniumExecutorIntegration extends Integration {
 
   @Override
   public void start() throws Exception {
-    executorService.register(
-        config.getId(),
-        TANIUM_EXECUTOR_TYPE,
-        TANIUM_EXECUTOR_NAME,
-        TANIUM_EXECUTOR_DOCUMENTATION_LINK,
-        TANIUM_EXECUTOR_BACKGROUND_COLOR,
-        getClass().getResourceAsStream("/img/icon-openaev.png"),
-        getClass().getResourceAsStream("/img/banner-openaev.png"),
-        new String[] {
-          Endpoint.PLATFORM_TYPE.Windows.name(),
-          Endpoint.PLATFORM_TYPE.Linux.name(),
-          Endpoint.PLATFORM_TYPE.MacOS.name()
-        });
+    Executor executor =
+        executorService.register(
+            config.getId(),
+            TANIUM_EXECUTOR_TYPE,
+            TANIUM_EXECUTOR_NAME,
+            TANIUM_EXECUTOR_DOCUMENTATION_LINK,
+            TANIUM_EXECUTOR_BACKGROUND_COLOR,
+            getClass().getResourceAsStream("/img/icon-tanium.png"),
+            getClass().getResourceAsStream("/img/banner-tanium.png"),
+            new String[] {
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_TYPE.Linux.name(),
+              Endpoint.PLATFORM_TYPE.MacOS.name()
+            });
 
     taniumExecutorContextService =
         new TaniumExecutorContextService(
             eeService, licenseCacheManager, config, client, executorService);
     taniumExecutorService =
         new TaniumExecutorService(
-            executorService, client, config, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService);
     taniumGarbageCollectorService =
         new TaniumGarbageCollectorService(config, taniumExecutorContextService, agentService);
 
