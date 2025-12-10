@@ -9,7 +9,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 
-public class OpenAEVIntegration extends Integration {
+public class OpenAEVExecutorIntegration extends Integration {
   private final ExecutorService executorService;
   private final AssetAgentJobRepository assetAgentJobRepository;
 
@@ -23,7 +23,7 @@ public class OpenAEVIntegration extends Integration {
   @QualifiedComponent(identifier = OPENAEV_EXECUTOR_NAME)
   private OpenAEVExecutorContextService openAEVExecutorContextService;
 
-  public OpenAEVIntegration(
+  public OpenAEVExecutorIntegration(
       ConnectorInstance instance,
       ExecutorService executorService,
       AssetAgentJobRepository assetAgentJobRepository,

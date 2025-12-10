@@ -8,8 +8,7 @@ import org.springframework.stereotype.Service;
 public class ManagerFactory {
   @Getter private final Manager manager;
 
-  public ManagerFactory(
-      List<IntegrationFactory> factories) {
+  public ManagerFactory(List<IntegrationFactory> factories) {
     manager = new Manager(factories);
   }
 }

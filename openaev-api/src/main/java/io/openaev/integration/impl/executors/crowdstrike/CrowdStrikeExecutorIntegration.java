@@ -4,7 +4,6 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
-import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
@@ -24,7 +23,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
-public class CrowdStrikeIntegration extends Integration {
+public class CrowdStrikeExecutorIntegration extends Integration {
   public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike";
   public static final String CROWDSTRIKE_EXECUTOR_NAME = "CrowdStrike";
   private static final String CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK =
@@ -50,7 +49,7 @@ public class CrowdStrikeIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
 
-  public CrowdStrikeIntegration(
+  public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
       CrowdStrikeExecutorClient client,
       CrowdStrikeExecutorConfig config,
@@ -92,14 +91,14 @@ public class CrowdStrikeIntegration extends Integration {
             });
 
     crowdStrikeExecutorContextService =
-            new CrowdStrikeExecutorContextService(
-                    config, client, eeService, licenseCacheManager, executorService);
+        new CrowdStrikeExecutorContextService(
+            config, client, eeService, licenseCacheManager, executorService);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
     crowdStrikeGarbageCollectorService =
-        new CrowdStrikeGarbageCollectorService(config, crowdStrikeExecutorContextService, agentService);
-
+        new CrowdStrikeGarbageCollectorService(
+            config, crowdStrikeExecutorContextService, agentService);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

@@ -7,7 +7,7 @@ import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorServic
 import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.integration.impl.executors.openaev.OpenAEVIntegration.OPENAEV_EXECUTOR_ID;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.PaginationUtils.buildPageable;

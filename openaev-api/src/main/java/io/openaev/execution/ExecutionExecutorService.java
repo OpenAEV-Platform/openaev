@@ -14,7 +14,6 @@ import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.integration.ComponentRequest;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -100,10 +99,9 @@ public class ExecutionExecutorService {
     if (!agents.isEmpty()) {
       try {
         ExecutorContextService executorContextService =
-                managerFactory
-                        .getManager()
-                        .request(
-                                new ComponentRequest(executorName), ExecutorContextService.class);
+            managerFactory
+                .getManager()
+                .request(new ComponentRequest(executorName), ExecutorContextService.class);
         executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
         atLeastOneExecution.set(true);
       } catch (Exception e) {

@@ -1,4 +1,4 @@
-package io.openaev.integration.impl.executors.openaev;
+package io.openaev.integration.impl.executors.tanium;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -7,13 +7,14 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
-public class OpenAEVIntegrationFactory implements IntegrationFactory {
+public class TaniumExecutorIntegrationFactory implements IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
@@ -34,7 +35,7 @@ public class OpenAEVIntegrationFactory implements IntegrationFactory {
 
   @Override
   public Integration spawn(ConnectorInstance instance) {
-    return new OpenAEVIntegration(
+    return new TaniumExecutorIntegration(
         instance, executorService, assetAgentJobRepository, componentRequestEngine);
   }
 }

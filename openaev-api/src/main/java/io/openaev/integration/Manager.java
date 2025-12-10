@@ -1,9 +1,6 @@
 package io.openaev.integration;
 
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.integration.migration.ConfigurationMigration;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
-import io.openaev.service.CatalogConnectorService;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -13,8 +10,7 @@ public class Manager {
 
   @Getter private final List<Integration> spawnedIntegrations = new ArrayList<>();
 
-  public Manager(
-      List<IntegrationFactory> factories) {
+  public Manager(List<IntegrationFactory> factories) {
     this.factories = factories;
 
     initialise();

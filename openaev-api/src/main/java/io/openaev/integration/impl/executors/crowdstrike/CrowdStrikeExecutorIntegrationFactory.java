@@ -2,7 +2,6 @@ package io.openaev.integration.impl.executors.crowdstrike;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
@@ -10,7 +9,7 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.migration.CrowdStrikeConfigurationMigration;
+import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -23,7 +22,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class CrowdStrikeIntegrationFactory implements IntegrationFactory {
+public class CrowdStrikeExecutorIntegrationFactory implements IntegrationFactory {
   private final CrowdStrikeExecutorClient client;
   private final CrowdStrikeExecutorConfig config;
   private final EndpointService endpointService;
@@ -36,7 +35,7 @@ public class CrowdStrikeIntegrationFactory implements IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final CrowdStrikeConfigurationMigration crowdStrikeConfigurationMigration;
+  private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
 
   @Override
   public List<Integration> initialise() {
@@ -45,7 +44,7 @@ public class CrowdStrikeIntegrationFactory implements IntegrationFactory {
       catalogConnectorService.createBuiltIn(className);
     }
 
-    crowdStrikeConfigurationMigration.migrate();
+    crowdStrikeExecutorConfigurationMigration.migrate();
 
     return connectorInstanceService.connectorInstances().stream()
         .filter(
@@ -66,7 +65,7 @@ public class CrowdStrikeIntegrationFactory implements IntegrationFactory {
 
   @Override
   public Integration spawn(ConnectorInstance instance) {
-    return new CrowdStrikeIntegration(
+    return new CrowdStrikeExecutorIntegration(
         instance,
         client,
         config,

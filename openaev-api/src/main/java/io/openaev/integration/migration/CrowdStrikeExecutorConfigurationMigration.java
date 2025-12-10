@@ -3,7 +3,7 @@ package io.openaev.integration.migration;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
-import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeIntegrationFactory;
+import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.CatalogConnectorService;
 import java.util.HashSet;
@@ -17,11 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class CrowdStrikeConfigurationMigration implements ConfigurationMigration {
+public class CrowdStrikeExecutorConfigurationMigration implements ConfigurationMigration {
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
   private final CrowdStrikeExecutorConfig config;
-  private final String factoryClass = CrowdStrikeIntegrationFactory.class.getName();
+  private final String factoryClass = CrowdStrikeExecutorIntegrationFactory.class.getName();
 
   @Override
   @Transactional

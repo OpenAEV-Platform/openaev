@@ -13,8 +13,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.Set;
-import lombok.Getter;
-import lombok.Setter;
+
+import lombok.*;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -22,6 +22,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "catalog_connectors_configuration")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnectorConfiguration implements Base {
 
