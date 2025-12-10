@@ -13,8 +13,8 @@ import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigratio
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
-import io.openaev.service.CatalogConnectorService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;

@@ -5,7 +5,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
-import io.openaev.service.CatalogConnectorService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;

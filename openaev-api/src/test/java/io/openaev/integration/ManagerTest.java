@@ -3,8 +3,8 @@ package io.openaev.integration;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.executors.ExecutorContextService;
@@ -12,12 +12,10 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
-import io.openaev.service.CatalogConnectorService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import jakarta.persistence.EntityManager;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.Set;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -108,7 +106,10 @@ public class ManagerTest {
     CrowdStrikeExecutorConfig csConfig = new CrowdStrikeExecutorConfig();
     csConfig.setApiUrl("HTTP_URL");
     csConfig.setClientSecret("CLIENT SECRET");
-    Set<ConnectorInstanceConfiguration> configs = csConfig.toInstanceConfigurationSet(new ConnectorInstance());
+    Set<ConnectorInstanceConfiguration> configs =
+        csConfig.toInstanceConfigurationSet(new ConnectorInstance());
+    Set<CatalogConnectorConfiguration> catalogConfigs =
+        csConfig.toCatalogConfigurationSet(new CatalogConnector());
     assertThat(configs.size()).isGreaterThan(0);
   }
 }

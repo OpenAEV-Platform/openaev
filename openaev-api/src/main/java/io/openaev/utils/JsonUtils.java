@@ -10,9 +10,11 @@ public class JsonUtils {
   public static JsonNode toJsonNode(String strValue) throws JsonProcessingException {
     return new TextNode(strValue);
   }
+
   public static JsonNode toJsonNode(int intValue) throws JsonProcessingException {
     return new IntNode(intValue);
   }
+
   public static JsonNode toJsonNode(boolean boolValue) throws JsonProcessingException {
     return boolValue ? BooleanNode.TRUE : BooleanNode.FALSE;
   }
