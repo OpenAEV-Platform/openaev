@@ -32,7 +32,7 @@ public class SentinelOneExecutorIntegrationFactory implements IntegrationFactory
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
   private final CatalogConnectorService catalogConnectorService;
-  private final SentinelOneExecutorConfigurationMigration SentinelOneExecutorConfigurationMigration;
+  private final SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
 
   private final SentinelOneExecutorClient client;
   private final AgentService agentService;
@@ -57,7 +57,7 @@ public class SentinelOneExecutorIntegrationFactory implements IntegrationFactory
       catalogConnectorService.saveAll(List.of(connector));
     }
 
-    SentinelOneExecutorConfigurationMigration.migrate();
+    sentinelOneExecutorConfigurationMigration.migrate();
 
     return connectorInstanceService.connectorInstances().stream()
         .filter(

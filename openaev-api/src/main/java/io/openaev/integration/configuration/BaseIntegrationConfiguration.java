@@ -15,11 +15,14 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.Getter;
 
 public class BaseIntegrationConfiguration {
   private final ObjectMapper mapper = new ObjectMapper();
+  @Getter private final boolean enable = false;
 
   public static <T extends BaseIntegrationConfiguration> T fromConnectorInstanceConfigurationSet(
       @NotNull Set<ConnectorInstanceConfiguration> configurations, Class<T> targetClass)
@@ -32,13 +35,16 @@ public class BaseIntegrationConfiguration {
     List<Field> annotatedFields =
         FieldUtils.getAllDeclaredAnnotatedFields(targetClass, IntegrationConfigKey.class);
     for (Field field : annotatedFields) {
-      ConnectorInstanceConfiguration config =
+      Optional<ConnectorInstanceConfiguration> config =
           configurations.stream()
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
-              .findFirst()
-              .orElseThrow();
-      FieldUtils.setField(
-          newObj, field, JsonUtils.fromJsonNode(config.getValue(), field.getType()));
+              .findFirst();
+      if (config.isPresent()) {
+        FieldUtils.setField(
+            newObj, field, JsonUtils.fromJsonNode(config.get().getValue(), field.getType()));
+      } else {
+        FieldUtils.setField(newObj, field, null);
+      }
     }
     return newObj;
   }

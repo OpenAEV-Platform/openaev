@@ -43,7 +43,7 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_API_BATCH_EXECUTION_ACTION_PAGINATION",
       description =
           """
-                  NUmber of actions to execute in a single batch
+                  Tanium API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Tanium to execute a payload)
                   """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
@@ -54,7 +54,7 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_API_REGISTER_INTERVAL",
       description =
           """
-                  Interval between two executor registrations with OpenAEV
+                 Tanium API interval to register/update the computer groups/endpoints in OpenAEV (in seconds)
                   """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
@@ -65,7 +65,7 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_CLEAN_IMPLANT_INTERVAL",
       description =
           """
-                  Interval before requesting a new implant image from the API
+                  Tanium clean old implant interval (in hours)
                   """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
