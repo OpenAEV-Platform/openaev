@@ -500,24 +500,19 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      String stixSecurityCoverageModified = stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-08T14:00:00Z");
+
       // Push same stix in order to check the number of created injects
       String updatedResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
+                      .content(stixSecurityCoverageModified))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
               .getContentAsString();
-
-      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
-      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      assertThat(updatedScenario.getName())
-          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
-      // ASSERT injects for updated stix
-      injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(4);
+        assertTrue(updatedResponse.contains("STIX bundle is obsolete"));
     }
 
     @Test
@@ -596,12 +591,15 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      String modifiedSecurityCoverageWithoutVulns =
+                stixSecurityCoverageWithoutVulns.replace("2025-08-04T14:00:00Z", "2025-12-20T14:00:00Z");
+
       // Push stix without object type attack-pattern
       String updatedResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageWithoutVulns))
+                      .content(modifiedSecurityCoverageWithoutVulns))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()

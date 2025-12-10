@@ -7,6 +7,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.stix.StixService;
 import io.openaev.stix.parsing.ParsingException;
@@ -72,7 +73,7 @@ public class StixApi extends RestBehavior {
       String summary = stixService.generateBundleImportReport(scenario);
       BundleImportReport importReport = new BundleImportReport(scenario.getId(), summary);
       return ResponseEntity.ok(importReport);
-    } catch (ParsingException | IOException e) {
+    } catch (ParsingException | IOException | BadRequestException e) {
       log.error(
           String.format(
               "Parsing error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
