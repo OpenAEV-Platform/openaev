@@ -67,7 +67,7 @@ public class InjectOutput {
 
   @JsonProperty("inject_tags")
   @JsonSerialize(using = MultiIdSetDeserializer.class)
-  @ArraySchema(schema = @Schema(description = "Tags of the inject"))
+  @ArraySchema(schema = @Schema(description = "Tags of the inject", type = "string"))
   private Set<Tag> tags;
 
   @JsonProperty("inject_type")

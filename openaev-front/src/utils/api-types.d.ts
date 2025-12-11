@@ -1674,6 +1674,7 @@ export interface DocumentUpdateInput {
   document_tags?: string[];
 }
 
+/** Domain of the inject */
 export interface Domain {
   domain_color: string;
   /** @format date-time */
@@ -3356,6 +3357,11 @@ export interface InjectOutput {
   inject_assets?: string[];
   inject_content?: object;
   /**
+   * Domain of the inject
+   * @uniqueItems true
+   */
+  inject_contract_domains?: Domain[];
+  /**
    * Depend duration of the inject
    * @format int64
    * @min 0
@@ -3375,8 +3381,7 @@ export interface InjectOutput {
   inject_ready?: boolean;
   /** Scenario ID of the inject */
   inject_scenario?: string;
-  /** @uniqueItems true */
-  inject_tags?: Tag[];
+  inject_tags?: string[];
   inject_teams?: string[];
   /** Testable state of the inject */
   inject_testable?: boolean;
@@ -6244,7 +6249,6 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
   stacked?: boolean;
 };
 
-/** Tags of the inject */
 export interface Tag {
   listened?: boolean;
   /** Color of the tag */
