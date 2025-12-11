@@ -79,7 +79,7 @@ public class SecurityCoverage implements Base {
   private String content;
 
   @Column(name = "security_coverage_content_hash", nullable = false, unique = true, length = 64)
-  @JsonProperty("security_coverage_content_hash")
+  @JsonIgnore
   private String contentHash;
 
   @Type(JsonType.class)
