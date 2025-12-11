@@ -1071,6 +1071,10 @@ export interface ConnectorInstance {
   connector_instance_requested_status?: "starting" | "stopping";
   /** @format int32 */
   connector_instance_restart_count?: number;
+  connector_instance_source:
+    | "PROPERTIES_MIGRATION"
+    | "CATALOG_DEPLOYMENT"
+    | "OTHER";
   /** @format date-time */
   connector_instance_started_at?: string;
   listened?: boolean;
