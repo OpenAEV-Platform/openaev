@@ -42,10 +42,9 @@ public class StixService {
       JsonNode root = objectMapper.readTree(stixJson);
       String stixJsonHash = computeMd5(stixJson);
       Bundle bundle = stixParser.parseBundle(root.toString());
-
       ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
-
       String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+
       SecurityCoverage securityCoverage =
           securityCoverageService.buildSecurityCoverageFromStix(
               stixCoverageObj, bundle, externalId, stixJsonHash);
