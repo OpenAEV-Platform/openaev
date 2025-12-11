@@ -1,5 +1,6 @@
 package io.openaev.service.stix;
 
+import static io.openaev.utils.SecurityCoverageUtils.computeMd5;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -37,7 +38,9 @@ public class StixService {
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
     Scenario scenario = new Scenario();
     try {
+
       JsonNode root = objectMapper.readTree(stixJson);
+      String stixJsonHash = computeMd5(stixJson);
       Bundle bundle = stixParser.parseBundle(root.toString());
 
       ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
@@ -45,7 +48,7 @@ public class StixService {
       String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
       SecurityCoverage securityCoverage =
           securityCoverageService.buildSecurityCoverageFromStix(
-              stixCoverageObj, bundle, externalId);
+              stixCoverageObj, bundle, externalId, stixJsonHash);
 
       // Update Scenario using the last SecurityCoverage
       scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);

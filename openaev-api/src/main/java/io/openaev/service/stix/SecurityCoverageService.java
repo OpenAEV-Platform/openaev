@@ -93,9 +93,19 @@ public class SecurityCoverageService {
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
   public SecurityCoverage buildSecurityCoverageFromStix(
-      ObjectBase stixCoverageObj, Bundle bundle, String externalId) throws ParsingException {
+      ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
+      throws ParsingException {
+
+    Optional<SecurityCoverage> existing =
+        securityCoverageRepository.findByContentHash(stixJsonHash);
+
+    if (existing.isPresent()) {
+      log.info("Duplicate STIX bundle detected for externalId={} -> returning existing object");
+      return existing.get();
+    }
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
+    securityCoverage.setContentHash(stixJsonHash);
     securityCoverage.setExternalId(externalId);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);

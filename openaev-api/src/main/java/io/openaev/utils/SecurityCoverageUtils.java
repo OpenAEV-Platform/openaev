@@ -9,6 +9,9 @@ import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.types.Dictionary;
+import jakarta.xml.bind.DatatypeConverter;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.coyote.BadRequestException;
@@ -82,5 +85,15 @@ public class SecurityCoverageUtils {
     return objectRefs.stream()
         .map(StixRefToExternalRef::getExternalRef)
         .collect(Collectors.toSet());
+  }
+
+  public static String computeMd5(String input) {
+    try {
+      MessageDigest md = MessageDigest.getInstance("MD5");
+      byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+      return DatatypeConverter.printHexBinary(digest).toLowerCase();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to compute MD5", e);
+    }
   }
 }
