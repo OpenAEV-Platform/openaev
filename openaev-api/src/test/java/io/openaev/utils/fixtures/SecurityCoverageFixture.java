@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static io.openaev.utils.SecurityCoverageUtils.computeMd5;
+
 public class SecurityCoverageFixture {
   public static SecurityCoverage createDefaultSecurityCoverage() {
     SecurityCoverage securityCoverage = new SecurityCoverage();
@@ -21,6 +23,7 @@ public class SecurityCoverageFixture {
             .formatted(securityCoverage.getExternalId()));
     securityCoverage.setAttackPatternRefs(new HashSet<>());
     securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
+    securityCoverage.setContent(computeMd5(securityCoverage.getContent()));
     return securityCoverage;
   }
 
@@ -44,6 +47,7 @@ public class SecurityCoverageFixture {
     SecurityCoverage securityCoverage = createDefaultSecurityCoverage();
     securityCoverage.setAttackPatternRefs(attackPatternRefs);
     securityCoverage.setVulnerabilitiesRefs(vulnerabilitiesRefs);
+    securityCoverage.setContent(computeMd5(UUID.randomUUID().toString()));
 
     return securityCoverage;
   }
