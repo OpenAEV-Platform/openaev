@@ -4,6 +4,7 @@ import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
+import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -333,7 +334,8 @@ class ScenarioServiceTest extends IntegrationTest {
         new HealthCheck(
             HealthCheck.Type.SMTP,
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
-            HealthCheck.Status.ERROR);
+            HealthCheck.Status.ERROR,
+            now());
 
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
@@ -348,7 +350,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SMTP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -367,7 +369,8 @@ class ScenarioServiceTest extends IntegrationTest {
         new HealthCheck(
             HealthCheck.Type.IMAP,
             HealthCheck.Detail.SERVICE_UNAVAILABLE,
-            HealthCheck.Status.WARNING);
+            HealthCheck.Status.WARNING,
+            now());
 
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
@@ -382,7 +385,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.IMAP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -399,7 +402,10 @@ class ScenarioServiceTest extends IntegrationTest {
 
     HealthCheck healthCheck =
         new HealthCheck(
-            HealthCheck.Type.AGENT_OR_EXECUTOR, HealthCheck.Detail.EMPTY, HealthCheck.Status.ERROR);
+            HealthCheck.Type.AGENT_OR_EXECUTOR,
+            HealthCheck.Detail.EMPTY,
+            HealthCheck.Status.ERROR,
+            now());
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
@@ -413,7 +419,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -432,7 +438,8 @@ class ScenarioServiceTest extends IntegrationTest {
         new HealthCheck(
             HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
             HealthCheck.Detail.EMPTY,
-            HealthCheck.Status.ERROR);
+            HealthCheck.Status.ERROR,
+            now());
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
@@ -446,7 +453,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -463,7 +470,10 @@ class ScenarioServiceTest extends IntegrationTest {
 
     HealthCheck healthCheck =
         new HealthCheck(
-            HealthCheck.Type.INJECT, HealthCheck.Detail.NOT_READY, HealthCheck.Status.WARNING);
+            HealthCheck.Type.INJECT,
+            HealthCheck.Detail.NOT_READY,
+            HealthCheck.Status.WARNING,
+            now());
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
@@ -477,7 +487,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.INJECT.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.INJECT, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.NOT_READY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -514,7 +524,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.TEAMS.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.TEAMS, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());

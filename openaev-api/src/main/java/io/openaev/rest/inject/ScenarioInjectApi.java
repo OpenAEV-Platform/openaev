@@ -7,7 +7,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectAssistantInput;
@@ -45,8 +44,6 @@ public class ScenarioInjectApi extends RestBehavior {
   private final InjectService injectService;
   private final InjectDuplicateService injectDuplicateService;
   private final ScenarioInjectService scenarioInjectService;
-  private final InjectMapper injectMapper;
-  private final HealthCheckUtils healthCheckUtils;
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
   @RBAC(

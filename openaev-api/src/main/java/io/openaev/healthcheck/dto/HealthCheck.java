@@ -1,7 +1,5 @@
 package io.openaev.healthcheck.dto;
 
-import static java.time.Instant.now;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -82,5 +80,5 @@ public class HealthCheck {
   @Schema(description = "Date when the failure have been found")
   @JsonProperty("creation_date")
   @NotNull
-  private final Instant creationDate = now();
+  private Instant creationDate;
 }
