@@ -23,9 +23,9 @@ public class PresetDomain {
 
   private static final Map<Domain, List<String>> domainKeywordsMap =
       Map.of(
-          NETWORK, List.of("network", "ftp", "smb", "llmnr"),
+          NETWORK, List.of("network", "ftp", "smb", "llmnr", "nmap"),
           WEB_APP, List.of("web"),
-          EMAIL_INFILTRATION, List.of("email", "phishing"),
+          EMAIL_INFILTRATION, List.of("mail", "phishing"),
           DATA_EXFILTRATION, List.of("exfiltrat"),
           URL_FILTERING, List.of("bitsadmin"),
           CLOUD, List.of("aws", "azure", "gcp"));
