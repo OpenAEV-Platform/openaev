@@ -14,6 +14,7 @@ import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.InjectSpecification;
@@ -50,6 +51,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -338,37 +340,53 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input) {
-    injectExecutionCallback(null, injectId, input);
+          @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
+          throws IOException {
+      injectExecutionCallback(null, injectId, input);
   }
 
-  @PostMapping(INJECT_URI + "/execution/{agentId}/callback/{injectId}")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.INJECT)
-  @Lock(type = LockResourceType.INJECT, key = "#injectId")
-  @Operation(
-      summary = "Inject execution callback for implants",
-      description =
-          "This endpoint is invoked by implants to report the result of an inject execution. "
-              + "It is used to update the inject status and execution traces based on the implant's execution result."
-              + " If the requested action is 'complete', the inject must be in the 'PENDING' state. otherwise a 409"
-              + " is returned. This can sometimes happen if the payload executed by the implant was executed too quickly. ")
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Execution callback was successful"),
-        @ApiResponse(
-            responseCode = "409",
+    @PostMapping(INJECT_URI + "/execution/{agentId}/callback/{injectId}")
+    @RBAC(
+            resourceId = "#injectId",
+            actionPerformed = Action.WRITE,
+            resourceType = ResourceType.INJECT)
+    @Lock(type = LockResourceType.INJECT, key = "#injectId")
+    @Operation(
+            summary = "Inject execution callback for implants",
             description =
-                "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
-      })
-  public void injectExecutionCallback(
-      @PathVariable
-          String agentId, // must allow null because http injector used also this method to work.
-      @PathVariable String injectId,
-      @Valid @RequestBody InjectExecutionInput input) {
-    injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
+                    "This endpoint is invoked by implants to report the result of an inject execution. "
+                            + "It is used to update the inject status and execution traces based on the implant's execution result."
+                            + " If the requested action is 'complete', the inject must be in the 'PENDING' state. otherwise a 409"
+                            + " is returned. This can sometimes happen if the payload executed by the implant was executed too quickly. ")
+    @ApiResponses(
+            value = {
+                    @ApiResponse(responseCode = "200", description = "Execution callback was successful"),
+                    @ApiResponse(
+                            responseCode = "409",
+                            description =
+                                    "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
+            })
+    public void injectExecutionCallback(
+            @PathVariable
+            String agentId, // must allow null because http injector used also this method to work.
+            @PathVariable String injectId,
+            @Valid @RequestBody InjectExecutionInput input)
+            throws IOException {
+        if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
+                && injectTraceQueueService != null) {
+            InjectExecutionCallback injectExecutionCallback =
+                    InjectExecutionCallback.builder()
+                            .injectExecutionInput(input)
+                            .agentId(agentId)
+                            .injectId(injectId)
+                            .emissionDate(Instant.now().toEpochMilli())
+                            .build();
+
+            // Publishing the parameters into a queue for later ingestion
+            injectTraceQueueService.publish(injectExecutionCallback);
+        } else {
+            injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
+        }
   }
 
   @GetMapping(INJECT_URI + "/{injectId}/{agentId}/executable-payload")
