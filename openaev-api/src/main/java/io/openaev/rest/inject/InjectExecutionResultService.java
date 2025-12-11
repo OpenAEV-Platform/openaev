@@ -33,19 +33,19 @@ public class InjectExecutionResultService {
       @NotBlank final String targetId,
       @NotNull final TargetType targetType) {
     InjectStatus injectStatus = this.injectStatusService.findInjectStatusByInjectId(injectId);
-    InjectResultPayloadExecutionOutputBuilder output = InjectResultPayloadExecutionOutput.builder()
+    InjectResultPayloadExecutionOutputBuilder output =
+        InjectResultPayloadExecutionOutput.builder()
             .payloadCommandBlocks(
-        Optional.of(injectStatus)
-            .map(InjectStatus::getPayloadOutput)
-            .map(StatusPayload::getPayloadCommandBlocks)
-            .orElse(new ArrayList<>()));
+                Optional.of(injectStatus)
+                    .map(InjectStatus::getPayloadOutput)
+                    .map(StatusPayload::getPayloadCommandBlocks)
+                    .orElse(new ArrayList<>()));
 
     List<ExecutionTrace> traces =
         this.injectService.getInjectTracesFromInjectAndTarget(injectId, targetId, targetType);
     output.traces(
         toExecutionTracesOutput(
-            traces.stream().filter(t -> EXECUTION.equals(t.getAction())).toList()
-        ));
+            traces.stream().filter(t -> EXECUTION.equals(t.getAction())).toList()));
 
     return output.build();
   }

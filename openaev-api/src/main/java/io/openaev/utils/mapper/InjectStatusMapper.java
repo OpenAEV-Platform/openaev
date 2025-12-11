@@ -1,13 +1,13 @@
 package io.openaev.utils.mapper;
 
+import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
+
 import io.openaev.database.model.*;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
 
 @Component
 @RequiredArgsConstructor
@@ -77,10 +77,7 @@ public class InjectStatusMapper {
                     .time(trace.getTime())
                     .message(trace.getMessage())
                     .action(trace.getAction())
-                    .agent(
-                        trace.getAgent() != null
-                            ? toAgentOutput(trace.getAgent())
-                            : null)
+                    .agent(trace.getAgent() != null ? toAgentOutput(trace.getAgent()) : null)
                     .build())
         .toList();
   }

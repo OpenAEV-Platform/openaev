@@ -4,12 +4,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.PayloadCommandBlock;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import jakarta.validation.constraints.NotEmpty;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Builder
 @AllArgsConstructor

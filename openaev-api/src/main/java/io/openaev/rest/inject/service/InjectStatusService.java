@@ -2,6 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionStatus;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
@@ -20,7 +21,6 @@ import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collections;
@@ -47,7 +47,10 @@ public class InjectStatusService {
     return this.injectStatusRepository.pendingForInjectType(injectType);
   }
 
-  public InjectStatus findInjectStatusByInjectId(@NotBlank final String injectId) {
+  public InjectStatus findInjectStatusByInjectId(final String injectId) {
+    if (!hasText(injectId)) {
+      throw new IllegalArgumentException("InjectId should not be null");
+    }
     return this.injectStatusRepository
         .findByInjectId(injectId)
         .orElseThrow(
