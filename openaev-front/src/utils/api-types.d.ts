@@ -1674,7 +1674,6 @@ export interface DocumentUpdateInput {
   document_tags?: string[];
 }
 
-/** Domain of the inject */
 export interface Domain {
   domain_color: string;
   /** @format date-time */
@@ -3356,11 +3355,6 @@ export interface InjectOutput {
   inject_asset_groups?: string[];
   inject_assets?: string[];
   inject_content?: object;
-  /**
-   * Domain of the inject
-   * @uniqueItems true
-   */
-  inject_contract_domains?: Domain[];
   /**
    * Depend duration of the inject
    * @format int64

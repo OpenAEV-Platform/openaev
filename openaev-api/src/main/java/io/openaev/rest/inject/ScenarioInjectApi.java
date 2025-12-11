@@ -121,8 +121,8 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-      return injectService.saveAll(
-              this.injectAssistantService.generateInjectsForScenario(scenario, input));
+    return injectService.saveAll(
+        this.injectAssistantService.generateInjectsForScenario(scenario, input));
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
