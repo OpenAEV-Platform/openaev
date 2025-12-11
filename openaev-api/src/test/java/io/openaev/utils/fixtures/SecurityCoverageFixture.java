@@ -1,5 +1,7 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.utils.SecurityCoverageUtils.computeMd5;
+
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
@@ -9,8 +11,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import static io.openaev.utils.SecurityCoverageUtils.computeMd5;
 
 public class SecurityCoverageFixture {
   public static SecurityCoverage createDefaultSecurityCoverage() {
