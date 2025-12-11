@@ -47,6 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
@@ -94,7 +95,7 @@ public class SecurityCoverageService {
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
   public SecurityCoverage buildSecurityCoverageFromStix(
       ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
-      throws ParsingException {
+      throws ParsingException, BadRequestException {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
 
@@ -103,7 +104,12 @@ public class SecurityCoverageService {
       log.info(
           "Duplicate STIX bundle detected for externalId={} -> returning existing object",
           externalId);
-      return securityCoverage;
+      // We could also simply return the existing security cover and avoid returning the error and
+      // also avoid continue with the retry;
+      throw new BadRequestException(
+          String.format(
+              "Duplicate STIX bundle detected for externalId: %s -> returning existing object",
+              externalId));
     }
 
     securityCoverage.setExternalId(externalId);
