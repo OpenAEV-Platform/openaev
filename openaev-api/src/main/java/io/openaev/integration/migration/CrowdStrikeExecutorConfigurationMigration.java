@@ -4,11 +4,9 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
-@Slf4j
 public class CrowdStrikeExecutorConfigurationMigration extends ConfigurationMigration {
   public CrowdStrikeExecutorConfigurationMigration(
       CatalogConnectorService catalogConnectorService,

@@ -1,5 +1,8 @@
 package io.openaev.executors.caldera.config;
 
+import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
+import io.openaev.integration.configuration.BaseIntegrationConfiguration;
+import io.openaev.integration.configuration.IntegrationConfigKey;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,20 +12,57 @@ import org.springframework.stereotype.Component;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "executor.caldera")
-public class CalderaExecutorConfig {
+public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
 
   private static final String REST_V2_URI = "/api/v2";
   private static final String PLUGIN_ACCESS_URI = "/plugin/access";
 
   @Getter private boolean enable;
 
-  @Getter @NotBlank private String id;
+  @IntegrationConfigKey(
+      key = "EXECUTOR_CALDERA_ID",
+      description =
+          """
+                  ID of the builtin Caldera executor
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String id;
 
-  @Getter @NotBlank private String url;
+  @IntegrationConfigKey(
+      key = "EXECUTOR_CALDERA_URL",
+      description =
+          """
+                  Caldera URL
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String url;
 
-  @Getter @NotBlank private String publicUrl;
+  @IntegrationConfigKey(
+      key = "EXECUTOR_CALDERA_PUBLIC_URL",
+      description =
+          """
+                  Caldera URL accessible from endpoints (ex: http://caldera.myopenaev.myorganization.com:8888)
+                  """,
+      isRequired = true)
+  @Getter
+  @NotBlank
+  private String publicUrl;
 
-  @Getter @NotBlank private String apiKey;
+  @IntegrationConfigKey(
+      key = "EXECUTOR_CALDERA_API_KEY",
+      description =
+          """
+                  Caldera API key
+                  """,
+      isRequired = true,
+      valueFormat = CONNECTOR_CONFIGURATION_FORMAT.PASSWORD)
+  @Getter
+  @NotBlank
+  private String apiKey;
 
   public String getRestApiV2Url() {
     return url + REST_V2_URI;
