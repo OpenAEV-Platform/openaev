@@ -1,8 +1,6 @@
 package io.openaev.service.stix;
 
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
-import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
-import static io.openaev.stix.objects.constants.ExtendedProperties.OPENCTI_MODIFIED_AT;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
@@ -49,7 +47,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
@@ -96,37 +93,9 @@ public class SecurityCoverageService {
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
   public SecurityCoverage buildSecurityCoverageFromStix(
-      ObjectBase stixCoverageObj, Bundle bundle, String externalId)
-      throws IOException, ParsingException {
+      ObjectBase stixCoverageObj, Bundle bundle, String externalId) throws ParsingException {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
-
-    // Check If stix coverage is the last one
-    Object modifiedObj = stixCoverageObj.getExtension(OPENCTI_MODIFIED_AT).getValue();
-    if (modifiedObj == null) {
-      throw new ParsingException("STIX object missing mandatory modified date");
-    }
-
-    Instant stixModified;
-    try {
-      stixModified = Instant.parse(modifiedObj.toString());
-    } catch (Exception e) {
-      throw new ParsingException("Invalid STIX modified date format", e);
-    }
-
-    Instant currentUpdated = securityCoverage.getUpdatedAt();
-
-    // STIX modified date must be newer than the stored updatedAt
-    log.debug(
-        "SecurityCoverage Update Check: externalId={}, currentUpdated={}, stixModified={}",
-        externalId,
-        currentUpdated,
-        stixModified);
-    boolean isNewer = currentUpdated == null || stixModified.isAfter(currentUpdated);
-    if (!isNewer) {
-      throw new BadRequestException("STIX bundle is obsolete");
-    }
-
     securityCoverage.setExternalId(externalId);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
@@ -324,7 +293,7 @@ public class SecurityCoverageService {
     // create the main coverage object
     SecurityCoverage assessment = exercise.getSecurityCoverage();
     DomainObject coverage = (DomainObject) stixParser.parseObject(assessment.getContent());
-    coverage.setProperty(MODIFIED.toString(), new Timestamp(Instant.now()));
+    coverage.setProperty(CommonProperties.MODIFIED.toString(), new Timestamp(Instant.now()));
     coverage.setProperty(CommonProperties.AUTO_ENRICHMENT_DISABLE.toString(), new Boolean(false));
 
     String externalLink;

@@ -454,14 +454,12 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      String modifiedSecurityCoverage =
-          stixSecurityCoverage.replace("2025-08-04T14:00:00Z", "2025-12-20T14:00:00Z");
       // Push same stix in order to check the number of created injects
       String updatedResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverage))
+                      .content(stixSecurityCoverage))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -474,46 +472,6 @@ class StixApiTest extends IntegrationTest {
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
       assertThat(injects).hasSize(4);
-    }
-
-    @Test
-    @DisplayName("Should throw obsolete error from stix bundle")
-    void shouldThrowObsoleteStixBundle() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      assertThat(createdScenario.getName())
-          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
-
-      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(4);
-
-      entityManager.flush();
-      entityManager.clear();
-
-      String stixSecurityCoverageModified =
-          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-08T14:00:00Z");
-
-      // Push same stix in order to check the number of created injects
-      String updatedResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageModified))
-              .andExpect(status().isBadRequest())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      assertTrue(updatedResponse.contains("STIX bundle is obsolete"));
     }
 
     @Test
@@ -592,15 +550,12 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      String modifiedSecurityCoverageWithoutVulns =
-          stixSecurityCoverageWithoutVulns.replace("2025-08-04T14:00:00Z", "2025-12-20T14:00:00Z");
-
       // Push stix without object type attack-pattern
       String updatedResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverageWithoutVulns))
+                      .content(stixSecurityCoverageWithoutVulns))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
