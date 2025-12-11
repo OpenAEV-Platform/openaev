@@ -299,12 +299,14 @@ public class InjectorService {
     final boolean domainsEmptyOrToClassify = isEmptyOrToClassify(domains);
 
     if (isExistingDomainsEmptyOrToClassify && domainsEmptyOrToClassify) {
-      return Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null));
+      return new HashSet<>(
+          Collections.singletonList(
+              this.upsert(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
     }
 
     Set<Domain> domainsToAdd = domains;
     if (domainsEmptyOrToClassify) {
-      domainsToAdd = Set.of();
+      domainsToAdd = new HashSet<>();
     }
 
     if (isExistingDomainsEmptyOrToClassify) {
