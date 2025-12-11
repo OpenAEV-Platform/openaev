@@ -96,17 +96,18 @@ public class SecurityCoverageService {
       ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
       throws ParsingException {
 
-    Optional<SecurityCoverage> existing =
-        securityCoverageRepository.findByContentHash(stixJsonHash);
+    SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
 
-    if (existing.isPresent()) {
-      log.info("Duplicate STIX bundle detected for externalId={} -> returning existing object");
-      return existing.get();
+    // Check if contentHash already matches (duplicate)
+    if (stixJsonHash.equals(securityCoverage.getContentHash())) {
+      log.info(
+          "Duplicate STIX bundle detected for externalId={} -> returning existing object",
+          externalId);
+      return securityCoverage;
     }
 
-    SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
-    securityCoverage.setContentHash(stixJsonHash);
     securityCoverage.setExternalId(externalId);
+    securityCoverage.setContentHash(stixJsonHash);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
     securityCoverage.setName(name);
