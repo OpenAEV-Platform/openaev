@@ -34,7 +34,7 @@ public class V4_56__Update_catalog_connector_configuration_type extends BaseJava
         """);
 
       select.execute(
-              """
+          """
           ALTER TABLE injectors
           DROP COLUMN injector_connector_instance_id ;
           ALTER TABLE collectors
@@ -42,7 +42,6 @@ public class V4_56__Update_catalog_connector_configuration_type extends BaseJava
           ALTER TABLE executors
           DROP COLUMN executor_connector_instance_id ;
         """);
-
     }
   }
 }

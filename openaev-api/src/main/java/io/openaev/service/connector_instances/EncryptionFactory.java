@@ -23,6 +23,6 @@ public class EncryptionFactory {
       return xtmComposerEncryptionService;
     }
     log.warn("Built-in encryption not yet implemented for instance: {}", instance.getId());
-    return null; // TODO Later
+    return null; // TODO issue 4313
   }
 }
