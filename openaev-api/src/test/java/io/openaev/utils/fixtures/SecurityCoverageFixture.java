@@ -23,7 +23,7 @@ public class SecurityCoverageFixture {
             .formatted(securityCoverage.getExternalId()));
     securityCoverage.setAttackPatternRefs(new HashSet<>());
     securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
-    securityCoverage.setContent(computeMd5(securityCoverage.getContent()));
+    securityCoverage.setContentHash(computeMd5(securityCoverage.getContent()));
     return securityCoverage;
   }
 
@@ -47,7 +47,7 @@ public class SecurityCoverageFixture {
     SecurityCoverage securityCoverage = createDefaultSecurityCoverage();
     securityCoverage.setAttackPatternRefs(attackPatternRefs);
     securityCoverage.setVulnerabilitiesRefs(vulnerabilitiesRefs);
-    securityCoverage.setContent(computeMd5(UUID.randomUUID().toString()));
+    securityCoverage.setContentHash(computeMd5(UUID.randomUUID().toString()));
 
     return securityCoverage;
   }
