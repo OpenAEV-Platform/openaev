@@ -25,7 +25,6 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -58,6 +57,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
+
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private AssetGroupService assetGroupService;

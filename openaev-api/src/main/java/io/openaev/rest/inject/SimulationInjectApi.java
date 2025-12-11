@@ -202,7 +202,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    return this.injectService.createInject(exercise, null, input);
+    return this.injectService.createAndSaveInject(exercise, null, input);
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")

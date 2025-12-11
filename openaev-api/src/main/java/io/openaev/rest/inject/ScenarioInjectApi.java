@@ -92,7 +92,7 @@ public class ScenarioInjectApi extends RestBehavior {
   public Inject createInjectForScenario(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createInject(null, scenario, input);
+    return this.injectService.createAndSaveInject(null, scenario, input);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
