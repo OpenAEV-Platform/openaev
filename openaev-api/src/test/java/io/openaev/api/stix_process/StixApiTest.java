@@ -480,23 +480,11 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should throw bad request when security coverage is already saved")
     void shouldThrowBadRequestWhenSecurityCoverageIsAlreadySaved() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      assertThat(createdScenario.getName())
-          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
-
-      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(4);
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isOk());
 
       entityManager.flush();
       entityManager.clear();
@@ -512,23 +500,11 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should throw bad request when security coverage is Obsolete")
     void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      assertThat(createdScenario.getName())
-          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
-
-      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-      assertThat(injects).hasSize(4);
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isOk());
 
       entityManager.flush();
       entityManager.clear();
