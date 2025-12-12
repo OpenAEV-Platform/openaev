@@ -15,6 +15,7 @@ import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -75,9 +76,9 @@ public class PayloadUpsertService {
     payload.setDomains(
         input.getDomains() != null
             ? domainService.upserts(input.getDomains())
-            : Set.of(
+            : new HashSet<>(Set.of(
                 domainService.upsert(
-                    new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
+                    new Domain(null, "To classify", "#FFFFFF", Instant.now(), null)))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 
