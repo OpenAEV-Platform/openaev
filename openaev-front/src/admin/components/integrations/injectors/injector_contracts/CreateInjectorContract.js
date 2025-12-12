@@ -86,10 +86,8 @@ class CreateInjectorContract extends Component {
       }),
     };
 
-    const { ...restData } = data;
-
     const inputValues = {
-      ...restData,
+      ...data,
       injector_id: injector.injector_id,
       contract_id: `${injector.injector_name.toLowerCase()}--${uuid()}`,
       contract_labels: { en: data.injector_contract_name },

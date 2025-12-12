@@ -8,7 +8,7 @@ interface Props {
   label: string;
   className?: string;
   value: string | undefined;
-  onChange: (value: string | undefined) => void;
+  onChange: (value: string | string[] | undefined) => void;
   required?: boolean;
   error?: boolean;
   searchOptionsConfig?: SearchOptionsConfig;

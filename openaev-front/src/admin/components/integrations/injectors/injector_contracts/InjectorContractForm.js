@@ -1,8 +1,9 @@
-import { Autocomplete, Box, Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import { Field, Form } from 'react-final-form';
 
+import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';
 import { useHelper } from '../../../../../store';
@@ -49,9 +50,7 @@ const InjectorContractForm = (props) => {
             style={{ marginTop: theme.spacing(2) }}
           />
           {!isPayloadInjector && (
-            <Field
-              name="injector_contract_domains"
-            >
+            <Field name="injector_contract_domains">
               {({ input, meta }) => {
                 const safeValue = (Array.isArray(input.value) ? input.value : [])
                   .map((val) => {
@@ -62,53 +61,45 @@ const InjectorContractForm = (props) => {
                   })
                   .filter(Boolean);
 
+                const mappedOptions = filteredDomains.map(d => ({
+                  id: d.domain_id,
+                  label: d.domain_name,
+                }));
+
+                const selectedIds = safeValue.map(d => d.domain_id);
+
                 return (
-                  <Autocomplete
-                    size="small"
+                  <AutocompleteField
+                    style={{ marginTop: theme.spacing(3) }}
+                    label={t('Domains')}
+                    variant="standard"
                     multiple
-                    options={filteredDomains}
-                    getOptionLabel={option => option.domain_name || ''}
-                    isOptionEqualToValue={(option, val) => option.domain_id === val.domain_id}
-                    disableClearable={false}
-                    openOnFocus
-                    autoHighlight
-                    noOptionsText={t('No available options')}
-                    value={safeValue}
-                    onChange={(_event, selectedOptions) => {
-                      input.onChange(selectedOptions);
+                    options={mappedOptions}
+                    value={selectedIds}
+                    onInputChange={() => { }}
+                    error={meta.error && meta.touched}
+                    onChange={(ids) => {
+                      const selectedObjects = filteredDomains.filter(d =>
+                        ids.includes(d.domain_id),
+                      );
+                      input.onChange(selectedObjects);
                     }}
-                    renderInput={params => (
-                      <TextField
-                        {...params}
-                        label={t('Domains')}
-                        variant="standard"
-                        size="small"
-                        fullWidth
-                        style={{ marginTop: 20 }}
-                        error={meta.error && meta.touched}
-                        helperText={meta.touched && meta.error ? meta.error : null}
-                      />
-                    )}
-                    renderOption={(props, option) => (
-                      <Box component="li" {...props} key={option.domain_id}>
-                        {option.domain_name}
-                      </Box>
-                    )}
                   />
                 );
               }}
             </Field>
           )}
+
           <div style={{
             float: 'right',
-            marginTop: 20,
+            marginTop: theme.spacing(2),
           }}
           >
 
             <Button
               variant="contained"
               onClick={handleClose}
-              style={{ marginRight: 10 }}
+              style={{ marginRight: theme.spacing(2) }}
               disabled={submitting}
             >
               {t('Cancel')}

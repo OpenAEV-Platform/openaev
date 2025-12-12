@@ -12,7 +12,7 @@ import AutocompleteField from './AutocompleteField';
 interface Props {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string | string[] | undefined) => void;
   required?: boolean;
   scenarioOrSimulationId?: string;
   disabled?: boolean;

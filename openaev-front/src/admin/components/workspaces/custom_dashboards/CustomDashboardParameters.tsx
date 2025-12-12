@@ -54,8 +54,10 @@ const CustomDashboardParameters: FunctionComponent = () => {
             key={p.custom_dashboards_parameter_id}
             label={p.custom_dashboards_parameter_name}
             value={paramOption?.value}
-            onChange={(value: string | undefined) =>
-              handleParametersValue(p.custom_dashboards_parameter_id, value ?? '')}
+            onChange={(value: string | string[] | undefined) => {
+              const val = Array.isArray(value) ? value.join(',') : (value ?? '');
+              handleParametersValue(p.custom_dashboards_parameter_id, val);
+            }}
           />
         );
       case 'simulation':
@@ -64,8 +66,10 @@ const CustomDashboardParameters: FunctionComponent = () => {
             key={p.custom_dashboards_parameter_id}
             label={p.custom_dashboards_parameter_name}
             value={paramOption?.value}
-            onChange={(value: string | undefined) =>
-              handleParametersValue(p.custom_dashboards_parameter_id, value ?? '')}
+            onChange={(value: string | string[] | undefined) => {
+              const val = Array.isArray(value) ? value.join(',') : (value ?? '');
+              handleParametersValue(p.custom_dashboards_parameter_id, val);
+            }}
             searchOptionsConfig={paramOption?.searchOptionsConfig}
           />
         );

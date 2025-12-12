@@ -1,6 +1,5 @@
 import { SmartButtonOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -42,8 +41,8 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const headerStyles = {
-  injector_contract_labels: { width: '30%' },
-  injector_contract_domains: { width: '10%' },
+  injector_contract_labels: { width: '20%' },
+  injector_contract_domains: { width: '20%' },
   kill_chains: { width: '13%' },
   attack_patterns: { width: '35%' },
   injector_contract_updated_at: { width: '12%' },
@@ -52,7 +51,7 @@ const headerStyles = {
 const inlineStyles = {
   injector_contract_labels: {
     float: 'left',
-    width: '30%',
+    width: '20%',
     height: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -60,7 +59,7 @@ const inlineStyles = {
   },
   injector_contract_domains: {
     float: 'left',
-    width: '10%',
+    width: '20%',
     height: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -218,9 +217,14 @@ const InjectorContracts = () => {
                     style={inlineStyles.kill_chains}
                   >
                     {
-                      R.uniq(injectorContract.injector_contract_attack_patterns.map(
-                        n => attackPatternsMap[n]?.attack_pattern_kill_chain_phases ?? [],
-                      ).flat().map(o => killChainPhasesMap[o]?.phase_kill_chain_name ?? '')).map((killChain) => {
+                      Array.from(
+                        new Set(
+                          injectorContract.injector_contract_attack_patterns
+                            .map(n => attackPatternsMap[n]?.attack_pattern_kill_chain_phases ?? [])
+                            .flat()
+                            .map(o => killChainPhasesMap[o]?.phase_kill_chain_name ?? ''),
+                        ),
+                      ).map((killChain) => {
                         return (
                           <Chip
                             key={killChain}
@@ -249,7 +253,7 @@ const InjectorContracts = () => {
                   </div>
                   <div
                     className={classes.bodyItem}
-                    style={inlineStyles.attack_pattern_updated_at}
+                    style={inlineStyles.injector_contract_updated_at}
                   >
                     {nsdt(injectorContract.injector_contract_updated_at)}
                   </div>
