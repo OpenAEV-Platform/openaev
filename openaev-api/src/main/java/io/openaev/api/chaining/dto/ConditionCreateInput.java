@@ -9,9 +9,9 @@ import lombok.Setter;
 @Setter
 @Builder
 public class ConditionCreateInput {
-    private String temporaryId;
-    private String key;
-    private String value;
-    private CONDITION_TYPE type;
-    String temporaryIdConditionParent;
+  private String temporaryId;
+  private String key;
+  private String value;
+  private CONDITION_TYPE type;
+  String temporaryIdConditionParent;
 }

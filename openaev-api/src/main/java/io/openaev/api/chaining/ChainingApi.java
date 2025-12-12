@@ -29,45 +29,48 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Chaining API", description = "Operations related to Chaining")
 public class ChainingApi extends RestBehavior {
 
-    public static final String CHAINING_API = "/api/chaining";
-    private final WorkflowService workflowService;
-    private final StepService stepService;
-    //private final WorkflowMapper workflowMapper;
+  public static final String CHAINING_API = "/api/chaining";
+  private final WorkflowService workflowService;
+  private final StepService stepService;
 
-    @PostMapping(CHAINING_API+"/workflow")
-    @Operation(
-            summary = "Create a new workflow")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Chaining Workflow create successfully"),
-            @ApiResponse(responseCode = "500", description = "Unexpected server error")
-    })
-    @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
-    public ResponseEntity<WorkflowOutput> createWorkFlow(@RequestBody WorkflowCreateInput input) {
-        try {
-            workflowService.creationWorkflow(input.getExerciseId());
-            return null;//ResponseEntity.ok(workflowMapper.toOutput(workflowService.creationWorkflow(workflowMapper.toEntity(input))));
-        } catch (Exception e) {
-            log.error(String.format("Unexpected error while creating a new Chaining Workflow: %s", e.getMessage()));
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+  // private final WorkflowMapper workflowMapper;
+
+  @PostMapping(CHAINING_API + "/workflow")
+  @Operation(summary = "Create a new workflow")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Chaining Workflow create successfully"),
+    @ApiResponse(responseCode = "500", description = "Unexpected server error")
+  })
+  @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  public ResponseEntity<WorkflowOutput> createWorkFlow(@RequestBody WorkflowCreateInput input) {
+    try {
+      workflowService.creationWorkflow(input.getExerciseId());
+      return null; // ResponseEntity.ok(workflowMapper.toOutput(workflowService.creationWorkflow(workflowMapper.toEntity(input))));
+    } catch (Exception e) {
+      log.error(
+          String.format(
+              "Unexpected error while creating a new Chaining Workflow: %s", e.getMessage()));
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    @PostMapping(CHAINING_API+"/step")
-    @Operation(
-            summary = "Create new steps")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Step Workflow create successfully"),
-            @ApiResponse(responseCode = "500", description = "Unexpected server error")
-    })
-    @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
-    public ResponseEntity<WorkflowOutput> createStep(@RequestBody StepsCreateInput input) {
-        try {
+  @PostMapping(CHAINING_API + "/step")
+  @Operation(summary = "Create new steps")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Step Workflow create successfully"),
+    @ApiResponse(responseCode = "500", description = "Unexpected server error")
+  })
+  @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  public ResponseEntity<WorkflowOutput> createStep(@RequestBody StepsCreateInput input) {
+    try {
 
-            stepService.createSteps(input.getWorkflowId(), input.steps);
-            return null;
-        } catch (Exception e) {
-            log.error(String.format("Unexpected error while creating a new Steps Workflow: %s", e.getMessage()));
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+      stepService.createSteps(input.getWorkflowId(), input.steps);
+      return null;
+    } catch (Exception e) {
+      log.error(
+          String.format(
+              "Unexpected error while creating a new Steps Workflow: %s", e.getMessage()));
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 }

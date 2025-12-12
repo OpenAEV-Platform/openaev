@@ -1,4 +1,3 @@
 package io.openaev.api.chaining;
 
-public interface InputStep {
-}
+public interface InputStep {}

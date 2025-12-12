@@ -8,5 +8,5 @@ import lombok.Setter;
 @Setter
 @Builder
 public class WorkflowCreateInput {
-        String exerciseId;
+  String exerciseId;
 }

@@ -6,9 +6,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ConditionService {
-    ConditionRepository conditionRepository;
+  ConditionRepository conditionRepository;
 
-    public Condition saveCondition(Condition condition){
-        return conditionRepository.save(condition);
-    }
+  public Condition saveCondition(Condition condition) {
+    return conditionRepository.save(condition);
+  }
 }

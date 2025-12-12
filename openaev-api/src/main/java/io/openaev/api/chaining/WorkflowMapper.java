@@ -1,4 +1,3 @@
 package io.openaev.api.chaining;
 
-public class WorkflowMapper {
-}
+public class WorkflowMapper {}
