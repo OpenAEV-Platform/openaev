@@ -3,6 +3,7 @@ package io.openaev.rest.inject;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import co.elastic.clients.util.VisibleForTesting;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
@@ -87,8 +88,6 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
-  private final InjectMapper injectMapper;
-  private final GrantRepository grantRepository;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
 
   private final RabbitmqConfig rabbitmqConfig;
@@ -580,5 +579,10 @@ public class InjectApi extends RestBehavior {
     }
 
     return documentService.documentsForPayload(payloadId);
+  }
+
+  @VisibleForTesting
+  public BatchQueueService<InjectExecutionCallback> getInjectTraceQueueService() {
+    return injectTraceQueueService;
   }
 }
