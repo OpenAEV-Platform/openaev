@@ -28,6 +28,10 @@ manual [installation packages](https://github.com/OpenAEV-Platform/openaev/relea
     [:octicons-arrow-right-24:{ .middle } Explore](#manual-installation)
 </div>
 
+!!! tip "Docker deployment of the full XTM suite (OpenCTI - OpenAEV - OpenGRC)"
+
+    If you're looking for information about the deployment of the full eXtended Threat Management (XTM) suite using Docker, please refer [to this repository and documentation](https://github.com/FiligranHQ/xtm-docker).
+
 ## Using Docker
 
 ### Introduction

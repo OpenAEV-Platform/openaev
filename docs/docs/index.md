@@ -9,16 +9,17 @@ hide:
 Welcome to the OpenAEV Documentation space. Here you will be able to find all documents, meeting notes and presentations about the platform.
 
 
-!!! tip "Release notes"
+!!! info "Release notes"
 
     Please, be sure to also take a look at the [OpenAEV releases notes](https://github.com/OpenAEV-Platform/openaev/releases), they may contain important information about releases and deployments.
 
 ## Introduction
 
-OpenAEV is an open-source platform that helps organizations design, schedule, and run both crisis management exercises 
-and adversary simulation scenarios. Fully aligned with ISO 22398, OpenAEV combines a modern web architecture with a 
-RESTful API and a user-friendly frontend, making it easy to integrate, automate, and deliver realistic training 
-experiences.
+OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation campaign and tests.
+
+!!! tip "Docker deployment of the full XTM suite (OpenCTI - OpenAEV - OpenGRC)"
+
+    If you're looking for information about the deployment of the full eXtended Threat Management (XTM) suite using Docker, please refer [to this repository and documentation](https://github.com/FiligranHQ/xtm-docker).
 
 ## Getting started
 
