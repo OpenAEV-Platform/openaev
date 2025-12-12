@@ -31,15 +31,15 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
     <>
       {variant == 'popover'
         ? (
-          <ButtonPopover
-            entries={[{
-              label: 'Select a dashboard',
-              action: handleOpenSelectDashboardDialog,
-              userRight: true,
-            }]}
-            style={{ alignSelf: 'start' }}
-          />
-        )
+            <ButtonPopover
+              entries={[{
+                label: 'Select a dashboard',
+                action: handleOpenSelectDashboardDialog,
+                userRight: true,
+              }]}
+              style={{ alignSelf: 'start' }}
+            />
+          )
         : <Button onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</Button>}
       <Dialog
         title={t('Select a dashboard')}
