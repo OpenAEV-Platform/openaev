@@ -1,5 +1,6 @@
 package io.openaev.service.stix;
 
+import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.utils.SecurityCoverageUtils.computeMd5;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 
@@ -40,7 +41,7 @@ public class StixService {
     try {
 
       JsonNode root = objectMapper.readTree(stixJson);
-      String stixJsonHash = computeMd5(stixJson);
+      String stixJsonHash = md5Hex(stixJson);
       Bundle bundle = stixParser.parseBundle(root.toString());
       ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
       String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());

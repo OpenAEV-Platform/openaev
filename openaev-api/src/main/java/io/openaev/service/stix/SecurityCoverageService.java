@@ -86,7 +86,7 @@ public class SecurityCoverageService {
    * SecurityCoverage} domain object, and saves it. It also extracts referenced attack patterns and
    * sets optional fields like description and scheduling.
    *
-   * @param stixCoverageObj STIX-formatted JSON string representing a security coverage
+   * @param stixCoverageObj parsed ObjectBase from the STIX related to security coverage
    * @param bundle Stix bundle
    * @param externalId external reference
    * @return the saved {@link SecurityCoverage} object

@@ -66,6 +66,7 @@ public class StixApi extends RestBehavior {
           workId, "OpenAEV ready to process the operation");
       // Create scenario from stix bundle
       // If no simulation for this scenario is in progress, start an execution right away
+
       Scenario scenario = stixService.processBundle(stixJson);
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "Coverage successfully created or updated", false);
@@ -77,7 +78,8 @@ public class StixApi extends RestBehavior {
       log.error(
           String.format(
               "Parsing error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()));
+              workId, ctiEvent, e.getMessage()),
+          e);
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "Parsing error while processing STIX bundle", true);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -86,7 +88,8 @@ public class StixApi extends RestBehavior {
       log.error(
           String.format(
               "Unexpected error while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()));
+              workId, ctiEvent, e.getMessage()),
+          e);
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "An unexpected server error occurred", true);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

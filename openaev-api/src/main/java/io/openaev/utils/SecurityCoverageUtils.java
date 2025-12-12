@@ -86,14 +86,4 @@ public class SecurityCoverageUtils {
         .map(StixRefToExternalRef::getExternalRef)
         .collect(Collectors.toSet());
   }
-
-  public static String computeMd5(String input) {
-    try {
-      MessageDigest md = MessageDigest.getInstance("MD5");
-      byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
-      return DatatypeConverter.printHexBinary(digest).toLowerCase();
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to compute MD5", e);
-    }
-  }
 }
