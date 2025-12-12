@@ -506,10 +506,7 @@ class StixApiTest extends IntegrationTest {
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(stixSecurityCoverage))
-          .andExpect(status().isBadRequest())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -537,17 +534,14 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       String modifiedSecurityCoverage =
-          stixSecurityCoverage.replace("2025-08-04T14:00:00Z", "2025-08-04T13:00:00Z");
+          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-31T13:00:00Z");
 
       // Push an old Stix
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(modifiedSecurityCoverage))
-          .andExpect(status().isBadRequest())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+          .andExpect(status().isBadRequest());
     }
 
     @Test
