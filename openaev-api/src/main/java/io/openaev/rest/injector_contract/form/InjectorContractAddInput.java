@@ -55,8 +55,8 @@ public class InjectorContractAddInput {
 
   @JsonProperty("contract_platforms")
   private String[] platforms = new String[0];
-  @NotNull(message = MANDATORY_MESSAGE)
 
+  @NotNull(message = MANDATORY_MESSAGE)
   @JsonProperty("contract_domains")
   private Set<Domain> domains;
 }
