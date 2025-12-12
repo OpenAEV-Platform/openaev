@@ -1,11 +1,14 @@
 package io.openaev.service.stix;
 
+import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
+import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
@@ -39,7 +42,6 @@ import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import jakarta.annotation.Resource;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
@@ -80,21 +82,41 @@ public class SecurityCoverageService {
   private final SecurityCoverageConnector connector;
 
   /**
-   * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
+   * Parses a STIX JSON string, validates it, and delegates to create and persist a
+   * SecurityCoverage.
    *
-   * <p>This method parses the input STIX content, extracts relevant fields, maps them to a {@link
-   * SecurityCoverage} domain object, and saves it. It also extracts referenced attack patterns and
-   * sets optional fields like description and scheduling.
-   *
-   * @param stixCoverageObj parsed ObjectBase from the STIX related to security coverage
-   * @param bundle Stix bundle
-   * @param externalId external reference
+   * @param stixJson the STIX bundle as a JSON string
    * @return the saved {@link SecurityCoverage} object
-   * @throws IOException if the input cannot be parsed into JSON
+   * @throws JsonProcessingException if the input cannot be parsed into JSON
+   * @throws ParsingException if the STIX bundle is obsolete or already stored
+   * @throws BadRequestException if validation fails
+   */
+  public SecurityCoverage processAndBuildStixToSecurityCoverage(String stixJson)
+      throws ParsingException, BadRequestException, JsonProcessingException {
+
+    JsonNode root = objectMapper.readTree(stixJson);
+    String stixJsonHash = md5Hex(stixJson);
+    Bundle bundle = stixParser.parseBundle(root.toString());
+    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
+    String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+
+    return buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId, stixJsonHash);
+  }
+
+  /**
+   * Maps a validated STIX object to a {@link SecurityCoverage}, sets optional fields, extracts
+   * attack patterns, and persists it.
+   *
+   * @param stixCoverageObj parsed object from Stix bundle related to Security Coverage
+   * @param bundle the STIX bundle
+   * @param externalId Security coverage external ID
+   * @param stixJsonHash MD5 hash of the STIX JSON content
+   * @return the saved {@link SecurityCoverage} object
    * @throws ParsingException if the STIX bundle is malformed
+   * @throws BadRequestException if the STIX bundle is obsolete or already stored
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
-  public SecurityCoverage buildSecurityCoverageFromStix(
+  private SecurityCoverage buildSecurityCoverageFromStix(
       ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
       throws ParsingException, BadRequestException {
 
