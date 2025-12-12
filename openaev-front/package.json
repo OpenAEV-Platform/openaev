@@ -32,7 +32,7 @@
     "cronstrue": "3.9.0",
     "d3-hierarchy": "3.1.2",
     "date-fns": "4.1.0",
-    "dompurify": "3.3.0",
+    "dompurify": "3.3.1",
     "eslint-import-resolver-next": "0.6.0",
     "filigran-icon": "0.20.0",
     "final-form": "4.20.10",
