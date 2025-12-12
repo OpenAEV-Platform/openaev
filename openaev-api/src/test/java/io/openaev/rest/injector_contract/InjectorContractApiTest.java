@@ -1205,7 +1205,7 @@ public class InjectorContractApiTest extends IntegrationTest {
           GroupComposer.Composer observerGroup =
               groupComposer
                   .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>(Set.of()))))
+                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>())))
                   .withGrant(grantComposer.forGrant(grant));
 
           yield userComposer
