@@ -38,6 +38,7 @@ export interface Agent {
 
 /** List of primary agents */
 export interface AgentOutput {
+  active?: boolean;
   /** Indicates whether the endpoint is active. The endpoint is considered active if it was seen in the last 3 minutes. */
   agent_active?: boolean;
   /** Agent deployment mode */
@@ -930,6 +931,7 @@ export interface ContractOutputElement {
     | "cve";
   /** @format date-time */
   contract_output_element_updated_at: string;
+  finding?: boolean;
   listened?: boolean;
 }
 
@@ -1469,6 +1471,7 @@ export interface Endpoint {
     | "Internal"
     | "Unknown";
   endpoint_seen_ip?: string;
+  eoL?: boolean;
   listened?: boolean;
 }
 
@@ -1493,6 +1496,7 @@ export interface EndpointInput {
     | "Generic"
     | "Internal"
     | "Unknown";
+  eol?: boolean;
 }
 
 export interface EndpointOutput {
@@ -1575,6 +1579,7 @@ export interface EndpointOverviewOutput {
     | "Unknown";
   /** Seen IP */
   endpoint_seen_ip?: string;
+  eol?: boolean;
 }
 
 export interface EndpointRegisterInput {
@@ -1588,6 +1593,7 @@ export interface EndpointRegisterInput {
   asset_external_reference: string;
   asset_name: string;
   asset_tags?: string[];
+  elevated?: boolean;
   endpoint_agent_version?: string;
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
@@ -1604,7 +1610,9 @@ export interface EndpointRegisterInput {
     | "Generic"
     | "Internal"
     | "Unknown";
+  eol?: boolean;
   seenIp?: string;
+  service?: boolean;
 }
 
 /** Endpoint linked to finding */
@@ -3107,6 +3115,7 @@ export interface InjectResultOverviewOutput {
   injects_documents?: string[];
   /** Tags */
   injects_tags?: string[];
+  ready?: boolean;
 }
 
 export interface InjectResultPayloadExecutionOutput {
@@ -3269,7 +3278,7 @@ export interface InjectorContractAddInput {
   contract_attack_patterns_ids?: string[];
   contract_content: string;
   /** @uniqueItems true */
-  contract_domains?: Domain[];
+  contract_domains: Domain[];
   contract_id: string;
   contract_labels?: Record<string, string>;
   contract_manual?: boolean;
