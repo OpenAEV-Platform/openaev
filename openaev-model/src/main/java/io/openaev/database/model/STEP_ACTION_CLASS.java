@@ -1,9 +1,9 @@
 package io.openaev.database.model;
 
 public enum STEP_ACTION_CLASS {
-  INJECT_EXECUTION("InjectExecution.class");
+  INJECT_EXECUTION("InjectExecutionStep.class");
 
-  final String className;
+  public final String className;
 
   STEP_ACTION_CLASS(String className) {
     this.className = className;

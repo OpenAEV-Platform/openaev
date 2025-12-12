@@ -3,11 +3,13 @@ package io.openaev.database.model;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
-import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
+
+import java.time.Instant;
+import java.util.List;
 
 @Setter
 @Getter
@@ -50,11 +52,18 @@ public class Workflow {
   private Instant workflowUpdatedAt;
 
   // JOIN
-  @JoinTable(
-      name = "exercises",
-      joinColumns = @JoinColumn(name = "exercise_id"),
-      foreignKey = @ForeignKey(value = ConstraintMode.CONSTRAINT, name = "fk_workflow_simulation"))
+  @JoinColumn(name = "workflow_template_id")
+  @ManyToOne(fetch = FetchType.LAZY)
+  private Workflow workflowTemplate;
+
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
+  private List<Workflow> workflowExecuted;
+
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflow")
+  private List<Step> steps;
+
   @Column(name = "workflow_simulation_id")
   @Schema(description = "ID of the simulation")
-  private String simulationId;
+  @OneToOne(mappedBy = "id")
+  private Exercise simulationId;
 }
