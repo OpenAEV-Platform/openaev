@@ -86,7 +86,7 @@ public class SecurityCoverage implements Base {
       length = 32 // MD5 produces a 32-character hex string
       )
   @JsonIgnore
-  private String contentHash;
+  private String bundleHashMd5;
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_vulnerabilities_refs", columnDefinition = "jsonb")

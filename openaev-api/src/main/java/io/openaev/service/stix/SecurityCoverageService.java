@@ -127,7 +127,7 @@ public class SecurityCoverageService {
     checkLastBundle(stixCoverageObj, externalId, securityCoverage);
 
     securityCoverage.setExternalId(externalId);
-    securityCoverage.setContentHash(stixJsonHash);
+    securityCoverage.setBundleHashMd5(stixJsonHash);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
     securityCoverage.setName(name);
@@ -221,7 +221,7 @@ public class SecurityCoverageService {
       String externalId, String stixJsonHash, SecurityCoverage securityCoverage)
       throws BadRequestException {
     // Check if contentHash already matches (duplicate)
-    if (stixJsonHash.equals(securityCoverage.getContentHash())) {
+    if (stixJsonHash.equals(securityCoverage.getBundleHashMd5())) {
       log.info(
           "Duplicate STIX bundle detected for externalId={} -> returning existing object",
           externalId);
