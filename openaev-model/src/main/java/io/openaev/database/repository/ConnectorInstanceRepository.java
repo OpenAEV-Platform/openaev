@@ -16,7 +16,8 @@ public interface ConnectorInstanceRepository
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   @Query(
       "SELECT DISTINCT instance FROM ConnectorInstance instance "
-          + "WHERE instance.catalogConnector.containerImage IS NOT NULL")
+          + "WHERE instance.catalogConnector.containerImage IS NOT NULL " +
+              "AND instance.catalogConnector.isManagerSupported = TRUE")
   List<ConnectorInstance> findAllManagedByXtmComposerAndConfiguration();
 
   List<ConnectorInstance> findAllByCatalogConnectorId(String catalogConnectorId);

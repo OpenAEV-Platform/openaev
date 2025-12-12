@@ -176,7 +176,7 @@ public class XtmComposerService {
       return lastCheck.isBefore(oneDayAgo);
     } catch (Exception e) {
       log.error("Error parsing last connectivity check value: {}", e.getMessage());
-      return true;
+      return false;
     }
   }
 
@@ -196,13 +196,13 @@ public class XtmComposerService {
   public void validateXtmComposerReachability() {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
 
-    if (xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue() == null) {
-      throw new IllegalArgumentException("XTM Composer is not configured in the platform settings");
+    if (xtmComposerInformation.get(XTM_COMPOSER_ID.key()) == null || xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue() == null) {
+      throw new BadRequestException("XTM Composer is not configured in the platform settings");
     }
     if (xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue() == null
         || isLastConnectivityCheckTooOld(
             xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue())) {
-      throw new IllegalArgumentException("XTM Composer is not reachable");
+      throw new BadRequestException("XTM Composer is not reachable");
     }
   }
 }

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Connector Instance API", description = "Operations related to Connector Instances")
 public class ConnectorInstanceApi extends RestBehavior {
-  private static final String CONNECTOR_INSTANCE_URI = "/api/connector-instances";
+  public static final String CONNECTOR_INSTANCE_URI = "/api/connector-instances";
 
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceLogService connectorInstanceLogService;

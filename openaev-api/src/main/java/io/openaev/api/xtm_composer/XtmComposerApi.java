@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "XTM COMPOSER API", description = "Operations related to XTM Composer")
 public class XtmComposerApi extends RestBehavior {
-  private static final String XTMCOMPOSER_URI = "/api/xtm-composer";
+  public static final String XTMCOMPOSER_URI = "/api/xtm-composer";
 
   private final XtmComposerService xtmComposerService;
   private final ConnectorOrchestrationService orchestrationService;
@@ -40,21 +40,21 @@ public class XtmComposerApi extends RestBehavior {
       summary = "Register XtmComposer",
       description = "Save registration data into settings from XTM Composer registration")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @Transactional(rollbackFor = Exception.class)
   public XtmComposerOutput register(@Valid @RequestBody XtmComposerRegisterInput input) {
     return this.xtmComposerService.register(input);
   }
 
-  @PutMapping(value = XTMCOMPOSER_URI + "/refresh-connectivity")
+  @PutMapping(value = XTMCOMPOSER_URI + "/{xtmComposerId}/refresh-connectivity")
   @Operation(
       summary = "Refresh connectivity with XTM composer",
       description = "Refresh last check connectivity in settings and version in XTM Composer")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @Transactional(rollbackFor = Exception.class)
-  public XtmComposerOutput refreshConnectivity(@Valid @RequestBody String composerId) {
-    return xtmComposerService.refreshConnectivity(composerId, LocalDateTime.now());
+  public XtmComposerOutput refreshConnectivity(@PathVariable @NotBlank final String xtmComposerId) {
+    return xtmComposerService.refreshConnectivity(xtmComposerId, LocalDateTime.now());
   }
 
   @GetMapping(value = XTMCOMPOSER_URI + "/reachable")
@@ -75,7 +75,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Get all connector instances managed by xtm-composer",
       description = "Retrieve all connector instances managed by xtm-composer")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
       @PathVariable @NotBlank final String xtmComposerId) {
@@ -87,7 +87,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Update connector instance status",
       description = "Update the status of a specific connector instance")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful update")})
   public XtmComposerInstanceOutput updateConnectorInstanceStatus(
       @PathVariable @NotBlank final String xtmComposerId,

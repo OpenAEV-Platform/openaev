@@ -78,7 +78,7 @@ public class ConnectorOrchestrationService {
 
   private void validateEnterpriseLicense() {
     if (!eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
-      throw new LicenseRestrictionException("It's an Edition Enterprise feature");
+      throw new LicenseRestrictionException("Manage instance is enterprise edition");
     }
   }
 
