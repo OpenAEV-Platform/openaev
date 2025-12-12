@@ -2,18 +2,20 @@ package io.openaev.rest.inject.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.chaining.InputStep;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Setter
 @Getter
-public class InjectInput {
+public class InjectInput implements InputStep {
 
   @NotBlank
   @JsonProperty("inject_title")
