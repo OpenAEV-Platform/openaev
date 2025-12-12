@@ -82,11 +82,11 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
     }
   };
 
-  const onSimulationChange = (simulationId: string | undefined) => {
-    setSimulationId(simulationId);
+  const onSimulationChange = (simulationId: string | string[] | undefined) => {
+    setSimulationId(simulationId as string);
     setShowSimulationError(!simulationId);
     if (simulationId && value?.length > 0 && value[0].filter !== undefined) {
-      updateSimulationFilterOnSeries(value, simulationId);
+      updateSimulationFilterOnSeries(value, simulationId as string);
       onChange(value);
       onSubmit();
     }

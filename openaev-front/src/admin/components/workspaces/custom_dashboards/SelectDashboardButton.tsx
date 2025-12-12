@@ -29,17 +29,17 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
 
   return (
     <>
-      { variant == 'popover'
+      {variant == 'popover'
         ? (
-            <ButtonPopover
-              entries={[{
-                label: 'Select a dashboard',
-                action: handleOpenSelectDashboardDialog,
-                userRight: true,
-              }]}
-              style={{ alignSelf: 'start' }}
-            />
-          )
+          <ButtonPopover
+            entries={[{
+              label: 'Select a dashboard',
+              action: handleOpenSelectDashboardDialog,
+              userRight: true,
+            }]}
+            style={{ alignSelf: 'start' }}
+          />
+        )
         : <Button onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</Button>}
       <Dialog
         title={t('Select a dashboard')}
@@ -54,7 +54,7 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
           </>
         )}
       >
-        <CustomDashboardAutocompleteField label={t('Dashboard')} value={dashboardId} scenarioOrSimulationId={scenarioOrSimulationId} onChange={value => setDashboardId(value)} />
+        <CustomDashboardAutocompleteField label={t('Dashboard')} value={dashboardId} scenarioOrSimulationId={scenarioOrSimulationId} onChange={value => setDashboardId(value as string)} />
       </Dialog>
     </>
   );
