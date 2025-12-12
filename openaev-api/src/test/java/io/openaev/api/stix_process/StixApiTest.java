@@ -296,7 +296,7 @@ class StixApiTest extends IntegrationTest {
           createdScenario.getInjects().stream()
               .filter(i -> i.getInjectorContract().get().getPayload() != null)
               .toList();
-      assertThat(injects.size()).isEqualTo(1);
+      assertThat(injects).hasSize(1);
 
       Inject inject = injects.getFirst();
       Set<AssetGroup> desiredAssetGroups =
@@ -393,7 +393,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1");
       assertTrue(createdScenario.getRecurrence().startsWith("0 "));
       assertTrue(createdScenario.getRecurrence().endsWith(" * * *"));
-      assertThat(createdScenario.getTags().stream().map(tag -> tag.getName()).toList())
+      assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
           .contains(OPENCTI_TAG_NAME);
 
       // -- ASSERT Security Coverage --
@@ -502,15 +502,52 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Push same stix in order to check the number of created injects
-      String updatedResponse =
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isBadRequest())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("Should throw bad request when security coverage is Obsolete")
+    void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
+      String createdResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(stixSecurityCoverage))
-              .andExpect(status().isBadRequest())
+              .andExpect(status().isOk())
               .andReturn()
               .getResponse()
               .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName())
+          .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
+
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(4);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String modifiedSecurityCoverage =
+          stixSecurityCoverage.replace("2025-08-04T14:00:00Z", "2025-08-04T13:00:00Z");
+
+      // Push an old Stix
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(modifiedSecurityCoverage))
+          .andExpect(status().isBadRequest())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
 
     @Test
@@ -658,7 +695,7 @@ class StixApiTest extends IntegrationTest {
 
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
-      assertThat(injects).hasSize(0);
+      assertThat(injects).isEmpty();
     }
 
     @Test
@@ -688,7 +725,7 @@ class StixApiTest extends IntegrationTest {
       assertThat(injects).hasSize(1);
       Inject inject = injects.stream().findFirst().get();
       assertThat(inject.getAssets()).hasSize(3);
-      assertThat(inject.getAssetGroups()).hasSize(0);
+      assertThat(inject.getAssetGroups()).isEmpty();
     }
 
     @Test
@@ -719,7 +756,7 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
       Inject inject = injects.stream().findFirst().get();
-      assertThat(inject.getAssets()).hasSize(0);
+      assertThat(inject.getAssets()).isEmpty();
       assertThat(inject.getAssetGroups()).hasSize(1);
     }
 
@@ -748,8 +785,8 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
       Inject inject = injects.stream().findFirst().get();
-      assertThat(inject.getAssets()).hasSize(0);
-      assertThat(inject.getAssetGroups()).hasSize(0);
+      assertThat(inject.getAssets()).isEmpty();
+      assertThat(inject.getAssetGroups()).isEmpty();
     }
 
     @Test
@@ -773,8 +810,8 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
       Inject inject = injects.stream().findFirst().get();
-      assertThat(inject.getAssets()).hasSize(0);
-      assertThat(inject.getAssetGroups()).hasSize(0);
+      assertThat(inject.getAssets()).isEmpty();
+      assertThat(inject.getAssetGroups()).isEmpty();
     }
 
     @Test
@@ -841,7 +878,7 @@ class StixApiTest extends IntegrationTest {
       assertThat(injects).hasSize(1);
 
       Inject inject = injects.stream().findFirst().get();
-      assertThat(inject.getAssets()).hasSize(0);
+      assertThat(inject.getAssets()).isEmpty();
 
       stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
@@ -863,7 +900,7 @@ class StixApiTest extends IntegrationTest {
                   .filter(updated -> updated.getId().equals(inject.getId()))
                   .flatMap(i -> i.getAssets().stream())
                   .toList())
-          .hasSize(0);
+          .isEmpty();
     }
 
     @Test
