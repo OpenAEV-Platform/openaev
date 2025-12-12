@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_52__Add_coverage_content_hash_column extends BaseJavaMigration {
+public class V4_52__Add_coverage_bundle_hash_md5_column extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
