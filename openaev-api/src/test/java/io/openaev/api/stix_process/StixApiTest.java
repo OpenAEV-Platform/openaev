@@ -510,7 +510,7 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       String modifiedSecurityCoverage =
-          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-31T13:00:00Z");
+          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-10T13:00:00Z");
 
       // Push an old Stix
       mvc.perform(
