@@ -80,7 +80,8 @@ public class PayloadService {
     injectorContract.setInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
-    injectorContract.setDomains(domainService.upserts(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
+    injectorContract.setDomains(
+        domainService.upserts(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(

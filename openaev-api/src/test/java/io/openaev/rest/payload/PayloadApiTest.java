@@ -516,7 +516,8 @@ class PayloadApiTest extends IntegrationTest {
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
 
-    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
+    Payload payload =
+        payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
     payload.setExternalId("external-id");
 
     // -- Without property architecture

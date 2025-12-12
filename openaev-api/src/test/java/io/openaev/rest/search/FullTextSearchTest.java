@@ -24,7 +24,6 @@ import io.openaev.utils.fixtures.composers.RoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
-
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
@@ -282,7 +281,10 @@ public class FullTextSearchTest extends IntegrationTest {
             .forGroup(GroupFixture.createGroup())
             .withRole(
                 roleComposer.forRole(
-                    RoleFixture.getRole(capability == null ? new HashSet<>(Set.of()) : new HashSet<>(Set.of(capability)))));
+                    RoleFixture.getRole(
+                        capability == null
+                            ? new HashSet<>(Set.of())
+                            : new HashSet<>(Set.of(capability)))));
 
     this.testUser =
         userComposer
@@ -324,7 +326,10 @@ public class FullTextSearchTest extends IntegrationTest {
             .forGroup(GroupFixture.createGroup())
             .withRole(
                 roleComposer.forRole(
-                    RoleFixture.getRole(capability == null ? new HashSet<>(Set.of()) : new HashSet<>(Set.of(capability)))));
+                    RoleFixture.getRole(
+                        capability == null
+                            ? new HashSet<>(Set.of())
+                            : new HashSet<>(Set.of(capability)))));
 
     this.testUser =
         userComposer

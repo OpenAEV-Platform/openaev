@@ -10,7 +10,6 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
 import jakarta.persistence.EntityManager;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;

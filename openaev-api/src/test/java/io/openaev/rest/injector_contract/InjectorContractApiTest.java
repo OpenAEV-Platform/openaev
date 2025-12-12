@@ -1174,7 +1174,9 @@ public class InjectorContractApiTest extends IntegrationTest {
           GroupComposer.Composer bypassGroup =
               groupComposer
                   .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
+                  .withRole(
+                      roleComposer.forRole(
+                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
 
           yield userComposer
               .forUser(
