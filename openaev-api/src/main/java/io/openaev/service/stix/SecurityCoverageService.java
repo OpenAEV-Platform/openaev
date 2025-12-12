@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
+import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
@@ -99,18 +100,9 @@ public class SecurityCoverageService {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
 
-    // Check if contentHash already matches (duplicate)
-    if (stixJsonHash.equals(securityCoverage.getContentHash())) {
-      log.info(
-          "Duplicate STIX bundle detected for externalId={} -> returning existing object",
-          externalId);
-      // We could also simply return the existing security cover and avoid returning the error and
-      // also avoid continue with the retry;
-      throw new BadRequestException(
-          String.format(
-              "Duplicate STIX bundle detected for externalId: %s -> returning existing object",
-              externalId));
-    }
+    // Validations related to the pertinence of the received bundle
+    checkExistingBundle(externalId, stixJsonHash, securityCoverage);
+    checkLastBundle(stixCoverageObj, externalId, securityCoverage);
 
     securityCoverage.setExternalId(externalId);
     securityCoverage.setContentHash(stixJsonHash);
@@ -133,7 +125,7 @@ public class SecurityCoverageService {
         labels.add(stixString.getValue());
       }
     }
-    // force opencti
+    // Force opencti tag
     labels.add(OPENCTI_TAG_NAME);
     securityCoverage.setLabels(labels);
 
@@ -161,6 +153,63 @@ public class SecurityCoverageService {
 
     log.info("Saving Security coverage with external ID: {}", securityCoverage.getExternalId());
     return save(securityCoverage);
+  }
+
+  /**
+   * Ensures the incoming STIX object is newer than the stored one. Throws an error if the STIX
+   * modified date is missing, invalid, or not newer.
+   */
+  private static void checkLastBundle(
+      ObjectBase stixCoverageObj, String externalId, SecurityCoverage securityCoverage)
+      throws ParsingException, BadRequestException {
+    // Check If stix coverage is the last one
+    Object modifiedObj = stixCoverageObj.getProperty(MODIFIED).getValue();
+
+    if (modifiedObj == null) {
+      throw new ParsingException("STIX object missing mandatory modified date");
+    }
+
+    Instant stixModified;
+    try {
+      stixModified = Instant.parse(modifiedObj.toString());
+    } catch (Exception e) {
+      throw new ParsingException("Invalid STIX modified date format", e);
+    }
+
+    Instant currentUpdated = securityCoverage.getUpdatedAt();
+
+    // STIX modified date must be newer than the stored updatedAt
+    log.info(
+        "SecurityCoverage Update Check: externalId={}, currentUpdated={}, stixModified={}",
+        externalId,
+        currentUpdated,
+        stixModified);
+    boolean isNewer = currentUpdated == null || stixModified.isAfter(currentUpdated);
+    if (!isNewer) {
+      throw new BadRequestException(
+          "The STIX package is obsolete because a newer version has already been computed.");
+    }
+  }
+
+  /**
+   * Checks whether the incoming STIX bundle is a duplicate by comparing its content hash to the
+   * stored one.
+   */
+  private static void checkExistingBundle(
+      String externalId, String stixJsonHash, SecurityCoverage securityCoverage)
+      throws BadRequestException {
+    // Check if contentHash already matches (duplicate)
+    if (stixJsonHash.equals(securityCoverage.getContentHash())) {
+      log.info(
+          "Duplicate STIX bundle detected for externalId={} -> returning existing object",
+          externalId);
+      // We could also simply return the existing security cover and avoid returning the error and
+      // also avoid continue with the retry;
+      throw new BadRequestException(
+          String.format(
+              "Duplicate STIX bundle detected for externalId: %s -> returning existing object",
+              externalId));
+    }
   }
 
   /**
