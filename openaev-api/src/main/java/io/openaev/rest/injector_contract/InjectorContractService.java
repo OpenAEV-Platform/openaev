@@ -64,7 +64,6 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
-  private final DomainService domainService;
 
   @Value("${openaev.xls.import.mail.enable}")
   private boolean mailImportEnabled;
