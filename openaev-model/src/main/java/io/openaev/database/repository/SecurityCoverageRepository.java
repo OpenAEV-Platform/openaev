@@ -11,6 +11,4 @@ public interface SecurityCoverageRepository
     extends CrudRepository<SecurityCoverage, String>, JpaSpecificationExecutor<SecurityCoverage> {
 
   Optional<SecurityCoverage> findByExternalId(String id);
-
-  Optional<SecurityCoverage> findByContentHash(String stixJsonHash);
 }
