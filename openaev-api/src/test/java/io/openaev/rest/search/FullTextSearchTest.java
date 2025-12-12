@@ -282,9 +282,7 @@ public class FullTextSearchTest extends IntegrationTest {
             .withRole(
                 roleComposer.forRole(
                     RoleFixture.getRole(
-                        capability == null
-                            ? new HashSet<>()
-                            : new HashSet<>(Set.of(capability)))));
+                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
 
     this.testUser =
         userComposer
@@ -327,9 +325,7 @@ public class FullTextSearchTest extends IntegrationTest {
             .withRole(
                 roleComposer.forRole(
                     RoleFixture.getRole(
-                        capability == null
-                            ? new HashSet<>()
-                            : new HashSet<>(Set.of(capability)))));
+                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
 
     this.testUser =
         userComposer
