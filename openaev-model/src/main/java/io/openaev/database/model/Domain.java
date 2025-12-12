@@ -1,5 +1,7 @@
 package io.openaev.database.model;
 
+import static java.time.Instant.now;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -46,13 +48,13 @@ public class Domain implements Base {
   @Queryable(filterable = true, sortable = true, label = "created at")
   @Column(name = "domain_created_at", updatable = false)
   @JsonProperty("domain_created_at")
-  private Instant creationDate;
+  private Instant creationDate = now();
 
   @UpdateTimestamp
   @Queryable(filterable = true, sortable = true, label = "updated at")
   @Column(name = "domain_updated_at")
   @JsonProperty("domain_updated_at")
-  private Instant updateDate;
+  private Instant updateDate = now();
 
   @Override
   public boolean equals(Object obj) {
