@@ -36,10 +36,11 @@ public class StixService {
           securityCoverageService.processAndBuildStixToSecurityCoverage(stixJson);
 
       // Update Scenario using the last SecurityCoverage
-      Scenario  scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      Scenario scenario =
+          securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
       return scenario;
     } catch (BadRequestException | ParsingException e) {
-      log.error("Error while processing STIX bundle: {}", e.getMessage());
+      log.error(String.format("Error while processing STIX bundle: %s", e.getMessage()), e);
       throw e;
     }
   }
