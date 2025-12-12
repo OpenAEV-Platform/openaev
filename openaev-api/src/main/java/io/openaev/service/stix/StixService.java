@@ -31,7 +31,6 @@ public class StixService {
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
     Scenario scenario = new Scenario();
     try {
-
       SecurityCoverage securityCoverage =
           securityCoverageService.processAndBuildStixToSecurityCoverage(stixJson);
 

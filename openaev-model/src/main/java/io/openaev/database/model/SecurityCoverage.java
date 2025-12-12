@@ -78,11 +78,13 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_content")
   private String content;
 
+  //
   @Column(
       name = "security_coverage_bundle_content_hash",
       nullable = false,
       unique = true,
-      length = 64)
+      length = 32 // MD5 produces a 32-character hex string
+      )
   @JsonIgnore
   private String contentHash;
 
