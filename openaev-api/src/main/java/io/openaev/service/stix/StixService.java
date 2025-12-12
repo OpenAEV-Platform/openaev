@@ -29,14 +29,14 @@ public class StixService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson) throws IOException, ParsingException {
-    Scenario scenario = new Scenario();
+
     try {
       // Update securityCoverage with the last bundle
       SecurityCoverage securityCoverage =
           securityCoverageService.processAndBuildStixToSecurityCoverage(stixJson);
 
       // Update Scenario using the last SecurityCoverage
-      scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
+      Scenario  scenario = securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
       return scenario;
     } catch (BadRequestException | ParsingException e) {
       log.error("Error while processing STIX bundle: {}", e.getMessage());
