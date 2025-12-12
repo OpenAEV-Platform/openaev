@@ -35,6 +35,10 @@ public class OpenAEVExecutorIntegrationFactory implements IntegrationFactory {
   @Override
   public Integration spawn(ConnectorInstance instance) {
     return new OpenAEVExecutorIntegration(
-        instance, executorService, assetAgentJobRepository, componentRequestEngine);
+        instance,
+        connectorInstanceService,
+        executorService,
+        assetAgentJobRepository,
+        componentRequestEngine);
   }
 }

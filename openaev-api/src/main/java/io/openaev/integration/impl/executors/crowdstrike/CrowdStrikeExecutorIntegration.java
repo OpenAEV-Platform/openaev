@@ -14,6 +14,7 @@ import io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorServi
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -51,6 +52,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
+      ConnectorInstanceService connectorInstanceService,
       CrowdStrikeExecutorClient client,
       CrowdStrikeExecutorConfig config,
       EndpointService endpointService,
@@ -61,7 +63,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler) {
-    super(componentRequestEngine, connectorInstance);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.client = client;
     this.config = config;
@@ -74,7 +76,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   }
 
   @Override
-  public void start() throws Exception {
+  protected void innerStart() throws Exception {
     Executor executor =
         executorService.register(
             config.getId(),
@@ -108,7 +110,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   }
 
   @Override
-  public void stop() {
+  protected void innerStop() {
     executorService.remove(config.getId());
     timers.forEach(timer -> timer.cancel(true));
   }

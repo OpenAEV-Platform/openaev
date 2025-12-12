@@ -83,6 +83,7 @@ public class CalderaExecutorIntegrationFactory implements IntegrationFactory {
           IllegalAccessException {
     return new CalderaExecutorIntegration(
         instance,
+        connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
             instance.getConfigurations(), CalderaExecutorConfig.class),

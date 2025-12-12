@@ -1,9 +1,6 @@
 package io.openaev.integration.impl.executors.caldera;
 
-import io.openaev.database.model.BannerMessage;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Executor;
+import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
@@ -13,6 +10,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
+import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.PlatformSettingsService;
@@ -45,6 +43,7 @@ public class CalderaExecutorIntegration extends Integration {
 
   public CalderaExecutorIntegration(
       ConnectorInstance connectorInstance,
+      ConnectorInstanceService connectorInstanceService,
       CalderaExecutorClient client,
       CalderaExecutorConfig config,
       EndpointService endpointService,
@@ -54,7 +53,7 @@ public class CalderaExecutorIntegration extends Integration {
       PlatformSettingsService platformSettingsService,
       InjectorService injectorService,
       ThreadPoolTaskScheduler taskScheduler) {
-    super(componentRequestEngine, connectorInstance);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
@@ -66,7 +65,7 @@ public class CalderaExecutorIntegration extends Integration {
   }
 
   @Override
-  public void start() throws Exception {
+  protected void innerStart() throws Exception {
     Executor executor =
         executorService.register(
             config.getId(),
@@ -102,7 +101,7 @@ public class CalderaExecutorIntegration extends Integration {
   }
 
   @Override
-  public void stop() {
+  protected void innerStop() {
     this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
     executorService.removeFromType(CALDERA_EXECUTOR_TYPE);
     timers.forEach(timer -> timer.cancel(true));

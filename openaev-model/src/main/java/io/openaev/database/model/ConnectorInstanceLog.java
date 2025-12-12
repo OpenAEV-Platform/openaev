@@ -37,5 +37,5 @@ public class ConnectorInstanceLog implements Base {
   @JsonIgnore
   @NotNull
   @JsonSerialize(using = MonoIdDeserializer.class)
-  private ConnectorInstance connectorInstance;
+  private ConnectorInstancePersisted connectorInstance;
 }

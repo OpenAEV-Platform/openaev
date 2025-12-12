@@ -84,6 +84,7 @@ public class CrowdStrikeExecutorIntegrationFactory implements IntegrationFactory
           IllegalAccessException {
     return new CrowdStrikeExecutorIntegration(
         instance,
+        connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
             instance.getConfigurations(), CrowdStrikeExecutorConfig.class),

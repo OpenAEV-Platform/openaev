@@ -4,6 +4,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceInMemory;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
@@ -19,19 +21,22 @@ public class ConnectorInstanceService {
 
   private final ConnectorInstanceRepository connectorInstanceRepository;
 
-  public List<ConnectorInstance> connectorInstances() {
+  public List<ConnectorInstancePersisted> connectorInstances() {
     return fromIterable(connectorInstanceRepository.findAll());
   }
 
-  public ConnectorInstance connectorInstanceById(String id) {
+  public ConnectorInstancePersisted connectorInstanceById(String id) {
     return connectorInstanceRepository
         .findById(id)
         .orElseThrow(
             () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
   }
 
-  public ConnectorInstance save(ConnectorInstance connectorInstance) {
-    return connectorInstanceRepository.save(connectorInstance);
+  public ConnectorInstance save(ConnectorInstance instance) {
+    if (instance instanceof ConnectorInstancePersisted) {
+      return connectorInstanceRepository.save((ConnectorInstancePersisted) instance);
+    }
+    return instance;
   }
 
   public void deleteById(String id) {
@@ -41,18 +46,27 @@ public class ConnectorInstanceService {
     connectorInstanceRepository.deleteById(id);
   }
 
-  public ConnectorInstance createAutostartInstance() {
-    ConnectorInstance instance = new ConnectorInstance();
-    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
-    instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+  public ConnectorInstance refresh(ConnectorInstance instance) {
+    if (instance instanceof ConnectorInstancePersisted) {
+      return connectorInstanceRepository
+          .findById(((ConnectorInstancePersisted) instance).getId())
+          .get();
+    }
     return instance;
   }
 
-  public List<ConnectorInstance> findAllByCatalogConnector(CatalogConnector connector) {
+  public ConnectorInstance createAutostartInstance() {
+    ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
+    instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
+    instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
+    return instance;
+  }
+
+  public List<ConnectorInstancePersisted> findAllByCatalogConnector(CatalogConnector connector) {
     return connectorInstanceRepository.findByCatalogConnectorId(connector.getId());
   }
 
-  public void saveAll(Set<ConnectorInstance> instances) {
+  public void saveAll(Set<ConnectorInstancePersisted> instances) {
     connectorInstanceRepository.saveAll(instances);
   }
 }

@@ -6,8 +6,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
 import jakarta.validation.constraints.NotNull;
@@ -50,7 +50,7 @@ public class BaseIntegrationConfiguration {
   }
 
   public Set<ConnectorInstanceConfiguration> toInstanceConfigurationSet(
-      ConnectorInstance relatedInstance) {
+      ConnectorInstancePersisted relatedInstance) {
     List<Field> annotatedFields =
         FieldUtils.getAllDeclaredAnnotatedFields(this.getClass(), IntegrationConfigKey.class);
     return annotatedFields.stream()

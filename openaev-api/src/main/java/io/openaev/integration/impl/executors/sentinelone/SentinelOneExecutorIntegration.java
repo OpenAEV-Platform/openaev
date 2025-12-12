@@ -14,6 +14,7 @@ import io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorServi
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -50,6 +51,7 @@ public class SentinelOneExecutorIntegration extends Integration {
 
   public SentinelOneExecutorIntegration(
       ConnectorInstance connectorInstance,
+      ConnectorInstanceService connectorInstanceService,
       SentinelOneExecutorClient client,
       SentinelOneExecutorConfig config,
       EndpointService endpointService,
@@ -60,7 +62,7 @@ public class SentinelOneExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler) {
-    super(componentRequestEngine, connectorInstance);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
@@ -73,7 +75,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   }
 
   @Override
-  public void start() throws Exception {
+  protected void innerStart() throws Exception {
     Executor executor =
         executorService.register(
             config.getId(),
@@ -109,7 +111,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   }
 
   @Override
-  public void stop() {
+  protected void innerStop() {
     executorService.remove(config.getId());
     timers.forEach(timer -> timer.cancel(true));
   }

@@ -3,8 +3,8 @@ package io.openaev.service.catalog_connectors;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.FileService;
@@ -118,7 +118,7 @@ public class CatalogConnectorIngestionService {
 
   private void cleanupInstanceConfigurations(CatalogConnector connector) {
 
-    List<ConnectorInstance> instances =
+    List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connector);
 
     if (instances.isEmpty()) return;
@@ -131,7 +131,7 @@ public class CatalogConnectorIngestionService {
 
     List<ConnectorInstanceConfiguration> toDelete = new ArrayList<>();
 
-    for (ConnectorInstance instance : instances) {
+    for (ConnectorInstancePersisted instance : instances) {
 
       List<ConnectorInstanceConfiguration> instConfs =
           connectorInstanceConfigurationRepository.findByConnectorInstanceId(instance.getId());

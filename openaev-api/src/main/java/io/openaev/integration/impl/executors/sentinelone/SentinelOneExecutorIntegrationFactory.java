@@ -85,6 +85,7 @@ public class SentinelOneExecutorIntegrationFactory implements IntegrationFactory
           IllegalAccessException {
     return new SentinelOneExecutorIntegration(
         instance,
+        connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
             instance.getConfigurations(), SentinelOneExecutorConfig.class),

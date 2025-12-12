@@ -8,6 +8,7 @@ import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 
 public class OpenAEVExecutorIntegration extends Integration {
   private final ExecutorService executorService;
@@ -25,16 +26,17 @@ public class OpenAEVExecutorIntegration extends Integration {
 
   public OpenAEVExecutorIntegration(
       ConnectorInstance instance,
+      ConnectorInstanceService connectorInstanceService,
       ExecutorService executorService,
       AssetAgentJobRepository assetAgentJobRepository,
       ComponentRequestEngine componentRequestEngine) {
-    super(componentRequestEngine, instance);
+    super(componentRequestEngine, instance, connectorInstanceService);
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.executorService = executorService;
   }
 
   @Override
-  public void start() throws Exception {
+  protected void innerStart() throws Exception {
     executorService.register(
         OPENAEV_EXECUTOR_ID,
         OPENAEV_EXECUTOR_TYPE,
@@ -53,7 +55,7 @@ public class OpenAEVExecutorIntegration extends Integration {
   }
 
   @Override
-  public void stop() {
+  protected void innerStop() {
     // it is not possible to stop this integration
   }
 }

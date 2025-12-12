@@ -5,8 +5,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
@@ -37,10 +37,10 @@ public class ManagerTest {
     Optional<CatalogConnector> connector =
         catalogConnectorService.findByFactoryClassName(
             "io.openaev.integration.impl.crowdstrike.CrowdStrikeIntegrationFactory");
-    ConnectorInstance instance = new ConnectorInstance();
+    ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(connector.get());
 
-    manager.activate(instance);
+    manager.activateInstance(instance);
 
     assertThat(manager.getSpawnedIntegrations().getFirst())
         .isInstanceOf(CrowdStrikeExecutorIntegration.class);
@@ -52,11 +52,11 @@ public class ManagerTest {
     CatalogConnector cc = new CatalogConnector();
     cc.setClassName(className);
     catalogConnectorService.saveAll(List.of(cc));
-    ConnectorInstance alreadyCreated = new ConnectorInstance();
+    ConnectorInstancePersisted alreadyCreated = new ConnectorInstancePersisted();
     alreadyCreated.setCatalogConnector(cc);
-    alreadyCreated.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
-    alreadyCreated.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
-    alreadyCreated.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+    alreadyCreated.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping);
+    alreadyCreated.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
+    alreadyCreated.setSource(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION);
     connectorInstanceService.save(alreadyCreated);
     entityManager.flush();
     entityManager.clear();
@@ -65,10 +65,10 @@ public class ManagerTest {
 
     Optional<CatalogConnector> connector =
         catalogConnectorService.findByFactoryClassName(className);
-    ConnectorInstance instance = new ConnectorInstance();
+    ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(connector.get());
 
-    manager.activate(instance);
+    manager.activateInstance(instance);
 
     assertThat(manager.getSpawnedIntegrations().getFirst())
         .isInstanceOf(CrowdStrikeExecutorIntegration.class);
@@ -80,11 +80,11 @@ public class ManagerTest {
     CatalogConnector cc = new CatalogConnector();
     cc.setClassName(className);
     catalogConnectorService.saveAll(List.of(cc));
-    ConnectorInstance alreadyCreated = new ConnectorInstance();
+    ConnectorInstancePersisted alreadyCreated = new ConnectorInstancePersisted();
     alreadyCreated.setCatalogConnector(cc);
-    alreadyCreated.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
-    alreadyCreated.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
-    alreadyCreated.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+    alreadyCreated.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping);
+    alreadyCreated.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
+    alreadyCreated.setSource(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION);
     connectorInstanceService.save(alreadyCreated);
     entityManager.flush();
     entityManager.clear();
@@ -93,10 +93,10 @@ public class ManagerTest {
 
     Optional<CatalogConnector> connector =
         catalogConnectorService.findByFactoryClassName(className);
-    ConnectorInstance instance = new ConnectorInstance();
+    ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(connector.get());
 
-    manager.activate(instance);
+    manager.activateInstance(instance);
 
     ExecutorContextService executorContextService =
         manager.request(
@@ -112,7 +112,7 @@ public class ManagerTest {
     csConfig.setApiUrl("HTTP_URL");
     csConfig.setClientSecret("CLIENT SECRET");
     Set<ConnectorInstanceConfiguration> configs =
-        csConfig.toInstanceConfigurationSet(new ConnectorInstance());
+        csConfig.toInstanceConfigurationSet(new ConnectorInstancePersisted());
     Set<CatalogConnectorConfiguration> catalogConfigs =
         csConfig.toCatalogConfigurationSet(new CatalogConnector());
     assertThat(configs.size()).isGreaterThan(0);

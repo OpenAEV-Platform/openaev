@@ -1,7 +1,7 @@
 package io.openaev.integration.migration;
 
 import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -39,26 +39,27 @@ public abstract class ConfigurationMigration {
       return;
     }
 
-    Set<ConnectorInstance> instances = connector.get().getInstances();
+    Set<ConnectorInstancePersisted> instances = connector.get().getInstances();
     if (instances.stream()
-        .anyMatch(i -> i.getSource().equals(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION))) {
+        .anyMatch(
+            i -> i.getSource().equals(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION))) {
       log.warn("Already migrated {}; aborting.", configuration);
       return;
     }
 
     log.info("Migrating config for {}", configuration);
-    ConnectorInstance instance = new ConnectorInstance();
+    ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(connector.get());
     // add configs
     instance.setConfigurations(new HashSet<>());
 
-    instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
     if (configuration.isEnable()) {
-      instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+      instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
     } else {
-      instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping);
     }
-    instance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+    instance.setSource(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION);
 
     instance.setConfigurations(configuration.toInstanceConfigurationSet(instance));
 

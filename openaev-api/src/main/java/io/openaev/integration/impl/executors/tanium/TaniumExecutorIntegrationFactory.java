@@ -87,6 +87,7 @@ public class TaniumExecutorIntegrationFactory implements IntegrationFactory {
           IllegalAccessException {
     return new TaniumExecutorIntegration(
         instance,
+        connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
             instance.getConfigurations(), TaniumExecutorConfig.class),
