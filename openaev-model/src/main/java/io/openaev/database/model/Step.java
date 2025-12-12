@@ -3,6 +3,9 @@ package io.openaev.database.model;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,10 +14,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 
 @Entity
 @Table(name = "steps")
@@ -50,7 +49,7 @@ public class Step {
   @Column(name = "step_limit_execution") // ? same value or include diff value?
   private int limitExecution;
 
-  @Column(name="step_condition_excuted")
+  @Column(name = "step_condition_excuted")
   private String conditionExecuted;
 
   @Enumerated(EnumType.STRING)
@@ -78,6 +77,5 @@ public class Step {
   private List<Step> stepExecuted;
 
   @OneToOne(mappedBy = "id")
-  private Condition  condition;
-
+  private Condition condition;
 }

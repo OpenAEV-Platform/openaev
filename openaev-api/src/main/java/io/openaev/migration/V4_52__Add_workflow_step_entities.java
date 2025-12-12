@@ -1,10 +1,9 @@
 package io.openaev.migration;
 
+import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
-
-import java.sql.Statement;
 
 @Component
 public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
@@ -48,8 +47,8 @@ public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
         CREATE TYPE step_status AS ENUM ('TEMPLATE', 'WAIT', 'RUN', 'END');
         END IF;
        END;
-      $$;  
-      
+      $$;
+
         CREATE TABLE steps (
             step_id VARCHAR(255) NOT NULL CONSTRAINT step_pkey PRIMARY KEY,
             step_action_class step_action_class,
@@ -72,7 +71,7 @@ public class V4_52__Add_workflow_step_entities extends BaseJavaMigration {
         CREATE TYPE condition_type AS ENUM ('AND', 'OR', 'EQ', 'NEQ', 'IS_NULL', 'IS_NOT_NULL', 'GT', 'GTE', 'LT', 'LTE', 'IN', 'NIN','AFTER','BEFORE', 'MAPPER');
         END IF;
        END;
-      $$; 
+      $$;
         CREATE TABLE conditions (
             condition_id VARCHAR(255) NOT NULL CONSTRAINT condition_pkey PRIMARY KEY,
             condition_key VARCHAR(255),

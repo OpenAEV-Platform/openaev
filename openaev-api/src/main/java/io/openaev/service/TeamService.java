@@ -1,5 +1,11 @@
 package io.openaev.service;
 
+import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.rest.team.TeamQueryHelper.execution;
+import static io.openaev.rest.team.TeamQueryHelper.select;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
+
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -13,6 +19,8 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import java.util.Comparator;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
 import org.jetbrains.annotations.NotNull;
@@ -22,21 +30,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
-
-import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.rest.team.TeamQueryHelper.execution;
-import static io.openaev.rest.team.TeamQueryHelper.select;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
-
 @Service
 @RequiredArgsConstructor
 public class TeamService {
 
   @PersistenceContext private EntityManager entityManager;
-  
+
   private final TeamRepository teamRepository;
 
   private final UserService userService;
@@ -134,8 +133,8 @@ public class TeamService {
     TypedQuery<Tuple> query = entityManager.createQuery(cq);
     return execution(query);
   }
-  
-  public List<Team> getTeamsByIds(List<String> teams){
-      return teamRepository.findAllById(teams);
+
+  public List<Team> getTeamsByIds(List<String> teams) {
+    return teamRepository.findAllById(teams);
   }
 }
