@@ -48,7 +48,7 @@ const TerminalView: FunctionComponent<Props> = ({ injectId, target }) => {
               maxHeight: '400px',
             }}
           >
-            {`${firstExec} ${injectExecutionResult?.payload_command_blocks.map(p => p.command_content).join(' ')} '\n'`}
+            {`${firstExec} ${injectExecutionResult?.payload_command_blocks.map(p => p.command_content).join(' ')} \n`}
             {injectExecutionResult?.execution_traces.map((tr) => {
               const [stdout, stderr] = parseTraces(tr);
 
