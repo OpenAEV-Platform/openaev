@@ -27,4 +27,17 @@ public interface InjectDependenciesRepository
               + "WHERE inject_children_id IN :childrens",
       nativeQuery = true)
   List<InjectDependency> findParents(@NotNull List<String> childrens);
+
+  @Query(
+      value =
+          "SELECT "
+              + "inject_parent_id, "
+              + "inject_children_id, "
+              + "dependency_condition, "
+              + "dependency_created_at, "
+              + "dependency_updated_at "
+              + "FROM injects_dependencies "
+              + "WHERE inject_parent_id IN :injectIds OR inject_children_id IN :injectIds",
+      nativeQuery = true)
+  List<InjectDependency> findAllByInjectIds(@NotNull List<String> injectIds);
 }

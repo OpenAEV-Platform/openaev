@@ -93,6 +93,7 @@ public class InjectService {
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final InjectDependenciesRepository injectDependenciesRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
@@ -265,6 +266,22 @@ public class InjectService {
   @Transactional(rollbackOn = Exception.class)
   public void deleteAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
+      List<String> injectIds = injects.stream().map(Inject::getId).toList();
+
+      // Find and delete all InjectDependency relationships where any of these injects
+      // are parent or child.
+      List<InjectDependency> dependenciesToDelete =
+          injectDependenciesRepository.findAllByInjectIds(injectIds);
+
+      if (!dependenciesToDelete.isEmpty()) {
+        injectDependenciesRepository.deleteAllById(
+            dependenciesToDelete.stream().map(InjectDependency::getCompositeId).toList());
+      }
+
+      // Prevent cascade delete attempts
+      injects.forEach(inject -> inject.getDependsOn().clear());
+
+      injectRepository.flush();
       injectRepository.deleteAll(injects);
     }
   }
