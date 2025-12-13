@@ -105,7 +105,7 @@ services:
       - 9300:9300
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
-    image: opensearchproject/opensearch:3.1.0
+    image: opensearchproject/opensearch:3.3.2
     volumes:
       - osdata:/usr/share/opensearch/data
       - ossnapshots:/usr/share/opensearch/snapshots
