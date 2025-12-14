@@ -31,7 +31,6 @@ import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
-import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
@@ -85,7 +84,6 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
-  @SpyBean private DocumentService documentService;
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -1014,6 +1012,7 @@ class InjectApiTest extends IntegrationTest {
     @Transactional
     @DisplayName("Finding Handling")
     class FindingHandlingTest {
+
       @Test
       @DisplayName("Should link finding to targeted asset")
       void given_targetedAsset_should_linkFindingToIt() throws Exception {
