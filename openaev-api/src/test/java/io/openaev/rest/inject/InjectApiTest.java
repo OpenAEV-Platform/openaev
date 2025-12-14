@@ -113,6 +113,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private FindingRepository findingRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private InjectDependenciesRepository injectDependenciesRepository;
   @Resource private ObjectMapper objectMapper;
   @MockBean private JavaMailSender javaMailSender;
 
@@ -528,6 +529,111 @@ class InjectApiTest extends IntegrationTest {
             .findAllByInjectAndTeam(createdInject1.getId(), TEAM.getId())
             .isEmpty(),
         "There should be no expectations related to the inject in the database");
+  }
+
+  @DisplayName("Delete list of injects with dependencies")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsWithDependenciesTest() throws Exception {
+    // -- PREPARE --
+    Inject injectParent = new Inject();
+    injectParent.setTitle("Parent inject");
+    injectParent.setCreatedAt(Instant.now());
+    injectParent.setUpdatedAt(Instant.now());
+    injectParent.setDependsDuration(0L);
+    injectParent.setInjectorContract(
+        injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    injectParent.setExercise(EXERCISE);
+    Inject createdParent = injectRepository.save(injectParent);
+
+    Inject injectChild1 = new Inject();
+    injectChild1.setTitle("Child inject 1");
+    injectChild1.setCreatedAt(Instant.now());
+    injectChild1.setUpdatedAt(Instant.now());
+    injectChild1.setDependsDuration(5L);
+    injectChild1.setInjectorContract(
+        injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    injectChild1.setExercise(EXERCISE);
+    Inject createdChild1 = injectRepository.save(injectChild1);
+
+    Inject injectChild2 = new Inject();
+    injectChild2.setTitle("Child inject 2");
+    injectChild2.setCreatedAt(Instant.now());
+    injectChild2.setUpdatedAt(Instant.now());
+    injectChild2.setDependsDuration(10L);
+    injectChild2.setInjectorContract(
+        injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow());
+    injectChild2.setExercise(EXERCISE);
+    Inject createdChild2 = injectRepository.save(injectChild2);
+
+    InjectDependency dependency1 = new InjectDependency();
+    InjectDependencyId dependencyId1 = new InjectDependencyId();
+    dependencyId1.setInjectParent(createdParent);
+    dependencyId1.setInjectChildren(createdChild1);
+    dependency1.setCompositeId(dependencyId1);
+    injectDependenciesRepository.save(dependency1);
+
+    InjectDependency dependency2 = new InjectDependency();
+    InjectDependencyId dependencyId2 = new InjectDependencyId();
+    dependencyId2.setInjectParent(createdParent);
+    dependencyId2.setInjectChildren(createdChild2);
+    dependency2.setCompositeId(dependencyId2);
+    injectDependenciesRepository.save(dependency2);
+
+    // Reload injects to get updated dependency relationships
+    createdParent = injectRepository.findById(createdParent.getId()).orElseThrow();
+    createdChild1 = injectRepository.findById(createdChild1.getId()).orElseThrow();
+    createdChild2 = injectRepository.findById(createdChild2.getId()).orElseThrow();
+
+    // -- ASSERT INITIAL STATE --
+    assertTrue(
+        injectRepository.existsById(createdParent.getId()),
+        "The parent inject should exist in the database");
+    assertTrue(
+        injectRepository.existsById(createdChild1.getId()),
+        "Child inject 1 should exist in the database");
+    assertTrue(
+        injectRepository.existsById(createdChild2.getId()),
+        "Child inject 2 should exist in the database");
+
+    List<InjectDependency> initialDependencies =
+        injectDependenciesRepository.findAllByInjectIds(
+            List.of(createdParent.getId(), createdChild1.getId(), createdChild2.getId()));
+    assertEquals(
+        2, initialDependencies.size(), "There should be 2 dependency relationships in the database");
+
+    // -- PREPARE DELETE INPUT --
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(
+        List.of(createdParent.getId(), createdChild1.getId(), createdChild2.getId()));
+    input.setSimulationOrScenarioId(EXERCISE.getId());
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(INJECT_URI).content(asJsonString(input)).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT FINAL STATE --
+    assertFalse(
+        injectRepository.existsById(createdParent.getId()),
+        "The parent inject should be deleted from the database");
+    assertFalse(
+        injectRepository.existsById(createdChild1.getId()),
+        "Child inject 1 should be deleted from the database");
+    assertFalse(
+        injectRepository.existsById(createdChild2.getId()),
+        "Child inject 2 should be deleted from the database");
+
+    List<InjectDependency> finalDependencies =
+        injectDependenciesRepository.findAllByInjectIds(
+            List.of(createdParent.getId(), createdChild1.getId(), createdChild2.getId()));
+    assertTrue(
+        finalDependencies.isEmpty(),
+        "All dependency relationships should be deleted from the database");
+
+    assertTrue(
+        exerciseRepository.existsById(EXERCISE.getId()),
+        "The exercise should still exist in the database");
   }
 
   @Nested

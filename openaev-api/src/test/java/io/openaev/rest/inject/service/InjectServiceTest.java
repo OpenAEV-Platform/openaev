@@ -73,6 +73,8 @@ class InjectServiceTest {
 
   @Mock private InjectDocumentRepository injectDocumentRepository;
 
+  @Mock private InjectDependenciesRepository injectDependenciesRepository;
+
   @Mock private InjectStatusRepository injectStatusRepository;
 
   @Mock private InjectUtils injectUtils;
@@ -499,6 +501,116 @@ class InjectServiceTest {
 
     // Assert
     verify(injectRepository, never()).deleteAllById(any());
+  }
+
+  @DisplayName("Test delete all injects with dependencies")
+  @Test
+  void deleteAllInjectsWithDependencies() {
+    // Arrange
+    Inject parentInject = new Inject();
+    parentInject.setId("parent-id");
+    parentInject.setDependsOn(new ArrayList<>());
+
+    Inject childInject1 = new Inject();
+    childInject1.setId("child-id-1");
+    childInject1.setDependsOn(new ArrayList<>());
+
+    Inject childInject2 = new Inject();
+    childInject2.setId("child-id-2");
+    childInject2.setDependsOn(new ArrayList<>());
+
+    InjectDependency dependency1 = new InjectDependency();
+    InjectDependencyId dependencyId1 = new InjectDependencyId();
+    dependencyId1.setInjectParent(parentInject);
+    dependencyId1.setInjectChildren(childInject1);
+    dependency1.setCompositeId(dependencyId1);
+
+    InjectDependency dependency2 = new InjectDependency();
+    InjectDependencyId dependencyId2 = new InjectDependencyId();
+    dependencyId2.setInjectParent(parentInject);
+    dependencyId2.setInjectChildren(childInject2);
+    dependency2.setCompositeId(dependencyId2);
+
+    childInject1.setDependsOn(new ArrayList<>(List.of(dependency1)));
+    childInject2.setDependsOn(new ArrayList<>(List.of(dependency2)));
+
+    List<Inject> injectsToDelete = List.of(parentInject, childInject1, childInject2);
+    List<String> injectIds = List.of("parent-id", "child-id-1", "child-id-2");
+    List<InjectDependency> dependenciesToDelete = List.of(dependency1, dependency2);
+
+    when(injectDependenciesRepository.findAllByInjectIds(injectIds))
+        .thenReturn(dependenciesToDelete);
+    doNothing().when(injectDependenciesRepository).deleteAllById(any());
+    doNothing().when(injectRepository).flush();
+    doNothing().when(injectRepository).deleteAll(injectsToDelete);
+
+    // Act
+    injectService.deleteAll(injectsToDelete);
+
+    // Assert
+    verify(injectDependenciesRepository, times(1)).findAllByInjectIds(injectIds);
+
+    ArgumentCaptor<List<InjectDependencyId>> dependencyIdsCaptor =
+        ArgumentCaptor.forClass(List.class);
+    verify(injectDependenciesRepository, times(1)).deleteAllById(dependencyIdsCaptor.capture());
+    List<InjectDependencyId> capturedIds = dependencyIdsCaptor.getValue();
+    assertEquals(2, capturedIds.size());
+    assertTrue(capturedIds.contains(dependencyId1));
+    assertTrue(capturedIds.contains(dependencyId2));
+
+    assertTrue(
+        childInject1.getDependsOn().isEmpty(), "Child inject 1 dependsOn should be cleared");
+    assertTrue(
+        childInject2.getDependsOn().isEmpty(), "Child inject 2 dependsOn should be cleared");
+
+    verify(injectRepository, times(1)).flush();
+    verify(injectRepository, times(1)).deleteAll(injectsToDelete);
+  }
+
+  @DisplayName("Test delete all injects with no dependencies")
+  @Test
+  void deleteAllInjectsWithNoDependencies() {
+    // Arrange
+    Inject inject1 = new Inject();
+    inject1.setId("inject-id-1");
+    inject1.setDependsOn(new ArrayList<>());
+
+    Inject inject2 = new Inject();
+    inject2.setId("inject-id-2");
+    inject2.setDependsOn(new ArrayList<>());
+
+    List<Inject> injectsToDelete = List.of(inject1, inject2);
+    List<String> injectIds = List.of("inject-id-1", "inject-id-2");
+
+    when(injectDependenciesRepository.findAllByInjectIds(injectIds))
+        .thenReturn(new ArrayList<>());
+    doNothing().when(injectRepository).flush();
+    doNothing().when(injectRepository).deleteAll(injectsToDelete);
+
+    // Act
+    injectService.deleteAll(injectsToDelete);
+
+    // Assert
+    verify(injectDependenciesRepository, times(1)).findAllByInjectIds(injectIds);
+    verify(injectDependenciesRepository, never()).deleteAllById(any());
+    verify(injectRepository, times(1)).flush();
+    verify(injectRepository, times(1)).deleteAll(injectsToDelete);
+  }
+
+  @DisplayName("Test delete all injects with empty list")
+  @Test
+  void deleteAllInjectsWithEmptyList() {
+    // Arrange
+    List<Inject> injectsToDelete = new ArrayList<>();
+
+    // Act
+    injectService.deleteAll(injectsToDelete);
+
+    // Assert
+    verify(injectDependenciesRepository, never()).findAllByInjectIds(any());
+    verify(injectDependenciesRepository, never()).deleteAllById(any());
+    verify(injectRepository, never()).flush();
+    verify(injectRepository, never()).deleteAll(any());
   }
 
   @DisplayName("Test canApplyTargetType with manual inject")
