@@ -246,7 +246,8 @@ public class InjectorContractService {
       List<String> externalIds, List<String> internalIds, InjectorContract injectorContract) {
     Set<Vulnerability> vulns = new HashSet<>();
     if (!externalIds.isEmpty()) {
-      vulns = vulnerabilityService.findAllByExternalIdsOrThrowIfMissing(new HashSet<>(externalIds));
+      vulns =
+          vulnerabilityService.findAllByExternalIdsAndAlertIfMissing(new HashSet<>(externalIds));
     } else if (!internalIds.isEmpty()) {
       vulns = vulnerabilityService.findAllByIdsOrThrowIfMissing(new HashSet<>(internalIds));
     }

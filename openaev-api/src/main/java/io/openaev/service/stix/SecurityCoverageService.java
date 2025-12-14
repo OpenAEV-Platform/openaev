@@ -225,27 +225,47 @@ public class SecurityCoverageService {
     scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
-    Instant start = sa.getPeriodStart() != null ? sa.getPeriodStart() : Instant.now();
-    if (sa.getScheduling() != null && !sa.getScheduling().isEmpty()) {
-      scenario.setRecurrenceStart(start);
-      ScheduleFrequency frequency = ScheduleFrequency.DAILY;
-      if (sa.getScheduling().contains("W")) {
-        frequency = ScheduleFrequency.WEEKLY;
-      } else if (sa.getScheduling().contains("M")) {
-        frequency = ScheduleFrequency.MONTHLY;
-      }
-      // TODO cron should be generated from start-date + iso duration
-      // Currently UI is not able to support any cron expression
-      // Parsing is limited to same case like 1 day at 9h00.
-      // Monthly option is not supported yet back in the UI.
-      String cron = cronService.getCronExpression(frequency, start);
-      scenario.setRecurrence(cron);
-    } else {
-      String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, start);
-      scenario.setRecurrence(cron);
-    }
-
+    setRecurrence(scenario, sa);
     scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+  }
+
+  /**
+   * Set recurrence for the scenario coming from OpenCTI. The scenario will start immediately after
+   * the save
+   *
+   * @param scenario
+   * @param securityCoverage
+   */
+  private void setRecurrence(Scenario scenario, SecurityCoverage securityCoverage) {
+    if (scenario.getRecurrence() == null) {
+      // Start date must be before the recurrence and now
+      Instant start = Instant.now().minusSeconds(60);
+      // Recurrence must be at least 1 "true" minute after now to be scheduled and executed (see
+      // ScenarioExecutionJob and examples below)
+      // Example 1: recurrence 11:33:00 + 120 seconds = 11:35:00 -> job each minute to schedule and
+      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
+      // Example 2: recurrence 11:33:59 + 120 seconds = 11:35:59 -> job each minute to schedule and
+      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
+      Instant recurrence = Instant.now().plusSeconds(120);
+      if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
+        scenario.setRecurrenceStart(start);
+        ScheduleFrequency frequency = ScheduleFrequency.DAILY;
+        if (securityCoverage.getScheduling().contains("W")) {
+          frequency = ScheduleFrequency.WEEKLY;
+        } else if (securityCoverage.getScheduling().contains("M")) {
+          frequency = ScheduleFrequency.MONTHLY;
+        }
+        // TODO cron should be generated from start-date + iso duration
+        // Currently UI is not able to support any cron expression
+        // Parsing is limited to same case like 1 day at 9h00.
+        // Monthly option is not supported yet back in the UI.
+        String cron = cronService.getCronExpression(frequency, recurrence);
+        scenario.setRecurrence(cron);
+      } else {
+        String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, recurrence);
+        scenario.setRecurrence(cron);
+      }
+    }
   }
 
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)

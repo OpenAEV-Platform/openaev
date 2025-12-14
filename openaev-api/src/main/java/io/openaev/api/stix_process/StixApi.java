@@ -64,9 +64,8 @@ public class StixApi extends RestBehavior {
       openCTIService.acknowledgeReceivedOfCoverage(
           workId, "OpenAEV ready to process the operation");
       // Create scenario from stix bundle
-      Scenario scenario = stixService.processBundle(stixJson);
-      // TODO Schedule or not, start directly on execution after create/update
       // If no simulation for this scenario is in progress, start an execution right away
+      Scenario scenario = stixService.processBundle(stixJson);
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "Coverage successfully created or updated", false);
       // Generate response
