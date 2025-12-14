@@ -127,10 +127,7 @@
     "node": ">= 22.11.0"
   },
   "scripts": {
-    "auto-translation:all": "yarn run auto-translation:es && yarn run auto-translation:fr && yarn run auto-translation:cn",
-    "auto-translation:es": "i18n-auto-translation -a deepl-free -p ./src/utils/lang/en.json -t es -k $SUBSCRIPTION_KEY",
-    "auto-translation:fr": "i18n-auto-translation -a deepl-free -p ./src/utils/lang/en.json -t fr -k $SUBSCRIPTION_KEY",
-    "auto-translation:cn": "i18n-auto-translation -a deepl-free -p ./src/utils/lang/en.json -t zh -k $SUBSCRIPTION_KEY",
+    "auto-translation:all": "node scripts/auto-translate.js && node scripts/sort-translation-files.js",
     "extract-translation": "node scripts/extract-i18n-keyword.js",
     "sort-translation": "node scripts/sort-translation-files.js",
     "i18n-checker": "npm run generate-i18n-checker-constant && node scripts/i18n-checker.js",
