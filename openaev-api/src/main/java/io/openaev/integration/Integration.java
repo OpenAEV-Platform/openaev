@@ -8,6 +8,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public abstract class Integration {
@@ -46,24 +47,28 @@ public abstract class Integration {
     this.currentStatus = ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped;
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
-    this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance);
-    // only try to start stopped instances
-    if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting.equals(
-            this.connectorInstance.getRequestedStatus())
-        && ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
-      this.start();
-    }
+    try {
+      this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance);
+      // only try to start stopped instances
+      if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting.equals(
+              this.connectorInstance.getRequestedStatus())
+          && ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
+        this.start();
+      }
 
-    // stop instances in any state
-    if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping.equals(
-        this.connectorInstance.getRequestedStatus())) {
-      this.stop();
-    }
-
-    if (!this.currentStatus.equals(this.connectorInstance.getCurrentStatus())) {
-      this.connectorInstance.setCurrentStatus(this.currentStatus);
-      this.connectorInstanceService.save(connectorInstance);
+      // stop instances in any state
+      if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping.equals(
+          this.connectorInstance.getRequestedStatus())) {
+        this.stop();
+      }
+    } finally {
+      // save instance if applicable (e.g. state has changed)
+      if (!this.currentStatus.equals(this.connectorInstance.getCurrentStatus())) {
+        this.connectorInstance.setCurrentStatus(this.currentStatus);
+        this.connectorInstanceService.save(connectorInstance);
+      }
     }
   }
 

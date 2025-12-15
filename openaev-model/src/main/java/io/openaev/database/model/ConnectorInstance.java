@@ -34,4 +34,8 @@ public abstract class ConnectorInstance {
   public abstract Set<ConnectorInstanceConfiguration> getConfigurations();
 
   public abstract void setConfigurations(Set<ConnectorInstanceConfiguration> newConfigurations);
+
+  public abstract String getClassName();
+
+  public abstract void setClassName(String newClassName);
 }

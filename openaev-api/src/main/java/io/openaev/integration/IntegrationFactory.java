@@ -6,7 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 public interface IntegrationFactory {
-  List<Integration> initialise();
+  List<Integration> initialise() throws Exception;
 
   Integration spawn(ConnectorInstance instance)
       throws JsonProcessingException,

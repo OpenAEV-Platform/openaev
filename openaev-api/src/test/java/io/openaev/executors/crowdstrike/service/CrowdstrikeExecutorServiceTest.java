@@ -96,7 +96,6 @@ public class CrowdstrikeExecutorServiceTest {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
-    when(config.isEnable()).thenReturn(true);
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("MyScript");
     Command payloadCommand =

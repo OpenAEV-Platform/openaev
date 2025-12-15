@@ -17,6 +17,7 @@ import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -40,16 +41,32 @@ public class CrowdStrikeExecutorIntegrationFactory implements IntegrationFactory
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
+  private final FileService fileService;
 
   @Override
   @Transactional
-  public List<Integration> initialise() {
+  public List<Integration> initialise() throws Exception {
     String className = this.getClass().getCanonicalName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
+      String logoFilename = "%s-logo.png".formatted(className);
+      fileService.uploadStream(
+          FileService.CONNECTORS_LOGO_PATH,
+          logoFilename,
+          getClass().getResourceAsStream("/img/icon-crowdstrike.png"));
       CatalogConnector connector = new CatalogConnector();
-      connector.setTitle(className);
+      connector.setTitle("Crowdstrike Executor");
       connector.setSlug(className);
+      connector.setLogoUrl(logoFilename);
+      connector.setDescription(
+          """
+              CrowdStrike Falcon Intelligence is an integral threat intelligence module within the Falcon platform, crafted to enhance the speed and effectiveness of threat detection, investigation, and response. It equips SOC teams to work more swiftly and intelligently, leveraging automation, enrichment, and high-fidelity data to optimize their cybersecurity operations.
+
+              With Crowdstrike executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Crowdstrike instance.
+              """);
+      connector.setShortDescription(
+          "Enable execution of OpenAEV scenarios through your Crowdstrike instance.");
       connector.setClassName(className);
+      connector.setSubscriptionLink("https://www.crowdstrike.com");
       connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
       connector.setCatalogConnectorConfigurations(
           new CrowdStrikeExecutorConfig().toCatalogConfigurationSet(connector));

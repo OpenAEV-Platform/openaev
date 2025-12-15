@@ -17,6 +17,7 @@ import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -41,16 +42,30 @@ public class SentinelOneExecutorIntegrationFactory implements IntegrationFactory
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final FileService fileService;
 
   @Override
   @Transactional
-  public List<Integration> initialise() {
+  public List<Integration> initialise() throws Exception {
     String className = this.getClass().getCanonicalName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
+      String logoFilename = "%s-logo.png".formatted(className);
+      fileService.uploadStream(
+          FileService.CONNECTORS_LOGO_PATH,
+          logoFilename,
+          getClass().getResourceAsStream("/img/icon-sentinelone.png"));
       CatalogConnector connector = new CatalogConnector();
-      connector.setTitle(className);
+      connector.setTitle("SentinelOne Executor");
       connector.setSlug(className);
+      connector.setLogoUrl(logoFilename);
+      connector.setDescription(
+          """
+              With SentinelOne executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your SentinelOne instance.
+              """);
+      connector.setShortDescription(
+          "Enable execution of OpenAEV scenarios through your SentinelOne instance.");
       connector.setClassName(className);
+      connector.setSubscriptionLink("https://www.sentinelone.com");
       connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
       connector.setCatalogConnectorConfigurations(
           new SentinelOneExecutorConfig().toCatalogConfigurationSet(connector));

@@ -1,7 +1,7 @@
 package io.openaev.integration;
 
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -28,12 +28,21 @@ public class Manager implements Runnable {
     this.refreshInstancesTimer = taskScheduler.scheduleAtFixedRate(this, Duration.ofSeconds(15));
   }
 
+  /**
+   * Kickstart all collected integration factories so that they run their own initialise() routine.
+   * Populates the initial collection of known (active, stopped) instances in the manager memory.
+   */
   private void initialise() {
-    // some factories are meant to be a catalog entry
-    // some others not
     spawnedIntegrations.putAll(
         factories.stream()
-            .flatMap(factory -> factory.initialise().stream())
+            .flatMap(
+                factory -> {
+                  try {
+                    return factory.initialise().stream();
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
             .map(integration -> Map.entry(integration.getConnectorInstance(), integration))
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
   }
@@ -46,11 +55,11 @@ public class Manager implements Runnable {
         .orElseThrow();
   }
 
-  public void activateInstance(ConnectorInstancePersisted instance) throws Exception {
+  public void activateInstance(ConnectorInstance instance) throws Exception {
     Optional<Integration> foundIntegration =
         Optional.ofNullable(spawnedIntegrations.getOrDefault(instance, null));
     if (foundIntegration.isEmpty()) {
-      IntegrationFactory factory = getFactory(instance.getCatalogConnector().getClassName());
+      IntegrationFactory factory = getFactory(instance.getClassName());
       Integration integration = factory.spawn(instance);
       integration.initialise();
       spawnedIntegrations.put(integration.getConnectorInstance(), integration);
@@ -59,19 +68,18 @@ public class Manager implements Runnable {
     }
   }
 
-  public void pauseInstance(ConnectorInstancePersisted instance) {
+  public void pauseInstance(ConnectorInstance instance) {
     Optional<Integration> foundIntegration =
         Optional.ofNullable(spawnedIntegrations.getOrDefault(instance, null));
     if (foundIntegration.isEmpty()) {
       log.warn(
-          "Requesting pausing instance {} but an active integration was not found",
-          instance.getId());
+          "Requesting pausing instance {} but an related integration was not found.", instance);
       return;
     }
     foundIntegration.get().stop();
   }
 
-  public void destroyInstance(ConnectorInstancePersisted instance) {
+  public void destroyInstance(ConnectorInstance instance) {
     this.pauseInstance(instance);
     spawnedIntegrations.remove(instance);
   }
@@ -79,6 +87,8 @@ public class Manager implements Runnable {
   public <T> T request(ComponentRequest request, Class<T> requestedType) {
     List<T> candidates =
         spawnedIntegrations.entrySet().stream()
+            // only consider integrations that are running
+            .filter(si -> CURRENT_STATUS_TYPE.started.equals(si.getValue().getCurrentStatus()))
             .flatMap(
                 si -> {
                   try {

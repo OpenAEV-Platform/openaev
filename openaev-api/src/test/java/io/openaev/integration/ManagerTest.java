@@ -42,7 +42,7 @@ public class ManagerTest {
 
     manager.activateInstance(instance);
 
-    assertThat(manager.getSpawnedIntegrations().getFirst())
+    assertThat(manager.getSpawnedIntegrations().entrySet().stream().findFirst())
         .isInstanceOf(CrowdStrikeExecutorIntegration.class);
   }
 
@@ -70,7 +70,7 @@ public class ManagerTest {
 
     manager.activateInstance(instance);
 
-    assertThat(manager.getSpawnedIntegrations().getFirst())
+    assertThat(manager.getSpawnedIntegrations().entrySet().stream().findFirst())
         .isInstanceOf(CrowdStrikeExecutorIntegration.class);
   }
 

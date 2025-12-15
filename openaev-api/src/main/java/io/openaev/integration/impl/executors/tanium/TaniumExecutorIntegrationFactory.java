@@ -18,6 +18,7 @@ import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -43,16 +44,30 @@ public class TaniumExecutorIntegrationFactory implements IntegrationFactory {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final FileService fileService;
 
   @Override
   @Transactional
-  public List<Integration> initialise() {
+  public List<Integration> initialise() throws Exception {
     String className = this.getClass().getCanonicalName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
+      String logoFilename = "%s-logo.png".formatted(className);
+      fileService.uploadStream(
+          FileService.CONNECTORS_LOGO_PATH,
+          logoFilename,
+          getClass().getResourceAsStream("/img/icon-tanium.png"));
       CatalogConnector connector = new CatalogConnector();
-      connector.setTitle(className);
+      connector.setTitle("Tanium Executor");
       connector.setSlug(className);
+      connector.setLogoUrl(logoFilename);
+      connector.setDescription(
+          """
+              With Tanium executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Tanium instance.
+              """);
+      connector.setShortDescription(
+          "Enable execution of OpenAEV scenarios through your Tanium instance.");
       connector.setClassName(className);
+      connector.setSubscriptionLink("https://www.tanium.com");
       connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
       connector.setCatalogConnectorConfigurations(
           new TaniumExecutorConfig().toCatalogConfigurationSet(connector));

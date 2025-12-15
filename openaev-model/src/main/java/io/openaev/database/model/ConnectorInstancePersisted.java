@@ -86,4 +86,17 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @JsonProperty("connector_instance_configurations")
   @NotNull
   private Set<ConnectorInstanceConfiguration> configurations = new HashSet<>();
+
+  @Override
+  public String getClassName() {
+    if (this.getCatalogConnector() != null) {
+      return this.getCatalogConnector().getClassName();
+    }
+    return "";
+  }
+
+  @Override
+  public void setClassName(String newClassName) {
+    // noop
+  }
 }

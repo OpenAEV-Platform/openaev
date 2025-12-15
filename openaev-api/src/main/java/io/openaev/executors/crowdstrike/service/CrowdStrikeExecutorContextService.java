@@ -13,7 +13,6 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
-import io.openaev.executors.exception.ExecutorException;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -64,10 +63,6 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
-    if (!this.crowdStrikeExecutorConfig.isEnable()) {
-      throw new ExecutorException(
-          "Fatal error: CrowdStrike executor is not enabled", CROWDSTRIKE_EXECUTOR_NAME);
-    }
     List<Agent> csAgents = new ArrayList<>(agents);
 
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
