@@ -107,6 +107,6 @@ jobs:
               }
             }
           EOF
-          fi
           # Do not fail job (continue-on-error is true)
           exit 0
+          fi
