@@ -268,6 +268,18 @@ const CreateInject: FunctionComponent<Props> = ({
     return onToggleEntity(currentEntity, event);
   };
 
+  const injectIdsToProcess = (selectAll: boolean) => {
+    return selectAll
+      ? []
+      : Object.keys(selectedElements).filter(k => !Object.keys(deSelectedElements).includes(k));
+  };
+
+  const injectIdsToIgnore = (selectAll: boolean) => {
+    return selectAll
+      ? Object.keys(deSelectedElements)
+      : Object.keys(deSelectedElements).filter(k => !Object.keys(selectedElements).includes(k));
+  };
+
   const onCreateAll = (result: {
     result: string[];
     entities: { injects: Record<string, InjectStore> };
