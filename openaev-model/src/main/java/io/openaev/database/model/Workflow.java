@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -66,8 +67,10 @@ public class Workflow implements Base {
 
   //
   @OneToOne(mappedBy = "workflow")
+  @JsonIgnore
   private Exercise simulation;
 
   @OneToOne(mappedBy = "workflow")
+  @JsonIgnore
   private Scenario scenario;
 }

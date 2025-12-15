@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -44,10 +45,12 @@ public class Condition {
 
   @OneToOne(mappedBy = "id")
   @Schema(description = "step")
+  @JsonIgnore
   private Step step;
 
   @OneToOne(mappedBy = "id")
   @Schema(description = "ancestor step")
+  @JsonIgnore
   private Step ancestorStep;
 
   @JoinColumn(name = "condition_parent_id")
