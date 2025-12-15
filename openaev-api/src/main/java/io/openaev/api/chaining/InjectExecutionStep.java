@@ -36,7 +36,7 @@ public class InjectExecutionStep implements ActionStep {
 
   @Override
   public void create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
-    String data = this.stepData(step, workflow.getSimulationId());
+    String data = this.stepData(step, workflow.getSimulation());
     Condition condition = this.stepCondition(step, workflow);
     String outputParser = this.stepOutputParser();
     Step.builder()
