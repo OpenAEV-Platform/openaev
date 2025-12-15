@@ -43,9 +43,11 @@ public class Condition {
   private CONDITION_TYPE type;
 
   @OneToOne(mappedBy = "id")
+  @Schema(description = "step")
   private Step step;
 
   @OneToOne(mappedBy = "id")
+  @Schema(description = "ancestor step")
   private Step ancestorStep;
 
   @JoinColumn(name = "condition_parent_id")
