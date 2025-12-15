@@ -148,6 +148,8 @@ nav:
       - Dashboards:
         - Custom Dashboards: usage/dashboards/custom-dashboards/custom-dashboards.md
         - Widgets: usage/dashboards/widgets/widgets.md
+      - Security Control Validation:
+        - Overview: usage/security-control-validation.md
       - Security Coverage enrichment (XTM Suite): usage/xtm-suite-connector.md
     - Build your own Threat Scenario:
       - Scenario: usage/scenario.md
