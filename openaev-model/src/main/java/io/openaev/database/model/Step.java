@@ -5,11 +5,7 @@ import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -21,6 +17,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @EntityListeners(ModelBaseListener.class)
 public class Step {
 
@@ -36,15 +33,19 @@ public class Step {
 
   @Type(JsonType.class)
   @Column(name = "step_output", columnDefinition = "jsonb")
-  private Map<String, Object> output;
+  private String output;
+
+  @Type(JsonType.class)
+  @Column(name = "step_output", columnDefinition = "jsonb")
+  private String output_parser;
 
   @Type(JsonType.class)
   @Column(name = "step_input", columnDefinition = "jsonb")
-  private Map<String, Object> input;
+  private String input;
 
   @Type(JsonType.class)
   @Column(name = "step_data", columnDefinition = "jsonb")
-  private Map<String, Object> data;
+  private String data;
 
   @Column(name = "step_limit_execution") // ? same value or include diff value?
   private int limitExecution;

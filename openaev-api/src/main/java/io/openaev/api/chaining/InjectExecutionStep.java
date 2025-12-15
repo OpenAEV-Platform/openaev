@@ -37,13 +37,50 @@ public class InjectExecutionStep implements ActionStep {
   @Override
   public void create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
     String data = this.stepData(step, workflow.getSimulationId());
+    Condition condition = this.stepCondition(step, workflow);
+    String outputParser = this.stepOutputParser();
+    Step.builder()
+        .condition(condition)
+        .data(data)
+        .output_parser(outputParser)
+        .status(STEP_STATUS.TEMPLATE)
+        .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+        .limitExecution(step.limitExecution)
+        .workflow(workflow)
+        .build();
   }
 
   @Override
-  public void run(StepsCreateInput.StepCreateInput step, Workflow workflow) {}
+  public void wait(StepsCreateInput.StepCreateInput stepTemplate, Workflow workflow, String input) {
+    // CALL BY methode update() or by start simulation
+    // Creation step WAIT add to Queue or Table Queue
+  }
 
   @Override
-  public void end(StepsCreateInput.StepCreateInput step, Workflow workflow) {}
+  public void run(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+    // CALL BY QUEUE WAIT
+    // Get params
+
+    // Use input, complete inject ->
+
+    // Save Inject
+    // Execute Inject
+  }
+
+  @Override
+  public void update(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+    // Get output from inject
+    // Save new output
+    // check if "next" steps need this output
+    // If step find, test condition and all input needed and all combinaison
+    // call methode wait on step template -> Creation step status wait + update input ...
+  }
+
+  @Override
+  public void end(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+    // Condition de fin step
+    // Get all step with id workflow = X if all end workflow = END;
+  }
 
   private String stepData(StepsCreateInput.StepCreateInput step, Exercise exercise) {
 
@@ -97,7 +134,11 @@ public class InjectExecutionStep implements ActionStep {
     return gson.toJson(inject);
   }
 
-  private String stepCondition(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+  private String stepOutputParser() {
+    return null;
+  }
+
+  private Condition stepCondition(StepsCreateInput.StepCreateInput step, Workflow workflow) {
     ConditionCreateInput firstCondition =
         step.conditions.stream()
             .reduce(
@@ -148,6 +189,6 @@ public class InjectExecutionStep implements ActionStep {
         currentId.add(condition.getTemporaryId());
       }
     }
-    return first.getId();
+    return first;
   }
 }
