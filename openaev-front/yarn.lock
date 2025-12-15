@@ -4176,23 +4176,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@xyflow/react@npm:12.9.3":
-  version: 12.9.3
-  resolution: "@xyflow/react@npm:12.9.3"
+"@xyflow/react@npm:12.10.0":
+  version: 12.10.0
+  resolution: "@xyflow/react@npm:12.10.0"
   dependencies:
-    "@xyflow/system": "npm:0.0.73"
+    "@xyflow/system": "npm:0.0.74"
     classcat: "npm:^5.0.3"
     zustand: "npm:^4.4.0"
   peerDependencies:
     react: ">=17"
     react-dom: ">=17"
-  checksum: 10c0/aa6b6503fd3e80d21b5d77db9c1365a7df4eba662796c214520cd1004e783d88e390f8030a7b7860feb966b268fecba3980ca42eabe0427b1118b18c3204a9a3
+  checksum: 10c0/cadc1410ef5c7ac1852bac5f222cae9d599963c0ad2552a17dbf49f57aae6647cc13e13f9d82367dc089e4508e1673feb99dd1106851561e8ebeb117050ab6c6
   languageName: node
   linkType: hard
 
-"@xyflow/system@npm:0.0.73":
-  version: 0.0.73
-  resolution: "@xyflow/system@npm:0.0.73"
+"@xyflow/system@npm:0.0.74":
+  version: 0.0.74
+  resolution: "@xyflow/system@npm:0.0.74"
   dependencies:
     "@types/d3-drag": "npm:^3.0.7"
     "@types/d3-interpolate": "npm:^3.0.4"
@@ -4203,7 +4203,7 @@ __metadata:
     d3-interpolate: "npm:^3.0.1"
     d3-selection: "npm:^3.0.0"
     d3-zoom: "npm:^3.0.0"
-  checksum: 10c0/41b4a42b22d0ce68a07e9620ccd7e7e5f90d1aaabc37046dbc51d502c71a0085fa4266676de33d375ee5968c73c1c0bda851f7cf895cdcfdf88b046d228d8581
+  checksum: 10c0/fe3116a9e21ca5b4c5c98c363f3894a477dc133bbe453beb820104eff15a4265db930cbd383b00ea95a71a462395ade0d26fc868f526cbfa776ba4a2a81a48c2
   languageName: node
   linkType: hard
 
@@ -6701,10 +6701,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"filigran-icon@npm:0.20.0":
-  version: 0.20.0
-  resolution: "filigran-icon@npm:0.20.0"
-  checksum: 10c0/ad1b27180f60dcd59fffd5fd71ed0cd761c41936325d3b1016f6c1b4d2d1e2145ed36f9cbd7d64a50c1edac18f54bdc8555a57d45d13fe048d260fd479071aac
+"filigran-icon@npm:0.21.0":
+  version: 0.21.0
+  resolution: "filigran-icon@npm:0.21.0"
+  checksum: 10c0/d5aceb36bf769e675035ae6b6e1626615dcb45157c7fe1d2f4cfc8c350382e74f1150cbbc0264bb88e38f4097dfe1accf182c9ee3060eb0e7f2241ded97c3011
   languageName: node
   linkType: hard
 
@@ -10039,7 +10039,7 @@ __metadata:
     "@uiw/react-md-editor": "npm:4.0.11"
     "@vitejs/plugin-react": "npm:5.1.1"
     "@vitest/eslint-plugin": "npm:1.5.0"
-    "@xyflow/react": "npm:12.9.3"
+    "@xyflow/react": "npm:12.10.0"
     apexcharts: "npm:5.3.6"
     axios: "npm:1.13.2"
     chokidar: "npm:4.0.3"
@@ -10061,7 +10061,7 @@ __metadata:
     eslint-plugin-react-refresh: "npm:0.4.24"
     eslint-plugin-simple-import-sort: "npm:12.1.1"
     express: "npm:5.1.0"
-    filigran-icon: "npm:0.20.0"
+    filigran-icon: "npm:0.21.0"
     final-form: "npm:4.20.10"
     final-form-arrays: "npm:3.1.0"
     fs-extra: "npm:11.3.2"
@@ -10091,11 +10091,11 @@ __metadata:
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:3.1.4"
     react-grid-layout: "npm:1.5.3"
-    react-hook-form: "npm:7.65.0"
+    react-hook-form: "npm:7.68.0"
     react-intl: "npm:7.1.14"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.2.0"
-    react-router: "npm:7.9.6"
+    react-router: "npm:7.10.1"
     react-syntax-highlighter: "npm:15.6.6"
     redux: "npm:5.0.1"
     redux-thunk: "npm:3.1.0"
@@ -10748,12 +10748,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:7.65.0":
-  version: 7.65.0
-  resolution: "react-hook-form@npm:7.65.0"
+"react-hook-form@npm:7.68.0":
+  version: 7.68.0
+  resolution: "react-hook-form@npm:7.68.0"
   peerDependencies:
     react: ^16.8.0 || ^17 || ^18 || ^19
-  checksum: 10c0/119afeaf33510d1ed6c12109f03d22d9e88f9eb01b8e4fb3cd8f40d5fc113cbcfc6154789d1d143151de8119bd08ffc7214d504e0e550ea28a9051ed6a30ae28
+  checksum: 10c0/5fb500fe60077185ab6de32a2371d05bf75ae335ef62993f0359dbb42bb0c95e0c28d4f7d70c4382995486c82715295c87fc44f2ced5de1ae353aa1f23398f47
   languageName: node
   linkType: hard
 
@@ -10888,9 +10888,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router@npm:7.9.6":
-  version: 7.9.6
-  resolution: "react-router@npm:7.9.6"
+"react-router@npm:7.10.1":
+  version: 7.10.1
+  resolution: "react-router@npm:7.10.1"
   dependencies:
     cookie: "npm:^1.0.1"
     set-cookie-parser: "npm:^2.6.0"
@@ -10900,7 +10900,7 @@ __metadata:
   peerDependenciesMeta:
     react-dom:
       optional: true
-  checksum: 10c0/2a177bbe19021e3b8211df849ea5b3f3a4f482327e6de3341aaeaa4f1406dc9be7b675b229eefea6761e04a59a40ccaaf8188f2ee88eb2d0b2a6b6448daea368
+  checksum: 10c0/e114a319603ccf0394f616f954ee3f53bec04636a2f13383b1e941b8fa6c1c64b71b60527e3db8e7f971dcfaaeb9a82bd7c2ddd884a718694e589403e6975d52
   languageName: node
   linkType: hard
 

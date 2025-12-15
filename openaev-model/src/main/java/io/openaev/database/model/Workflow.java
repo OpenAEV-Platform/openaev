@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
@@ -10,14 +11,16 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
-@Setter
-@Getter
 @Entity
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
 @Table(name = "workflows")
-public class Workflow {
+@Builder
+@EntityListeners(ModelBaseListener.class)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+public class Workflow implements Base {
 
   @Id
   @Column(name = "workflow_id")
