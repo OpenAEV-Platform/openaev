@@ -25,15 +25,24 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             workflow_status workflow_status NOT NULL ,
             workflow_version INTEGER NOT NULL,
             workflow_is_edited BOOLEAN DEFAULT false,
-            workflow_simulation_id VARCHAR(255) NOT NULL REFERENCES exercises(exercise_id) ON DELETE CASCADE,
             workflow_template_id VARCHAR(255) REFERENCES workflows(workflow_id),
             workflow_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             workflow_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
           );
-        CREATE UNIQUE INDEX IF NOT EXISTS uk_workflow_template
-            ON workflows (workflow_id, workflow_simulation_id)
-            WHERE workflow_status = 'TEMPLATE';
          """);
+
+      select.execute(
+          """
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS simulation_workflow VARCHAR(255) NULL;
+      ALTER TABLE exercises ADD CONSTRAINT exercise_custom_dashboard_fk FOREIGN KEY (simulation_workflow) REFERENCES workflows(workflow_id) ON DELETE SET NULL;
+              """);
+
+      select.execute(
+          """
+      ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS scenario_workflow VARCHAR(255) NULL;
+      ALTER TABLE scenarios ADD CONSTRAINT exercise_custom_dashboard_fk FOREIGN KEY (scenario_workflow) REFERENCES workflows(workflow_id) ON DELETE SET NULL;
+              """);
+
       select.execute(
           """
       DO $$

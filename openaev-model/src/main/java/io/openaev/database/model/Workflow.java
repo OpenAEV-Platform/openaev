@@ -62,8 +62,4 @@ public class Workflow implements Base {
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflow")
   private List<Step> steps;
-
-  @Schema(description = "ID of the simulation")
-  @OneToOne(mappedBy = "id")
-  private Exercise simulationId;
 }
