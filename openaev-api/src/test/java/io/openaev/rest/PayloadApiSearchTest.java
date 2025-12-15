@@ -5,7 +5,7 @@ import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.Linux;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PayloadFixture.*;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
