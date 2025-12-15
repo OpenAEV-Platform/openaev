@@ -85,7 +85,7 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             condition_id VARCHAR(255) NOT NULL CONSTRAINT condition_pkey PRIMARY KEY,
             condition_key VARCHAR(255),
             condition_value VARCHAR(255),
-            condition_type condition_type NOT NULL,            
+            condition_type condition_type NOT NULL,
             condition_step VARCHAR(255) NOT NULL REFERENCES conditions(condition_id) ON DELETE CASCADE,
             condition_ancestor_step VARCHAR(255) NOT NULL REFERENCES conditions(condition_id) ON DELETE CASCADE,
             condition_parent_id VARCHAR(255) REFERENCES conditions(condition_id) ON DELETE CASCADE,
