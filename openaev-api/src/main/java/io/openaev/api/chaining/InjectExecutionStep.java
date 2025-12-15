@@ -13,6 +13,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class InjectExecutionStep implements ActionStep {
-  Gson gson = new Gson();
+  private static final Gson gson = new Gson();
   InjectorContractService injectorContractService;
   UserService userService;
   AssetService assetService;
@@ -33,22 +34,26 @@ public class InjectExecutionStep implements ActionStep {
   InjectorContractContentUtils injectorContractContentUtils;
   ExerciseService exerciseService;
   ConditionService conditionService;
+  StepService stepService;
 
   @Override
   public void create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
-    String data = this.stepData(step, workflow.getSimulationId());
+    String data = this.stepData(step, workflow.getSimulation());
     Condition condition = this.stepCondition(step, workflow);
-    String outputParser = this.stepOutputParser();
-    Step.builder()
-        .condition(condition)
-        .data(data)
-        .input("{}")
-        .output_parser(outputParser)
-        .status(STEP_STATUS.TEMPLATE)
-        .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
-        .limitExecution(step.limitExecution)
-        .workflow(workflow)
-        .build();
+    String input = this.stepInput(step.conditions);
+    String outputParser = this.stepOutputParser(data);
+    Step stepTemplate =
+        Step.builder()
+            .condition(condition)
+            .data(data)
+            .input(input)
+            .output_parser(outputParser)
+            .status(STEP_STATUS.TEMPLATE)
+            .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
+            .limitExecution(step.limitExecution)
+            .workflow(workflow)
+            .build();
+    this.stepService.saveStep(stepTemplate);
   }
 
   @Override
@@ -135,7 +140,10 @@ public class InjectExecutionStep implements ActionStep {
     return gson.toJson(inject);
   }
 
-  private String stepOutputParser() {
+  private String stepOutputParser(String data) {
+    // inject.getPayload().get().getOutputParsers();
+    // Nmap
+    // Nuclei
     return "{}";
   }
 
@@ -191,5 +199,25 @@ public class InjectExecutionStep implements ActionStep {
       }
     }
     return first;
+  }
+
+  private String stepInput(List<ConditionCreateInput> conditions) {
+    if (conditions.isEmpty()) return "{}";
+    List<Map<String, Object>> inputs = new ArrayList<>();
+
+    for (ConditionCreateInput condition : conditions) {
+      if (CONDITION_TYPE.MAPPER.equals(condition.getType())) {
+
+        Map<String, Object> input = new HashMap<>();
+        input.put("key", condition.getKey());
+        input.put("path", condition.getValue());
+        input.put("id_step_from", condition.getStepFrom());
+
+        inputs.add(input);
+      }
+    }
+
+    Map<String, Object> result = Map.of("input", inputs);
+    return gson.toJson(result);
   }
 }

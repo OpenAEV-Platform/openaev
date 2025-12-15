@@ -4,7 +4,9 @@ import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.STEP_ACTION_CLASS;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -12,8 +14,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class StepService {
   WorkflowService workflowService;
+  StepRepository stepRepository;
 
-  public void saveStep() {}
+  public void saveStep(Step step) {
+    this.stepRepository.save(step);
+  }
 
   public void createSteps(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
     Workflow workflow = workflowService.getWorkflowById(workflowId);
@@ -29,5 +34,9 @@ public class StepService {
       case STEP_ACTION_CLASS.INJECT_EXECUTION -> new InjectExecutionStep();
       default -> null;
     };
+  }
+
+  public void saveStep(List<Step> steps) {
+    this.stepRepository.saveAll(steps);
   }
 }

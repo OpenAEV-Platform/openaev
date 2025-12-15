@@ -37,7 +37,7 @@ public class Step implements Base {
   private String output;
 
   @Type(JsonType.class)
-  @Column(name = "step_output", columnDefinition = "jsonb")
+  @Column(name = "output_parser", columnDefinition = "jsonb")
   private String output_parser;
 
   @Type(JsonType.class)
@@ -78,6 +78,6 @@ public class Step implements Base {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
   private List<Step> stepExecuted;
 
-  @OneToOne(mappedBy = "id")
+  @OneToOne(mappedBy = "step")
   private Condition condition;
 }

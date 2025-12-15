@@ -26,11 +26,7 @@ public class WorkflowService {
   public void creationWorkflow(String exerciseId) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     Workflow workflow =
-        Workflow.builder()
-            .version(0)
-            .status(WORKFLOW_STATUS.TEMPLATE)
-            .simulationId(exercise)
-            .build();
+        Workflow.builder().version(0).status(WORKFLOW_STATUS.TEMPLATE).simulation(exercise).build();
     workflowRepository.save(workflow);
   }
 
@@ -60,7 +56,7 @@ public class WorkflowService {
     return Workflow.builder()
         .isEdited(false)
         .status(WORKFLOW_STATUS.RUN)
-        .simulationId(workflowTemplate.getSimulationId())
+        .simulation(workflowTemplate.getSimulation())
         .version(workflowTemplate.getVersion())
         .build();
   }

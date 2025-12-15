@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.List;
+
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -28,6 +30,10 @@ public class Condition {
   @Schema(description = "ID of the step")
   private String id;
 
+  @OneToOne
+  @JoinColumn(name = "step_from_id", unique = true, nullable = false)
+  private Step stepFrom;
+
   @Column(name = "condition_key")
   @Schema(description = "Key")
   private String key;
@@ -41,7 +47,8 @@ public class Condition {
   @Enumerated(EnumType.STRING)
   private CONDITION_TYPE type;
 
-  @OneToOne(mappedBy = "id")
+  @OneToOne
+  @JoinColumn(name = "step_id", unique = true, nullable = false)
   private Step step;
 
   @JoinColumn(name = "condition_parent_id")

@@ -13,5 +13,6 @@ public class ConditionCreateInput {
   private String key;
   private String value;
   private CONDITION_TYPE type;
-  String temporaryIdConditionParent;
+  private String temporaryIdConditionParent;
+  private String stepFrom;
 }
