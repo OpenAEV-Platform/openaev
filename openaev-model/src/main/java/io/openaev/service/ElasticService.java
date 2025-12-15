@@ -511,58 +511,7 @@ public class ElasticService implements EngineService {
     return new EsCountInterval(0L, 0L, 0L);
   }
 
-  public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
-    AverageConfiguration widgetConfig =  averageRuntime.getConfig();
 
-    try {
-      Query averageQuery =
-          buildQuery(
-              user,
-              null,
-              averageRuntime
-                  .getConfig()
-                  .getSeries()
-                  .getFirst()
-                  .getFilter(), // 1 count = 1 serie limit = 1 filter group
-              averageRuntime.getParameters(),
-              averageRuntime.getDefinitionParameters());
-      if (isAllTime(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
-        BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
-        Query query = queryBuilder.must(averageQuery).build()._toQuery();
-        SearchResponse<EsBase> response = elasticClient.search(
-            a -> a.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query)
-                .aggregations("expectation_avg", e-> e.avg(v -> v.field("score"))),
-            EsBase.class);
-
-        return new EsAvgs(allTimeCount, response.hits().hits());
-      } else {
-        // Compute the current interval count
-        BoolQuery.Builder currentBuilder = new BoolQuery.Builder();
-        Instant currentIntervalStart =
-            calcStartDate(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters());
-        Instant currentIntervalEnd =
-            calcEndDate(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters());
-        Query currentIntervalDateRangeQuery =
-            buildDateRangeQuery(
-                widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
-        Query currentIntervalQuery =
-            currentBuilder.must(currentIntervalDateRangeQuery, averageQuery).build()._toQuery();
-
-        SearchResponse<EsBase> response = elasticClient.search(
-            a -> a.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(currentIntervalQuery)
-                .aggregations("expectation_avg", e-> e.avg(v -> v.field("score"))),
-            EsBase.class);
-
-
-        return new EsAvgs(
-            previousIntervalCount,
-            response.hits().hits());
-      }
-    }catch (IOException e) {
-      log.error(String.format("count exception: %s", e.getMessage()), e);
-    }
-    return new EsAvgs(new ArrayList<>(), new ArrayList<>());
-  }
 
   public EsSeries termHistogram(
       RawUserAuth user,
