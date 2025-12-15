@@ -67,7 +67,7 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
       select.execute(
           """
       DO $$
-      BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'step_status' ) then
+      BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'condition_type' ) then
         CREATE TYPE condition_type AS ENUM ('AND', 'OR', 'EQ', 'NEQ', 'IS_NULL', 'IS_NOT_NULL', 'GT', 'GTE', 'LT', 'LTE', 'IN', 'NIN','AFTER','BEFORE', 'MAPPER');
         END IF;
        END;

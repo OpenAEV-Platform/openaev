@@ -19,7 +19,7 @@ import org.hibernate.annotations.UuidGenerator;
 @AllArgsConstructor
 @Builder
 @EntityListeners(ModelBaseListener.class)
-public class Step {
+public class Step implements Base {
 
   @Id
   @Column(name = "step_id")

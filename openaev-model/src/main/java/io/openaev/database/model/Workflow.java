@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
@@ -16,8 +17,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@EntityListeners(ModelBaseListener.class)
 @Table(name = "workflows")
-public class Workflow {
+public class Workflow implements Base {
 
   @Id
   @Column(name = "workflow_id")
@@ -61,7 +63,6 @@ public class Workflow {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflow")
   private List<Step> steps;
 
-  @Column(name = "workflow_simulation_id")
   @Schema(description = "ID of the simulation")
   @OneToOne(mappedBy = "id")
   private Exercise simulationId;
