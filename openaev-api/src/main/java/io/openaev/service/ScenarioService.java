@@ -23,6 +23,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawFrontScenario;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.repository.*;
@@ -325,6 +326,11 @@ public class ScenarioService {
     return this.scenarioRepository
         .findById(scenarioId)
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
+  }
+
+  public RawFrontScenario getScenarioById(@NotBlank final String scenarioId) {
+      // TODO return Scenario from raw ?
+      return this.scenarioRepository.getScenarioById(scenarioId);
   }
 
   public Scenario scenarioFromSimulationId(@NotBlank final String simulationId) {

@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawFrontScenario;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.utils.Constants;
 import java.time.Instant;
@@ -154,6 +155,30 @@ public interface ScenarioRepository
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenario> rawInjectsFromScenarios(@Param("ids") List<String> ids);
+
+    @Query(
+            value =
+                    "SELECT s.*, COUNT(ut.user_id) as scenario_all_users_number, COUNT(stu.user_id) as scenario_users_number, true as listened, "
+                            + "array_agg(DISTINCT se.scenario_id) FILTER (WHERE se.scenario_id IS NOT NULL) as scenario_exercises, "
+                            + "json_agg(DISTINCT kcp.*) FILTER (WHERE kcp.phase_id IS NOT NULL) as scenario_kill_chain_phases, "
+                            + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as scenario_platforms, "
+                            + "array_agg(DISTINCT sta.tag_id) FILTER (WHERE sta.tag_id IS NOT NULL) as scenario_tags, "
+                            + "array_agg(DISTINCT stu.*) FILTER (WHERE stu.scenario_id IS NOT NULL) as scenario_teams_users "
+                            + "FROM scenarios s "
+                            + "LEFT JOIN scenarios_teams st ON st.scenario_id = s.scenario_id "
+                            + "LEFT JOIN users_teams ut ON st.team_id = ut.team_id "
+                            + "LEFT JOIN scenarios_exercises se ON se.scenario_id = s.scenario_id "
+                            + "LEFT JOIN injects i ON s.scenario_id = i.inject_scenario "
+                            + "LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+                            + "LEFT JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+                            + "LEFT JOIN attack_patterns_kill_chain_phases apkcp ON icap.attack_pattern_id = apkcp.attack_pattern_id "
+                            + "LEFT JOIN kill_chain_phases kcp ON kcp.phase_id = apkcp.phase_id "
+                            + "LEFT JOIN scenarios_tags sta ON sta.scenario_id = s.scenario_id "
+                            + "LEFT JOIN scenarios_teams_users stu ON stu.scenario_id = s.scenario_id "
+                            + "WHERE s.scenario_id = :scenarioId "
+                            + "GROUP BY s.scenario_id",
+            nativeQuery = true)
+    RawFrontScenario getScenarioById(@Param("scenarioId") final String scenarioId);
 
   // -- CATEGORY --
 

@@ -11,6 +11,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawFrontScenario;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
@@ -127,14 +128,25 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.scenarios(getScenariosInput.getScenarioIds());
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}")
+  @GetMapping(SCENARIO_URI + "2/{scenarioId}")
   @RBAC(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Scenario scenario(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.scenario(scenarioId);
+  public RawFrontScenario scenario2(@PathVariable @NotBlank final String scenarioId) {
+      RawFrontScenario test = scenarioService.getScenarioById(scenarioId);
+      test.getScenario_kill_chain_phases();
+      return test;
   }
+
+    @GetMapping(SCENARIO_URI + "/{scenarioId}")
+    @RBAC(
+            resourceId = "#scenarioId",
+            actionPerformed = Action.READ,
+            resourceType = ResourceType.SCENARIO)
+    public Scenario scenario(@PathVariable @NotBlank final String scenarioId) {
+        return scenarioService.scenario(scenarioId);
+    }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/healthchecks")
   @RBAC(
