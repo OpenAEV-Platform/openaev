@@ -205,7 +205,7 @@ public class Exercise implements GrantableBase {
   @Schema(description = "ID of the workflow")
   @JoinColumn(name = "id", referencedColumnName = "id")
   @OneToOne(mappedBy = "id")
-  private Workflow workflowId;
+  private Workflow workflow;
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)

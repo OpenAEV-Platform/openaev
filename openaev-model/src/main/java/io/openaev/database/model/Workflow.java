@@ -62,4 +62,11 @@ public class Workflow implements Base {
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflow")
   private List<Step> steps;
+
+  //
+  @OneToOne(mappedBy = "workflow")
+  private Exercise simulation;
+
+  @OneToOne(mappedBy = "workflow")
+  private Scenario scenario;
 }
