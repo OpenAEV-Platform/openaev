@@ -50,6 +50,11 @@ according to the [OpenAEV architecture](../deployment/platform/overview.md#archi
 The Tanium Agent can be leveraged to execute implants as detached processes that will then execute payloads
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
 
+### SentinelOne Agent
+
+The SentinelOne Agent can be leveraged to execute implants as detached processes that will then execute payloads
+according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
+
 ## Remediations in CVES
 
 More detail: [CVES](taxonomies.md) and [Findings view](../usage/findings.md)

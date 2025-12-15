@@ -34,7 +34,7 @@ The application collects statistical data related to its usage. Here is an exhau
 - The total number of agents deployed
 - The total number of agents deployed as services or sessions
 - The total number of agents deployed for users or admins
-- The total number of agents deployed for each executor (e.g. Caldera, OpenAEV, CrowdStrike, etc.)
+- The total number of agents deployed for each executor (e.g. Caldera, OpenAEV, CrowdStrike, Tanium, SentinelOne, etc.)
 - The number of simulations, scenarios, and atomic tests created
 - The number of simulations or injects executed
 

@@ -69,7 +69,7 @@ To register new endpoints, you will need to install an agent. You can find detai
 | Attribute       | Meaning                                                              |
 |-----------------|----------------------------------------------------------------------|
 | **Name**        | Local user account on the endpoint that executes the agent process   | 
-| **Executor**    | Agent type (OpenAEV, Crowdstrike, Tanium or Caldera)                 | 
+| **Executor**    | Agent type (OpenAEV, Crowdstrike, Tanium, SentinelOne or Caldera)    | 
 | **Privilege**   | Local account's privileges on the endpoint (admin, or standard user) | 
 | **Deployment**  | Installation type (Service or Session)                               |
 | **Status**      | Active or Inactive (threshold: 1 hour)                               | 
