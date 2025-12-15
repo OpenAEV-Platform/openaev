@@ -19,14 +19,6 @@ public class ConnectorInstanceLogService {
   @Getter private final Integer LOG_SIZE_LIMIT = 10000;
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
-  public String transformRawLogsLineToLog(Set<String> rawLogLines) {
-    return rawLogLines.stream()
-        .map(line -> line.replaceAll("^,", ""))
-        .map(String::trim)
-        .filter(line -> !line.isEmpty())
-        .collect(Collectors.joining("\n"));
-  }
-
   private void cleanupExcessLogs(String connectorInstanceId) {
     long currentCount =
         connectorInstanceLogRepository.countByConnectorInstanceId(connectorInstanceId);
@@ -40,6 +32,20 @@ public class ConnectorInstanceLogService {
   }
 
   /**
+   * Transforms raw log lines into a single formatted log string.
+   *
+   * @param rawLogLines the set of raw log lines to transform
+   * @return the formatted log string with lines separated by newlines
+   */
+  public String transformRawLogsLineToLog(Set<String> rawLogLines) {
+    return rawLogLines.stream()
+        .map(line -> line.replaceAll("^,", ""))
+        .map(String::trim)
+        .filter(line -> !line.isEmpty())
+        .collect(Collectors.joining("\n"));
+  }
+
+  /**
    * Creates a new log entry for a connector instance and maintains log limit.
    *
    * @param connectorInstance the connector instance to log for
@@ -49,7 +55,7 @@ public class ConnectorInstanceLogService {
    */
   @Transactional
   public ConnectorInstanceLog pushLogByConnectorInstance(
-      ConnectorInstance connectorInstance, String rawLog) {
+      ConnectorInstance connectorInstance, String rawLog) throws IllegalArgumentException {
     if (rawLog.isEmpty()) {
       throw new IllegalArgumentException("Instance ID and log cannot be empty");
     }

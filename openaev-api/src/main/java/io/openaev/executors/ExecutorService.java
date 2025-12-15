@@ -109,10 +109,21 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     return getConnectorRelationsId(executorId);
   }
 
+  /**
+   * Retrieve all executors
+   *
+   * @return List of executors
+   */
   public Iterable<Executor> executors() {
     return this.executorRepository.findAll();
   }
 
+  /**
+   * Finds an executor by its type.
+   *
+   * @param type the executor type to search for
+   * @return an Optional containing the executor if found, empty otherwise
+   */
   public Optional<Executor> executorByType(String type) {
     return this.executorRepository.findByType(type);
   }

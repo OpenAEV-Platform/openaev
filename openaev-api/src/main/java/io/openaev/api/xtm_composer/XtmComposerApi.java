@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,7 +54,7 @@ public class XtmComposerApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @Transactional(rollbackFor = Exception.class)
   public XtmComposerOutput refreshConnectivity(@PathVariable @NotBlank final String xtmComposerId) {
-    return xtmComposerService.refreshConnectivity(xtmComposerId, LocalDateTime.now());
+    return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
   }
 
   @GetMapping(value = XTMCOMPOSER_URI + "/reachable")
@@ -64,7 +64,7 @@ public class XtmComposerApi extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public boolean isXtmComposerReachable() {
     try {
-      this.xtmComposerService.validateXtmComposerReachability();
+      this.xtmComposerService.throwIfXtmComposerNotReachable();
       return true;
     } catch (Exception e) {
       return false;

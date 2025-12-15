@@ -32,16 +32,6 @@ public class V4_56__Update_catalog_connector_configuration_type extends BaseJava
           ALTER TABLE connector_instance_logs
           RENAME COLUMN connector_configuration_created_at TO connector_instance_log_created_at;
         """);
-
-      select.execute(
-          """
-          ALTER TABLE injectors
-          DROP COLUMN injector_connector_instance_id ;
-          ALTER TABLE collectors
-          DROP COLUMN collector_connector_instance_id ;
-          ALTER TABLE executors
-          DROP COLUMN executor_connector_instance_id ;
-        """);
     }
   }
 }

@@ -22,6 +22,11 @@ public class CatalogConnectorService {
   private final CatalogConnectorMapper catalogConnectorMapper;
   private final ConnectorInstanceService connectorInstanceService;
 
+  /**
+   * Retrieves all catalog connectors as CatalogConnectorOutput format.
+   *
+   * @return a list of catalog connector outputs with associated instance counts
+   */
   public List<CatalogConnectorOutput> catalogConnectors() {
     List<ConnectorInstance> instances = connectorInstanceService.connectorInstances();
     return fromIterable(catalogConnectorRepository.findAll()).stream()
@@ -36,7 +41,15 @@ public class CatalogConnectorService {
         .toList();
   }
 
-  public CatalogConnectorOutput catalogConnectorOutput(String catalogConnectorId) {
+  /**
+   * Retrieves a catalog connector by its ID as CatalogConnectorOutput format.
+   *
+   * @param catalogConnectorId the catalog connector ID to search for
+   * @return the catalog connector output with associated instance count
+   * @throws ElementNotFoundException if no catalog connector is found with the given ID
+   */
+  public CatalogConnectorOutput catalogConnectorOutput(String catalogConnectorId)
+      throws ElementNotFoundException {
     List<ConnectorInstance> instances =
         connectorInstanceService.findAllByCatalogConnectorId(catalogConnectorId);
 
@@ -47,18 +60,42 @@ public class CatalogConnectorService {
                 new ElementNotFoundException("Connector not found with id: " + catalogConnectorId));
   }
 
+  /**
+   * Saves a list of catalog connectors.
+   *
+   * @param connectors the catalog connectors to save
+   * @return the saved catalog connectors
+   */
   public List<CatalogConnector> saveAll(List<CatalogConnector> connectors) {
     return fromIterable(catalogConnectorRepository.saveAll(connectors));
   }
 
+  /**
+   * Finds a catalog connector by its slug, including its configurations.
+   *
+   * @param slug the catalog connector slug to search for
+   * @return an Optional containing the catalog connector if found, empty otherwise
+   */
   public Optional<CatalogConnector> findBySlug(String slug) {
     return catalogConnectorRepository.findBySlugWithConfigurations(slug);
   }
 
+  /**
+   * Finds a catalog connector by its ID.
+   *
+   * @param id the catalog connector ID to search for
+   * @return an Optional containing the catalog connector if found, empty otherwise
+   */
   public Optional<CatalogConnector> findById(String id) {
     return catalogConnectorRepository.findById(id);
   }
 
+  /**
+   * Retrieve all catalog connector configurations for a specific catalog connectors
+   *
+   * @param catalogConnectorId the catalog connector ID to search for the configurations
+   * @return a set of catalog connector configurations
+   */
   public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
       String catalogConnectorId) {
 

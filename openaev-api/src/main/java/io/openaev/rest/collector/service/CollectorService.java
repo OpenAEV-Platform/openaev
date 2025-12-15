@@ -98,6 +98,11 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
+  /**
+   * Retrieve all collectors
+   *
+   * @return List of collectors
+   */
   public Iterable<Collector> collectors() {
     return collectorRepository.findAll();
   }
@@ -122,11 +127,24 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return getConnectorRelationsId(collectorId);
   }
 
-  public Collector collectorByType(String type) {
+  /**
+   * Finds a collector by its type.
+   *
+   * @param type the collector type to search for
+   * @return the collector matching the given type
+   * @throws ElementNotFoundException if no collector is found with the given type
+   */
+  public Collector collectorByType(String type) throws ElementNotFoundException {
     return findCollectorByType(type)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with type: " + type));
   }
 
+  /**
+   * Finds a collector by its type.
+   *
+   * @param type the collector type to search for
+   * @return an Optional containing the collector if found, empty otherwise
+   */
   public Optional<Collector> findCollectorByType(String type) {
     return collectorRepository.findByType(type);
   }

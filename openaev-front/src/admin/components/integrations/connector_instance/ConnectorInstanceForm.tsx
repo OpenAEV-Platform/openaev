@@ -61,17 +61,12 @@ const ConnectorInstanceForm = ({
     };
     const configurationsSchema = z.array(z.object({
       configuration_key: z.string().nonempty(t('Should not be empty')),
-      configuration_value: z.union([
-        z.string(),
-        z.number(),
-        z.boolean(),
-        z.object({}),
-      ]).or(z.undefined()).optional(), // This allows undefined but not null
+      configuration_value: z.unknown().or(z.undefined()).optional(), // This allows undefined but not null
     })).superRefine((confValues, ctx) => {
       confValues.forEach((confValue, index) => {
         const { configuration_value: value, configuration_key: key } = confValue;
         const matchingConf = configurationsDefMap[key];
-        if (configurationsDefMap) {
+        if (!matchingConf) {
           return;
         }
         const expectedSchema = getZodType(matchingConf.connector_configuration_type, matchingConf.connector_configuration_format);
@@ -115,7 +110,7 @@ const ConnectorInstanceForm = ({
   const {
     handleSubmit,
     control,
-    formState: { isDirty, isSubmitting },
+    formState: { isSubmitting },
   } = methods;
 
   const { fields: configurationFields } = useFieldArray({
@@ -316,7 +311,7 @@ const ConnectorInstanceForm = ({
             variant="contained"
             color="secondary"
             type="submit"
-            disabled={isSubmitting || !isDirty || disabled}
+            disabled={isSubmitting || disabled}
           >
             {isEditing ? t('Update') : t('Create')}
           </Button>

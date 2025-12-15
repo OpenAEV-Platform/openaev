@@ -14,8 +14,8 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
-import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.response.InjectorConnection;
@@ -67,6 +67,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       InjectorContractService injectorContractService,
+      DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper) {
     super(
@@ -77,6 +78,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.fileService = fileService;
     this.connectorInstanceService = connectorInstanceService;
     this.injectorContractService = injectorContractService;
+    this.domainService = domainService;
     this.injectorMapper = injectorMapper;
   }
 
@@ -169,6 +171,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     return getConnectorsOutput(isIncludeNext);
   }
 
+  /**
+   * Find injector by its type
+   *
+   * @param injectorType injector type to search for
+   * @return an Optional containing the injector if found, empty otherwise
+   */
   public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
     return injectorRepository.findByType(injectorType);
   }

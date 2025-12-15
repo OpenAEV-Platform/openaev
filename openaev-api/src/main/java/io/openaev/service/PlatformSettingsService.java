@@ -160,6 +160,12 @@ public class PlatformSettingsService {
     return new Setting(themeKey, value);
   }
 
+  /**
+   * Save setting
+   *
+   * @param setting setting to save
+   * @return setting saved
+   */
   public Setting save(Setting setting) {
     return this.settingRepository.save(setting);
   }
@@ -340,6 +346,11 @@ public class PlatformSettingsService {
     return platformSettings;
   }
 
+  /**
+   * Get platform version
+   *
+   * @return platform version
+   */
   public String getPlatformVersion() {
     return openAEVConfig.getVersion();
   }
@@ -545,6 +556,12 @@ public class PlatformSettingsService {
     return findSettings();
   }
 
+  /**
+   * Saves a map of settings
+   *
+   * @param settingsMap map of settings to save
+   * @return map of settings saved
+   */
   public Map<String, Setting> saveSettings(Map<String, String> settingsMap) {
     Map<String, Setting> dbSettings =
         this.findSettingsByKeys(new ArrayList<>(settingsMap.keySet()));
@@ -558,6 +575,13 @@ public class PlatformSettingsService {
     return mapOfSettings(fromIterable(this.settingRepository.saveAll(settingsToSave)));
   }
 
+  /**
+   * Saves a setting by key. Updates the value if the key exists, creates a new setting otherwise.
+   *
+   * @param key the setting key
+   * @param value the setting value
+   * @return the saved setting
+   */
   public Setting saveSetting(String key, String value) {
     Setting setting = settingRepository.findByKey(key).orElse(new Setting(key, value));
     setting.setValue(value);

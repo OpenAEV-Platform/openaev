@@ -31,6 +31,13 @@ public class XtmComposerEncryptionService implements EncryptionService {
 
   private final XtmComposerService xtmComposerService;
 
+  /**
+   * Function used to encrypt plain text
+   *
+   * @param plainText plain text to encrypt
+   * @return plain text encrypted
+   * @throws Exception
+   */
   @Override
   public String encrypt(String plainText) throws Exception {
     String rsaPublicKey = getRsaPublicKey();

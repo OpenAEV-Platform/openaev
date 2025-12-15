@@ -27,7 +27,7 @@ public class XtmComposerInstanceOutput {
     @JsonProperty("configuration_value")
     private String value;
 
-    @Schema(description = "Configuration value")
+    @Schema(description = "Configuration is encrypted")
     @JsonProperty("configuration_is_encrypted")
     private boolean isEncrypted;
   }
@@ -63,7 +63,7 @@ public class XtmComposerInstanceOutput {
   private ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus;
 
   @Schema(description = "Connector Instance configuration")
-  @JsonProperty("connector_instance_configuration")
+  @JsonProperty("connector_instance_configurations")
   @NotBlank
-  private List<Configuration> configuration;
+  private List<Configuration> configurations;
 }

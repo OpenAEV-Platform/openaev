@@ -14,7 +14,9 @@ import io.openaev.service.PlatformSettingsService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -90,7 +92,7 @@ public class XtmComposerService {
         .requestedStatus(instance.getRequestedStatus())
         .image(instance.getCatalogConnector().getContainerImage())
         .hash(computeInstanceHash(instance))
-        .configuration(
+        .configurations(
             instance.getConfigurations().stream()
                 .map(
                     c ->
@@ -149,7 +151,7 @@ public class XtmComposerService {
    * @return XtmComposerOutput
    */
   public XtmComposerOutput refreshConnectivity(
-      String xtmComposerId, LocalDateTime lastConnectivityCheck) {
+      String xtmComposerId, Instant lastConnectivityCheck) {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
     if (!xtmComposerId.equals(xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue())) {
       throw new BadRequestException("Invalid xtm-composer identifier");
@@ -171,8 +173,8 @@ public class XtmComposerService {
    */
   public boolean isLastConnectivityCheckTooOld(String lastConnectivityCheckValue) {
     try {
-      LocalDateTime lastCheck = LocalDateTime.parse(lastConnectivityCheckValue);
-      LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
+      Instant lastCheck = Instant.parse(lastConnectivityCheckValue);
+      Instant oneDayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
       return lastCheck.isBefore(oneDayAgo);
     } catch (Exception e) {
       log.error("Error parsing last connectivity check value: {}", e.getMessage());
@@ -181,22 +183,28 @@ public class XtmComposerService {
   }
 
   /**
-   * Validate XTM Composer identifier
+   * Throw if XTM Composer identifier is not correct
    *
    * @param xtmComposerId XTM Composer id to validate
+   * @throws BadRequestException if invalid xtm-composer ID
    */
-  public void validateXtmComposerId(String xtmComposerId) {
+  public void throwIfInvalidXtmComposerId(String xtmComposerId) throws BadRequestException {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
     if (!xtmComposerId.equals(xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue())) {
       throw new BadRequestException("Invalid xtm-composer identifier");
     }
   }
 
-  /** Validate XTM Composer reachability */
-  public void validateXtmComposerReachability() {
+  /**
+   * Throw if Xtm composer not reachable
+   *
+   * @throws BadRequestException if Xtm-Composer not reachable
+   */
+  public void throwIfXtmComposerNotReachable() throws BadRequestException {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
 
-    if (xtmComposerInformation.get(XTM_COMPOSER_ID.key()) == null || xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue() == null) {
+    if (xtmComposerInformation.get(XTM_COMPOSER_ID.key()) == null
+        || xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue() == null) {
       throw new BadRequestException("XTM Composer is not configured in the platform settings");
     }
     if (xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue() == null

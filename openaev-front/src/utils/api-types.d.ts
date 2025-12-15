@@ -1039,7 +1039,7 @@ export interface Condition {
 
 /** Connector Instance configuration */
 export interface Configuration {
-  /** Configuration value */
+  /** Configuration is encrypted */
   configuration_is_encrypted?: boolean;
   /** Configuration key */
   configuration_key: string;
@@ -6810,7 +6810,7 @@ export interface XtmComposerInstanceOutput {
   /** Connector image */
   connector_image: string;
   /** Connector Instance configuration */
-  connector_instance_configuration: Configuration[];
+  connector_instance_configurations: Configuration[];
   /** Connector Instance current status */
   connector_instance_current_status: "started" | "stopped";
   /** Connector Instance hash */

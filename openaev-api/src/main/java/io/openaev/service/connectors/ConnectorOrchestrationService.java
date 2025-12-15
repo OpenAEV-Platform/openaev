@@ -8,6 +8,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -48,7 +49,7 @@ public class ConnectorOrchestrationService {
    */
   public List<XtmComposerInstanceOutput> findConnectorInstancesManagedByComposer(
       String xtmComposerId) {
-    this.xtmComposerService.validateXtmComposerId(xtmComposerId);
+    this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
 
     List<ConnectorInstance> instances =
         connectorInstanceService.connectorInstancesManagedByXtmComposer();
@@ -68,7 +69,7 @@ public class ConnectorOrchestrationService {
       String xtmComposerId,
       String connectorInstanceId,
       ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
-    this.xtmComposerService.validateXtmComposerId(xtmComposerId);
+    this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
 
     ConnectorInstance instances =
         connectorInstanceService.updateCurrentStatus(connectorInstanceId, newCurrentStatus);
@@ -76,15 +77,16 @@ public class ConnectorOrchestrationService {
     return xtmComposerService.toXtmComposerInstanceOutput(instances);
   }
 
-  private void validateEnterpriseLicense() {
+  private void throwIfEnterpriseLicenseNotActive() throws LicenseRestrictionException {
     if (!eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       throw new LicenseRestrictionException("Manage instance is enterprise edition");
     }
   }
 
-  private void validateXtmComposerIfRequired(CatalogConnector catalogConnector) {
+  private void throwIfXtmComposerDownAndNeeded(CatalogConnector catalogConnector)
+      throws BadRequestException {
     if (catalogConnector.isManagerSupported()) {
-      this.xtmComposerService.validateXtmComposerReachability();
+      this.xtmComposerService.throwIfXtmComposerNotReachable();
     }
   }
 
@@ -98,16 +100,16 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstance updateRequestedStatus(
       String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus) {
-    validateEnterpriseLicense();
+    throwIfEnterpriseLicenseNotActive();
 
     ConnectorInstance instance =
         connectorInstanceService.connectorInstanceById(connectorInstanceId);
-    validateXtmComposerIfRequired(instance.getCatalogConnector());
+    throwIfXtmComposerDownAndNeeded(instance.getCatalogConnector());
 
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void validateNoDuplicateInstance(String catalogId) {
+  private void throwIfConnectorInstanceAlreadyExist(String catalogId) {
     List<ConnectorInstance> existingInstances =
         connectorInstanceService.findAllByCatalogConnectorId(catalogId);
     if (!existingInstances.isEmpty()) {
@@ -116,8 +118,9 @@ public class ConnectorOrchestrationService {
     }
   }
 
-  private void validateNoDuplicateConnector(
-      String catalogConnectorSlug, CatalogConnector.CONNECTOR_TYPE catalogConnectorType) {
+  private void throwIfConnectorAlreadyExist(
+      String catalogConnectorSlug, CatalogConnector.CONNECTOR_TYPE catalogConnectorType)
+      throws IllegalArgumentException {
     BaseConnectorEntity connector;
     if (CatalogConnector.CONNECTOR_TYPE.COLLECTOR.equals(catalogConnectorType)) {
       connector =
@@ -133,12 +136,13 @@ public class ConnectorOrchestrationService {
     }
   }
 
-  private void validateCatalogInstanceCreation(
+  private void throwIfInstanceOrConnectorAlreadyExist(
       String catalogConnectorId,
       String catalogConnectorSlug,
-      CatalogConnector.CONNECTOR_TYPE catalogConnectorType) {
-    validateNoDuplicateInstance(catalogConnectorId);
-    validateNoDuplicateConnector(catalogConnectorSlug, catalogConnectorType);
+      CatalogConnector.CONNECTOR_TYPE catalogConnectorType)
+      throws IllegalArgumentException {
+    throwIfConnectorInstanceAlreadyExist(catalogConnectorId);
+    throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
   }
 
   /**
@@ -148,7 +152,7 @@ public class ConnectorOrchestrationService {
    * @return Created ConnectorInstance
    */
   public ConnectorInstance createConnectorInstance(CreateConnectorInstanceInput input) {
-    validateEnterpriseLicense();
+    throwIfEnterpriseLicenseNotActive();
 
     Optional<CatalogConnector> catalogConnector =
         catalogConnectorService.findById(input.getCatalogConnectorId());
@@ -156,8 +160,8 @@ public class ConnectorOrchestrationService {
       throw new EntityNotFoundException(
           "CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
     }
-    validateXtmComposerIfRequired(catalogConnector.get());
-    validateCatalogInstanceCreation(
+    throwIfXtmComposerDownAndNeeded(catalogConnector.get());
+    throwIfInstanceOrConnectorAlreadyExist(
         catalogConnector.get().getId(),
         catalogConnector.get().getSlug(),
         catalogConnector.get().getContainerType());
@@ -174,7 +178,7 @@ public class ConnectorOrchestrationService {
    */
   public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfiguration(
       String connectorInstanceId, CreateConnectorInstanceInput input) {
-    validateEnterpriseLicense();
+    throwIfEnterpriseLicenseNotActive();
 
     Optional<CatalogConnector> catalogConnector =
         catalogConnectorService.findById(input.getCatalogConnectorId());
@@ -182,9 +186,9 @@ public class ConnectorOrchestrationService {
       throw new EntityNotFoundException(
           "CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
     }
-    validateXtmComposerIfRequired(catalogConnector.get());
+    throwIfXtmComposerDownAndNeeded(catalogConnector.get());
 
-    return connectorInstanceService.updateConnectorInstanceConfiguration(
+    return connectorInstanceService.updateConnectorInstanceConfigurations(
         connectorInstanceId, catalogConnector.get(), input);
   }
 
@@ -198,7 +202,7 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstanceLog pushLogsByConnectorInstance(
       String xtmComposerId, String connectorInstanceId, Set<String> logs) {
-    this.xtmComposerService.validateXtmComposerId(xtmComposerId);
+    this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
     if (logs.isEmpty()) {
       return null;
     }
@@ -220,7 +224,7 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstance patchConnectorInstanceHealthCheck(
       String xtmComposerId, String connectorInstanceId, ConnectorInstanceHealthInput input) {
-    this.xtmComposerService.validateXtmComposerId(xtmComposerId);
+    this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
     return connectorInstanceService.patchConnectorInstanceHealthCheck(connectorInstanceId, input);
   }
 }
