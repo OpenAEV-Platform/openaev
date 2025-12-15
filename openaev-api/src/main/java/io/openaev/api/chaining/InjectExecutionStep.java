@@ -42,6 +42,7 @@ public class InjectExecutionStep implements ActionStep {
     Step.builder()
         .condition(condition)
         .data(data)
+        .input("{}")
         .output_parser(outputParser)
         .status(STEP_STATUS.TEMPLATE)
         .stepAction(STEP_ACTION_CLASS.INJECT_EXECUTION)
@@ -84,19 +85,19 @@ public class InjectExecutionStep implements ActionStep {
 
   private String stepData(StepsCreateInput.StepCreateInput step, Exercise exercise) {
 
-    InjectInput input = (InjectInput) step.inputStep;
+    InjectInput data = (InjectInput) step.dataStep;
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(input.getInjectorContract());
-    Inject inject = input.toInject(injectorContract);
+        this.injectorContractService.injectorContract(data.getInjectorContract());
+    Inject inject = data.toInject(injectorContract);
     inject.setUser(this.userService.currentUser());
 
-    inject.setTeams(teamService.getTeamsByIds(input.getTeams()));
-    inject.setAssets(assetService.assets(input.getAssets()));
+    inject.setTeams(teamService.getTeamsByIds(data.getTeams()));
+    inject.setAssets(assetService.assets(data.getAssets()));
 
-    inject.setTags(tagService.tagSet(input.getTagIds()));
+    inject.setTags(tagService.tagSet(data.getTagIds()));
 
     List<InjectDocument> injectDocuments =
-        input.getDocuments().stream()
+        data.getDocuments().stream()
             .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
             .toList();
     inject.setDocuments(injectDocuments);
@@ -121,7 +122,7 @@ public class InjectExecutionStep implements ActionStep {
       inject.setAssetGroups(
           this.tagRuleService.applyTagRuleToInjectCreation(
               tags.stream().map(Tag::getId).toList(),
-              assetGroupService.assetGroups(input.getAssetGroups())));
+              assetGroupService.assetGroups(data.getAssetGroups())));
     }
 
     // if inject content is null we add the defaults from the injector contract
@@ -135,7 +136,7 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private String stepOutputParser() {
-    return null;
+    return "{}";
   }
 
   private Condition stepCondition(StepsCreateInput.StepCreateInput step, Workflow workflow) {

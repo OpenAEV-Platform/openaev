@@ -2,7 +2,7 @@ package io.openaev.rest.inject.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.api.chaining.InputStep;
+import io.openaev.api.chaining.DataStep;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import jakarta.validation.constraints.NotBlank;
@@ -14,7 +14,7 @@ import lombok.Setter;
 
 @Setter
 @Getter
-public class InjectInput implements InputStep {
+public class InjectInput implements DataStep {
 
   @NotBlank
   @JsonProperty("inject_title")
