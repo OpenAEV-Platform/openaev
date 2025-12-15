@@ -43,13 +43,11 @@ public class Condition {
   @Enumerated(EnumType.STRING)
   private CONDITION_TYPE type;
 
-  @OneToOne(mappedBy = "id")
-  @Schema(description = "step")
+  @OneToOne(mappedBy = "condition")
   @JsonIgnore
   private Step step;
 
-  @OneToOne(mappedBy = "id")
-  @Schema(description = "ancestor step")
+  @OneToOne(mappedBy = "condition")
   @JsonIgnore
   private Step ancestorStep;
 
