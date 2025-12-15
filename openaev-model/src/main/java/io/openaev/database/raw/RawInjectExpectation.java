@@ -167,8 +167,6 @@ public interface RawInjectExpectation {
    */
   Set<String> getDomain_ids();
 
-
-
   /**
    * Returns the ID of the scenario this expectation belongs to.
    *
