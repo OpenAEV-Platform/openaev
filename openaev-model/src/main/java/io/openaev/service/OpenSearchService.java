@@ -510,6 +510,8 @@ public class OpenSearchService implements EngineService {
 
   public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
+
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     try {
       Query countQuery =
           buildQuery(
@@ -523,7 +525,7 @@ public class OpenSearchService implements EngineService {
               runtime.getParameters(),
               runtime.getDefinitionParameters());
       if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
-        Query query = new BoolQuery.Builder().must(countQuery).copy().build().toQuery();
+        Query query = queryBuilder.must(countQuery).build().toQuery();
         long allTimeCount =
             openSearchClient
                 .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
@@ -538,7 +540,7 @@ public class OpenSearchService implements EngineService {
             buildDateRangeQuery(
                 widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
         Query currentIntervalQuery =
-            new BoolQuery.Builder().must(currentIntervalDateRangeQuery, countQuery).build().toQuery();
+            queryBuilder.must(currentIntervalDateRangeQuery, countQuery).build().toQuery();
         long currentIntervalCount =
             openSearchClient
                 .count(
@@ -553,7 +555,7 @@ public class OpenSearchService implements EngineService {
             buildDateRangeQuery(
                 widgetConfig.getDateAttribute(), previousIntervalStart, currentIntervalStart);
         Query previousIntervalQuery =
-            new BoolQuery.Builder().must(previousIntervalDateRangeQuery, countQuery).build().toQuery();
+            queryBuilder.must(previousIntervalDateRangeQuery, countQuery).build().toQuery();
         long previousIntervalCount =
             openSearchClient
                 .count(
