@@ -11,14 +11,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
-@Setter
-@Getter
 @Entity
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-@EntityListeners(ModelBaseListener.class)
 @Table(name = "workflows")
+@EntityListeners(ModelBaseListener.class)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Workflow implements Base {
 
   @Id

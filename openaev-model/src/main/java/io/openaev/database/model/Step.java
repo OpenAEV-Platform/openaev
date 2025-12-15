@@ -13,12 +13,12 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "steps")
+@EntityListeners(ModelBaseListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@EntityListeners(ModelBaseListener.class)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Step implements Base {
 
   @Id
