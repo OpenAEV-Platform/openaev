@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.List;
@@ -78,6 +79,8 @@ public class Step implements Base {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
   private List<Step> stepExecuted;
 
+  @Schema(description = "ID of the condition")
+  @JoinColumn(name = "id", referencedColumnName = "id")
   @OneToOne(mappedBy = "id")
   private Condition condition;
 }
