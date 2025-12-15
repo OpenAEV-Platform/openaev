@@ -558,10 +558,8 @@ class InjectServiceTest {
     assertTrue(capturedIds.contains(dependencyId1));
     assertTrue(capturedIds.contains(dependencyId2));
 
-    assertTrue(
-        childInject1.getDependsOn().isEmpty(), "Child inject 1 dependsOn should be cleared");
-    assertTrue(
-        childInject2.getDependsOn().isEmpty(), "Child inject 2 dependsOn should be cleared");
+    assertTrue(childInject1.getDependsOn().isEmpty(), "Child inject 1 dependsOn should be cleared");
+    assertTrue(childInject2.getDependsOn().isEmpty(), "Child inject 2 dependsOn should be cleared");
 
     verify(injectRepository, times(1)).flush();
     verify(injectRepository, times(1)).deleteAll(injectsToDelete);
@@ -582,8 +580,7 @@ class InjectServiceTest {
     List<Inject> injectsToDelete = List.of(inject1, inject2);
     List<String> injectIds = List.of("inject-id-1", "inject-id-2");
 
-    when(injectDependenciesRepository.findAllByInjectIds(injectIds))
-        .thenReturn(new ArrayList<>());
+    when(injectDependenciesRepository.findAllByInjectIds(injectIds)).thenReturn(new ArrayList<>());
     doNothing().when(injectRepository).flush();
     doNothing().when(injectRepository).deleteAll(injectsToDelete);
 

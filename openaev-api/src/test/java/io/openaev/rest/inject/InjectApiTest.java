@@ -600,7 +600,9 @@ class InjectApiTest extends IntegrationTest {
         injectDependenciesRepository.findAllByInjectIds(
             List.of(createdParent.getId(), createdChild1.getId(), createdChild2.getId()));
     assertEquals(
-        2, initialDependencies.size(), "There should be 2 dependency relationships in the database");
+        2,
+        initialDependencies.size(),
+        "There should be 2 dependency relationships in the database");
 
     // -- PREPARE DELETE INPUT --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
