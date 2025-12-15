@@ -20,14 +20,13 @@ import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
-public class CalderaExecutorIntegrationFactory implements IntegrationFactory {
+@Profile("!test")
+public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
@@ -42,49 +41,65 @@ public class CalderaExecutorIntegrationFactory implements IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
 
+  public CalderaExecutorIntegrationFactory(
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      ExecutorService executorService,
+      ComponentRequestEngine componentRequestEngine,
+      CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration,
+      CalderaExecutorClient client,
+      AgentService agentService,
+      EndpointService endpointService,
+      InjectorService injectorService,
+      PlatformSettingsService platformSettingsService,
+      ThreadPoolTaskScheduler taskScheduler,
+      FileService fileService) {
+    super(connectorInstanceService, catalogConnectorService);
+    this.executorService = executorService;
+    this.componentRequestEngine = componentRequestEngine;
+    this.connectorInstanceService = connectorInstanceService;
+    this.catalogConnectorService = catalogConnectorService;
+    this.calderaExecutorConfigurationMigration = calderaExecutorConfigurationMigration;
+    this.client = client;
+    this.agentService = agentService;
+    this.endpointService = endpointService;
+    this.injectorService = injectorService;
+    this.platformSettingsService = platformSettingsService;
+    this.taskScheduler = taskScheduler;
+    this.fileService = fileService;
+  }
+
   @Override
-  @Transactional
-  public List<Integration> initialise() throws Exception {
-    String className = this.getClass().getCanonicalName();
-    if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
-      String logoFilename = "%s-logo.png".formatted(className);
-      fileService.uploadStream(
-          FileService.CONNECTORS_LOGO_PATH,
-          logoFilename,
-          getClass().getResourceAsStream("/img/icon-caldera.png"));
-      CatalogConnector connector = new CatalogConnector();
-      connector.setTitle("Caldera Executor");
-      connector.setSlug(className);
-      connector.setLogoUrl(logoFilename);
-      connector.setDescription(
-          "With Caldera executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Caldera instance.");
-      connector.setShortDescription(
-          "Enable execution of OpenAEV scenarios through your Caldera instance.");
-      connector.setClassName(className);
-      connector.setSubscriptionLink("https://caldera.mitre.org/");
-      connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
-      connector.setCatalogConnectorConfigurations(
-          new CalderaExecutorConfig().toCatalogConfigurationSet(connector));
-      catalogConnectorService.saveAll(List.of(connector));
-    }
+  protected final String getClassName() {
+    return this.getClass().getCanonicalName();
+  }
 
+  @Override
+  protected void runMigrations() throws Exception {
     calderaExecutorConfigurationMigration.migrate();
+  }
 
-    return connectorInstanceService.connectorInstances().stream()
-        .filter(
-            ci ->
-                this.getClass().getCanonicalName().equals(ci.getCatalogConnector().getClassName()))
-        .map(
-            instance -> {
-              try {
-                Integration integration = this.spawn(instance);
-                integration.initialise();
-                return integration;
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            })
-        .toList();
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    String logoFilename = "%s-logo.png".formatted(getClassName());
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-caldera.png"));
+    CatalogConnector connector = new CatalogConnector();
+    connector.setTitle("Caldera Executor");
+    connector.setSlug(getClassName());
+    connector.setLogoUrl(logoFilename);
+    connector.setDescription(
+        "With Caldera executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Caldera instance.");
+    connector.setShortDescription(
+        "Enable execution of OpenAEV scenarios through your Caldera instance.");
+    connector.setClassName(getClassName());
+    connector.setSubscriptionLink("https://caldera.mitre.org/");
+    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+    connector.setCatalogConnectorConfigurations(
+        new CalderaExecutorConfig().toCatalogConfigurationSet(connector));
+    catalogConnectorService.saveAll(List.of(connector));
   }
 
   @Override

@@ -1,5 +1,7 @@
 package io.openaev.executors.caldera.config;
 
+import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_DEFAULT_ID;
+
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;
@@ -13,11 +15,8 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "executor.caldera")
 public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
-
   private static final String REST_V2_URI = "/api/v2";
   private static final String PLUGIN_ACCESS_URI = "/plugin/access";
-
-  @Getter private boolean enable;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_CALDERA_ID",
@@ -28,7 +27,7 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String id;
+  private String id = CALDERA_EXECUTOR_DEFAULT_ID;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_CALDERA_URL",

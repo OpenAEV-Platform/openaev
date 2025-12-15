@@ -25,6 +25,8 @@ import java.util.concurrent.ScheduledFuture;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 public class SentinelOneExecutorIntegration extends Integration {
+  public static final String SENTINELONE_EXECUTOR_DEFAULT_ID =
+      "b586bc98-839c-45bd-b9e4-c10830ebfefa";
   public static final String SENTINELONE_EXECUTOR_TYPE = "openaev_sentinelone";
   public static final String SENTINELONE_EXECUTOR_NAME = "SentinelOne";
   private static final String SENTINELONE_EXECUTOR_DOCUMENTATION_LINK =

@@ -25,6 +25,8 @@ import java.util.concurrent.ScheduledFuture;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 public class CrowdStrikeExecutorIntegration extends Integration {
+  public static final String CROWDSTRIKE_EXECUTOR_DEFAULT_ID =
+      "b522d9bc-7ed6-44ac-9984-810dfb18f7be";
   public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike";
   public static final String CROWDSTRIKE_EXECUTOR_NAME = "CrowdStrike";
   private static final String CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK =

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -22,17 +21,15 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
-public class TaniumExecutorIntegrationFactory implements IntegrationFactory {
+@Profile("!test")
+public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
-  private final AssetAgentJobRepository assetAgentJobRepository;
   private final ConnectorInstanceService connectorInstanceService;
   private final CatalogConnectorService catalogConnectorService;
   private final TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
@@ -46,51 +43,69 @@ public class TaniumExecutorIntegrationFactory implements IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
 
+  public TaniumExecutorIntegrationFactory(
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      ExecutorService executorService,
+      ComponentRequestEngine componentRequestEngine,
+      TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration,
+      TaniumExecutorClient client,
+      AgentService agentService,
+      EndpointService endpointService,
+      AssetGroupService assetGroupService,
+      Ee eeService,
+      LicenseCacheManager licenseCacheManager,
+      ThreadPoolTaskScheduler taskScheduler,
+      FileService fileService) {
+    super(connectorInstanceService, catalogConnectorService);
+    this.executorService = executorService;
+    this.componentRequestEngine = componentRequestEngine;
+    this.connectorInstanceService = connectorInstanceService;
+    this.catalogConnectorService = catalogConnectorService;
+    this.taniumExecutorConfigurationMigration = taniumExecutorConfigurationMigration;
+    this.client = client;
+    this.agentService = agentService;
+    this.endpointService = endpointService;
+    this.assetGroupService = assetGroupService;
+    this.eeService = eeService;
+    this.licenseCacheManager = licenseCacheManager;
+    this.taskScheduler = taskScheduler;
+    this.fileService = fileService;
+  }
+
   @Override
-  @Transactional
-  public List<Integration> initialise() throws Exception {
-    String className = this.getClass().getCanonicalName();
-    if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
-      String logoFilename = "%s-logo.png".formatted(className);
-      fileService.uploadStream(
-          FileService.CONNECTORS_LOGO_PATH,
-          logoFilename,
-          getClass().getResourceAsStream("/img/icon-tanium.png"));
-      CatalogConnector connector = new CatalogConnector();
-      connector.setTitle("Tanium Executor");
-      connector.setSlug(className);
-      connector.setLogoUrl(logoFilename);
-      connector.setDescription(
-          """
-              With Tanium executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Tanium instance.
-              """);
-      connector.setShortDescription(
-          "Enable execution of OpenAEV scenarios through your Tanium instance.");
-      connector.setClassName(className);
-      connector.setSubscriptionLink("https://www.tanium.com");
-      connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
-      connector.setCatalogConnectorConfigurations(
-          new TaniumExecutorConfig().toCatalogConfigurationSet(connector));
-      catalogConnectorService.saveAll(List.of(connector));
-    }
+  protected final String getClassName() {
+    return this.getClass().getCanonicalName();
+  }
 
+  @Override
+  protected void runMigrations() throws Exception {
     taniumExecutorConfigurationMigration.migrate();
+  }
 
-    return connectorInstanceService.connectorInstances().stream()
-        .filter(
-            ci ->
-                this.getClass().getCanonicalName().equals(ci.getCatalogConnector().getClassName()))
-        .map(
-            instance -> {
-              try {
-                Integration integration = this.spawn(instance);
-                integration.initialise();
-                return integration;
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            })
-        .toList();
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    String logoFilename = "%s-logo.png".formatted(getClassName());
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-tanium.png"));
+    CatalogConnector connector = new CatalogConnector();
+    connector.setTitle("Tanium Executor");
+    connector.setSlug(getClassName());
+    connector.setLogoUrl(logoFilename);
+    connector.setDescription(
+        """
+                With Tanium executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Tanium instance.
+                """);
+    connector.setShortDescription(
+        "Enable execution of OpenAEV scenarios through your Tanium instance.");
+    connector.setClassName(getClassName());
+    connector.setSubscriptionLink("https://www.tanium.com");
+    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+    connector.setCatalogConnectorConfigurations(
+        new TaniumExecutorConfig().toCatalogConfigurationSet(connector));
+    catalogConnectorService.saveAll(List.of(connector));
   }
 
   @Override

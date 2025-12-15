@@ -19,10 +19,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.Setter;
 
 public class BaseIntegrationConfiguration {
   private final ObjectMapper mapper = new ObjectMapper();
-  @Getter private final boolean enable = false;
+  @Getter @Setter private boolean enable = false;
 
   public static <T extends BaseIntegrationConfiguration> T fromConnectorInstanceConfigurationSet(
       @NotNull Set<ConnectorInstanceConfiguration> configurations, Class<T> targetClass)

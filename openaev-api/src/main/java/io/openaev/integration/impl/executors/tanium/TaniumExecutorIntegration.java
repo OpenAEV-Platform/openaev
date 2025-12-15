@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 public class TaniumExecutorIntegration extends Integration {
+  public static final String TANIUM_EXECUTOR_DEFAULT_ID = "722ddfb1-6c3b-4b97-91e3-9f606d05892e";
   public static final String TANIUM_EXECUTOR_TYPE = "openaev_tanium";
   public static final String TANIUM_EXECUTOR_NAME = "Tanium";
   private static final String TANIUM_EXECUTOR_DOCUMENTATION_LINK =

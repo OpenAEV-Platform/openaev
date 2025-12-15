@@ -1,5 +1,7 @@
 package io.openaev.executors.sentinelone.config;
 
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_DEFAULT_ID;
+
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
@@ -14,10 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "executor.sentinelone")
 public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
-
   private static final String API_URI = "/web/api/v2.1/";
-
-  @Getter private boolean enable;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_ID",
@@ -28,7 +27,7 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String id;
+  private String id = SENTINELONE_EXECUTOR_DEFAULT_ID;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_URL",

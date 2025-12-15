@@ -30,13 +30,15 @@ public abstract class ConfigurationMigration {
   }
 
   @Transactional
-  public void migrate() {
+  public void migrate() throws Exception {
     Optional<CatalogConnector> connector =
         catalogConnectorService.findByFactoryClassName(factoryClassName);
 
     if (connector.isEmpty()) {
       log.error("Configuration found for {} but no related connector in catalog", factoryClassName);
-      return;
+      throw new IllegalArgumentException(
+          "Configuration found for %s but no related connector in catalog"
+              .formatted(factoryClassName));
     }
 
     Set<ConnectorInstancePersisted> instances = connector.get().getInstances();

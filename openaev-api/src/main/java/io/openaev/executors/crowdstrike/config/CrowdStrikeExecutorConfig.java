@@ -1,5 +1,7 @@
 package io.openaev.executors.crowdstrike.config;
 
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_DEFAULT_ID;
+
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
@@ -14,8 +16,6 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "executor.crowdstrike")
 public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
-  @Getter private boolean enable;
-
   @IntegrationConfigKey(
       key = "EXECUTOR_CROWDSTRIKE_ID",
       description =
@@ -24,7 +24,7 @@ public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
           """)
   @Getter
   @NotBlank
-  private String id;
+  private String id = CROWDSTRIKE_EXECUTOR_DEFAULT_ID;
 
   @IntegrationConfigKey(key = "EXECUTOR_CROWDSTRIKE_API_URL", description = "Crowdstrike API url")
   @Getter

@@ -1,5 +1,7 @@
 package io.openaev.executors.tanium.config;
 
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_DEFAULT_ID;
+
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
@@ -14,10 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "executor.tanium")
 public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
-
   private static final String GATEWAY_URI = "/plugin/products/gateway/graphql";
-
-  @Getter private boolean enable;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_TANIUM_ID",
@@ -27,7 +26,7 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
                   """)
   @Getter
   @NotBlank
-  private String id;
+  private String id = TANIUM_EXECUTOR_DEFAULT_ID;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_TANIUM_API_URL",
