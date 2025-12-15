@@ -88,6 +88,7 @@ public class InjectorContract implements Base {
     return ofNullable(getPayload()).map(payload -> payload.getExecutionArch()).orElse(null);
   }
 
+  @Queryable(filterable = true)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")

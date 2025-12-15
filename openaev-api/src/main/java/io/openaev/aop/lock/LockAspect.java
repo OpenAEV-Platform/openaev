@@ -34,6 +34,7 @@ public class LockAspect {
     // concurrent scenarios
     // (example: user with 10000+ implants triggered by the same inject)
     this.lockStripes.put(LockResourceType.INJECT, Striped.lock(4096));
+    this.lockStripes.put(LockResourceType.SECURITY_COVERAGE, Striped.lock(4096));
 
     log.info("Initialized LockAspect with stripe configurations");
   }

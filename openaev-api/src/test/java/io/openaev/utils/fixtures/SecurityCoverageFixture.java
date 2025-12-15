@@ -1,5 +1,7 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.helper.CryptoHelper.md5Hex;
+
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
@@ -21,6 +23,7 @@ public class SecurityCoverageFixture {
             .formatted(securityCoverage.getExternalId()));
     securityCoverage.setAttackPatternRefs(new HashSet<>());
     securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
+    securityCoverage.setBundleHashMd5(md5Hex(securityCoverage.getContent()));
     return securityCoverage;
   }
 
@@ -44,6 +47,7 @@ public class SecurityCoverageFixture {
     SecurityCoverage securityCoverage = createDefaultSecurityCoverage();
     securityCoverage.setAttackPatternRefs(attackPatternRefs);
     securityCoverage.setVulnerabilitiesRefs(vulnerabilitiesRefs);
+    securityCoverage.setBundleHashMd5(md5Hex(UUID.randomUUID().toString()));
 
     return securityCoverage;
   }
