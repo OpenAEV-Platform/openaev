@@ -179,7 +179,7 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.updateAtomicTestingTags(injectId, input);
   }
 
-  @GetMapping(ATOMIC_TESTING_URI + "/{injectId}/collectors")
+  @GetMapping("/{injectId}/collectors")
   @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   @Operation(summary = "Get the Collectors used in an atomic testing remediation")
   @ApiResponses(
