@@ -14,7 +14,6 @@ import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -75,8 +74,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.ResourceUtils;
 
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@TestInstance(PER_CLASS)
 @ExtendWith(MockitoExtension.class)
 @Transactional
 class InjectApiTest extends IntegrationTest {
@@ -133,19 +130,19 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private InjectTestHelper injectTestHelper;
 
-  @BeforeAll
-  void beforeAll() {
+  @BeforeEach
+  void beforeEach() {
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
-    scenario.setReplyTos(List.of("test@test.com"));
+    scenario.setReplyTos(new ArrayList<>(List.of("test@test.com")));
     SCENARIO = scenarioService.createScenario(scenario);
 
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
     exercise.setStart(Instant.now());
     exercise.setFrom("test@test.com");
-    exercise.setReplyTos(List.of("test@test.com"));
+    exercise.setReplyTos(new ArrayList<>(List.of("test@test.com")));
     exercise.setStatus(RUNNING);
     EXERCISE = exerciseService.createExercise(exercise);
 
@@ -173,15 +170,9 @@ class InjectApiTest extends IntegrationTest {
     EXECUTOR_WRAPPER = executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
   }
 
-  @AfterAll
-  public void cleanup() {
-    EXECUTOR_WRAPPER.delete();
-  }
-
   // BULK DELETE
   @DisplayName("Delete list of injects for scenario")
   @Test
-  @Order(6)
   @WithMockUser(isAdmin = true)
   void deleteInjectsForScenarioTest() throws Exception {
     // -- PREPARE --
@@ -446,7 +437,6 @@ class InjectApiTest extends IntegrationTest {
 
   @DisplayName("Delete list of inject for exercise")
   @Test
-  @Order(8)
   @WithMockUser(isAdmin = true)
   void deleteInjectsForExerciseTest() throws Exception {
     // -- PREPARE --

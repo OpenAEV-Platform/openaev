@@ -12,6 +12,8 @@ import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.integration.local_fixtures.TestIntegrationConfiguration;
 import io.openaev.integration.local_fixtures.TestIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.utils.fixtures.CatalogConnectorFixture;
+import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,11 +28,33 @@ public class ManagerTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
+  @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
   @Test
   @DisplayName(
       "When the Manager is instantiated, configured integration factories create their catalog entry.")
   public void whenInstantiatingManager_factoriesAreInitialised() {
+    // ACT: instantiate the manager
+    // this will trigger factories to register their catalog item where applicable
+    new Manager(List.of(testIntegrationFactory));
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+
+    assertThat(connectors).hasSize(1);
+    assertThat(connectors.getFirst().getClassName())
+        .isEqualTo(TestIntegrationFactory.class.getCanonicalName());
+  }
+
+  @Test
+  @DisplayName(
+      "When the Manager is instantiated and factory catalog entry is already create, configured integration factories DO NOT create their catalog entry.")
+  public void whenInstantiatingManagerAndCatalogEntryExists_factoriesDONOTCreateCatalogEntry() {
+    catalogConnectorComposer
+        .forCatalogConnector(
+            CatalogConnectorFixture.createCatalogConnectorWithClassName(
+                TestIntegrationFactory.class.getCanonicalName()))
+        .persist();
+
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
     new Manager(List.of(testIntegrationFactory));
@@ -119,5 +143,37 @@ public class ManagerTest {
         .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     assertThat(manager.getSpawnedIntegrations().get(refreshedAgainInstance).getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+  }
+
+  @Test
+  @DisplayName("When instance is deleted, manager stops integration and deletes")
+  public void whenInstanceIsDeleted_managerStopsIntegrationAndDeletes() {
+    Manager manager = new Manager(List.of(testIntegrationFactory));
+
+    // START integrations
+    manager.monitorIntegrations();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+    ConnectorInstance singleInstance = instances.getFirst();
+    assertThat(singleInstance.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+    assertThat(singleInstance.getRequestedStatus())
+        .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    assertThat(manager.getSpawnedIntegrations().get(singleInstance).getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+
+    connectorInstanceService.deleteById(singleInstance.getId());
+
+    // REFRESH integrations
+    manager.monitorIntegrations();
+
+    List<ConnectorInstancePersisted> refreshedInstances =
+        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+
+    assertThat(refreshedInstances).isEmpty();
+    assertThat(manager.getSpawnedIntegrations()).isEmpty();
   }
 }

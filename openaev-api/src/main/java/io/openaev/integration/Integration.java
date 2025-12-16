@@ -31,7 +31,7 @@ public abstract class Integration {
 
   protected abstract void innerStart() throws Exception;
 
-  public void start() throws Exception {
+  private void start() throws Exception {
     if (ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
       this.innerStart();
       this.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
@@ -42,7 +42,7 @@ public abstract class Integration {
 
   protected abstract void innerStop();
 
-  public void stop() {
+  private void stop() {
     this.innerStop();
     this.currentStatus = ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped;
   }
