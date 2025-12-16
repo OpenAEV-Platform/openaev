@@ -34,13 +34,13 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
       select.execute(
           """
       ALTER TABLE exercises ADD COLUMN IF NOT EXISTS simulation_workflow VARCHAR(255) NULL;
-      ALTER TABLE exercises ADD CONSTRAINT simulation_workflow_fk FOREIGN KEY (simulation_workflow) REFERENCES workflows(workflow_id) ON DELETE SET NULL;
+      ALTER TABLE exercises ADD CONSTRAINT simulation_workflow_fk FOREIGN KEY (simulation_workflow) REFERENCES workflows(workflow_id) ON DELETE CASCADE;
               """);
 
       select.execute(
           """
       ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS scenario_workflow VARCHAR(255) NULL;
-      ALTER TABLE scenarios ADD CONSTRAINT scenario_workflow_fk FOREIGN KEY (scenario_workflow) REFERENCES workflows(workflow_id) ON DELETE SET NULL;
+      ALTER TABLE scenarios ADD CONSTRAINT scenario_workflow_fk FOREIGN KEY (scenario_workflow) REFERENCES workflows(workflow_id) ON DELETE CASCADE;
               """);
 
       select.execute(
@@ -86,14 +86,18 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             condition_key VARCHAR(255),
             condition_value VARCHAR(255),
             condition_type condition_type NOT NULL,
-            condition_step VARCHAR(255) NOT NULL REFERENCES conditions(condition_id) ON DELETE CASCADE,
-            condition_ancestor_step VARCHAR(255) NOT NULL REFERENCES conditions(condition_id) ON DELETE CASCADE,
             condition_parent_id VARCHAR(255) REFERENCES conditions(condition_id) ON DELETE CASCADE,
             condition_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             condition_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             UNIQUE ( condition_key, condition_value, condition_type)
           );
         """);
+      select.execute(
+          """
+
+      ALTER TABLE steps ADD COLUMN IF NOT EXISTS step_condition VARCHAR(255);
+      ALTER TABLE steps ADD CONSTRAINT step_condifiton_fk FOREIGN KEY (step_condition) REFERENCES conditions(conditions_id) ON DELETE CASCADE;
+      """);
     }
   }
 }
