@@ -1495,7 +1495,7 @@ class InjectApiTest extends IntegrationTest {
       assertEquals(1, rootNode.size(), "There should be exactly 1 collector");
 
       JsonNode collectorNode = rootNode.get(0);
-      assertEquals("SENTINEL", collectorNode.get("collectorType").asText());
+      assertEquals("SENTINEL", collectorNode.get("collector_name").asText());
     }
   }
 }
