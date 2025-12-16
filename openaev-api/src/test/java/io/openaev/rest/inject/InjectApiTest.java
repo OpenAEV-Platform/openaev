@@ -1449,6 +1449,12 @@ class InjectApiTest extends IntegrationTest {
     void shouldReturnListCollectorRelatedToDetectionRemediationsWhenInjectIdIsGiven()
         throws Exception {
       // PREPARE
+      Collector collector =
+          collectorComposer
+              .forCollector(CollectorFixture.createDefaultCollector("SENTINEL"))
+              .persist()
+              .get();
+
       Inject inject =
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -1463,10 +1469,7 @@ class InjectApiTest extends IntegrationTest {
                                       .forDetectionRemediation(
                                           DetectionRemediationFixture
                                               .createDefaultDetectionRemediation())
-                                      .withCollector(
-                                          collectorComposer.forCollector(
-                                              CollectorFixture.createDefaultCollector(
-                                                  "SENTINEL"))))))
+                                      .withCollector(collectorComposer.forCollector(collector)))))
               .persist()
               .get();
 
