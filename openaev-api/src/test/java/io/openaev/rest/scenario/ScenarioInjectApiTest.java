@@ -125,12 +125,12 @@ class ScenarioInjectApiTest extends IntegrationTest {
     assertNotNull(response);
     SCENARIO_INJECT_ID = JsonPath.read(response, "$.inject_id");
     response =
-        mvc.perform(get(SCENARIO_URI + "/" + SCENARIO.getId()).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(get(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$.scenario_injects[0]"));
+    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$[0].inject_id"));
   }
 
   @DisplayName("Retrieve injects for scenario")
