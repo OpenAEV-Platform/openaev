@@ -10,7 +10,7 @@ import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../ut
 import { isAgent, isAssetGroups } from '../../../../../utils/target/TargetUtils';
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
-import TerminalView from '../../../common/injects/status/traces/TerminalView';
+import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import TabbedView, { type TabConfig } from '../../../settings/groups/grants/ui/TabbedView';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationCard from './InjectExpectationCard';
@@ -132,13 +132,11 @@ const TargetResultsDetail = ({ inject, target }: Props) => {
         />
       ),
     });
-  }
-  if (isAgent(target)) {
     tabs.push({
       key: 'terminal-view',
       label: t('Terminal view'),
       component: (
-        <TerminalView injectId={inject.inject_id} target={target} />
+        <TerminalViewTab injectId={inject.inject_id} target={target} forceExpanded={isAgent(target)} />
       ),
     });
   }
