@@ -10,6 +10,7 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -97,6 +98,19 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Iterable<ExecutorOutput> executorsOutput(boolean isIncludeNext) {
     return getConnectorsOutput(isIncludeNext);
+  }
+
+  /**
+   * Find an executor by its id
+   *
+   * @param id the executor id to search for
+   * @return the executor matching the given id
+   * @throws ElementNotFoundException if no collector is found with the given type
+   */
+  public Executor executor(String id) throws ElementNotFoundException {
+    return executorRepository
+        .findById(id)
+        .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
   /**

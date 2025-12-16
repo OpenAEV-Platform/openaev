@@ -110,18 +110,18 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void throwIfConnectorInstanceAlreadyExist(String catalogId) {
+  private void throwIfConnectorInstanceAlreadyExist(String catalogId) throws BadRequestException {
     List<ConnectorInstance> existingInstances =
         connectorInstanceService.findAllByCatalogConnectorId(catalogId);
     if (!existingInstances.isEmpty()) {
-      throw new IllegalArgumentException(
+      throw new BadRequestException(
           "ConnectorInstance with CatalogConnector id " + catalogId + " already exists");
     }
   }
 
   private void throwIfConnectorAlreadyExist(
       String catalogConnectorSlug, CatalogConnector.CONNECTOR_TYPE catalogConnectorType)
-      throws IllegalArgumentException {
+      throws BadRequestException {
     BaseConnectorEntity connector;
     if (CatalogConnector.CONNECTOR_TYPE.COLLECTOR.equals(catalogConnectorType)) {
       connector =
@@ -132,7 +132,7 @@ public class ConnectorOrchestrationService {
       connector = executorService.executorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
     }
     if (connector != null) {
-      throw new IllegalArgumentException(
+      throw new BadRequestException(
           "Connector with slug " + catalogConnectorSlug + " already exists");
     }
   }
@@ -141,7 +141,7 @@ public class ConnectorOrchestrationService {
       String catalogConnectorId,
       String catalogConnectorSlug,
       CatalogConnector.CONNECTOR_TYPE catalogConnectorType)
-      throws IllegalArgumentException {
+      throws BadRequestException {
     throwIfConnectorInstanceAlreadyExist(catalogConnectorId);
     throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
   }
@@ -221,11 +221,13 @@ public class ConnectorOrchestrationService {
    * @param connectorInstanceId the unique identifier of the connector instance to update
    * @param input the health check input data containing the new health status and related
    *     information
-   * @return the updated ConnectorInstance
+   * @return the updated ConnectorInstance formatted for XTM Composer
    */
-  public ConnectorInstance patchConnectorInstanceHealthCheck(
+  public XtmComposerInstanceOutput patchConnectorInstanceHealthCheck(
       String xtmComposerId, String connectorInstanceId, ConnectorInstanceHealthInput input) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
-    return connectorInstanceService.patchConnectorInstanceHealthCheck(connectorInstanceId, input);
+    ConnectorInstance instances =
+        connectorInstanceService.patchConnectorInstanceHealthCheck(connectorInstanceId, input);
+    return xtmComposerService.toXtmComposerInstanceOutput(instances);
   }
 }

@@ -7,10 +7,7 @@ import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
-import io.openaev.database.model.Action;
-import io.openaev.database.model.Executor;
-import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.Token;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.executors.ExecutorService;
@@ -108,6 +105,15 @@ public class ExecutorApi extends RestBehavior {
           @RequestParam(value = "include_next", required = false, defaultValue = "false")
           boolean includeNext) {
     return executorService.executorsOutput(includeNext);
+  }
+
+  @GetMapping(EXECUTOR_URI + "/{executorId}")
+  @RBAC(
+      resourceId = "#collectorId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  public Executor getExecutor(@PathVariable String executorId) {
+    return executorService.executor(executorId);
   }
 
   @GetMapping(EXECUTOR_URI + "/{executorId}/related-ids")

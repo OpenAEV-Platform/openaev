@@ -6,7 +6,6 @@ import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -124,7 +123,7 @@ public class XtmComposerApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successful health check reception")
       })
-  public ConnectorInstance receiveConnectorInstanceHealthCheck(
+  public XtmComposerInstanceOutput receiveConnectorInstanceHealthCheck(
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceHealthInput input) {
