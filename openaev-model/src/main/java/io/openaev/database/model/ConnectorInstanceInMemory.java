@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import java.util.Set;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,5 +14,8 @@ public class ConnectorInstanceInMemory extends ConnectorInstance {
 
   private Set<ConnectorInstanceConfiguration> configurations;
 
+  @Setter(AccessLevel.NONE)
   private String className;
+
+  private String id;
 }

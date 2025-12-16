@@ -94,9 +94,4 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
     }
     return "";
   }
-
-  @Override
-  public void setClassName(String newClassName) {
-    // noop
-  }
 }

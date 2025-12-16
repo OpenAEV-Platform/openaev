@@ -88,6 +88,7 @@ class InjectApiTest extends IntegrationTest {
   static Team TEAM;
   static Agent AGENT;
   static Set<Domain> DOMAINS;
+  static ExecutorComposer.Composer EXECUTOR_WRAPPER;
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
   @Autowired private ApplicationContext applicationContext;
@@ -107,6 +108,8 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private ExecutorComposer executorComposer;
+  @Autowired private ExecutorFixture executorFixture;
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private AgentRepository agentRepository;
@@ -166,6 +169,13 @@ class InjectApiTest extends IntegrationTest {
     AGENT = agentRepository.save(agent);
 
     DOMAINS = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+
+    EXECUTOR_WRAPPER = executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+  }
+
+  @AfterAll
+  public void cleanup() {
+    EXECUTOR_WRAPPER.delete();
   }
 
   // BULK DELETE

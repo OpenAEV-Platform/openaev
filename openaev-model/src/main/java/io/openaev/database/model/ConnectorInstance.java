@@ -1,11 +1,13 @@
 package io.openaev.database.model;
 
 import java.util.Set;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public abstract class ConnectorInstance {
   public enum CURRENT_STATUS_TYPE {
     started,
@@ -23,6 +25,9 @@ public abstract class ConnectorInstance {
     OTHER
   }
 
+  @EqualsAndHashCode.Include
+  public abstract String getId();
+
   public abstract CURRENT_STATUS_TYPE getCurrentStatus();
 
   public abstract void setCurrentStatus(CURRENT_STATUS_TYPE newStatus);
@@ -36,6 +41,4 @@ public abstract class ConnectorInstance {
   public abstract void setConfigurations(Set<ConnectorInstanceConfiguration> newConfigurations);
 
   public abstract String getClassName();
-
-  public abstract void setClassName(String newClassName);
 }

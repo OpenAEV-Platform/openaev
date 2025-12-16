@@ -50,13 +50,14 @@ public class ConnectorInstanceService {
     if (instance instanceof ConnectorInstancePersisted) {
       return connectorInstanceRepository
           .findById(((ConnectorInstancePersisted) instance).getId())
-          .get();
+          .orElse(null);
     }
     return instance;
   }
 
-  public ConnectorInstance createAutostartInstance() {
+  public ConnectorInstance createAutostartInstance(String id) {
     ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
+    instance.setId(id);
     instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
     return instance;

@@ -21,18 +21,18 @@ public abstract class IntegrationFactory {
   protected abstract String getClassName();
 
   @Transactional
-  public List<Integration> initialise() throws Exception {
+  public void initialise() throws Exception {
     String className = this.getClass().getCanonicalName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
       insertCatalogEntry();
     }
 
     runMigrations();
+  }
 
-    return connectorInstanceService.connectorInstances().stream()
-        .filter(
-            ci ->
-                this.getClass().getCanonicalName().equals(ci.getCatalogConnector().getClassName()))
+  @Transactional
+  public List<Integration> sync(List<ConnectorInstance> instances) {
+    return instances.stream()
         .map(
             instance -> {
               try {
@@ -43,6 +43,14 @@ public abstract class IntegrationFactory {
                 throw new RuntimeException(e);
               }
             })
+        .toList();
+  }
+
+  @Transactional
+  public List<ConnectorInstance> findRelatedInstances() {
+    return connectorInstanceService.connectorInstances().stream()
+        .filter(ci -> this.getClass().getCanonicalName().equals(ci.getClassName()))
+        .map(ci -> (ConnectorInstance) ci)
         .toList();
   }
 

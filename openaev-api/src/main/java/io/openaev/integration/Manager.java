@@ -2,30 +2,22 @@ package io.openaev.integration;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ScheduledFuture;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public class Manager implements Runnable {
   private final List<IntegrationFactory> factories;
-  private final ScheduledFuture<?> refreshInstancesTimer;
 
   @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-  public Manager(List<IntegrationFactory> factories, ThreadPoolTaskScheduler taskScheduler) {
+  public Manager(List<IntegrationFactory> factories) {
     this.factories = factories;
 
     initialise();
-
-    this.refreshInstancesTimer = taskScheduler.scheduleAtFixedRate(this, Duration.ofSeconds(15));
   }
 
   /**
@@ -33,18 +25,14 @@ public class Manager implements Runnable {
    * Populates the initial collection of known (active, stopped) instances in the manager memory.
    */
   private void initialise() {
-    spawnedIntegrations.putAll(
-        factories.stream()
-            .flatMap(
-                factory -> {
-                  try {
-                    return factory.initialise().stream();
-                  } catch (Exception e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .map(integration -> Map.entry(integration.getConnectorInstance(), integration))
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    factories.forEach(
+        factory -> {
+          try {
+            factory.initialise();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   private IntegrationFactory getFactory(String factoryClass) throws ClassNotFoundException {
@@ -105,11 +93,36 @@ public class Manager implements Runnable {
   }
 
   @Override
+  @Transactional
   public void run() {
-    spawnedIntegrations.forEach(
-        (connectorInstance, integration) -> {
+    Map<ConnectorInstance, Integration> newIntegrationsMap =
+        factories.stream()
+            .flatMap(
+                factory -> {
+                  try {
+                    List<ConnectorInstance> newInstances =
+                        factory.findRelatedInstances().stream()
+                            .filter(ci -> !spawnedIntegrations.containsKey(ci))
+                            .toList();
+                    return factory.sync(newInstances).stream();
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .map(integration -> Map.entry(integration.getConnectorInstance(), integration))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    spawnedIntegrations.putAll(newIntegrationsMap);
+
+    Set<Map.Entry<ConnectorInstance, Integration>> iterator =
+        new HashSet<>(spawnedIntegrations.entrySet());
+    iterator.forEach(
+        entry -> {
           try {
-            integration.initialise();
+            entry.getValue().initialise();
+            if (entry.getValue().getConnectorInstance() == null) {
+              spawnedIntegrations.remove(entry.getKey());
+            }
           } catch (Exception e) {
             throw new RuntimeException(e);
           }

@@ -49,16 +49,15 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public List<Integration> initialise() {
-    // specifically don't register a catalog object
-    // create an in-memory connector instance
-    Integration integration = this.spawn(connectorInstanceService.createAutostartInstance());
-    try {
-      integration.initialise();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-    return List.of(integration);
+  public void initialise() {
+    // noop
+  }
+
+  @Override
+  public List<ConnectorInstance> findRelatedInstances() {
+    return List.of(
+        connectorInstanceService.createAutostartInstance(
+            OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID));
   }
 
   @Override

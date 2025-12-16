@@ -17,6 +17,6 @@ public class ManagerTest {
 
   @Test
   public void test() {
-    Manager mgr = new Manager(List.of(testIntegrationFactory), taskScheduler);
+    Manager mgr = new Manager(List.of(testIntegrationFactory));
   }
 }

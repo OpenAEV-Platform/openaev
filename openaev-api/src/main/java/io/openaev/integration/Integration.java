@@ -47,10 +47,16 @@ public abstract class Integration {
     this.currentStatus = ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped;
   }
 
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional
   public void initialise() throws Exception {
     try {
       this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance);
+      if (connectorInstance == null) {
+        // the instance cannot be found again in the DB
+        // exit early to finally block
+        this.stop();
+        return;
+      }
       // only try to start stopped instances
       if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting.equals(
               this.connectorInstance.getRequestedStatus())
@@ -64,8 +70,10 @@ public abstract class Integration {
         this.stop();
       }
     } finally {
-      // save instance if applicable (e.g. state has changed)
-      if (!this.currentStatus.equals(this.connectorInstance.getCurrentStatus())) {
+      // always save instance if applicable (e.g. state has changed)
+      // even if something went wrong when starting the integration
+      if (this.connectorInstance != null
+          && !this.currentStatus.equals(this.connectorInstance.getCurrentStatus())) {
         this.connectorInstance.setCurrentStatus(this.currentStatus);
         this.connectorInstanceService.save(connectorInstance);
       }
