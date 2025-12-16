@@ -137,15 +137,6 @@ public class ScenarioApi extends RestBehavior {
     return scenarioService.getScenarioById(scenarioId);
   }
 
-  @GetMapping(SCENARIO_URI + "2/{scenarioId}")
-  @RBAC(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public Scenario scenario2(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.scenario(scenarioId);
-  }
-
   @GetMapping(SCENARIO_URI + "/{scenarioId}/healthchecks")
   @RBAC(
       resourceId = "#scenarioId",
