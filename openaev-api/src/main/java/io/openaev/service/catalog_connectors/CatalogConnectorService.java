@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class CatalogConnectorService {
+  private final String EXCLUDED_CONFIG_KEY = "OPENAEV_TOKEN";
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final CatalogConnectorMapper catalogConnectorMapper;
   private final ConnectorInstanceService connectorInstanceService;
@@ -98,15 +99,12 @@ public class CatalogConnectorService {
    */
   public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
       String catalogConnectorId) {
-
-    Set<String> EXCLUDED_CONFIG_KEYS = Set.of("OPENAEV_TOKEN");
-
     return catalogConnectorRepository
         .findById(catalogConnectorId)
         .map(CatalogConnector::getCatalogConnectorConfigurations)
         .orElse(Collections.emptySet())
         .stream()
-        .filter(config -> !EXCLUDED_CONFIG_KEYS.contains(config.getConnectorConfigurationKey()))
+        .filter(config -> !EXCLUDED_CONFIG_KEY.equals(config.getConnectorConfigurationKey()))
         .collect(
             Collectors.toCollection(
                 () ->

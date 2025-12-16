@@ -28,7 +28,6 @@ public class InjectorOutput {
   @JsonProperty("injector_external")
   private boolean external = false;
 
-  // TODO check need category, customContracts, executorCommands, executorClearCommands, payloads...
   @JsonProperty("catalog")
   private CatalogConnectorSimpleOutput catalog;
 

@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class ConnectorOrchestrationService {
+  private final String openAEVPrefix = "openaev_";
 
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
@@ -124,11 +125,11 @@ public class ConnectorOrchestrationService {
     BaseConnectorEntity connector;
     if (CatalogConnector.CONNECTOR_TYPE.COLLECTOR.equals(catalogConnectorType)) {
       connector =
-          collectorService.findCollectorByType("openaev_" + catalogConnectorSlug).orElse(null);
+          collectorService.findCollectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
     } else if (CatalogConnector.CONNECTOR_TYPE.INJECTOR.equals(catalogConnectorType)) {
-      connector = injectorService.injectorByType("openaev_" + catalogConnectorSlug).orElse(null);
+      connector = injectorService.injectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
     } else {
-      connector = executorService.executorByType("openaev_" + catalogConnectorSlug).orElse(null);
+      connector = executorService.executorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
     }
     if (connector != null) {
       throw new IllegalArgumentException(
