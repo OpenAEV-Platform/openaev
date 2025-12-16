@@ -29,6 +29,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.dto.KillChainPhaseDTO;
 import io.openaev.dto.ScenarioDTO;
+import io.openaev.dto.ScenarioTeamUserDTO;
 import io.openaev.ee.Ee;
 import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -342,7 +343,7 @@ public class ScenarioService {
         log.error("Error reading killChainPhases from scenario id {}", scenarioId, e);
       }
     }
-    Set<ScenarioTeamUser> scenarioTeamUsers = new HashSet<>();
+    Set<ScenarioTeamUserDTO> scenarioTeamUsers = new HashSet<>();
     if (rawScenarioQuery.getScenario_teams_users() != null) {
       try {
         scenarioTeamUsers =

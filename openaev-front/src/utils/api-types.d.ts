@@ -5415,7 +5415,7 @@ export interface ScenarioDTO {
   /** @uniqueItems true */
   scenario_tags?: string[];
   /** @uniqueItems true */
-  scenario_teams_users?: ScenarioTeamUser[];
+  scenario_teams_users?: ScenarioTeamUserDTO[];
   /** @format date-time */
   scenario_updated_at?: string;
   /** @format int64 */
@@ -5464,6 +5464,12 @@ export interface ScenarioTeamPlayersEnableInput {
 }
 
 export interface ScenarioTeamUser {
+  scenario_id?: string;
+  team_id?: string;
+  user_id?: string;
+}
+
+export interface ScenarioTeamUserDTO {
   scenario_id?: string;
   team_id?: string;
   user_id?: string;

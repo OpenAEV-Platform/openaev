@@ -4,6 +4,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawScenarioQuery;
 import io.openaev.dto.KillChainPhaseDTO;
 import io.openaev.dto.ScenarioDTO;
+import io.openaev.dto.ScenarioTeamUserDTO;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import jakarta.validation.constraints.NotNull;
@@ -30,7 +31,7 @@ public class ScenarioMapper {
   public ScenarioDTO toScenarioDTO(
       RawScenarioQuery rawScenarioQuery,
       Set<KillChainPhaseDTO> killChainPhases,
-      Set<ScenarioTeamUser> scenarioTeamUsers) {
+      Set<ScenarioTeamUserDTO> scenarioTeamUsers) {
     ScenarioDTO scenario = new ScenarioDTO();
     scenario.setId(rawScenarioQuery.getScenario_id());
     scenario.setName(rawScenarioQuery.getScenario_name());

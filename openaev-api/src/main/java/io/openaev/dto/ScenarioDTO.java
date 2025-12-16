@@ -62,7 +62,7 @@ public class ScenarioDTO {
   private String customDashboard;
 
   @JsonProperty("scenario_teams_users")
-  private Set<ScenarioTeamUser> teamUsers;
+  private Set<ScenarioTeamUserDTO> teamUsers;
 
   @JsonProperty("scenario_tags")
   private Set<String> tags;
