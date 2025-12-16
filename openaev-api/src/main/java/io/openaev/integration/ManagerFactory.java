@@ -1,20 +1,21 @@
 package io.openaev.integration;
 
 import java.util.List;
-import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 @Transactional
 public class ManagerFactory {
-  @Getter private final Manager manager;
+  private final List<IntegrationFactory> factories;
+  private Manager manager = null;
 
-  public ManagerFactory(List<IntegrationFactory> factories) {
-    manager = spawnIntegrationsManager(factories);
-  }
-
-  private Manager spawnIntegrationsManager(List<IntegrationFactory> factories) {
-    return new Manager(factories);
+  public Manager getManager() {
+    if (this.manager == null) {
+      this.manager = new Manager(factories);
+    }
+    return this.manager;
   }
 }

@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
-public class Manager implements Runnable {
+public class Manager {
   private final List<IntegrationFactory> factories;
 
   @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
@@ -35,41 +35,18 @@ public class Manager implements Runnable {
         });
   }
 
-  private IntegrationFactory getFactory(String factoryClass) throws ClassNotFoundException {
-    Class<?> clazz = Class.forName(factoryClass);
-    return factories.stream()
-        .filter(factory -> factory.getClass().equals(clazz))
-        .findFirst()
-        .orElseThrow();
-  }
-
-  public void activateInstance(ConnectorInstance instance) throws Exception {
-    Optional<Integration> foundIntegration = Optional.ofNullable(spawnedIntegrations.get(instance));
-    if (foundIntegration.isEmpty()) {
-      IntegrationFactory factory = getFactory(instance.getClassName());
-      Integration integration = factory.spawn(instance);
-      integration.initialise();
-      spawnedIntegrations.put(integration.getConnectorInstance(), integration);
-    } else {
-      foundIntegration.get().start();
-    }
-  }
-
-  public void pauseInstance(ConnectorInstance instance) {
-    Optional<Integration> foundIntegration = Optional.ofNullable(spawnedIntegrations.get(instance));
-    if (foundIntegration.isEmpty()) {
-      log.warn(
-          "Requesting pausing instance {} but an related integration was not found.", instance);
-      return;
-    }
-    foundIntegration.get().stop();
-  }
-
-  public void destroyInstance(ConnectorInstance instance) {
-    this.pauseInstance(instance);
-    spawnedIntegrations.remove(instance);
-  }
-
+  /**
+   * Returns a qualified component of the requested type matching the request, found within one of
+   * the spawned integrations managed by this Manager instance
+   *
+   * @param request a request object with the desired matching criteria
+   * @param requestedType a Java class representing the desired type
+   * @return an instance of an object of the requested type, if found. If more than one instance
+   *     matches the request, the first occurrence is returned with no guarantee on order.
+   * @param <T> the desired type of the returned object
+   * @exception UnsupportedOperationException if no component matching the request or the requested
+   *     type is found
+   */
   public <T> T request(ComponentRequest request, Class<T> requestedType) {
     List<T> candidates =
         spawnedIntegrations.entrySet().stream()
@@ -92,9 +69,8 @@ public class Manager implements Runnable {
     return candidates.getFirst();
   }
 
-  @Override
   @Transactional
-  public void run() {
+  public void monitorIntegrations() {
     Map<ConnectorInstance, Integration> newIntegrationsMap =
         factories.stream()
             .flatMap(
