@@ -16,18 +16,19 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawExerciseSimple;
-import io.openaev.database.raw.RawFrontScenario;
-import io.openaev.database.raw.RawPaginationScenario;
-import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
+import io.openaev.dto.KillChainPhaseDTO;
+import io.openaev.dto.ScenarioDTO;
 import io.openaev.ee.Ee;
 import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -328,9 +329,30 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
-  public RawFrontScenario getScenarioById(@NotBlank final String scenarioId) {
-      // TODO return Scenario from raw ?
-      return this.scenarioRepository.getScenarioById(scenarioId);
+  public ScenarioDTO getScenarioById(@NotBlank final String scenarioId) {
+    ObjectMapper objectMapper = new ObjectMapper();
+    RawScenarioQuery rawScenarioQuery = this.scenarioRepository.getScenarioById(scenarioId);
+    Set<KillChainPhaseDTO> killChainPhases = new HashSet<>();
+    if (rawScenarioQuery.getScenario_kill_chain_phases() != null) {
+      try {
+        killChainPhases =
+            objectMapper.readValue(
+                rawScenarioQuery.getScenario_kill_chain_phases(), new TypeReference<>() {});
+      } catch (JsonProcessingException e) {
+        log.error("Error reading killChainPhases from scenario id {}", scenarioId, e);
+      }
+    }
+    Set<ScenarioTeamUser> scenarioTeamUsers = new HashSet<>();
+    if (rawScenarioQuery.getScenario_teams_users() != null) {
+      try {
+        scenarioTeamUsers =
+            objectMapper.readValue(
+                rawScenarioQuery.getScenario_teams_users(), new TypeReference<>() {});
+      } catch (JsonProcessingException e) {
+        log.error("Error reading scenarioTeamUsers from scenario id {}", scenarioId, e);
+      }
+    }
+    return scenarioMapper.toScenarioDTO(rawScenarioQuery, killChainPhases, scenarioTeamUsers);
   }
 
   public Scenario scenarioFromSimulationId(@NotBlank final String simulationId) {

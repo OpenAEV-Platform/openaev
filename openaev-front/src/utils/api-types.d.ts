@@ -3420,6 +3420,20 @@ export interface KillChainPhaseCreateInput {
   phase_stix_id?: string;
 }
 
+export interface KillChainPhaseDTO {
+  phase_created_at?: string;
+  phase_description?: string;
+  phase_external_id?: string;
+  phase_id?: string;
+  phase_kill_chain_name?: string;
+  phase_name?: string;
+  /** @format int64 */
+  phase_order?: number;
+  phase_shortname?: string;
+  phase_stix_id?: string;
+  phase_updated_at?: string;
+}
+
 export interface KillChainPhaseObject {
   id: string;
   name?: string;
@@ -5365,6 +5379,47 @@ export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
   scenario_information?: PublicScenario;
+}
+
+export interface ScenarioDTO {
+  lessonsAnonymized?: boolean;
+  /** @format int64 */
+  scenario_all_users_number?: number;
+  scenario_category?: string;
+  /** @format date-time */
+  scenario_created_at?: string;
+  scenario_custom_dashboard?: string;
+  /** @uniqueItems true */
+  scenario_dependencies?: string[];
+  scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_exercises?: string[];
+  scenario_external_url?: string;
+  scenario_id?: string;
+  /** @uniqueItems true */
+  scenario_kill_chain_phases?: KillChainPhaseDTO[];
+  scenario_mail_from?: string;
+  scenario_main_focus?: string;
+  scenario_message_footer?: string;
+  scenario_message_header?: string;
+  scenario_name?: string;
+  /** @uniqueItems true */
+  scenario_platforms?: string[];
+  scenario_recurrence?: string;
+  /** @format date-time */
+  scenario_recurrence_end?: string;
+  /** @format date-time */
+  scenario_recurrence_start?: string;
+  scenario_severity?: string;
+  scenario_subtitle?: string;
+  /** @uniqueItems true */
+  scenario_tags?: string[];
+  /** @uniqueItems true */
+  scenario_teams_users?: ScenarioTeamUser[];
+  /** @format date-time */
+  scenario_updated_at?: string;
+  /** @format int64 */
+  scenario_users_number?: number;
 }
 
 export interface ScenarioInput {

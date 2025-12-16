@@ -1,11 +1,11 @@
 package io.openaev.utils.mapper;
 
-import io.openaev.database.model.Article;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.Scenario;
+import io.openaev.database.model.*;
+import io.openaev.database.raw.RawScenarioQuery;
+import io.openaev.dto.KillChainPhaseDTO;
+import io.openaev.dto.ScenarioDTO;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
-import io.openaev.rest.scenario.response.ScenarioOutput;
 import jakarta.validation.constraints.NotNull;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,45 +27,38 @@ public class ScenarioMapper {
     return articles.stream().map(article -> toScenarioArticle(article)).collect(Collectors.toSet());
   }
 
-  public ScenarioOutput toScenarioOutput(Scenario scenario) {
-    ScenarioOutput scenarioOutput = new ScenarioOutput();
-    scenarioOutput.setId(scenario.getId());
-    scenarioOutput.setName(scenario.getName());
-    scenarioOutput.setDescription(scenario.getDescription());
-    scenarioOutput.setSubtitle(scenario.getSubtitle());
-    scenarioOutput.setCategory(scenario.getCategory());
-    scenarioOutput.setMainFocus(scenario.getMainFocus());
-    scenarioOutput.setSeverity(scenario.getSeverity());
-    scenarioOutput.setExternalReference(scenario.getExternalReference());
-    scenarioOutput.setExternalUrl(scenario.getExternalUrl());
-    scenarioOutput.setRecurrence(scenario.getRecurrence());
-    scenarioOutput.setRecurrenceStart(scenario.getRecurrenceStart());
-    scenarioOutput.setRecurrenceEnd(scenario.getRecurrenceEnd());
-    scenarioOutput.setHeader(scenario.getHeader());
-    scenarioOutput.setFooter(scenario.getFooter());
-    scenarioOutput.setFrom(scenario.getFrom());
-    scenarioOutput.setReplyTos(scenario.getReplyTos());
-    scenarioOutput.setCreatedAt(scenario.getCreatedAt());
-    scenarioOutput.setUpdatedAt(scenario.getUpdatedAt());
-    scenarioOutput.setCustomDashboard(scenario.getCustomDashboard());
-    scenarioOutput.setTeams(scenario.getTeams());
-    scenarioOutput.setTeamUsers(scenario.getTeamUsers());
-    scenarioOutput.setTags(scenario.getTags());
-    scenarioOutput.setDocuments(scenario.getDocuments());
-    scenarioOutput.setArticles(scenario.getArticles());
-    scenarioOutput.setLessonsCategories(scenario.getLessonsCategories());
-    scenarioOutput.setExercises(scenario.getExercises());
-    scenarioOutput.setLessonsAnonymized(scenario.isLessonsAnonymized());
-    scenarioOutput.setPlanners(scenario.getPlanners());
-    scenarioOutput.setObservers(scenario.getObservers());
-    scenarioOutput.setInjectStatistics(scenario.getInjectStatistics());
-    scenarioOutput.setUsersAllNumber(scenario.usersAllNumber());
-    scenarioOutput.setUsersNumber(scenario.usersNumber());
-    scenarioOutput.setUsers(scenario.getUsers());
-    scenarioOutput.setCommunicationsNumber(scenario.getCommunicationsNumber());
-    scenarioOutput.setPlatforms(scenario.getPlatforms());
-    scenarioOutput.setKillChainPhases(scenario.getKillChainPhases());
-    return scenarioOutput;
+  public ScenarioDTO toScenarioDTO(
+      RawScenarioQuery rawScenarioQuery,
+      Set<KillChainPhaseDTO> killChainPhases,
+      Set<ScenarioTeamUser> scenarioTeamUsers) {
+    ScenarioDTO scenario = new ScenarioDTO();
+    scenario.setId(rawScenarioQuery.getScenario_id());
+    scenario.setName(rawScenarioQuery.getScenario_name());
+    scenario.setCategory(rawScenarioQuery.getScenario_category());
+    scenario.setCreatedAt(rawScenarioQuery.getScenario_created_at());
+    scenario.setUpdatedAt(rawScenarioQuery.getScenario_updated_at());
+    scenario.setCustomDashboard(rawScenarioQuery.getScenario_custom_dashboard());
+    scenario.setDescription(rawScenarioQuery.getScenario_description());
+    scenario.setExternalUrl(rawScenarioQuery.getScenario_external_url());
+    scenario.setLessonsAnonymized(rawScenarioQuery.getScenario_lessons_anonymized());
+    scenario.setFrom(rawScenarioQuery.getScenario_mail_from());
+    scenario.setMainFocus(rawScenarioQuery.getScenario_main_focus());
+    scenario.setFooter(rawScenarioQuery.getScenario_message_footer());
+    scenario.setHeader(rawScenarioQuery.getScenario_message_header());
+    scenario.setRecurrence(rawScenarioQuery.getScenario_recurrence());
+    scenario.setRecurrenceStart(rawScenarioQuery.getScenario_recurrence_start());
+    scenario.setRecurrenceEnd(rawScenarioQuery.getScenario_recurrence_end());
+    scenario.setSubtitle(rawScenarioQuery.getScenario_subtitle());
+    scenario.setDependencies(rawScenarioQuery.getScenario_dependencies());
+    scenario.setSeverity(rawScenarioQuery.getScenario_severity());
+    scenario.setExercises(rawScenarioQuery.getScenario_exercises());
+    scenario.setKillChainPhases(killChainPhases);
+    scenario.setPlatforms(rawScenarioQuery.getScenario_platforms());
+    scenario.setTags(rawScenarioQuery.getScenario_tags());
+    scenario.setTeamUsers(scenarioTeamUsers);
+    scenario.setScenarioUsersNumber(rawScenarioQuery.getScenario_users_number());
+    scenario.setScenarioAllUsersNumber(rawScenarioQuery.getScenario_all_users_number());
+    return scenario;
   }
 
   private static RelatedEntityOutput toScenarioArticle(Article article) {
