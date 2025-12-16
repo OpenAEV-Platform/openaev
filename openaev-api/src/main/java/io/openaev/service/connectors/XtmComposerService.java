@@ -174,8 +174,8 @@ public class XtmComposerService {
   public boolean isLastConnectivityCheckTooOld(String lastConnectivityCheckValue) {
     try {
       Instant lastCheck = Instant.parse(lastConnectivityCheckValue);
-      Instant oneDayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
-      return lastCheck.isBefore(oneDayAgo);
+      Instant twoHoursAgo = Instant.now().minus(2, ChronoUnit.HOURS);
+      return lastCheck.isBefore(twoHoursAgo);
     } catch (Exception e) {
       log.error("Error parsing last connectivity check value: {}", e.getMessage());
       return false;
