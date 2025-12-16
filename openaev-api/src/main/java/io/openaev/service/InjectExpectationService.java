@@ -512,6 +512,14 @@ public class InjectExpectationService {
         .toList();
   }
 
+  public List<InjectExpectation> manualExpectationsNotFill() {
+    return this.injectExpectationRepository
+        .findAll(Specification.where(InjectExpectationSpecification.type(MANUAL)))
+        .stream()
+        .filter(e -> hasNoResults(e.getResults()))
+        .toList();
+  }
+
   public List<InjectExpectation> manualExpectationsNotFillAndNotExpired(
       @NotNull Integer expirationTime) {
     return expectationsNotFilledAndNotExpired(MANUAL, expirationTime);

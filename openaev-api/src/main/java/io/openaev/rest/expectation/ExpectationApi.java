@@ -54,6 +54,15 @@ public class ExpectationApi extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+    if (expirationTime == null) {
+      return Stream.of(
+              injectExpectationService.manualExpectationsNotFill(),
+              injectExpectationService.preventionExpectationsNotFill(),
+              injectExpectationService.detectionExpectationsNotFill())
+          .flatMap(List::stream)
+          .toList();
+    }
+
     return Stream.of(
             injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
             injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
@@ -87,6 +96,12 @@ public class ExpectationApi extends RestBehavior {
   public List<InjectExpectation> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
       @PathVariable String sourceId,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+    if (expirationTime == null) {
+      return Stream.concat(
+              injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
+              injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
+          .toList();
+    }
     return Stream.concat(
             injectExpectationService
                 .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
