@@ -127,7 +127,7 @@
     "node": ">= 22.11.0"
   },
   "scripts": {
-    "auto-translation:all": "node scripts/auto-translate.js && node scripts/sort-translation-files.js",
+    "auto-translation:all": "npm run generate-i18n-checker-constant && node scripts/auto-translate.js && node scripts/sort-translation-files.js",
     "extract-translation": "node scripts/extract-i18n-keyword.js",
     "sort-translation": "node scripts/sort-translation-files.js",
     "i18n-checker": "npm run generate-i18n-checker-constant && node scripts/i18n-checker.js",
