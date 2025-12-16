@@ -54,19 +54,10 @@ public class ExpectationApi extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectExpectationsNotFilledOrNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
-    if (expirationTime == null) {
-      return Stream.of(
-              injectExpectationService.manualExpectationsNotFill(),
-              injectExpectationService.preventionExpectationsNotFill(),
-              injectExpectationService.detectionExpectationsNotFill())
-          .flatMap(List::stream)
-          .toList();
-    }
-
     return Stream.of(
-            injectExpectationService.manualExpectationsNotExpired(expirationTime),
-            injectExpectationService.preventionExpectationsNotExpired(expirationTime),
-            injectExpectationService.detectionExpectationsNotExpired(expirationTime))
+            injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
+            injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
+            injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
         .flatMap(List::stream)
         .toList();
   }
@@ -93,18 +84,16 @@ public class ExpectationApi extends RestBehavior {
           "Retrieves inject expectations of agents installed on an asset for a given source ID.")
   @GetMapping(INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public List<InjectExpectation> getInjectExpectationsAssetsNotFilledForSource(
+  public List<InjectExpectation> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
       @PathVariable String sourceId,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
-    if (expirationTime == null) {
-      return Stream.concat(
-              injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-              injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
-          .toList();
-    }
     return Stream.concat(
-            injectExpectationService.preventionExpectationsNotExpired(expirationTime).stream(),
-            injectExpectationService.detectionExpectationsNotExpired(expirationTime).stream())
+            injectExpectationService
+                .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                .stream(),
+            injectExpectationService
+                .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                .stream())
         .toList();
   }
 
