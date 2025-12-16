@@ -23,6 +23,10 @@ public interface PayloadRepository
 
   Optional<Payload> findByExternalId(@NotNull String externalId);
 
+  @Query("SELECT p FROM DnsResolution p WHERE p.hostname = :hostname AND p.platforms = :platforms")
+  List<Payload> findAllByHostnameAndPlatforms(
+      @NotNull @Param("hostname") String collectorId, @NotNull String[] platforms);
+
   @Query(
       value = "SELECT payload_external_id FROM payloads WHERE payload_collector = :collectorId",
       nativeQuery = true)

@@ -5,11 +5,17 @@ import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import java.util.*;
@@ -38,6 +44,10 @@ public class SecurityCoverageInjectService {
   private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
+  private final PayloadRepository payloadRepository;
+  private final PayloadService payloadService;
+  private final DomainService domainService;
+  private final InjectorContractRepository injectorContractRepository;
 
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
@@ -77,12 +87,107 @@ public class SecurityCoverageInjectService {
         requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
+    // 7. Build injects from Indicators
+    createInjectsByIndicators(
+        scenario,
+        securityCoverage.getIndicatorsRefs());
+
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
   private void cleanInjectPlaceholders(String scenarioId) {
     injectRepository.deleteAllByScenarioIdAndInjectorContract(
         ManualContract.MANUAL_DEFAULT, scenarioId);
+  }
+
+  // -- INJECTS BY INDICATORS --
+
+  /**
+   * Create injects for the given scenario based on the associated security coverage and indicators
+   * refs.
+   *
+   * <p>Steps:
+   *
+   * <ul>
+   *   <li>Resolves internal indicators from the coverage
+   *   <li>Remove all inject from scenario where indicator refs is empty
+   *   <li>Generates injects based on injector contract related to these indicators
+   * </ul>
+   *
+   * @param scenario the scenario for which injects are managed
+   * @param indicatorsRefs the related security coverage providing Indicator references
+   */
+  private void createInjectsByIndicators(
+      Scenario scenario,
+      Set<StixRefToExternalRef> indicatorsRefs) {
+    // 1. Remove Inject with contract related to Dns Resolution
+    injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+
+    // 2. Manage all indicators with hostname value to create
+    indicatorsRefs.stream()
+        .filter(indicator -> indicator.getHostname() != null)
+        .forEach(
+            indicator -> {
+              // 3. Fetch existing Payloads for hostname and platform
+              List<Payload> existingPayloads =
+                  payloadRepository.findAllByHostnameAndPlatforms(
+                      indicator.getHostname(),
+                      new String[] {
+                          Endpoint.PLATFORM_TYPE.Windows.toString(),
+                          Endpoint.PLATFORM_TYPE.Linux.toString(),
+                          Endpoint.PLATFORM_TYPE.MacOS.toString()
+                      });
+
+              // 4. Check if payload already exist
+              Payload existingPayload =
+                  existingPayloads.stream()
+                      .filter(payload -> payload.getExternalId().equals(indicator.getExternalRef()))
+                      .findFirst()
+                      .orElse(null);
+
+              if (existingPayload == null) {
+                // 5. If there is no existing payload, create it
+                existingPayload = createDnsResolutionPayload(indicator);
+                payloadService.updateInjectorContractsForPayload(existingPayload);
+              }
+
+              // 6. Create an inject, linked to the scenario for each contract
+              final String name = existingPayload.getName();
+              final String description = existingPayload.getDescription();
+              List<InjectorContract> injectorContracts =
+                injectorContractRepository.findInjectorContractsByPayload(existingPayload);
+              List<Inject> injectsToCreate = injectorContracts.stream()
+                .map(
+                injectorContract -> {
+                    Inject inject = injectService.buildInject(injectorContract, name, description, true);
+                    inject.setScenario(scenario);
+                    return inject;
+                }).collect(Collectors.toList());
+              injectRepository.saveAll(injectsToCreate);
+            });
+  }
+
+  private Payload createDnsResolutionPayload(StixRefToExternalRef indicator) {
+    DnsResolution dnsResolutionPayload = new DnsResolution();
+    dnsResolutionPayload.setName(indicator.getName());
+    dnsResolutionPayload.setDescription(indicator.getDescription());
+    dnsResolutionPayload.setHostname(indicator.getHostname());
+    dnsResolutionPayload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    dnsResolutionPayload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    dnsResolutionPayload.setExpectations(
+        new InjectExpectation.EXPECTATION_TYPE[] {
+          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        });
+    dnsResolutionPayload.setPlatforms(
+        new Endpoint.PLATFORM_TYPE[] {
+          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+        });
+    dnsResolutionPayload.setDomains(
+        domainService.upserts(
+            new HashSet<>(
+                Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING))));
+    return payloadRepository.save(dnsResolutionPayload);
   }
 
   // -- INJECTS BY VULNERABILITIES --

@@ -96,6 +96,9 @@ public interface InjectorContractRepository
   Optional<InjectorContract> findInjectorContractByInjectorAndPayload(
       @NotNull Injector injector, @NotNull Payload payload);
 
+  @NotNull
+  List<InjectorContract> findInjectorContractsByPayload(@NotNull Payload payload);
+
   @Query(
       value =
           """

@@ -64,6 +64,9 @@ public class SecurityCoverageUtils {
     for (ObjectBase obj : objects) {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
       String refId = null;
+      String name = null;
+      String description = null;
+      String hostname = null;
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         if (obj.hasExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION)) {
@@ -75,6 +78,24 @@ public class SecurityCoverageUtils {
         }
       }
 
+      if (ObjectTypes.INDICATOR.toString().equals(stixType)) {
+        if (obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
+          Dictionary extensionObj =
+              (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+          List<Dictionary> observables =
+              obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+          if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
+            refId = (String) extensionObj.get(CommonProperties.ID.toString()).getValue();
+            name = (String) obj.getProperty(CommonProperties.NAME).getValue();
+            description =
+                obj.hasProperty(CommonProperties.DESCRIPTION)
+                    ? (String) obj.getProperty(CommonProperties.DESCRIPTION).getValue()
+                    : null;
+            hostname = getDomainNameValue(observables);
+          }
+        }
+      }
+
       if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId)) {
         refId = (String) obj.getProperty(STIX_NAME).getValue();
       }
@@ -82,7 +103,7 @@ public class SecurityCoverageUtils {
       if (!StringUtils.isBlank(refId)) {
         String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
         if (stixId != null) {
-          stixToRef.add(new StixRefToExternalRef(stixId, refId));
+          stixToRef.add(new StixRefToExternalRef(stixId, refId, name, description, hostname));
         }
       }
     }
@@ -103,5 +124,37 @@ public class SecurityCoverageUtils {
     return objectRefs.stream()
         .map(StixRefToExternalRef::getExternalRef)
         .collect(Collectors.toSet());
+  }
+
+  private static boolean hasDomainNameType(List<Dictionary> observables) {
+    if (observables == null || observables.isEmpty()) {
+      return false;
+    }
+
+    return observables.stream()
+        .anyMatch(
+            observable ->
+                ExtendedProperties.DOMAIN_NAME
+                    .toString()
+                    .equals(observable.get(CommonProperties.TYPE.toString()).getValue()));
+  }
+
+  private static String getDomainNameValue(List<Dictionary> observables) {
+    if (!hasDomainNameType(observables)) {
+      return null;
+    }
+
+    Dictionary domainName =
+        observables.stream()
+            .filter(
+                observable ->
+                    ExtendedProperties.DOMAIN_NAME
+                        .toString()
+                        .equals(observable.get(CommonProperties.TYPE.toString()).getValue()))
+            .findFirst()
+            .orElse(null);
+    return domainName != null
+        ? (String) domainName.get(CommonProperties.VALUE.toString()).getValue()
+        : null;
   }
 }

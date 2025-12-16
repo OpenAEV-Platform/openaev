@@ -17,9 +17,22 @@ public class StixRefToExternalRef {
   @JsonProperty("external_ref")
   private String externalRef;
 
-  public StixRefToExternalRef(String stixRef, String externalRef) {
+  @JsonProperty("name")
+  private String name;
+
+  @JsonProperty("description")
+  private String description;
+
+  @JsonProperty("hostname")
+  private String hostname;
+
+  public StixRefToExternalRef(
+      String stixRef, String externalRef, String name, String description, String hostname) {
     this.stixRef = stixRef;
     this.externalRef = externalRef;
+    this.name = name;
+    this.description = description;
+    this.hostname = hostname;
   }
 
   @Override
@@ -32,11 +45,12 @@ public class StixRefToExternalRef {
     }
     final StixRefToExternalRef that = (StixRefToExternalRef) o;
     return Objects.equals(this.stixRef, that.stixRef)
-        && Objects.equals(this.externalRef, that.externalRef);
+        && Objects.equals(this.externalRef, that.externalRef)
+        && Objects.equals(this.hostname, that.hostname);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.stixRef, this.externalRef);
+    return Objects.hash(this.stixRef, this.externalRef, this.hostname);
   }
 }

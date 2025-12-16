@@ -161,6 +161,10 @@ public class SecurityCoverageService {
     securityCoverage.setVulnerabilitiesRefs(
         extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY)));
 
+    // Extract indicators
+    securityCoverage.setIndicatorsRefs(
+        extractObjectReferences(bundle.findByType(ObjectTypes.INDICATOR)));
+
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
     securityCoverage.setScheduling(scheduling);

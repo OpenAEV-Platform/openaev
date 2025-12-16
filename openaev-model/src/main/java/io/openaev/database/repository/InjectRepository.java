@@ -429,6 +429,19 @@ public interface InjectRepository
   @Query(
       value =
           "DELETE FROM injects i "
+              + "USING injectors_contracts ic, payloads p "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.injector_contract_payload = p.payload_id "
+              + "AND p.payload_type = 'DnsResolution' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllInjectsWithDnsResolutionContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i "
               + "USING injectors_contracts ic, injectors_contracts_vulnerabilities icv "
               + "WHERE i.inject_injector_contract = ic.injector_contract_id "
               + "AND ic.injector_contract_id = icv.injector_contract_id "
