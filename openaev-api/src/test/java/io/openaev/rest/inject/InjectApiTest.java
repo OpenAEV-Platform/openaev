@@ -1455,6 +1455,9 @@ class InjectApiTest extends IntegrationTest {
               .persist()
               .get();
 
+      entityManager.flush();
+      entityManager.clear();
+
       Inject inject =
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
