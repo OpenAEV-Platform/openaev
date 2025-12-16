@@ -19,7 +19,7 @@ public class OpenAEVExecutorIntegration extends Integration {
   public static final String OPENAEV_EXECUTOR_NAME = "OpenAEV Agent";
   public static final String OPENAEV_EXECUTOR_DOCUMENTATION_LINK =
       "https://docs.openaev.io/latest/usage/openaev-agent/";
-  private static final String OPENAEV_EXECUTOR_BACKGROUND_COLOR = "#001BDB";
+  public static final String OPENAEV_EXECUTOR_BACKGROUND_COLOR = "#001BDB";
 
   @QualifiedComponent(identifier = OPENAEV_EXECUTOR_NAME)
   private OpenAEVExecutorContextService openAEVExecutorContextService;

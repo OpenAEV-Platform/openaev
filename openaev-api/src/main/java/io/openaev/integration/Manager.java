@@ -56,8 +56,7 @@ public class Manager implements Runnable {
   }
 
   public void activateInstance(ConnectorInstance instance) throws Exception {
-    Optional<Integration> foundIntegration =
-        Optional.ofNullable(spawnedIntegrations.getOrDefault(instance, null));
+    Optional<Integration> foundIntegration = Optional.ofNullable(spawnedIntegrations.get(instance));
     if (foundIntegration.isEmpty()) {
       IntegrationFactory factory = getFactory(instance.getClassName());
       Integration integration = factory.spawn(instance);
@@ -69,8 +68,7 @@ public class Manager implements Runnable {
   }
 
   public void pauseInstance(ConnectorInstance instance) {
-    Optional<Integration> foundIntegration =
-        Optional.ofNullable(spawnedIntegrations.getOrDefault(instance, null));
+    Optional<Integration> foundIntegration = Optional.ofNullable(spawnedIntegrations.get(instance));
     if (foundIntegration.isEmpty()) {
       log.warn(
           "Requesting pausing instance {} but an related integration was not found.", instance);
