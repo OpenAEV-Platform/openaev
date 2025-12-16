@@ -35,7 +35,6 @@ import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.InjectImportService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.targets.TargetService;
@@ -83,7 +82,6 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
-  private final InjectImportService injectImportService;
   private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
@@ -552,7 +550,8 @@ public class InjectApi extends RestBehavior {
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
-    return this.injectService.getInjectTracesFromInjectAndTarget(injectId, targetId, targetType);
+    return this.injectService.getInjectTracesOutputFromInjectAndTarget(
+        injectId, targetId, targetType);
   }
 
   @Operation(description = "Get InjectStatus with global execution traces")

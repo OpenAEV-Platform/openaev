@@ -18,7 +18,10 @@ import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +90,8 @@ public class OpenCTIContract extends Contractor {
             Map.of(en, "Create a new case", fr, "Créer un nouveau case"),
             createCaseInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false);
+            false,
+            new HashSet<>(Collections.singletonList(PresetDomain.TOCLASSIFY)));
     createCase.addVariable(documentUriVariable);
     List<ContractElement> createReportInstance =
         contractBuilder()
@@ -103,7 +107,8 @@ public class OpenCTIContract extends Contractor {
             Map.of(en, "Create a new report", fr, "Créer un nouveau rapport"),
             createReportInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
-            false);
+            false,
+            new HashSet<>(Collections.singletonList(PresetDomain.TOCLASSIFY)));
     createReport.addVariable(documentUriVariable);
     return List.of(createCase, createReport);
   }

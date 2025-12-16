@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,7 +24,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import javax.annotation.Nullable;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -89,6 +89,7 @@ public class InjectorContract implements Base {
     return ofNullable(getPayload()).map(payload -> payload.getExecutionArch()).orElse(null);
   }
 
+  @Queryable(filterable = true)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")
@@ -138,8 +139,7 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @Getter(AccessLevel.NONE)
-  @JsonProperty("injector_contract_domains")
+  @Getter(NONE)
   private Set<Domain> domains = new HashSet<>();
 
   @JsonProperty("injector_contract_domains")

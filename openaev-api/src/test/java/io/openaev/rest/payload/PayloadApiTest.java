@@ -33,6 +33,7 @@ import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
@@ -515,7 +516,8 @@ class PayloadApiTest extends IntegrationTest {
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
 
-    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand(Set.of(domain)));
+    Payload payload =
+        payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
     payload.setExternalId("external-id");
 
     // -- Without property architecture

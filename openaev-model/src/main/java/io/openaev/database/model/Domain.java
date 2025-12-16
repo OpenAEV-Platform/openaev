@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -33,6 +34,7 @@ public class Domain implements Base {
   @Column(name = "domain_name")
   @JsonProperty("domain_name")
   @NotBlank
+  @BusinessId
   private String name;
 
   @Column(name = "domain_color")
@@ -51,4 +53,17 @@ public class Domain implements Base {
   @Column(name = "domain_updated_at")
   @JsonProperty("domain_updated_at")
   private Instant updateDate;
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    }
+
+    if (obj.getClass() != this.getClass()) {
+      return false;
+    }
+
+    return this.getName().equals(((Domain) obj).getName());
+  }
 }

@@ -8,22 +8,24 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DomainService {
@@ -64,12 +66,25 @@ public class DomainService {
     return domainRepository.findAllById(domainIds);
   }
 
-  public Domain upsertDomain(final DomainBaseInput input) {
+  @Transactional
+  public Domain upsert(final DomainBaseInput input) {
     return this.upsert(input.getName(), input.getColor());
   }
 
+  @Transactional
   public Domain upsert(final Domain domainToUpsert) {
     return this.upsert(domainToUpsert.getName(), domainToUpsert.getColor());
+  }
+
+  @Transactional
+  public Set<Domain> upserts(final Set<Domain> domains) {
+    if (domains == null) {
+      return new HashSet<>();
+    }
+
+    return domains.stream()
+        .map(domain -> this.upsert(domain.getName(), domain.getColor()))
+        .collect(Collectors.toSet());
   }
 
   public Domain upsert(final String name, final String color) {
@@ -85,8 +100,26 @@ public class DomainService {
                     null)));
   }
 
-  public Set<Domain> upserts(final Set<Domain> domains) {
-    return domains.stream().map(this::upsert).collect(Collectors.toSet());
+  public Set<Domain> mergeDomains(
+      final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
+    if (existingDomains == null
+        || existingDomains.isEmpty()
+        || (existingDomains.size() == 1
+            && PresetDomain.TOCLASSIFY
+                .getName()
+                .equals(existingDomains.iterator().next().getName()))) {
+      return addedDomains;
+    }
+
+    return Stream.concat(existingDomains.stream(), addedDomains.stream())
+        .collect(Collectors.toSet());
+  }
+
+  public Set<Domain> findDomainByNameAndDescription(final String name) {
+    Set<Domain> domains = new HashSet<>();
+    domains.add(PresetDomain.ENDPOINT);
+    domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(name));
+    return domains;
   }
 
   // -- OPTION --

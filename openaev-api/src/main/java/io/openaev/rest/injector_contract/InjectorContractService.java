@@ -17,6 +17,7 @@ import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
@@ -61,6 +62,7 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
+  private final DomainService domainService;
 
   @Value("${openaev.xls.import.mail.enable}")
   private boolean mailImportEnabled;
@@ -216,12 +218,15 @@ public class InjectorContractService {
               new HashSet<>(input.getAttackPatternsIds()));
     }
     injectorContract.setAttackPatterns(aps);
-
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
     injectorContract.setInjector(
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
+    injectorContract.setDomains(
+        !injectorContract.getInjector().isPayloads()
+            ? this.domainService.upserts(input.getDomains())
+            : new HashSet<>());
     return injectorContractRepository.save(injectorContract);
   }
 
@@ -237,6 +242,8 @@ public class InjectorContractService {
             new HashSet<>(input.getAttackPatternsIds())));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
+    injectorContract.setDomains(this.domainService.upserts(input.getDomains()));
+
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -245,7 +252,8 @@ public class InjectorContractService {
       List<String> externalIds, List<String> internalIds, InjectorContract injectorContract) {
     Set<Vulnerability> vulns = new HashSet<>();
     if (!externalIds.isEmpty()) {
-      vulns = vulnerabilityService.findAllByExternalIdsOrThrowIfMissing(new HashSet<>(externalIds));
+      vulns =
+          vulnerabilityService.findAllByExternalIdsAndAlertIfMissing(new HashSet<>(externalIds));
     } else if (!internalIds.isEmpty()) {
       vulns = vulnerabilityService.findAllByIdsOrThrowIfMissing(new HashSet<>(internalIds));
     }
@@ -424,6 +432,9 @@ public class InjectorContractService {
       injectorContract.setAttackPatterns(attackPatterns);
     } else {
       injectorContract.setAttackPatterns(new ArrayList<>());
+    }
+    if (!injector.isPayloads() && in.getDomains() != null) {
+      injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
     }
     return injectorContract;
   }

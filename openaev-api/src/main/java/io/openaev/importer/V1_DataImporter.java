@@ -535,9 +535,9 @@ public class V1_DataImporter implements Importer {
     document.setName(nodeDoc.get("document_name").textValue());
     document.setDescription(nodeDoc.get("document_description").textValue());
     if (savedExercise != null) {
-      document.setExercises(Set.of(savedExercise));
+      document.setExercises(new HashSet<>(Set.of(savedExercise)));
     } else if (savedScenario != null) {
-      document.setScenarios(Set.of(savedScenario));
+      document.setScenarios(new HashSet<>(Set.of(savedScenario)));
     }
     // need to get real database-bound ids for tags
     List<String> tagIds =

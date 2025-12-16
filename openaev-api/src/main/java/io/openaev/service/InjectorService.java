@@ -9,12 +9,14 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.response.InjectorConnection;
 import io.openaev.rest.injector.response.InjectorRegistration;
@@ -44,6 +46,7 @@ public class InjectorService {
   private final AttackPatternRepository attackPatternRepository;
   private final FileService fileService;
   private final InjectorContractService injectorContractService;
+  private final DomainService domainService;
 
   @Resource private RabbitmqConfig rabbitmqConfig;
 
@@ -230,6 +233,13 @@ public class InjectorService {
                   contract.setAttackPatterns(attackPatterns);
                 } else {
                   contract.setAttackPatterns(new ArrayList<>());
+                }
+
+                if (!payloads) {
+                  Set<Domain> currentDomains = this.domainService.upserts(contract.getDomains());
+                  Set<Domain> domainsToAdd = this.domainService.upserts(current.get().getDomains());
+                  contract.setDomains(
+                      this.domainService.mergeDomains(currentDomains, domainsToAdd));
                 }
               } else if (!contract.getCustom()) {
                 toDeletes.add(contract.getId());

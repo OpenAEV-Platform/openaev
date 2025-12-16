@@ -41,6 +41,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -1173,7 +1174,9 @@ public class InjectorContractApiTest extends IntegrationTest {
           GroupComposer.Composer bypassGroup =
               groupComposer
                   .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(Set.of(Capability.BYPASS))));
+                  .withRole(
+                      roleComposer.forRole(
+                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
 
           yield userComposer
               .forUser(
@@ -1186,7 +1189,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                   .forGroup(GroupFixture.createGroup())
                   .withRole(
                       roleComposer.forRole(
-                          RoleFixture.getRole(Set.of(Capability.ACCESS_PAYLOADS))));
+                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
 
           yield userComposer
               .forUser(
@@ -1202,7 +1205,7 @@ public class InjectorContractApiTest extends IntegrationTest {
           GroupComposer.Composer observerGroup =
               groupComposer
                   .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(Set.of())))
+                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>())))
                   .withGrant(grantComposer.forGrant(grant));
 
           yield userComposer

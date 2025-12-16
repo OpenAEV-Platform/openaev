@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_53__Convert_expectations_to_jsonb extends BaseJavaMigration {
+public class V4_54__Convert_expectations_to_jsonb extends BaseJavaMigration {
 
   @Override
   public boolean canExecuteInTransaction() {

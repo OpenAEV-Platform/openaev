@@ -4,7 +4,7 @@ import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
-public class V4_56__Alter_operators_for_multiple_paths extends BaseJavaMigration {
+public class V4_57__Alter_operators_for_multiple_paths extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {

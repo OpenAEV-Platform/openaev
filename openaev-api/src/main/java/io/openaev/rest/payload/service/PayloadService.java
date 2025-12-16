@@ -34,13 +34,13 @@ import io.openaev.injector_contract.fields.*;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -81,8 +81,7 @@ public class PayloadService {
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
     injectorContract.setDomains(
-        domainService.upserts(
-            Set.of(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
+        domainService.upserts(new HashSet<>(Set.of(PresetDomain.TOCLASSIFY))));
     injectorContract.setAttackPatterns(
         fromIterable(
             attackPatternRepository.findAllById(
@@ -196,7 +195,8 @@ public class PayloadService {
         Map.of(en, payload.getName(), fr, payload.getName()),
         builder.build(),
         Arrays.asList(payload.getPlatforms()),
-        true);
+        true,
+        payload.getDomains());
   }
 
   private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {

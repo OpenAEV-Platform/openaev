@@ -7,7 +7,7 @@ import {
 } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 
-const INJECT_URI = '/api/injects';
+export const INJECT_URI = '/api/injects';
 
 export const exportInjectSearch = (data: InjectExportFromSearchRequestInput) => {
   const uri = '/api/injects/search/export';
