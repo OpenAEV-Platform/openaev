@@ -52,7 +52,7 @@ public class ExpectationApi extends RestBehavior {
           "Retrieves inject expectations of agents installed on an asset. If an expiration time is provided, it will return all expectations not expired within this timeframe independently of their results. Otherwise, it will return all expectations without any result.")
   @GetMapping(INJECTS_EXPECTATIONS_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public List<InjectExpectation> getInjectExpectationsNotFilledOrNotExpired(
+  public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     return Stream.of(
             injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
