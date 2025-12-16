@@ -1466,7 +1466,7 @@ class InjectApiTest extends IntegrationTest {
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                       .withPayload(
                           payloadComposer
-                              .forPayload(PayloadFixture.createDefaultFileDrop())
+                              .forPayload(PayloadFixture.createDefaultCommand())
                               .withDetectionRemediation(
                                   detectionRemediationComposer
                                       .forDetectionRemediation(
