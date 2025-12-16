@@ -26,6 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           TITLE="${{ github.event.pull_request.title }}"
+          EXIT_CODE=0
           echo "PR title: $TITLE"
           # Skip validation for renovate
           if [[ "$TITLE" == *"chore(deps)"* ]]; then
@@ -43,6 +44,7 @@ jobs:
               OUTPUT_SUMMARY="✅ PR title is valid."
               CONCLUSION="success"
             else
+              EXIT_CODE=1
               # Diagnose common failures
               # 1) Check category block: [category/category]
               CATEGORY_PATTERN='^\[([a-z]+(/[a-z]+)*)\]'
@@ -110,3 +112,4 @@ jobs:
           # Do not fail job (continue-on-error is true)
           exit 0
           fi
+          exit EXIT_CODE
