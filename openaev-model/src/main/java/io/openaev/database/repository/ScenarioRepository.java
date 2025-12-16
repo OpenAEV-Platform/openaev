@@ -158,7 +158,7 @@ public interface ScenarioRepository
 
   @Query(
       value =
-          "SELECT s.*, COUNT(DISTINCT ut.user_id) as scenario_all_users_number, COUNT(DISTINCT stu.user_id) as scenario_users_number, "
+          "SELECT s.*, COUNT(DISTINCT ut.*) as scenario_all_users_number, COUNT(DISTINCT stu.*) as scenario_users_number, "
               + "array_agg(DISTINCT se.exercise_id) FILTER (WHERE se.exercise_id IS NOT NULL) as scenario_exercises, "
               + "json_agg(DISTINCT kcp.*) FILTER (WHERE kcp.phase_id IS NOT NULL) as scenario_kill_chain_phases, "
               + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as scenario_platforms, "
