@@ -1,69 +1,90 @@
-import { Paper } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useCallback, useMemo } from 'react';
 
-import useFetchInjectExecutionResult from '../../../../../../actions/inject_status/useFetchInjectExecutionResult';
-import Empty from '../../../../../../components/Empty';
-import { useFormatter } from '../../../../../../components/i18n';
+import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import { FONT_FAMILY_CODE } from '../../../../../../components/Theme';
-import type { ExecutionTraceOutput, InjectTarget } from '../../../../../../utils/api-types';
+import { type ExecutionTraceOutput, type PayloadCommandBlock } from '../../../../../../utils/api-types';
 
 interface Props {
-  injectId: string;
-  target: InjectTarget;
+  payloadCommandBlocks: PayloadCommandBlock[];
+  traces: ExecutionTraceOutput[];
+  forceExpanded: boolean;
 }
 
-const TerminalView: FunctionComponent<Props> = ({ injectId, target }) => {
-  const { t } = useFormatter();
+const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, forceExpanded }) => {
   const theme = useTheme();
-  const { injectExecutionResult, loading } = useFetchInjectExecutionResult(injectId, target);
-
-  if (!injectExecutionResult || injectExecutionResult?.execution_traces.length === 0) {
-    return <Empty message={t('No traces on this target.')} />;
-  }
-
-  const firstExec = injectExecutionResult?.execution_traces[0].execution_time;
-  const parseTraces = (tr: ExecutionTraceOutput) => {
-    const parsed = JSON.parse(tr.execution_message);
-    const stdout = parsed.stdout || '';
-    const stderr = parsed.stderr || '';
-    return [stdout, stderr];
-  };
   const isDark = theme.palette.mode === 'dark';
 
-  return (
-    <>
-      {!loading && (
-        <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
-          <div
-            style={{
-              background: isDark ? theme.palette.common.black : theme.palette.common.white,
-              color: isDark ? theme.palette.common.white : theme.palette.common.black,
-              fontFamily: FONT_FAMILY_CODE,
-              padding: theme.spacing(2),
-              borderRadius: theme.spacing(1),
-              whiteSpace: 'pre-wrap',
-              fontSize: theme.typography.h4.fontSize,
-              overflowX: 'auto',
-              maxHeight: '400px',
-            }}
-          >
-            {`${firstExec} ${injectExecutionResult?.payload_command_blocks.map(p => p.command_content).join(' ')} \n`}
-            {injectExecutionResult?.execution_traces.map((tr) => {
-              const [stdout, stderr] = parseTraces(tr);
+  const firstTrace = traces[0];
 
-              return (
-                <>
-                  {tr.execution_time + ' '}
-                  {stdout && (<span>{stdout}</span>)}
-                  {stderr && (<span style={{ color: theme.palette.error.main }}>{stderr}</span>)}
-                </>
-              );
-            })}
-          </div>
-        </Paper>
-      )}
-    </>
+  const parseTraceOutput = useCallback((trace: ExecutionTraceOutput) => {
+    try {
+      const parsed = JSON.parse(trace.execution_message);
+      return {
+        stdout: parsed.stdout ?? '',
+        stderr: parsed.stderr ?? '',
+      };
+    } catch {
+      return {
+        stdout: trace.execution_message,
+        stderr: '',
+      };
+    }
+  }, []);
+
+  const commandLine = useMemo(() => {
+    if (!firstTrace) return '';
+
+    const commands = payloadCommandBlocks
+      .map(p => p.command_content)
+      .join(' ');
+
+    return `${firstTrace.execution_time} ${commands}\n`;
+  }, [firstTrace, payloadCommandBlocks]);
+
+  const header = (
+    <Typography gutterBottom sx={{ mr: theme.spacing(1.5) }}>
+      {firstTrace?.execution_agent?.agent_executed_by_user}
+    </Typography>
+  );
+
+  if (!firstTrace) {
+    return null;
+  }
+
+  return (
+    <ExpandableSection
+      forceExpanded={forceExpanded}
+      header={header}
+    >
+      <div
+        style={{
+          background: isDark ? theme.palette.common.black : theme.palette.common.white,
+          color: isDark ? theme.palette.common.white : theme.palette.common.black,
+          fontFamily: FONT_FAMILY_CODE,
+          padding: theme.spacing(2),
+          borderRadius: theme.spacing(1),
+          whiteSpace: 'pre-wrap',
+          fontSize: theme.typography.h4.fontSize,
+          overflowX: 'auto',
+          maxHeight: '400px',
+        }}
+      >
+        {commandLine}
+        {traces.map((trace) => {
+          const { stdout, stderr } = parseTraceOutput(trace);
+
+          return (
+            <Box key={trace.execution_time}>
+              {trace.execution_time + ' '}
+              {stdout && <span>{stdout}</span>}
+              {stderr && <span style={{ color: theme.palette.error.main }}>{stderr}</span>}
+            </Box>
+          );
+        })}
+      </div>
+    </ExpandableSection>
   );
 }
 ;

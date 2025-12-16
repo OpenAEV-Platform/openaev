@@ -5,7 +5,9 @@ import io.openaev.database.model.PayloadCommandBlock;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -21,5 +23,5 @@ public class InjectResultPayloadExecutionOutput {
 
   @JsonProperty("execution_traces")
   @NotEmpty
-  private List<ExecutionTraceOutput> traces = new ArrayList<>();
+  private Map<String, List<ExecutionTraceOutput>> traces = new HashMap<>();
 }
