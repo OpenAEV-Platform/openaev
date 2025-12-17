@@ -3,6 +3,7 @@ package io.openaev.service.connectors;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -11,21 +12,21 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Output> {
-
+  protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
   protected final CatalogConnectorMapper catalogConnectorMapper;
 
   protected AbstractConnectorService(
+      ConnectorType connectorType,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       CatalogConnectorService catalogConnectorService,
       CatalogConnectorMapper catalogConnectorMapper) {
+    this.connectorType = connectorType;
     this.connectorInstanceConfigurationRepository = connectorInstanceConfigurationRepository;
     this.catalogConnectorService = catalogConnectorService;
     this.catalogConnectorMapper = catalogConnectorMapper;
   }
-
-  protected abstract String getConfigurationKey();
 
   protected abstract List<ConnectorInstance> getRelatedInstances();
 
@@ -40,7 +41,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
 
   private String getConnectorIdFromInstance(ConnectorInstance instance) {
     return instance.getConfigurations().stream()
-        .filter(c -> getConfigurationKey().equals(c.getKey()))
+        .filter(c -> this.connectorType.getIdKeyName().equals(c.getKey()))
         .map(c -> c.getValue().asText())
         .findFirst()
         .orElse(null);
@@ -127,7 +128,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   public ConnectorIds getConnectorRelationsId(String connectorId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            getConfigurationKey(), connectorId);
+            this.connectorType.getIdKeyName(), connectorId);
     if (relatedIds != null) {
       return catalogConnectorMapper.toConnectorIds(
           relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId());

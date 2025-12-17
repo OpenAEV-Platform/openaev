@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,38 +111,37 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void throwIfConnectorInstanceAlreadyExist(String catalogId) throws BadRequestException {
+  private void throwIfConnectorInstanceAlreadyExist(String catalogId)
+      throws DataIntegrityViolationException {
     List<ConnectorInstance> existingInstances =
         connectorInstanceService.findAllByCatalogConnectorId(catalogId);
     if (!existingInstances.isEmpty()) {
-      throw new BadRequestException(
+      throw new DataIntegrityViolationException(
           "ConnectorInstance with CatalogConnector id " + catalogId + " already exists");
     }
   }
 
   private void throwIfConnectorAlreadyExist(
-      String catalogConnectorSlug, CatalogConnector.CONNECTOR_TYPE catalogConnectorType)
-      throws BadRequestException {
+      String catalogConnectorSlug, ConnectorType catalogConnectorType)
+      throws DataIntegrityViolationException {
     BaseConnectorEntity connector;
-    if (CatalogConnector.CONNECTOR_TYPE.COLLECTOR.equals(catalogConnectorType)) {
+    if (ConnectorType.COLLECTOR.equals(catalogConnectorType)) {
       connector =
           collectorService.findCollectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
-    } else if (CatalogConnector.CONNECTOR_TYPE.INJECTOR.equals(catalogConnectorType)) {
+    } else if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
       connector = injectorService.injectorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
     } else {
       connector = executorService.executorByType(openAEVPrefix + catalogConnectorSlug).orElse(null);
     }
     if (connector != null) {
-      throw new BadRequestException(
+      throw new DataIntegrityViolationException(
           "Connector with slug " + catalogConnectorSlug + " already exists");
     }
   }
 
   private void throwIfInstanceOrConnectorAlreadyExist(
-      String catalogConnectorId,
-      String catalogConnectorSlug,
-      CatalogConnector.CONNECTOR_TYPE catalogConnectorType)
-      throws BadRequestException {
+      String catalogConnectorId, String catalogConnectorSlug, ConnectorType catalogConnectorType)
+      throws DataIntegrityViolationException {
     throwIfConnectorInstanceAlreadyExist(catalogConnectorId);
     throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
   }

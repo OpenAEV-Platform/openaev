@@ -1,7 +1,7 @@
 package io.openaev.rest.catalog_connector.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorType;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
@@ -51,7 +51,7 @@ public class CatalogConnectorOutput {
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @JsonProperty("catalog_connector_type")
   @NotNull
-  private CatalogConnector.CONNECTOR_TYPE containerType;
+  private ConnectorType containerType;
 
   @JsonProperty("catalog_connector_last_verified_date")
   private Instant lastVerifiedDate;

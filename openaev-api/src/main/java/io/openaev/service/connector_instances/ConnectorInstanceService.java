@@ -52,7 +52,7 @@ public class ConnectorInstanceService {
    */
   public List<ConnectorInstance> injectorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
-        CatalogConnector.CONNECTOR_TYPE.INJECTOR);
+        ConnectorType.INJECTOR);
   }
 
   /**
@@ -62,7 +62,7 @@ public class ConnectorInstanceService {
    */
   public List<ConnectorInstance> collectorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
-        CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
+        ConnectorType.COLLECTOR);
   }
 
   /**
@@ -72,7 +72,7 @@ public class ConnectorInstanceService {
    */
   public List<ConnectorInstance> executorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
-        CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+        ConnectorType.EXECUTOR);
   }
 
   /**
@@ -277,9 +277,9 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createContainerIdConfiguration(
-      ConnectorInstance instance, CatalogConnector.CONNECTOR_TYPE type) {
+      ConnectorInstance instance, ConnectorType type) {
     return createConfiguration(
-        type.toString() + "_ID",
+        type.getIdKeyName(),
         objectMapper.getNodeFactory().textNode(UUID.randomUUID().toString()),
         false,
         instance);

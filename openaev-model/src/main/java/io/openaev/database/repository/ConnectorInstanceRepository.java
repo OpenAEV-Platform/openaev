@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import java.util.List;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -23,6 +23,5 @@ public interface ConnectorInstanceRepository
   List<ConnectorInstance> findAllByCatalogConnectorId(String catalogConnectorId);
 
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
-  List<ConnectorInstance> findAllByCatalogConnectorContainerType(
-      CatalogConnector.CONNECTOR_TYPE containerType);
+  List<ConnectorInstance> findAllByCatalogConnectorContainerType(ConnectorType containerType);
 }

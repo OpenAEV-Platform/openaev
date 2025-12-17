@@ -51,17 +51,15 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       ExecutorMapper executorMapper,
       CatalogConnectorMapper catalogConnectorMapper) {
     super(
-        connectorInstanceConfigurationRepository, catalogConnectorService, catalogConnectorMapper);
+        ConnectorType.EXECUTOR,
+        connectorInstanceConfigurationRepository,
+        catalogConnectorService,
+        catalogConnectorMapper);
     this.fileService = fileService;
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.connectorInstanceService = connectorInstanceService;
     this.executorMapper = executorMapper;
-  }
-
-  @Override
-  protected String getConfigurationKey() {
-    return "EXECUTOR_ID";
   }
 
   @Override

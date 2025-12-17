@@ -28,7 +28,7 @@ public interface ConnectorInstanceLogRepository
               + ")",
       nativeQuery = true)
   void deleteOldestLogByConnectorInstanceId(
-      @Param("instanceId") String instanceId, @Param("limit") int limit);
+      @Param("instanceId") String instanceId, @Param("limit") long limit);
 
   List<ConnectorInstanceLog> findByConnectorInstanceId(String connectorInstanceId);
 }

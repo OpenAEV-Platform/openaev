@@ -35,8 +35,8 @@ import java.io.InputStream;
 import java.net.URL;
 import java.time.Instant;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -45,6 +45,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@RequiredArgsConstructor
 public class ExecutorApi extends RestBehavior {
 
   public static final String EXECUTOR_URI = "/api/executors";
@@ -58,33 +59,13 @@ public class ExecutorApi extends RestBehavior {
   @Value("${executor.openaev.binaries.version:${info.app.version:unknown}}")
   private String executorOpenaevBinariesVersion;
 
-  private ExecutorRepository executorRepository;
-  private EndpointService endpointService;
-  private FileService fileService;
-  private TokenRepository tokenRepository;
+  private final ExecutorRepository executorRepository;
+  private final EndpointService endpointService;
+  private final FileService fileService;
+  private final TokenRepository tokenRepository;
+  private final ExecutorService executorService;
 
   @Resource protected ObjectMapper mapper;
-  @Autowired private ExecutorService executorService;
-
-  @Autowired
-  public void setTokenRepository(TokenRepository tokenRepository) {
-    this.tokenRepository = tokenRepository;
-  }
-
-  @Autowired
-  public void setEndpointService(EndpointService endpointService) {
-    this.endpointService = endpointService;
-  }
-
-  @Autowired
-  public void setFileService(FileService fileService) {
-    this.fileService = fileService;
-  }
-
-  @Autowired
-  public void setExecutorRepository(ExecutorRepository executorRepository) {
-    this.executorRepository = executorRepository;
-  }
 
   @GetMapping(EXECUTOR_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)

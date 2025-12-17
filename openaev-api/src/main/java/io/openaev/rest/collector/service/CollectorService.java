@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -52,16 +53,14 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       CollectorMapper collectorMapper,
       CatalogConnectorMapper catalogConnectorMapper) {
     super(
-        connectorInstanceConfigurationRepository, catalogConnectorService, catalogConnectorMapper);
+        ConnectorType.COLLECTOR,
+        connectorInstanceConfigurationRepository,
+        catalogConnectorService,
+        catalogConnectorMapper);
     this.collectorRepository = collectorRepository;
     this.fileService = fileService;
     this.connectorInstanceService = connectorInstanceService;
     this.collectorMapper = collectorMapper;
-  }
-
-  @Override
-  protected String getConfigurationKey() {
-    return "COLLECTOR_ID";
   }
 
   @Override

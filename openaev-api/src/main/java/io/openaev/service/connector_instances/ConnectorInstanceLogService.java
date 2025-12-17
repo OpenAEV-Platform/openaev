@@ -7,7 +7,6 @@ import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ConnectorInstanceLogService {
-  @Getter private final Integer LOG_SIZE_LIMIT = 10000;
+  public static final long LOG_SIZE_LIMIT = 3L;
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
   private void cleanupExcessLogs(String connectorInstanceId) {
@@ -24,7 +23,7 @@ public class ConnectorInstanceLogService {
         connectorInstanceLogRepository.countByConnectorInstanceId(connectorInstanceId);
 
     if (currentCount > LOG_SIZE_LIMIT) {
-      int excessCount = (int) (currentCount - LOG_SIZE_LIMIT);
+      long excessCount = (currentCount - LOG_SIZE_LIMIT);
       connectorInstanceLogRepository.deleteOldestLogByConnectorInstanceId(
           connectorInstanceId, excessCount);
       log.info("Deleted {} old logs for instance {}", excessCount, connectorInstanceId);
@@ -57,7 +56,7 @@ public class ConnectorInstanceLogService {
   public ConnectorInstanceLog pushLogByConnectorInstance(
       ConnectorInstance connectorInstance, String rawLog) throws IllegalArgumentException {
     if (rawLog.isEmpty()) {
-      throw new IllegalArgumentException("Instance ID and log cannot be empty");
+      return null;
     }
 
     ConnectorInstanceLog logEntry = new ConnectorInstanceLog();

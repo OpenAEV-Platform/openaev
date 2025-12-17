@@ -71,7 +71,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper) {
     super(
-        connectorInstanceConfigurationRepository, catalogConnectorService, catalogConnectorMapper);
+        ConnectorType.INJECTOR,
+        connectorInstanceConfigurationRepository,
+        catalogConnectorService,
+        catalogConnectorMapper);
     this.injectorRepository = injectorRepository;
     this.injectorContractRepository = injectorContractRepository;
     this.attackPatternRepository = attackPatternRepository;
@@ -80,11 +83,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.injectorContractService = injectorContractService;
     this.domainService = domainService;
     this.injectorMapper = injectorMapper;
-  }
-
-  @Override
-  protected String getConfigurationKey() {
-    return "INJECTOR_ID";
   }
 
   @Override

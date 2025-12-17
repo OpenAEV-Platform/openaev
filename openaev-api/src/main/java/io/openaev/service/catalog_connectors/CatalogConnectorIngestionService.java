@@ -1,10 +1,7 @@
 package io.openaev.service.catalog_connectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.FileService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -25,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogConnectorIngestionService {
   private static final Set<String> PROTECTED_KEYS =
       Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID");
+  private static final String openAEVKeyName = "OPENAEV_URL";
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
@@ -100,8 +98,7 @@ public class CatalogConnectorIngestionService {
     String containerType = contract.path("container_type").asText(null);
     if (containerType != null && !containerType.isBlank()) {
       try {
-        connector.setContainerType(
-            CatalogConnector.CONNECTOR_TYPE.valueOf(containerType.trim().toUpperCase()));
+        connector.setContainerType(ConnectorType.valueOf(containerType.trim().toUpperCase()));
       } catch (IllegalArgumentException e) {
         log.warn("Unknown container_type '{}', ignoring it", containerType);
       }
@@ -192,7 +189,7 @@ public class CatalogConnectorIngestionService {
 
     for (Iterator<String> it = properties.fieldNames(); it.hasNext(); ) {
       String key = it.next();
-      if ("OPENAEV_URL".equals(key)) {
+      if (openAEVKeyName.equals(key)) {
         continue;
       }
       JsonNode prop = properties.get(key);
