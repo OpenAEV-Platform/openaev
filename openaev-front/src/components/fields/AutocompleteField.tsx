@@ -1,19 +1,16 @@
 import { Autocomplete, Box, Checkbox, TextField, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useMemo } from 'react';
 
 import { type GroupOption, type Option } from '../../utils/Option';
 import { useFormatter } from '../i18n';
 
 type AutocompleteOption = GroupOption | Option;
 
-interface Props {
+interface BaseProps {
   label: string;
-  value: string | string[] | undefined;
   options: AutocompleteOption[];
   onInputChange: (search: string) => void;
-  onChange: (value: string | string[] | undefined) => void;
-  multiple?: boolean;
   required?: boolean;
   error?: boolean;
   className?: string;
@@ -21,52 +18,58 @@ interface Props {
   disabled?: boolean;
 }
 
-const AutocompleteField: FunctionComponent<Props> = ({
-  label,
-  value,
-  options = [],
-  onInputChange,
-  onChange,
-  multiple = false,
-  required = false,
-  error = false,
-  className = '',
-  variant = 'outlined',
-  disabled,
-}) => {
+interface SingleProps extends BaseProps {
+  multiple?: false;
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+}
+
+interface MultipleProps extends BaseProps {
+  multiple: true;
+  value: string[];
+  onChange: (value: string[]) => void;
+}
+
+type Props = SingleProps | MultipleProps;
+
+const AutocompleteField: FunctionComponent<Props> = (props) => {
+  const {
+    label,
+    options = [],
+    onInputChange,
+    required = false,
+    error = false,
+    className = '',
+    variant = 'outlined',
+    disabled,
+  } = props;
+
+  const multiple = props.multiple === true;
+  const value = props.value;
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const [currentValue, setCurrentValue] = useState(value);
-
-  useEffect(() => {
-    setCurrentValue(value);
-  }, [value]);
-
   const selectedOption = useMemo(() => {
-    if (!options.length) return multiple ? [] : null;
-
-    if (multiple) {
-      if (!Array.isArray(currentValue)) return [];
-      return options.filter(o => currentValue.includes(o.id));
+    if (!options.length) {
+      return multiple ? [] : null;
     }
 
-    if (!multiple && typeof currentValue === 'string') {
-      return options.find(o => o.id === currentValue) || null;
+    if (props.multiple) {
+      return options.filter(o => props.value.includes(o.id));
     }
 
-    return multiple ? [] : null;
-  }, [currentValue, options, multiple]);
+    return options.find(o => o.id === props.value) ?? null;
+  }, [props.value, options, props.multiple]);
 
-  const handleValue = (newValue: unknown) => {
-    if (multiple) {
-      const ids = ((newValue ?? []) as AutocompleteOption[]).map(v => v.id);
-      setCurrentValue(ids);
-      onChange(ids);
+  const handleValue = (
+    newValue: AutocompleteOption | AutocompleteOption[] | null,
+  ) => {
+    if (props.multiple) {
+      const ids = (newValue as AutocompleteOption[]).map(v => v.id);
+      props.onChange(ids);
     } else {
-      const id = (newValue as AutocompleteOption | null | undefined)?.id;
-      setCurrentValue(id);
-      onChange(id);
+      const id = (newValue as AutocompleteOption | null)?.id;
+      props.onChange(id);
     }
   };
 
@@ -81,8 +84,7 @@ const AutocompleteField: FunctionComponent<Props> = ({
       multiple={multiple}
       options={options}
       value={selectedOption}
-      groupBy={(option: AutocompleteOption) =>
-        'group' in option ? option.group : ''}
+      groupBy={option => ('group' in option ? option.group : '')}
       getOptionLabel={option => option.label ?? ''}
       isOptionEqualToValue={(option, val) => option.id === val.id}
       onInputChange={(_, search, reason) => {
@@ -102,11 +104,9 @@ const AutocompleteField: FunctionComponent<Props> = ({
         />
       )}
       renderOption={(props, option) => {
-        delete props.key;
-
         const checked = multiple
-          ? Array.isArray(currentValue) && currentValue.includes(option.id)
-          : currentValue === option.id;
+          ? value?.includes(option.id)
+          : value === option.id;
 
         return (
           <Tooltip key={option.id} title={option.label}>
