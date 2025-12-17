@@ -1293,4 +1293,8 @@ public class InjectService {
 
     return healthChecks;
   }
+
+  public Inject createInject(Inject inject) {
+    return injectRepository.save(inject);
+  }
 }

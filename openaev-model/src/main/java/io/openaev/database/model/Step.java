@@ -4,6 +4,7 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.*;
@@ -75,8 +76,15 @@ public class Step implements Base {
   private Step stepTemplate;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
-  private List<Step> stepExecuted;
+  private List<Step> stepsExecuted;
 
   @OneToOne(mappedBy = "step")
   private Condition condition;
+
+  public List<Step> getStepsExecuted() {
+    if (stepsExecuted == null) {
+      stepsExecuted = new ArrayList<>();
+    }
+    return stepsExecuted;
+  }
 }

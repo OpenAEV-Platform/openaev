@@ -7,21 +7,26 @@ import com.google.gson.Gson;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.execution.ExecutableInject;
+import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class InjectExecutionStep implements ActionStep {
   private static final Gson gson = new Gson();
   private final InjectorContractService injectorContractService;
@@ -34,7 +39,9 @@ public class InjectExecutionStep implements ActionStep {
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
   private final InjectorContractContentUtils injectorContractContentUtils;
-  private final ExerciseService exerciseService;
+  private final Executor executor;
+  private final InjectStatusService injectStatusService;
+  private final StepService stepService;
 
   @Override
   public Step create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
@@ -55,21 +62,53 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   @Override
-  public void wait(StepsCreateInput.StepCreateInput stepTemplate, Workflow workflow, String input) {
+  public void wait(Step stepTemplate, String input) {
     // CALL BY methode update() or by start simulation
     // Verif condition
     // Creation step WAIT add to Queue or Table Queue
+    Step waitStep = new Step();
+    waitStep.setWorkflow(stepTemplate.getWorkflow());
+    waitStep.setData(stepTemplate.getData());
+    waitStep.setStepTemplate(stepTemplate);
+    // TODO after output paser fromPayload or nuclei or nmap
+    waitStep.setInput(input);
+    waitStep.setStatus(STEP_STATUS.WAIT);
+    waitStep.setLimitExecution(stepTemplate.getLimitExecution());
+
+    waitStep = stepService.saveStep(waitStep);
+
+    stepTemplate.getStepsExecuted().add(waitStep); // TODO Check
   }
 
   @Override
-  public void run(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+  public void run(Step waitStep, Workflow workflow) {
     // CALL BY QUEUE WAIT
     // Get params
-
+    Inject inject = gson.fromJson(waitStep.getData(), Inject.class);
     // Use input, complete inject ->
-
     // Save Inject
+    inject = injectService.createInject(inject);
+
+    ExecutableInject executableInject =
+        new ExecutableInject(
+            true,
+            true,
+            inject,
+            inject.getTeams(),
+            inject.getAssets(),
+            inject.getAssetGroups(),
+            List.of()); // TODO Check users?
+
+    // TODO Check Pass documents? Executable Payloads
+    // executableInject.addDirectAttachment(inject.getDocuments());
+
     // Execute Inject
+    try {
+      executor.directExecute(executableInject);
+    } catch (Exception e) {
+      log.warn(e.getMessage(), e);
+      injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+    }
   }
 
   @Override
