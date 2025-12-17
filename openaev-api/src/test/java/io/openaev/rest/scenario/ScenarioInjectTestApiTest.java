@@ -70,7 +70,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     private InjectorContractComposer.Composer createEmailContract() {
       return injectorContractComposer
           .forInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract())
-          .withInjector(injectorFixture.getWellKnownEmailInjector());
+          .withInjector(injectorFixture.getWellKnownEmailInjector(true));
     }
 
     @Test
@@ -264,7 +264,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     private InjectorContractComposer.Composer createEmailContract() {
       return injectorContractComposer
           .forInjectorContract(injectorContractFixture.getWellKnownGlobalEmailContract())
-          .withInjector(injectorFixture.getWellKnownEmailInjector());
+          .withInjector(injectorFixture.getWellKnownEmailInjector(true));
     }
 
     @Test

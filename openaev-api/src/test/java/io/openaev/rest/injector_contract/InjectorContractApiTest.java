@@ -1001,8 +1001,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     class WhenInjectorContractDoesNotAlreadyExists {
 
       @Test
-      @DisplayName("Creating contract succeeds")
-      void createContractSucceeds() throws Exception {
+      @DisplayName("Creating contract succeeds from injector payload type")
+      void createContractSucceedsFromInjectorPayloadType() throws Exception {
         Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
         String newId = UUID.randomUUID().toString();
         InjectorContractAddInput input = new InjectorContractAddInput();
@@ -1023,38 +1023,77 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths(
-                "injector_contract_created_at",
-                "injector_contract_updated_at",
-                "injector_contract_domains")
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":"contract external id",
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
-                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant"
-                        }""",
+                                  {
+                                    "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                                    "injector_contract_external_id":"contract external id",
+                                    "injector_contract_labels":null,"injector_contract_manual":false,
+                                    "injector_contract_content":"{\\"fields\\":[]}",
+                                    "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                                    "injector_contract_platforms":[],"injector_contract_payload":null,
+                                    "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                                    "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+                                    "injector_contract_atomic_testing":true,
+                                    "injector_contract_import_available":false,"injector_contract_arch":null,
+                                    "injector_contract_injector_type":"openaev_implant",
+                                    "injector_contract_injector_type_name":"OpenAEV Implant",
+                                    "injector_contract_domains":[]
+                                  }""",
                     newId));
+      }
+
+      @Test
+      @DisplayName("Creating contract succeeds")
+      void createContractSucceeds() throws Exception {
+        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+        String newId = UUID.randomUUID().toString();
+        InjectorContractAddInput input = new InjectorContractAddInput();
+        input.setId(newId);
+        input.setExternalId(externalId);
+        input.setDomains(domains);
+        input.setInjectorId(injectorFixture.getWellKnownEmailInjector(false).getId());
+        input.setContent("{\"fields\":[]}");
+
+        String response =
+            mvc.perform(
+                    post(INJECTOR_CONTRACT_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(input)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
-            .node("injector_contract_domains")
-            .isArray()
-            .allSatisfy(
-                domain -> {
-                  assertThatJson(domain).node("domain_name").isNotNull();
-                  assertThatJson(domain).node("domain_color").isNotNull();
-                });
+            .whenIgnoringPaths(
+                "injector_contract_created_at",
+                "injector_contract_updated_at",
+                "injector_contract_domains[*].domain_created_at",
+                "injector_contract_domains[*].domain_updated_at",
+                "injector_contract_domains[*].domain_id",
+                "injector_contract_domains[*].listened")
+            .isEqualTo(
+                String.format(
+                    """
+                                    {
+                                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+                                      "injector_contract_external_id":"contract external id",
+                                      "injector_contract_labels":null,"injector_contract_manual":false,
+                                      "injector_contract_content":"{\\"fields\\":[]}",
+                                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
+                                      "injector_contract_platforms":[],"injector_contract_payload":null,
+                                      "injector_contract_injector":"41b4dd55-5bd1-4614-98cd-9e3770753306",
+                                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+                                      "injector_contract_atomic_testing":true,
+                                      "injector_contract_import_available":false,"injector_contract_arch":null,
+                                      "injector_contract_injector_type":"openaev_email",
+                                      "injector_contract_injector_type_name":"Email",
+                                      "injector_contract_domains":[{domain_name: "To classify", domain_color: "#FFFFFF"}]
+                                    }""",
+                    newId));
       }
 
       @Test

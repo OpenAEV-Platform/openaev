@@ -41,11 +41,11 @@ public class InjectorFixture {
     return injector;
   }
 
-  public Injector getWellKnownEmailInjector() {
+  public Injector getWellKnownEmailInjector(boolean isPayload) {
     Injector injector = injectorRepository.findByType("openaev_email").orElseThrow();
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
-    injector.setPayloads(true);
+    injector.setPayloads(isPayload);
     injectorRepository.save(injector);
     return injector;
   }
