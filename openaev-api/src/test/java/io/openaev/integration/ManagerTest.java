@@ -14,15 +14,20 @@ import io.openaev.integration.local_fixtures.TestIntegrationFactory;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class ManagerTest {
   @Autowired private TestIntegrationFactory testIntegrationFactory;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;

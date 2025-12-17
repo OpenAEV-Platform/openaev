@@ -13,12 +13,14 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCrowdstrikeConfig;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 public class CrowdStrikeExecutorConfigurationMigrationTest {
@@ -26,6 +28,9 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
   @Nested
   @SpringBootTest
   @Transactional
+  @TestExecutionListeners(
+      value = {RabbitMQTestListener.class},
+      mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
   @WithMockCrowdstrikeConfig(
       enable = true,
       apiUrl = "cs_api",
@@ -104,6 +109,9 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
   @Nested
   @SpringBootTest
   @Transactional
+  @TestExecutionListeners(
+      value = {RabbitMQTestListener.class},
+      mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
   @WithMockCrowdstrikeConfig(
       enable = false,
       apiUrl = "cs_api",
