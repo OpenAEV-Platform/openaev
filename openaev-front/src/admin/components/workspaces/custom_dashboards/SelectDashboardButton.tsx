@@ -54,7 +54,7 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
           </>
         )}
       >
-        <CustomDashboardAutocompleteField label={t('Dashboard')} value={dashboardId} scenarioOrSimulationId={scenarioOrSimulationId} onChange={value => setDashboardId(value as string)} />
+        <CustomDashboardAutocompleteField label={t('Dashboard')} value={dashboardId} scenarioOrSimulationId={scenarioOrSimulationId} onChange={value => setDashboardId(value)} />
       </Dialog>
     </>
   );
