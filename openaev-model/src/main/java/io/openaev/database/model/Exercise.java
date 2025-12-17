@@ -202,6 +202,11 @@ public class Exercise implements GrantableBase {
 
   // -- RELATION --
 
+  @Schema(description = "ID of the workflow")
+  @JoinColumn(name = "id", referencedColumnName = "id")
+  @OneToOne(mappedBy = "id")
+  private Workflow workflow;
+
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "exercise_custom_dashboard")
