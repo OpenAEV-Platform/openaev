@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.catalog_connectors.CatalogConnectorIngestionService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -175,7 +176,7 @@ public class CatalogConnectorIngestionServiceTest {
     assertThat(connector.getSupportVersion()).isEqualTo(">=5.5.4");
     assertThat(connector.getContainerImage()).isEqualTo("openaev/connector");
 
-    assertThat(connector.getContainerType()).isEqualTo(CatalogConnector.CONNECTOR_TYPE.COLLECTOR);
+    assertThat(connector.getContainerType()).isEqualTo(ConnectorType.COLLECTOR);
   }
 
   @Test
