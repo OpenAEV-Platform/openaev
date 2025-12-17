@@ -15,6 +15,8 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.form.PayloadCreateInput;
+import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
@@ -46,6 +48,7 @@ public class SecurityCoverageInjectService {
   private final InjectRepository injectRepository;
   private final PayloadRepository payloadRepository;
   private final PayloadService payloadService;
+  private final PayloadCreationService payloadCreationService;
   private final DomainService domainService;
   private final InjectorContractRepository injectorContractRepository;
 
@@ -121,7 +124,9 @@ public class SecurityCoverageInjectService {
       Scenario scenario,
       Set<StixRefToExternalRef> indicatorsRefs) {
     // 1. Remove Inject with contract related to Dns Resolution
-    injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+    if (indicatorsRefs.isEmpty()) {
+        injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+    }
 
     // 2. Manage all indicators with hostname value to create
     indicatorsRefs.stream()
@@ -148,7 +153,6 @@ public class SecurityCoverageInjectService {
               if (existingPayload == null) {
                 // 5. If there is no existing payload, create it
                 existingPayload = createDnsResolutionPayload(indicator);
-                payloadService.updateInjectorContractsForPayload(existingPayload);
               }
 
               // 6. Create an inject, linked to the scenario for each contract
@@ -157,8 +161,7 @@ public class SecurityCoverageInjectService {
               List<InjectorContract> injectorContracts =
                 injectorContractRepository.findInjectorContractsByPayload(existingPayload);
               List<Inject> injectsToCreate = injectorContracts.stream()
-                .map(
-                injectorContract -> {
+                .map(injectorContract -> {
                     Inject inject = injectService.buildInject(injectorContract, name, description, true);
                     inject.setScenario(scenario);
                     return inject;
@@ -168,26 +171,23 @@ public class SecurityCoverageInjectService {
   }
 
   private Payload createDnsResolutionPayload(StixRefToExternalRef indicator) {
-    DnsResolution dnsResolutionPayload = new DnsResolution();
-    dnsResolutionPayload.setName(indicator.getName());
-    dnsResolutionPayload.setDescription(indicator.getDescription());
-    dnsResolutionPayload.setHostname(indicator.getHostname());
-    dnsResolutionPayload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
-    dnsResolutionPayload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
-    dnsResolutionPayload.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
+      PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
+      payloadCreateInput.setHostname(indicator.getHostname());
+      payloadCreateInput.setName(indicator.getName());
+      payloadCreateInput.setDescription(indicator.getDescription());
+      payloadCreateInput.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+      payloadCreateInput.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+      payloadCreateInput.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+      payloadCreateInput.setPlatforms(new Endpoint.PLATFORM_TYPE[] {
+          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+      });
+      payloadCreateInput.setExpectations(new InjectExpectation.EXPECTATION_TYPE[] {
           InjectExpectation.EXPECTATION_TYPE.PREVENTION,
           InjectExpectation.EXPECTATION_TYPE.DETECTION
-        });
-    dnsResolutionPayload.setPlatforms(
-        new Endpoint.PLATFORM_TYPE[] {
-          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
-        });
-    dnsResolutionPayload.setDomains(
-        domainService.upserts(
-            new HashSet<>(
-                Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING))));
-    return payloadRepository.save(dnsResolutionPayload);
+      });
+      Set<Domain> domains = domainService.upserts(new HashSet<>(Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
+      payloadCreateInput.setDomainIds(domains.stream().map(Domain::getId).collect(Collectors.toList()));
+      return payloadCreationService.createPayload(payloadCreateInput);
   }
 
   // -- INJECTS BY VULNERABILITIES --
