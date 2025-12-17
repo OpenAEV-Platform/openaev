@@ -39,7 +39,7 @@ public class WorkflowService {
   public Workflow launchWorkflowTemplateBySimulation(String simulationId) {
     // 1 WORKFLOW TEMPLATE / SIMULATION
     Workflow workflowTemplate =
-        workflowRepository.findBySimulationId_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE);
+        workflowRepository.findBySimulation_IdAndStatus(simulationId, WORKFLOW_STATUS.TEMPLATE);
     if (workflowTemplate == null) return null; // todo exception not find
     return this.launchWorkflow(workflowTemplate);
   }

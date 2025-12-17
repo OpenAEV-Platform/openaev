@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface StepRepository extends JpaRepository<Step, Long> {
   // STEP TEMPLATE
-  List<Step> findAllByStepTemplateIdEmptyAndWorkflowId(String workflowId);
+  List<Step> findAllByStepTemplateIdIsNullAndWorkflowId(String workflowId);
 
   // STEP EXECUTED
   List<Step> findAllByStepTemplateIdAndWorkflowId(String stepTemplateId, String workflowId);

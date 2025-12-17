@@ -1,20 +1,21 @@
 package io.openaev.database.model;
 
-import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "workflows")
 @Builder
-@EntityListeners(ModelBaseListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,6 +32,7 @@ public class Workflow implements Base {
 
   @Column(name = "workflow_status")
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Status of the workflow (TEMPLATE, RUN, STOP, END)")
   private WORKFLOW_STATUS status;
 
@@ -61,10 +63,11 @@ public class Workflow implements Base {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
   private List<Workflow> workflowExecuted;
 
+  // todo: check initialization list or null
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "workflow")
-  private List<Step> steps;
+  private List<Step> steps = new ArrayList<>();
 
   @OneToOne
-  @JoinColumn(name = "exercise_id")
+  @JoinColumn(name = "workflow_simulation_id")
   private Exercise simulation;
 }

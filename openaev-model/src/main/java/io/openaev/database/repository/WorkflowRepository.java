@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WorkflowRepository extends JpaRepository<Workflow, String> {
-  List<Workflow> findAllBySimulationId_Id(String simulationId);
+  List<Workflow> findAllBySimulation_Id(String simulationId);
 
-  Workflow findBySimulationId_IdAndStatus(String simulationId, WORKFLOW_STATUS status);
+  Workflow findBySimulation_IdAndStatus(String simulationId, WORKFLOW_STATUS status);
 }

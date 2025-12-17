@@ -35,7 +35,7 @@ public class ChainingApi extends RestBehavior {
 
   // private final WorkflowMapper workflowMapper;
 
-  @PostMapping(CHAINING_API + "/workflow")
+  @PostMapping("/workflow")
   @Operation(summary = "Create a new workflow")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Chaining Workflow create successfully"),
@@ -44,6 +44,7 @@ public class ChainingApi extends RestBehavior {
   @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   public ResponseEntity<WorkflowOutput> createWorkFlow(@RequestBody WorkflowCreateInput input) {
     try {
+
       workflowService.creationWorkflow(input.getExerciseId());
       return null; // ResponseEntity.ok(workflowMapper.toOutput(workflowService.creationWorkflow(workflowMapper.toEntity(input))));
     } catch (Exception e) {
@@ -54,7 +55,7 @@ public class ChainingApi extends RestBehavior {
     }
   }
 
-  @PostMapping(CHAINING_API + "/step")
+  @PostMapping("/step")
   @Operation(summary = "Create new steps")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Step Workflow create successfully"),

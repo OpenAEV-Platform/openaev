@@ -2,16 +2,15 @@ package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.api.chaining.DataStep;
-import io.openaev.api.chaining.InputStep;
 import io.openaev.database.model.STEP_ACTION_CLASS;
 import java.util.List;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class StepsCreateInput {
   public List<StepCreateInput> steps;
 
@@ -21,6 +20,8 @@ public class StepsCreateInput {
   @Getter
   @Setter
   @Builder
+  @AllArgsConstructor
+  @NoArgsConstructor
   public static class StepCreateInput {
 
     @JsonProperty("step_action")
@@ -34,8 +35,5 @@ public class StepsCreateInput {
 
     @JsonProperty("data_step")
     public DataStep dataStep;
-
-    @JsonProperty("input_step")
-    public InputStep inputStep;
   }
 }

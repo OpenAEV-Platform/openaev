@@ -65,6 +65,8 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             step_input JSONB,
             step_data JSONB,
             step_limit_execution INTEGER NOT NULL,
+            step_condition_executed VARCHAR(255),
+            step_output_parser VARCHAR(255),
             step_status step_status,
             step_workflow_id VARCHAR(255) NOT NULL REFERENCES workflows(workflow_id) ON DELETE CASCADE,
             step_template_id VARCHAR(255) NULL REFERENCES steps(step_id),
@@ -83,13 +85,15 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
       $$;
         CREATE TABLE conditions (
             condition_id VARCHAR(255) NOT NULL CONSTRAINT condition_pkey PRIMARY KEY,
+            step_from_id VARCHAR REFERENCES steps(step_id),
             condition_key VARCHAR(255),
             condition_value VARCHAR(255),
             condition_type condition_type NOT NULL,
             condition_parent_id VARCHAR(255) REFERENCES conditions(condition_id) ON DELETE CASCADE,
+            step_id VARCHAR(255) NOT NULL REFERENCES steps(step_id) ON DELETE CASCADE,
             condition_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             condition_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            UNIQUE ( condition_key, condition_value, condition_type)
+            UNIQUE ( condition_key, condition_value, condition_type, condition_parent_id, step_id)
           );
         """);
       select.execute(

@@ -1,5 +1,8 @@
 package io.openaev.api.chaining;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.Gson;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -12,39 +15,34 @@ import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
-import io.openaev.service.chaining.ConditionService;
-import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import java.util.*;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+@RequiredArgsConstructor
 @Component
 public class InjectExecutionStep implements ActionStep {
   private static final Gson gson = new Gson();
-  InjectorContractService injectorContractService;
-  UserService userService;
-  AssetService assetService;
-  TeamService teamService;
-  TagService tagService;
-  DocumentService documentService;
-  InjectService injectService;
-  TagRuleService tagRuleService;
-  AssetGroupService assetGroupService;
-  InjectorContractContentUtils injectorContractContentUtils;
-  ExerciseService exerciseService;
-  ConditionService conditionService;
-  StepService stepService;
+  private final InjectorContractService injectorContractService;
+  private final UserService userService;
+  private final AssetService assetService;
+  private final TeamService teamService;
+  private final TagService tagService;
+  private final DocumentService documentService;
+  private final InjectService injectService;
+  private final TagRuleService tagRuleService;
+  private final AssetGroupService assetGroupService;
+  private final InjectorContractContentUtils injectorContractContentUtils;
+  private final ExerciseService exerciseService;
 
   @Override
-  public void create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+  public Step create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
     String data = this.stepData(step, workflow.getSimulation());
-    Condition condition = this.stepCondition(step, workflow);
     String input = this.stepInput(step.conditions);
     String outputParser = this.stepOutputParser(data);
     Step stepTemplate =
         Step.builder()
-            .condition(condition)
             .data(data)
             .input(input)
             .output_parser(outputParser)
@@ -53,12 +51,13 @@ public class InjectExecutionStep implements ActionStep {
             .limitExecution(step.limitExecution)
             .workflow(workflow)
             .build();
-    this.stepService.saveStep(stepTemplate);
+    return stepTemplate;
   }
 
   @Override
   public void wait(StepsCreateInput.StepCreateInput stepTemplate, Workflow workflow, String input) {
     // CALL BY methode update() or by start simulation
+    // Verif condition
     // Creation step WAIT add to Queue or Table Queue
   }
 
@@ -91,6 +90,8 @@ public class InjectExecutionStep implements ActionStep {
   private String stepData(StepsCreateInput.StepCreateInput step, Exercise exercise) {
 
     InjectInput data = (InjectInput) step.dataStep;
+    // TODO throw exception
+    if (data.getInjectorContract() == null) return null;
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
     Inject inject = data.toInject(injectorContract);
@@ -136,8 +137,15 @@ public class InjectExecutionStep implements ActionStep {
       inject.setContent(
           injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     }
-
-    return gson.toJson(inject);
+    ObjectMapper om =
+        new ObjectMapper()
+            .findAndRegisterModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    try {
+      return om.writeValueAsString(inject);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private String stepOutputParser(String data) {
@@ -145,60 +153,6 @@ public class InjectExecutionStep implements ActionStep {
     // Nmap
     // Nuclei
     return "{}";
-  }
-
-  private Condition stepCondition(StepsCreateInput.StepCreateInput step, Workflow workflow) {
-    ConditionCreateInput firstCondition =
-        step.conditions.stream()
-            .reduce(
-                (a, b) -> {
-                  throw new IllegalArgumentException("Only 1 condition can be first parent");
-                })
-            .orElseThrow(
-                () -> new IllegalArgumentException("Only 1 condition can be first parent"));
-
-    Condition first =
-        Condition.builder()
-            .type(firstCondition.getType())
-            .key(firstCondition.getKey())
-            .value(firstCondition.getValue())
-            .build();
-    first = conditionService.saveCondition(first);
-
-    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
-    temporaryIdAndSaveId.put(firstCondition.getTemporaryId(), first);
-
-    Map<String, List<ConditionCreateInput>> temporaryConditions = new HashMap<>();
-    temporaryConditions =
-        step.getConditions().stream()
-            .collect(Collectors.groupingBy(ConditionCreateInput::getTemporaryIdConditionParent));
-
-    Queue<String> currentId = new LinkedList<>();
-    currentId.add(firstCondition.getTemporaryIdConditionParent());
-
-    while (!currentId.isEmpty()) {
-      String currentTemporaryId = currentId.poll();
-
-      List<ConditionCreateInput> conditions = temporaryConditions.get(currentTemporaryId);
-
-      for (ConditionCreateInput condition : conditions) {
-        Condition current =
-            Condition.builder()
-                .type(condition.getType())
-                .key(condition.getKey())
-                .value(condition.getValue())
-                .conditionParent(
-                    temporaryIdAndSaveId.get(condition.getTemporaryIdConditionParent()))
-                .build();
-
-        current = conditionService.saveCondition(current);
-
-        temporaryIdAndSaveId.put(condition.getTemporaryId(), current);
-
-        currentId.add(condition.getTemporaryId());
-      }
-    }
-    return first;
   }
 
   private String stepInput(List<ConditionCreateInput> conditions) {

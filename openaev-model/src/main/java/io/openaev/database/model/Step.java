@@ -1,19 +1,16 @@
 package io.openaev.database.model;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
-import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.List;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "steps")
-@EntityListeners(ModelBaseListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,6 +27,7 @@ public class Step implements Base {
 
   @Column(name = "step_action_class")
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   private STEP_ACTION_CLASS stepAction;
 
   @Type(JsonType.class)
@@ -37,7 +35,7 @@ public class Step implements Base {
   private String output;
 
   @Type(JsonType.class)
-  @Column(name = "output_parser", columnDefinition = "jsonb")
+  @Column(name = "step_output_parser", columnDefinition = "jsonb")
   private String output_parser;
 
   @Type(JsonType.class)
@@ -51,11 +49,12 @@ public class Step implements Base {
   @Column(name = "step_limit_execution") // ? same value or include diff value?
   private int limitExecution;
 
-  @Column(name = "step_condition_excuted")
+  @Column(name = "step_condition_executed")
   private String conditionExecuted;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "step_status")
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   private STEP_STATUS status;
 
   @Column(name = "step_created_at")
