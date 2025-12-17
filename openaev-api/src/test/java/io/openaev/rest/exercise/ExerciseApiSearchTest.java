@@ -29,8 +29,10 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
+@Transactional
 public class ExerciseApiSearchTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -42,7 +44,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
 
-  @BeforeAll
+  @BeforeEach
   void beforeAll() {
     Exercise exercise1 = ExerciseFixture.createDefaultCrisisExercise();
     Exercise exercise1Saved = this.exerciseRepository.save(exercise1);
@@ -51,11 +53,6 @@ public class ExerciseApiSearchTest extends IntegrationTest {
     Exercise exercise2 = ExerciseFixture.createDefaultIncidentResponseExercise();
     Exercise exercise2Saved = this.exerciseRepository.save(exercise2);
     EXERCISE_IDS.add(exercise2Saved.getId());
-  }
-
-  @AfterAll
-  void afterAll() {
-    this.exerciseRepository.deleteAllById(EXERCISE_IDS);
   }
 
   @Nested
@@ -248,8 +245,8 @@ public class ExerciseApiSearchTest extends IntegrationTest {
         grantPlanner.setGroup(group);
         grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
-        group.setGrants(List.of(grantObserver, grantPlanner));
-        group.setUsers(List.of(user));
+        group.setGrants(new ArrayList<>(List.of(grantObserver, grantPlanner)));
+        group.setUsers(new ArrayList<>(List.of(user)));
         groupRepository.save(group);
         EXERCISE_IDS.add(exerciseGranted.getId());
 
