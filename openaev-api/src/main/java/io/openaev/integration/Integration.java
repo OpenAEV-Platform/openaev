@@ -6,6 +6,7 @@ import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Objects;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,6 +94,9 @@ public abstract class Integration {
       throw new IllegalStateException("Too many components qualify for request.");
     }
 
-    return candidates.stream().map(candidate -> (T) FieldUtils.getField(this, candidate)).toList();
+    return candidates.stream()
+        .map(candidate -> (T) FieldUtils.getField(this, candidate))
+        .filter(Objects::nonNull)
+        .toList();
   }
 }

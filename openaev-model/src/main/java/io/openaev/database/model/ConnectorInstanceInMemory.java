@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import java.util.HashSet;
 import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -12,7 +13,7 @@ public class ConnectorInstanceInMemory extends ConnectorInstance {
 
   private REQUESTED_STATUS_TYPE requestedStatus;
 
-  private Set<ConnectorInstanceConfiguration> configurations;
+  private Set<ConnectorInstanceConfiguration> configurations = new HashSet<>();
 
   @Setter(AccessLevel.NONE)
   private String className;
