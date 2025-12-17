@@ -78,9 +78,6 @@ public class Step implements Base {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "id")
   private List<Step> stepsExecuted;
 
-  @OneToOne(mappedBy = "step")
-  private Condition condition;
-
   public List<Step> getStepsExecuted() {
     if (stepsExecuted == null) {
       stepsExecuted = new ArrayList<>();

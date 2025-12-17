@@ -177,10 +177,6 @@ public class Scenario implements GrantableBase {
   private Instant updatedAt = now();
 
   // -- RELATION --
-  @Schema(description = "ID of the workflow")
-  @JoinColumn(name = "id", referencedColumnName = "id")
-  @OneToOne(mappedBy = "id")
-  private Workflow workflow;
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)

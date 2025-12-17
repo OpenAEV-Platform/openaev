@@ -30,7 +30,6 @@ public class ChainingApi extends RestBehavior {
   public static final String CHAINING_API = "/api/chaining";
   private final WorkflowService workflowService;
   private final StepService stepService;
-  private final InjectExecutionStep injectExecutionStep;
 
   // private final WorkflowMapper workflowMapper;
 
@@ -75,11 +74,26 @@ public class ChainingApi extends RestBehavior {
   }
 
   // TODO Todelete
-  @GetMapping("/step/execution/{stepId}")
+  @PostMapping("/step/wait/{stepId}")
+  public ResponseEntity<WorkflowOutput> createWaitStep(@PathVariable final String stepId) {
+    try {
+      Step stepTemplate = this.stepService.findStepTemplateById(stepId);
+      stepService.wait(stepTemplate);
+      return null;
+    } catch (Exception e) {
+      log.error(
+          String.format(
+              "Unexpected error while creating a new Steps Workflow: %s", e.getMessage()));
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  // TODO Todelete
+  @PostMapping("/step/execution/{stepId}")
   public ResponseEntity<WorkflowOutput> executeStep(@PathVariable final String stepId) {
     try {
-      Step step = stepService.findById(stepId);
-      injectExecutionStep.wait(step, null);
+      Step stepWait = this.stepService.findStepWaitById(stepId);
+      stepService.run(stepWait);
       return null;
     } catch (Exception e) {
       log.error(

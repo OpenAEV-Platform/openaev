@@ -4,10 +4,7 @@ import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.database.model.Condition;
-import io.openaev.database.model.STEP_ACTION_CLASS;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Workflow;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import java.util.*;
@@ -28,6 +25,16 @@ public class StepService {
     return this.stepRepository.save(step);
   }
 
+  public Step findStepTemplateById(String idStep) {
+    return this.stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(
+        idStep, STEP_STATUS.TEMPLATE);
+  }
+
+  public Step findStepWaitById(String idStep) {
+    return this.stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(
+        idStep, STEP_STATUS.WAIT);
+  }
+
   public void createSteps(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
     Workflow workflow = workflowService.getWorkflowById(workflowId);
     for (StepsCreateInput.StepCreateInput stepInput : steps) {
@@ -35,10 +42,37 @@ public class StepService {
       if (actionStep == null) throw new BadRequestException("action step is null");
       Step step = actionStep.create(stepInput, workflow);
       step = this.saveStep(step);
-      Condition condition = this.stepCondition(stepInput, step, workflow);
-      step.setCondition(condition);
+      this.stepCondition(stepInput, step, workflow);
+
       this.saveStep(step);
     }
+  }
+
+  public void run(Step step) {
+    ActionStep actionStep = this.factoryAction(step.getStepAction());
+    if (actionStep == null) throw new BadRequestException("action step is null");
+
+    Step stepRun = actionStep.run(step, null);
+    if (stepRun == null) {
+      step.setStatus(STEP_STATUS.END);
+      this.saveStep(step);
+
+    } else {
+      stepRun.setStatus(STEP_STATUS.RUN);
+      this.saveStep(stepRun);
+    }
+  }
+
+  public void wait(Step stepTemplate) {
+    ActionStep actionStep = this.factoryAction(stepTemplate.getStepAction());
+    if (actionStep == null) throw new BadRequestException("action step is null");
+
+    Step stepWait = actionStep.wait(stepTemplate, null);
+
+    stepWait = this.saveStep(stepWait);
+
+    stepTemplate.getStepsExecuted().add(stepWait); // TODO Check
+    this.saveStep(stepTemplate);
   }
 
   private ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {

@@ -17,7 +17,6 @@ import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
-import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +40,6 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
   private final InjectStatusService injectStatusService;
-  private final StepService stepService;
 
   @Override
   public Step create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
@@ -62,7 +60,7 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   @Override
-  public void wait(Step stepTemplate, String input) {
+  public Step wait(Step stepTemplate, String input) {
     // CALL BY methode update() or by start simulation
     // Verif condition
     // Creation step WAIT add to Queue or Table Queue
@@ -75,40 +73,49 @@ public class InjectExecutionStep implements ActionStep {
     waitStep.setStatus(STEP_STATUS.WAIT);
     waitStep.setLimitExecution(stepTemplate.getLimitExecution());
 
-    waitStep = stepService.saveStep(waitStep);
-
-    stepTemplate.getStepsExecuted().add(waitStep); // TODO Check
+    return waitStep;
   }
 
   @Override
-  public void run(Step waitStep, Workflow workflow) {
+  public Step run(Step waitStep, Workflow workflow) {
     // CALL BY QUEUE WAIT
     // Get params
-    Inject inject = gson.fromJson(waitStep.getData(), Inject.class);
-    // Use input, complete inject ->
-    // Save Inject
-    inject = injectService.createInject(inject);
-
-    ExecutableInject executableInject =
-        new ExecutableInject(
-            true,
-            true,
-            inject,
-            inject.getTeams(),
-            inject.getAssets(),
-            inject.getAssetGroups(),
-            List.of()); // TODO Check users?
-
-    // TODO Check Pass documents? Executable Payloads
-    // executableInject.addDirectAttachment(inject.getDocuments());
-
-    // Execute Inject
+    ObjectMapper om =
+        new ObjectMapper()
+            .findAndRegisterModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     try {
-      executor.directExecute(executableInject);
-    } catch (Exception e) {
-      log.warn(e.getMessage(), e);
-      injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+      Inject inject = om.readValue(waitStep.getData(), Inject.class);
+
+      // Use input, complete inject ->
+      // Save Inject
+      inject = injectService.createInject(inject);
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              true,
+              true,
+              inject,
+              inject.getTeams(),
+              inject.getAssets(),
+              inject.getAssetGroups(),
+              List.of()); // TODO Check users?
+
+      // TODO Check Pass documents? Executable Payloads
+      // executableInject.addDirectAttachment(inject.getDocuments());
+
+      // Execute Inject
+      try {
+        executor.directExecute(executableInject);
+        return waitStep;
+      } catch (Exception e) {
+        log.warn(e.getMessage(), e);
+        injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+      }
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
     }
+    return null;
   }
 
   @Override

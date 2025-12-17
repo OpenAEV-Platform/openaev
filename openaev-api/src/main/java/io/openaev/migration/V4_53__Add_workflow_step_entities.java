@@ -25,23 +25,15 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             workflow_status workflow_status NOT NULL ,
             workflow_version INTEGER NOT NULL,
             workflow_is_edited BOOLEAN DEFAULT false,
+            workflow_simulation_id VARCHAR(255) NOT NULL REFERENCES exercises(exercise_id) ON DELETE CASCADE,
             workflow_template_id VARCHAR(255) REFERENCES workflows(workflow_id),
             workflow_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             workflow_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
           );
+        CREATE UNIQUE INDEX IF NOT EXISTS uk_workflow_template
+            ON workflows (workflow_id, workflow_simulation_id)
+            WHERE workflow_status = 'TEMPLATE';
          """);
-
-      select.execute(
-          """
-      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS simulation_workflow VARCHAR(255) NULL;
-      ALTER TABLE exercises ADD CONSTRAINT simulation_workflow_fk FOREIGN KEY (simulation_workflow) REFERENCES workflows(workflow_id) ON DELETE CASCADE;
-              """);
-
-      select.execute(
-          """
-      ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS scenario_workflow VARCHAR(255) NULL;
-      ALTER TABLE scenarios ADD CONSTRAINT scenario_workflow_fk FOREIGN KEY (scenario_workflow) REFERENCES workflows(workflow_id) ON DELETE CASCADE;
-              """);
 
       select.execute(
           """
@@ -96,12 +88,6 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             UNIQUE ( condition_key, condition_value, condition_type, condition_parent_id, step_id)
           );
         """);
-      select.execute(
-          """
-
-      ALTER TABLE steps ADD COLUMN IF NOT EXISTS step_condition VARCHAR(255);
-      ALTER TABLE steps ADD CONSTRAINT step_condifiton_fk FOREIGN KEY (step_condition) REFERENCES conditions(condition_id) ON DELETE CASCADE;
-      """);
     }
   }
 }
