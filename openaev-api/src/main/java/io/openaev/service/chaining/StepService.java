@@ -115,4 +115,8 @@ public class StepService {
     }
     return first;
   }
+
+  public Step findById(String stepId) {
+    return stepRepository.findById(stepId);
+  }
 }

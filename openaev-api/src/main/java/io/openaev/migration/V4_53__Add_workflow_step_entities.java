@@ -100,7 +100,7 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
           """
 
       ALTER TABLE steps ADD COLUMN IF NOT EXISTS step_condition VARCHAR(255);
-      ALTER TABLE steps ADD CONSTRAINT step_condifiton_fk FOREIGN KEY (step_condition) REFERENCES conditions(conditions_id) ON DELETE CASCADE;
+      ALTER TABLE steps ADD CONSTRAINT step_condifiton_fk FOREIGN KEY (step_condition) REFERENCES conditions(condition_id) ON DELETE CASCADE;
       """);
     }
   }

@@ -6,6 +6,7 @@ import io.openaev.api.chaining.dto.WorkflowCreateInput;
 import io.openaev.api.chaining.dto.WorkflowOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Step;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
@@ -74,10 +75,11 @@ public class ChainingApi extends RestBehavior {
   }
 
   // TODO Todelete
-  @PostMapping("/step/execution/{stepId}")
-  public ResponseEntity<WorkflowOutput> createStep(@PathVariable final String stepId) {
+  @GetMapping("/step/execution/{stepId}")
+  public ResponseEntity<WorkflowOutput> executeStep(@PathVariable final String stepId) {
     try {
-      injectExecutionStep.wait(stepId);
+      Step step = stepService.findById(stepId);
+      injectExecutionStep.wait(step, null);
       return null;
     } catch (Exception e) {
       log.error(
