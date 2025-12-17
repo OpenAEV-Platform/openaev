@@ -3,9 +3,15 @@ package io.openaev.integration.local_fixtures;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.integration.QualifiedComponent;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 
 public class TestIntegration extends Integration {
+  public static final String TEST_COMPONENT_IDENTIFIER = "test_component_identifier";
+
+  @QualifiedComponent(identifier = TEST_COMPONENT_IDENTIFIER)
+  private TestIntegrationComponent testIntegrationComponent;
+
   protected TestIntegration(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
@@ -15,7 +21,7 @@ public class TestIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
-    // noop
+    testIntegrationComponent = new TestIntegrationComponent();
   }
 
   @Override

@@ -22,6 +22,10 @@ public class ManagerIntegrationsSyncJob implements Job {
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    managerFactory.getManager().monitorIntegrations();
+    try {
+      managerFactory.getManager().monitorIntegrations();
+    } catch (Exception e) {
+      throw new JobExecutionException(e);
+    }
   }
 }

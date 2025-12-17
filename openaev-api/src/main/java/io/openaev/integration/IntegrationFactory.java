@@ -5,6 +5,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +21,7 @@ public abstract class IntegrationFactory {
 
   protected abstract String getClassName();
 
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
     String className = this.getClass().getCanonicalName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
@@ -30,20 +31,17 @@ public abstract class IntegrationFactory {
     runMigrations();
   }
 
-  @Transactional
-  public List<Integration> sync(List<ConnectorInstance> instances) {
-    return instances.stream()
-        .map(
-            instance -> {
-              try {
-                Integration integration = this.spawn(instance);
-                integration.initialise();
-                return integration;
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            })
-        .toList();
+  @Transactional(rollbackFor = Exception.class)
+  public List<Integration> sync(List<ConnectorInstance> instances) throws Exception {
+    List<Integration> list = new ArrayList<>();
+    for (ConnectorInstance connectorInstance : instances) {
+
+      Integration integration = this.spawn(connectorInstance);
+      integration.initialise();
+
+      list.add(integration);
+    }
+    return list;
   }
 
   @Transactional

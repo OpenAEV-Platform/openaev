@@ -14,14 +14,14 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class TestIntegrationFactory extends IntegrationFactory {
+public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
   private final FileService fileService;
   private final CatalogConnectorService catalogConnectorService;
   private final TestIntegrationConfigurationMigration testIntegrationConfigurationMigration;
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
 
-  public TestIntegrationFactory(
+  public TestIntegrationFactoryInitThrows(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       FileService fileService,
@@ -42,7 +42,7 @@ public class TestIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void runMigrations() throws Exception {
-    testIntegrationConfigurationMigration.migrate();
+    throw new RuntimeException("%s: deliberate throw!".formatted(this.getClassName()));
   }
 
   @Override
@@ -53,13 +53,13 @@ public class TestIntegrationFactory extends IntegrationFactory {
         logoFilename,
         getClass().getResourceAsStream("/img/icon-default.png"));
     CatalogConnector connector = new CatalogConnector();
-    connector.setTitle("Test Integration");
+    connector.setTitle("Test Integration Init Throws");
     connector.setSlug(getClassName());
     connector.setLogoUrl(logoFilename);
-    connector.setDescription("This is a test integration.");
-    connector.setShortDescription("Test integration.");
+    connector.setDescription("This is a test integration which throws during init.");
+    connector.setShortDescription("Test integration init throws.");
     connector.setClassName(getClassName());
-    connector.setSubscriptionLink("https://testintegration.example");
+    connector.setSubscriptionLink("https://testintegration_init_throws.example");
     connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
     connector.setCatalogConnectorConfigurations(
         new TestIntegrationConfiguration().toCatalogConfigurationSet(connector));

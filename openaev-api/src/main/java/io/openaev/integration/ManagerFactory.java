@@ -12,7 +12,7 @@ public class ManagerFactory {
   private final List<IntegrationFactory> factories;
   private Manager manager = null;
 
-  public Manager getManager() {
+  public Manager getManager() throws Exception {
     if (this.manager == null) {
       this.manager = new Manager(factories);
     }

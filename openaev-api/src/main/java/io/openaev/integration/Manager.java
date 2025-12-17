@@ -14,7 +14,7 @@ public class Manager {
 
   @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-  public Manager(List<IntegrationFactory> factories) {
+  public Manager(List<IntegrationFactory> factories) throws Exception {
     this.factories = factories;
 
     initialise();
@@ -24,15 +24,15 @@ public class Manager {
    * Kickstart all collected integration factories so that they run their own initialise() routine.
    * Populates the initial collection of known (active, stopped) instances in the manager memory.
    */
-  private void initialise() {
-    factories.forEach(
-        factory -> {
-          try {
-            factory.initialise();
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        });
+  private void initialise() throws Exception {
+    for (IntegrationFactory factory : factories) {
+      try {
+        factory.initialise();
+      } catch (Exception e) {
+        log.error("Initialisation of integration factory {} failed.", factory.getClassName(), e);
+        throw e;
+      }
+    }
   }
 
   /**
@@ -44,26 +44,21 @@ public class Manager {
    * @return an instance of an object of the requested type, if found. If more than one instance
    *     matches the request, the first occurrence is returned with no guarantee on order.
    * @param <T> the desired type of the returned object
-   * @exception UnsupportedOperationException if no component matching the request or the requested
-   *     type is found
+   * @exception NoSuchElementException if no component matching the request or the requested type is
+   *     found
    */
-  public <T> T request(ComponentRequest request, Class<T> requestedType) {
-    List<T> candidates =
-        spawnedIntegrations.entrySet().stream()
-            // only consider integrations that are running
-            .filter(si -> CURRENT_STATUS_TYPE.started.equals(si.getValue().getCurrentStatus()))
-            .flatMap(
-                si -> {
-                  try {
-                    return si.getValue().requestComponent(request, requestedType).stream();
-                  } catch (IllegalAccessException e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .toList();
+  public <T> T request(ComponentRequest request, Class<T> requestedType)
+      throws IllegalStateException, NoSuchElementException {
+    // only consider integrations that are running
+    List<T> candidates = new ArrayList<>();
+    for (Map.Entry<ConnectorInstance, Integration> si : spawnedIntegrations.entrySet()) {
+      if (CURRENT_STATUS_TYPE.started.equals(si.getValue().getCurrentStatus())) {
+        candidates.addAll(si.getValue().requestComponent(request, requestedType));
+      }
+    }
 
     if (candidates.isEmpty()) {
-      throw new UnsupportedOperationException("No candidate for request");
+      throw new NoSuchElementException("No candidate for request");
     }
 
     return candidates.getFirst();

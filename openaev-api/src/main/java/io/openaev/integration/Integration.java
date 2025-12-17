@@ -81,7 +81,7 @@ public abstract class Integration {
   }
 
   public <T> List<T> requestComponent(ComponentRequest request, Class<T> componentType)
-      throws IllegalAccessException {
+      throws IllegalStateException {
     List<Field> candidates =
         componentRequestEngine.validate(
             request,
