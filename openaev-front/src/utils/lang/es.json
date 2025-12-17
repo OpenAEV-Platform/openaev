@@ -1282,6 +1282,7 @@
   "Payload info": "Payload info",
   "payload_attack_patterns": "Patrones de ataque",
   "payload_description": "Descripción",
+  "payload_domains": "Dominios",
   "payload_execution_arch": "Arquitectura",
   "payload_name": "Nombre",
   "payload_platforms": "Plataformas",
