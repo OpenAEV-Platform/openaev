@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Domain;
 import io.openaev.rest.domain.form.DomainBaseInput;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
@@ -62,7 +63,10 @@ public class DomainApiTest extends IntegrationTest {
   @DisplayName("When domain exists, upsert returns existing domain")
   public void whenDomainExists_upsertReturnsExistingDomain() throws Exception {
     Domain existingDomain =
-        domainComposer.forDomain(null).withName("existing").withColor("#123456").persist().get();
+        domainComposer
+            .forDomain(DomainFixture.getDomainWithNameAndColour("existing", "#123456"))
+            .persist()
+            .get();
 
     DomainBaseInput input = new DomainBaseInput();
     input.setName("existing");

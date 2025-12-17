@@ -27,6 +27,7 @@ public class InjectTestHelper {
   private final InjectRepository injectRepository;
   private final FindingRepository findingRepository;
   private final AssetRepository assetRepository;
+  private final DomainRepository domainRepository;
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
@@ -50,6 +51,11 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public InjectExpectation forceSaveInjectExpectation(InjectExpectation expectation) {
     return injectExpectationRepository.save(expectation);
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Domain forceSaveDomain(Domain domain) {
+    return domainRepository.save(domain);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

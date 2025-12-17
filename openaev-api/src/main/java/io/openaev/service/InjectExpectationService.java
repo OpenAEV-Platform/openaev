@@ -596,8 +596,7 @@ public class InjectExpectationService {
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
     // Insert the signature for all agent and inject in one query
-    injectExpectationRepositoryHelper.insertSignatureForAgentAndInject(
-        injectId, agentId, signatureType, date.toString());
+    injectExpectationRepository.insertSignature(signatureType, date.toString(), injectId, agentId);
   }
 
   /**

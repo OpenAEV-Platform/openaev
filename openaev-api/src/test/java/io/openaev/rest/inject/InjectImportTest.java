@@ -126,7 +126,8 @@ class InjectImportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> getInjectWrappers() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     // Inject in exercise with an article attached
     ArticleComposer.Composer articleWrapper =
@@ -184,7 +185,7 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultCommand(domains))
+                            .forPayload(PayloadFixture.createDefaultCommand())
                             .withTag(
                                 tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(

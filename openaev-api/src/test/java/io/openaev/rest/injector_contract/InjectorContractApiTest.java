@@ -91,6 +91,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     groupComposer.reset();
     roleComposer.reset();
     grantComposer.reset();
+    domainComposer.reset();
   }
 
   @Nested
@@ -1221,7 +1222,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+      Set<Domain> domains =
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer

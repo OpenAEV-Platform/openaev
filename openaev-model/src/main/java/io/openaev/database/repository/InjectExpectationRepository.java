@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -191,6 +192,23 @@ public interface InjectExpectationRepository
       value =
           "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
   List<InjectExpectation> findAllForGlobalScoreByInjects(@Param("injectIds") Set<String> injectIds);
+
+  @Modifying
+  @Query(
+      value =
+          """
+                UPDATE injects_expectations
+                SET inject_expectation_signatures =
+                    COALESCE(inject_expectation_signatures, '[]'::jsonb) ||
+                    jsonb_build_array(jsonb_build_object('type', :sigType, 'value', :sigValue))
+                WHERE inject_id = :injectId AND agent_id = :agentId
+                """,
+      nativeQuery = true)
+  void insertSignature(
+      @Param("sigType") String sigType,
+      @Param("sigValue") String sigValue,
+      @Param("injectId") String injectId,
+      @Param("agentId") String agentId);
 
   // -- INDEXING --
 
