@@ -12,7 +12,7 @@ const App = () => (
     <BrowserRouter basename={APP_BASE_PATH}>
       <RedirectManager>
         <Routes>
-          {/* <Route path="/*" element={<Root />} /> */}
+          <Route path="/*" element={<Root />} />
           {/* Not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -20,6 +20,7 @@ export default ({ mode }: { mode: string }) => {
     build: {
       target: ['chrome58'],
       sourcemap: true,
+      outDir: 'builder/prod/build',
     },
 
     resolve: {
