@@ -49,11 +49,6 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public void initialise() {
-    // noop
-  }
-
-  @Override
   public List<ConnectorInstance> findRelatedInstances() {
     return List.of(
         connectorInstanceService.createAutostartInstance(
