@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -14,6 +15,7 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializerHelper;
 import io.openaev.helper.MultiIdListDeserializer;
 import io.openaev.helper.MultiIdSetDeserializer;
 import io.openaev.jsonapi.IncludeOption;
@@ -123,6 +125,7 @@ public class Payload implements GrantableBase {
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("payload_attack_patterns")
   @Queryable(filterable = true, searchable = true, dynamicValues = true, path = "attackPatterns.id")
+  @JsonDeserialize(using = MonoIdSerializerHelper.class)
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 
   @Setter

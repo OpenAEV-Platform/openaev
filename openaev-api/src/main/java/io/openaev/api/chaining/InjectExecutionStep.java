@@ -1,6 +1,8 @@
 package io.openaev.api.chaining;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.InjectableValues;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.Gson;
@@ -18,6 +20,8 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.utils.TargetType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +44,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
   private final InjectStatusService injectStatusService;
+  @PersistenceContext private EntityManager em;
 
   @Override
   public Step create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
@@ -71,6 +76,7 @@ public class InjectExecutionStep implements ActionStep {
     // TODO after output paser fromPayload or nuclei or nmap
     waitStep.setInput(input);
     waitStep.setStatus(STEP_STATUS.WAIT);
+    waitStep.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
     waitStep.setLimitExecution(stepTemplate.getLimitExecution());
 
     return waitStep;
@@ -83,12 +89,24 @@ public class InjectExecutionStep implements ActionStep {
     ObjectMapper om =
         new ObjectMapper()
             .findAndRegisterModules()
+            .setInjectableValues(new InjectableValues.Std().addValue(EntityManager.class, em))
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     try {
       Inject inject = om.readValue(waitStep.getData(), Inject.class);
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode root = mapper.readTree(waitStep.getData());
 
-      // Use input, complete inject ->
-      // Save Inject
+      // Récupérer l'ID de l'injector
+      JsonNode injectorNode =
+          root.path("inject_injector_contract").path("injector_contract_injector");
+      if (!injectorNode.isMissingNode()) {
+        String injectorId = injectorNode.asText();
+
+        // Récupérer l'entité via l'EntityManager
+        Injector injector = em.find(Injector.class, injectorId);
+        inject.getInjectorContract().get().setInjector(injector);
+      }
+
       inject = injectService.createInject(inject);
 
       ExecutableInject executableInject =
@@ -107,6 +125,8 @@ public class InjectExecutionStep implements ActionStep {
       // Execute Inject
       try {
         executor.directExecute(executableInject);
+        // todo:
+        setInjectId(inject.getId(), waitStep.getData());
         return waitStep;
       } catch (Exception e) {
         log.warn(e.getMessage(), e);
@@ -220,4 +240,6 @@ public class InjectExecutionStep implements ActionStep {
     Map<String, Object> result = Map.of("input", inputs);
     return gson.toJson(result);
   }
+
+  private void setInjectId(String injectId, String dataStep) {}
 }

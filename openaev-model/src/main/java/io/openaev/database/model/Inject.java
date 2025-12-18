@@ -6,7 +6,9 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
@@ -124,6 +126,7 @@ public class Inject implements GrantableBase, Injection {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "inject_exercise")
   @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonDeserialize(using = MonoIdSerializerHelper.class)
   @JsonProperty("inject_exercise")
   @Schema(type = "string")
   private Exercise exercise;
@@ -163,12 +166,14 @@ public class Inject implements GrantableBase, Injection {
   @JoinColumn(name = "inject_injector_contract")
   @JsonProperty("inject_injector_contract")
   @Queryable(filterable = true, dynamicValues = true, path = "injectorContract.injector.id")
+  @JsonIgnoreProperties(ignoreUnknown = true)
   private InjectorContract injectorContract;
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_user")
   @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonDeserialize(using = MonoIdSerializerHelper.class)
   @JsonProperty("inject_user")
   @Schema(type = "string")
   private User user;
@@ -237,6 +242,7 @@ public class Inject implements GrantableBase, Injection {
   @JsonSerialize(using = MultiIdListDeserializer.class)
   @JsonProperty("inject_assets")
   @Queryable(filterable = true, dynamicValues = true, path = "assets.id")
+  @JsonDeserialize(contentUsing = MonoIdSerializerHelper.class)
   private List<Asset> assets = new ArrayList<>();
 
   // UpdatedAt now used to sync with linked object

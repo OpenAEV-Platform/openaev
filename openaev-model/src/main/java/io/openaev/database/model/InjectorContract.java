@@ -4,7 +4,9 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
@@ -13,6 +15,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializerHelper;
 import io.openaev.helper.MultiIdListDeserializer;
 import io.openaev.helper.MultiIdSetDeserializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -92,6 +95,7 @@ public class InjectorContract implements Base {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")
+  @JsonIgnoreProperties(ignoreUnknown = true)
   private Payload payload;
 
   @Column(name = "injector_contract_created_at")
@@ -114,6 +118,7 @@ public class InjectorContract implements Base {
   @Queryable(filterable = true, dynamicValues = true)
   @NotNull
   @Schema(type = "string")
+  @JsonDeserialize(using = MonoIdSerializerHelper.class)
   private Injector injector;
 
   @ArraySchema(schema = @Schema(type = "string"))

@@ -13,6 +13,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,7 +35,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class InjectUtils {
-
+  @PersistenceContext EntityManager entityManager;
   private final ApplicationContext context;
 
   public StatusPayload getStatusPayloadFromInject(final Inject inject) {
@@ -50,7 +52,9 @@ public class InjectUtils {
           && COMMAND_TYPE.equals(injectorContract.getPayload().getType())) {
         // Inject has a command payload
         Payload payload = injectorContract.getPayload();
-        Command payloadCommand = (Command) Hibernate.unproxy(payload);
+        //todo check
+          //Command payloadCommand = (Command) Hibernate.unproxy(payload);
+        Command payloadCommand = (Command) entityManager.find(Command.class, payload.getId());
         PayloadCommandBlock payloadCommandBlock =
             new PayloadCommandBlock(
                 payloadCommand.getExecutor(), payloadCommand.getContent(), null);

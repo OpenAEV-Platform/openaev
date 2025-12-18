@@ -151,6 +151,6 @@ public class StepService {
   }
 
   public Step findById(String stepId) {
-    return stepRepository.findById(stepId);
+    return stepRepository.findById(stepId).orElseThrow();//todo exc
   }
 }
