@@ -621,6 +621,7 @@ public class InjectExpectationService {
    * @param agentId the agentId for which to add the start date signature
    * @param date the date to set as the start date signature
    */
+  @Transactional
   public void addStartDateSignatureToInjectExpectationsByAgent(
       @NotBlank final String injectId,
       @NotBlank final String agentId,
