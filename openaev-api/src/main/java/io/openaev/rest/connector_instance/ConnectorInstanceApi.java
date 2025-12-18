@@ -42,8 +42,17 @@ public class ConnectorInstanceApi extends RestBehavior {
       })
   public ConnectorInstance createConnectorInstance(
       @Valid @RequestBody CreateConnectorInstanceInput input) {
+    // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
+    ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
+        this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
+            input.getCatalogConnectorId());
+    CreateConnectorInstanceInput safeInput =
+        this.connectorInstanceService.sanitizeConnectorInstanceInput(
+            catalogConnectorWithConfigMap, input);
+    // --- /!\ --- SECURITY END
+
     // only instance managed by XTM Composer can be created through this API
-    return orchestrationService.createConnectorInstance(input);
+    return orchestrationService.createConnectorInstance(catalogConnectorWithConfigMap, safeInput);
   }
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
@@ -90,7 +99,16 @@ public class ConnectorInstanceApi extends RestBehavior {
   public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfigurations(
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody CreateConnectorInstanceInput input) {
-    return orchestrationService.updateConnectorInstanceConfiguration(connectorInstanceId, input);
+    // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
+    ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
+        this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
+            input.getCatalogConnectorId());
+    CreateConnectorInstanceInput safeInput =
+        this.connectorInstanceService.sanitizeConnectorInstanceInput(
+            catalogConnectorWithConfigMap, input);
+    // --- /!\ --- SECURITY END
+    return orchestrationService.updateConnectorInstanceConfiguration(
+        catalogConnectorWithConfigMap, connectorInstanceId, input);
   }
 
   @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")

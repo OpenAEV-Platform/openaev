@@ -16,8 +16,10 @@ import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -147,50 +149,80 @@ public class ConnectorOrchestrationService {
   }
 
   /**
+   * Holds a CatalogConnector and its configurations mapped by key.
+   *
+   * @param catalogConnector the catalog connector
+   * @param configurationsMap the configurations mapped by their key
+   */
+  public record CatalogConnectorWithConfigMap(
+      CatalogConnector catalogConnector,
+      Map<String, CatalogConnectorConfiguration> configurationsMap) {}
+
+  /**
+   * Retrieves a CatalogConnector with its configurations mapped by key.
+   *
+   * @param catalogConnectorId the catalog connector ID to search for
+   * @return the catalog connector with its configurations map
+   * @throws EntityNotFoundException if no catalog connector is found with the given ID
+   */
+  public CatalogConnectorWithConfigMap getCatalogConnectorWithConfigurationsMap(
+      String catalogConnectorId) throws EntityNotFoundException {
+    CatalogConnector catalogConnector =
+        catalogConnectorService
+            .findById(catalogConnectorId)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "CatalogConnector with id " + catalogConnectorId + " not found"));
+
+    Map<String, CatalogConnectorConfiguration> configurationsMap =
+        catalogConnector.getCatalogConnectorConfigurations().stream()
+            .collect(
+                Collectors.toMap(
+                    CatalogConnectorConfiguration::getConnectorConfigurationKey,
+                    Function.identity()));
+
+    return new CatalogConnectorWithConfigMap(catalogConnector, configurationsMap);
+  }
+
+  /**
    * Create connector instance. Validates license and XTM Composer connectivity if required.
    *
+   * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input CreateConnectorInstanceInput
    * @return Created ConnectorInstance
    */
-  public ConnectorInstance createConnectorInstance(CreateConnectorInstanceInput input) {
+  public ConnectorInstance createConnectorInstance(
+      CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
+      CreateConnectorInstanceInput input) {
     throwIfEnterpriseLicenseNotActive();
 
-    Optional<CatalogConnector> catalogConnector =
-        catalogConnectorService.findById(input.getCatalogConnectorId());
-    if (catalogConnector.isEmpty()) {
-      throw new EntityNotFoundException(
-          "CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
-    }
-    throwIfXtmComposerDownAndNeeded(catalogConnector.get());
+    throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
     throwIfInstanceOrConnectorAlreadyExist(
-        catalogConnector.get().getId(),
-        catalogConnector.get().getSlug(),
-        catalogConnector.get().getContainerType());
+        catalogConnectorWithConfigMap.catalogConnector.getId(),
+        catalogConnectorWithConfigMap.catalogConnector.getSlug(),
+        catalogConnectorWithConfigMap.catalogConnector.getContainerType());
 
-    return connectorInstanceService.createConnectorInstance(catalogConnector.get(), input);
+    return connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
   }
 
   /**
    * Update connector instance configurations
    *
+   * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param connectorInstanceId the identifier of the connector instance to update
    * @param input CreateConnectorInstanceInput
    * @return list of connector instance configuration updated
    */
   public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfiguration(
-      String connectorInstanceId, CreateConnectorInstanceInput input) {
+      CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
+      String connectorInstanceId,
+      CreateConnectorInstanceInput input) {
     throwIfEnterpriseLicenseNotActive();
-
-    Optional<CatalogConnector> catalogConnector =
-        catalogConnectorService.findById(input.getCatalogConnectorId());
-    if (catalogConnector.isEmpty()) {
-      throw new EntityNotFoundException(
-          "CatalogConnector with id " + input.getCatalogConnectorId() + " not found");
-    }
-    throwIfXtmComposerDownAndNeeded(catalogConnector.get());
+    throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
 
     return connectorInstanceService.updateConnectorInstanceConfigurations(
-        connectorInstanceId, catalogConnector.get(), input);
+        connectorInstanceId, catalogConnectorWithConfigMap.configurationsMap, input);
   }
 
   /**

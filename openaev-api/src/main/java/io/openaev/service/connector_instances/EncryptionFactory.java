@@ -1,6 +1,6 @@
 package io.openaev.service.connector_instances;
 
-import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.CatalogConnector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,16 +13,16 @@ public class EncryptionFactory {
   private final XtmComposerEncryptionService xtmComposerEncryptionService;
 
   /**
-   * Gets the appropriate encryption strategy based on connector instance type.
+   * Gets the appropriate encryption strategy based on catalog connector type.
    *
-   * @param instance the connector instance
+   * @param catalogConnector the catalog connector
    * @return the encryption strategy, or null if no encryption needed
    */
-  public EncryptionService getEncryptionService(ConnectorInstance instance) {
-    if (instance.getCatalogConnector().isManagerSupported()) {
+  public EncryptionService getEncryptionService(CatalogConnector catalogConnector) {
+    if (catalogConnector.isManagerSupported()) {
       return xtmComposerEncryptionService;
     }
-    log.warn("Built-in encryption not yet implemented for instance: {}", instance.getId());
+    log.warn("Built-in encryption not yet implemented for instance");
     return null; // TODO issue 4313
   }
 }

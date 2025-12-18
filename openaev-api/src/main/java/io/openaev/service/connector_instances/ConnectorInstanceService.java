@@ -13,6 +13,7 @@ import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
@@ -214,53 +215,77 @@ public class ConnectorInstanceService {
     return conf;
   }
 
-  private ConnectorInstanceConfiguration createConfigurationFromInput(
-      CreateConnectorInstanceInput.ConfigurationInput input,
+  // --- /!\ ---  SECURITY: Do not log value until this function is DONE
+  private JsonNode encryptIfSensitive(
+      JsonNode value,
       CatalogConnectorConfiguration definition,
-      ConnectorInstance instance,
       EncryptionService encryptionService) {
-
     boolean isEncrypted =
         CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
             definition.getConnectorConfigurationFormat());
-    JsonNode value = input.getValue();
 
-    if (isEncrypted) {
-      try {
-        value =
-            objectMapper
-                .getNodeFactory()
-                .textNode(encryptionService.encrypt(input.getValue().asText()));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+    if (!isEncrypted) {
+      return value;
     }
-    return createConfiguration(input.getKey(), value, isEncrypted, instance);
+
+    try {
+      return objectMapper.getNodeFactory().textNode(encryptionService.encrypt(value.asText()));
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to encrypt configuration value", e);
+    }
+  }
+
+  /**
+   * Encrypts sensitive configuration values in the input
+   *
+   * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
+   * @param input the connector instance input containing configurations to sanitize
+   * @return the input with sensitive values encrypted
+   * @throws IllegalArgumentException if a configuration key is not found in the catalog connector
+   */
+  public CreateConnectorInstanceInput sanitizeConnectorInstanceInput(
+      ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
+      CreateConnectorInstanceInput input)
+      throws IllegalArgumentException {
+
+    // --- /!\ ---  SECURITY: Do not log configuration values until this function is DONE
+    EncryptionService encryptionService =
+        encryptionFactory.getEncryptionService(catalogConnectorWithConfigMap.catalogConnector());
+
+    List<CreateConnectorInstanceInput.ConfigurationInput> safeConfigurations =
+        input.getConfigurations().stream()
+            .map(
+                conf -> {
+                  CatalogConnectorConfiguration definition =
+                      catalogConnectorWithConfigMap.configurationsMap().get(conf.getKey());
+                  if (definition == null) {
+                    throw new IllegalArgumentException(
+                        String.format("Configuration key '%s' not found", conf.getKey()));
+                  }
+                  conf.setValue(encryptIfSensitive(conf.getValue(), definition, encryptionService));
+                  return conf;
+                })
+            .toList();
+    // --- /!\ --- SECURITY END
+
+    input.setConfigurations(safeConfigurations);
+    return input;
   }
 
   private List<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsFromInput(
+      Map<String, CatalogConnectorConfiguration> configurationDefinitionsMap,
       ConnectorInstance instance,
-      CatalogConnector catalogConnector,
       CreateConnectorInstanceInput input) {
     List<ConnectorInstanceConfiguration> configurations = new ArrayList<>();
-    Map<String, CatalogConnectorConfiguration> definitionsMap =
-        catalogConnector.getCatalogConnectorConfigurations().stream()
-            .collect(
-                Collectors.toMap(
-                    CatalogConnectorConfiguration::getConnectorConfigurationKey,
-                    Function.identity()));
-    EncryptionService encryptionService = encryptionFactory.getEncryptionService(instance);
 
     for (CreateConnectorInstanceInput.ConfigurationInput confInput : input.getConfigurations()) {
-      CatalogConnectorConfiguration definition = definitionsMap.get(confInput.getKey());
-      if (definition == null) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Configuration key '%s' not found in CatalogConnector configurations",
-                confInput.getKey()));
-      }
+      CatalogConnectorConfiguration definition =
+          configurationDefinitionsMap.get(confInput.getKey());
+      boolean isEncrypted =
+          CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
+              definition.getConnectorConfigurationFormat());
       ConnectorInstanceConfiguration config =
-          createConfigurationFromInput(confInput, definition, instance, encryptionService);
+          createConfiguration(confInput.getKey(), confInput.getValue(), isEncrypted, instance);
       configurations.add(config);
     }
 
@@ -288,21 +313,25 @@ public class ConnectorInstanceService {
   /**
    * Creates a connector instance from a catalog connector.
    *
-   * @param catalogConnector the catalog connector to create an instance from
+   * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input the input data for creating the connector instance
    * @return the created connector instance
    */
   public ConnectorInstance createConnectorInstance(
-      CatalogConnector catalogConnector, CreateConnectorInstanceInput input) {
-    ConnectorInstance newInstance = buildNewConnectorInstanceFromCatalog(catalogConnector);
+      ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
+      CreateConnectorInstanceInput input) {
+    ConnectorInstance newInstance =
+        buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
-        getConnectorInstanceConfigurationsFromInput(newInstance, catalogConnector, input);
+        getConnectorInstanceConfigurationsFromInput(
+            catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
     // Add container ID
     configurations.add(
-        createContainerIdConfiguration(newInstance, catalogConnector.getContainerType()));
+        createContainerIdConfiguration(
+            newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
 
     newInstance.setConfigurations(Set.copyOf(configurations));
     return this.save(newInstance);
@@ -335,13 +364,13 @@ public class ConnectorInstanceService {
    * Update connector instance configurations
    *
    * @param connectorInstanceId the connector instance id to update from
-   * @param catalogConnector the catalog connector linked to the instance
+   * @param configurationDefinitionsMap the catalog connector configurations map
    * @param input the input data for updating the connector instance configurations
    * @return the list of connector instance configurations updated
    */
   public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfigurations(
       String connectorInstanceId,
-      CatalogConnector catalogConnector,
+      Map<String, CatalogConnectorConfiguration> configurationDefinitionsMap,
       CreateConnectorInstanceInput input) {
     ConnectorInstance instance = connectorInstanceById(connectorInstanceId);
     Map<String, ConnectorInstanceConfiguration> existingConfigurationMap =
@@ -349,7 +378,7 @@ public class ConnectorInstanceService {
             .collect(Collectors.toMap(ConnectorInstanceConfiguration::getKey, Function.identity()));
 
     List<ConnectorInstanceConfiguration> newConfigurations =
-        getConnectorInstanceConfigurationsFromInput(instance, catalogConnector, input);
+        getConnectorInstanceConfigurationsFromInput(configurationDefinitionsMap, instance, input);
     List<ConnectorInstanceConfiguration> configurationsToSave =
         mergeConfigurations(instance, existingConfigurationMap, newConfigurations);
 
