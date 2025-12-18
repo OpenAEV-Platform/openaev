@@ -25,16 +25,6 @@ public class DomainComposer extends ComposerBase<Domain> {
       return this;
     }
 
-    public Composer withName(String name) {
-      this.domain.setName(name);
-      return this;
-    }
-
-    public Composer withColor(String color) {
-      this.domain.setColor(color);
-      return this;
-    }
-
     @Override
     public Composer persist() {
       Optional<Domain> domainOpt = domainRepository.findByName(domain.getName());
