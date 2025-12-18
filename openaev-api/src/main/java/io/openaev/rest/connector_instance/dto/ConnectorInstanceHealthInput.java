@@ -3,9 +3,9 @@ package io.openaev.rest.connector_instance.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 public class ConnectorInstanceHealthInput {
 
   @Schema(description = "Connector instance restart count")

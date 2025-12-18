@@ -9,12 +9,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Set;
 import lombok.Builder;
-import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Builder
-@Data
 public class CatalogConnectorOutput {
 
   @JsonProperty("catalog_connector_id")

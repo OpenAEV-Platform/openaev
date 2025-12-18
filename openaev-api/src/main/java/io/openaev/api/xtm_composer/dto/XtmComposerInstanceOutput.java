@@ -9,14 +9,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.Builder;
-import lombok.Data;
 
-@Data
 @Builder
 @JsonInclude(NON_NULL)
 public class XtmComposerInstanceOutput {
   @Builder
-  @Data
   public static class Configuration {
     @Schema(description = "Configuration key")
     @JsonProperty("configuration_key")

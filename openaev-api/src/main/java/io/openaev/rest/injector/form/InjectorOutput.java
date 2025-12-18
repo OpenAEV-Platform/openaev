@@ -6,9 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import lombok.Builder;
-import lombok.Data;
 
-@Data
 @Builder
 @Schema(description = "Injector output")
 public class InjectorOutput {

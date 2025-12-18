@@ -6,15 +6,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
 
-@Data
 @Getter
+@Setter
 public class CreateConnectorInstanceInput {
 
   @Getter
-  @Data
+  @Setter
   public static class ConfigurationInput {
     @Schema(description = "Configuration key")
     @JsonProperty("configuration_key")

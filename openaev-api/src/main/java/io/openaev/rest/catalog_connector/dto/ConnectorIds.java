@@ -3,10 +3,10 @@ package io.openaev.rest.catalog_connector.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 
 @Builder
-@Data
+@Getter
 @Schema(description = "Define the ids linked to a collector")
 public class ConnectorIds {
   @JsonProperty("connector_instance_id")

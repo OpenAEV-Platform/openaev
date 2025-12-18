@@ -3,10 +3,8 @@ package io.openaev.rest.catalog_connector.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
-import lombok.Data;
 
 @Builder
-@Data
 @Schema(description = "Catalog simple output")
 public class CatalogConnectorSimpleOutput {
   @JsonProperty("catalog_connector_id")
