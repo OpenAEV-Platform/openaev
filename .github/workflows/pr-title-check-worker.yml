@@ -112,4 +112,4 @@ jobs:
           # Do not fail job (continue-on-error is true)
           exit 0
           fi
-          exit EXIT_CODE
+          exit "$EXIT_CODE"
