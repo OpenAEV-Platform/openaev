@@ -14,7 +14,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
-import io.openaev.dto.ScenarioDTO;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -25,6 +24,7 @@ import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
+import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.utils.FilterUtilsJpa;
@@ -133,7 +133,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public ScenarioDTO scenario(@PathVariable @NotBlank final String scenarioId) {
+  public ScenarioOutput scenario(@PathVariable @NotBlank final String scenarioId) {
     return scenarioService.getScenarioById(scenarioId);
   }
 

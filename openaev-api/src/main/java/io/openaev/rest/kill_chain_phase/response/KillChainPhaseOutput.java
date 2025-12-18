@@ -1,10 +1,12 @@
-package io.openaev.dto;
+package io.openaev.rest.kill_chain_phase.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
 
-@Data
-public class KillChainPhaseDTO {
+@Getter
+@Builder
+public class KillChainPhaseOutput {
 
   @JsonProperty("phase_id")
   private String id;

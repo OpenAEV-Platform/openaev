@@ -1,10 +1,12 @@
-package io.openaev.dto;
+package io.openaev.rest.scenario.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
 
-@Data
-public class ScenarioTeamUserDTO {
+@Getter
+@Builder
+public class ScenarioTeamUserOutput {
 
   @JsonProperty("scenario_id")
   private String scenarioId;
