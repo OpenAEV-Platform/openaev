@@ -11,8 +11,8 @@ import { useHelper } from '../../../../store';
 import { type ChangePasswordInput, type UpdateUserInput, type User, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider.js';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
+import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UserForm from './UserForm';
 import UserPasswordForm from './UserPasswordForm';
 

@@ -1,6 +1,5 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import * as R from 'ramda';
 import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
@@ -49,7 +48,7 @@ const Root = () => {
   }, []);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
-  if (R.isEmpty(logged)) {
+  if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;
   }
 
@@ -102,7 +101,6 @@ const Root = () => {
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-
               </EnterpriseEditionProvider>
             </ConnectedThemeProvider>
           </ConnectedIntlProvider>

@@ -1,6 +1,6 @@
 import { delReferential, getReferential, postReferential, putReferential } from '../../utils/Action';
 import { channelReader } from '../Schema';
-import * as schema from '../Schema.js';
+import * as schema from '../Schema';
 import { arrayOfChannels, channelAction } from './channel-schema';
 
 export const fetchChannels = () => (dispatch) => {
