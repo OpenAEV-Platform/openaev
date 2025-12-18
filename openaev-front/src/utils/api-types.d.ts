@@ -3420,7 +3420,14 @@ export interface KillChainPhaseCreateInput {
   phase_stix_id?: string;
 }
 
-export interface KillChainPhaseDTO {
+export interface KillChainPhaseObject {
+  id: string;
+  name?: string;
+  /** @format int64 */
+  order?: number;
+}
+
+export interface KillChainPhaseOutput {
   phase_created_at?: string;
   phase_description?: string;
   phase_external_id?: string;
@@ -3432,13 +3439,6 @@ export interface KillChainPhaseDTO {
   phase_shortname?: string;
   phase_stix_id?: string;
   phase_updated_at?: string;
-}
-
-export interface KillChainPhaseObject {
-  id: string;
-  name?: string;
-  /** @format int64 */
-  order?: number;
 }
 
 /** Kill chain phases */
@@ -5381,7 +5381,24 @@ export interface ScenarioChallengesReader {
   scenario_information?: PublicScenario;
 }
 
-export interface ScenarioDTO {
+export interface ScenarioInput {
+  scenario_category?: string;
+  scenario_custom_dashboard?: string;
+  scenario_description?: string;
+  scenario_external_reference?: string;
+  scenario_external_url?: string;
+  scenario_mail_from?: string;
+  scenario_mails_reply_to?: string[];
+  scenario_main_focus?: string;
+  scenario_message_footer?: string;
+  scenario_message_header?: string;
+  scenario_name: string;
+  scenario_severity?: "low" | "medium" | "high" | "critical";
+  scenario_subtitle?: string;
+  scenario_tags?: string[];
+}
+
+export interface ScenarioOutput {
   lessonsAnonymized?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
@@ -5397,7 +5414,7 @@ export interface ScenarioDTO {
   scenario_external_url?: string;
   scenario_id?: string;
   /** @uniqueItems true */
-  scenario_kill_chain_phases?: KillChainPhaseDTO[];
+  scenario_kill_chain_phases?: KillChainPhaseOutput[];
   scenario_mail_from?: string;
   scenario_main_focus?: string;
   scenario_message_footer?: string;
@@ -5415,28 +5432,11 @@ export interface ScenarioDTO {
   /** @uniqueItems true */
   scenario_tags?: string[];
   /** @uniqueItems true */
-  scenario_teams_users?: ScenarioTeamUserDTO[];
+  scenario_teams_users?: ScenarioTeamUserOutput[];
   /** @format date-time */
   scenario_updated_at?: string;
   /** @format int64 */
   scenario_users_number?: number;
-}
-
-export interface ScenarioInput {
-  scenario_category?: string;
-  scenario_custom_dashboard?: string;
-  scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
-  scenario_mail_from?: string;
-  scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
-  scenario_message_footer?: string;
-  scenario_message_header?: string;
-  scenario_name: string;
-  scenario_severity?: "low" | "medium" | "high" | "critical";
-  scenario_subtitle?: string;
-  scenario_tags?: string[];
 }
 
 export interface ScenarioRecurrenceInput {
@@ -5469,7 +5469,7 @@ export interface ScenarioTeamUser {
   user_id?: string;
 }
 
-export interface ScenarioTeamUserDTO {
+export interface ScenarioTeamUserOutput {
   scenario_id?: string;
   team_id?: string;
   user_id?: string;
