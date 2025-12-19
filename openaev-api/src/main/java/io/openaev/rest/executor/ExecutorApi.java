@@ -7,10 +7,7 @@ import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
-import io.openaev.database.model.Action;
-import io.openaev.database.model.Executor;
-import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.Token;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -43,6 +40,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 public class ExecutorApi extends RestBehavior {
+
+  public enum INSTALLATION_MODE {
+    SERVICE,
+    SESSION
+  }
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -246,28 +248,34 @@ public class ExecutorApi extends RestBehavior {
                   "Target platform for the agent package (e.g., windows, linux, mac). Case insensitive.",
               required = true)
           @PathVariable
-          String platform,
+          Endpoint.PLATFORM_TYPE platformEnum,
       @Parameter(
               description =
                   "Target architecture for the agent package (e.g., x86, x64, arm). Case insensitive.",
               required = true)
           @PathVariable
-          String architecture,
+          Endpoint.PLATFORM_ARCH architectureEnum,
       @Parameter(
               description = "Installation Mode: session, user or system service",
               required = true)
           @PathVariable
-          String installationMode)
+          INSTALLATION_MODE installationMode)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture = Optional.ofNullable(architecture).map(String::toLowerCase).orElse("");
 
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
+    if (!AVAILABLE_PLATFORMS.contains(platformEnum)) {
+      throw new IllegalArgumentException("Platform invalid : " + platformEnum.name());
     }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
-      throw new IllegalArgumentException("Architecture invalid : " + architecture);
+    if (!AVAILABLE_ARCHITECTURES.contains(architectureEnum)) {
+      throw new IllegalArgumentException("Architecture invalid : " + architectureEnum.name());
     }
+    String platform =
+        Optional.ofNullable(platformEnum)
+            .map(platformType -> platformType.name().toLowerCase())
+            .orElse("");
+    String architecture =
+        Optional.ofNullable(architectureEnum)
+            .map(platformArch -> platformArch.name().toLowerCase())
+            .orElse("");
 
     byte[] file = null;
     String filename = null;
@@ -278,7 +286,7 @@ public class ExecutorApi extends RestBehavior {
 
       filename = "openaev-agent-installer-";
       if (installationMode != null && !installationMode.equals(SERVICE)) {
-        filename = filename.concat(installationMode).concat("-");
+        filename = filename.concat(installationMode.name().toLowerCase()).concat("-");
       }
 
       if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
@@ -328,7 +336,7 @@ public class ExecutorApi extends RestBehavior {
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
               required = true)
           @PathVariable
-          String platform,
+          Endpoint.PLATFORM_TYPE platform,
       @Parameter(
               description = "Unique token associated with the agent installation.",
               required = true)
@@ -343,7 +351,6 @@ public class ExecutorApi extends RestBehavior {
           String installationDir,
       @Parameter(description = "Service name") @RequestParam(required = false) String serviceName)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
 
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);

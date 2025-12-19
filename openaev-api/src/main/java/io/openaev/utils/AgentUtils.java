@@ -9,16 +9,14 @@ public class AgentUtils {
 
   private AgentUtils() {}
 
-  public static final List<String> AVAILABLE_PLATFORMS =
+  public static final List<Endpoint.PLATFORM_TYPE> AVAILABLE_PLATFORMS =
       List.of(
-          Endpoint.PLATFORM_TYPE.Linux.name().toLowerCase(),
-          Endpoint.PLATFORM_TYPE.Windows.name().toLowerCase(),
-          Endpoint.PLATFORM_TYPE.MacOS.name().toLowerCase());
+          Endpoint.PLATFORM_TYPE.Linux,
+          Endpoint.PLATFORM_TYPE.Windows,
+          Endpoint.PLATFORM_TYPE.MacOS);
 
-  public static final List<String> AVAILABLE_ARCHITECTURES =
-      List.of(
-          Endpoint.PLATFORM_ARCH.x86_64.name().toLowerCase(),
-          Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
+  public static final List<Endpoint.PLATFORM_ARCH> AVAILABLE_ARCHITECTURES =
+      List.of(Endpoint.PLATFORM_ARCH.x86_64, Endpoint.PLATFORM_ARCH.arm64);
 
   public static List<Agent> getActiveAgents(Asset asset, Inject inject) {
     return ((Endpoint) Hibernate.unproxy(asset))

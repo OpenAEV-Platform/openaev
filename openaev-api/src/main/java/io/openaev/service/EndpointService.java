@@ -476,7 +476,7 @@ public class EndpointService {
       AssetAgentJob assetAgentJob = new AssetAgentJob();
       assetAgentJob.setCommand(
           generateUpgradeCommand(
-              endpoint.getPlatform().name(),
+              endpoint.getPlatform(),
               input.getInstallationMode(),
               input.getInstallationDirectory(),
               input.getServiceName()));
@@ -622,21 +622,21 @@ public class EndpointService {
   }
 
   public String getFileOrDownloadFromJfrog(
-      String platform,
+      Endpoint.PLATFORM_TYPE platform,
       String file,
       String adminToken,
       String installationDir,
       String serviceNameOrPrefix)
       throws IOException {
     String extension =
-        switch (platform.toLowerCase()) {
+        switch (platform.name().toLowerCase()) {
           case "windows" -> "ps1";
           case "linux", "macos" -> "sh";
           default -> throw new UnsupportedOperationException("");
         };
     InputStream in = null;
     String filename;
-    String resourcePath = "/openaev-agent/" + platform.toLowerCase() + "/";
+    String resourcePath = "/openaev-agent/" + platform.name().toLowerCase() + "/";
 
     if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
       filename = file + "-" + version + "." + extension;
@@ -667,11 +667,11 @@ public class EndpointService {
   }
 
   public String generateServiceNameOrPrefix(
-      String platform, String installationMode, String serviceNameOrPrefix) {
+      Endpoint.PLATFORM_TYPE platform, String installationMode, String serviceNameOrPrefix) {
     if (serviceNameOrPrefix != null && !serviceNameOrPrefix.equals("")) {
       return serviceNameOrPrefix;
     }
-    if (platform.equalsIgnoreCase(Endpoint.PLATFORM_TYPE.Windows.name())) {
+    if (platform.equals(Endpoint.PLATFORM_TYPE.Windows)) {
       if (installationMode != null && installationMode.equals(SERVICE)) {
         return OPENAEV_SERVICE_NAME_WINDOWS_SERVICE;
       }
@@ -697,11 +697,11 @@ public class EndpointService {
   }
 
   public String generateInstallationDir(
-      String platform, String installationMode, String installationDir) {
+      Endpoint.PLATFORM_TYPE platform, String installationMode, String installationDir) {
     if (installationDir != null && !installationDir.equals("")) {
       return installationDir;
     }
-    if (platform.equalsIgnoreCase(Endpoint.PLATFORM_TYPE.Windows.name())) {
+    if (platform.equals(Endpoint.PLATFORM_TYPE.Windows)) {
       if (installationMode != null && installationMode.equals(SERVICE)) {
         return OPENAEV_INSTALL_DIR_WINDOWS_SERVICE;
       }
@@ -727,7 +727,7 @@ public class EndpointService {
   }
 
   public String generateInstallCommand(
-      String platform,
+      Endpoint.PLATFORM_TYPE platform,
       String token,
       String installationMode,
       String installationDir,
@@ -748,7 +748,10 @@ public class EndpointService {
   }
 
   public String generateUpgradeCommand(
-      String platform, String installationMode, String installationDir, String serviceNameOrPrefix)
+      Endpoint.PLATFORM_TYPE platform,
+      String installationMode,
+      String installationDir,
+      String serviceNameOrPrefix)
       throws IOException {
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
