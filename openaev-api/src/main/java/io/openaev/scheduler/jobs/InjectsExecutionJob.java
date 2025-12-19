@@ -7,6 +7,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
@@ -47,6 +48,7 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.SpelParseException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
@@ -196,7 +198,8 @@ public class InjectsExecutionJob implements Job {
    * @param exerciseId the id of the exercise
    * @param inject the inject to check
    */
-  private void checkErrorMessagesPreExecution(String exerciseId, Inject inject)
+  @VisibleForTesting
+  protected void checkErrorMessagesPreExecution(String exerciseId, Inject inject)
       throws ErrorMessagesPreExecutionException {
     List<InjectDependency> injectDependencies =
         injectDependenciesRepository.findParents(List.of(inject.getId()));
@@ -254,8 +257,8 @@ public class InjectsExecutionJob implements Job {
           ExpressionParser parser = new SpelExpressionParser();
 
           EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
-          Expression exp = parser.parseExpression(expressionToEvaluate);
           try {
+            Expression exp = parser.parseExpression(expressionToEvaluate);
             boolean canBeExecuted =
                 Boolean.TRUE.equals(exp.getValue(context, mapCondition, Boolean.class));
             if (!canBeExecuted) {
@@ -269,7 +272,7 @@ public class InjectsExecutionJob implements Job {
                       injectDependency.getInjectDependencyCondition()));
             }
 
-          } catch (EvaluationException e) {
+          } catch (EvaluationException | SpelParseException e) {
             log.warn(e.getMessage(), e);
             errorMessages.add(
                 "There was an error during the evaluation of the condition of the inject");
