@@ -30,6 +30,7 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.Optional;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -336,7 +337,7 @@ public class ExecutorApi extends RestBehavior {
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
               required = true)
           @PathVariable
-          Endpoint.PLATFORM_TYPE platform,
+          String platformAsString,
       @Parameter(
               description = "Unique token associated with the agent installation.",
               required = true)
@@ -351,7 +352,7 @@ public class ExecutorApi extends RestBehavior {
           String installationDir,
       @Parameter(description = "Service name") @RequestParam(required = false) String serviceName)
       throws IOException {
-
+    Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.valueOf(StringUtils.capitalize(platformAsString.toLowerCase()));
     if (!AVAILABLE_PLATFORMS.contains(platform)) {
       throw new IllegalArgumentException("Platform invalid : " + platform);
     }
