@@ -45,6 +45,7 @@ import lombok.Setter;
     visible = true)
 @JsonSubTypes({
   @JsonSubTypes.Type(value = FlatConfiguration.class, name = WidgetConfigurationType.Values.FLAT),
+    @JsonSubTypes.Type(value = AverageConfiguration.class, name = WidgetConfigurationType.Values.AVERAGE),
   @JsonSubTypes.Type(value = ListConfiguration.class, name = WidgetConfigurationType.Values.LIST),
   @JsonSubTypes.Type(
       value = DateHistogramWidget.class,

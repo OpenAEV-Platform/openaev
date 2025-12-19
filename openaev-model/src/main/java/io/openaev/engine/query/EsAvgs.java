@@ -11,18 +11,25 @@ import java.util.List;
 
 @Getter
 @Setter
-@AllArgsConstructor
-@NoArgsConstructor
 public class EsAvgs {
 
-  @JsonProperty("security_domain_average")
+ /* private String label;
+  private String color;*/
+
+  /*@JsonProperty("security_domain_average")
   @NotBlank
-  private List<EsDomainsAvgData> domainsAvg;
+  private List<EsDomainsAvgData> domainsAvg;*/
 
   @JsonProperty("inject_expectation_average")
   @NotBlank
   private List<EsExpectationsAvgData> expectationsAvg;
 
+//  public EsAvgs(String label) {this.label = label;}
 
+  public EsAvgs(/*String label, List<EsDomainsAvgData> domainsAvg,*/List<EsExpectationsAvgData> expectationsAvg) {
+    /*this.label = label;
+    this.domainsAvg = domainsAvg;*/
+    this.expectationsAvg = expectationsAvg;
+  }
 
 }

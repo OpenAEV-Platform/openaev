@@ -11,6 +11,7 @@ import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.EsAttackPath;
+import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.rest.custom_dashboard.WidgetService;
@@ -49,6 +50,13 @@ public class DashboardService {
     CountRuntime runtime =
         new CountRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
     return engineService.count(widgetContext.user(), runtime);
+  }
+
+  public EsAvgs average(String widgetId, Map<String, String> parameters) {
+    WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
+    AverageConfiguration config = (AverageConfiguration) widgetContext.widget().getWidgetConfiguration();
+    AverageRuntime runtime = new AverageRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
+    return engineService.average(widgetContext.user(), runtime);
   }
 
   /**

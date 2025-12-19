@@ -1,7 +1,6 @@
 package io.openaev.service;
 
-import static io.openaev.utils.CustomDashboardQueryUtils.calcEndDate;
-import static io.openaev.utils.CustomDashboardQueryUtils.calcStartDate;
+import static io.openaev.utils.CustomDashboardQueryUtils.*;
 import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
 import static io.openaev.utils.OpenSearchUtils.*;
 import static java.util.Optional.ofNullable;
@@ -24,9 +23,7 @@ import io.openaev.engine.api.*;
 import io.openaev.engine.api.WidgetConfiguration.Series;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
-import io.openaev.engine.query.EsSeriesData;
+import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
 import jakarta.annotation.Resource;
@@ -576,6 +573,82 @@ public class OpenSearchService implements EngineService {
     }
     return new EsCountInterval(0L, 0L, 0L);
   }
+
+  public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
+    AverageConfiguration widgetConfig =  averageRuntime.getConfig();
+
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+    Query filterQuery =
+        buildQuery(
+            user,
+            null,
+            averageRuntime
+                .getConfig()
+                .getSeries()
+                .getFirst()
+                .getFilter(),
+            averageRuntime.getParameters(),
+            averageRuntime.getDefinitionParameters());
+    Query query;
+    if (isAllTime(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
+    } else {
+      Instant finalStart = calcStartDate(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters());
+      Instant finalEnd = calcEndDate(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters());
+      Query dateRangeQuery =
+          buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
+    }
+
+    String aggregationKey = "average_widget";
+    try {
+      String field = averageRuntime.getParameters().getOrDefault(widgetConfig.getField(), widgetConfig.getField());
+      String elasticField = toElasticField(field);
+
+      SearchRequest.Builder searchBuilder =
+          new SearchRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .size(0)
+              .query(query);
+
+      TermsAggregation termsAggregation =
+          new TermsAggregation.Builder()
+              .field(elasticField)
+              .build();
+
+      searchBuilder.aggregations(
+          aggregationKey, new Aggregation.Builder().terms(termsAggregation).build());
+
+      Aggregation avgScoreAgg = Aggregation.of(a -> a.avg(v -> v.field("score")));
+
+      SearchResponse<Void> response = openSearchClient.search(searchBuilder
+          .aggregations("by_type", a -> a
+              .terms(t -> t.field("type.keyword"))
+              /*.aggregations("avg_score", avgScoreAgg)*/).build(), Void.class);
+
+      Aggregate aggregate = response.aggregations().get(aggregationKey);
+
+      Buckets<StringTermsBucket> buckets = aggregate.sterms().buckets();
+
+      List<EsExpectationsAvgData> data =
+          buckets.array().stream()
+              .map(
+                  b -> {
+                    String key = b.key();
+                    AvgAggregate avgAgg = b.aggregations().get("avg_score").avg();
+                    Double avg = avgAgg != null ? avgAgg.value() : null;
+                    return new EsExpectationsAvgData(key, avg);
+                  })
+              .toList();
+
+      return new EsAvgs(data);
+
+    }catch (Exception e) {
+      log.error(String.format("count exception: %s", e.getMessage()), e);
+    }
+    return new EsAvgs(new ArrayList<>());
+  }
+
 
   public EsSeries termHistogram(
       RawUserAuth user,

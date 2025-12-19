@@ -205,6 +205,7 @@
   "base_platforms_side_denormalized": "Platforms",
   "base_representative": "Representation",
   "base_scenario_side": "Scenario",
+  "base_security_domains_side": "Security domains",
   "base_security_platforms_side": "Security platforms",
   "base_simulation_side": "Simulations",
   "base_tags_side": "Tags",

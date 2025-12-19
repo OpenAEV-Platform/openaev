@@ -10,6 +10,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class EsExpectationsAvgData {
 
-  private InjectExpectation.EXPECTATION_TYPE expectationType;
-  private Float avg;
+  private String key;
+  private Double avg;
 }

@@ -6,6 +6,7 @@ import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
+import io.openaev.engine.query.EsAvgs;
 import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsSeries;
 import java.io.IOException;
@@ -49,6 +50,15 @@ public interface EngineService {
    *     between the two
    */
   EsCountInterval count(RawUserAuth user, CountRuntime runtime);
+
+  /**
+   * Calculates average using parameters
+   *
+   * @param user the user to use
+   * @param averageRuntime the average runtime to use
+   * @return an object label-average
+   */
+  EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime);
 
   /**
    * Get the series in a Histogram model

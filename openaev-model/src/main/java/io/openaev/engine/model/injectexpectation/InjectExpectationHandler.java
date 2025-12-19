@@ -112,9 +112,9 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
               } else {
                 esInjectExpectation.setBase_attack_patterns_side(Set.of());
               }
-              if (!isEmpty(injectExpectation.getSecurity_domain_ids())) {
+              if (!isEmpty(injectExpectation.getDomain_ids())) {
                 esInjectExpectation.setBase_security_domains_side(
-                    injectExpectation.getSecurity_domain_ids());
+                    injectExpectation.getDomain_ids());
               } else {
                 esInjectExpectation.setBase_security_domains_side(Set.of());
               }

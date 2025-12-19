@@ -9,6 +9,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class EsDomainsAvgData {
 
+  private String key;
   private String domain;
   private Float avg;
 }
