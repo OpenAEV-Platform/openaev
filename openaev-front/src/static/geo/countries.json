@@ -57,8 +57,7 @@
     },
     {
         "code": "AUT",
-        "name": "Austria",
-        "eu": true
+        "name": "Austria"
     },
     {
         "code": "AZE",
@@ -86,8 +85,7 @@
     },
     {
         "code": "BEL",
-        "name": "Belgium",
-        "eu": true
+        "name": "Belgium"
     },
     {
         "code": "BLZ",
@@ -139,8 +137,7 @@
     },
     {
         "code": "BGR",
-        "name": "Bulgaria",
-        "eu": true
+        "name": "Bulgaria"
     },
     {
         "code": "BFA",
@@ -224,8 +221,7 @@
     },
     {
         "code": "HRV",
-        "name": "Croatia",
-        "eu": true
+        "name": "Croatia"
     },
     {
         "code": "CUB",
@@ -237,18 +233,15 @@
     },
     {
         "code": "CYP",
-        "name": "Cyprus",
-        "eu": true
+        "name": "Cyprus"
     },
     {
         "code": "CZE",
-        "name": "Czech Republic",
-        "eu": true
+        "name": "Czech Republic"
     },
     {
         "code": "DNK",
-        "name": "Denmark",
-        "eu": true
+        "name": "Denmark"
     },
     {
         "code": "DJI",
@@ -284,8 +277,7 @@
     },
     {
         "code": "EST",
-        "name": "Estonia",
-        "eu": true
+        "name": "Estonia"
     },
     {
         "code": "ETH",
@@ -305,13 +297,11 @@
     },
     {
         "code": "FIN",
-        "name": "Finland",
-        "eu": true
+        "name": "Finland"
     },
     {
         "code": "FRA",
-        "name": "France",
-        "eu": true
+        "name": "France"
     },
     {
         "code": "GUF",
@@ -339,8 +329,7 @@
     },
     {
         "code": "DEU",
-        "name": "Germany",
-        "eu": true
+        "name": "Germany"
     },
     {
         "code": "GHA",
@@ -352,8 +341,7 @@
     },
     {
         "code": "GRC",
-        "name": "Greece",
-        "eu": true
+        "name": "Greece"
     },
     {
         "code": "GRL",
@@ -413,8 +401,7 @@
     },
     {
         "code": "HUN",
-        "name": "Hungary",
-        "eu": true
+        "name": "Hungary"
     },
     {
         "code": "ISL",
@@ -438,8 +425,7 @@
     },
     {
         "code": "IRL",
-        "name": "Ireland",
-        "eu": true
+        "name": "Ireland"
     },
     {
         "code": "IMN",
@@ -451,8 +437,7 @@
     },
     {
         "code": "ITA",
-        "name": "Italy",
-        "eu": true
+        "name": "Italy"
     },
     {
         "code": "JAM",
@@ -504,8 +489,7 @@
     },
     {
         "code": "LVA",
-        "name": "Latvia",
-        "eu": true
+        "name": "Latvia"
     },
     {
         "code": "LBN",
@@ -529,13 +513,11 @@
     },
     {
         "code": "LTU",
-        "name": "Lithuania",
-        "eu": true
+        "name": "Lithuania"
     },
     {
         "code": "LUX",
-        "name": "Luxembourg",
-        "eu": true
+        "name": "Luxembourg"
     },
     {
         "code": "MAC",
@@ -567,8 +549,7 @@
     },
     {
         "code": "MLT",
-        "name": "Malta",
-        "eu": true
+        "name": "Malta"
     },
     {
         "code": "MHL",
@@ -644,8 +625,7 @@
     },
     {
         "code": "NLD",
-        "name": "Netherlands",
-        "eu": true
+        "name": "Netherlands"
     },
     {
         "code": "NCL",
@@ -725,13 +705,11 @@
     },
     {
         "code": "POL",
-        "name": "Poland",
-        "eu": true
+        "name": "Poland"
     },
     {
         "code": "PRT",
-        "name": "Portugal",
-        "eu": true
+        "name": "Portugal"
     },
     {
         "code": "PRI",
@@ -747,8 +725,7 @@
     },
     {
         "code": "ROU",
-        "name": "Romania",
-        "eu": true
+        "name": "Romania"
     },
     {
         "code": "RUS",
@@ -828,13 +805,11 @@
     },
     {
         "code": "SVK",
-        "name": "Slovakia",
-        "eu": true
+        "name": "Slovakia"
     },
     {
         "code": "SVN",
-        "name": "Slovenia",
-        "eu": true
+        "name": "Slovenia"
     },
     {
         "code": "SLB",
@@ -858,8 +833,7 @@
     },
     {
         "code": "ESP",
-        "name": "Spain",
-        "eu": true
+        "name": "Spain"
     },
     {
         "code": "LKA",
@@ -883,8 +857,7 @@
     },
     {
         "code": "SWE",
-        "name": "Sweden",
-        "eu": true
+        "name": "Sweden"
     },
     {
         "code": "CHE",
@@ -964,8 +937,7 @@
     },
     {
         "code": "GBR",
-        "name": "United Kingdom",
-        "eu": true
+        "name": "United Kingdom"
     },
     {
         "code": "USA",
