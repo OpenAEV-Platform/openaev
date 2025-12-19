@@ -4,15 +4,15 @@ on:
     branches:
       - release/*
       - master
-    #types:
-    #  - closed
+    types:
+      - closed
 permissions:
   contents: read
   issues: write
   pull-requests: read
 jobs:
   extract_issue_number:
-    #if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
