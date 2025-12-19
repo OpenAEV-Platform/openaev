@@ -27,7 +27,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prTitle = context.payload.pull_request.title;
-            console.log('PR Title:', prTitle);
+            core.info(`PR Title: ${prTitle}`);
             
             // Match all issue numbers at the end of the title
             // Supports formats like: #123, #456, #789 or #123 #456 #789
@@ -41,10 +41,10 @@ jobs:
                 .map(issue => issue.replace('#', ''))
                 .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
             
-              console.log('Found issue numbers:', issueNumbers);
+              core.info(`Found ${issueNumbers.length} issue number(s): ${issueNumbers.join(', ')}`);
               core.setOutput('issue_numbers', issueNumbers.join(' '));
             } else {
-              console.log('No issue numbers found at the end of PR title');
+              core.warning('No issue numbers found at the end of PR title');
               core.setOutput('issue_numbers', '');
             }
 
@@ -65,10 +65,16 @@ jobs:
               .split(' ')
               .filter(num => num.trim() !== '');
             
-            console.log(`Processing ${issueNumbers.length} issue(s): ${issueNumbers.join(', ')}`);
+            core.info(`Processing ${issueNumbers.length} issue(s): ${issueNumbers.join(', ')}`);
+            core.startGroup('Processing Issues');
+            
+            let successCount = 0;
+            let failureCount = 0;
             
             for (const issueNumber of issueNumbers) {
               try {
+                core.startGroup(`Issue #${issueNumber}`);
+            
                 // Add "solved" label
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
@@ -76,7 +82,7 @@ jobs:
                   issue_number: parseInt(issueNumber),
                   labels: ["solved"]
                 });
-                console.log(`✓ Added "solved" label to issue #${issueNumber}`);
+                core.info(`✓ Added "solved" label`);
             
                 // Close the issue
                 await github.rest.issues.update({
@@ -85,9 +91,22 @@ jobs:
                   issue_number: parseInt(issueNumber),
                   state: "closed"
                 });
-                console.log(`✓ Closed issue #${issueNumber}`);
+                core.info(`✓ Closed issue`);
+            
+                successCount++;
+                core.endGroup();
             
               } catch (error) {
-                console.error(`✗ Error processing issue #${issueNumber}:`, error.message);
+                core.error(`✗ Failed to process issue #${issueNumber}: ${error.message}`);
+                failureCount++;
+                core.endGroup();
               }
+            }
+            
+            core.endGroup();
+            
+            // Summary
+            core.notice(`Successfully processed ${successCount} issue(s)`);
+            if (failureCount > 0) {
+              core.warning(`Failed to process ${failureCount} issue(s)`);
             }
