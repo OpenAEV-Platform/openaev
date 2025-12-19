@@ -1,5 +1,7 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.service.chaining.StepService.setField;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -125,8 +127,8 @@ public class InjectExecutionStep implements ActionStep {
       // Execute Inject
       try {
         executor.directExecute(executableInject);
-        // todo:
-        setInjectId(inject.getId(), waitStep.getData());
+        String data = setInjectId(inject.getId(), waitStep.getData());
+        waitStep.setData(data);
         return waitStep;
       } catch (Exception e) {
         log.warn(e.getMessage(), e);
@@ -241,5 +243,7 @@ public class InjectExecutionStep implements ActionStep {
     return gson.toJson(result);
   }
 
-  private void setInjectId(String injectId, String dataStep) {}
+  private String setInjectId(String injectId, String dataStep) {
+    return setField(dataStep, "inject_id", injectId);
+  }
 }

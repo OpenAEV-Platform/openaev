@@ -52,8 +52,8 @@ public class InjectUtils {
           && COMMAND_TYPE.equals(injectorContract.getPayload().getType())) {
         // Inject has a command payload
         Payload payload = injectorContract.getPayload();
-        //todo check
-          //Command payloadCommand = (Command) Hibernate.unproxy(payload);
+        // todo check
+        // Command payloadCommand = (Command) Hibernate.unproxy(payload);
         Command payloadCommand = (Command) entityManager.find(Command.class, payload.getId());
         PayloadCommandBlock payloadCommandBlock =
             new PayloadCommandBlock(
