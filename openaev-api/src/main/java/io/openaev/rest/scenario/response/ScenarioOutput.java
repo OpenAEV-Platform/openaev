@@ -5,15 +5,16 @@ import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
-import java.time.Instant;
-import java.util.*;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.*;
 import lombok.*;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ScenarioOutput {
 
   @JsonProperty("scenario_id")
