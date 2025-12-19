@@ -17,7 +17,7 @@ jobs:
           submodules: recursive
       - uses: jirutka/setup-alpine@v1
         with:
-          branch: v3.18
+          branch: v3.23
           extra-repositories: |
             https://dl-cdn.alpinelinux.org/alpine/edge/community/
           packages: >
