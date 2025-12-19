@@ -13,4 +13,5 @@ public interface RawDomain {
   Instant getDomain_created_at();
 
   Instant getDomain_updated_at();
+
 }
