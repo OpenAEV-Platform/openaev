@@ -81,7 +81,22 @@ const CatalogLayout = () => {
       {!isEnterpriseEdition
         && <Alert variant="outlined" style={{ marginBottom: theme.spacing(2) }} severity="info">{t('The deployment from this catalog requires an Enterprise Edition license.')}</Alert>}
       {isEnterpriseEdition && !isXtmComposerUp && !catalogConnectorId
-        && <Alert severity="warning" style={{ marginBottom: theme.spacing(2) }}>{t('Some deployment requires the installation of our Integration Manager.')}</Alert>}
+        && (
+          <Alert
+            severity="warning"
+            style={{ marginBottom: theme.spacing(2) }}
+          >
+            {t('Some deployment requires the installation of our')}
+            &nbsp;
+            <a
+              href="https://docs.openaev.io/latest/deployment/integration-manager/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t('Integration Manager')}
+            </a>
+          </Alert>
+        )}
       {isEnterpriseEdition && !isXtmComposerUp && catalogConnectorId && catalogConnector?.catalog_connector_manager_supported
         && (
           <Alert severity="warning" style={{ marginBottom: theme.spacing(2) }}>
