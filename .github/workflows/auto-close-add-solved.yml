@@ -4,15 +4,15 @@ on:
     branches:
       - release/*
       - master
-    types:
-      - closed
+    #types:
+    #  - closed
 permissions:
   contents: read
   issues: write
   pull-requests: read
 jobs:
   extract_issue_number:
-    if: github.event.pull_request.merged == true
+    #if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,20 +29,26 @@ jobs:
             const prTitle = context.payload.pull_request.title;
             core.info(`PR Title: ${prTitle}`);
             
-            // Match all issue numbers at the end of the title
-            // Supports formats like: #123, #456, #789 or #123 #456 #789
-            const endPattern = /((?:#\d+[\s,]*)+)\s*$/;
+            // Match only issue-containing groups at the end
+            const endPattern = /(?:\((?:[^)]*#\d+[^)]*)\)|#\d+)(?:\s+(?:\((?:[^)]*#\d+[^)]*)\)|#\d+))*\s*$/;
             const endMatch = prTitle.match(endPattern);
             
+            let issueNumbers = [];
+            
             if (endMatch) {
-              // Extract all individual issue numbers
-              const issueNumbers = endMatch[1]
-                .match(/#(\d+)/g)
-                .map(issue => issue.replace('#', ''))
+              // Extract all #number patterns from the matched section
+              const allMatches = endMatch[0].matchAll(/#(\d+)/g);
+              issueNumbers = [...allMatches]
+                .map(match => match[1])
                 .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
             
-              core.info(`Found ${issueNumbers.length} issue number(s): ${issueNumbers.join(', ')}`);
-              core.setOutput('issue_numbers', issueNumbers.join(' '));
+              if (issueNumbers.length > 0) {
+                core.info(`Found ${issueNumbers.length} issue number(s): ${issueNumbers.join(', ')}`);
+                core.setOutput('issue_numbers', issueNumbers.join(' '));
+              } else {
+                core.warning('No issue numbers found at the end of PR title');
+                core.setOutput('issue_numbers', '');
+              }
             } else {
               core.warning('No issue numbers found at the end of PR title');
               core.setOutput('issue_numbers', '');
