@@ -1,5 +1,6 @@
 package io.openaev.service.stix;
 
+import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
@@ -11,13 +12,12 @@ import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
-import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
-import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import java.util.*;
@@ -37,6 +37,10 @@ import org.springframework.validation.annotation.Validated;
 public class SecurityCoverageInjectService {
 
   public static final int TARGET_NUMBER_OF_INJECTS = 1;
+  public static final Endpoint.PLATFORM_TYPE[] ALL_PLATFORMS =
+      new Endpoint.PLATFORM_TYPE[] {
+        Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+      };
 
   private final InjectService injectService;
   private final InjectAssistantService injectAssistantService;
@@ -47,12 +51,12 @@ public class SecurityCoverageInjectService {
 
   private final InjectRepository injectRepository;
   private final PayloadRepository payloadRepository;
-  private final PayloadService payloadService;
   private final PayloadCreationService payloadCreationService;
   private final DomainService domainService;
   private final InjectorContractRepository injectorContractRepository;
+    private final TagService tagService;
 
-  /**
+    /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
    *
    * @param scenario the scenario for which injects are managed
@@ -91,9 +95,7 @@ public class SecurityCoverageInjectService {
         contractForInjectPlaceholders);
 
     // 7. Build injects from Indicators
-    createInjectsByIndicators(
-        scenario,
-        securityCoverage.getIndicatorsRefs());
+    createInjectsByIndicators(scenario, securityCoverage.getIndicatorsRefs());
 
     return injectRepository.findByScenarioId(scenario.getId());
   }
@@ -113,81 +115,65 @@ public class SecurityCoverageInjectService {
    *
    * <ul>
    *   <li>Resolves internal indicators from the coverage
-   *   <li>Remove all inject from scenario where indicator refs is empty
+   *   <li>Remove all inject from scenario linked to dns resolution
    *   <li>Generates injects based on injector contract related to these indicators
+   *   <li>Delete injects who doesn't exist anymore on the STIX
    * </ul>
    *
    * @param scenario the scenario for which injects are managed
    * @param indicatorsRefs the related security coverage providing Indicator references
    */
   private void createInjectsByIndicators(
-      Scenario scenario,
-      Set<StixRefToExternalRef> indicatorsRefs) {
-    // 1. Remove Inject with contract related to Dns Resolution
-    if (indicatorsRefs.isEmpty()) {
-        injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+      Scenario scenario, Set<StixRefToExternalRef> indicatorsRefs) {
+    Set<StixRefToExternalRef> dnsResolutionRefs =
+        indicatorsRefs.stream()
+            .filter(indicator -> indicator.getHostname() != null)
+            .collect(Collectors.toSet());
+
+    // 1. Remove Inject with contract related to Dns Resolution if there is no any DNS Indicator to
+    // manage
+    if (dnsResolutionRefs.isEmpty()) {
+      injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+      return;
     }
 
-    // 2. Manage all indicators with hostname value to create
-    indicatorsRefs.stream()
-        .filter(indicator -> indicator.getHostname() != null)
-        .forEach(
-            indicator -> {
-              // 3. Fetch existing Payloads for hostname and platform
-              List<Payload> existingPayloads =
-                  payloadRepository.findAllByHostnameAndPlatforms(
-                      indicator.getHostname(),
-                      new String[] {
-                          Endpoint.PLATFORM_TYPE.Windows.toString(),
-                          Endpoint.PLATFORM_TYPE.Linux.toString(),
-                          Endpoint.PLATFORM_TYPE.MacOS.toString()
-                      });
+    // 2. Copy existing injects on scenario
+    final List<Inject> previousExistingInject =
+        scenario.getInjects().stream()
+            .filter(
+                inject ->
+                    inject.getInjectorContract().isPresent()
+                        && inject.getInjectorContract().get().getPayload() instanceof DnsResolution)
+            .toList();
+    List<String> managedInjectsIds = new ArrayList<>();
 
-              // 4. Check if payload already exist
-              Payload existingPayload =
-                  existingPayloads.stream()
-                      .filter(payload -> payload.getExternalId().equals(indicator.getExternalRef()))
-                      .findFirst()
-                      .orElse(null);
+    // 3. Manage all indicators with hostname value to create
+    dnsResolutionRefs.forEach(
+        indicator -> {
+          // 4. Search for existing inject on scenario by hostname
+          String existingInjectId =
+              findExistingInjectIdByHostname(scenario, indicator.getHostname());
+          if (existingInjectId != null) {
+            managedInjectsIds.add(existingInjectId);
+            return;
+          }
 
-              if (existingPayload == null) {
-                // 5. If there is no existing payload, create it
-                existingPayload = createDnsResolutionPayload(indicator);
-              }
+          // 5. Fetch existing Payloads for hostname and platform
+          Payload existingPayload = foundExistingPayload(indicator);
+          Set<Tag> tags = tagService.fetchTagsFromLabels(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+          if (existingPayload == null) {
+            // 6. If there is no existing payload, create it
+            existingPayload = createDnsResolutionPayload(indicator, tags);
+          }
 
-              // 6. Create an inject, linked to the scenario for each contract
-              final String name = existingPayload.getName();
-              final String description = existingPayload.getDescription();
-              List<InjectorContract> injectorContracts =
-                injectorContractRepository.findInjectorContractsByPayload(existingPayload);
-              List<Inject> injectsToCreate = injectorContracts.stream()
-                .map(injectorContract -> {
-                    Inject inject = injectService.buildInject(injectorContract, name, description, true);
-                    inject.setScenario(scenario);
-                    return inject;
-                }).collect(Collectors.toList());
-              injectRepository.saveAll(injectsToCreate);
-            });
-  }
+          // 7. Create an inject, linked to the scenario for each contract
+          createInjectsByInjectorContracts(existingPayload, scenario, tags);
+        });
 
-  private Payload createDnsResolutionPayload(StixRefToExternalRef indicator) {
-      PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
-      payloadCreateInput.setHostname(indicator.getHostname());
-      payloadCreateInput.setName(indicator.getName());
-      payloadCreateInput.setDescription(indicator.getDescription());
-      payloadCreateInput.setType(DnsResolution.DNS_RESOLUTION_TYPE);
-      payloadCreateInput.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
-      payloadCreateInput.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
-      payloadCreateInput.setPlatforms(new Endpoint.PLATFORM_TYPE[] {
-          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
-      });
-      payloadCreateInput.setExpectations(new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
-      });
-      Set<Domain> domains = domainService.upserts(new HashSet<>(Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
-      payloadCreateInput.setDomainIds(domains.stream().map(Domain::getId).collect(Collectors.toList()));
-      return payloadCreationService.createPayload(payloadCreateInput);
+    // 8. Delete all previous injects non existing anymore on the OpenCTI report
+    previousExistingInject.stream()
+        .filter(inject -> !managedInjectsIds.contains(inject.getId()))
+        .forEach(injectRepository::delete);
   }
 
   // -- INJECTS BY VULNERABILITIES --
@@ -617,4 +603,129 @@ public class SecurityCoverageInjectService {
   private record MissingCombinations(
       Set<String> filteredAttackPatterns,
       Map<AssetGroup, List<Endpoint>> filteredAssetsFromGroupMap) {}
+
+  /**
+   * Retrieve an existing inject on the given scenario by Payload hostname
+   *
+   * @param scenario to retrieve injects
+   * @param hostname to find
+   * @return founded inject id, null if not
+   */
+  private String findExistingInjectIdByHostname(Scenario scenario, String hostname) {
+    return scenario.getInjects().stream()
+        .filter(inject -> hasDnsResolutionFor(inject, hostname))
+        .findFirst()
+        .map(Inject::getId)
+        .orElse(null);
+  }
+
+  /**
+   * Check if the inject has a payload of DnsResolution type with given hostname
+   *
+   * @param inject to check
+   * @param hostname to find
+   * @return true if the inject have a DnsResolution with given hostname, false if not
+   */
+  private boolean hasDnsResolutionFor(Inject inject, String hostname) {
+    if (inject.getInjectorContract().isEmpty()) {
+      return false;
+    }
+
+    Object payload = inject.getInjectorContract().get().getPayload();
+    if (!(payload instanceof DnsResolution dns)) {
+      return false;
+    }
+
+    return hostname.equals(dns.getHostname()) && Arrays.equals(ALL_PLATFORMS, dns.getPlatforms());
+  }
+
+  /**
+   * create an inject for all the injector contracts by payload, and link them to the scenario
+   *
+   * @param payload to filter injector contracts
+   * @param scenario to link
+   */
+  private void createInjectsByInjectorContracts(Payload payload, Scenario scenario, Set<Tag> tags) {
+    final String name = payload.getName();
+    final String description = payload.getDescription();
+    List<InjectorContract> injectorContracts =
+        injectorContractRepository.findInjectorContractsByPayload(payload);
+    List<Inject> injectsToCreate =
+        injectorContracts.stream()
+            .map(
+                injectorContract ->
+                    createInjectAndAssociateToScenario(
+                        injectorContract, scenario, name, description, tags))
+            .collect(Collectors.toList());
+    injectRepository.saveAll(injectsToCreate);
+  }
+
+  /**
+   * Create an inject from an injector contract, and link it to the given scenario
+   *
+   * @param injectorContract to create inject
+   * @param scenario to link inject to
+   * @param name of the inject
+   * @param description of the inject
+   * @return created inject
+   */
+  private Inject createInjectAndAssociateToScenario(
+      InjectorContract injectorContract, Scenario scenario, String name, String description, Set<Tag> tags) {
+    Inject inject = injectService.buildInject(injectorContract, name, description, true);
+    inject.setTags(tags);
+    inject.setScenario(scenario);
+    return inject;
+  }
+
+  /**
+   * Create a DnsResolution payload and associated injector contracts from a given Dns Indicator
+   *
+   * @param indicator to create payload from
+   * @return created payload
+   */
+  private Payload createDnsResolutionPayload(StixRefToExternalRef indicator, Set<Tag> tags) {
+    PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
+    payloadCreateInput.setHostname(indicator.getHostname());
+    payloadCreateInput.setName("Resolve domain name : " + indicator.getName());
+    payloadCreateInput.setDescription(indicator.getDescription());
+    payloadCreateInput.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+    payloadCreateInput.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    payloadCreateInput.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    payloadCreateInput.setPlatforms(
+        new Endpoint.PLATFORM_TYPE[] {
+          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+        });
+    payloadCreateInput.setExpectations(
+        new InjectExpectation.EXPECTATION_TYPE[] {
+          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        });
+    Set<Domain> domains =
+        domainService.upserts(
+            Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING));
+    payloadCreateInput.setDomainIds(
+        domains.stream().map(Domain::getId).collect(Collectors.toList()));
+    payloadCreateInput.setTagIds(tags.stream().map(Tag::getId).collect(Collectors.toList()));
+    return payloadCreationService.createPayload(payloadCreateInput);
+  }
+
+  /**
+   * Check for the existance of payload on database by indicator hostname
+   *
+   * @param indicator to search
+   * @return founded payload, null if not
+   */
+  private Payload foundExistingPayload(StixRefToExternalRef indicator) {
+    return payloadRepository
+        .findAllByHostnameAndPlatforms(
+            indicator.getHostname(),
+            new String[] {
+              Endpoint.PLATFORM_TYPE.Windows.toString(),
+              Endpoint.PLATFORM_TYPE.Linux.toString(),
+              Endpoint.PLATFORM_TYPE.MacOS.toString()
+            })
+        .stream()
+        .findFirst()
+        .orElse(null);
+  }
 }

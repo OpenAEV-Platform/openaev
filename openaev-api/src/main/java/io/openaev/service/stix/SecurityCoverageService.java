@@ -14,11 +14,14 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -54,6 +57,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -66,6 +70,7 @@ public class SecurityCoverageService {
   private final TagService tagService;
   private final CronService cronService;
   private final AttackPatternService attackPatternService;
+  private final InjectService injectService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
   private final AssetService assetService;
@@ -82,6 +87,8 @@ public class SecurityCoverageService {
 
   // FIXME: don't access the connector directly when we deal with multiple origins
   private final SecurityCoverageConnector connector;
+
+  private final PayloadRepository payloadRepository;
 
   /**
    * Parses a STIX JSON string, validates it, and delegates to create and persist a
@@ -420,6 +427,15 @@ public class SecurityCoverageService {
           objects);
     }
 
+    processCoverageRefs(
+        exercise.getSecurityCoverage().getIndicatorsRefs(),
+        exercise,
+        this::getDnsIndicatorCoverage,
+        coverage.getId(),
+        sroStartTime,
+        sroStopTime,
+        objects);
+
     for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
@@ -459,13 +475,13 @@ public class SecurityCoverageService {
   private void processCoverageRefs(
       Set<StixRefToExternalRef> refs,
       Exercise exercise,
-      BiFunction<String, Exercise, BaseType<?>> coverageFunction,
+      BiFunction<StixRefToExternalRef, Exercise, BaseType<?>> coverageFunction,
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
       List<ObjectBase> objects) {
     for (StixRefToExternalRef stixRef : refs) {
-      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), exercise);
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef, exercise);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
@@ -506,25 +522,69 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(exercise.getInjects(), securityPlatform);
   }
 
-  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise exercise) {
+  private BaseType<?> getVulnerabilityCoverage(StixRefToExternalRef stixExternalRef, Exercise exercise) {
     return getCoverage(
-        externalRef,
+        stixExternalRef.getExternalRef(),
         exercise,
         id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
         InjectorContract::getVulnerabilities,
         Vulnerability::getId);
   }
 
-  private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise exercise) {
+  private BaseType<?> getAttackPatternCoverage(StixRefToExternalRef stixExternalRef, Exercise exercise) {
     return getCoverage(
-        externalRef,
+        stixExternalRef.getExternalRef(),
         exercise,
         id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
         InjectorContract::getAttackPatterns,
         AttackPattern::getId);
   }
 
-  private <T> BaseType<?> getCoverage(
+  private BaseType<?> getDnsIndicatorCoverage(StixRefToExternalRef stixExternalRef, Exercise exercise) {
+    return getCoverageForDnsResolution(
+        stixExternalRef.getHostname(),
+        exercise,
+        hostname -> payloadRepository.findAllByHostnameAndPlatforms(
+                hostname,
+                new String[] {
+                        Endpoint.PLATFORM_TYPE.Windows.toString(),
+                        Endpoint.PLATFORM_TYPE.Linux.toString(),
+                        Endpoint.PLATFORM_TYPE.MacOS.toString()
+                }),
+        injectorContract -> (DnsResolution) injectorContract.getPayload(),
+        DnsResolution::getHostname);
+  }
+
+    private <T> BaseType<?> getCoverageForDnsResolution(
+            String externalRef,
+            Exercise exercise,
+            Function<String, Collection<Payload>> entityFetcher,
+            Function<InjectorContract, DnsResolution> contractExtractor,
+            Function<DnsResolution, String> idExtractor) {
+        // fetch entity
+        Optional<Payload> entity = entityFetcher.apply(externalRef).stream().findFirst();
+        if (entity.isEmpty()) {
+            return uncovered();
+        }
+
+        // find matching injects
+        List<Inject> injects =
+                exercise.getInjects().stream()
+                        .filter(
+                                i ->
+                                        i.getInjectorContract().isPresent()
+                                                && contractExtractor.apply(i.getInjectorContract().get()) != null
+                                                && idExtractor.apply(contractExtractor.apply(i.getInjectorContract().get())).equals(idExtractor.apply((DnsResolution) entity.get())))
+                        .toList();
+
+        if (injects.isEmpty()) {
+            return uncovered();
+        }
+
+        return computeCoverageFromInjects(injects);
+    }
+
+    private <T> BaseType<?> getCoverage(
       String externalRef,
       Exercise exercise,
       Function<String, Collection<T>> entityFetcher,

@@ -18,6 +18,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -46,7 +47,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
@@ -63,8 +63,8 @@ public class PayloadService {
   private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
+  private final DomainService domainService;
   private final PayloadUtils payloadUtils;
-  @Autowired private DomainService domainService;
 
   public void updateInjectorContractsForPayload(Payload payload) {
     List<Injector> injectors = this.injectorRepository.findAllByPayloads(true);
@@ -90,7 +90,9 @@ public class PayloadService {
 
     try {
       Contract contract = buildContract(injectorContract.getId(), injector, payload);
-      injectorContract.setContent(mapper.writeValueAsString(contract));
+      String content = mapper.writeValueAsString(contract);
+      injectorContract.setContent(content);
+      injectorContract.setConvertedContent(mapper.readValue(content, ObjectNode.class));
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
