@@ -21,7 +21,6 @@ import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -522,7 +521,8 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(exercise.getInjects(), securityPlatform);
   }
 
-  private BaseType<?> getVulnerabilityCoverage(StixRefToExternalRef stixExternalRef, Exercise exercise) {
+  private BaseType<?> getVulnerabilityCoverage(
+      StixRefToExternalRef stixExternalRef, Exercise exercise) {
     return getCoverage(
         stixExternalRef.getExternalRef(),
         exercise,
@@ -531,7 +531,8 @@ public class SecurityCoverageService {
         Vulnerability::getId);
   }
 
-  private BaseType<?> getAttackPatternCoverage(StixRefToExternalRef stixExternalRef, Exercise exercise) {
+  private BaseType<?> getAttackPatternCoverage(
+      StixRefToExternalRef stixExternalRef, Exercise exercise) {
     return getCoverage(
         stixExternalRef.getExternalRef(),
         exercise,
@@ -540,51 +541,55 @@ public class SecurityCoverageService {
         AttackPattern::getId);
   }
 
-  private BaseType<?> getDnsIndicatorCoverage(StixRefToExternalRef stixExternalRef, Exercise exercise) {
+  private BaseType<?> getDnsIndicatorCoverage(
+      StixRefToExternalRef stixExternalRef, Exercise exercise) {
     return getCoverageForDnsResolution(
         stixExternalRef.getHostname(),
         exercise,
-        hostname -> payloadRepository.findAllByHostnameAndPlatforms(
+        hostname ->
+            payloadRepository.findAllByHostnameAndPlatforms(
                 hostname,
                 new String[] {
-                        Endpoint.PLATFORM_TYPE.Windows.toString(),
-                        Endpoint.PLATFORM_TYPE.Linux.toString(),
-                        Endpoint.PLATFORM_TYPE.MacOS.toString()
+                  Endpoint.PLATFORM_TYPE.Windows.toString(),
+                  Endpoint.PLATFORM_TYPE.Linux.toString(),
+                  Endpoint.PLATFORM_TYPE.MacOS.toString()
                 }),
         injectorContract -> (DnsResolution) injectorContract.getPayload(),
         DnsResolution::getHostname);
   }
 
-    private <T> BaseType<?> getCoverageForDnsResolution(
-            String externalRef,
-            Exercise exercise,
-            Function<String, Collection<Payload>> entityFetcher,
-            Function<InjectorContract, DnsResolution> contractExtractor,
-            Function<DnsResolution, String> idExtractor) {
-        // fetch entity
-        Optional<Payload> entity = entityFetcher.apply(externalRef).stream().findFirst();
-        if (entity.isEmpty()) {
-            return uncovered();
-        }
-
-        // find matching injects
-        List<Inject> injects =
-                exercise.getInjects().stream()
-                        .filter(
-                                i ->
-                                        i.getInjectorContract().isPresent()
-                                                && contractExtractor.apply(i.getInjectorContract().get()) != null
-                                                && idExtractor.apply(contractExtractor.apply(i.getInjectorContract().get())).equals(idExtractor.apply((DnsResolution) entity.get())))
-                        .toList();
-
-        if (injects.isEmpty()) {
-            return uncovered();
-        }
-
-        return computeCoverageFromInjects(injects);
+  private <T> BaseType<?> getCoverageForDnsResolution(
+      String externalRef,
+      Exercise exercise,
+      Function<String, Collection<Payload>> entityFetcher,
+      Function<InjectorContract, DnsResolution> contractExtractor,
+      Function<DnsResolution, String> idExtractor) {
+    // fetch entity
+    Optional<Payload> entity = entityFetcher.apply(externalRef).stream().findFirst();
+    if (entity.isEmpty()) {
+      return uncovered();
     }
 
-    private <T> BaseType<?> getCoverage(
+    // find matching injects
+    List<Inject> injects =
+        exercise.getInjects().stream()
+            .filter(
+                i ->
+                    i.getInjectorContract().isPresent()
+                        && contractExtractor.apply(i.getInjectorContract().get()) != null
+                        && idExtractor
+                            .apply(contractExtractor.apply(i.getInjectorContract().get()))
+                            .equals(idExtractor.apply((DnsResolution) entity.get())))
+            .toList();
+
+    if (injects.isEmpty()) {
+      return uncovered();
+    }
+
+    return computeCoverageFromInjects(injects);
+  }
+
+  private <T> BaseType<?> getCoverage(
       String externalRef,
       Exercise exercise,
       Function<String, Collection<T>> entityFetcher,

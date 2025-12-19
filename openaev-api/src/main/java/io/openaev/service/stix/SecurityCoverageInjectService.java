@@ -54,9 +54,9 @@ public class SecurityCoverageInjectService {
   private final PayloadCreationService payloadCreationService;
   private final DomainService domainService;
   private final InjectorContractRepository injectorContractRepository;
-    private final TagService tagService;
+  private final TagService tagService;
 
-    /**
+  /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
    *
    * @param scenario the scenario for which injects are managed
@@ -115,7 +115,8 @@ public class SecurityCoverageInjectService {
    *
    * <ul>
    *   <li>Resolves internal indicators from the coverage
-   *   <li>Remove all inject from scenario linked to dns resolution
+   *   <li>Remove all inject from scenario linked to dns resolutionif there is no indicators to
+   *       manage
    *   <li>Generates injects based on injector contract related to these indicators
    *   <li>Delete injects who doesn't exist anymore on the STIX
    * </ul>
@@ -644,6 +645,7 @@ public class SecurityCoverageInjectService {
    *
    * @param payload to filter injector contracts
    * @param scenario to link
+   * @param tags to add t
    */
   private void createInjectsByInjectorContracts(Payload payload, Scenario scenario, Set<Tag> tags) {
     final String name = payload.getName();
@@ -667,10 +669,15 @@ public class SecurityCoverageInjectService {
    * @param scenario to link inject to
    * @param name of the inject
    * @param description of the inject
+   * @param tags to add to the injects
    * @return created inject
    */
   private Inject createInjectAndAssociateToScenario(
-      InjectorContract injectorContract, Scenario scenario, String name, String description, Set<Tag> tags) {
+      InjectorContract injectorContract,
+      Scenario scenario,
+      String name,
+      String description,
+      Set<Tag> tags) {
     Inject inject = injectService.buildInject(injectorContract, name, description, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
@@ -681,6 +688,7 @@ public class SecurityCoverageInjectService {
    * Create a DnsResolution payload and associated injector contracts from a given Dns Indicator
    *
    * @param indicator to create payload from
+   * @param tags to the created payload
    * @return created payload
    */
   private Payload createDnsResolutionPayload(StixRefToExternalRef indicator, Set<Tag> tags) {
