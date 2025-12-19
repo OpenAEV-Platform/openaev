@@ -20,7 +20,7 @@ This integration works across multiple OpenCTI entity types:
 ## How It Works
 
 When you click on the **Add Security Coverage** button in
-OpenCTI ([see OpenCTI documentation](https://docs.opencti.io/latest/usage/security-coverage/)), OpenAEV receives a **STIX 2.1 bundle** representing the Security Coverage. 
+OpenCTI ([see OpenCTI documentation](https://docs.opencti.io/latest/usage/security-coverage/)), OpenAEV receives a **STIX 2.1 bundle** representing the Security Coverage.
 
 ![Button Security Coverage](assets/octi-security-coverage-button.png)
 
@@ -28,10 +28,14 @@ OpenAEV then:
 
 1. Parses the STIX object
 2. Builds a scenario in OpenAEV
-> **Note:** At time of writing, the automated Security Coverage feature can assess coverage for the following entities: Attack Patterns
+
+> **Note:** At time of writing, the automated Security Coverage feature can assess coverage for the following entities:
+> Attack Patterns
+
 3. Extracts relevant **Attack Patterns references**
-4. Generates injects for each extracted entity
-5. Schedules the scenario for execution
+4. Resolves Asset Groups using **Custom Tag Rule** labeled `opencti`, extracting the associated **platforms and architectures** to match compatible payloads.
+5. Generates injects for each extracted entity
+6. Schedules the scenario for execution
 
 ## STIX Fields Used for Scenario Creation
 
@@ -60,29 +64,56 @@ After parsing and validating the **Security Coverage STIX** object, OpenAEV foll
 
 - **Create or update an OpenAEV scenario**
 
-  ![Scenario](assets/scenario-openaev.png)
+![Scenario](assets/scenario-openaev.png)
 
 - **Extract all references** related to Attack Patterns.
 
     - For each **Object Reference** identified:
 
-        - If the referenced **Object** already exists in OpenAEV as an **Attack Pattern** and a related [Payload](../payloads/payloads.md) is available → a **concrete inject** is created.
+        - If the referenced **Attack Pattern** exists in OpenAEV  
+          (matched by **External ID** or **Name**) **and** a related [Payload](../payloads/payloads.md) exists that
+          matches the **platforms and architectures** derived from the Asset groups resolved via **Custom Tag Rule
+          labeled `opencti`**.   
+          => **Concrete Inject** is created.
 
-        - If the referenced **Object** does **not** exist in OpenAEV → a **Placeholder Inject** is created to highlight the missing element.
+        - If the Attack Pattern does **not** exist in OpenAEV, or no compatible payload exists for the resolved
+          platforms/architectures.  
+          => **Placeholder Inject** is created to highlight missing coverage.
 
-> **Note:** To ensure meaningful inject generation, the **Attack Patterns** in OpenCTI should be aligned with those configured in OpenAEV.
+> **Note**  
+> To ensure meaningful inject generation:
+>
+> - Attack Patterns defined in **OpenCTI** (by External ID or Name) must be aligned with those configured in **OpenAEV
+    **.
+> - Targets are resolved via **Custom Tag Rule labeled `opencti`**, and the corresponding **platforms and architectures
+    ** are extracted from these Asset groups.
+> - Payloads are matched against the Attack Patterns **and** must be compatible with the extracted platforms and
+    architectures.
+>
+> In other words, inject creation only occurs when:
+> 1. The Attack Pattern exists in OpenAEV, and
+> 2. A payload exists that matches both the Attack Pattern **and** the platforms/architectures derived from the Asset groups
+     defined in the Custom Tag Rules.
+>
+> If either condition is not met, a **Placeholder Inject** is created to highlight missing coverage.
 
-Inject creation depends on matching the **Object Reference** values between OpenCTI and OpenAEV, example:
-  
-  | OpenCTI Attack Pattern | Exists in OpenAEV? | Result                     |
-  |------------------------|--------------------|----------------------------|
-  | T1059.001              | Yes                | Concrete inject created    |
-  | T1059.001              | No                 | Placeholder inject created |
+Inject creation depends on matching the **Object Reference** values between OpenCTI and OpenAEV, example:  
+
+| OpenCTI Attack Pattern <br/> (External ID or Name) | Matching Payload in OpenAEV <br/> (Attack Pattern + Platform + Architecture) | Result                  |
+|----------------------------------------------------|------------------------------------------------------------------------------|-------------------------|
+| T1059.001                                          | Yes                                                                          | Concrete inject created |
+| T1059.001                                          | No                                                                           | Placeholder inject      |
 
 ![Inject Scenario](assets/inject-scenario-openaev.png)  
 ![Inject Placeholder Scenario](assets/inject-placeholder.png)
+![Asset Rules](../assets/asset_rules.png)
 
-After the injects are generated, review and customize the Scenario to ensure it fits your organization’s specific needs. You will also need to assign appropriate **Targets** to each inject. Additionally, you can configure default **Asset Groups** for scenarios created from OpenCTI using the [Default Asset Groups](../default_asset_rules.md) page.
+After injects are generated:
+
+- Review and customize the **Scenario** to match your organization’s needs.
+- Assign appropriate **Asset groups** to each inject.
+- Optionally, configure default **Asset Groups** for scenarios created from OpenCTI using
+  the [Default Asset Groups](../default_asset_rules.md) page.
 
 ![Inject Asset Groups](assets/inject-asset-group.png)
 
@@ -94,7 +125,9 @@ Once the scenario is finalized and scheduled:
 
 - OpenAEV executes the scenario according to the periodicity.
 - After simulation, the results are compiled into new SROs.
-- OpenAEV sends these results back to OpenCTI as part of automated [Enriched Security Posture Assessment](../xtm-suite-connector.md) in the same **STIX 2.1 bundle** representing the Security Coverage.
+- OpenAEV sends these results back to OpenCTI as part of
+  automated [Enriched Security Posture Assessment](../xtm-suite-connector.md) in the same **STIX 2.1 bundle**
+  representing the Security Coverage.
 - OpenCTI displays the updated coverage assessment.
 
 ![Octi results](assets/octi-security-coverage-results.png)
@@ -103,6 +136,7 @@ This creates a complete feedback loop between threat intelligence and security v
 
 ## What’s next?
 
-The next step is to expand the integration between OpenCTI and OpenAEV by incorporating additional threat intelligence data, such as Observables, Artifacts, Malware, and more.
+The next step is to expand the integration between OpenCTI and OpenAEV by incorporating additional threat intelligence
+data, such as Observables, Artifacts, Malware, and more.
 
 

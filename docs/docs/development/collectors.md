@@ -13,9 +13,9 @@ them against injected expectations in OpenAEV.
 
     Note that while this guide puts an emphasis on the Python language, a collector may be implemented in any language
     because it communicates with the OpenAEV server via its REST API. However, Filigran provides an official implementation
-    of a REST client for the OpenAEV API, in python: PyOBAS.
+    of a REST client for the OpenAEV API, in python: PyOAEV.
 
-In this guide, we will use [PyOBAS](https://pypi.org/project/pyobas/), the official OpenAEV API client for Python. The guide requires a basic understanding
+In this guide, we will use [PyOAEV](https://pypi.org/project/pyoaev/), the official OpenAEV API client for Python. The guide requires a basic understanding
 of the Python language, and a working Python install on the development machine.
 
 ### High level overview
@@ -25,10 +25,10 @@ expectations from within the OpenAEV system.
 
 ![High level process overview](assets/high-level-collector-overview.png)
 
-This would translate to this partially-pseudo code, using PyOBAS (some functions omitted for brevity):
+This would translate to this partially-pseudo code, using PyOAEV (some functions omitted for brevity):
 ```python
-from pyobas.daemons import CollectorDaemon
-from pyobas.configuration import Configuration
+from pyoaev.daemons import CollectorDaemon
+from pyoaev.configuration import Configuration
 
 # this is where the whole of the collector logic needs
 # to be implemented.
@@ -145,4 +145,4 @@ You may find reference implementations in the OpenAEV Collectors repository:
 * [Microsoft Sentinel](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-sentinel)
 
 You might find them useful to find inspiration on how to implement a matching logic against your EDR or SIEM
-of choice, using PyOBAS.
+of choice, using PyOAEV.

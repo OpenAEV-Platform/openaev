@@ -26,7 +26,7 @@ internally to access the parameter values.
 
 !!! note "🐍 Python-based injectors"
 
-    For injectors created with the Python language, Filigran maintains the [`pyobas` library](https://pypi.org/project/pyobas/)
+    For injectors created with the Python language, Filigran maintains the [`pyoaev` library](https://pypi.org/project/pyoaev/)
     which provides a wealth of utility classes to compose a functional contract.
 
     Note however that injectors are typically independent processes communicating with OpenAEV via a network transport, 

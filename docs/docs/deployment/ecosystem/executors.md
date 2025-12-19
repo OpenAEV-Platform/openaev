@@ -489,5 +489,5 @@ available in the OpenAEV endpoints list.
 
 Run the following commands with an administrator Powershell in order to uninstall your Caldera agent:<br/>
 `schtasks /delete /tn OpenAEVCaldera`<br/>
-`Stop-Process -Name obas-agent-caldera`<br/>
-`rm -force -Recurse "C:\Program Files (x86)\Filigran\OBAS Caldera"`
+`Stop-Process -Name oaev-agent-caldera`<br/>
+`rm -force -Recurse "C:\Program Files (x86)\Filigran\OAEV Caldera"`

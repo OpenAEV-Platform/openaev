@@ -185,7 +185,7 @@ with various filters is provided to help skim through the list.
 #### Viewing Execution Traces
 
 When you create a technical Inject, you assign it to endpoints, each of which may have one or multiple agents. As the
-inject executes, agents communicate their progress to the OBAS Server, which logs detailed execution traces.
+inject executes, agents communicate their progress to the OAEV Server, which logs detailed execution traces.
 
 In the "Execution details" tab, you can see the traces related to the overall execution of the inject. On the "
 Execution" tab
@@ -215,7 +215,7 @@ Each execution step reports a status:
 - ❌COMMAND_NOT_FOUND – Executor couldn’t find the command
 - 🛑 ERROR – General failure
 
-All execution logs are stored on the OBAS Server, which later processes them to determine agent and inject statuses.
+All execution logs are stored on the OAEV Server, which later processes them to determine agent and inject statuses.
 
 **Agent Status Computation**
 
@@ -242,7 +242,7 @@ Once an inject have been executed, it is possible to access the alerts' details 
 
 By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenAEV.
 
-On the above example, we can see that there are 2 agents on the `vm3.obas.lan` asset. We can see there are detections on
+On the above example, we can see that there are 2 agents on the `vm3.oaev.lan` asset. We can see there are detections on
 the
 OpenAEV agent, while the Crowdstrike agent hasn't had any yet (it can take several minutes for the traces to
 show up in OpenAEV).
