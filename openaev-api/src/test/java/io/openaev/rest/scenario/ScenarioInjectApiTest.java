@@ -228,7 +228,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         AttackPattern attackPattern,
         Endpoint.PLATFORM_TYPE[] platforms,
         Payload.PAYLOAD_EXECUTION_ARCH architecture) {
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+      Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
       InjectorContractComposer.Composer newInjectorContractComposer =
           injectorContractComposer
               .forInjectorContract(

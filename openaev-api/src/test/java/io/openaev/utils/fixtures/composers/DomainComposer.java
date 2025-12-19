@@ -20,11 +20,6 @@ public class DomainComposer extends ComposerBase<Domain> {
       this.domain = domain;
     }
 
-    public Composer withId(String id) {
-      this.domain.setId(id);
-      return this;
-    }
-
     @Override
     public Composer persist() {
       Optional<Domain> domainOpt = domainRepository.findByName(domain.getName());
@@ -55,9 +50,5 @@ public class DomainComposer extends ComposerBase<Domain> {
 
   public Composer forDomain(Domain domain) {
     return new Composer(domain != null ? domain : PresetDomain.TOCLASSIFY);
-  }
-
-  public Composer forDefaultToClassifyDomain() {
-    return new Composer(PresetDomain.TOCLASSIFY);
   }
 }

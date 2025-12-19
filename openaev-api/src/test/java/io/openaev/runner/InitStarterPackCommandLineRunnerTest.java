@@ -333,7 +333,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with honey.scan.me asset")
   public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
     contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
@@ -392,7 +392,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
     contractAssetGroup.setLinkedFields(

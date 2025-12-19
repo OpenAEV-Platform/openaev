@@ -45,7 +45,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Payload command = createDefaultCommand(domains);
     Payload commandSaved = this.payloadRepository.save(command);

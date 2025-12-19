@@ -87,7 +87,7 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName("Create Payload")
     void createExecutablePayload() throws Exception {
 
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(List.of(domain.getId()));
       input.setExecutableFile(EXECUTABLE_FILE.getId());
@@ -111,7 +111,7 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName("Creating a Payload with a null as arch should fail")
     void createPayloadWithNullArch() throws Exception {
 
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
               List.of(domain.getId()));
@@ -127,7 +127,7 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName(
         "Creating an executable Payload with an arch different from x86_64 or arm64 should fail")
     void createExecutablePayloadWithoutArch() throws Exception {
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
 
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(List.of(domain.getId()));
@@ -152,7 +152,7 @@ class PayloadApiTest extends IntegrationTest {
     void given_payload_create_input_with_output_parsers_should_return_payload_with_output_parsers()
         throws Exception {
 
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(
               List.of(domain.getId()));
@@ -186,7 +186,7 @@ class PayloadApiTest extends IntegrationTest {
             throws Exception {
       when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
               List.of(domain.getId()));
@@ -207,7 +207,7 @@ class PayloadApiTest extends IntegrationTest {
             throws Exception {
       when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
       /******* Create *******/
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
               List.of(domain.getId()));
@@ -247,7 +247,7 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName("Create Payload with targeted asset")
     void given_targetedAssetArgument_should_create_payload_with_targeted_asset() throws Exception {
 
-      Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+      Domain domain = domainComposer.forDomain(null).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
               List.of(domain.getId()));
@@ -310,7 +310,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void updateExecutablePayload() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(List.of(domain.getId()));
     createInput.setExecutableFile(EXECUTABLE_FILE.getId());
@@ -352,7 +352,7 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Updating an Executed Payload with null as arch should fail")
   @WithMockUser(isAdmin = true)
   void updateExecutablePayloadWithoutArch() throws Exception {
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(List.of(domain.getId()));
     createInput.setExecutableFile(EXECUTABLE_FILE.getId());
@@ -390,7 +390,7 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Updating a Payload no Executable without arch should set ALL_ARCHITECTURES")
   @WithMockUser(isAdmin = true)
   void updatePayloadNoExecutableWithoutArch() throws Exception {
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
 
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
@@ -430,7 +430,7 @@ class PayloadApiTest extends IntegrationTest {
       given_payload_update_input_with_output_parsers_should_return_updated_payloadd_with_output_parsers()
           throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -480,7 +480,7 @@ class PayloadApiTest extends IntegrationTest {
           throws Exception {
     when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -514,7 +514,7 @@ class PayloadApiTest extends IntegrationTest {
   @DisplayName("Upsert architecture of a Payload")
   @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
 
     Payload payload =
         payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
@@ -554,7 +554,7 @@ class PayloadApiTest extends IntegrationTest {
       given_payload_upsert_input_with_output_parsers_should_return_updated_payload_with_output_parsers()
           throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput input =
         PayloadInputFixture.createDefaultPayloadCreateInputWithOutputParser(
             List.of(domain.getId()));
@@ -604,7 +604,7 @@ class PayloadApiTest extends IntegrationTest {
           throws Exception {
     when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput input =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -633,7 +633,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothSetExecutorAndContent() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -653,7 +653,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothNullCleanupExecutorAndCommand() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -673,7 +673,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithBothSetCleanupExecutorAndCommand() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -693,7 +693,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithOnlySetCleanupExecutorAndNullCommand() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -713,7 +713,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -733,7 +733,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void updateCommandLinePayloadWithOnlySetCommandAndNullExecutor() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
@@ -774,7 +774,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void duplicateExecutablePayload() throws Exception {
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
     PayloadCreateInput createInput =
         PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(List.of(domain.getId()));
     createInput.setExecutableFile(EXECUTABLE_FILE.getId());
@@ -831,7 +831,7 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(multipart("/api/collectors").file(inputMultipart))
         .andExpect(status().is2xxSuccessful());
 
-    Domain domain = domainComposer.forDefaultToClassifyDomain().persist().get();
+    Domain domain = domainComposer.forDomain(null).persist().get();
 
     PayloadUpsertInput payloadUpsertInput1 =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));

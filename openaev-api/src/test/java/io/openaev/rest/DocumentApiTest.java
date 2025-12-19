@@ -79,7 +79,7 @@ class DocumentApiTest extends IntegrationTest {
   }
 
   private Document getDocumentWithPayload() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     PayloadComposer.Composer payload =
         payloadComposer.forPayload(PayloadFixture.createDefaultExecutable(domains));
 

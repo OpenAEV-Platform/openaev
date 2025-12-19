@@ -38,7 +38,7 @@ class PayloadApiExporterTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
 
   PayloadComposer.Composer createPayloadComposer() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     return this.payloadComposer
         .forPayload(createDefaultCommand(domains))
         .withTag(tagComposer.forTag(getTagWithText("malware")))

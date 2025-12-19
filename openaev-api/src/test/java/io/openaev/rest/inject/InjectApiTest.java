@@ -165,7 +165,7 @@ class InjectApiTest extends IntegrationTest {
     agent.setAsset(endpointSaved);
     AGENT = agentRepository.save(agent);
 
-    DOMAINS = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    DOMAINS = domainComposer.forDomain(null).persist().getSet();
   }
 
   // BULK DELETE

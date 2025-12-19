@@ -24,7 +24,6 @@ public class DomainServiceTest extends IntegrationTest {
   @DisplayName("Upsert with null parameter should not fail")
   void upsertWithNullShouldNotFail() {
     Set<Domain> domains = this.domainService.upserts(null);
-
     assertTrue(domains.isEmpty());
   }
 
