@@ -2,6 +2,9 @@ name: "PR Title check worker"
 on:
   pull_request:
     types: [opened, edited, reopened, ready_for_review, synchronize]
+permissions:
+  contents: read
+  checks: write
 jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
