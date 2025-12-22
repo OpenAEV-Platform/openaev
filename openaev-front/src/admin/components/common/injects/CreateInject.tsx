@@ -5,11 +5,13 @@ import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useCon
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
+import type { DomainHelper } from '../../../../actions/helper';
 import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
+import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -22,7 +24,7 @@ import { useHelper } from '../../../../store';
 import {
   type Article,
   type AtomicTestingInput,
-  type AttackPattern,
+  type AttackPattern, type Domain,
   type FilterGroup,
   type InjectInput,
   type InjectorContract,
@@ -35,6 +37,8 @@ import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
 import { InjectContext } from '../Context';
+import buildIconBarElements from '../domains/DomainsIcons';
+import IconBar from '../domains/IconBar';
 import BulkToolBar from '../toolBar/BulkToolBar';
 import { type ToolTasks } from '../toolBar/BulkToolBar-model';
 import InjectForm from './form/InjectForm';
@@ -117,7 +121,7 @@ const CreateInject: FunctionComponent<Props> = ({
     },
     {
       field: 'injector_contract_labels',
-      label: 'Label',
+      label: 'Name',
       isSortable: false,
       value: (contract: InjectorContractFullOutput, _: KillChainPhase, __: Record<string, AttackPattern>) => (
         <Tooltip title={tPick(contract.injector_contract_labels)}>
@@ -348,6 +352,54 @@ const CreateInject: FunctionComponent<Props> = ({
       ? `${killChainPhasesMap[killChainPhaseForSelection].phase_name} / ${selectedContractAttackPatterns.map((attackPattern: AttackPattern) => attackPattern.attack_pattern_external_id).join(', ')}`
       : null;
   }
+  const domainOptions: Domain[] = useHelper((helper: DomainHelper) => {
+    return helper.getDomains();
+  });
+
+  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
+
+  const DOMAIN_FILTER_KEY = 'injector_contract_domains';
+
+  const handleDomainClick = (domainId: string) => {
+    if (!queryableHelpers?.filterHelpers) {
+      return;
+    }
+
+    setSelectedDomains((prev) => {
+      const updated = prev.includes(domainId)
+        ? prev.filter(id => id !== domainId)
+        : [...prev, domainId];
+
+      if (updated.length === 0) {
+        queryableHelpers.filterHelpers.handleRemoveFilterByKey(
+          DOMAIN_FILTER_KEY,
+        );
+      } else {
+        const domainFilterExists
+          = searchPaginationInput?.filterGroup?.filters?.some(
+            f => f.key === DOMAIN_FILTER_KEY,
+          );
+
+        if (!domainFilterExists) {
+          queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue(
+            buildEmptyFilter(DOMAIN_FILTER_KEY, 'contains'),
+          );
+        }
+
+        queryableHelpers.filterHelpers.handleAddMultipleValueFilter(
+          DOMAIN_FILTER_KEY,
+          updated,
+        );
+      }
+
+      return updated;
+    });
+  };
+
+  const iconBarElements = useMemo(
+    () => buildIconBarElements(domainOptions, handleDomainClick, selectedDomains),
+    [domainOptions, selectedDomains],
+  );
 
   return (
     <Drawer
@@ -365,6 +417,7 @@ const CreateInject: FunctionComponent<Props> = ({
       }}
     >
       <>
+        <IconBar elements={iconBarElements} />
         <div style={{
           overflowY: 'auto',
           paddingTop: theme.spacing(0.5),
