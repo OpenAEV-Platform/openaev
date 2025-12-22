@@ -180,7 +180,7 @@ public class XtmComposerEncryptionService implements EncryptionService {
     byte[] rsaEncryptedKeyIv = rsaCipher.doFinal(aesKeyAndIv);
 
     // 6. Build final structure: version + RSA(key+IV) + AES(data)
-    byte[] version = new byte[] {0x01};
+    byte[] version = new byte[] {0x02};
     byte[] result = concatenateBytes(version, rsaEncryptedKeyIv, aesEncryptedValue);
 
     // 7. Return as Base64
