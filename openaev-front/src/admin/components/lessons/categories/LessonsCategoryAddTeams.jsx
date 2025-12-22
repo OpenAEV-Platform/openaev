@@ -48,7 +48,7 @@ const styles = theme => ({
   },
 });
 
-class LessonsCategoryAddTeams extends Component {
+class LessonsCategoryAddTeamsComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -278,7 +278,7 @@ class LessonsCategoryAddTeams extends Component {
   }
 }
 
-LessonsCategoryAddTeams.propTypes = {
+LessonsCategoryAddTeamsComponent.propTypes = {
   t: PropTypes.func,
   fetchTeams: PropTypes.func,
   handleUpdateTeams: PropTypes.func,
@@ -289,7 +289,9 @@ LessonsCategoryAddTeams.propTypes = {
   attachment: PropTypes.bool,
 };
 
-export default R.compose(
+const LessonsCategoryAddTeams = R.compose(
   inject18n,
   Component => withStyles(Component, styles),
-)(LessonsCategoryAddTeams);
+)(LessonsCategoryAddTeamsComponent);
+
+export default LessonsCategoryAddTeams;

@@ -36,7 +36,7 @@ const styles = () => ({
   loaderCircle: { display: 'inline-block' },
 });
 
-class Loader extends Component {
+class LoaderComponent extends Component {
   render() {
     const { classes, variant, withRightPadding, size } = this.props;
     return (
@@ -89,11 +89,13 @@ class Loader extends Component {
   }
 }
 
-Loader.propTypes = {
+LoaderComponent.propTypes = {
   classes: PropTypes.object.isRequired,
   variant: PropTypes.string,
   withRightPadding: PropTypes.bool,
   size: PropTypes.string,
 };
 
-export default withStyles(Loader, styles);
+const Loader = withStyles(LoaderComponent, styles);
+
+export default Loader;

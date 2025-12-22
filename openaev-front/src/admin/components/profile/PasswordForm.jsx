@@ -1,12 +1,13 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
-class PasswordForm extends Component {
+class PasswordFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -66,7 +67,7 @@ class PasswordForm extends Component {
   }
 }
 
-PasswordForm.propTypes = {
+PasswordFormComponent.propTypes = {
   error: PropTypes.string,
   pristine: PropTypes.bool,
   submitting: PropTypes.bool,
@@ -75,4 +76,8 @@ PasswordForm.propTypes = {
   change: PropTypes.func,
 };
 
-export default inject18n(PasswordForm);
+const PasswordForm = R.compose(
+  inject18n,
+)(PasswordFormComponent);
+
+export default PasswordForm;

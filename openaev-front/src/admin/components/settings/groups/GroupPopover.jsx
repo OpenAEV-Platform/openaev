@@ -16,7 +16,7 @@ import GroupForm from './GroupForm';
 import GroupManageRoles from './GroupManageRoles';
 import GroupManageUsers from './GroupManageUsers';
 
-class GroupPopover extends Component {
+class GroupPopoverComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -240,7 +240,7 @@ class GroupPopover extends Component {
   }
 }
 
-GroupPopover.propTypes = {
+GroupPopoverComponent.propTypes = {
   t: PropTypes.func,
   group: PropTypes.object,
   fetchGroup: PropTypes.func,
@@ -256,7 +256,7 @@ const select = () => {
   return {};
 };
 
-export default R.compose(
+const GroupPopover = R.compose(
   connect(select, {
     fetchGroup,
     updateGroupInformation,
@@ -265,4 +265,6 @@ export default R.compose(
     deleteGroup,
   }),
   inject18n,
-)(GroupPopover);
+)(GroupPopoverComponent);
+
+export default GroupPopover;

@@ -1,12 +1,13 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
-class ObjectiveForm extends Component {
+class ObjectiveFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -84,11 +85,15 @@ class ObjectiveForm extends Component {
   }
 }
 
-ObjectiveForm.propTypes = {
+ObjectiveFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(ObjectiveForm);
+const ObjectiveForm = R.compose(
+  inject18n,
+)(ObjectiveFormComponent);
+
+export default ObjectiveForm;

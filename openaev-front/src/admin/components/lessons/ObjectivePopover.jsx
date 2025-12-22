@@ -9,7 +9,7 @@ import inject18n from '../../../components/i18n';
 import { LessonContext } from '../common/Context';
 import ObjectiveForm from './ObjectiveForm';
 
-class ObjectivePopover extends Component {
+class ObjectivePopoverComponent extends Component {
   // Context
   static contextType = LessonContext;
 
@@ -137,7 +137,7 @@ class ObjectivePopover extends Component {
   }
 }
 
-ObjectivePopover.propTypes = {
+ObjectivePopoverComponent.propTypes = {
   t: PropTypes.func,
   isReadOnly: PropTypes.bool,
   objective: PropTypes.object,
@@ -145,6 +145,8 @@ ObjectivePopover.propTypes = {
   deleteObjective: PropTypes.func,
 };
 
-export default R.compose(
+const ObjectivePopover = R.compose(
   inject18n,
-)(ObjectivePopover);
+)(ObjectivePopoverComponent);
+
+export default ObjectivePopover;

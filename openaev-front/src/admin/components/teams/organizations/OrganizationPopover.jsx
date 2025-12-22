@@ -1,27 +1,23 @@
 import { MoreVert } from '@mui/icons-material';
 import {
   Button, Dialog, DialogActions, DialogContent, DialogContentText,
-  IconButton, Menu, MenuItem, Slide,
+  IconButton, Menu, MenuItem,
 } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteOrganization, updateOrganization } from '../../../../actions/Organization';
 import Drawer from '../../../../components/common/Drawer';
+import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import { tagOptions } from '../../../../utils/Option';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import OrganizationForm from './OrganizationForm';
 
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
-
-class OrganizationPopover extends Component {
+class OrganizationPopoverComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -147,7 +143,7 @@ class OrganizationPopover extends Component {
   }
 }
 
-OrganizationPopover.propTypes = {
+OrganizationPopoverComponent.propTypes = {
   t: PropTypes.func,
   organization: PropTypes.object,
   tagsMap: PropTypes.object,
@@ -156,10 +152,12 @@ OrganizationPopover.propTypes = {
   openEditOnInit: PropTypes.bool,
 };
 
-export default R.compose(
+const OrganizationPopover = R.compose(
   connect(null, {
     updateOrganization,
     deleteOrganization,
   }),
   inject18n,
-)(OrganizationPopover);
+)(OrganizationPopoverComponent);
+
+export default OrganizationPopover;

@@ -8,7 +8,7 @@ import OldSelectField from '../../../../components/fields/OldSelectField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
-class ChannelParametersForm extends Component {
+class ChannelParametersFormComponent extends Component {
   render() {
     const { t, onSubmit, initialValues, disabled } = this.props;
     return (
@@ -131,9 +131,11 @@ class ChannelParametersForm extends Component {
   }
 }
 
-ChannelParametersForm.propTypes = {
+ChannelParametersFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
 };
 
-export default inject18n(ChannelParametersForm);
+const ChannelParametersForm = inject18n(ChannelParametersFormComponent);
+
+export default ChannelParametersForm;

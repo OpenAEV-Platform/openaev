@@ -19,7 +19,7 @@ const styles = () => ({
   },
 });
 
-class CreateAttackPattern extends Component {
+class CreateAttackPatternComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -77,15 +77,17 @@ class CreateAttackPattern extends Component {
   }
 }
 
-CreateAttackPattern.propTypes = {
+CreateAttackPatternComponent.propTypes = {
   t: PropTypes.func,
   organizations: PropTypes.array,
   addAttackPattern: PropTypes.func,
   onCreate: PropTypes.func,
 };
 
-export default R.compose(
+const CreateAttackPattern = R.compose(
   connect(null, { addAttackPattern }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateAttackPattern);
+)(CreateAttackPatternComponent);
+
+export default CreateAttackPattern;

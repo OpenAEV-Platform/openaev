@@ -1,7 +1,7 @@
 import { Chip, CircularProgress, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
-import { compose } from 'ramda';
+import * as R from 'ramda';
 import { withStyles } from 'tss-react/mui';
 
 import inject18n from './i18n';
@@ -64,7 +64,7 @@ const computeInlineStyles = theme => ({
   },
 });
 
-const renderChip = (props) => {
+const RenderChip = (props) => {
   const { classes, label, neutralLabel, status, variant, t, reverse } = props;
   const theme = useTheme();
   let style = classes.chip;
@@ -120,19 +120,19 @@ const renderChip = (props) => {
     />
   );
 };
-const ItemBoolean = (props) => {
+const ItemBooleanComponent = (props) => {
   const { tooltip } = props;
   if (tooltip) {
     return (
       <Tooltip title={tooltip}>
-        {renderChip(props)}
+        <RenderChip {...props} />
       </Tooltip>
     );
   }
-  return renderChip(props);
+  return <RenderChip {...props} />;
 };
 
-ItemBoolean.propTypes = {
+ItemBooleanComponent.propTypes = {
   classes: PropTypes.object.isRequired,
   status: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
   label: PropTypes.string,
@@ -141,4 +141,9 @@ ItemBoolean.propTypes = {
   reverse: PropTypes.bool,
 };
 
-export default compose(inject18n, Component => withStyles(Component, styles))(ItemBoolean);
+const ItemBoolean = R.compose(
+  inject18n,
+  Component => withStyles(Component, styles),
+)(ItemBooleanComponent);
+
+export default ItemBoolean;

@@ -1,5 +1,6 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -7,7 +8,7 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 import TagField from '../../../../components/TagField';
 
-class OrganizationForm extends Component {
+class OrganizationFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -87,11 +88,15 @@ class OrganizationForm extends Component {
   }
 }
 
-OrganizationForm.propTypes = {
+OrganizationFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(OrganizationForm);
+const OrganizationForm = R.compose(
+  inject18n,
+)(OrganizationFormComponent);
+
+export default OrganizationForm;

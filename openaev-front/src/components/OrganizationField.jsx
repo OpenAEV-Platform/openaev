@@ -24,7 +24,7 @@ const styles = () => ({
   autoCompleteIndicator: { display: 'none' },
 });
 
-class OrganizationField extends Component {
+class OrganizationFieldComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -119,11 +119,13 @@ const select = (state) => {
   return { organizations: helper.getOrganizations().toJS() };
 };
 
-export default R.compose(
+const OrganizationField = R.compose(
   connect(select, {
     fetchOrganizations,
     addOrganization,
   }),
   inject18n,
   Component => withStyles(Component, styles),
-)(OrganizationField);
+)(OrganizationFieldComponent);
+
+export default OrganizationField;

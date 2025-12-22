@@ -1,12 +1,13 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
-class GroupForm extends Component {
+class GroupFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -75,11 +76,15 @@ class GroupForm extends Component {
   }
 }
 
-GroupForm.propTypes = {
+GroupFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(GroupForm);
+const GroupForm = R.compose(
+  inject18n,
+)(GroupFormComponent);
+
+export default GroupForm;

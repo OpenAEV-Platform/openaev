@@ -26,7 +26,7 @@ const styles = theme => ({
   },
 });
 
-const CreateDocument = (props) => {
+const CreateDocumentComponent = (props) => {
   const { classes, t, inline, filters } = props;
   const [open, setOpen] = useState(false);
 
@@ -116,7 +116,7 @@ const CreateDocument = (props) => {
   );
 };
 
-CreateDocument.propTypes = {
+CreateDocumentComponent.propTypes = {
   classes: PropTypes.object,
   t: PropTypes.func,
   addDocument: PropTypes.func,
@@ -125,11 +125,13 @@ CreateDocument.propTypes = {
   filters: PropTypes.array,
 };
 
-export default R.compose(
+const CreateDocument = R.compose(
   connect(null, {
     addDocument,
     fetchDocument,
   }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateDocument);
+)(CreateDocumentComponent);
+
+export default CreateDocument;

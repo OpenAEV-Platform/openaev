@@ -1,5 +1,6 @@
 import { Button, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -7,7 +8,7 @@ import OldSelectField from '../../../../components/fields/OldSelectField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
-class ChannelForm extends Component {
+class ChannelFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -95,11 +96,15 @@ class ChannelForm extends Component {
   }
 }
 
-ChannelForm.propTypes = {
+ChannelFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(ChannelForm);
+const ChannelForm = R.compose(
+  inject18n,
+)(ChannelFormComponent);
+
+export default ChannelForm;

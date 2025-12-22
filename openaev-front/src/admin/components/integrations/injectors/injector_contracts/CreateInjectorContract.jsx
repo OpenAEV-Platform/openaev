@@ -20,7 +20,7 @@ const styles = () => ({
   },
 });
 
-class CreateInjectorContract extends Component {
+class CreateInjectorContractComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -151,7 +151,7 @@ class CreateInjectorContract extends Component {
   }
 }
 
-CreateInjectorContract.propTypes = {
+CreateInjectorContractComponent.propTypes = {
   t: PropTypes.func,
   injector: PropTypes.object,
   injectorContracts: PropTypes.array,
@@ -160,8 +160,10 @@ CreateInjectorContract.propTypes = {
   addInjectorContract: PropTypes.func,
 };
 
-export default R.compose(
+const CreateInjectorContract = R.compose(
   connect(null, { addInjectorContract }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateInjectorContract);
+)(CreateInjectorContractComponent);
+
+export default CreateInjectorContract;

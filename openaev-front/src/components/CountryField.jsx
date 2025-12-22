@@ -21,7 +21,7 @@ const styles = () => ({
   autoCompleteIndicator: { display: 'none' },
 });
 
-class CountryField extends Component {
+class CountryFieldComponent extends Component {
   render() {
     const { t, name, classes } = this.props;
     return (
@@ -53,4 +53,9 @@ class CountryField extends Component {
 /**
  * @deprecated The component use old form libnary react-final-form
  */
-export default R.compose(inject18n, Component => withStyles(Component, styles))(CountryField);
+const CountryField = R.compose(
+  inject18n,
+  Component => withStyles(Component, styles),
+)(CountryFieldComponent);
+
+export default CountryField;

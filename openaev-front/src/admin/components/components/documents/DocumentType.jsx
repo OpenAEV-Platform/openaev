@@ -28,7 +28,7 @@ const styles = () => ({
   },
 });
 
-class DocumentType extends Component {
+class DocumentTypeComponent extends Component {
   render() {
     const { classes, t, type, variant, disabled } = this.props;
     const style = variant === 'list' ? classes.chipInList : classes.chip;
@@ -57,7 +57,7 @@ class DocumentType extends Component {
   }
 }
 
-DocumentType.propTypes = {
+DocumentTypeComponent.propTypes = {
   classes: PropTypes.object.isRequired,
   type: PropTypes.string,
   variant: PropTypes.string,
@@ -65,4 +65,9 @@ DocumentType.propTypes = {
   disabled: PropTypes.bool,
 };
 
-export default compose(inject18n, Component => withStyles(Component, styles))(DocumentType);
+const DocumentType = compose(
+  inject18n,
+  Component => withStyles(Component, styles),
+)(DocumentTypeComponent);
+
+export default DocumentType;

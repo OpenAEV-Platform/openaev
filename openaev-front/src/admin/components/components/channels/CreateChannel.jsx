@@ -19,7 +19,7 @@ const styles = () => ({
   },
 });
 
-class CreateChannel extends Component {
+class CreateChannelComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -67,14 +67,16 @@ class CreateChannel extends Component {
   }
 }
 
-CreateChannel.propTypes = {
+CreateChannelComponent.propTypes = {
   classes: PropTypes.object,
   t: PropTypes.func,
   addChannel: PropTypes.func,
 };
 
-export default R.compose(
+const CreateChannel = R.compose(
   connect(null, { addChannel }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateChannel);
+)(CreateChannelComponent);
+
+export default CreateChannel;

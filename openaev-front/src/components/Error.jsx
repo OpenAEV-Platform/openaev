@@ -36,21 +36,12 @@ ErrorBoundaryComponent.propTypes = {
 };
 export const ErrorBoundary = ErrorBoundaryComponent;
 
-const SimpleError = () => {
+export const SimpleError = () => {
   const { t } = useFormatter();
   return (
     <Alert severity="error">
       <AlertTitle>{t('Error')}</AlertTitle>
       {t('An unknown error occurred. Please contact your administrator or the OpenAEV maintainers.')}
     </Alert>
-  );
-};
-
-export const errorWrapper = (Component) => {
-  // eslint-disable-next-line react/display-name
-  return routeProps => (
-    <ErrorBoundary display={<SimpleError />}>
-      <Component {...routeProps} />
-    </ErrorBoundary>
   );
 };

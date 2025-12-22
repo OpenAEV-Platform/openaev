@@ -20,7 +20,7 @@ const styles = () => ({
   },
 });
 
-class CreateKillChainPhase extends Component {
+class CreateKillChainPhaseComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -74,7 +74,7 @@ class CreateKillChainPhase extends Component {
   }
 }
 
-CreateKillChainPhase.propTypes = {
+CreateKillChainPhaseComponent.propTypes = {
   t: PropTypes.func,
   addKillChainPhase: PropTypes.func,
   onCreate: PropTypes.func,
@@ -85,8 +85,10 @@ const select = (state) => {
   return { organizations: helper.getOrganizations().toJS() };
 };
 
-export default R.compose(
+const CreateKillChainPhase = R.compose(
   connect(select, { addKillChainPhase }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateKillChainPhase);
+)(CreateKillChainPhaseComponent);
+
+export default CreateKillChainPhase;

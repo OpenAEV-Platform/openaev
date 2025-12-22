@@ -1,8 +1,8 @@
 import { Add } from '@mui/icons-material';
-import { Fab, Slide } from '@mui/material';
+import { Fab } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
@@ -10,11 +10,6 @@ import { addOrganization } from '../../../../actions/Organization';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import OrganizationForm from './OrganizationForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const styles = () => ({
   createButton: {
@@ -24,7 +19,7 @@ const styles = () => ({
   },
 });
 
-class CreateOrganization extends Component {
+class CreateOrganizationComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -75,14 +70,16 @@ class CreateOrganization extends Component {
   }
 }
 
-CreateOrganization.propTypes = {
+CreateOrganizationComponent.propTypes = {
   classes: PropTypes.object,
   t: PropTypes.func,
   addOrganization: PropTypes.func,
 };
 
-export default R.compose(
+const CreateOrganization = R.compose(
   connect(null, { addOrganization }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateOrganization);
+)(CreateOrganizationComponent);
+
+export default CreateOrganization;

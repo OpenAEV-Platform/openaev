@@ -1,7 +1,11 @@
-import type { CKEditor as ReactCKEditorType } from '@ckeditor/ckeditor5-react';
-import type { Editor, EditorConfig } from 'ckeditor5';
+import { type CKEditor as ReactCKEditorType } from '@ckeditor/ckeditor5-react';
+import { type ClassicEditor, type Editor, type EditorConfig } from 'ckeditor5';
 import { lazy, Suspense, useEffect } from 'react';
 import { useIntl } from 'react-intl';
+
+import Loader from './Loader';
+
+type CKEditorProps<T extends Editor> = Omit<ReactCKEditorType<T>['props'], 'editor' | 'config'>;
 
 // Lazy load the CKEditor component and all dependencies
 const LazyCKEditorComponent = lazy(async () => {
@@ -60,19 +64,22 @@ const LazyCKEditorComponent = lazy(async () => {
       TodoList,
       Underline,
     },
-    // @ts-ignore
-    { default: en },
-    // @ts-ignore
-    { default: fr },
-    // @ts-ignore
-    { default: zh },
+    { defautl: en },
+    { defautl: fr },
+    { defautl: zh },
   ] = await Promise.all([
     import('@ckeditor/ckeditor5-react'),
     import('ckeditor5'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     // eslint-disable-next-line import/extensions
     import('ckeditor5/translations/en.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     // eslint-disable-next-line import/extensions
     import('ckeditor5/translations/fr.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     // eslint-disable-next-line import/extensions
     import('ckeditor5/translations/zh.js'),
   ]);
@@ -192,7 +199,7 @@ const LazyCKEditorComponent = lazy(async () => {
     },
   };
 
-  const InnerCKEditor = (props: CKEditorProps & { toolbarDropdownSize?: string }) => {
+  const InnerCKEditor = (props: CKEditorProps<ClassicEditor> & { toolbarDropdownSize?: string }) => {
     const { locale } = useIntl();
     const { toolbarDropdownSize, ...restProps } = props;
 
@@ -221,11 +228,9 @@ const LazyCKEditorComponent = lazy(async () => {
   return { default: InnerCKEditor };
 });
 
-type CKEditorProps = Omit<ReactCKEditorType<Editor>['props'], 'editor' | 'config'>;
-
-const CKEditor = (props: CKEditorProps & { toolbarDropdownSize?: string }) => {
+const CKEditor = (props: CKEditorProps<ClassicEditor> & { toolbarDropdownSize?: string }) => {
   return (
-    <Suspense fallback={<div>Loading editor...</div>}>
+    <Suspense fallback={<Loader variant="inElement" />}>
       <LazyCKEditorComponent {...props} />
     </Suspense>
   );

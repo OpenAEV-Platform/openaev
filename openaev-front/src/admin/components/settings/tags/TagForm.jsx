@@ -1,5 +1,6 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -7,7 +8,7 @@ import DeprecatedColorPickerField from '../../../../components/DeprecatedColorPi
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
-class TagForm extends Component {
+class TagFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -72,11 +73,15 @@ class TagForm extends Component {
   }
 }
 
-TagForm.propTypes = {
+TagFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(TagForm);
+const TagForm = R.compose(
+  inject18n,
+)(TagFormComponent);
+
+export default TagForm;

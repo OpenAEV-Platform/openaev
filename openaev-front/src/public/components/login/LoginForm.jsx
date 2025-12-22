@@ -1,11 +1,12 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
-const LoginForm = (props) => {
+const LoginFormComponent = (props) => {
   const { t, onSubmit } = props;
   const validate = (values) => {
     const errors = {};
@@ -54,11 +55,15 @@ const LoginForm = (props) => {
   );
 };
 
-LoginForm.propTypes = {
+LoginFormComponent.propTypes = {
   t: PropTypes.func,
   error: PropTypes.string,
   onSubmit: PropTypes.func.isRequired,
   handleSubmit: PropTypes.func,
 };
 
-export default inject18n(LoginForm);
+const LoginForm = R.compose(
+  inject18n,
+)(LoginFormComponent);
+
+export default LoginForm;

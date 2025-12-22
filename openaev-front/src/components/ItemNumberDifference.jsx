@@ -41,7 +41,7 @@ const inlineStyles = {
   },
 };
 
-class ItemNumberDifference extends Component {
+class ItemNumberDifferenceComponent extends Component {
   render() {
     const { t, difference, classes, description } = this.props;
 
@@ -101,11 +101,16 @@ class ItemNumberDifference extends Component {
   }
 }
 
-ItemNumberDifference.propTypes = {
+ItemNumberDifferenceComponent.propTypes = {
   classes: PropTypes.object.isRequired,
   t: PropTypes.func,
   difference: PropTypes.number,
   description: PropTypes.string.isRequired,
 };
 
-export default compose(inject18n, Component => withStyles(Component, styles))(ItemNumberDifference);
+const ItemNumberDifference = compose(
+  inject18n,
+  Component => withStyles(Component, styles),
+)(ItemNumberDifferenceComponent);
+
+export default ItemNumberDifference;

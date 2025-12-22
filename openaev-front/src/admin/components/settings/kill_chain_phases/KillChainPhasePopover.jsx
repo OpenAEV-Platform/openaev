@@ -13,7 +13,7 @@ import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import KillChainPhaseForm from './KillChainPhaseForm';
 
-class KillChainPhasePopover extends Component {
+class KillChainPhasePopoverComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -139,7 +139,7 @@ class KillChainPhasePopover extends Component {
   }
 }
 
-KillChainPhasePopover.propTypes = {
+KillChainPhasePopoverComponent.propTypes = {
   t: PropTypes.func,
   killChainPhase: PropTypes.object,
   updateKillChainPhase: PropTypes.func,
@@ -148,10 +148,12 @@ KillChainPhasePopover.propTypes = {
   onDelete: PropTypes.func,
 };
 
-export default R.compose(
+const KillChainPhasePopover = R.compose(
   connect(null, {
     updateKillChainPhase,
     deleteKillChainPhase,
   }),
   inject18n,
-)(KillChainPhasePopover);
+)(KillChainPhasePopoverComponent);
+
+export default KillChainPhasePopover;

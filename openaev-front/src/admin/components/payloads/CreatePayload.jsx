@@ -19,7 +19,7 @@ const styles = () => ({
   },
 });
 
-class CreatePayload extends Component {
+class CreatePayloadComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -105,15 +105,17 @@ class CreatePayload extends Component {
   }
 }
 
-CreatePayload.propTypes = {
+CreatePayloadComponent.propTypes = {
   t: PropTypes.func,
   organizations: PropTypes.array,
   addPayload: PropTypes.func,
   onCreate: PropTypes.func,
 };
 
-export default R.compose(
+const CreatePayload = R.compose(
   connect(null, { addPayload }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreatePayload);
+)(CreatePayloadComponent);
+
+export default CreatePayload;

@@ -1,12 +1,13 @@
 import { Alert, Snackbar } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { head } from 'ramda';
 import { Component } from 'react';
 
 import { MESSAGING$ } from '../utils/Environment';
 import inject18n from './i18n';
 
-class Message extends Component {
+class MessageComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -75,7 +76,7 @@ class Message extends Component {
   }
 }
 
-Message.propTypes = {
+MessageComponent.propTypes = {
   open: PropTypes.bool,
   t: PropTypes.func,
   handleClose: PropTypes.func,
@@ -83,4 +84,8 @@ Message.propTypes = {
   sticky: PropTypes.bool,
 };
 
-export default inject18n(Message);
+const Message = R.compose(
+  inject18n,
+)(MessageComponent);
+
+export default Message;

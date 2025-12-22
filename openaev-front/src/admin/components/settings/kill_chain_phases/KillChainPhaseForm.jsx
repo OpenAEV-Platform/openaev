@@ -1,12 +1,13 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
-class KillChainPhaseForm extends Component {
+class KillChainPhaseFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -94,11 +95,15 @@ class KillChainPhaseForm extends Component {
   }
 }
 
-KillChainPhaseForm.propTypes = {
+KillChainPhaseFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(KillChainPhaseForm);
+const KillChainPhaseForm = R.compose(
+  inject18n,
+)(KillChainPhaseFormComponent);
+
+export default KillChainPhaseForm;

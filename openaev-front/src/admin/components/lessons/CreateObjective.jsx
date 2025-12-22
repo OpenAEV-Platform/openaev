@@ -9,7 +9,7 @@ import inject18n from '../../../components/i18n';
 import { LessonContext } from '../common/Context';
 import ObjectiveForm from './ObjectiveForm';
 
-class CreateObjective extends Component {
+class CreateObjectiveComponent extends Component {
   // Context
   static contextType = LessonContext;
 
@@ -71,11 +71,13 @@ class CreateObjective extends Component {
   }
 }
 
-CreateObjective.propTypes = {
+CreateObjectiveComponent.propTypes = {
   t: PropTypes.func,
   addObjective: PropTypes.func,
 };
 
-export default R.compose(
+const CreateObjective = R.compose(
   inject18n,
-)(CreateObjective);
+)(CreateObjectiveComponent);
+
+export default CreateObjective;

@@ -1,12 +1,13 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
-class ProfileForm extends Component {
+class ProfileFormComponent extends Component {
   render() {
     const { t, onSubmit, initialValues } = this.props;
     return (
@@ -56,9 +57,13 @@ class ProfileForm extends Component {
   }
 }
 
-ProfileForm.propTypes = {
+ProfileFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
 };
 
-export default inject18n(ProfileForm);
+const ProfileForm = R.compose(
+  inject18n,
+)(ProfileFormComponent);
+
+export default ProfileForm;

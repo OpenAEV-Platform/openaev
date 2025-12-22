@@ -19,7 +19,6 @@ import {
   InputLabel,
   MenuItem,
   Select,
-  Slide,
   TextField,
   Toolbar,
   Tooltip,
@@ -28,7 +27,7 @@ import {
 import { SelectGroup } from 'mdi-material-ui';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
@@ -153,12 +152,7 @@ const styles = theme => ({
   },
 });
 
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
-
-class ToolBar extends Component {
+class ToolBarComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -805,7 +799,7 @@ class ToolBar extends Component {
   }
 }
 
-ToolBar.propTypes = {
+ToolBarComponent.propTypes = {
   classes: PropTypes.object,
   t: PropTypes.func,
   numberOfSelectedElements: PropTypes.number,
@@ -821,8 +815,8 @@ ToolBar.propTypes = {
   handleCopy: PropTypes.func,
   warning: PropTypes.bool,
   warningMessage: PropTypes.string,
-  rightOffset: PropTypes.number,
-  deleteOperationEnabled: PropTypes.bool,
+  rightOffset: PropTypes.bool,
+  deleteOperationEnabled: PropTypes.func,
 };
 
 const select = (state, ownProps) => {
@@ -852,11 +846,13 @@ const select = (state, ownProps) => {
   };
 };
 
-export default R.compose(
+const ToolBar = R.compose(
   connect(select, {
     fetchEndpoints,
     fetchAssetGroups,
   }),
   inject18n,
   Component => withStyles(Component, styles),
-)(ToolBar);
+)(ToolBarComponent);
+
+export default ToolBar;

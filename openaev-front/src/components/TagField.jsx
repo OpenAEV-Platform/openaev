@@ -26,7 +26,7 @@ const styles = () => ({
   autoCompleteIndicator: { display: 'none' },
 });
 
-class TagField extends Component {
+class TagFieldComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -134,8 +134,10 @@ const select = (state) => {
   return { tags: helper.getTags().toJS() };
 };
 
-export default R.compose(
+const TagField = R.compose(
   connect(select, { addTag }),
   inject18n,
   Component => withStyles(Component, styles),
-)(TagField);
+)(TagFieldComponent);
+
+export default TagField;

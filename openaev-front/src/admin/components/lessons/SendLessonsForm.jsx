@@ -1,5 +1,6 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
+import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -7,7 +8,7 @@ import OldRichTextField from '../../../components/fields/OldRichTextField';
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
-class SendLessonsForm extends Component {
+class SendLessonsFormComponent extends Component {
   validate(values) {
     const { t } = this.props;
     const errors = {};
@@ -75,11 +76,15 @@ class SendLessonsForm extends Component {
   }
 }
 
-SendLessonsForm.propTypes = {
+SendLessonsFormComponent.propTypes = {
   t: PropTypes.func,
   onSubmit: PropTypes.func.isRequired,
   handleClose: PropTypes.func,
   editing: PropTypes.bool,
 };
 
-export default inject18n(SendLessonsForm);
+const SendLessonsForm = R.compose(
+  inject18n,
+)(SendLessonsFormComponent);
+
+export default SendLessonsForm;

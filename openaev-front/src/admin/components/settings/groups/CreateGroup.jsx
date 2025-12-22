@@ -20,7 +20,7 @@ const styles = () => ({
   },
 });
 
-class CreateGroup extends Component {
+class CreateGroupComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -74,7 +74,7 @@ class CreateGroup extends Component {
   }
 }
 
-CreateGroup.propTypes = {
+CreateGroupComponent.propTypes = {
   t: PropTypes.func,
   addGroup: PropTypes.func,
 };
@@ -84,8 +84,10 @@ const select = (state) => {
   return { organizations: helper.getOrganizations().toJS() };
 };
 
-export default R.compose(
+const CreateGroup = R.compose(
   connect(select, { addGroup }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateGroup);
+)(CreateGroupComponent);
+
+export default CreateGroup;

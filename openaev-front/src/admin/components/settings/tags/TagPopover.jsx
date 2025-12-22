@@ -1,23 +1,19 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem, Slide } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteTag, updateTag } from '../../../../actions/Tag';
 import Drawer from '../../../../components/common/Drawer';
+import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagForm from './TagForm';
 
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
-
-class TagPopover extends Component {
+class TagPopoverComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -141,7 +137,7 @@ class TagPopover extends Component {
   }
 }
 
-TagPopover.propTypes = {
+TagPopoverComponent.propTypes = {
   t: PropTypes.func,
   tag: PropTypes.object,
   updateTag: PropTypes.func,
@@ -150,10 +146,12 @@ TagPopover.propTypes = {
   onDelete: PropTypes.func,
 };
 
-export default R.compose(
+const TagPopover = R.compose(
   connect(null, {
     updateTag,
     deleteTag,
   }),
   inject18n,
-)(TagPopover);
+)(TagPopoverComponent);
+
+export default TagPopover;

@@ -26,7 +26,7 @@ const styles = () => ({
   autoCompleteIndicator: { display: 'none' },
 });
 
-class KillChainPhaseField extends Component {
+class KillChainPhaseFieldComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -129,8 +129,10 @@ const select = (state) => {
   return { killChainPhases: helper.getKillChainPhases().toJS() };
 };
 
-export default R.compose(
+const KillChainPhaseField = R.compose(
   connect(select, { addKillChainPhase }),
   inject18n,
   Component => withStyles(Component, styles),
-)(KillChainPhaseField);
+)(KillChainPhaseFieldComponent);
+
+export default KillChainPhaseField;

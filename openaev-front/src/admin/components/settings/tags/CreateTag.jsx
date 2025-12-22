@@ -19,7 +19,7 @@ const styles = () => ({
   },
 });
 
-class CreateTag extends Component {
+class CreateTagComponent extends Component {
   constructor(props) {
     super(props);
     this.state = { open: false };
@@ -72,15 +72,17 @@ class CreateTag extends Component {
   }
 }
 
-CreateTag.propTypes = {
+CreateTagComponent.propTypes = {
   t: PropTypes.func,
   classes: PropTypes.object,
   addTag: PropTypes.func,
   onCreate: PropTypes.func,
 };
 
-export default R.compose(
+const CreateTag = R.compose(
   connect(null, { addTag }),
   inject18n,
   Component => withStyles(Component, styles),
-)(CreateTag);
+)(CreateTagComponent);
+
+export default CreateTag;

@@ -12,7 +12,7 @@ import inject18n from '../../../../../components/i18n';
 import { tagOptions } from '../../../../../utils/Option';
 import LogForm from './LogForm';
 
-class LogPopover extends Component {
+class LogPopoverComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -136,7 +136,7 @@ class LogPopover extends Component {
   }
 }
 
-LogPopover.propTypes = {
+LogPopoverComponent.propTypes = {
   t: PropTypes.func,
   exerciseId: PropTypes.string,
   exercise: PropTypes.object,
@@ -154,10 +154,12 @@ const select = (state, ownProps) => {
   };
 };
 
-export default R.compose(
+const LogPopover = R.compose(
   connect(select, {
     updateLog,
     deleteLog,
   }),
   inject18n,
-)(LogPopover);
+)(LogPopoverComponent);
+
+export default LogPopover;

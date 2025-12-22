@@ -26,7 +26,7 @@ const styles = () => ({
   autoCompleteIndicator: { display: 'none' },
 });
 
-class OldAttackPatternField extends Component {
+class OldAttackPatternFieldComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -144,11 +144,13 @@ const select = (state) => {
   };
 };
 
-export default R.compose(
+const OldAttackPatternField = R.compose(
   connect(select, {
     fetchAttackPatterns,
     addAttackPattern,
   }),
   inject18n,
   Component => withStyles(Component, styles),
-)(OldAttackPatternField);
+)(OldAttackPatternFieldComponent);
+
+export default OldAttackPatternField;
