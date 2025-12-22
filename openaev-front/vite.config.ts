@@ -23,6 +23,10 @@ export default ({ mode }: { mode: string }) => {
       outDir: 'builder/prod/build',
     },
 
+    base: '/__BASE_PATH__/',
+
+    publicDir: 'src/static/ext',
+
     resolve: {
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
       conditions: ['mui-modern', 'module', 'browser', 'development|production'],

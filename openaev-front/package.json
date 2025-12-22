@@ -134,7 +134,7 @@
     "generate-i18n-checker-constant": "tsc src/constants/Lang.ts --outDir scripts/constants --skipLibCheck --module ES6 --target ES6",
     "start": "vite",
     "deprecated-start": "node builder/dev/dev.js",
-    "build": "vite build",
+    "build": "vite build && node -e \"const fs=require('fs');const f='builder/prod/build/index.html';fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/\\/__BASE_PATH__\/g,'%BASE_PATH%'))\"",
     "deprecated-build": "node builder/prod/prod.js",
     "lint": "cross-env DEBUG=eslint:eslint TIMING=1 eslint --max-warnings 0 --cache --rule \"{'import/namespace': 'error', 'import/no-cycle': ['error', {'ignoreExternal': true, 'disableScc': true}]}\" .",
     "control": "yarn audit --groups dependencies --summary",
