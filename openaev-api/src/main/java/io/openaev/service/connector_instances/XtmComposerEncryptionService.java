@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
@@ -15,6 +16,8 @@ import java.util.Base64;
 import java.util.Map;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.OAEPParameterSpec;
+import javax.crypto.spec.PSource;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -169,8 +172,11 @@ public class XtmComposerEncryptionService implements EncryptionService {
     byte[] aesKeyAndIv = concatenateBytes(aesKey, aesIv);
 
     // 5. Encrypt key+IV with RSA using PKCS1 padding (not OAEP!)
-    Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-    rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+    Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+    OAEPParameterSpec oaepParams =
+        new OAEPParameterSpec(
+            "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT);
+    rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey, oaepParams);
     byte[] rsaEncryptedKeyIv = rsaCipher.doFinal(aesKeyAndIv);
 
     // 6. Build final structure: version + RSA(key+IV) + AES(data)
