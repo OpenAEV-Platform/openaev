@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 const basePath = '';
@@ -21,9 +22,19 @@ export default ({ mode }: { mode: string }) => {
       target: ['chrome58'],
       sourcemap: true,
       outDir: 'builder/prod/build',
+      minify: false,
     },
 
-    base: '/__BASE_PATH__/',
+    experimental: {
+      renderBuiltUrl(filename, { hostId }) {
+        if (path.extname(hostId) === '.js') {
+          return { runtime: `window.__assetsPath(${JSON.stringify(filename)})` };
+        } else if (hostId === 'index.html') {
+          return `%BASE_PATH%/${filename}`;
+        }
+        return { relative: true };
+      },
+    },
 
     publicDir: 'src/static/ext',
 
