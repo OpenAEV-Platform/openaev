@@ -8,7 +8,7 @@ import { z } from 'zod';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type ScenarioRecurrenceInput } from '../../../../utils/api-types';
-import { generateDailyCron, generateMonthlyCron, generateWeeklyCron, parseCron } from '../../../../utils/Cron';
+import { generateDailyCronExpression, generateMonthlyCronExpression, generateWeeklyCronExpression, parseCron } from '../../../../utils/Cron';
 import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
@@ -44,7 +44,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
   const submit = (data: Recurrence) => {
     const { time } = data as Omit<Recurrence, 'time'> & { time: string };
     // case day
-    let cron: string = generateDailyCron(new Date(time).getUTCHours(), new Date(time).getUTCMinutes(), data.onlyWeekday);
+    let cron: string = generateDailyCronExpression(new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString(), data.onlyWeekday);
     const start = data.startDate;
     let end = data.endDate;
     switch (selectRecurring) {
@@ -52,10 +52,10 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
         end = new Date(new Date(data.startDate).setUTCHours(24, 0, 0, 0)).toISOString();
         break;
       case 'weekly':
-        cron = generateWeeklyCron(data.dayOfWeek!, new Date(time).getUTCHours(), new Date(time).getUTCMinutes());
+        cron = generateWeeklyCronExpression(data.dayOfWeek?.toString()!, new Date(time).getUTCHours().toString(), new Date(time).getUTCMinutes().toString());
         break;
       case 'monthly':
-        cron = generateMonthlyCron(data.weekOfMonth!, data.dayOfWeek!, new Date(time).getUTCHours(), new Date(time).getUTCMinutes());
+        cron = generateMonthlyCronExpression(data.weekOfMonth?.toString()!, data.dayOfWeek?.toString()!, new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString());
         break;
       default:
         break;
@@ -101,7 +101,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
         },
       ).refine(
         (data) => {
-          if (['daily', 'weekly', 'monthly'].includes(selectRecurring)) {
+          if (['hourly', 'daily', 'weekly', 'monthly'].includes(selectRecurring)) {
             if (data.endDate) {
               return new Date(data.endDate).getTime() > new Date(data.startDate).getTime();
             }
@@ -110,7 +110,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
           return true;
         },
         {
-          message: t('End date need to be stricly after start date'),
+          message: t('End date need to be strictly after start date'),
           path: ['endDate'],
         },
       )
@@ -139,7 +139,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
         startDate: initialValues.scenario_recurrence_start,
         endDate: initialValues.scenario_recurrence_end || '',
         onlyWeekday: owd || false,
-        time: new Date(new Date().setUTCHours(h, m)).toISOString() || '',
+        time: new Date(new Date().setUTCHours(0, 0)).toISOString() || '',
         dayOfWeek: (d || 1) as Recurrence['dayOfWeek'],
         weekOfMonth: (w || 1) as Recurrence['weekOfMonth'],
       });
@@ -171,6 +171,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
               onChange={event => onSelectRecurring(event.target.value)}
             >
               <MenuItem value="noRepeat">{t('Does not repeat')}</MenuItem>
+              <MenuItem value="hourly">{t('Hourly')}</MenuItem>
               <MenuItem value="daily">{t('Daily')}</MenuItem>
               <MenuItem value="weekly">{t('Weekly')}</MenuItem>
               <MenuItem value="monthly">{t('Monthly')}</MenuItem>
@@ -200,7 +201,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
               )}
             />
             {
-              ['daily'].includes(selectRecurring)
+              ['hourly', 'daily'].includes(selectRecurring)
               && (
                 <Controller
                   control={control}
@@ -280,7 +281,8 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
                 <TimePicker
                   label={t('Scheduling_time')}
                   openTo="hours"
-                  timeSteps={{ minutes: 15 }}
+                  views={['hourly'].includes(selectRecurring) ? ['hours'] : ['hours', 'minutes']}
+                  timeSteps={['hourly'].includes(selectRecurring) ? { hours: 1 } : { minutes: 15 }}
                   skipDisabled
                   thresholdToRenderTimeInASingleColumn={100}
                   closeOnSelect={false}
@@ -299,7 +301,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
               )}
             />
             {
-              ['daily', 'weekly', 'monthly'].includes(selectRecurring)
+              ['hourly', 'daily', 'weekly', 'monthly'].includes(selectRecurring)
               && (
                 <Controller
                   control={control}

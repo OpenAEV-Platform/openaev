@@ -74,12 +74,15 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
     if (!cronExpression || !parsedCronExpression) {
       return null;
     }
+    // process time
+
     let sentence: string;
     if (noRepeat) {
-      sentence = `${fld(scenario.scenario_recurrence_start)} ${t('recurrence_at')} ${ft(new Date().setUTCHours(parsedCronExpression.h, parsedCronExpression.m, 0))}`;
+      // sentence = `${fld(scenario.scenario_recurrence_start)} ${t('recurrence_at')} ${ft(new Date().setUTCHours(parsedCronExpression.h, parsedCronExpression.m, 0))}`;
+      sentence = `${fld(scenario.scenario_recurrence_start)} ${t('recurrence_at')} ${ft(new Date().setUTCHours(0, 0, 0))}`;
     } else {
       const base = new Date();
-      base.setUTCHours(parsedCronExpression.h, parsedCronExpression.m, 0, 0);
+      // base.setUTCHours(parsedCronExpression.h, parsedCronExpression.m, 0, 0);
 
       const localHour = base.getHours();
       const localMinute = base.getMinutes();
