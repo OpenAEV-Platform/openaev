@@ -51,8 +51,8 @@ export default ({ mode }: { mode: string }) => {
           return html.replace(/%BASE_PATH%/g, basePath)
             .replace(/%APP_TITLE%/g, 'OpenAEV Dev')
             .replace(/%APP_DESCRIPTION%/g, 'OpenAEV Development platform')
-            .replace(/%APP_FAVICON%/g, `${basePath}/src/static/ext/favicon.png`)
-            .replace(/%APP_MANIFEST%/g, `${basePath}/src/static/ext/manifest.json`);
+            .replace(/%APP_FAVICON%/g, `${basePath}/static/favicon.png`)
+            .replace(/%APP_MANIFEST%/g, `${basePath}/static/manifest.json`);
         },
       },
       react(),
