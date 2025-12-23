@@ -32,7 +32,7 @@ import { type TeamsHelper } from '../actions/teams/team-helper';
 import { InjectTestContext, PermissionsContext } from '../admin/components/common/Context';
 import { useHelper } from '../store';
 import { type Inject, type InjectDependency } from '../utils/api-types';
-import { parseCron } from '../utils/Cron';
+import { CronParser } from '../utils/Cron';
 import ChainingUtils from './common/chaining/ChainingUtils';
 import CustomTimelineBackground from './CustomTimelineBackground';
 import CustomTimelinePanel from './CustomTimelinePanel';
@@ -143,11 +143,11 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
 
   // If we have a scenario, we find the startdate using the cron info
   if (scenario !== undefined) {
-    const parsedCron = scenario.scenario_recurrence ? parseCron(scenario.scenario_recurrence) : null;
+    const cronObject = scenario.scenario_recurrence ? CronParser.parse(scenario.scenario_recurrence) : null;
     startDate = scenario?.scenario_recurrence_start ? scenario?.scenario_recurrence_start : exercise?.exercise_start_date;
     if (startDate !== undefined) {
-      startDate = parsedCron !== null
-        ? moment(startDate).utc().hour(parsedCron.h).minute(parsedCron.m)
+      startDate = cronObject !== null
+        ? moment(startDate).utc().hour(cronObject.getHours()?.toNumber() || 0).minute(cronObject.getMinutes()?.toNumber() || 0)
             .format()
         : moment(startDate).utc().format();
     }

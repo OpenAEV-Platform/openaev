@@ -18,7 +18,7 @@ import {
   type InjectAssistantInput,
   type Scenario,
 } from '../../../../utils/api-types';
-import { parseCron, type ParsedCron } from '../../../../utils/Cron';
+import { type Cron, CronParser } from '../../../../utils/Cron';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
@@ -58,8 +58,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface ScenarioHeaderProps {
-  setCronExpression: Dispatch<SetStateAction<string | null>>;
-  setParsedCronExpression: Dispatch<SetStateAction<ParsedCron | null>>;
+  setCronObject: Dispatch<SetStateAction<Cron | null>>;
   setSelectRecurring: Dispatch<SetStateAction<string>>;
   selectRecurring: string;
   setOpenScenarioRecurringFormDialog: Dispatch<SetStateAction<boolean>>;
@@ -70,8 +69,7 @@ interface ScenarioHeaderProps {
 }
 
 const ScenarioHeader = ({
-  setCronExpression,
-  setParsedCronExpression,
+  setCronObject,
   setSelectRecurring,
   selectRecurring,
   noRepeat,
@@ -99,15 +97,14 @@ const ScenarioHeader = ({
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
-  const onSubmit = (cron: string, start: string, end?: string) => {
+  const onSubmit = (cron: Cron, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
-      scenario_recurrence: cron,
+      scenario_recurrence: cron.toCronExpression(),
       scenario_recurrence_start: start,
       scenario_recurrence_end: end,
     })).then((result: { [x: string]: string }) => {
       if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        setCronExpression(cron);
-        setParsedCronExpression(parseCron(cron));
+        setCronObject(cron);
       }
     });
     setOpenScenarioRecurringFormDialog(false);
@@ -125,12 +122,11 @@ const ScenarioHeader = ({
 
   useEffect(() => {
     if (scenario.scenario_recurrence != null) {
-      setCronExpression(scenario.scenario_recurrence);
-      setParsedCronExpression(parseCron(scenario.scenario_recurrence));
-      const { w, d } = parseCron(scenario.scenario_recurrence);
-      if (w) {
+      const newCron = CronParser.parse(scenario.scenario_recurrence);
+      setCronObject(newCron);
+      if (newCron.getMonthlyRecurrence()) {
         setSelectRecurring('monthly');
-      } else if (d) {
+      } else if (newCron.getWeeklyRecurrence()) {
         setSelectRecurring('weekly');
       } else if (!noRepeat) {
         setSelectRecurring('daily');
@@ -138,8 +134,7 @@ const ScenarioHeader = ({
     }
   }, [scenario.scenario_recurrence]);
   const stop = () => {
-    setCronExpression(null);
-    setParsedCronExpression(null);
+    setCronObject(null);
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: undefined,
       scenario_recurrence_start: undefined,

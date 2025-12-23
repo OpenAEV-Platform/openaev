@@ -1,19 +1,36 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, Switch } from '@mui/material';
+import {
+  Backdrop,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Switch,
+} from '@mui/material';
 import { DateTimePicker, TimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useEffect } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type ScenarioRecurrenceInput } from '../../../../utils/api-types';
-import { generateDailyCronExpression, generateMonthlyCronExpression, generateWeeklyCronExpression, parseCron } from '../../../../utils/Cron';
+import {
+  type Cron,
+  CronParser, generateDailyCronExpression, generateHourlyCronExpression, generateMonthlyCronExpression, generateWeeklyCronExpression,
+} from '../../../../utils/Cron';
 import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
 interface Props {
-  onSubmit: (cron: string, start: string, end?: string) => void;
+  onSubmit: (cron: Cron, start: string, end?: string) => void;
   onSelectRecurring: (selectRecurring: string) => void;
   selectRecurring: string;
   initialValues: ScenarioRecurrenceInput;
@@ -28,47 +45,61 @@ interface Recurrence {
   onlyWeekday: boolean;
   dayOfWeek?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   weekOfMonth?: 1 | 2 | 3 | 4 | 5;
+  uiSupported: boolean;
 }
 
-const defaultFormValues = () => ({
+const defaultFormValues: Recurrence = {
   startDate: new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString(),
   endDate: null,
   time: minutesInFuture(2).toISOString(),
   onlyWeekday: false,
   dayOfWeek: 1 as Recurrence['dayOfWeek'],
   weekOfMonth: 1 as Recurrence['weekOfMonth'],
-});
+  uiSupported: true,
+};
 
 const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selectRecurring, onSelectRecurring, initialValues, open, setOpen }) => {
   const { t } = useFormatter();
+  const [cronObject, setCronObject] = useState<Cron | null>(initialValues.scenario_recurrence ? CronParser.parse(initialValues.scenario_recurrence) : null);
   const submit = (data: Recurrence) => {
     const { time } = data as Omit<Recurrence, 'time'> & { time: string };
     // case day
-    let cron: string = generateDailyCronExpression(new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString(), data.onlyWeekday);
+    let cron: string;
     const start = data.startDate;
-    let end = data.endDate;
+    const end = selectRecurring === 'noRepeat' ? new Date(new Date(data.startDate).setUTCHours(24, 0, 0, 0)).toISOString() : data.endDate;
     switch (selectRecurring) {
-      case 'noRepeat':
-        end = new Date(new Date(data.startDate).setUTCHours(24, 0, 0, 0)).toISOString();
-        break;
       case 'weekly':
-        cron = generateWeeklyCronExpression(data.dayOfWeek?.toString()!, new Date(time).getUTCHours().toString(), new Date(time).getUTCMinutes().toString());
+        cron = generateWeeklyCronExpression(
+          data.dayOfWeek?.toString() || '1',
+          new Date(time).getUTCHours().toString(),
+          new Date(time).getUTCMinutes().toString(),
+        );
         break;
       case 'monthly':
-        cron = generateMonthlyCronExpression(data.weekOfMonth?.toString()!, data.dayOfWeek?.toString()!, new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString());
+        cron = generateMonthlyCronExpression(
+          data.weekOfMonth?.toString() || '1',
+          data.dayOfWeek?.toString() || '1',
+          new Date(time).getUTCHours()?.toString(),
+          new Date(time).getUTCMinutes()?.toString(),
+        );
+        break;
+      case 'hourly':
+        cron = generateHourlyCronExpression(new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString(), data.onlyWeekday);
         break;
       default:
+        cron = generateDailyCronExpression(new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString(), data.onlyWeekday);
         break;
     }
-    onSubmit(cron, start, end || '');
+    onSubmit(CronParser.parse(cron), start, end || '');
   };
 
   const { handleSubmit, control, reset, getValues, clearErrors } = useForm<Recurrence>({
-    defaultValues: defaultFormValues(),
+    defaultValues: defaultFormValues,
     resolver: zodResolver(
       zodImplement<Recurrence>().with({
         startDate: z.string().min(1, t('Required')),
         endDate: z.string().optional().nullable(),
+        uiSupported: z.boolean(),
         onlyWeekday: z.boolean(),
         time: z.string().min(1, t('Required')).nullable(),
         // @ts-expect-error zodImplement cannot handle refine
@@ -132,22 +163,29 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
   useEffect(() => {
     if (initialValues.scenario_recurrence != null) {
       if (!initialValues.scenario_recurrence || !initialValues.scenario_recurrence_start) {
-        reset(defaultFormValues());
+        reset(defaultFormValues);
       }
-      const { w, d, h, m, owd } = parseCron(initialValues.scenario_recurrence);
+      const actualCron = CronParser.parse(initialValues.scenario_recurrence);
+      setCronObject(actualCron);
       reset({
         startDate: initialValues.scenario_recurrence_start,
         endDate: initialValues.scenario_recurrence_end || '',
-        onlyWeekday: owd || false,
-        time: new Date(new Date().setUTCHours(0, 0)).toISOString() || '',
-        dayOfWeek: (d || 1) as Recurrence['dayOfWeek'],
-        weekOfMonth: (w || 1) as Recurrence['weekOfMonth'],
+        onlyWeekday: actualCron.isOnlyOnWeekdays(),
+        time: new Date(
+          new Date().setUTCHours(
+            actualCron.getHours()?.toNumber() || 0,
+            actualCron.getMinutes()?.toNumber() || 0,
+          ),
+        ).toISOString() || '',
+        dayOfWeek: (actualCron.getWeeklyRecurrence() || 1) as Recurrence['dayOfWeek'],
+        weekOfMonth: (actualCron.getMonthlyRecurrence() || 1) as Recurrence['weekOfMonth'],
+        uiSupported: actualCron.isUiSupported(),
       });
     }
   }, [initialValues.scenario_recurrence]);
 
   const handleClose = () => {
-    reset(defaultFormValues());
+    reset(defaultFormValues);
     setOpen(false);
   };
 
@@ -160,6 +198,14 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
       maxWidth="xs"
       fullWidth
     >
+      <Backdrop
+        sx={theme => ({
+          color: '#fff',
+          zIndex: theme.zIndex.drawer + 1,
+        })}
+        open={cronObject != null && !cronObject.isUiSupported()}
+        onClick={handleClose}
+      />
       <form onSubmit={handleSubmit(submit)}>
         <DialogTitle>{t('Scheduling')}</DialogTitle>
         <DialogContent>
