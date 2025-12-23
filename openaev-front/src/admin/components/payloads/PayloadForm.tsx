@@ -202,9 +202,9 @@ const PayloadForm = ({
     e.preventDefault();
     const isValid = await methods.trigger();
     if (!isValid) {
-      const errorField = Object.keys(methods.formState.errors)[0];
+      const firstErrorField = Object.keys(methods.formState.errors)[0];
+      const tabName = getTabForField(firstErrorField);
 
-      const tabName = getTabForField(errorField);
       if (tabName) handleChangeTab(tabName);
     } else {
       handleSubmit(onSubmit)(e);
