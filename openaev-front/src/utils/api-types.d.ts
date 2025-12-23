@@ -1101,7 +1101,6 @@ export interface ConnectorInstanceHealthInput {
    * @format date-time
    */
   connector_instance_started_at?: string;
-  inRebootLoop?: boolean;
 }
 
 export interface ConnectorInstanceLog {
