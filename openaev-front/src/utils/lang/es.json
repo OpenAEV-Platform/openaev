@@ -583,7 +583,6 @@
   "Encrypted": "Cifrar este correo electrónico",
   "End date": "Fecha de finalización",
   "End date is required": "La fecha de finalización es obligatoria",
-  "End date need to be stricly after start date": "La fecha final debe ser estrictamente posterior a la fecha de inicio",
   "End of Life": "Fin de vida",
   "Endpoint": "Punto final",
   "endpoint": "Punto final",
@@ -1964,5 +1963,6 @@
   "Your overall evaluation about this question.": "Su evaluación general sobre esta pregunta.",
   "your trial license online": "su licencia de prueba en línea",
   "YYYY": "AAAA",
-  "Hourly": "Por hora"
+  "Hourly": "Por hora",
+  "End date need to be strictly after start date": "La fecha final debe ser estrictamente posterior a la fecha de inicio"
 }

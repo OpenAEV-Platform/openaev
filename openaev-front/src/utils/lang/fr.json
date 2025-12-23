@@ -583,7 +583,6 @@
   "Encrypted": "Chiffrer ce mail",
   "End date": "Date de fin",
   "End date is required": "La date de fin est obligatoire",
-  "End date need to be stricly after start date": "La date de fin doit être ultérieure à la date de début",
   "End of Life": "Fin de vie",
   "Endpoint": "Endpoint",
   "endpoint": "Endpoint",
@@ -1964,6 +1963,7 @@
   "Your overall evaluation about this question.": "Votre évaluation globale de cette question.",
   "your trial license online": "votre licence d'essai en ligne",
   "YYYY": "AAAA",
-  "payload_domains": "Domaines",
-  "Hourly": "Horaire"
+  "Hourly": "Horaire",
+  "End date need to be strictly after start date": "La date de fin doit être ultérieure à la date de début",
+  "payload_domains": "Domaines"
 }

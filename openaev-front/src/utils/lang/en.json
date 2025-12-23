@@ -583,7 +583,6 @@
   "Encrypted": "Encrypt this email",
   "End date": "End date",
   "End date is required": "End date is required",
-  "End date need to be stricly after start date": "End date need to be stricly after start date",
   "End of Life": "End of Life",
   "Endpoint": "Endpoint",
   "endpoint": "Endpoint",
@@ -1964,5 +1963,6 @@
   "Your overall evaluation about this question.": "Your overall evaluation about this question.",
   "your trial license online": "your trial license online",
   "YYYY": "YYYY",
-  "Hourly": "Hourly"
+  "Hourly": "Hourly",
+  "End date need to be strictly after start date": "End date need to be strictly after start date"
 }
