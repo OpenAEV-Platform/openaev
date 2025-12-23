@@ -7,8 +7,10 @@ import io.openaev.database.model.ConnectorInstance;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 public class UpdateConnectorInstanceRequestedStatus {
   @NotNull(message = MANDATORY_MESSAGE)
   @Schema(description = "The connector instance current status")

@@ -29,6 +29,14 @@ public class ExecutorFixture {
     return executor;
   }
 
+  public Executor createDefaultExecutor(String executorName) {
+    Executor executor = new Executor();
+    executor.setType(executorName.toLowerCase().replace(" ", "-"));
+    executor.setName(executorName);
+    executor.setId(UUID.randomUUID().toString());
+    return executor;
+  }
+
   public Executor getDefaultExecutor() {
     Optional<Executor> executorOptional = executorRepository.findByType(OPENAEV_EXECUTOR_TYPE);
     return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));

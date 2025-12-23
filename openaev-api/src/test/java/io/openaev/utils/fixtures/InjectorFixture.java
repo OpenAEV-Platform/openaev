@@ -32,6 +32,11 @@ public class InjectorFixture {
     return injector;
   }
 
+  public static Injector createDefaultInjector(String injectorName) {
+    return createInjector(
+        UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
+  }
+
   public Injector getWellKnownOaevImplantInjector() {
     Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
     // ensure the injector is marked for payloads
