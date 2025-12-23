@@ -1,6 +1,5 @@
 import { Alert, Snackbar } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { head } from 'ramda';
 import { Component } from 'react';
 
@@ -84,8 +83,6 @@ MessageComponent.propTypes = {
   sticky: PropTypes.bool,
 };
 
-const Message = R.compose(
-  inject18n,
-)(MessageComponent);
+const Message = inject18n(MessageComponent);
 
 export default Message;

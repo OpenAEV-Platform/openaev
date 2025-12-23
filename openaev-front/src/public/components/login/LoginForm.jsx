@@ -1,6 +1,5 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
@@ -62,8 +61,6 @@ LoginFormComponent.propTypes = {
   handleSubmit: PropTypes.func,
 };
 
-const LoginForm = R.compose(
-  inject18n,
-)(LoginFormComponent);
+const LoginForm = inject18n(LoginFormComponent);
 
 export default LoginForm;

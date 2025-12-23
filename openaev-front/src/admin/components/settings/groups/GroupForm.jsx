@@ -1,6 +1,5 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -83,8 +82,6 @@ GroupFormComponent.propTypes = {
   editing: PropTypes.bool,
 };
 
-const GroupForm = R.compose(
-  inject18n,
-)(GroupFormComponent);
+const GroupForm = inject18n(GroupFormComponent);
 
 export default GroupForm;

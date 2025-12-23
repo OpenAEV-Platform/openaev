@@ -145,8 +145,6 @@ ObjectivePopoverComponent.propTypes = {
   deleteObjective: PropTypes.func,
 };
 
-const ObjectivePopover = R.compose(
-  inject18n,
-)(ObjectivePopoverComponent);
+const ObjectivePopover = inject18n(ObjectivePopoverComponent);
 
 export default ObjectivePopover;

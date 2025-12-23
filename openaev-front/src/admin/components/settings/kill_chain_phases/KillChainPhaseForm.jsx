@@ -1,6 +1,5 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -102,8 +101,6 @@ KillChainPhaseFormComponent.propTypes = {
   editing: PropTypes.bool,
 };
 
-const KillChainPhaseForm = R.compose(
-  inject18n,
-)(KillChainPhaseFormComponent);
+const KillChainPhaseForm = inject18n(KillChainPhaseFormComponent);
 
 export default KillChainPhaseForm;

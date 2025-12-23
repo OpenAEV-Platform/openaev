@@ -1,7 +1,6 @@
 import { Add } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 
 import Transition from '../../../components/common/Transition';
@@ -76,8 +75,6 @@ CreateObjectiveComponent.propTypes = {
   addObjective: PropTypes.func,
 };
 
-const CreateObjective = R.compose(
-  inject18n,
-)(CreateObjectiveComponent);
+const CreateObjective = inject18n(CreateObjectiveComponent);
 
 export default CreateObjective;

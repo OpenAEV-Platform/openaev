@@ -1,6 +1,5 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -92,8 +91,6 @@ ObjectiveFormComponent.propTypes = {
   editing: PropTypes.bool,
 };
 
-const ObjectiveForm = R.compose(
-  inject18n,
-)(ObjectiveFormComponent);
+const ObjectiveForm = inject18n(ObjectiveFormComponent);
 
 export default ObjectiveForm;

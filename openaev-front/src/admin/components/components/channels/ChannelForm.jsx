@@ -1,6 +1,5 @@
 import { Button, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -103,8 +102,6 @@ ChannelFormComponent.propTypes = {
   editing: PropTypes.bool,
 };
 
-const ChannelForm = R.compose(
-  inject18n,
-)(ChannelFormComponent);
+const ChannelForm = inject18n(ChannelFormComponent);
 
 export default ChannelForm;

@@ -1,6 +1,5 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -76,8 +75,6 @@ PasswordFormComponent.propTypes = {
   change: PropTypes.func,
 };
 
-const PasswordForm = R.compose(
-  inject18n,
-)(PasswordFormComponent);
+const PasswordForm = inject18n(PasswordFormComponent);
 
 export default PasswordForm;

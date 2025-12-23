@@ -1,6 +1,5 @@
 import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
@@ -62,8 +61,6 @@ ProfileFormComponent.propTypes = {
   onSubmit: PropTypes.func.isRequired,
 };
 
-const ProfileForm = R.compose(
-  inject18n,
-)(ProfileFormComponent);
+const ProfileForm = inject18n(ProfileFormComponent);
 
 export default ProfileForm;
