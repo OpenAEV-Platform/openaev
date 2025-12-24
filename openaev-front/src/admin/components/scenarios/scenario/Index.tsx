@@ -137,7 +137,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
             ]}
           />
           <ScenarioHeader
-            cronObject={cronObject}
             setCronObject={setCronObject}
             setSelectRecurring={setSelectRecurring}
             selectRecurring={selectRecurring}

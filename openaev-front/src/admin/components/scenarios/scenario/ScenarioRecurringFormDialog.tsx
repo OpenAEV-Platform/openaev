@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  Backdrop,
   Button,
   Dialog,
   DialogActions,
@@ -30,7 +29,6 @@ import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
 interface Props {
-  cronObject: Cron | null;
   setCronObject: Dispatch<SetStateAction<Cron | null>>;
   onSubmit: (cron: Cron, start: string, end?: string) => void;
   onSelectRecurring: (selectRecurring: string) => void;
@@ -60,7 +58,7 @@ const defaultFormValues: Recurrence = {
   uiSupported: true,
 };
 
-const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, setCronObject, onSubmit, selectRecurring, onSelectRecurring, initialValues, open, setOpen }) => {
+const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ setCronObject, onSubmit, selectRecurring, onSelectRecurring, initialValues, open, setOpen }) => {
   const { t } = useFormatter();
   const submit = (data: Recurrence) => {
     const { time } = data as Omit<Recurrence, 'time'> & { time: string };
@@ -210,14 +208,6 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
       maxWidth="xs"
       fullWidth
     >
-      <Backdrop
-        sx={theme => ({
-          color: '#fff',
-          zIndex: theme.zIndex.drawer + 1,
-        })}
-        open={cronObject != null && !cronObject.isUiSupported()}
-        onClick={handleClose}
-      />
       <form onSubmit={handleSubmit(submit)}>
         <DialogTitle>{t('Scheduling')}</DialogTitle>
         <DialogContent>

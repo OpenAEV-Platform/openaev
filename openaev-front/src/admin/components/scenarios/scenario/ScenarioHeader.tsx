@@ -58,7 +58,6 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface ScenarioHeaderProps {
-  cronObject: Cron | null;
   setCronObject: Dispatch<SetStateAction<Cron | null>>;
   setSelectRecurring: Dispatch<SetStateAction<string>>;
   selectRecurring: string;
@@ -70,7 +69,6 @@ interface ScenarioHeaderProps {
 }
 
 const ScenarioHeader = ({
-  cronObject,
   setCronObject,
   setSelectRecurring,
   selectRecurring,
@@ -128,9 +126,13 @@ const ScenarioHeader = ({
       setCronObject(newCron);
       if (newCron.getMonthlyRecurrence()) {
         setSelectRecurring('monthly');
-      } else if (newCron.getWeeklyRecurrence()) {
+      } else if (newCron.getHours()?.getRecurrence()) {
+        setSelectRecurring('hourly');
+      } else if (newCron.getWeeklyRecurrence() && !newCron.isOnlyOnWeekdays()) {
         setSelectRecurring('weekly');
-      } else if (!noRepeat) {
+      } else if (noRepeat) {
+        setSelectRecurring('noRepeat');
+      } else {
         setSelectRecurring('daily');
       }
     }
@@ -142,8 +144,6 @@ const ScenarioHeader = ({
       scenario_recurrence_start: undefined,
       scenario_recurrence_end: undefined,
     }));
-    setSelectRecurring('daily');
-    scenario.scenario_recurrence = undefined;
   };
 
   return (
@@ -221,7 +221,6 @@ const ScenarioHeader = ({
         />
       </div>
       <ScenarioRecurringFormDialog
-        cronObject={cronObject}
         setCronObject={setCronObject}
         selectRecurring={selectRecurring}
         onSelectRecurring={setSelectRecurring}
