@@ -179,16 +179,14 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
       }
       const actualCron = CronParser.parse(initialValues.scenario_recurrence);
       setCronObject(actualCron);
+      const time = actualCron.getHours()?.getRecurrence()
+        ? new Date(new Date().setHours(Number(actualCron.getHours()?.getRecurrence()), actualCron.getMinutes()?.toNumber() || 0))
+        : new Date(new Date().setUTCHours(actualCron.getHours()?.toNumber() || 0, actualCron.getMinutes()?.toNumber() || 0));
       reset({
         startDate: initialValues.scenario_recurrence_start,
         endDate: initialValues.scenario_recurrence_end || '',
         onlyWeekday: actualCron.isOnlyOnWeekdays(),
-        time: new Date(
-          new Date().setUTCHours(
-            actualCron.getHours()?.toNumber() || 0,
-            actualCron.getMinutes()?.toNumber() || 0,
-          ),
-        ).toISOString() || '',
+        time: time.toISOString() || '',
         dayOfWeek: (actualCron.getWeeklyRecurrence() || 1) as Recurrence['dayOfWeek'],
         weekOfMonth: (actualCron.getMonthlyRecurrence() || 1) as Recurrence['weekOfMonth'],
         uiSupported: actualCron.isUiSupported(),
@@ -210,7 +208,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
       maxWidth="xs"
       fullWidth
     >
-      { !cronObject?.isUiSupported()
+      { cronObject && !cronObject.isUiSupported()
         && (
           <>
             <DialogContent>
@@ -230,7 +228,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
             </DialogActions>
           </>
         )}
-      { cronObject?.isUiSupported()
+      { (!cronObject || cronObject?.isUiSupported())
         && (
           <form onSubmit={handleSubmit(submit)}>
             <DialogTitle>{t('Scheduling')}</DialogTitle>

@@ -113,7 +113,7 @@ describe('When parsing cron expressions', () => {
     {
       expr: '2 */4 * * *',
       valid: true,
-      uiSupported: false,
+      uiSupported: true,
     },
     {
       expr: '25,35,45 */4 * * *',
@@ -123,17 +123,17 @@ describe('When parsing cron expressions', () => {
     {
       expr: '2 */4 * * *',
       valid: true,
-      uiSupported: false,
+      uiSupported: true,
     },
     {
       expr: '2 */4 * * 1L',
       valid: true,
-      uiSupported: false,
+      uiSupported: true,
     },
     {
       expr: '2 */4 * * 1#3',
       valid: true,
-      uiSupported: false,
+      uiSupported: true,
     },
     {
       expr: '2 */4 * * 1#6L',

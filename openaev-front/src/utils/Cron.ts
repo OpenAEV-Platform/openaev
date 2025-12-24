@@ -171,14 +171,14 @@ class CronField {
    * @returns true if the value is the literal '*'
    */
   isWildcard() {
-    return this.field_expression === '*';
+    return this.field_expression.startsWith('*');
   }
 
   /**
    * @returns true if the value is the literal '0'
    */
   isZero() {
-    return this.field_expression === '0';
+    return this.field_expression.startsWith('0');
   }
 
   /**
@@ -234,7 +234,10 @@ class Cron {
     return this.isValid()
       && (this.fields.get(CronFieldPosition.Seconds)?.isZero() || !this.fields.get(CronFieldPosition.Seconds))
       && (this.fields.get(CronFieldPosition.Minutes)?.isPureNumeric() || false)
-      && (this.fields.get(CronFieldPosition.Hours)?.isPureNumeric() || this.fields.get(CronFieldPosition.Hours)?.getRecurrence() || false)
+      && (
+        this.fields.get(CronFieldPosition.Hours)?.isPureNumeric() // e.g. '12'
+        || (this.fields.get(CronFieldPosition.Hours)?.getRecurrence() !== undefined && this.fields.get(CronFieldPosition.Hours)?.isWildcard()) // e.g. '*/22'
+        || false)
       && (this.fields.get(CronFieldPosition.Monthdays)?.isWildcard() || false)
       && (this.fields.get(CronFieldPosition.Months)?.isWildcard() || false);
   }

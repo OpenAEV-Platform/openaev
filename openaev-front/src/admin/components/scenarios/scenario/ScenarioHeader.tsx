@@ -137,6 +137,8 @@ const ScenarioHeader = ({
       } else {
         setSelectRecurring('daily');
       }
+    } else {
+      setCronObject(null);
     }
   }, [scenario.scenario_recurrence]);
   const stop = () => {
