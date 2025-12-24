@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -339,21 +338,8 @@ public class SecurityCoverageService {
       Instant recurrence = Instant.now().plusSeconds(120);
       if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
         scenario.setRecurrenceStart(start);
-        ScheduleFrequency frequency = ScheduleFrequency.DAILY;
-        if (securityCoverage.getScheduling().contains("W")) {
-          frequency = ScheduleFrequency.WEEKLY;
-        } else if (securityCoverage.getScheduling().contains("M")) {
-          frequency = ScheduleFrequency.MONTHLY;
-        }
-        // TODO cron should be generated from start-date + iso duration
-        // Currently UI is not able to support any cron expression
-        // Parsing is limited to same case like 1 day at 9h00.
-        // Monthly option is not supported yet back in the UI.
-        String cron = cronService.getCronExpression(frequency, recurrence);
-        scenario.setRecurrence(cron);
-      } else {
-        String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, recurrence);
-        scenario.setRecurrence(cron);
+        scenario.setRecurrence(
+            cronService.getCronExpression(securityCoverage.getScheduling(), recurrence));
       }
     }
   }
