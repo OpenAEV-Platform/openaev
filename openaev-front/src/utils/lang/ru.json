@@ -1963,5 +1963,8 @@
   "Your OpenAEV platform is successfully unregistered": "Ваша платформа OpenAEV успешно снята с регистрации",
   "Your overall evaluation about this question.": "Ваша общая оценка этого вопроса.",
   "your trial license online": "ваша пробная лицензия онлайн",
-  "YYYY": "ГГГГ"
+  "YYYY": "ГГГГ",
+  "Hourly": "Почасовая оплата",
+  "End date need to be strictly after start date": "Дата окончания должна быть строго после даты начала",
+  "payload_domains": "Домены"
 }

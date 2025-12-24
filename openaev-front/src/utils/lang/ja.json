@@ -1963,5 +1963,8 @@
   "Your OpenAEV platform is successfully unregistered": "OpenAEV プラットフォームは正常に登録解除されました。",
   "Your overall evaluation about this question.": "この質問に対するあなたの総合評価",
   "your trial license online": "オンライン試用ライセンス",
-  "YYYY": "年"
+  "YYYY": "年",
+  "Hourly": "時間単位",
+  "End date need to be strictly after start date": "終了日は開始日より厳密に後でなければならない",
+  "payload_domains": "ドメイン"
 }

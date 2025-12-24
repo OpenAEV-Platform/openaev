@@ -1963,5 +1963,8 @@
   "Your OpenAEV platform is successfully unregistered": "La vostra piattaforma OpenAEV è stata disregistrata con successo",
   "Your overall evaluation about this question.": "La vostra valutazione complessiva su questa domanda.",
   "your trial license online": "la vostra licenza di prova online",
-  "YYYY": "AAAA"
+  "YYYY": "AAAA",
+  "Hourly": "Ogni ora",
+  "End date need to be strictly after start date": "La data di fine deve essere rigorosamente successiva alla data di inizio.",
+  "payload_domains": "Domini"
 }
