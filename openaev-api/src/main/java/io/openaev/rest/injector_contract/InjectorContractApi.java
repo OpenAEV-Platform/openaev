@@ -14,7 +14,10 @@ import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +29,7 @@ public class InjectorContractApi extends RestBehavior {
   public static final String INJECTOR_CONTRACT_URL = "/api/injector_contracts";
 
   private final InjectorContractService injectorContractService;
+  private final InjectorContractDomainStatsService injectorContractDomainStatsService;
 
   @GetMapping(INJECTOR_CONTRACT_URL)
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -56,6 +60,14 @@ public class InjectorContractApi extends RestBehavior {
           handleArchitectureFilter(input),
           InjectorContract.class);
     }
+  }
+
+  @PostMapping(INJECTOR_CONTRACT_URL + "/domain-counts")
+  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput filtered = handleArchitectureFilter(input);
+    return injectorContractService.getDomainCounts(filtered);
   }
 
   /**

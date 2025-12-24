@@ -5,7 +5,9 @@ import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.JpaUtils.*;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,10 +27,12 @@ import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
@@ -74,6 +78,8 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
+  private final DomainService domainService;
+  private final InjectorContractDomainStatsService injectorContractDomainStatsService;
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -460,26 +466,29 @@ public class InjectorContractService {
   }
 
   private List<InjectorContractFullOutput> execInjectorFullContract(TypedQuery<Tuple> query) {
-    return query.getResultList().stream()
-        .map(
-            tuple ->
-                new InjectorContractFullOutput(
-                    tuple.get("injector_contract_id", String.class),
-                    tuple.get("injector_contract_external_id", String.class),
-                    tuple.get("injector_contract_labels", Map.class),
-                    tuple.get("injector_contract_content", String.class),
-                    tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-                    tuple.get("payload_type", String.class),
-                    tuple.get("injector_contract_injector_name", String.class),
-                    tuple.get("collector_type", String.class),
-                    tuple.get("injector_contract_injector_type", String.class),
-                    tuple.get("injector_contract_attack_patterns", String[].class),
-                    resolveEffectiveDomains(
-                        tuple.get("injector_contract_domains", String[].class),
-                        tuple.get("payload_domains", String[].class)),
-                    tuple.get("injector_contract_updated_at", Instant.class),
-                    tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
-        .toList();
+    List<InjectorContractFullOutput> outputs =
+        query.getResultList().stream()
+            .map(
+                tuple ->
+                    new InjectorContractFullOutput(
+                        tuple.get("injector_contract_id", String.class),
+                        tuple.get("injector_contract_external_id", String.class),
+                        tuple.get("injector_contract_labels", Map.class),
+                        tuple.get("injector_contract_content", String.class),
+                        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+                        tuple.get("payload_type", String.class),
+                        tuple.get("injector_contract_injector_name", String.class),
+                        tuple.get("collector_type", String.class),
+                        tuple.get("injector_contract_injector_type", String.class),
+                        tuple.get("injector_contract_attack_patterns", String[].class),
+                        resolveEffectiveDomains(
+                            tuple.get("injector_contract_domains", String[].class),
+                            tuple.get("payload_domains", String[].class)),
+                        tuple.get("injector_contract_updated_at", Instant.class),
+                        tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
+            .toList();
+
+    return outputs;
   }
 
   private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
@@ -546,5 +555,35 @@ public class InjectorContractService {
       injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
     }
     return injectorContract;
+  }
+
+  public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<InjectorContractDomainCountOutput> query =
+        cb.createQuery(InjectorContractDomainCountOutput.class);
+    Root<InjectorContract> root = query.from(InjectorContract.class);
+
+    // 1. Jointure vers la table des domaines
+    // Note: On utilise "domains" qui correspond au champ dans votre entité
+    Join<InjectorContract, Domain> domainJoin = root.join("domains");
+
+    // 2. Réutilisation de votre logique de filtrage
+    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> finalSpec = Specification.where(filterSpec).and(searchSpec);
+
+    if (finalSpec != null) {
+      Predicate predicate = finalSpec.toPredicate(root, query, cb);
+      if (predicate != null) {
+        query.where(predicate);
+      }
+    }
+
+    // 3. Projection : on prend l'ID du domaine et on compte les contrats
+    query.multiselect(domainJoin.get("id"), cb.count(root));
+
+    query.groupBy(domainJoin.get("id"));
+
+    return entityManager.createQuery(query).getResultList();
   }
 }

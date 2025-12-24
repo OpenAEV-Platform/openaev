@@ -7,7 +7,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 import { v4 as uuid } from 'uuid';
 
-import { addInjectorContract } from '../../../../../actions/InjectorContracts';
+import { addInjectorContract } from '../../../../../actions/InjectorContracts.ts';
 import Drawer from '../../../../../components/common/Drawer';
 import inject18n from '../../../../../components/i18n';
 import InjectorContractCustomForm from './InjectorContractCustomForm';

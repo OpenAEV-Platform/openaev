@@ -3543,6 +3543,12 @@ export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
       >
   );
 
+export interface InjectorContractDomainCountOutput {
+  /** @format int64 */
+  count?: number;
+  domain?: string;
+}
+
 export interface InjectorContractFullOutput {
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   /** Attack pattern IDs */

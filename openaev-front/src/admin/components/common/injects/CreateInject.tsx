@@ -1,12 +1,22 @@
 import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useMemo, useState } from 'react';
+import {
+  type CSSProperties,
+  type FunctionComponent,
+  type SyntheticEvent,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useDispatch } from 'react-redux';
+import { type ThunkDispatch } from 'redux-thunk';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../../actions/helper';
-import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
+import { fetchDomainCounts, searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
@@ -99,6 +109,7 @@ const CreateInject: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const theme = useTheme();
   const { t, tPick } = useFormatter();
+  const dispatch = useDispatch<ThunkDispatch<any, any, any>>();
   const injectContext = useContext(InjectContext);
   const { injects, setInjects } = injectContext;
 
@@ -356,8 +367,10 @@ const CreateInject: FunctionComponent<Props> = ({
     return helper.getDomains();
   });
 
+  // Domains
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
-
+  const [domainCounts, setDomainCounts] = useState<Record<string, number>>({});
+  console.log('domain counts', domainCounts);
   const DOMAIN_FILTER_KEY = 'injector_contract_domains';
 
   const handleDomainClick = (domainId: string) => {
@@ -396,9 +409,35 @@ const CreateInject: FunctionComponent<Props> = ({
     });
   };
 
+  useEffect(() => {
+    if (searchPaginationInput) {
+      fetchDomainCounts(searchPaginationInput).then((response: any) => {
+        const data = response?.data;
+
+        if (Array.isArray(data)) {
+          const countsMap = data.reduce((acc, curr: {
+            domain: string;
+            count: number;
+          }) => {
+            if (curr.domain) {
+              acc[curr.domain] = curr.count;
+            }
+            return acc;
+          }, {} as Record<string, number>);
+
+          setDomainCounts(countsMap);
+        } else {
+          console.error('Le contenu de response.data n\'est pas un tableau :', data);
+        }
+      }).catch((err) => {
+        console.error('Erreur API :', err);
+      });
+    }
+  }, [searchPaginationInput]);
+
   const iconBarElements = useMemo(
-    () => buildIconBarElements(domainOptions, handleDomainClick, selectedDomains),
-    [domainOptions, selectedDomains],
+    () => buildIconBarElements(domainOptions, handleDomainClick, selectedDomains, domainCounts),
+    [domainOptions, selectedDomains, domainCounts],
   );
 
   return (

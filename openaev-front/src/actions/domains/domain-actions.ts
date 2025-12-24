@@ -8,9 +8,6 @@ const DOMAIN_URI = '/api/domains';
 const fetchDomains = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfDomains, DOMAIN_URI)(dispatch);
 };
-
-export default fetchDomains;
-
 // -- OPTION --
 
 export const searchDomainsByNameAsOption = (searchText: string = '') => {
@@ -21,3 +18,5 @@ export const searchDomainsByNameAsOption = (searchText: string = '') => {
 export const searchDomainsByIdsAsOption = (ids: string[]) => {
   return simplePostCall(`${DOMAIN_URI}/options`, ids);
 };
+
+export default fetchDomains;

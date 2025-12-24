@@ -77,7 +77,15 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
                     }}
                   >
                     {element.results && element.results()}
-                    {element.count && element.count}
+                    <span style={{
+                      fontSize: 'small',
+                      fontStyle: 'italic',
+                    }}
+                    >
+                      (
+                      {element.count && element.count}
+                      )
+                    </span>
                   </div>
                 </CardContent>
               </Card>
