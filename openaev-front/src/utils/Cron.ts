@@ -234,7 +234,7 @@ class Cron {
     return this.isValid()
       && (this.fields.get(CronFieldPosition.Seconds)?.isZero() || !this.fields.get(CronFieldPosition.Seconds))
       && (this.fields.get(CronFieldPosition.Minutes)?.isPureNumeric() || false)
-      && (this.fields.get(CronFieldPosition.Hours)?.isPureNumeric() || false)
+      && (this.fields.get(CronFieldPosition.Hours)?.isPureNumeric() || this.fields.get(CronFieldPosition.Hours)?.getRecurrence() || false)
       && (this.fields.get(CronFieldPosition.Monthdays)?.isWildcard() || false)
       && (this.fields.get(CronFieldPosition.Months)?.isWildcard() || false);
   }
