@@ -159,7 +159,7 @@ const PayloadForm = ({
   const {
     handleSubmit,
     control,
-    formState: { errors, isDirty, isSubmitting, defaultValues, dirtyFields },
+    formState: { isDirty, isSubmitting, defaultValues, dirtyFields },
   } = methods;
 
   const getTabForField = (fieldName: string): string | undefined => {
