@@ -153,17 +153,11 @@ describe('When parsing cron expressions', () => {
     it.each([
       {
         locale: 'fr',
-        output: cronstrue.toString(expr, {
-          locale: 'fr',
-          verbose: true,
-        }),
+        output: cronstrue.toString(expr, { locale: 'fr' }),
       },
       {
         locale: 'en',
-        output: cronstrue.toString(expr, {
-          locale: 'en',
-          verbose: true,
-        }),
+        output: cronstrue.toString(expr, { locale: 'en' }),
       },
     ])(`translates correctly in $locale`, ({ locale, output }) => {
       expect(CronParser.parse(expr).toHumanReadableString(locale)).toBe(output);
@@ -174,6 +168,11 @@ describe('Cron field features', () => {
   describe.each([
     {
       fieldExpr: '1L',
+      parserMask: WellKnownMasks.weekdays,
+      recurrence: 'L',
+    },
+    {
+      fieldExpr: 'L',
       parserMask: WellKnownMasks.weekdays,
       recurrence: 'L',
     },

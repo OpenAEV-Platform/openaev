@@ -84,10 +84,21 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
         );
         break;
       case 'hourly':
-        cron = generateHourlyCronExpression(new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString(), data.onlyWeekday);
+        cron = generateHourlyCronExpression(
+          // HACK: getHours (local) instead of getUTCHours,
+          // so that the numerical value in cron is the same as selected in GUI
+          // note: the function uses the first argument as an interval, not a time
+          new Date(time).getHours()?.toString(),
+          new Date(time).getUTCMinutes()?.toString(),
+          data.onlyWeekday,
+        );
         break;
       default:
-        cron = generateDailyCronExpression(new Date(time).getUTCHours()?.toString(), new Date(time).getUTCMinutes()?.toString(), data.onlyWeekday);
+        cron = generateDailyCronExpression(
+          new Date(time).getUTCHours()?.toString(),
+          new Date(time).getUTCMinutes()?.toString(),
+          data.onlyWeekday,
+        );
         break;
     }
     onSubmit(CronParser.parse(cron), start, end || '');

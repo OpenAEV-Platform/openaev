@@ -25,6 +25,9 @@ const generateMonthlyCronExpression = (w: string, d: string, h: string, m: strin
   return `0 ${m} ${h} * * ${d}#${w}`;
 };
 
+/**
+ * Field positions in the cron expression
+ */
 enum CronFieldPosition {
   Seconds,
   Minutes,
@@ -35,17 +38,32 @@ enum CronFieldPosition {
   Years,
 }
 
+/**
+ * A cron field validation mask
+ * * base_mask: this is the mask to validate the general case of the expression, which can be combined with commas,
+ * or used as range parts
+ * * exclusive_mask: validates an expression when it can take an arbitrary, non-combinable form
+ * e.g. 'L' for last which cannot be used as part of ranges
+ */
 type CronFieldMask = {
   base_mask: string;
   exclusive_mask?: string;
 };
 
+/**
+ * Parses and validates that a field expression matches a given validation mask
+ */
 class CronFieldParser {
   mask: CronFieldMask;
   constructor(mask: CronFieldMask) {
     this.mask = mask;
   }
 
+  /**
+   * Checks whether a given expression matches the internal validation mask
+   * @param field_expression a cron field expression
+   * @returns true if the field expression matches the validation mask
+   */
   validate(field_expression: string): boolean {
     let validator: string = `((\\*|(${this.mask.base_mask})(-(${this.mask.base_mask}))?)(\\/(${this.mask.base_mask}))?)(,((\\*|(${this.mask.base_mask})(-(${this.mask.base_mask}))?)(\\/(${this.mask.base_mask})(-(${this.mask.base_mask}))?)?))*`;
     if (this.mask.exclusive_mask) {
@@ -56,6 +74,9 @@ class CronFieldParser {
   }
 }
 
+/**
+ * Validation masks for individual field expressions
+ */
 class WellKnownMasks {
   static seconds: CronFieldMask = { base_mask: '\\d|[1-5]\\d' };
 
@@ -78,6 +99,9 @@ class WellKnownMasks {
   static years: CronFieldMask = { base_mask: '\\d+' };
 }
 
+/**
+ * Some well-known range expressions
+ */
 class WellKnownRanges {
   static weekdays: string = '1-5';
 }
@@ -100,6 +124,9 @@ const unix_parser_set: Map<CronFieldPosition, CronFieldParser> = new Map<CronFie
   [CronFieldPosition.Weekdays, new CronFieldParser(WellKnownMasks.weekdays)],
 ]);
 
+/**
+ * A single cron field with its own expression
+ */
 class CronField {
   field_expression: string;
   parser: CronFieldParser;
@@ -108,53 +135,101 @@ class CronField {
     this.parser = parser;
   }
 
+  /**
+   * Gets the numerical value of the field (may be a range)
+   * Does not match wildcard '*'
+   * @returns undefined if no match, else the value
+   * @example for '1/22' returns '1'
+   */
   getValue() {
     const matches = this.field_expression.match('([^\\*])[\\/|#|L]?');
     return matches?.[1];
   }
 
+  /**
+   * Gets the "recurrence" part of a field expression, i.e. after a '/' or a '#'
+   * May also be 'L' for "last"
+   * @returns undefined if no recurrence is set, else the recurrence value
+   * @example for '1/22' returns '22'
+   */
   getRecurrence() {
     const matches = this.field_expression.match('.*[\\/|#](.*)|(L)');
     return matches?.[1] || matches?.[2];
   }
 
+  /**
+   * A field is valid when the expression within is well-formed or undefined
+   * Note: a field may be valid while undefined, and a given cron expression
+   * may or may not be valid because of it
+   * @returns true if the expression is valid, else false
+   */
   isValid() {
     return this.parser.validate(this.field_expression) || this.field_expression === undefined;
   }
 
+  /**
+   * @returns true if the value is the literal '*'
+   */
   isWildcard() {
     return this.field_expression === '*';
   }
 
+  /**
+   * @returns true if the value is the literal '0'
+   */
   isZero() {
     return this.field_expression === '0';
   }
 
+  /**
+   * Checks if the expression is an integer, with no recurrence markers, no ranges
+   * @returns true if the value is a numeric value, i.e. an integer
+   */
   isPureNumeric() {
     return !isNaN(Number(this.field_expression));
   }
 
+  /**
+   * Checks whether the field's expression matches a given range expression
+   * @param range the range to check against the field value
+   * @returns true if the field expression matches exactly the given range expression
+   */
   isRange(range: string) {
     return this.field_expression === range;
   }
 
+  /**
+   * @returns the field value as a typed integer
+   */
   toNumber() {
     return Number(this.field_expression);
   }
 }
 
+/**
+ * A cron expression
+ */
 class Cron {
   fields: Map<CronFieldPosition, CronField>;
   constructor(fields: Map<CronFieldPosition, CronField>) {
     this.fields = fields;
   }
 
+  /**
+   * Checks whether the expression as a whole is valid
+   * @returns true if the expression is valid
+   */
   isValid() {
     return this.fields.entries().every((value) => {
       return value[1].isValid();
     });
   }
 
+  /**
+   * Checks whether the expression is supported by the UI widgets
+   * Note this requires arbitrary knowledge of which expression shape is supported
+   * @returns true if the expression is supported by the input dialog widgets
+   */
   isUiSupported() {
     return this.isValid()
       && (this.fields.get(CronFieldPosition.Seconds)?.isZero() || !this.fields.get(CronFieldPosition.Seconds))
@@ -164,59 +239,101 @@ class Cron {
       && (this.fields.get(CronFieldPosition.Months)?.isWildcard() || false);
   }
 
+  /**
+   * @returns the full cron expression as a string
+   */
   toCronExpression() {
     return Array.from(this.fields.entries().map(value => value[1].field_expression)).join(' ').trimEnd();
   }
 
+  /**
+   * @returns the plain text interpretation of the cron expression
+   * @param locale the language code in which to output the plain text
+   */
   toHumanReadableString(locale: string) {
     return cronstrue.toString(this.toCronExpression(), { locale });
   }
 
   // convenience methods
+
+  /**
+   * Checks whether the cron expression is constrained within the working days (MON-FRI)
+   * @returns true if there is a weekday constraint on the cron expression
+   */
   isOnlyOnWeekdays() {
     return (this.fields.get(CronFieldPosition.Weekdays)?.isRange(WellKnownRanges.weekdays));
   }
 
+  /**
+   * Gets the occurrence value of the Weekdays part of the cron expression if it exists, or undefined
+   * @example for '1#2', returns '1'
+   * @returns the occurrence value, or undefined if it doesn't exist or there is no Weekdays part
+   */
   getWeeklyRecurrence() {
     return this.fields.get(CronFieldPosition.Weekdays)?.getValue();
   }
 
   /**
-   * This is one way to set a monthly recurrence, with the nth weekday
+   * Gets the recurrence value of the Weekdays part of the cron expression
+   * @returns the recurrence value, or undefined if it doesn't exist or there is no Weekdays part
    */
   getMonthlyRecurrence() {
     return this.fields.get(CronFieldPosition.Weekdays)?.getRecurrence();
   }
 
+  /**
+   * @returns the Seconds field of the cron expression
+   */
   getSeconds() {
     return this.fields.get(CronFieldPosition.Seconds);
   }
 
+  /**
+   * @returns the Minutes field of the cron expression
+   */
   getMinutes() {
     return this.fields.get(CronFieldPosition.Minutes);
   }
 
+  /**
+   * @returns the Hours field of the cron expression
+   */
   getHours() {
     return this.fields.get(CronFieldPosition.Hours);
   }
 
+  /**
+   * @returns the Monthdays field of the cron expression
+   */
   getMonthdays() {
     return this.fields.get(CronFieldPosition.Monthdays);
   }
 
+  /**
+   * @returns the Months field of the cron expression
+   */
   getMonths() {
     return this.fields.get(CronFieldPosition.Months);
   }
 
+  /**
+   * @returns the Weekdays field of the cron expression
+   */
   getWeekdays() {
     return this.fields.get(CronFieldPosition.Weekdays);
   }
 
+  /**
+   * @returns the Years field of the cron expression
+   */
   getYears() {
     return this.fields.get(CronFieldPosition.Years);
   }
 }
 
+/**
+ * Cron parsing specific error
+ */
 class CronParseError extends Error {
   constructor(message: string) {
     super(message);
@@ -224,20 +341,34 @@ class CronParseError extends Error {
   }
 }
 
+/**
+ * Parses string expressions and builds Cron objects
+ */
 class CronParser {
   parsers: Map<CronFieldPosition, CronFieldParser>;
   constructor(parsers: Map<CronFieldPosition, CronFieldParser>) {
     this.parsers = parsers;
   }
 
+  /**
+   * Initialises a parser with Quartz Engine fields arrangement (7 fields)
+   */
   static quartz() {
     return new CronParser(quartz_parser_set);
   }
 
+  /**
+   * Initialises a parser with Quartz Engine fields arrangement (7 fields)
+   */
   static unix() {
     return new CronParser(unix_parser_set);
   }
 
+  /**
+   * Initialises all fields with individual expression parts
+   * @param parts ordered array of cron expression parts (fields)
+   * @returns a Cron object with fields initialised with the provided parts
+   */
   parseParts(parts: string[]): Cron {
     const fields = new Map<CronFieldPosition, CronField>(
       this.parsers.entries().map(
@@ -246,6 +377,16 @@ class CronParser {
     return new Cron(fields);
   }
 
+  /**
+   * Creates a Cron object with fields initialised from the provided cron expression string.
+   * Depending on the cron expression, the Cron object may have different fields arrangements:
+   * * Unix (minute, hour, monthday, month, weekday) if the cron expression has 5 fields
+   * * Quartz (second, minute, hour, monthday, month, weekday, year) if the cron expression has 6 or 7 fields
+   * (Note that the Year field in the Quartz arrangement is uninitialised if the cron expression has only 6 fields)
+   * @param expression a cron expression, as a string
+   * @returns a Cron object initialised from the cron expression
+   * @throws CronParseError if there are any number of fields other than 5, 6 or 7 (i.e. malformed cron expression)
+   */
   static parse(expression: string): Cron {
     const parts = expression.split(' ');
     switch (parts.length) {
