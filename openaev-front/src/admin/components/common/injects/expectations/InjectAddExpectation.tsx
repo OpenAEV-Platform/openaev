@@ -19,11 +19,13 @@ const useStyles = makeStyles()(theme => ({
 interface InjectAddExpectationProps {
   predefinedExpectations: ExpectationInput[];
   handleAddExpectation: (data: ExpectationInput) => void;
+  isHumanInject: boolean;
 }
 
 const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
   predefinedExpectations,
   handleAddExpectation,
+  isHumanInject,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -68,6 +70,7 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
       >
         <ExpectationFormCreate
           predefinedExpectations={predefinedExpectations}
+          isHumanInject={isHumanInject}
           onSubmit={onSubmit}
           handleClose={handleClose}
         />
