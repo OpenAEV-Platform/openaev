@@ -221,11 +221,6 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
                 }
               </Alert>
             </DialogContent>
-            <DialogActions>
-              <Button onClick={handleClose}>
-                {t('OK')}
-              </Button>
-            </DialogActions>
           </>
         )}
       { (!cronObject || cronObject?.isUiSupported())
