@@ -15,7 +15,7 @@ import {
   Switch,
 } from '@mui/material';
 import { DateTimePicker, TimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type Dispatch, type FunctionComponent, type SetStateAction, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -30,6 +30,8 @@ import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
 interface Props {
+  cronObject: Cron | null;
+  setCronObject: Dispatch<SetStateAction<Cron | null>>;
   onSubmit: (cron: Cron, start: string, end?: string) => void;
   onSelectRecurring: (selectRecurring: string) => void;
   selectRecurring: string;
@@ -58,9 +60,8 @@ const defaultFormValues: Recurrence = {
   uiSupported: true,
 };
 
-const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selectRecurring, onSelectRecurring, initialValues, open, setOpen }) => {
+const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, setCronObject, onSubmit, selectRecurring, onSelectRecurring, initialValues, open, setOpen }) => {
   const { t } = useFormatter();
-  const [cronObject, setCronObject] = useState<Cron | null>(initialValues.scenario_recurrence ? CronParser.parse(initialValues.scenario_recurrence) : null);
   const submit = (data: Recurrence) => {
     const { time } = data as Omit<Recurrence, 'time'> & { time: string };
     // case day

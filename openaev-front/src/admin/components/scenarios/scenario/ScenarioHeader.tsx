@@ -58,6 +58,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface ScenarioHeaderProps {
+  cronObject: Cron | null;
   setCronObject: Dispatch<SetStateAction<Cron | null>>;
   setSelectRecurring: Dispatch<SetStateAction<string>>;
   selectRecurring: string;
@@ -69,6 +70,7 @@ interface ScenarioHeaderProps {
 }
 
 const ScenarioHeader = ({
+  cronObject,
   setCronObject,
   setSelectRecurring,
   selectRecurring,
@@ -140,6 +142,8 @@ const ScenarioHeader = ({
       scenario_recurrence_start: undefined,
       scenario_recurrence_end: undefined,
     }));
+    setSelectRecurring('daily');
+    scenario.scenario_recurrence = undefined;
   };
 
   return (
@@ -217,6 +221,8 @@ const ScenarioHeader = ({
         />
       </div>
       <ScenarioRecurringFormDialog
+        cronObject={cronObject}
+        setCronObject={setCronObject}
         selectRecurring={selectRecurring}
         onSelectRecurring={setSelectRecurring}
         open={openScenarioRecurringFormDialog}
