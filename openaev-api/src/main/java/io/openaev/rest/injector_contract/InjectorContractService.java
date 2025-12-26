@@ -580,7 +580,7 @@ public class InjectorContractService {
     }
 
     // 3. Projection : on prend l'ID du domaine et on compte les contrats
-    query.multiselect(domainJoin.get("id"), cb.count(root));
+    query.multiselect(domainJoin.get("id"), cb.countDistinct(root));
 
     query.groupBy(domainJoin.get("id"));
 
