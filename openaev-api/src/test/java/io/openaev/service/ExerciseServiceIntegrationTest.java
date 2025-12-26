@@ -55,6 +55,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private ArticleRepository articleRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private CommunicationRepository communicationRepository;
+  @Autowired private FindingRepository findingRepository;
 
   @Autowired private AssetRepository assetRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -102,6 +104,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             exerciseTeamUserRepository,
             injectRepository,
             lessonsCategoryRepository,
+            findingRepository,
+            communicationRepository,
             injectExpectationMapper);
   }
 

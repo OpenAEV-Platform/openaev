@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -37,4 +38,15 @@ public interface CommunicationRepository
               + "GROUP BY c.communication_id, injects.inject_exercise ;",
       nativeQuery = true)
   List<RawCommunication> rawByIds(@Param("ids") List<String> ids);
+
+  @Modifying
+  @Query(
+      """
+    DELETE FROM Communication c
+    WHERE c.id IN (
+        SELECT c.id FROM Communication c2
+        WHERE c.inject.exercise.id = :exerciseId
+    )
+    """)
+  void deleteByExerciseId(@Param("exerciseId") String exerciseId);
 }

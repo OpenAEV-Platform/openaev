@@ -2,6 +2,7 @@ package io.openaev.rest.exercise.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -108,6 +109,8 @@ public class ExerciseService {
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
+  private final FindingRepository findingRepository;
+  private final CommunicationRepository communicationRepository;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
@@ -873,5 +876,18 @@ public class ExerciseService {
         .stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
+  }
+
+  /**
+   * Clean expectation, communication and findings from an execise
+   *
+   * @param exerciseId
+   */
+  @Transactional
+  public void cleanInjects(@NotNull final String exerciseId) {
+    this.injectExpectationRepository.deleteByExerciseId(exerciseId);
+    this.findingRepository.deleteByExerciseId(exerciseId);
+    this.communicationRepository.deleteByExerciseId(exerciseId);
+    this.injectRepository.resetCollectStatusByExerciseId(exerciseId, COLLECTING);
   }
 }

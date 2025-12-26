@@ -83,6 +83,8 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
   @Mock private CronService cronService;
+  @Mock private FindingRepository findingRepository;
+  @Mock private CommunicationRepository communicationRepository;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -121,6 +123,8 @@ class ExerciseServiceTest extends IntegrationTest {
             exerciseTeamUserRepository,
             injectRepository,
             lessonsCategoryRepository,
+            findingRepository,
+            communicationRepository,
             injectExpectationMapper);
 
     scenarioComposer.reset();

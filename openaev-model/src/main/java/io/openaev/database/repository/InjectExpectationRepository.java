@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -250,4 +251,12 @@ public interface InjectExpectationRepository
     """,
       nativeQuery = true)
   List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      """
+      DELETE FROM InjectExpectation ie
+      WHERE ie.exercise.id = :exerciseId
+  """)
+  void deleteByExerciseId(@Param("exerciseId") String exerciseId);
 }

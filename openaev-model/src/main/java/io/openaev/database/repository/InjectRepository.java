@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.CollectExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
@@ -387,4 +388,14 @@ public interface InjectRepository
   @Modifying
   @Query(value = "DELETE FROM injects WHERE inject_id = :id", nativeQuery = true)
   void deleteByIdNative(@Param("id") String id);
+
+  @Modifying
+  @Query(
+      """
+      UPDATE Inject i
+     SET i.collectExecutionStatus = :status
+      WHERE i.exercise.id = :exerciseId
+  """)
+  int resetCollectStatusByExerciseId(
+      @Param("exerciseId") String exerciseId, @Param("status") CollectExecutionStatus status);
 }
