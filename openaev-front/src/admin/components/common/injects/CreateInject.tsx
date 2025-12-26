@@ -1,6 +1,7 @@
 import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { type AxiosResponse } from 'axios';
 import {
   type CSSProperties,
   type FunctionComponent,
@@ -10,8 +11,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { useDispatch } from 'react-redux';
-import { type ThunkDispatch } from 'redux-thunk';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
@@ -21,7 +20,6 @@ import { type InjectorHelper } from '../../../../actions/injectors/injector-help
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
-import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -37,12 +35,13 @@ import {
   type AttackPattern, type Domain,
   type FilterGroup,
   type InjectInput,
-  type InjectorContract,
+  type InjectorContract, type InjectorContractDomainCountOutput,
   type InjectorContractFullOutput,
   type KillChainPhase,
   type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
+import { type Error as APIError, notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
@@ -109,7 +108,6 @@ const CreateInject: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const theme = useTheme();
   const { t, tPick } = useFormatter();
-  const dispatch = useDispatch<ThunkDispatch<any, any, any>>();
   const injectContext = useContext(InjectContext);
   const { injects, setInjects } = injectContext;
 
@@ -370,70 +368,80 @@ const CreateInject: FunctionComponent<Props> = ({
   // Domains
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [domainCounts, setDomainCounts] = useState<Record<string, number>>({});
-  console.log('domain counts', domainCounts);
   const DOMAIN_FILTER_KEY = 'injector_contract_domains';
 
   const handleDomainClick = (domainId: string) => {
-    if (!queryableHelpers?.filterHelpers) {
-      return;
-    }
+    if (!queryableHelpers?.filterHelpers) return;
 
-    setSelectedDomains((prev) => {
-      const updated = prev.includes(domainId)
-        ? prev.filter(id => id !== domainId)
-        : [...prev, domainId];
+    const isAlreadySelected = selectedDomains.includes(domainId);
+    const updated = isAlreadySelected
+      ? selectedDomains.filter(id => id !== domainId)
+      : [...selectedDomains, domainId];
 
-      if (updated.length === 0) {
-        queryableHelpers.filterHelpers.handleRemoveFilterByKey(
-          DOMAIN_FILTER_KEY,
-        );
+    if (updated.length === 0) {
+      queryableHelpers.filterHelpers.handleRemoveFilterByKey(DOMAIN_FILTER_KEY);
+    } else {
+      const domainFilterExists = searchPaginationInput?.filterGroup?.filters?.some(
+        f => f.key === DOMAIN_FILTER_KEY,
+      );
+
+      if (!domainFilterExists) {
+        queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
+          key: DOMAIN_FILTER_KEY,
+          operator: 'contains',
+          values: updated,
+          mode: 'or',
+        });
       } else {
-        const domainFilterExists
-          = searchPaginationInput?.filterGroup?.filters?.some(
-            f => f.key === DOMAIN_FILTER_KEY,
-          );
-
-        if (!domainFilterExists) {
-          queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue(
-            buildEmptyFilter(DOMAIN_FILTER_KEY, 'contains'),
-          );
-        }
-
         queryableHelpers.filterHelpers.handleAddMultipleValueFilter(
           DOMAIN_FILTER_KEY,
           updated,
         );
       }
-
-      return updated;
-    });
+    }
   };
 
+  // Fetch and update domain counts whenever search filters change
   useEffect(() => {
     if (searchPaginationInput) {
-      fetchDomainCounts(searchPaginationInput).then((response: any) => {
-        const data = response?.data;
+      fetchDomainCounts(searchPaginationInput)
+        .then((response: AxiosResponse<InjectorContractDomainCountOutput[]>) => {
+          const data = response?.data;
 
-        if (Array.isArray(data)) {
-          const countsMap = data.reduce((acc, curr: {
-            domain: string;
-            count: number;
-          }) => {
-            if (curr.domain) {
-              acc[curr.domain] = curr.count;
-            }
-            return acc;
-          }, {} as Record<string, number>);
+          if (Array.isArray(data)) {
+            const countsMap = data.reduce((acc, curr) => {
+              if (curr.domain) {
+                acc[curr.domain] = curr.count ?? 0;
+              }
+              return acc;
+            }, {} as Record<string, number>);
 
-          setDomainCounts(countsMap);
-        } else {
-          console.error('Le contenu de response.data n\'est pas un tableau :', data);
-        }
-      }).catch((err) => {
-        console.error('Erreur API :', err);
-      });
+            setDomainCounts(countsMap);
+          } else {
+            notifyErrorHandler({
+              status: 400,
+              message: 'Invalid data format received',
+            });
+          }
+        })
+        .catch((error: unknown) => {
+          notifyErrorHandler(error as APIError);
+        });
     }
   }, [searchPaginationInput]);
+
+  // Sync icon bar selection with the global filter group
+  useEffect(() => {
+    const domainFilter = searchPaginationInput?.filterGroup?.filters?.find(
+      f => f.key === DOMAIN_FILTER_KEY,
+    );
+
+    if (domainFilter && Array.isArray(domainFilter.values)) {
+      setSelectedDomains(domainFilter.values as string[]);
+    } else {
+      setSelectedDomains([]);
+    }
+  }, [searchPaginationInput?.filterGroup]);
 
   const iconBarElements = useMemo(
     () => buildIconBarElements(domainOptions, handleDomainClick, selectedDomains, domainCounts),
@@ -456,7 +464,7 @@ const CreateInject: FunctionComponent<Props> = ({
       }}
     >
       <>
-        <IconBar elements={iconBarElements} />
+        <IconBar elements={iconBarElements} variant="scroll" />
         <div style={{
           overflowY: 'auto',
           paddingTop: theme.spacing(0.5),

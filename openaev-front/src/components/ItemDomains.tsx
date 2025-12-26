@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type DomainHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
-import { truncate } from '../utils/String';
+import {getLabelOfRemainingItems, truncate} from '../utils/String';
 
 const useStyles = makeStyles()(theme => ({
   inline: {
@@ -84,38 +84,39 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
         </Tooltip>
       ));
 
-  const renderSingle = () => {
-    const primaryDomain = resolvedDomains[0];
-    if (!primaryDomain || primaryDomain.domain_name === 'To classify') return null;
+    const renderSingle = () => {
+        const primaryDomain = resolvedDomains[0];
+        if (!primaryDomain || primaryDomain.domain_name === 'To classify') return null;
 
-    return (
-      <>
-        <Tooltip title={primaryDomain.domain_name}>
-          <Chip
-            variant="outlined"
-            classes={{ root: style }}
-            label={truncate(primaryDomain.domain_name, truncateLimit)}
-            style={{
-              color: primaryDomain.domain_color,
-              borderColor: primaryDomain.domain_color,
-              backgroundColor: 'transparent',
-            }}
-          />
-        </Tooltip>
-        {resolvedDomains.length > 1 && (
-          <Tooltip title={resolvedDomains.filter((_, index) => index !== 0)
-            .map(d => d.domain_name).join(' | ')}
-          >
-            <Chip
-              variant="outlined"
-              classes={{ root: style }}
-              label={`+${domains.length - 1}`}
-            />
-          </Tooltip>
-        )}
-      </>
-    );
-  };
+        const tooltipLabel = getLabelOfRemainingItems(resolvedDomains, 1, 'domain_name');
+
+        return (
+            <>
+                <Tooltip title={primaryDomain.domain_name}>
+                    <Chip
+                        variant="outlined"
+                        classes={{ root: style }}
+                        label={truncate(primaryDomain.domain_name, truncateLimit)}
+                        style={{
+                            color: primaryDomain.domain_color,
+                            borderColor: primaryDomain.domain_color,
+                            backgroundColor: 'transparent',
+                        }}
+                    />
+                </Tooltip>
+
+                {resolvedDomains.length > 1 && (
+                    <Tooltip title={tooltipLabel}>
+                        <Chip
+                            variant="outlined"
+                            classes={{ root: style }}
+                            label={`+${resolvedDomains.length - 1}`}
+                        />
+                    </Tooltip>
+                )}
+            </>
+        );
+    };
 
   return (
     <div className={classes.inline}>

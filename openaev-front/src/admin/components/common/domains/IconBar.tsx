@@ -1,99 +1,122 @@
-import { Card, CardContent, Grid, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Card, CardContent, Grid, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type IconBarElement } from './IconBar-model';
 
-const useStyles = makeStyles()({
-  paper: {
-    padding: 15,
-    borderRadius: 4,
-  },
-});
-
-interface Props { elements: IconBarElement[] }
-
-const IconBar: FunctionComponent<Props> = ({ elements }) => {
-  // Standard hooks
-  const { classes } = useStyles();
+interface Props {
+  elements: IconBarElement[];
+  variant?: 'grid' | 'scroll';
+}
+const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
+  const isScroll = variant === 'scroll';
+
   return (
-    <Paper classes={{ root: classes.paper }} variant="outlined">
-      <Grid container spacing={2}>
-        {elements.map((element: IconBarElement) => {
-          const isSelected = element.color === 'success';
-          return (
-            <Grid
-              key={element.type}
-              size={{
-                xs: 12,
-                sm: 6,
-                md: 1.5,
-              }}
-            >
-              <Card
+    <Paper
+      variant="outlined"
+      sx={{
+        width: '100%',
+        overflow: 'hidden',
+        bgcolor: theme.palette.background.paper,
+      }}
+    >
+      <Box
+        sx={{
+          'overflowX': isScroll ? 'auto' : 'visible',
+          'py': 2,
+          'px': 2,
+          '&::-webkit-scrollbar': { height: '8px' },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme.palette.action.focus,
+            borderRadius: 2,
+          },
+        }}
+      >
+        <Grid
+          container
+          spacing={1}
+          wrap={isScroll ? 'nowrap' : 'wrap'}
+          sx={{ width: isScroll ? 'max-content' : '100%' }}
+        >
+          {elements.map((element: IconBarElement) => {
+            const isSelected = element.color === 'success';
+
+            return (
+              <Grid
+                key={element.type}
+                size={isScroll ? undefined : {
+                  xs: 12,
+                  sm: 6,
+                  md: 1.5,
+                }}
                 sx={{
-                  'color': isSelected
-                    ? theme.palette.text.primary
-                    : theme.palette.text.secondary,
-                  'cursor': 'pointer',
-                  'transition': 'background-color 0.2s ease-in-out',
-                  'backgroundColor': isSelected
-                    ? theme.palette.action.selected
-                    : theme.palette.background.paper,
-                  '&:hover': { backgroundColor: theme.palette.action.hover },
+                  flexShrink: isScroll ? 0 : 1,
+                  flexGrow: isScroll ? 0 : 1,
+                  minWidth: isScroll ? '180px' : 'auto',
                 }}
               >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <IconButton
-                    size="large"
-                    disableRipple
-                    onClick={element.function}
-                    sx={{
-                      color: isSelected
-                        ? theme.palette.text.primary
-                        : theme.palette.text.secondary,
-                      // '&:hover': {
-                      //   backgroundColor: 'transparent',
-                      // },
-                    }}
-                  >
-                    {element.icon()}
-                  </IconButton>
-
-                  <Typography variant="subtitle1">
-                    {t(element.name)}
-                  </Typography>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    {element.results && element.results()}
-                    <span style={{
-                      fontSize: 'small',
-                      fontStyle: 'italic',
-                    }}
+                <Card
+                  onClick={element.function}
+                  sx={{
+                    'height': '100%',
+                    'cursor': 'pointer',
+                    'transition': theme.transitions.create('background-color'),
+                    'color': isSelected
+                      ? theme.palette.text.primary
+                      : theme.palette.text.secondary,
+                    'backgroundColor': isSelected
+                      ? theme.palette.action.selected
+                      : theme.palette.background.paper,
+                    '&:hover': { backgroundColor: theme.palette.action.hover },
+                  }}
+                >
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <IconButton
+                      size="large"
+                      disableRipple
+                      sx={{ color: 'inherit' }}
                     >
-                      (
-                      {element.count && element.count}
-                      )
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                      {element.icon()}
+                    </IconButton>
 
-            </Grid>
-          );
-        })}
-      </Grid>
+                    <Typography variant="subtitle1" noWrap>
+                      {t(element.name)}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        mt: 0.5,
+                        minHeight: '24px',
+                      }}
+                    >
+                      {element.results && element.results()}
+                      {element.count !== undefined && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontStyle: 'italic',
+                            color: theme.palette.text.secondary,
+                          }}
+                        >
+                          {element.count}
+                        </Typography>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </Box>
     </Paper>
   );
 };
