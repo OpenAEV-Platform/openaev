@@ -15,9 +15,7 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import jakarta.persistence.EntityNotFoundException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -46,19 +44,22 @@ public class ConnectorOrchestrationService {
   private final LicenseCacheManager licenseCacheManager;
 
   /**
-   * Find connector instances managed by xtm Composer
+   * Find active connector instances managed by xtm Composer
    *
    * @param xtmComposerId XTM Composer id
    * @return List of connector instances
    */
-  public List<XtmComposerInstanceOutput> findConnectorInstancesManagedByComposer(
+  public List<XtmComposerInstanceOutput> findActiveConnectorInstancesManagedByComposer(
       String xtmComposerId) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
-
-    List<ConnectorInstance> instances =
-        connectorInstanceService.connectorInstancesManagedByXtmComposer();
-
-    return instances.stream().map(xtmComposerService::toXtmComposerInstanceOutput).toList();
+    List<ConnectorInstance> activeInstances =
+        connectorInstanceService.activeConnectorInstancesManagedByXtmComposer();
+    activeInstances.forEach(
+        connectorInstance -> {
+          connectorInstance.setEnableDeletion(true);
+        });
+    connectorInstanceService.saveAll(new HashSet<>(activeInstances));
+    return activeInstances.stream().map(xtmComposerService::toXtmComposerInstanceOutput).toList();
   }
 
   /**
@@ -223,6 +224,42 @@ public class ConnectorOrchestrationService {
 
     return connectorInstanceService.updateConnectorInstanceConfigurations(
         connectorInstanceId, catalogConnectorWithConfigMap.configurationsMap, input);
+  }
+
+  private Optional<String> getConnectorId(ConnectorInstance instance, ConnectorType type) {
+    return Optional.ofNullable(
+        switch (type) {
+          case COLLECTOR -> collectorService.getConnectorIdFromInstance(instance);
+          case INJECTOR -> injectorService.getConnectorIdFromInstance(instance);
+          case EXECUTOR -> executorService.getConnectorIdFromInstance(instance);
+        });
+  }
+
+  private void deleteConnector(String id, ConnectorType type) {
+    switch (type) {
+      case COLLECTOR -> collectorService.deleteById(id);
+      case INJECTOR -> injectorService.deleteById(id);
+      case EXECUTOR -> executorService.deleteById(id);
+    }
+  }
+
+  /**
+   * Delete connector instance and associated connector
+   *
+   * @param xtmComposerId the unique identifier of the XTM composer to validate
+   * @param connectorInstanceId the unique identifier of the connector instance to delete
+   */
+  public void deleteConnectorInstanceAndAssociatedConnector(
+      String xtmComposerId, String connectorInstanceId) {
+    this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
+
+    ConnectorInstance connectorInstance =
+        connectorInstanceService.connectorInstanceById(connectorInstanceId);
+    getConnectorId(connectorInstance, connectorInstance.getCatalogConnector().getContainerType())
+        .ifPresent(
+            id -> deleteConnector(id, connectorInstance.getCatalogConnector().getContainerType()));
+
+    this.connectorInstanceService.deleteById(connectorInstanceId);
   }
 
   /**

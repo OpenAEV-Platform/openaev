@@ -62,7 +62,9 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         instanceCurrentStatus={instance?.connector_instance_current_status}
         instanceRequestedStatus={instance?.connector_instance_requested_status}
         showUpdateButtons={isEnterpriseEdition && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-        disabledUpdateButtons={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
+        disabledUpdateStatusButtons={(!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
+        disabledDeleteButton={(!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported) || !instance?.connector_instance_enable_deletion}
+        disabled={instance?.connector_instance_requested_status == 'deleting'}
       />
       <Tabs
         entries={tabEntries}

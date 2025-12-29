@@ -28,7 +28,8 @@ public class ConnectorInstance implements Base {
 
   public enum REQUESTED_STATUS_TYPE {
     starting,
-    stopping
+    stopping,
+    deleting
   }
 
   public enum SOURCE {
@@ -82,6 +83,10 @@ public class ConnectorInstance implements Base {
   @Column(name = "connector_instance_is_in_reboot_loop")
   @JsonProperty("connector_instance_is_in_reboot_loop")
   private boolean isInRebootLoop;
+
+  @Column(name = "connector_instance_enable_deletion")
+  @JsonProperty("connector_instance_enable_deletion")
+  private boolean enableDeletion;
 
   @OneToMany(
       mappedBy = "connectorInstance",

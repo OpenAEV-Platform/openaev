@@ -35,11 +35,14 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   protected abstract T getConnectorById(String id);
 
   protected abstract Output mapToOutput(
-      T connector, CatalogConnector catalogConnector, boolean isVerified);
+      T connector,
+      CatalogConnector catalogConnector,
+      ConnectorInstance instance,
+      boolean isVerified);
 
   protected abstract T createNewConnector();
 
-  private String getConnectorIdFromInstance(ConnectorInstance instance) {
+  public String getConnectorIdFromInstance(ConnectorInstance instance) {
     return instance.getConfigurations().stream()
         .filter(c -> this.connectorType.getIdKeyName().equals(c.getKey()))
         .map(c -> c.getValue().asText())
@@ -69,7 +72,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
             : catalogConnectorService
                 .findBySlug(connector.getType().replace("openaev_", ""))
                 .orElse(null);
-    return mapToOutput(connector, catalogConnector, isVerified);
+    return mapToOutput(connector, catalogConnector, instance, isVerified);
   }
 
   private T createExternalCollector(String collectorId, ConnectorInstance instance) {
@@ -112,7 +115,12 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
           .forEach(
               entry -> {
                 T newConnector = createExternalCollector(entry.getKey(), entry.getValue());
-                result.add(mapToOutput(newConnector, entry.getValue().getCatalogConnector(), true));
+                result.add(
+                    mapToOutput(
+                        newConnector,
+                        entry.getValue().getCatalogConnector(),
+                        entry.getValue(),
+                        true));
               });
     }
 

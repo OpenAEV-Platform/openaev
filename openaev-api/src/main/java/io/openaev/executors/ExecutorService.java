@@ -79,8 +79,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected ExecutorOutput mapToOutput(
-      Executor executor, CatalogConnector catalogConnector, boolean isVerified) {
-    return executorMapper.toExecutorOutput(executor, catalogConnector, isVerified);
+      Executor executor,
+      CatalogConnector catalogConnector,
+      ConnectorInstance instance,
+      boolean isVerified) {
+    return executorMapper.toExecutorOutput(executor, catalogConnector, instance, isVerified);
   }
 
   @Override
@@ -240,5 +243,14 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
               .toList());
     }
     return agents;
+  }
+
+  /**
+   * Delete an executor by ID
+   *
+   * @param id the executor ID to delete
+   */
+  public void deleteById(String id) {
+    executorRepository.deleteById(id);
   }
 }

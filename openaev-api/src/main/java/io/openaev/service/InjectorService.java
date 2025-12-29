@@ -102,8 +102,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   @Override
   protected InjectorOutput mapToOutput(
-      Injector injector, CatalogConnector catalogConnector, boolean isVerified) {
-    return injectorMapper.toInjectorOutput(injector, catalogConnector, isVerified);
+      Injector injector,
+      CatalogConnector catalogConnector,
+      ConnectorInstance instance,
+      boolean isVerified) {
+    return injectorMapper.toInjectorOutput(injector, catalogConnector, instance, isVerified);
   }
 
   @Override
@@ -340,5 +343,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllById(toDeletes);
     injectorContractRepository.saveAll(toCreates);
     return injectorRepository.save(injector);
+  }
+
+  /**
+   * Delete an injector by ID
+   *
+   * @param id the injector ID to delete
+   */
+  public void deleteById(String id) {
+    injectorRepository.deleteById(id);
   }
 }

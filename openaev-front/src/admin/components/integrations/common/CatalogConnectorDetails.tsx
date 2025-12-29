@@ -10,7 +10,7 @@ import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnector
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import ConnectorTitle from './ConnectorTitle';
 
-const ConnectorDetails = () => {
+const CatalogConnectorDetails = () => {
   // Standard hooks
   const ability = useContext(AbilityContext);
   const { t } = useFormatter();
@@ -58,4 +58,4 @@ const ConnectorDetails = () => {
   );
 };
 
-export default ConnectorDetails;
+export default CatalogConnectorDetails;

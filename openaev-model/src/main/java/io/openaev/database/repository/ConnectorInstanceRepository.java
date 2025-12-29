@@ -17,8 +17,9 @@ public interface ConnectorInstanceRepository
   @Query(
       "SELECT DISTINCT instance FROM ConnectorInstance instance "
           + "WHERE instance.catalogConnector.containerImage IS NOT NULL "
-          + "AND instance.catalogConnector.isManagerSupported = TRUE")
-  List<ConnectorInstance> findAllManagedByXtmComposerAndConfiguration();
+          + "AND instance.catalogConnector.isManagerSupported = TRUE "
+          + "AND instance.requestedStatus  != 'deleting'")
+  List<ConnectorInstance> findAllActiveManagedByXtmComposerAndConfiguration();
 
   List<ConnectorInstance> findAllByCatalogConnectorId(String catalogConnectorId);
 

@@ -77,6 +77,7 @@ const ConnectorList = () => {
               cardActionUrl={routes.detail(connector.id)}
               isNotClickable={connector.catalog == null && connectorType != 'injector'}
               showLastUpdatedAt
+              disabled={connector.instance?.connector_instance_requested_status == 'deleting'}
             />
           </Grid>
         ))}

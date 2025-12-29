@@ -1,8 +1,9 @@
+import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
-import { useOutletContext } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { deleteConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
+import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
@@ -15,43 +16,52 @@ import type { ConnectorContextLayoutType } from './ConnectorLayout';
 type ConnectorPopoverProps = {
   connectorInstanceId: string;
   connectorName: string;
+  disabled?: boolean;
+  disabledDeleteButtons?: boolean;
 };
 
 const useStyles = makeStyles()(() => ({ autoMarginLeft: { marginLeft: 'auto' } }));
 
-const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopoverProps) => {
-  // Standard hooks
+const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false, disabledDeleteButtons = false }: ConnectorPopoverProps) => {
   const { classes } = useStyles();
+  const theme = useTheme();
   const { t } = useFormatter();
+
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
   const { instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
 
   const [openDialogDelete, setOpenDialogDelete] = useState(false);
 
-  // const handleDelete = () => {
-  //   setOpenDialogDelete(true);
-  // };
+  const handleDelete = () => {
+    setOpenDialogDelete(true);
+  };
 
   const submitDeleteConnectorInstance = () => {
-    dispatch(deleteConnectorInstance(connectorInstanceId));
+    dispatch(updateRequestedStatus(connectorInstanceId, { connector_instance_requested_status: 'deleting' })).then(() => {
+      const parentPath = location.pathname.split('/').slice(0, -1).join('/');
+      navigate(parentPath);
+    });
     setOpenDialogDelete(false);
   };
+
   const [openUpdateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
   const onOpenUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
   const onCloseUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
 
   // Button Popover
-  const entries = [
-    {
-      //   label: t('Delete'),
-      //   action: handleDelete,
-      //   userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
-      // }, {
-      label: t('Update'),
-      action: () => onOpenUpdateConnectorInstanceDrawer(),
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
-    }];
+  const entries = [{
+    label: t('Update'),
+    action: () => onOpenUpdateConnectorInstanceDrawer(),
+    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+  }, {
+    label: t('Delete'),
+    action: handleDelete,
+    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+    disabled: disabledDeleteButtons,
+    style: { color: theme.palette.error.light },
+  }];
 
   return (
     <>
@@ -59,6 +69,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopov
         className={classes.autoMarginLeft}
         entries={entries}
         variant="toggle"
+        disabled={disabled}
       />
       <DialogDelete
         open={openDialogDelete}

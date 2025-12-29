@@ -273,6 +273,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           ConnectorInstance.REQUESTED_STATUS_TYPE.stopping,
           instanceDb.getFirst().getRequestedStatus());
       assertEquals(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT, instanceDb.getFirst().getSource());
+      assertFalse(instanceDb.getFirst().isEnableDeletion());
       assertEquals(
           5,
           instanceDb.getFirst().getConfigurations().size()); // 3 from input + token + collector_id
@@ -561,6 +562,38 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               result -> {
                 String errorMessage = result.getResolvedException().getMessage();
                 assertTrue(errorMessage.contains("XTM Composer is not reachable"));
+              });
+    }
+
+    @Test
+    @DisplayName("Should throw exception when attempting to delete instance with deletion disabled")
+    void givenDeletionNotEnabledInstance_should_throwErrorWhenDeletionRequested() throws Exception {
+      when(eeService.isLicenseActive(any())).thenReturn(true);
+
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstance connectorInstance = getConnectorInstance(catalogConnector, Set.of());
+
+      UpdateConnectorInstanceRequestedStatus input = new UpdateConnectorInstanceRequestedStatus();
+      input.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.deleting);
+
+      Map<String, String> composerSettings = new HashMap<>();
+      composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+      composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+      composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
+      platformSettingsService.saveSettings(composerSettings);
+
+      mvc.perform(
+              put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest())
+          .andExpect(
+              result -> {
+                String errorMessage = result.getResolvedException().getMessage();
+                assertTrue(
+                    errorMessage.contains(
+                        "Deletion request is not enabled for this connector instance"));
               });
     }
 

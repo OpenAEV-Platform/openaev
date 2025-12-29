@@ -16,6 +16,7 @@ public class ConnectorInstanceMapper {
         .id(connectorInstance.getId())
         .currentStatus(connectorInstance.getCurrentStatus())
         .requestedStatus(connectorInstance.getRequestedStatus())
+        .enableDeletion(connectorInstance.isEnableDeletion())
         .build();
   }
 }

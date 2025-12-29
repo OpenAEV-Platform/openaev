@@ -50,10 +50,7 @@ public class CollectorApi extends RestBehavior {
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))))
   public Iterable<CollectorOutput> collectors(
-      @Parameter(
-              name = "includeNext",
-              description = "Include collectors pending deployment",
-              required = false)
+      @Parameter(name = "includeNext", description = "Include collectors pending deployment")
           @RequestParam(value = "include_next", required = false, defaultValue = "false")
           boolean includeNext) {
     return collectorService.collectorsOutput(includeNext);

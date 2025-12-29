@@ -18,4 +18,7 @@ public class ConnectorInstanceOutput {
 
   @JsonProperty("connector_instance_requested_status")
   private ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus;
+
+  @JsonProperty("connector_instance_enable_deletion")
+  private boolean enableDeletion;
 }

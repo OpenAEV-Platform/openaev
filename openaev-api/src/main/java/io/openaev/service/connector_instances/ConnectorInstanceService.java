@@ -13,6 +13,7 @@ import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -38,12 +39,12 @@ public class ConnectorInstanceService {
   private final EncryptionFactory encryptionFactory;
 
   /**
-   * Retrieves all connector instances managed by XtmComposer with their configurations.
+   * Retrieves all active connector instances managed by XtmComposer with their configurations.
    *
    * @return the list of connector instances managed by XtmComposer
    */
-  public List<ConnectorInstance> connectorInstancesManagedByXtmComposer() {
-    return connectorInstanceRepository.findAllManagedByXtmComposerAndConfiguration();
+  public List<ConnectorInstance> activeConnectorInstancesManagedByXtmComposer() {
+    return connectorInstanceRepository.findAllActiveManagedByXtmComposerAndConfiguration();
   }
 
   /**
@@ -142,7 +143,12 @@ public class ConnectorInstanceService {
    * @return the connector instance updated
    */
   public ConnectorInstance updateRequestedStatus(
-      ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
+      ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus)
+      throws BadRequestException {
+    if (ConnectorInstance.REQUESTED_STATUS_TYPE.deleting.equals(newRequestedStatus)
+        && !instance.isEnableDeletion()) {
+      throw new BadRequestException("Deletion request is not enabled for this connector instance");
+    }
     instance.setRequestedStatus(newRequestedStatus);
     return this.save(instance);
   }
@@ -202,6 +208,7 @@ public class ConnectorInstanceService {
     newInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     newInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     newInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);
+    newInstance.setEnableDeletion(!catalogConnector.isManagerSupported());
     return newInstance;
   }
 

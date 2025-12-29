@@ -79,7 +79,9 @@ type ConnectorHeaderProps = {
   showDeployButton?: boolean;
   showUpdateButtons?: boolean;
   onDeployBtnClick?: () => void;
-  disabledUpdateButtons?: boolean;
+  disabledUpdateStatusButtons?: boolean;
+  disabledDeleteButton?: boolean;
+  disabled?: boolean;
 };
 
 const ConnectorTitle = ({
@@ -89,9 +91,10 @@ const ConnectorTitle = ({
   instanceRequestedStatus,
   showDeployButton = false,
   showUpdateButtons = false,
-  disabledUpdateButtons = false,
-  onDeployBtnClick = () => {
-  },
+  disabledUpdateStatusButtons = false,
+  disabledDeleteButton = false,
+  disabled = false,
+  onDeployBtnClick = () => {},
 }: ConnectorHeaderProps) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -159,6 +162,8 @@ const ConnectorTitle = ({
               <ConnectorPopover
                 connectorInstanceId={connector.instanceId}
                 connectorName={connector.connectorName}
+                disabledDeleteButtons={disabledDeleteButton}
+                disabled={disabled}
               />
             )}
             {showDeployButton && (
@@ -174,7 +179,7 @@ const ConnectorTitle = ({
                 color={instanceRequestedStatus == 'starting' ? 'error' : 'success'}
                 size="small"
                 onClick={onUpdateRequestedStatusClick}
-                disabled={disabledUpdateButtons}
+                disabled={disabledUpdateStatusButtons || disabled}
               >
                 {instanceRequestedStatus == 'starting' ? t('Stop') : t('Start')}
               </Button>

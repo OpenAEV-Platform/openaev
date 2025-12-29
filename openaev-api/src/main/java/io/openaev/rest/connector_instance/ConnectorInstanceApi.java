@@ -140,15 +140,4 @@ public class ConnectorInstanceApi extends RestBehavior {
     return orchestrationService.updateRequestedStatus(
         connectorInstanceId, input.getRequestedStatus());
   }
-
-  @DeleteMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
-  @Operation(summary = "Delete connector instance")
-  @RBAC(actionPerformed = Action.DELETE, resourceType = ResourceType.CATALOG)
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")
-      })
-  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId) {
-    connectorInstanceService.deleteById(connectorInstanceId);
-  }
 }

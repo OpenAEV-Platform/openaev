@@ -2,6 +2,7 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.rest.collector.form.CollectorOutput;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +15,13 @@ import org.springframework.stereotype.Component;
 public class CollectorMapper {
 
   private final CatalogConnectorMapper catalogConnectorMapper;
+  private final ConnectorInstanceMapper connectorInstanceMapper;
 
   public CollectorOutput toCollectorOutput(
-      Collector collector, @Nullable CatalogConnector catalogConnector, boolean isVerified) {
+      Collector collector,
+      @Nullable CatalogConnector catalogConnector,
+      @Nullable ConnectorInstance instance,
+      boolean isVerified) {
     return CollectorOutput.builder()
         .id(collector.getId())
         .name(collector.getName())
@@ -24,6 +29,8 @@ public class CollectorMapper {
         .external(collector.isExternal())
         .lastExecution(collector.getUpdatedAt())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
+        .connectorInstance(
+            instance != null ? connectorInstanceMapper.toConnectorInstanceOutput(instance) : null)
         .verified(isVerified)
         .build();
   }

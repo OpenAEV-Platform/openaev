@@ -2,10 +2,10 @@ package io.openaev.api.xtm_composer;
 
 import static io.openaev.api.xtm_composer.XtmComposerApi.XTMCOMPOSER_URI;
 import static io.openaev.database.model.SettingKeys.*;
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
-import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
-import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstanceConfiguration;
+import static io.openaev.utils.fixtures.ConnectorInstanceFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -18,9 +18,11 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.Setting;
+import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -50,6 +52,7 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Autowired private PlatformSettingsService platformSettingsService;
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
   @Autowired private ConnectorInstanceLogRepository connectorInstanceLogRepository;
+  @Autowired private CollectorRepository collectorRepository;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
@@ -332,6 +335,10 @@ public class XtmComposerApiTest extends IntegrationTest {
             .isArray()
             .size()
             .isEqualTo(1);
+
+        // verify that instance enable deletion
+        List<ConnectorInstance> instancesDB = fromIterable(connectorInstanceRepository.findAll());
+        instancesDB.forEach(i -> assertTrue(i.isEnableDeletion()));
       }
     }
 
@@ -537,6 +544,71 @@ public class XtmComposerApiTest extends IntegrationTest {
         assertEquals(instanceDb.get().getRestartCount(), 16);
         assertEquals(instanceDb.get().getStartedAt(), startTime);
         assertFalse(instanceDb.get().isInRebootLoop());
+      }
+    }
+
+    @Nested
+    class deleteConnectorInstanceAndAssociatedConnector {
+      @Test
+      @DisplayName("Given fake composer id should throw error")
+      void givenFakeComposerId_should_throwError() throws Exception {
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+        platformSettingsService.saveSettings(composerSettings);
+
+        mvc.perform(
+                delete(XTMCOMPOSER_URI + "/fake-composer-id/connector-instances/fake-instance-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(
+                result -> {
+                  String errorMessage = result.getResolvedException().getMessage();
+                  assertTrue(errorMessage.contains("Invalid xtm-composer identifier"));
+                });
+      }
+
+      @Test
+      @DisplayName("Given connector instance id should delete it and associated connector")
+      void givenConnectorInstanceId_should_deleteItAndAssociatedConnector() throws Exception {
+        String collectorId = UUID.randomUUID().toString();
+        ConnectorInstance instance =
+            connectorInstanceComposer
+                .forConnectorInstance(createDefaultConnectorInstance())
+                .withConnectorInstanceConfiguration(
+                    connectorInstanceConfigurationComposer.forConnectorInstanceConfiguration(
+                        createConnectorInstanceConfiguration("COLLECTOR_ID", collectorId)))
+                .withCatalogConnector(
+                    catalogConnectorComposer.forCatalogConnector(
+                        createDefaultCatalogConnectorManagedByXtmComposer("Microsoft collector")))
+                .persist()
+                .get();
+        Collector collector = new Collector();
+        collector.setId(collectorId);
+        collector.setType("microsoft-collector");
+        collector.setName("Microsoft collector");
+        collectorRepository.save(collector);
+
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+        platformSettingsService.saveSettings(composerSettings);
+
+        mvc.perform(
+                delete(
+                        XTMCOMPOSER_URI
+                            + "/composer-id-test/connector-instances/"
+                            + instance.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful());
+
+        Optional<ConnectorInstance> instanceDb =
+            connectorInstanceRepository.findById(instance.getId());
+        assertFalse(instanceDb.isPresent());
+        Optional<Collector> collectorDb = collectorRepository.findById(collectorId);
+        assertFalse(collectorDb.isPresent());
       }
     }
   }

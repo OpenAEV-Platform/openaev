@@ -39,11 +39,6 @@ export const updateRequestedStatus = (instanceId: string, data: UpdateConnectorI
   return putReferential(connectorInstance, uri, data)(dispatch);
 };
 
-export const deleteConnectorInstance = (instanceId: string) => (dispatch: Dispatch) => {
-  const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}`;
-  return delReferential(uri, connectorInstance.key, instanceId)(dispatch);
-};
-
 export const fetchConnectorInstanceLogs = (instanceId: string) => () => {
   const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}/logs`;
   return simpleCall(uri);

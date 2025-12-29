@@ -78,7 +78,7 @@ public class XtmComposerApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
       @PathVariable @NotBlank final String xtmComposerId) {
-    return orchestrationService.findConnectorInstancesManagedByComposer(xtmComposerId);
+    return orchestrationService.findActiveConnectorInstancesManagedByComposer(xtmComposerId);
   }
 
   @PutMapping(
@@ -129,5 +129,26 @@ public class XtmComposerApi extends RestBehavior {
       @Valid @RequestBody ConnectorInstanceHealthInput input) {
     return orchestrationService.patchConnectorInstanceHealthCheck(
         xtmComposerId, connectorInstanceId, input);
+  }
+
+  @DeleteMapping(
+      value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}")
+  @Operation(
+      summary = "Delete connector instances and remove associated connector",
+      description =
+          """
+                Receives a deletion notification from XtmComposer for a connector instance.
+                This triggers:
+                - Removal of the associated injector, collector, or executor
+                - Permanent deletion of the connector instance from OpenAEV database
+                """)
+  @RBAC(actionPerformed = Action.DELETE, resourceType = ResourceType.CATALOG)
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "Successfully delete connector")})
+  public void notifyConnectorDeleted(
+      @PathVariable @NotBlank final String xtmComposerId,
+      @PathVariable @NotBlank final String connectorInstanceId) {
+    orchestrationService.deleteConnectorInstanceAndAssociatedConnector(
+        xtmComposerId, connectorInstanceId);
   }
 }

@@ -9,6 +9,7 @@ export interface PopoverEntry {
   action: () => void | Dispatch<SetStateAction<boolean>>;
   disabled?: boolean;
   userRight: boolean;
+  style?: CSSProperties;
 }
 
 export type VariantButtonPopover = 'toggle' | 'icon';
@@ -78,6 +79,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
             <MenuItem
               key={entry.label}
               disabled={entry.disabled}
+              style={entry.style ?? {}}
               onClick={() => {
                 entry.action();
                 setAnchorEl(null);

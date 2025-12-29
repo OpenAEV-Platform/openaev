@@ -904,6 +904,7 @@ export interface CollectorOutput {
   collector_last_execution?: string;
   collector_name: string;
   collector_type: string;
+  connector_instance?: ConnectorInstanceOutput;
   is_verified?: boolean;
 }
 
@@ -1064,11 +1065,12 @@ export interface ConnectorInstance {
   /** @uniqueItems true */
   connector_instance_configurations: ConnectorInstanceConfiguration[];
   connector_instance_current_status: "started" | "stopped";
+  connector_instance_enable_deletion?: boolean;
   connector_instance_id: string;
   connector_instance_is_in_reboot_loop?: boolean;
   /** @uniqueItems true */
   connector_instance_logs: ConnectorInstanceLog[];
-  connector_instance_requested_status?: "starting" | "stopping";
+  connector_instance_requested_status?: "starting" | "stopping" | "deleting";
   /** @format int32 */
   connector_instance_restart_count?: number;
   connector_instance_source:
@@ -1120,8 +1122,9 @@ export interface ConnectorInstanceLogsInput {
 
 export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
+  connector_instance_enable_deletion?: boolean;
   connector_instance_id: string;
-  connector_instance_requested_status?: "starting" | "stopping";
+  connector_instance_requested_status?: "starting" | "stopping" | "deleting";
 }
 
 export interface ContractOutputElement {
@@ -2409,6 +2412,7 @@ export interface ExecutorCreateInput {
 export interface ExecutorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
+  connector_instance?: ConnectorInstanceOutput;
   /** Executor id */
   executor_id: string;
   executor_name: string;
@@ -3655,6 +3659,7 @@ export interface InjectorCreateInput {
 export interface InjectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
+  connector_instance?: ConnectorInstanceOutput;
   injector_external?: boolean;
   /** Injector id */
   injector_id: string;
@@ -6261,7 +6266,7 @@ export interface UpdateAssetsOnAssetGroupInput {
 
 export interface UpdateConnectorInstanceRequestedStatus {
   /** The connector instance current status */
-  connector_instance_requested_status: "starting" | "stopping";
+  connector_instance_requested_status: "starting" | "stopping" | "deleting";
 }
 
 export interface UpdateExerciseInput {
@@ -6822,7 +6827,7 @@ export interface XtmComposerInstanceOutput {
   /** Connector Instance name */
   connector_instance_name: string;
   /** Connector Instance requested status */
-  connector_instance_requested_status: "starting" | "stopping";
+  connector_instance_requested_status: "starting" | "stopping" | "deleting";
 }
 
 export interface XtmComposerOutput {

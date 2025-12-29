@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Base;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import lombok.Getter;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -32,6 +33,17 @@ public class BaseEvent implements Cloneable {
   @JsonProperty("listened")
   private boolean listened;
 
+  private Class<?> findBaseClass(Class<? extends Base> currentClass) {
+    Class<?> superClass = currentClass.getSuperclass();
+
+    // If superclass is Object or abstract, current class is the target
+    if (superClass.equals(Object.class) || Modifier.isAbstract(superClass.getModifiers())) {
+      return currentClass;
+    }
+
+    return superClass;
+  }
+
   public BaseEvent(String type, Base data, ObjectMapper mapper) {
     this.type = type;
     this.instance = data;
@@ -39,9 +51,7 @@ public class BaseEvent implements Cloneable {
     this.listened = data.isListened();
     RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
     this.sessionId = requestAttributes != null ? requestAttributes.getSessionId() : null;
-    Class<? extends Base> currentClass = data.getClass();
-    boolean isTargetClass = currentClass.getSuperclass().equals(Object.class);
-    Class<?> baseClass = isTargetClass ? currentClass : currentClass.getSuperclass();
+    Class<?> baseClass = findBaseClass(data.getClass());
     String className = baseClass.getSimpleName().toLowerCase();
     Field[] fields = baseClass.getDeclaredFields();
     for (Field field : fields) {

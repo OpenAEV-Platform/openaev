@@ -1,4 +1,4 @@
-import { Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Chip, Tooltip, Typography } from '@mui/material';
 import type { SyntheticEvent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -77,6 +77,7 @@ type ConnectorCardProps = {
   isNotClickable?: boolean;
   connector: ConnectorMainInfo;
   onDeployBtnClick?: (e: SyntheticEvent) => void;
+  disabled?: boolean;
 };
 
 const ConnectorCard = ({
@@ -85,48 +86,58 @@ const ConnectorCard = ({
   showLastUpdatedAt = false,
   isNotClickable = false,
   onDeployBtnClick,
+  disabled = false,
 }: ConnectorCardProps) => {
   const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
 
   return (
-    <Card className={classes.card} variant="outlined">
-      <CardActionArea
-        component={Link}
-        to={cardActionUrl}
-        disabled={isNotClickable}
+    <Tooltip title={disabled ? t('Deletion is being processed') : ''} followCursor>
+      <Card
+        sx={{
+          opacity: disabled ? 0.7 : 1,
+          filter: disabled ? 'grayscale(80%)' : 'none',
+        }}
+        className={classes.card}
+        variant={disabled ? 'elevation' : 'outlined'}
       >
-        <CardContent className={classes.content}>
-          <ConnectorTitle connector={connector} />
-          {connector.connectorDescription && (
-            <Typography className={classes.description}>
-              {connector.connectorDescription}
-            </Typography>
-          )}
-          <div className={classes.footer}>
-            <Chip
-              variant="outlined"
-              className={classes.chipInList}
-              color="default"
-              label={connector.isExternal ? t('External') : t('Built-in')}
-            />
-            {showLastUpdatedAt
-              && (
-                <div className={classes.dotContainer}>
-                  <div
-                    className={`${classes.dot} ${connector.lastUpdatedAt ? classes.green : classes.red}`}
-                  />
-                  <Typography variant="h4" style={{ margin: 0 }}>
-                    {`${t('Updated at')} ${nsdt(connector.lastUpdatedAt)}`}
-                  </Typography>
-                </div>
-              )}
-            {onDeployBtnClick
-              && <DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={connector.connectorInstancesCount ?? 0} />}
-          </div>
-        </CardContent>
-      </CardActionArea>
-    </Card>
+        <CardActionArea
+          component={Link}
+          to={cardActionUrl}
+          disabled={isNotClickable || disabled}
+        >
+          <CardContent className={classes.content}>
+            <ConnectorTitle connector={connector} />
+            {connector.connectorDescription && (
+              <Typography className={classes.description}>
+                {connector.connectorDescription}
+              </Typography>
+            )}
+            <div className={classes.footer}>
+              <Chip
+                variant="outlined"
+                className={classes.chipInList}
+                color="default"
+                label={connector.isExternal ? t('External') : t('Built-in')}
+              />
+              {showLastUpdatedAt
+                && (
+                  <div className={classes.dotContainer}>
+                    <div
+                      className={`${classes.dot} ${connector.lastUpdatedAt ? classes.green : classes.red}`}
+                    />
+                    <Typography variant="h4" style={{ margin: 0 }}>
+                      {`${t('Updated at')} ${nsdt(connector.lastUpdatedAt)}`}
+                    </Typography>
+                  </div>
+                )}
+              {onDeployBtnClick
+                && <DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={connector.connectorInstancesCount ?? 0} />}
+            </div>
+          </CardContent>
+        </CardActionArea>
+      </Card>
+    </Tooltip>
   );
 };
 

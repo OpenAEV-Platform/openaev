@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
-import ConnectorDetails from './common/ConnectorDetails';
+import CatalogConnectorDetails from './common/CatalogConnectorDetails';
 import InjectorPage from './injectors/InjectorPage';
 
 const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
@@ -29,7 +29,7 @@ const Index = () => {
 
           <Route path="catalog" element={errorWrapper(CatalogLayout)()}>
             <Route index element={<Catalog />} />
-            <Route path=":catalogConnectorId" element={<ConnectorDetails />} />
+            <Route path=":catalogConnectorId" element={<CatalogConnectorDetails />} />
           </Route>
 
           <Route path="injectors" element={errorWrapper(InjectorsLayout)()}>

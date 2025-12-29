@@ -80,8 +80,11 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected CollectorOutput mapToOutput(
-      Collector collector, CatalogConnector catalogConnector, boolean isVerified) {
-    return collectorMapper.toCollectorOutput(collector, catalogConnector, isVerified);
+      Collector collector,
+      CatalogConnector catalogConnector,
+      ConnectorInstance instance,
+      boolean isVerified) {
+    return collectorMapper.toCollectorOutput(collector, catalogConnector, instance, isVerified);
   }
 
   @Override
@@ -159,6 +162,15 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
         .fieldNames()
         .forEachRemaining(fieldName -> state.set(fieldName, newState.get(fieldName)));
     return collectorRepository.save(collectorToUpdate);
+  }
+
+  /**
+   * Delete a collector by ID
+   *
+   * @param id the collector ID to delete
+   */
+  public void deleteById(String id) {
+    collectorRepository.deleteById(id);
   }
 
   // -- ACTION --
