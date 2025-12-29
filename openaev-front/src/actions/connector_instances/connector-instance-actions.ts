@@ -1,7 +1,6 @@
 import type { Dispatch } from 'redux';
 
 import {
-  delReferential,
   getReferential,
   putReferential,
   simpleCall,
