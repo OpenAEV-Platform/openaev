@@ -12,6 +12,7 @@ import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.*;
@@ -86,6 +87,7 @@ class InjectApiTest extends IntegrationTest {
   static Document DOCUMENT2;
   static Team TEAM;
   static Agent AGENT;
+  static Set<Domain> DOMAINS;
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
   @Autowired private ApplicationContext applicationContext;
@@ -162,6 +164,8 @@ class InjectApiTest extends IntegrationTest {
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(endpointSaved);
     AGENT = agentRepository.save(agent);
+
+    DOMAINS = domainComposer.forDomain(null).persist().getSet();
   }
 
   // BULK DELETE
@@ -553,8 +557,6 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
@@ -564,7 +566,7 @@ class InjectApiTest extends IntegrationTest {
               "echo command name #{arg_value}",
               List.of(prerequisite),
               "echo cleanup cmd",
-              domains);
+              DOMAINS);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -617,11 +619,9 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
       String command =
           "echo separatebyspace : #{asset-separate-by-space} separatebycoma : #{asset-separate-by-comma}";
-      Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null, domains);
+      Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null, DOMAINS);
       PayloadArgument targetedAssetArgument =
           PayloadFixture.createPayloadArgument(
               "asset-separate-by-space", ContractFieldType.TargetedAsset, "hostname", "-u");
@@ -700,11 +700,9 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void calling_RetrievingExecutablePayload_should_setStartDateSignature() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", domains);
+              "bash", "echo command name #{arg_value}", List.of(), "echo cleanup cmd", DOMAINS);
       Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -767,11 +765,9 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {
       // -- PREPARE --
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
       Command payloadCommand =
           PayloadFixture.createCommand(
-              "psh", "echo Hello World", List.of(), "echo cleanup cmd", domains);
+              "psh", "echo Hello World", List.of(), "echo cleanup cmd", DOMAINS);
       Payload payloadSaved = payloadRepository.save(payloadCommand);
 
       Injector injector = injectorRepository.findByType("openaev_implant").orElseThrow();
@@ -823,6 +819,19 @@ class InjectApiTest extends IntegrationTest {
     private Inject getPendingInjectWithAssets() {
       return injectTestHelper.getPendingInjectWithAssets(
           injectComposer, endpointComposer, agentComposer, injectStatusComposer);
+    }
+
+    private void performAgentlessCallbackRequest(String injectId, InjectExecutionInput input)
+        throws Exception {
+      mvc.perform(
+              post(INJECT_URI + "/execution/callback/" + injectId)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
 
     private void performCallbackRequest(String agentId, String injectId, InjectExecutionInput input)
@@ -1040,6 +1049,44 @@ class InjectApiTest extends IntegrationTest {
                 .toList();
         assertEquals(1, endDatesignatures.size());
       }
+
+      @DisplayName(
+          "Should add a trace when inject completed without agent (e.g. external injectors")
+      @Test
+      void given_completeTraceAndNullAgent_should_addTrace() throws Exception {
+
+        // -- PREPARE --
+        Inject inject = getPendingInjectWithAssets();
+        injectTestHelper.forceSaveInject(inject);
+
+        String traceMessage = "Complete log received";
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(traceMessage);
+        input.setAction(InjectExecutionAction.complete);
+        input.setStatus("INFO");
+        input.setDuration(1000);
+
+        performAgentlessCallbackRequest(inject.getId(), input);
+        Awaitility.await()
+            .atMost(15, TimeUnit.SECONDS)
+            .with()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .until(
+                () -> {
+                  Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
+                  return dbInject.getStatus().isPresent()
+                      && !dbInject.getStatus().get().getTraces().isEmpty();
+                });
+
+        // -- ASSERT --
+        Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
+        assertThat(dbInject.getStatus().get().getTraces()).isNotEmpty();
+        assertThat(dbInject.getStatus().get().getTraces().size()).isEqualTo(1);
+        ExecutionTrace singleTrace = dbInject.getStatus().get().getTraces().getFirst();
+        assertThat(singleTrace.getMessage()).isEqualTo(traceMessage);
+        assertThat(singleTrace.getAction()).isEqualTo(ExecutionTraceAction.COMPLETE);
+        assertThat(singleTrace.getStatus()).isEqualTo(ExecutionTraceStatus.INFO);
+      }
     }
 
     @Nested
@@ -1141,13 +1188,11 @@ class InjectApiTest extends IntegrationTest {
         input.setStatus("SUCCESS");
         Inject inject = getPendingInjectWithAssets();
 
-        Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
         // Create payload with output parser
         ContractOutputElement CVEOutputElement = OutputParserFixture.getCVEOutputElement();
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(CVEOutputElement));
         Command payloadCommand =
-            PayloadFixture.createCommand("bash", "command", null, null, domains);
+            PayloadFixture.createCommand("bash", "command", null, null, DOMAINS);
         payloadCommand.setOutputParsers(Set.of(outputParser));
         Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
@@ -1427,8 +1472,6 @@ class InjectApiTest extends IntegrationTest {
   class ShouldFetchDocuments {
 
     private Inject getInjectWithPayloadAndFileDropDocumentsLinkedOnIt() {
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
           .withInjectorContract(
@@ -1436,7 +1479,7 @@ class InjectApiTest extends IntegrationTest {
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                   .withPayload(
                       payloadComposer
-                          .forPayload(PayloadFixture.createDefaultFileDrop(domains))
+                          .forPayload(PayloadFixture.createDefaultFileDrop(DOMAINS))
                           .withFileDrop(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(
@@ -1446,8 +1489,6 @@ class InjectApiTest extends IntegrationTest {
     }
 
     private Inject getInjectWithPayloadAndExecutableDocumentsLinkedOnIt() {
-      Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
-
       return injectComposer
           .forInject(InjectFixture.getDefaultInject())
           .withInjectorContract(
@@ -1455,7 +1496,7 @@ class InjectApiTest extends IntegrationTest {
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                   .withPayload(
                       payloadComposer
-                          .forPayload(PayloadFixture.createDefaultExecutable(domains))
+                          .forPayload(PayloadFixture.createDefaultExecutable(DOMAINS))
                           .withExecutable(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(FileFixture.getBeadFileContent())))))

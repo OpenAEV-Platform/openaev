@@ -88,7 +88,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     return exerciseComposer
         .forExercise(ExerciseFixture.createDefaultCrisisExercise())
@@ -195,7 +195,9 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_created_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_updated_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_created_at",
-            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at")
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
   }
@@ -234,7 +236,9 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_created_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_updated_at",
             "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_created_at",
-            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at")
+            "exercise_injects[*].inject_injector_contract.injector_contract_payload.payload_domains[*].domain_updated_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_created_at",
+            "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
   }

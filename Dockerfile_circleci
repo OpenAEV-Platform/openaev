@@ -8,7 +8,7 @@ COPY openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 COPY pom.xml ./pom.xml
 RUN mvn install -DskipTests -Pdev
 
-FROM eclipse-temurin:21.0.8_9-jre AS app
+FROM eclipse-temurin:21.0.9_10-jre AS app
 
 RUN ln -s /usr/bin/dpkg-split /usr/sbin/dpkg-split
 RUN ln -s /usr/bin/dpkg-deb /usr/sbin/dpkg-deb

@@ -62,6 +62,14 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.findSettings();
   }
 
+  @GetMapping("/version")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
+  @Operation(summary = "Get platform version", description = "Return the platform version")
+  public String platformVersion() {
+    return platformSettingsService.getPlatformVersion();
+  }
+
   @PutMapping()
   @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})

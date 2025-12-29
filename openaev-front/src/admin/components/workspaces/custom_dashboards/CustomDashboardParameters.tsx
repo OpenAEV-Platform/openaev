@@ -64,8 +64,9 @@ const CustomDashboardParameters: FunctionComponent = () => {
             key={p.custom_dashboards_parameter_id}
             label={p.custom_dashboards_parameter_name}
             value={paramOption?.value}
-            onChange={(value: string | undefined) =>
-              handleParametersValue(p.custom_dashboards_parameter_id, value ?? '')}
+            onChange={(value: string | undefined) => {
+              handleParametersValue(p.custom_dashboards_parameter_id, value ?? '');
+            }}
             searchOptionsConfig={paramOption?.searchOptionsConfig}
           />
         );

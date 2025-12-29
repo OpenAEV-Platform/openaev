@@ -1,8 +1,8 @@
-import { ArrowDropDownSharp, ArrowRightSharp } from '@mui/icons-material';
 import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
+import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
@@ -17,9 +17,6 @@ interface Props {
 const AgentTraces = ({ traces, isInitialExpanded = false }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const [isExpanded, setIsExpanded] = useState(isInitialExpanded);
-
-  const toggleExpand = () => setIsExpanded(prev => !prev);
 
   const agentStatus = useMemo(() => {
     const sorted = [...traces].sort(
@@ -63,70 +60,61 @@ const AgentTraces = ({ traces, isInitialExpanded = false }: Props) => {
     return grouped;
   }, [agentStatus.traces]);
 
-  return (
+  const header = (
     <>
-      <div
-        onClick={toggleExpand}
-        style={{
-          marginTop: theme.spacing(3),
-          cursor: 'pointer',
-          display: 'flex',
-        }}
-      >
-        {isExpanded ? <ArrowDropDownSharp /> : <ArrowRightSharp />}
-        <Typography gutterBottom sx={{ marginRight: theme.spacing(1.5) }}>
-          {agentStatus.agentName}
-        </Typography>
-        <ItemStatus
-          isInject
-          status={agentStatus.statusName}
-          label={agentStatus.statusName}
-        />
-      </div>
+      <Typography gutterBottom sx={{ mr: theme.spacing(1.5) }}>
+        {agentStatus.agentName}
+      </Typography>
+      <ItemStatus
+        isInject
+        status={agentStatus.statusName}
+        label={agentStatus.statusName}
+      />
+    </>
+  );
 
-      {isExpanded && (
+  return (
+    <ExpandableSection
+      forceExpanded={isInitialExpanded}
+      header={header}
+    >
+      <div style={{ margin: theme.spacing(3) }}>
+        <ExecutionTime
+          startDate={agentStatus.trackingStart}
+          endDate={agentStatus.trackingEnd}
+        />
         <div style={{
-          marginLeft: theme.spacing(3),
-          marginTop: theme.spacing(1),
+          display: 'flex',
+          gap: theme.spacing(1.5),
         }}
         >
-          <ExecutionTime
-            startDate={agentStatus.trackingStart}
-            endDate={agentStatus.trackingEnd}
-          />
-          <div style={{
-            display: 'flex',
-            gap: theme.spacing(1.5),
-          }}
-          >
-            <Typography variant="h3">{t('Executor')}</Typography>
-            {agentStatus.executorType && (
-              <img
-                src={`/api/images/executors/icons/${agentStatus.executorType}`}
-                alt={agentStatus.executorType}
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 4,
-                }}
-              />
-            )}
-            <Typography variant="body2">{t(agentStatus.executorName || '-')}</Typography>
-          </div>
-          <Typography variant="h3" sx={{ marginTop: theme.spacing(2) }}>
-            {t('Traces')}
-          </Typography>
-          {tracesByAction.map((group, index) => (
-            <div key={`trace-group-${index}`}>
-              <Typography variant="h3" gutterBottom>
-                {t(group.action)}
-              </Typography>
-              <TraceMessage traces={group.traces} />
-            </div>
-          ))}
+          <Typography variant="h3">{t('Executor')}</Typography>
+          {agentStatus.executorType && (
+            <img
+              src={`/api/images/executors/icons/${agentStatus.executorType}`}
+              alt={agentStatus.executorType}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 4,
+              }}
+            />
+          )}
+          <Typography variant="body2">{t(agentStatus.executorName || '-')}</Typography>
         </div>
-      )}
-    </>
+        <Typography variant="h3" sx={{ marginTop: theme.spacing(2) }}>
+          {t('Traces')}
+        </Typography>
+        {tracesByAction.map((group, index) => (
+          <div key={`trace-group-${index}`}>
+            <Typography variant="h3" gutterBottom>
+              {t(group.action)}
+            </Typography>
+            <TraceMessage traces={group.traces} />
+          </div>
+        ))}
+      </div>
+    </ExpandableSection>
   );
 };
 

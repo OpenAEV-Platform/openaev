@@ -9,7 +9,7 @@ export interface UseEntityToggle<T> {
   onToggleEntity: (
     entity: T,
     _?: SyntheticEvent,
-    forceRemove?: T[]
+    forceRemove?: T[],
   ) => void;
   handleClearSelectedElements: () => void;
   handleToggleSelectAll: () => void;

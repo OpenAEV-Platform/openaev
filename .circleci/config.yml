@@ -1,7 +1,7 @@
 version: 2.1
 orbs:
   slack: circleci/slack@5.2.3
-  kubernetes: circleci/kubernetes@2.0.1
+  kubernetes: circleci/kubernetes@2.0.2
 jobs:
   build_frontend:
     working_directory: ~/openaev

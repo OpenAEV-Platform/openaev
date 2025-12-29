@@ -59,7 +59,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       widgetTimeRange = widget.widget_config.time_range;
     }
     const formattedDiff
-        = !difference_count || difference_count > 0 ? `+${difference_count}` : `${difference_count}`;
+      = !difference_count || difference_count > 0 ? `+${difference_count}` : `${difference_count}`;
     // Pick icon & color based on difference_count
     let Icon = ArrowForwardOutlined;
     let color = 'grey.400';

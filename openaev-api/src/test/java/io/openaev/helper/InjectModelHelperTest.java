@@ -32,7 +32,7 @@ class InjectModelHelperTest extends IntegrationTest {
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     Injector injector = createDefaultPayloadInjector();
     Command payloadCommand = createCommand("cmd", "whoami", List.of(), "whoami", domains);
     return createPayloadInjectorContract(injector, payloadCommand);

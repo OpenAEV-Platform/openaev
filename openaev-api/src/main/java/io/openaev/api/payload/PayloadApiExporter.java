@@ -5,6 +5,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.jsonapi.IncludeOptions;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
@@ -12,6 +13,8 @@ import io.openaev.rest.payload.PayloadApi;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +38,12 @@ public class PayloadApiExporter extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String payloadId)
       throws IOException {
+    Map<String, Boolean> opts = new HashMap<>();
+    opts.put("exclude from payload export", false);
+    IncludeOptions includeOptions = IncludeOptions.of(opts);
+
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
-    return zipJsonApi.handleExport(payload);
+    return zipJsonApi.handleExport(payload, null, includeOptions);
   }
 }

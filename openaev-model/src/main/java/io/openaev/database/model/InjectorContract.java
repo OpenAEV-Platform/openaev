@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -88,6 +89,7 @@ public class InjectorContract implements Base {
     return ofNullable(getPayload()).map(payload -> payload.getExecutionArch()).orElse(null);
   }
 
+  @Queryable(filterable = true)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")
@@ -137,8 +139,18 @@ public class InjectorContract implements Base {
       name = "injectors_contracts_domains",
       joinColumns = @JoinColumn(name = "injector_contract_id"),
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @JsonProperty("injector_contract_domains")
+  @Getter(NONE)
   private Set<Domain> domains = new HashSet<>();
+
+  @JsonProperty("injector_contract_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"payload.domains.id", "domains.id"},
+      clazz = String[].class)
+  public Set<Domain> getDomains() {
+    return this.payload != null ? this.payload.getDomains() : this.domains;
+  }
 
   @ArraySchema(schema = @Schema(type = "string"))
   @ManyToMany(fetch = FetchType.EAGER)

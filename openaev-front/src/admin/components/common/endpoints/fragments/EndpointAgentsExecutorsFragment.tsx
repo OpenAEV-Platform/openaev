@@ -1,6 +1,6 @@
 import { Tooltip } from '@mui/material';
 
-import { fetchExecutors } from '../../../../../actions/Executor';
+import { fetchExecutors } from '../../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../../actions/executors/executor-helper';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';

@@ -6,10 +6,12 @@ import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -20,16 +22,16 @@ import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class InjectorService {
+
+  private static final String TOCLASSIFY = "To classify";
 
   @Resource protected ObjectMapper mapper;
 
@@ -40,6 +42,8 @@ public class InjectorService {
   private InjectorContractRepository injectorContractRepository;
 
   private AttackPatternRepository attackPatternRepository;
+
+  private DomainRepository domainRepository;
 
   @Resource
   public void setFileService(FileService fileService) {
@@ -59,6 +63,11 @@ public class InjectorService {
   @Autowired
   public void setInjectorContractRepository(InjectorContractRepository injectorContractRepository) {
     this.injectorContractRepository = injectorContractRepository;
+  }
+
+  @Autowired
+  public void setDomainRepository(DomainRepository domainRepository) {
+    this.domainRepository = domainRepository;
   }
 
   @Transactional
@@ -148,6 +157,13 @@ public class InjectorService {
                       contractDB.setAttackPatterns(attackPatterns);
                     }
                   }
+                  // Manage the update for domains by doing a merge, if payloads, domains will be
+                  // hold by payloads
+                  if (!isPayloads) {
+                    Set<Domain> currentDomains = this.upserts(contractDB.getDomains());
+                    Set<Domain> domainsToAdd = this.upserts(current.get().getDomains());
+                    contractDB.setDomains(this.mergeDomains(currentDomains, domainsToAdd));
+                  }
                   try {
                     contractDB.setContent(mapper.writeValueAsString(current.get()));
                   } catch (JsonProcessingException e) {
@@ -190,6 +206,9 @@ public class InjectorService {
                       injectorContract.setContent(mapper.writeValueAsString(in));
                     } catch (JsonProcessingException e) {
                       throw new RuntimeException(e);
+                    }
+                    if (!isPayloads && in.getDomains() != null) {
+                      injectorContract.setDomains(this.upserts(in.getDomains()));
                     }
                     return injectorContract;
                   })
@@ -239,6 +258,9 @@ public class InjectorService {
                     } catch (JsonProcessingException e) {
                       throw new RuntimeException(e);
                     }
+                    if (!isPayloads && in.getDomains() != null) {
+                      injectorContract.setDomains(this.upserts(in.getDomains()));
+                    }
                     return injectorContract;
                   })
               .toList();
@@ -248,5 +270,56 @@ public class InjectorService {
 
   public Iterable<Injector> injectors() {
     return injectorRepository.findAll();
+  }
+
+  public Set<Domain> upserts(final Set<Domain> domains) {
+    return domains.stream().map(this::upsert).collect(Collectors.toSet());
+  }
+
+  private Domain upsert(final Domain domain) {
+    Optional<Domain> existingDomain = domainRepository.findByName(domain.getName());
+    return existingDomain.orElseGet(
+        () ->
+            domainRepository.save(
+                new Domain(
+                    null,
+                    domain.getName(),
+                    domain.getColor() != null ? domain.getColor() : randomColor(),
+                    Instant.now(),
+                    null)));
+  }
+
+  private String randomColor() {
+    Random rand = new Random();
+    return String.format("#%06x", rand.nextInt(0xffffff + 1));
+  }
+
+  public Set<Domain> mergeDomains(final Set<Domain> existingDomains, final Set<Domain> domains) {
+    final boolean isExistingDomainsEmptyOrToClassify = isEmptyOrToClassify(existingDomains);
+    final boolean domainsEmptyOrToClassify = isEmptyOrToClassify(domains);
+
+    if (isExistingDomainsEmptyOrToClassify && domainsEmptyOrToClassify) {
+      return new HashSet<>(
+          Collections.singletonList(
+              this.upsert(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
+    }
+
+    Set<Domain> domainsToAdd = domains;
+    if (domainsEmptyOrToClassify) {
+      domainsToAdd = new HashSet<>();
+    }
+
+    if (isExistingDomainsEmptyOrToClassify) {
+      return domainsToAdd;
+    }
+
+    return Stream.concat(existingDomains.stream(), domainsToAdd.stream())
+        .collect(Collectors.toSet());
+  }
+
+  private boolean isEmptyOrToClassify(final Set<Domain> domains) {
+    return domains == null
+        || domains.isEmpty()
+        || (domains.size() == 1 && TOCLASSIFY.equals(domains.iterator().next().getName()));
   }
 }

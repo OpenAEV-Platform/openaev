@@ -52,19 +52,21 @@ public class ConnectorInstance implements Base {
   private CatalogConnector catalogConnector;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_instance_current_status")
   @JsonProperty("connector_instance_current_status")
-  @NotBlank
+  @NotNull
   private CURRENT_STATUS_TYPE currentStatus;
 
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_instance_source")
   @JsonProperty("connector_instance_source")
-  @NotBlank
+  @NotNull
   private SOURCE source = SOURCE.OTHER;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_instance_requested_status")
   @JsonProperty("connector_instance_requested_status")
   private REQUESTED_STATUS_TYPE requestedStatus;
@@ -83,7 +85,7 @@ public class ConnectorInstance implements Base {
 
   @OneToMany(
       mappedBy = "connectorInstance",
-      fetch = FetchType.EAGER,
+      fetch = FetchType.LAZY,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("connector_instance_configurations")

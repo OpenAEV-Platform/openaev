@@ -21,6 +21,7 @@ import io.openaev.injectors.caldera.config.CalderaInjectorConfig;
 import io.openaev.injectors.caldera.model.CalderaInjectContent;
 import io.openaev.injectors.caldera.model.Obfuscator;
 import io.openaev.injectors.caldera.service.CalderaInjectorService;
+import io.openaev.rest.domain.DomainService;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public class CalderaContract extends Contractor {
   private final CalderaInjectorConfig config;
   private final CalderaInjectorService injectorCalderaService;
   private final ExpectationBuilderService expectationBuilderService;
+  private final DomainService domainService;
 
   @Override
   public boolean isExpose() {
@@ -151,7 +153,8 @@ public class CalderaContract extends Contractor {
                       Map.of(en, ability.getName(), fr, ability.getName()),
                       builder.build(),
                       platforms,
-                      true);
+                      true,
+                      domainService.findDomainByNameAndDescription(ability.getName()));
               contract.addAttackPattern(ability.getTechnique_id());
               return contract;
             }))

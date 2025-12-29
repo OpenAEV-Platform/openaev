@@ -69,3 +69,5 @@ export const LabelColorDict = {
   Green: 'GREEN',
   Orange: 'ORANGE',
 } as const;
+
+export const FONT_FAMILY_CODE = 'Consolas, monaco, monospace';

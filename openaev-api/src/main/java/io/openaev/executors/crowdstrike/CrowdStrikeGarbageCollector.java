@@ -1,7 +1,7 @@
 package io.openaev.executors.crowdstrike;
 
-import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
+import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorService;
 import io.openaev.service.AgentService;
 import jakarta.annotation.PostConstruct;
@@ -18,15 +18,17 @@ public class CrowdStrikeGarbageCollector {
 
   private final CrowdStrikeExecutorConfig config;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final CrowdStrikeExecutorClient client;
+  private final CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   private final AgentService agentService;
 
   @PostConstruct
   public void init() {
     if (this.config.isEnable()) {
       CrowdStrikeGarbageCollectorService service =
-          new CrowdStrikeGarbageCollectorService(this.config, this.client, this.agentService);
-      this.taskScheduler.scheduleAtFixedRate(service, Duration.ofHours(6));
+          new CrowdStrikeGarbageCollectorService(
+              this.config, this.crowdStrikeExecutorContextService, this.agentService);
+      this.taskScheduler.scheduleAtFixedRate(
+          service, Duration.ofHours(this.config.getCleanImplantInterval()));
     }
   }
 }

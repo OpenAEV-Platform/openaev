@@ -247,16 +247,14 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
         text={t('Do you want to delete this expectation result?')}
         handleSubmit={onDelete}
       />
-      {selectedResult
-        && (
-          <TargetResultsSecurityPlatform
-            injectExpectation={injectExpectation}
-            sourceId={selectedResult?.sourceId ?? ''}
-            expectationResult={selectedResult}
-            open={openSecurityPlatform}
-            handleClose={onCloseSecurityPlatformResult}
-          />
-        )}
+      <TargetResultsSecurityPlatform
+        injectExpectation={injectExpectation}
+        sourceId={selectedResult?.sourceId ?? ''}
+        expectationResult={selectedResult}
+        open={openSecurityPlatform}
+        handleClose={onCloseSecurityPlatformResult}
+      />
+
     </>
   );
 };

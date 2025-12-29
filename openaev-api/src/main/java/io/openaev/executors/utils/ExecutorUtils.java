@@ -1,8 +1,5 @@
 package io.openaev.executors.utils;
 
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
-
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import java.util.HashSet;
@@ -61,26 +58,15 @@ public class ExecutorUtils {
   }
 
   /**
-   * Found all CrowdStrike agents from a list of agents
+   * Found all agents from a list of agents and an executor type
    *
    * @param agents to filter
-   * @return founded crowdstrike agents
+   * @param executorType to filter
+   * @return founded agents from the given executor type
    */
-  public Set<Agent> foundCrowdstrikeAgents(Set<Agent> agents) {
+  public Set<Agent> foundAgentsByExecutorType(Set<Agent> agents, String executorType) {
     return agents.stream()
-        .filter(agent -> CROWDSTRIKE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
-        .collect(Collectors.toSet());
-  }
-
-  /**
-   * Found all SentinelOne agents from a list of agents
-   *
-   * @param agents to filter
-   * @return founded sentinelone agents
-   */
-  public Set<Agent> foundSentineloneAgents(Set<Agent> agents) {
-    return agents.stream()
-        .filter(agent -> SENTINELONE_EXECUTOR_TYPE.equals(agent.getExecutor().getType()))
+        .filter(agent -> executorType.equals(agent.getExecutor().getType()))
         .collect(Collectors.toSet());
   }
 

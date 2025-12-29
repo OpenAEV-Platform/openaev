@@ -115,13 +115,17 @@ public class BatchingInjectStatusService {
               throw new DataIntegrityViolationException(
                   "Cannot complete inject that is not in PENDING state");
             }
-            // Get the agent or throw if not found
+            // Get the nullable agent; throw only if ID was supplied and not found
             Agent agent =
-                Optional.ofNullable(mapAgentsById.get(callback.getAgentId()))
-                    .orElseThrow(
-                        () ->
-                            new ElementNotFoundException(
-                                "Agent not found: " + callback.getAgentId()));
+                Optional.ofNullable(callback.getAgentId())
+                    .map(
+                        id ->
+                            Optional.ofNullable(mapAgentsById.get(callback.getAgentId()))
+                                .orElseThrow(
+                                    () ->
+                                        new ElementNotFoundException(
+                                            "Agent not found: " + callback.getAgentId())))
+                    .orElse(null);
 
             // Extract the output parsers
             Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);

@@ -370,6 +370,46 @@ public class InjectExpectationService {
         PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
   }
 
+  // -- EXPECTATIONS BY TYPE --
+
+  public List<InjectExpectation> expectationsNotFilledAndNotExpiredBySourceId(
+      @NotNull InjectExpectation.EXPECTATION_TYPE type,
+      @NotNull Integer expirationTime,
+      @NotBlank String sourceId) {
+
+    Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
+
+    return injectExpectationRepository
+        .findAll(
+            Specification.where(
+                InjectExpectationSpecification.type(type)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(InjectExpectationSpecification.from(expirationThreshold))))
+        .stream()
+        .filter(ExpectationUtils::isAgentExpectation)
+        .filter(e -> hasNoResult(e.getResults(), sourceId))
+        .toList();
+  }
+
+  public List<InjectExpectation> expectationsNotFilledAndNotExpired(
+      @NotNull InjectExpectation.EXPECTATION_TYPE type, @NotNull Integer expirationTime) {
+
+    Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
+
+    return injectExpectationRepository
+        .findAll(
+            Specification.where(
+                InjectExpectationSpecification.type(type)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(InjectExpectationSpecification.from(expirationThreshold))))
+        .stream()
+        .filter(ExpectationUtils::isAgentExpectation)
+        .filter(e -> hasNoResults(e.getResults()))
+        .toList();
+  }
+
   // -- PREVENTION --
 
   public List<InjectExpectation> preventionExpectationsNotExpired(final Integer expirationTime) {
@@ -399,6 +439,16 @@ public class InjectExpectationService {
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
+  }
+
+  public List<InjectExpectation> preventionExpectationsNotFillAndNotExpired(
+      @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(PREVENTION, expirationTime);
+  }
+
+  public List<InjectExpectation> preventionExpectationsNotFilledAndNotExpired(
+      @NotNull Integer expirationTime, @NotBlank String sourceId) {
+    return expectationsNotFilledAndNotExpiredBySourceId(PREVENTION, expirationTime, sourceId);
   }
 
   // -- DETECTION --
@@ -432,6 +482,17 @@ public class InjectExpectationService {
         .toList();
   }
 
+  public List<InjectExpectation> detectionExpectationsNotFillAndNotExpired(
+      @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(DETECTION, expirationTime);
+  }
+
+  public List<InjectExpectation> detectionExpectationsNotFilledAndNotExpired(
+      @NotNull Integer expirationTime, @NotBlank String sourceId) {
+
+    return expectationsNotFilledAndNotExpiredBySourceId(DETECTION, expirationTime, sourceId);
+  }
+
   // -- MANUAL
 
   public List<InjectExpectation> manualExpectationsNotExpired(final Integer expirationTime) {
@@ -459,6 +520,11 @@ public class InjectExpectationService {
         .stream()
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
+  }
+
+  public List<InjectExpectation> manualExpectationsNotFillAndNotExpired(
+      @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(MANUAL, expirationTime);
   }
 
   // -- BY TARGET TYPE

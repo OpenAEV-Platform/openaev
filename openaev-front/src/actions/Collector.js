@@ -1,14 +1,25 @@
-import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simplePostCall,
+} from '../utils/Action';
 import * as schema from './Schema';
 
-export const fetchCollectors = () => (dispatch) => {
-  const uri = '/api/collectors';
+export const fetchCollectors = (isNextIncluded = false) => (dispatch) => {
+  const uri = `/api/collectors?include_next=${isNextIncluded}`;
   return getReferential(schema.arrayOfCollectors, uri)(dispatch);
 };
 
 export const fetchCollector = collectorId => (dispatch) => {
   const uri = `/api/collectors/${collectorId}`;
   return getReferential(schema.collector, uri)(dispatch);
+};
+
+export const fetchCollectorRelatedIds = (collectorId) => {
+  return simpleCall(`/api/collectors/${collectorId}/related-ids`);
 };
 
 export const searchCollectors = (paginationInput) => {

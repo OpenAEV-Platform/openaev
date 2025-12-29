@@ -126,7 +126,7 @@ class InjectImportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> getInjectWrappers() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     // Inject in exercise with an article attached
     ArticleComposer.Composer articleWrapper =

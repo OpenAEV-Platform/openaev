@@ -1,33 +1,143 @@
 package io.openaev.executors;
 
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.executor.form.ExecutorOutput;
 import io.openaev.service.FileService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
+import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
-public class ExecutorService {
+public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
 
   public static final String EXT_PNG = ".png";
   @Resource protected ObjectMapper mapper;
 
-  private final FileService fileService;
   private final ExecutorRepository executorRepository;
   private final ExecutionTraceRepository executionTraceRepository;
 
+  private final FileService fileService;
+  private final ConnectorInstanceService connectorInstanceService;
+
+  private final ExecutorMapper executorMapper;
+
+  @Autowired
+  public ExecutorService(
+      ExecutorRepository executorRepository,
+      ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
+      ExecutionTraceRepository executionTraceRepository,
+      FileService fileService,
+      CatalogConnectorService catalogConnectorService,
+      ConnectorInstanceService connectorInstanceService,
+      ExecutorMapper executorMapper,
+      CatalogConnectorMapper catalogConnectorMapper) {
+    super(
+        ConnectorType.EXECUTOR,
+        connectorInstanceConfigurationRepository,
+        catalogConnectorService,
+        catalogConnectorMapper);
+    this.fileService = fileService;
+    this.executorRepository = executorRepository;
+    this.executionTraceRepository = executionTraceRepository;
+    this.connectorInstanceService = connectorInstanceService;
+    this.executorMapper = executorMapper;
+  }
+
+  @Override
+  protected List<ConnectorInstance> getRelatedInstances() {
+    return connectorInstanceService.executorConnectorInstances();
+  }
+
+  @Override
+  protected List<Executor> getAllConnectors() {
+    return fromIterable(this.executors());
+  }
+
+  @Override
+  protected Executor getConnectorById(String executorId) {
+    return executorRepository.findById(executorId).orElse(null);
+  }
+
+  @Override
+  protected ExecutorOutput mapToOutput(
+      Executor executor, CatalogConnector catalogConnector, boolean isVerified) {
+    return executorMapper.toExecutorOutput(executor, catalogConnector, isVerified);
+  }
+
+  @Override
+  protected Executor createNewConnector() {
+    return new Executor();
+  }
+
+  /**
+   * Retrieve all executors.
+   *
+   * @param isIncludeNext Include pending executors.
+   * @return List of executor output
+   */
+  public Iterable<ExecutorOutput> executorsOutput(boolean isIncludeNext) {
+    return getConnectorsOutput(isIncludeNext);
+  }
+
+  /**
+   * Find an executor by its id
+   *
+   * @param id the executor id to search for
+   * @return the executor matching the given id
+   * @throws ElementNotFoundException if no collector is found with the given type
+   */
+  public Executor executor(String id) throws ElementNotFoundException {
+    return executorRepository
+        .findById(id)
+        .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
+  }
+
+  /**
+   * Retrieves IDs of resources associated with an executor.
+   *
+   * @param executorId executor identifier.
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  public ConnectorIds getExecutorRelationsId(String executorId) {
+    return getConnectorRelationsId(executorId);
+  }
+
+  /**
+   * Retrieve all executors
+   *
+   * @return List of executors
+   */
   public Iterable<Executor> executors() {
     return this.executorRepository.findAll();
+  }
+
+  /**
+   * Finds an executor by its type.
+   *
+   * @param type the executor type to search for
+   * @return an Optional containing the executor if found, empty otherwise
+   */
+  public Optional<Executor> executorByType(String type) {
+    return this.executorRepository.findByType(type);
   }
 
   @Transactional

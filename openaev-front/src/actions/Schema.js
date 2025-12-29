@@ -482,4 +482,8 @@ export const storeHelper = state => ({
   getAgents: () => entities('agents', state),
   // domains
   getDomains: () => entities('domains', state),
+  // catalog
+  getCatalogConnectors: () => entities('catalog_connectors', state),
+  getCatalogConnector: id => entity(id, 'catalog_connectors', state),
+  getConnectorInstance: id => entity(id, 'connectorinstances', state),
 });

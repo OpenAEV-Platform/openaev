@@ -15,8 +15,10 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -24,6 +26,22 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "catalog_connectors_configuration")
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnectorConfiguration implements Base {
+  public enum CONNECTOR_CONFIGURATION_TYPE {
+    ARRAY,
+    BOOLEAN,
+    INTEGER,
+    OBJECT,
+    STRING
+  }
+
+  public enum CONNECTOR_CONFIGURATION_FORMAT {
+    DATE,
+    DATETIME,
+    DURATION,
+    EMAIL,
+    PASSWORD,
+    URI
+  }
 
   @Id
   @Column(name = "connector_configuration_id")
@@ -43,6 +61,7 @@ public class CatalogConnectorConfiguration implements Base {
 
   @Column(name = "connector_configuration_key")
   @JsonProperty("connector_configuration_key")
+  @NotNull
   @Schema(description = "Connector configuration key")
   private String connectorConfigurationKey;
 
@@ -57,15 +76,20 @@ public class CatalogConnectorConfiguration implements Base {
   @Schema(description = "Connector configuration description")
   private String connectorConfigurationDescription;
 
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_configuration_type")
   @JsonProperty("connector_configuration_type")
+  @NotNull
   @Schema(description = "Connector configuration type")
-  private String connectorConfigurationType;
+  private CONNECTOR_CONFIGURATION_TYPE connectorConfigurationType;
 
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_configuration_format")
   @JsonProperty("connector_configuration_format")
   @Schema(description = "Connector configuration format")
-  private String connectorConfigurationFormat;
+  private CONNECTOR_CONFIGURATION_FORMAT connectorConfigurationFormat;
 
   @Type(ListArrayType.class)
   @Column(name = "connector_configuration_enum")

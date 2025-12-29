@@ -112,6 +112,14 @@ public class OpenAEVConfig {
   @Value("${openbas.queue-config:${openaev.queue-config:#{null}}}")
   private Map<String, QueueConfig> queueConfig;
 
+  @JsonProperty("logout_success_url")
+  @Value("${openbas.logout-success-url:${openaev.logout-success-url:/}}")
+  private String logoutSuccessUrl;
+
+  @JsonProperty("frontend_url")
+  @Value("${openbas.frontend-url:${openaev.frontend-url:}}")
+  private String frontendUrl;
+
   public String getBaseUrl() {
     return url(baseUrl);
   }

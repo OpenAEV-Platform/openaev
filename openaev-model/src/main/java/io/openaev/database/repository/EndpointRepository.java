@@ -171,6 +171,13 @@ public interface EndpointRepository
       nativeQuery = true)
   void setUpdateDate(@Param("updateDate") Instant updateDate, @Param("id") String assetId);
 
+  // Replace Hibernate query by native query for perfs
+  // Native query does the same as Hibernate query here because all "cascade" and other relations
+  // are properly set in the database
+  @Modifying
+  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
+  void deleteById(@Param("assetId") @NotBlank String assetId);
+
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
 
   List<Endpoint> findDistinctByInjectsScenarioIdAndIdIn(String scenarioId, List<String> ids);

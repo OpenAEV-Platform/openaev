@@ -27,9 +27,11 @@ import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractCheckbox;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -126,7 +128,8 @@ public class ChannelContract extends Contractor {
             Map.of(en, "Publish a media pressure", fr, "Publier de la pression médiatique"),
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
-            false);
+            false,
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     // Adding generated variables
     publishArticle.addVariable(
         variable(

@@ -63,7 +63,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   private InjectComposer.Composer getInjectWrapper() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     return injectComposer
         .forInject(InjectFixture.getInjectWithoutContract())
@@ -84,7 +84,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   private InjectComposer.Composer getInjectWithAllTeams() {
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     return injectComposer
         .forInject(InjectFixture.getInjectWithAllTeams())

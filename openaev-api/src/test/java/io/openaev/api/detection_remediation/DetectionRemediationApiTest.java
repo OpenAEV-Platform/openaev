@@ -84,7 +84,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @DisplayName("Generate AI rules detection remediation by payload , EE not available")
   public void getDetectionRemediationRuleByPayloadWithoutLicenceEE() {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -115,7 +115,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @DisplayName("Generate AI rules detection remediation by payload for unknow collector type")
   public void getDetectionRemediationRuleByPayloadForUnknowCollectorType() {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -144,7 +144,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleByPayloadWithBadDetectionRemediationAIResponse()
       throws Exception {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -179,7 +179,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseUnavailable()
           throws Exception {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -224,7 +224,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseBadGateway()
           throws Exception {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -270,7 +270,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponse()
       throws Exception {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -317,7 +317,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedPayloadCommandCrowdStrikeWithRules() {
 
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -356,7 +356,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnPayloadCommandCrowdStrikeWithoutAttackPatternAndArguments()
           throws Exception {
     // -- PREPARE -
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)).get();
@@ -425,7 +425,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command)
@@ -497,7 +497,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payload =
         (Command)
@@ -552,7 +552,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
@@ -623,7 +623,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
@@ -676,7 +676,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     FileDrop payload =
         (FileDrop)
@@ -716,7 +716,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     FileDrop payload =
         (FileDrop)
@@ -756,7 +756,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     Executable payload =
         (Executable)
             payloadComposer
@@ -795,7 +795,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     Executable payload =
         (Executable)
             payloadComposer
@@ -1350,7 +1350,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     Command payloadCommand =
         (Command)
@@ -1386,7 +1386,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     DetectionRemediation detectionRemediation = new DetectionRemediation();
     detectionRemediation.setValues("I have a rule");
@@ -1420,7 +1420,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     DetectionRemediation detectionRemediation = new DetectionRemediation();
     detectionRemediation.setValues("");
@@ -1453,7 +1453,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     DnsResolution payload =
         (DnsResolution)
             payloadComposer
@@ -1485,7 +1485,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       throws JsonProcessingException {
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
     List<PayloadArgument> payloadArguments = getPayloadArguments();
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
 
     FileDrop payload =
         (FileDrop)
@@ -1521,7 +1521,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       throws JsonProcessingException {
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
 
-    Set<Domain> domains = domainComposer.forDefaultToClassifyDomain().persist().getSet();
+    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
     List<PayloadArgument> payloadArguments = getPayloadArguments();
     Executable payload =
         (Executable)

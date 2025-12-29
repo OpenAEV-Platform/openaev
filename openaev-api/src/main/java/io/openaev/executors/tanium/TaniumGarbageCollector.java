@@ -1,7 +1,7 @@
 package io.openaev.executors.tanium;
 
-import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
+import io.openaev.executors.tanium.service.TaniumExecutorContextService;
 import io.openaev.executors.tanium.service.TaniumGarbageCollectorService;
 import io.openaev.service.AgentService;
 import jakarta.annotation.PostConstruct;
@@ -18,15 +18,17 @@ public class TaniumGarbageCollector {
 
   private final TaniumExecutorConfig config;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final TaniumExecutorClient client;
+  private final TaniumExecutorContextService taniumExecutorContextService;
   private final AgentService agentService;
 
   @PostConstruct
   public void init() {
     if (this.config.isEnable()) {
       TaniumGarbageCollectorService service =
-          new TaniumGarbageCollectorService(this.config, this.client, this.agentService);
-      this.taskScheduler.scheduleAtFixedRate(service, Duration.ofHours(6));
+          new TaniumGarbageCollectorService(
+              this.config, this.taniumExecutorContextService, this.agentService);
+      this.taskScheduler.scheduleAtFixedRate(
+          service, Duration.ofHours(this.config.getCleanImplantInterval()));
     }
   }
 }

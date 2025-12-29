@@ -33,7 +33,7 @@ interface Recurrence {
 const defaultFormValues = () => ({
   startDate: new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString(),
   endDate: null,
-  time: minutesInFuture(1).toISOString(),
+  time: minutesInFuture(2).toISOString(),
   onlyWeekday: false,
   dayOfWeek: 1 as Recurrence['dayOfWeek'],
   weekOfMonth: 1 as Recurrence['weekOfMonth'],
@@ -90,7 +90,7 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ onSubmit, selec
           if (['noRepeat'].includes(selectRecurring)) {
             if (data.time) {
               return new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() !== new Date(data.startDate).getTime()
-                || new Date(new Date(minutesInFuture(1).toISOString()).setSeconds(0, 0)).getTime() < new Date(data.time).getTime();
+                || new Date(new Date(minutesInFuture(2).toISOString()).setSeconds(0, 0)).getTime() < new Date(data.time).getTime();
             }
           }
           return true;

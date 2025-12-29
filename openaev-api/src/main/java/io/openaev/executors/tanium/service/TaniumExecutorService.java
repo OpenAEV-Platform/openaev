@@ -8,12 +8,16 @@ import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.NodeEndpoint;
+import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.executors.tanium.model.TaniumEndpoint;
+import io.openaev.service.AgentService;
+import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -31,8 +35,10 @@ public class TaniumExecutorService implements Runnable {
   private static final String TANIUM_EXECUTOR_BACKGROUND_COLOR = "#E03E41";
 
   private final TaniumExecutorClient client;
-
+  private final TaniumExecutorConfig config;
   private final EndpointService endpointService;
+  private final AgentService agentService;
+  private final AssetGroupService assetGroupService;
 
   private Executor executor = null;
 
@@ -58,9 +64,14 @@ public class TaniumExecutorService implements Runnable {
       ExecutorService executorService,
       TaniumExecutorClient client,
       TaniumExecutorConfig config,
-      EndpointService endpointService) {
+      EndpointService endpointService,
+      AgentService agentService,
+      AssetGroupService assetGroupService) {
     this.client = client;
+    this.config = config;
     this.endpointService = endpointService;
+    this.agentService = agentService;
+    this.assetGroupService = assetGroupService;
     try {
       if (config.isEnable()) {
         this.executor =
@@ -88,13 +99,35 @@ public class TaniumExecutorService implements Runnable {
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");
-    List<NodeEndpoint> nodeEndpoints =
-        this.client.endpoints().getEndpoints().getEdges().stream().toList();
-    List<AgentRegisterInput> endpointRegisterList = toAgentEndpoint(nodeEndpoints);
-    log.info("Tanium executor provisioning based on " + endpointRegisterList.size() + " assets");
-
-    for (AgentRegisterInput input : endpointRegisterList) {
-      endpointService.registerAgentEndpoint(input);
+    List<String> computerGroupIds =
+        Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
+    for (String computerGroupId : computerGroupIds) {
+      TaniumComputerGroup computerGroup =
+          this.client.computerGroup(computerGroupId).getComputerGroup();
+      List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
+      if (!nodeEndpoints.isEmpty()) {
+        Optional<AssetGroup> existingAssetGroup =
+            assetGroupService.findByExternalReference(computerGroupId);
+        AssetGroup assetGroup;
+        if (existingAssetGroup.isPresent()) {
+          assetGroup = existingAssetGroup.get();
+        } else {
+          assetGroup = new AssetGroup();
+          assetGroup.setExternalReference(computerGroupId);
+        }
+        assetGroup.setName(computerGroup.getName());
+        log.info(
+            "Tanium executor provisioning based on "
+                + nodeEndpoints.size()
+                + " assets for the computer group "
+                + assetGroup.getName());
+        List<Agent> agents =
+            endpointService.syncAgentsEndpoints(
+                toAgentEndpoint(nodeEndpoints),
+                agentService.getAgentsByExecutorType(TANIUM_EXECUTOR_TYPE));
+        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+      }
     }
   }
 

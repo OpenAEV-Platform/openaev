@@ -2,6 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionStatus;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
@@ -44,6 +45,16 @@ public class InjectStatusService {
 
   public List<InjectStatus> findPendingInjectStatusByType(String injectType) {
     return this.injectStatusRepository.pendingForInjectType(injectType);
+  }
+
+  public InjectStatus findInjectStatusByInjectId(final String injectId) {
+    if (!hasText(injectId)) {
+      throw new IllegalArgumentException("InjectId should not be null");
+    }
+    return this.injectStatusRepository
+        .findByInjectId(injectId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject status not found for :" + injectId));
   }
 
   @Transactional(rollbackOn = Exception.class)

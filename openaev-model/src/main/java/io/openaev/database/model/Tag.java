@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -98,8 +99,11 @@ public class Tag implements Base {
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) {
       return false;
     }
-    Base base = (Base) o;
-    return id.equals(base.getId());
+    Tag other = (Tag) o;
+    if (StringUtils.isBlank(id) || StringUtils.isBlank(other.getId())) {
+      return !StringUtils.isBlank(name) && name.equals(other.getName());
+    }
+    return id.equals(other.getId());
   }
 
   @Override

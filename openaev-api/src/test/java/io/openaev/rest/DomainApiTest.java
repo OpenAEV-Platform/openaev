@@ -12,6 +12,7 @@ import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
+import java.time.Instant;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -62,7 +63,10 @@ public class DomainApiTest extends IntegrationTest {
   @DisplayName("When domain exists, upsert returns existing domain")
   public void whenDomainExists_upsertReturnsExistingDomain() throws Exception {
     Domain existingDomain =
-        domainComposer.forDomain(null).withName("existing").withColor("#123456").persist().get();
+        domainComposer
+            .forDomain(new Domain(null, "existing", "#123456", Instant.now(), null))
+            .persist()
+            .get();
 
     DomainBaseInput input = new DomainBaseInput();
     input.setName("existing");
