@@ -391,8 +391,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("Security coverage test plan for threat context XYZ.");
       assertThat(createdScenario.getSecurityCoverage().getExternalId())
           .isEqualTo("security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1");
-      assertTrue(createdScenario.getRecurrence().startsWith("0 "));
-      assertTrue(createdScenario.getRecurrence().endsWith(" * * *"));
+      assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
       assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
           .contains(OPENCTI_TAG_NAME);
 

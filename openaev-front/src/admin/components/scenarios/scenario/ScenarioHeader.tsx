@@ -18,9 +18,11 @@ import {
   type InjectAssistantInput,
   type Scenario,
 } from '../../../../utils/api-types';
-import { type Cron, CronParser } from '../../../../utils/Cron';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
+import { type Cron } from '../../../../utils/period/Cron';
+import handle from '../../../../utils/period/Period';
+import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { InjectContext } from '../../common/Context';
@@ -58,8 +60,8 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface ScenarioHeaderProps {
-  cronObject: Cron | null;
-  setCronObject: Dispatch<SetStateAction<Cron | null>>;
+  cronObject: PeriodExpressionHandler | null;
+  setCronObject: Dispatch<SetStateAction<PeriodExpressionHandler | null>>;
   setSelectRecurring: Dispatch<SetStateAction<string>>;
   selectRecurring: string;
   setOpenScenarioRecurringFormDialog: Dispatch<SetStateAction<boolean>>;
@@ -124,18 +126,12 @@ const ScenarioHeader = ({
 
   useEffect(() => {
     if (scenario.scenario_recurrence != null) {
-      const newCron = CronParser.parse(scenario.scenario_recurrence);
+      const newCron = handle(scenario.scenario_recurrence);
       setCronObject(newCron);
-      if (newCron.getMonthlyRecurrence()) {
-        setSelectRecurring('monthly');
-      } else if (newCron.getHours()?.getRecurrence()) {
-        setSelectRecurring('hourly');
-      } else if (newCron.getWeeklyRecurrence() && !newCron.isOnlyOnWeekdays()) {
-        setSelectRecurring('weekly');
-      } else if (noRepeat) {
+      if (noRepeat) {
         setSelectRecurring('noRepeat');
       } else {
-        setSelectRecurring('daily');
+        setSelectRecurring(newCron?.getRecurrenceMagnitude() || 'daily');
       }
     } else {
       setCronObject(null);

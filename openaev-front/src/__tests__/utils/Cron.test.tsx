@@ -1,7 +1,7 @@
 import cronstrue from 'cronstrue/i18n';
 import { describe, expect, it } from 'vitest';
 
-import { CronField, CronFieldParser, CronParser, WellKnownMasks } from '../../utils/Cron';
+import { CronField, CronFieldParser, CronParser, WellKnownMasks } from '../../utils/period/Cron';
 
 describe('When parsing cron expressions', () => {
   describe.each([

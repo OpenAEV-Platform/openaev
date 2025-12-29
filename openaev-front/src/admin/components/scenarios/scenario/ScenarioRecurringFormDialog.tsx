@@ -23,15 +23,17 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type ScenarioRecurrenceInput } from '../../../../utils/api-types';
 import {
-  type Cron,
+  Cron,
   CronParser, generateDailyCronExpression, generateHourlyCronExpression, generateMonthlyCronExpression, generateWeeklyCronExpression,
-} from '../../../../utils/Cron';
+} from '../../../../utils/period/Cron';
+import handle from '../../../../utils/period/Period';
+import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
 interface Props {
-  cronObject: Cron | null;
-  setCronObject: Dispatch<SetStateAction<Cron | null>>;
+  cronObject: PeriodExpressionHandler | null;
+  setCronObject: Dispatch<SetStateAction<PeriodExpressionHandler | null>>;
   onSubmit: (cron: Cron, start: string, end?: string) => void;
   onSelectRecurring: (selectRecurring: string) => void;
   selectRecurring: string;
@@ -177,20 +179,22 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
       if (!initialValues.scenario_recurrence || !initialValues.scenario_recurrence_start) {
         reset(defaultFormValues);
       }
-      const actualCron = CronParser.parse(initialValues.scenario_recurrence);
+      const actualCron = handle(initialValues.scenario_recurrence);
       setCronObject(actualCron);
-      const time = actualCron.getHours()?.getRecurrence()
-        ? new Date(new Date().setHours(Number(actualCron.getHours()?.getRecurrence()), actualCron.getMinutes()?.toNumber() || 0))
-        : new Date(new Date().setUTCHours(actualCron.getHours()?.toNumber() || 0, actualCron.getMinutes()?.toNumber() || 0));
-      reset({
-        startDate: initialValues.scenario_recurrence_start,
-        endDate: initialValues.scenario_recurrence_end || '',
-        onlyWeekday: actualCron.isOnlyOnWeekdays(),
-        time: time.toISOString() || '',
-        dayOfWeek: (actualCron.getWeeklyRecurrence() || 1) as Recurrence['dayOfWeek'],
-        weekOfMonth: (actualCron.getMonthlyRecurrence() || 1) as Recurrence['weekOfMonth'],
-        uiSupported: actualCron.isUiSupported(),
-      });
+      if (actualCron instanceof Cron) {
+        const time = actualCron.getHours()?.getRecurrence()
+          ? new Date(new Date().setHours(Number(actualCron.getHours()?.getRecurrence()), actualCron.getMinutes()?.toNumber() || 0))
+          : new Date(new Date().setUTCHours(actualCron.getHours()?.toNumber() || 0, actualCron.getMinutes()?.toNumber() || 0));
+        reset({
+          startDate: initialValues.scenario_recurrence_start,
+          endDate: initialValues.scenario_recurrence_end || '',
+          onlyWeekday: actualCron.isOnlyOnWeekdays(),
+          time: time.toISOString() || '',
+          dayOfWeek: (actualCron.getWeeklyRecurrence() || 1) as Recurrence['dayOfWeek'],
+          weekOfMonth: (actualCron.getMonthlyRecurrence() || 1) as Recurrence['weekOfMonth'],
+          uiSupported: actualCron.isUiSupported(),
+        });
+      }
     }
   }, [initialValues.scenario_recurrence]);
 

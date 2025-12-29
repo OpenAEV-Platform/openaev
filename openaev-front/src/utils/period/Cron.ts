@@ -1,5 +1,7 @@
 import cronstrue from 'cronstrue/i18n';
 
+import { PeriodExpressionHandler, type UTCHourMinute } from './PeriodExpressionHandler';
+
 const generateHourlyCronExpression = (h: string, m: string, owd: boolean) => {
   if (owd) {
     return `0 ${m} */${h} * * 1-5`;
@@ -55,6 +57,7 @@ type CronFieldMask = {
  */
 class CronFieldParser {
   mask: CronFieldMask;
+
   constructor(mask: CronFieldMask) {
     this.mask = mask;
   }
@@ -130,6 +133,7 @@ const unix_parser_set: Map<CronFieldPosition, CronFieldParser> = new Map<CronFie
 class CronField {
   field_expression: string;
   parser: CronFieldParser;
+
   constructor(field_expression: string, parser: CronFieldParser) {
     this.field_expression = field_expression;
     this.parser = parser;
@@ -206,30 +210,26 @@ class CronField {
   }
 }
 
+function toCronExpression(fields: Map<CronFieldPosition, CronField>) {
+  return Array.from(fields.entries().map(value => value[1].field_expression)).join(' ').trimEnd();
+}
+
 /**
  * A cron expression
  */
-class Cron {
+class Cron extends PeriodExpressionHandler {
   fields: Map<CronFieldPosition, CronField>;
   constructor(fields: Map<CronFieldPosition, CronField>) {
+    super(toCronExpression(fields));
     this.fields = fields;
   }
 
-  /**
-   * Checks whether the expression as a whole is valid
-   * @returns true if the expression is valid
-   */
   isValid() {
     return this.fields.entries().every((value) => {
       return value[1].isValid();
     });
   }
 
-  /**
-   * Checks whether the expression is supported by the UI widgets
-   * Note this requires arbitrary knowledge of which expression shape is supported
-   * @returns true if the expression is supported by the input dialog widgets
-   */
   isUiSupported() {
     return this.isValid()
       && (this.fields.get(CronFieldPosition.Seconds)?.isZero() || !this.fields.get(CronFieldPosition.Seconds))
@@ -246,15 +246,30 @@ class Cron {
    * @returns the full cron expression as a string
    */
   toCronExpression() {
-    return Array.from(this.fields.entries().map(value => value[1].field_expression)).join(' ').trimEnd();
+    return toCronExpression(this.fields);
   }
 
-  /**
-   * @returns the plain text interpretation of the cron expression
-   * @param locale the language code in which to output the plain text
-   */
   toHumanReadableString(locale: string) {
     return cronstrue.toString(this.toCronExpression(), { locale });
+  }
+
+  getRecurrenceMagnitude(): string {
+    if (this.getMonthlyRecurrence()) {
+      return 'monthly';
+    } else if (this.getHours()?.getRecurrence()) {
+      return 'hourly';
+    } else if (this.getWeeklyRecurrence() && !this.isOnlyOnWeekdays()) {
+      return 'weekly';
+    } else {
+      return 'daily';
+    }
+  }
+
+  getRecurrenceTime(): UTCHourMinute {
+    return {
+      hour: this.getHours()?.toNumber(),
+      minute: this.getMinutes()?.toNumber(),
+    };
   }
 
   // convenience methods
@@ -404,7 +419,16 @@ class CronParser {
   }
 }
 
+function canHandleExpression(expression: string) {
+  try {
+    return CronParser.parse(expression).isValid();
+  } catch {
+    return false;
+  }
+}
+
 export {
+  canHandleExpression,
   Cron,
   CronField,
   CronFieldParser,

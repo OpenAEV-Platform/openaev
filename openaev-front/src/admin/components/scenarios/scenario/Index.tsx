@@ -14,9 +14,10 @@ import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
 import { type NotificationRuleOutput, type Scenario } from '../../../../utils/api-types';
-import { type Cron, CronParser } from '../../../../utils/Cron';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import handle from '../../../../utils/period/Period';
+import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
@@ -64,7 +65,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
   const [openScenarioRecurringFormDialog, setOpenScenarioRecurringFormDialog] = useState<boolean>(false);
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
   const [selectRecurring, setSelectRecurring] = useState('noRepeat');
-  const [cronObject, setCronObject] = useState<Cron | null>(scenario.scenario_recurrence ? CronParser.parse(scenario.scenario_recurrence) : null);
+  const [cronObject, setCronObject] = useState<PeriodExpressionHandler | null>(handle(scenario.scenario_recurrence));
   const noRepeat = !!scenario.scenario_recurrence_end && !!scenario.scenario_recurrence_start
     && new Date(scenario.scenario_recurrence_end).getTime() - new Date(scenario.scenario_recurrence_start).getTime() <= _MS_PER_DAY
     && ['noRepeat', 'daily'].includes(selectRecurring);
