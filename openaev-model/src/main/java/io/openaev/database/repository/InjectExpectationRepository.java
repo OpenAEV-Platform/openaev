@@ -252,7 +252,7 @@ public interface InjectExpectationRepository
       nativeQuery = true)
   List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
 
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Modifying
   @Query(
       """
       DELETE FROM InjectExpectation ie
