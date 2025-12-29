@@ -1,14 +1,12 @@
-package io.openaev.service;
+package io.openaev.service.period;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.cron.ScheduleFrequency;
-import io.openaev.service.cron.CronService;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,8 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Transactional
 public class CronServiceTest extends IntegrationTest {
   @Autowired private CronService cronService;
-
-  private final ZoneId UTC = ZoneId.of("UTC");
 
   @Nested
   @DisplayName("Compute next occurrence")
@@ -32,8 +28,7 @@ public class CronServiceTest extends IntegrationTest {
       @Test
       @DisplayName("Returns empty instant")
       public void returnsEmpty() {
-        Optional<Instant> next =
-            cronService.getNextExecutionFromInstant(Instant.now(), UTC, cronExpression);
+        Optional<Instant> next = cronService.getNextOccurrence(null, Instant.now(), cronExpression);
         assertThat(next).isEmpty();
       }
     }
@@ -46,8 +41,7 @@ public class CronServiceTest extends IntegrationTest {
       @Test
       @DisplayName("Returns empty instant")
       public void returnsEmpty() {
-        Optional<Instant> next =
-            cronService.getNextExecutionFromInstant(Instant.now(), UTC, cronExpression);
+        Optional<Instant> next = cronService.getNextOccurrence(null, Instant.now(), cronExpression);
         assertThat(next).isEmpty();
       }
     }
@@ -61,8 +55,7 @@ public class CronServiceTest extends IntegrationTest {
       @DisplayName("Throws with hourly cron")
       public void hourlyScheduleIsComputedCorrectly() {
         assertThatThrownBy(
-                () ->
-                    cronService.getNextExecutionFromInstant(Instant.now(), UTC, "0 0 */1000 * * *"))
+                () -> cronService.getNextOccurrence(null, Instant.now(), "0 0 */1000 * * *"))
             .isInstanceOf(IllegalArgumentException.class);
       }
 
@@ -70,8 +63,7 @@ public class CronServiceTest extends IntegrationTest {
       @DisplayName("Throws with daily cron")
       public void dailyScheduleIsComputedCorrectly() {
         assertThatThrownBy(
-                () ->
-                    cronService.getNextExecutionFromInstant(Instant.now(), UTC, "0 0 0 * * */1000"))
+                () -> cronService.getNextOccurrence(null, Instant.now(), "0 0 0 * * */1000"))
             .isInstanceOf(IllegalArgumentException.class);
       }
 
@@ -79,8 +71,7 @@ public class CronServiceTest extends IntegrationTest {
       @DisplayName("Throws with weekly cron")
       public void weeklyScheduleIsComputedCorrectly() {
         assertThatThrownBy(
-                () ->
-                    cronService.getNextExecutionFromInstant(Instant.now(), UTC, "0 0 0 * * 1/7000"))
+                () -> cronService.getNextOccurrence(null, Instant.now(), "0 0 0 * * 1/7000"))
             .isInstanceOf(IllegalArgumentException.class);
       }
 
@@ -88,8 +79,7 @@ public class CronServiceTest extends IntegrationTest {
       @DisplayName("Throws with monthly cron")
       public void monthlyScheduleIsComputedCorrectly() {
         assertThatThrownBy(
-                () ->
-                    cronService.getNextExecutionFromInstant(Instant.now(), UTC, "0 0 0 1 */1000 *"))
+                () -> cronService.getNextOccurrence(null, Instant.now(), "0 0 0 1 */1000 *"))
             .isInstanceOf(IllegalArgumentException.class);
       }
     }
@@ -107,8 +97,7 @@ public class CronServiceTest extends IntegrationTest {
         public void returnsExpectedInstantNextDay() {
           Instant expected = Instant.parse("2022-04-25T10:43:56Z");
           Instant reference = Instant.parse("2022-04-24T14:34:01Z");
-          Optional<Instant> next =
-              cronService.getNextExecutionFromInstant(reference, UTC, cronExpression);
+          Optional<Instant> next = cronService.getNextOccurrence(null, reference, cronExpression);
           assertThat(next).isPresent().get().isEqualTo(expected);
         }
 
@@ -118,8 +107,7 @@ public class CronServiceTest extends IntegrationTest {
         public void returnsExpectedInstantSameDay() {
           Instant expected = Instant.parse("2022-04-24T10:43:56Z");
           Instant reference = Instant.parse("2022-04-24T04:34:01Z");
-          Optional<Instant> next =
-              cronService.getNextExecutionFromInstant(reference, UTC, cronExpression);
+          Optional<Instant> next = cronService.getNextOccurrence(null, reference, cronExpression);
           assertThat(next).isPresent().get().isEqualTo(expected);
         }
       }
@@ -132,8 +120,7 @@ public class CronServiceTest extends IntegrationTest {
         public void returnsExpectedInstantNextDay() {
           Instant expected = Instant.parse("2022-04-25T10:43:56Z");
           Instant reference = Instant.parse("2022-04-24T16:34:01+02:00");
-          Optional<Instant> next =
-              cronService.getNextExecutionFromInstant(reference, UTC, cronExpression);
+          Optional<Instant> next = cronService.getNextOccurrence(null, reference, cronExpression);
           assertThat(next).isPresent().get().isEqualTo(expected);
         }
 
@@ -143,8 +130,7 @@ public class CronServiceTest extends IntegrationTest {
         public void returnsExpectedInstantSameDay() {
           Instant expected = Instant.parse("2022-04-24T10:43:56Z");
           Instant reference = Instant.parse("2022-04-24T02:34:01+02:00");
-          Optional<Instant> next =
-              cronService.getNextExecutionFromInstant(reference, UTC, cronExpression);
+          Optional<Instant> next = cronService.getNextOccurrence(null, reference, cronExpression);
           assertThat(next).isPresent().get().isEqualTo(expected);
         }
       }

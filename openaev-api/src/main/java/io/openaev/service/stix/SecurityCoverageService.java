@@ -24,8 +24,8 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.ScenarioService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.ObjectBase;
@@ -335,11 +335,9 @@ public class SecurityCoverageService {
       // execute at recurrence (without second) 11:35 - 1 minute = 11:34
       // Example 2: recurrence 11:33:59 + 120 seconds = 11:35:59 -> job each minute to schedule and
       // execute at recurrence (without second) 11:35 - 1 minute = 11:34
-      Instant recurrence = Instant.now().plusSeconds(120);
       if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
         scenario.setRecurrenceStart(start);
-        scenario.setRecurrence(
-            cronService.getCronExpression(securityCoverage.getScheduling(), recurrence));
+        scenario.setRecurrence(securityCoverage.getScheduling());
       }
     }
   }

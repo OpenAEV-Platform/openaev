@@ -1,4 +1,4 @@
-package io.openaev.service.cron;
+package io.openaev.service.period;
 
 import static java.time.ZoneOffset.UTC;
 
@@ -14,11 +14,13 @@ import java.time.chrono.ChronoZonedDateTime;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CronService {
-  public Optional<Instant> getNextExecutionFromInstant(
+@Slf4j
+public class CronService implements PeriodExpressionHandler {
+  private Optional<Instant> getNextExecutionFromInstant(
       Instant reference, ZoneId tz, String cronExpression) {
     if (cronExpression == null || cronExpression.isBlank()) {
       return Optional.empty();
@@ -28,6 +30,24 @@ public class CronService {
                 .parse(cronExpression))
         .nextExecution(reference.atZone(tz))
         .map(ChronoZonedDateTime::toInstant);
+  }
+
+  @Override
+  public boolean canHandleExpression(String expression) {
+    try {
+      new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.SPRING53))
+          .parse(expression);
+      return true;
+    } catch (IllegalArgumentException e) {
+      log.info("Cannot parse expression {} as a cron expression.", expression, e);
+      return false;
+    }
+  }
+
+  @Override
+  public Optional<Instant> getNextOccurrence(
+      Instant _seed /* unused */, Instant currentTime, String expression) {
+    return this.getNextExecutionFromInstant(currentTime, UTC, expression);
   }
 
   public String getCronExpression(ScheduleFrequency scheduling, Instant seed) {

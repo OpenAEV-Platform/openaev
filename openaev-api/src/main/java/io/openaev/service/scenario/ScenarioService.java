@@ -1,4 +1,4 @@
-package io.openaev.service;
+package io.openaev.service.scenario;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
@@ -45,6 +45,7 @@ import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.service.*;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;

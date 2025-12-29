@@ -8,7 +8,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -18,10 +18,9 @@ import java.util.List;
 import org.junit.jupiter.api.*;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioExecutionJobTest extends IntegrationTest {
 
@@ -35,17 +34,8 @@ class ScenarioExecutionJobTest extends IntegrationTest {
   static String SCENARIO_ID_3;
   static String EXERCISE_ID;
 
-  @AfterAll
-  public void teardown() {
-    this.scenarioService.deleteScenario(SCENARIO_ID_1);
-    this.scenarioService.deleteScenario(SCENARIO_ID_2);
-    this.scenarioService.deleteScenario(SCENARIO_ID_3);
-    this.exerciseRepository.deleteById(EXERCISE_ID);
-  }
-
   @DisplayName("Not create simulation based on recurring scenario in one hour")
   @Test
-  @Order(1)
   void given_cron_in_one_hour_should_not_create_simulation() throws JobExecutionException {
     // -- PREPARE --
     ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
@@ -71,7 +61,6 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @DisplayName("Create simulation based on recurring scenario now")
   @Test
-  @Order(2)
   void given_cron_in_one_minute_should_create_simulation() throws JobExecutionException {
     // -- PREPARE --
     ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
@@ -104,9 +93,24 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @DisplayName("Already created simulation based on recurring scenario")
   @Test
-  @Order(3)
   void given_cron_in_one_minute_should_not_create_second_simulation() throws JobExecutionException {
+    // -- PREPARE --
+    ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
+
+    Scenario scenario = ScenarioFixture.getScenario();
+    int minuteToStart = (zonedDateTime.getMinute() + 1) % 60;
+    int hourToStart = zonedDateTime.getHour() + ((zonedDateTime.getMinute() + 1) / 60);
+    hourToStart = hourToStart % 24;
+
+    scenario.setRecurrence(
+        "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
+    Scenario scenarioSaved = this.scenarioService.createScenario(scenario);
+    SCENARIO_ID_2 = scenarioSaved.getId();
+
     // -- EXECUTE --
+    this.job.execute(null);
+
+    // -- EXECUTE AGAIN --
     this.job.execute(null);
 
     // -- ASSERT --
@@ -120,7 +124,6 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @DisplayName("Not create simulation based on end date before now")
   @Test
-  @Order(4)
   void given_end_date_before_now_should_not_create_second_simulation()
       throws JobExecutionException {
     // -- PREPARE --

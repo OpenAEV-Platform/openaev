@@ -6,10 +6,10 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.service.ScenarioService;
 import io.openaev.service.ScenarioToExerciseService;
-import io.openaev.service.cron.CronService;
-import jakarta.validation.constraints.NotBlank;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.scenario.ScenarioService;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScenarioExecutionJob implements Job {
 
   private final ScenarioService scenarioService;
+  private final ScenarioRecurrenceService scenarioRecurrenceService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final CronService cronService;
@@ -51,7 +52,10 @@ public class ScenarioExecutionJob implements Job {
             .filter(
                 scenario -> {
                   Instant startDate =
-                      cronToDate(scenario.getRecurrence()).minus(1, ChronoUnit.MINUTES);
+                      scenarioRecurrenceService
+                          .getNextExecutionTime(scenario, Instant.now())
+                          .orElse(Instant.now())
+                          .minus(1, ChronoUnit.MINUTES);
                   Instant now = Instant.now();
 
                   ZonedDateTime startDateMinute =
@@ -75,7 +79,11 @@ public class ScenarioExecutionJob implements Job {
         .forEach(
             scenario ->
                 this.scenarioToExerciseService.toExercise(
-                    scenario, cronToDate(scenario.getRecurrence()), false));
+                    scenario,
+                    scenarioRecurrenceService
+                        .getNextExecutionTime(scenario, Instant.now())
+                        .orElse(Instant.now()),
+                    false));
   }
 
   private void cleanOutdatedRecurringScenario() {
@@ -106,15 +114,10 @@ public class ScenarioExecutionJob implements Job {
 
     // There are no next execution -> example: end date is tomorrow at 1AM and execution cron is at
     // 6AM and it's 6PM
-    Instant nextExecution = cronToDate(scenario.getRecurrence());
+    Instant nextExecution =
+        scenarioRecurrenceService
+            .getNextExecutionTime(scenario, Instant.now())
+            .orElse(Instant.now());
     return nextExecution.isAfter(scenario.getRecurrenceEnd());
-  }
-
-  // -- UTILS --
-
-  private Instant cronToDate(@NotBlank final String cronExpression) {
-    return cronService
-        .getNextExecutionFromInstant(Instant.now(), ZoneId.of("UTC"), cronExpression)
-        .orElse(Instant.now());
   }
 }
