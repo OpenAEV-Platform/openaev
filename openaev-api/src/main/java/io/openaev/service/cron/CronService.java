@@ -1,5 +1,7 @@
 package io.openaev.service.cron;
 
+import static java.time.ZoneOffset.UTC;
+
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
@@ -39,26 +41,37 @@ public class CronService {
     int dayOfMonth = zdt.getDayOfMonth();
     int dayOfWeek = zdt.getDayOfWeek().getValue();
 
-    return switch (scheduling) {
-      case HOURLY ->
-          digits != null
-              ? String.format("0 %d */%d * * *", minute, digits)
-              : String.format("0 %d %d * * *", minute, hour);
-      case ScheduleFrequency.DAILY -> // daily
-          digits != null
-              ? String.format("0 %d %d * * */%d", minute, hour, digits)
-              : String.format("0 %d %d * * *", minute, hour);
-      case ScheduleFrequency.WEEKLY -> // weekly
-          digits != null
-              ? String.format("0 %d %d * * %d/%d", minute, hour, dayOfWeek, digits * 7)
-              : String.format("0 %d %d * * %d", minute, hour, dayOfWeek);
-      case ScheduleFrequency.MONTHLY -> // monthly
-          digits != null
-              ? String.format("0 %d %d %d */%d *", minute, hour, dayOfMonth, digits)
-              : String.format("0 %d %d %d * *", minute, hour, dayOfMonth);
-      case ScheduleFrequency.ONESHOT -> // STIX is represented like X
-          null;
-    };
+    String cronExpression =
+        switch (scheduling) {
+          case HOURLY ->
+              digits != null
+                  ? String.format("0 %d */%d * * *", minute, digits)
+                  : String.format("0 %d %d * * *", minute, hour);
+          case ScheduleFrequency.DAILY ->
+              digits != null && digits > 1
+                  ? String.format("0 %d %d * * */%d", minute, hour, digits)
+                  : String.format("0 %d %d * * *", minute, hour);
+          case ScheduleFrequency.WEEKLY -> // attempt to interpolate a week period into days
+              digits != null && digits >= 1
+                  ? String.format("0 %d %d * * %d/%d", minute, hour, dayOfWeek, digits * 7)
+                  : String.format("0 %d %d * * %d", minute, hour, dayOfWeek);
+          case ScheduleFrequency.MONTHLY ->
+              digits != null && digits > 1
+                  ? String.format("0 %d %d %d */%d *", minute, hour, dayOfMonth, digits)
+                  : String.format("0 %d %d %d * *", minute, hour, dayOfMonth);
+          case ScheduleFrequency.ONESHOT -> // STIX is represented like X
+              null;
+        };
+
+    // force throw an exception if the specified period will generate an invalid cron expression
+    try {
+      getNextExecutionFromInstant(Instant.now(), UTC, cronExpression);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          "Periodicity was specified outside of acceptable bounds.", e);
+    }
+
+    return cronExpression;
   }
 
   public String getCronExpression(String iso8601PeriodExpression, Instant seed) {
