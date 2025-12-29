@@ -213,7 +213,7 @@ const PayloadForm = ({
       );
 
       if (firstErrorField) {
-        const rootField = String(firstErrorField).split('.')[0];
+        const rootField = firstErrorField.split('.')[0];
 
         const tabName = getTabForField(rootField);
         if (tabName) handleChangeTab(tabName);
