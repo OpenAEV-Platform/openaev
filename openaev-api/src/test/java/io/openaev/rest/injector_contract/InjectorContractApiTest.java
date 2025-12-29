@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -1523,6 +1524,74 @@ public class InjectorContractApiTest extends IntegrationTest {
         // Should only see contracts without payload
         result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 2)));
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("When contracts are linked to security domains")
+  class WhenContractsAreLinkedToDomains {
+    @Test
+    @DisplayName("It should aggregate counts correctly by domain category")
+    void getDomainCountsReturnAggregation() throws Exception {
+      Set<Domain> endpointDomain =
+          domainComposer.forDomain(PresetDomain.ENDPOINT).persist().getSet();
+      Set<Domain> cloudDomain = domainComposer.forDomain(PresetDomain.CLOUD).persist().getSet();
+
+      Injector validInjector = injectorFixture.getWellKnownOaevImplantInjector();
+
+      InjectorContract contract1 = InjectorContractFixture.createDefaultInjectorContract();
+      contract1.setId(UUID.randomUUID().toString());
+
+      contract1.setDomains(new HashSet<>(endpointDomain));
+
+      injectorContractComposer.forInjectorContract(contract1).withInjector(validInjector).persist();
+
+      InjectorContract contract2 = InjectorContractFixture.createDefaultInjectorContract();
+      contract2.setId(UUID.randomUUID().toString());
+
+      contract2.setDomains(new HashSet<>(endpointDomain));
+
+      injectorContractComposer.forInjectorContract(contract2).withInjector(validInjector).persist();
+
+      InjectorContract contract3 = InjectorContractFixture.createDefaultInjectorContract();
+      contract3.setId(UUID.randomUUID().toString());
+
+      contract3.setDomains(new HashSet<>(cloudDomain));
+
+      injectorContractComposer.forInjectorContract(contract3).withInjector(validInjector).persist();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
+
+      String response =
+          mvc.perform(
+                  post(INJECTOR_CONTRACT_URL + "/domain-counts")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response)
+          .when(Option.IGNORING_EXTRA_ARRAY_ITEMS, Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(
+              String.format(
+                  """
+            [
+              {
+                "domain": "%s",
+                "count": 2
+              },
+              {
+                "domain": "%s",
+                "count": 1
+              }
+            ]
+            """,
+                  endpointDomain.iterator().next().getId(), cloudDomain.iterator().next().getId()));
     }
   }
 }

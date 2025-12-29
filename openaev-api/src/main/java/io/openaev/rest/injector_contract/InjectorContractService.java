@@ -563,11 +563,8 @@ public class InjectorContractService {
         cb.createQuery(InjectorContractDomainCountOutput.class);
     Root<InjectorContract> root = query.from(InjectorContract.class);
 
-    // 1. Jointure vers la table des domaines
-    // Note: On utilise "domains" qui correspond au champ dans votre entité
     Join<InjectorContract, Domain> domainJoin = root.join("domains");
 
-    // 2. Réutilisation de votre logique de filtrage
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
     Specification<InjectorContract> finalSpec = Specification.where(filterSpec).and(searchSpec);
@@ -579,9 +576,7 @@ public class InjectorContractService {
       }
     }
 
-    // 3. Projection : on prend l'ID du domaine et on compte les contrats
     query.multiselect(domainJoin.get("id"), cb.countDistinct(root));
-
     query.groupBy(domainJoin.get("id"));
 
     return entityManager.createQuery(query).getResultList();
