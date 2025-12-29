@@ -200,16 +200,30 @@ const PayloadForm = ({
 
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const isValid = await methods.trigger();
-    if (!isValid) {
-      const firstErrorField = Object.keys(methods.formState.errors)[0];
-      const tabName = getTabForField(firstErrorField);
 
-      if (tabName) handleChangeTab(tabName);
-    } else {
-      handleSubmit(onSubmit)(e);
+    const isValid = await methods.trigger();
+
+    if (!isValid) {
+      const fields = Object.keys(
+        methods.getValues(),
+      ) as (keyof PayloadCreateInput)[];
+
+      const firstErrorField = fields.find(field =>
+        methods.getFieldState(field).error,
+      );
+
+      if (firstErrorField) {
+        const rootField = String(firstErrorField).split('.')[0];
+
+        const tabName = getTabForField(rootField);
+        if (tabName) handleChangeTab(tabName);
+      }
+      return;
     }
+
+    await handleSubmit(onSubmit)(e);
   };
+
   const trackedUseWatch = useWatch({
     control,
     name: trackedFields as unknown as keyof PayloadCreateInput,
