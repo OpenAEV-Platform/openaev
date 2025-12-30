@@ -15,5 +15,6 @@ public enum CONDITION_TYPE {
   NIN,
   AFTER,
   BEFORE,
-  MAPPER
+  MAPPER,
+  DEPEND_ON
 }
