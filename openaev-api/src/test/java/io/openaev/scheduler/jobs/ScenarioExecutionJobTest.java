@@ -247,7 +247,6 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         throws JobExecutionException {
       try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
         Scenario scenario = getScenario();
-        scenario.setRecurrence("P1D");
 
         setMockedInstant(
             mockedInstant, scenarioStartTime.plus(1, ChronoUnit.DAYS).minus(1, ChronoUnit.MINUTES));
