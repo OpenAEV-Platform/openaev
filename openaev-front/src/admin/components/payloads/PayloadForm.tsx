@@ -198,26 +198,28 @@ const PayloadForm = ({
   }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
+  const focusFirstErrorTab = () => {
+    const fields = Object.keys(
+      methods.getValues(),
+    ) as (keyof PayloadCreateInput)[];
+
+    const firstErrorField = fields.find(
+      field => methods.getFieldState(field).error,
+    );
+    if (!firstErrorField) return;
+
+    const rootField = String(firstErrorField).split('.')[0];
+    const tabName = getTabForField(rootField);
+    if (!tabName) return;
+
+    handleChangeTab(tabName);
+  };
+
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const isValid = await methods.trigger();
-
     if (!isValid) {
-      const fields = Object.keys(
-        methods.getValues(),
-      ) as (keyof PayloadCreateInput)[];
-
-      const firstErrorField = fields.find(field =>
-        methods.getFieldState(field).error,
-      );
-
-      if (firstErrorField) {
-        const rootField = firstErrorField.split('.')[0];
-
-        const tabName = getTabForField(rootField);
-        if (tabName) handleChangeTab(tabName);
-      }
+      focusFirstErrorTab();
       return;
     }
 
