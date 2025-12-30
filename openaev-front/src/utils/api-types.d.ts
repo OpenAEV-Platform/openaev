@@ -621,7 +621,7 @@ export interface CatalogConnector {
   /** Connector description */
   catalog_connector_description?: string;
   /** @uniqueItems true */
-  catalog_connector_instances: ConnectorInstance[];
+  catalog_connector_instances: ConnectorInstancePersisted[];
   /**
    * Connector last verified date
    * @format date-time
@@ -675,6 +675,7 @@ export interface CatalogConnectorConfiguration {
   connector_configuration_enum?: string[];
   /** Connector configuration format */
   connector_configuration_format?:
+    | "DEFAULT"
     | "DATE"
     | "DATETIME"
     | "DURATION"
@@ -1059,32 +1060,11 @@ export interface ConnectorIds {
   connector_instance_id?: string;
 }
 
-export interface ConnectorInstance {
-  connector_instance_catalog: CatalogConnector;
-  /** @uniqueItems true */
-  connector_instance_configurations: ConnectorInstanceConfiguration[];
-  connector_instance_current_status: "started" | "stopped";
-  connector_instance_id: string;
-  connector_instance_is_in_reboot_loop?: boolean;
-  /** @uniqueItems true */
-  connector_instance_logs: ConnectorInstanceLog[];
-  connector_instance_requested_status?: "starting" | "stopping";
-  /** @format int32 */
-  connector_instance_restart_count?: number;
-  connector_instance_source:
-    | "PROPERTIES_MIGRATION"
-    | "CATALOG_DEPLOYMENT"
-    | "OTHER";
-  /** @format date-time */
-  connector_instance_started_at?: string;
-  listened?: boolean;
-}
-
 export interface ConnectorInstanceConfiguration {
   connector_instance_configuration_id: string;
   connector_instance_configuration_is_encrypted?: boolean;
   connector_instance_configuration_key: string;
-  connector_instance_configuration_value?: JsonNode;
+  connector_instance_configuration_value: JsonNode;
   listened?: boolean;
 }
 
@@ -1122,6 +1102,28 @@ export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
   connector_instance_id: string;
   connector_instance_requested_status?: "starting" | "stopping";
+}
+
+export interface ConnectorInstancePersisted {
+  className?: string;
+  connector_instance_catalog: CatalogConnector;
+  /** @uniqueItems true */
+  connector_instance_configurations: ConnectorInstanceConfiguration[];
+  connector_instance_current_status: "started" | "stopped";
+  connector_instance_id: string;
+  connector_instance_is_in_reboot_loop?: boolean;
+  /** @uniqueItems true */
+  connector_instance_logs: ConnectorInstanceLog[];
+  connector_instance_requested_status?: "starting" | "stopping";
+  /** @format int32 */
+  connector_instance_restart_count?: number;
+  connector_instance_source:
+    | "PROPERTIES_MIGRATION"
+    | "CATALOG_DEPLOYMENT"
+    | "OTHER";
+  /** @format date-time */
+  connector_instance_started_at?: string;
+  listened?: boolean;
 }
 
 export interface ContractOutputElement {

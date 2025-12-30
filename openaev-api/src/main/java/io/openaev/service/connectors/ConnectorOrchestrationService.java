@@ -102,7 +102,7 @@ public class ConnectorOrchestrationService {
    * @param requestedStatus the new requested status to set
    * @return the updated connector instance
    */
-  public ConnectorInstance updateRequestedStatus(
+  public ConnectorInstancePersisted updateRequestedStatus(
       String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus) {
     throwIfEnterpriseLicenseNotActive();
 
@@ -192,7 +192,7 @@ public class ConnectorOrchestrationService {
    * @param input CreateConnectorInstanceInput
    * @return Created ConnectorInstance
    */
-  public ConnectorInstance createConnectorInstance(
+  public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
     throwIfEnterpriseLicenseNotActive();

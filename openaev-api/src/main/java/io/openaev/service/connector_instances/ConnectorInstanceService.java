@@ -142,10 +142,10 @@ public class ConnectorInstanceService {
    * @param newRequestedStatus the new requested status to set
    * @return the connector instance updated
    */
-  public ConnectorInstance updateRequestedStatus(
+  public ConnectorInstancePersisted updateRequestedStatus(
       ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
     instance.setRequestedStatus(newRequestedStatus);
-    return this.save(instance);
+    return (ConnectorInstancePersisted) this.save(instance);
   }
 
   /**
@@ -322,7 +322,7 @@ public class ConnectorInstanceService {
    * @param input the input data for creating the connector instance
    * @return the created connector instance
    */
-  public ConnectorInstance createConnectorInstance(
+  public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
     ConnectorInstancePersisted newInstance =
@@ -339,7 +339,7 @@ public class ConnectorInstanceService {
             newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
 
     newInstance.setConfigurations(Set.copyOf(configurations));
-    return this.save(newInstance);
+    return (ConnectorInstancePersisted) this.save(newInstance);
   }
 
   private List<ConnectorInstanceConfiguration> mergeConfigurations(
