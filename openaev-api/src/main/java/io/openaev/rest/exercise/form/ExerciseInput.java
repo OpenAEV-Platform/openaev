@@ -1,17 +1,18 @@
 package io.openaev.rest.exercise.form;
 
-import static io.openaev.config.AppConfig.EMAIL_FORMAT;
-import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static io.openaev.config.AppConfig.EMAIL_FORMAT;
+import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 @Getter
 @Setter
@@ -56,4 +57,7 @@ public class ExerciseInput {
 
   @JsonProperty("exercise_message_footer")
   private String footer;
+
+  @JsonProperty("exercise_is_chaining")
+  private boolean isChaining = false;
 }
