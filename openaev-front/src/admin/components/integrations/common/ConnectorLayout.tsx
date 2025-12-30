@@ -64,7 +64,7 @@ const ConnectorLayout = () => {
       setLoading(false);
       return;
     }
-
+    setIsRelatedIdsLoaded(false);
     apiRequest.getRelatedIds(connectorId).then(({ data }: { data: ConnectorIds }) => {
       setRelatedIds(data);
       setIsRelatedIdsLoaded(true);
