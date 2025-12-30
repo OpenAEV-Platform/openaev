@@ -1,20 +1,20 @@
 package io.openaev;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import io.openaev.service.chaining.StepService;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @SpringBootTest
 public class StepServiceTest {
-  @Autowired StepService stepService;
+
   Gson gson = new Gson();
 
   @Test
@@ -44,7 +44,7 @@ public class StepServiceTest {
     u.put("obj.user.0.username", "userChangeName1");
     u.put("obj.user.1.username", "userChangeName2");
 
-    JsonObject oNew = stepService.useJson(jsonString, u, StepService.ACTION_JSON.REPLACE);
+    JsonObject oNew = StepService.useJson(jsonString, u, StepService.ACTION_JSON.REPLACE);
     String result =
         "{\"name2\":\"World\",\"obj\":{\"attack\":[\"new-attack\",\"second\"],\"user\":[{\"password\":\"psd1\",\"username\":\"userChangeName1\"},{\"password\":\"psd2\",\"username\":\"userChangeName2\"}],\"asset\":[\"new-asset\"],\"id\":9999},\"name\":\"0000\"}";
     assertEquals(result, oNew.toString());
@@ -76,7 +76,7 @@ public class StepServiceTest {
     u.put("obj.user.0.username", null);
     u.put("obj.user.1.username", null);
 
-    stepService.useJson(jsonString, u, StepService.ACTION_JSON.GET);
+    StepService.useJson(jsonString, u, StepService.ACTION_JSON.GET);
     String result =
         "{\"obj.attack.0\":\"first-attack\",\"obj.asset\":[\"asset1\",\"asset2\"],\"name\":\"Hello\",\"obj.user.1.username\":\"user2\",\"obj.id\":1,\"obj.user.0.username\":\"user1\"}";
     String newMap = gson.toJson(u);
@@ -90,6 +90,7 @@ public class StepServiceTest {
         """
                             {"name":"Hello",
                             "name2":"World",
+                            "value": null,
                             "obj":{
                                     "id":1,
                                     "attack" :[ "first-attack", "second"],
@@ -102,8 +103,11 @@ public class StepServiceTest {
                             }
                 """;
 
-    JsonPrimitive value = stepService.getField(jsonString, "obj.user.0.username");
+    String value = StepService.getField(jsonString, "obj.user.0.username");
     String result = "user1";
-    assertEquals(result, value.getAsString());
+    assertEquals(result, value);
+
+    String newValue = StepService.getField(jsonString, "value");
+    assertNull(newValue);
   }
 }
