@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -13,7 +14,7 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -102,7 +103,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         "Enable execution of OpenAEV scenarios through your SentinelOne instance.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.sentinelone.com");
-    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+    connector.setContainerType(ConnectorType.EXECUTOR);
     connector.setCatalogConnectorConfigurations(
         new SentinelOneExecutorConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));

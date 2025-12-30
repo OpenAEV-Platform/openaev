@@ -2,7 +2,7 @@ import { Alert, Dialog, DialogContent, DialogTitle, Grid, Step, StepButton, Step
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
-import { fetchExecutors } from '../../../actions/Executor';
+import { fetchExecutors } from '../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
 import { type LoggedHelper, type MeTokensHelper } from '../../../actions/helper';
 import { meTokens } from '../../../actions/users/User';
@@ -78,7 +78,13 @@ const Executors = () => {
       />
       <Alert variant="outlined" severity="info" style={{ marginBottom: theme.spacing(2) }}>
         {`${t('Here, you can download and install simulation agents available in your executors. Depending on the integrations you have enabled, some of them may be unavailable. Each agent can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures.')} ${t('Learn more information about how to setup simulation agents')} `}
-        <a href="https://docs.openaev.io/latest/deployment/ecosystem/executors/?h=agent#deploy-agents" target="_blank" rel="noreferrer">{t('in the documentation')}</a>
+        <a
+          href="https://docs.openaev.io/latest/deployment/ecosystem/executors/?h=agent#deploy-agents"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {t('in the documentation')}
+        </a>
         .
       </Alert>
       <Grid container spacing={3}>
@@ -109,20 +115,36 @@ const Executors = () => {
                 <Stepper activeStep={activeStep} style={{ padding: theme.spacing(0, 1, 3, 0) }}>
                   {steps.map((label, index) => (
                     <Step key={label}>
-                      <StepButton color="inherit" onClick={() => setActiveStep(index)}>{label}</StepButton>
+                      <StepButton
+                        color="inherit"
+                        onClick={() => setActiveStep(index)}
+                      >
+                        {label}
+                      </StepButton>
                     </Step>
                   ))}
                 </Stepper>
                 {activeStep === 0 && (
-                  <PlatformSelector selectedExecutor={selectedExecutor} setActiveStep={setActiveStep} setPlatform={setPlatform} />
+                  <PlatformSelector
+                    selectedExecutor={selectedExecutor}
+                    setActiveStep={setActiveStep}
+                    setPlatform={setPlatform}
+                  />
                 )}
                 {activeStep === 1 && platform && (
-                  <InstructionSelector userToken={userToken} platform={platform} selectedExecutor={selectedExecutor} />
+                  <InstructionSelector
+                    userToken={userToken}
+                    platform={platform}
+                    selectedExecutor={selectedExecutor}
+                  />
                 )}
               </>
             )}
           {!needInformationStepper && selectedExecutor && (
-            <ExecutorDocumentationLink showEEChip={showEEChip(selectedExecutor)} executor={selectedExecutor} />
+            <ExecutorDocumentationLink
+              showEEChip={showEEChip(selectedExecutor)}
+              executor={selectedExecutor}
+            />
           )}
         </DialogContent>
       </Dialog>

@@ -2,7 +2,7 @@ package io.openaev.integration.migration;
 
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import org.springframework.stereotype.Component;
 

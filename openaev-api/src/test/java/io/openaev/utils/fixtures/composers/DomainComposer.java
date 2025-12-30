@@ -18,21 +18,6 @@ public class DomainComposer extends ComposerBase<Domain> {
       this.domain = domain;
     }
 
-    public Composer withId(String id) {
-      this.domain.setId(id);
-      return this;
-    }
-
-    public Composer withName(String name) {
-      this.domain.setName(name);
-      return this;
-    }
-
-    public Composer withColor(String color) {
-      this.domain.setColor(color);
-      return this;
-    }
-
     @Override
     public Composer persist() {
       this.domain = domainRepository.save(domain);

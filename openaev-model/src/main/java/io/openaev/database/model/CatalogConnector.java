@@ -23,11 +23,6 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "catalog_connectors")
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnector implements Base {
-  public enum CONNECTOR_TYPE {
-    COLLECTOR,
-    INJECTOR,
-    EXECUTOR
-  }
 
   @Id
   @NotNull
@@ -125,7 +120,7 @@ public class CatalogConnector implements Base {
   @Column(name = "catalog_connector_type")
   @JsonProperty("catalog_connector_type")
   @Schema(description = "Connector type")
-  private CONNECTOR_TYPE containerType;
+  private ConnectorType containerType;
 
   @Column(name = "catalog_connector_class_name")
   @JsonProperty("catalog_connector_class_name")

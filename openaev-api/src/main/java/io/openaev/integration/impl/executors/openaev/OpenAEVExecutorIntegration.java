@@ -8,7 +8,7 @@ import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class OpenAEVExecutorIntegration extends Integration {
   private final ExecutorService executorService;

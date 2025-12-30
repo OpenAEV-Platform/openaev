@@ -6,7 +6,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.lang.reflect.InvocationTargetException;

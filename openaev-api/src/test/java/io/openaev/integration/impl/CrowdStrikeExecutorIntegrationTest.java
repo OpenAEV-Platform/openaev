@@ -22,7 +22,7 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;

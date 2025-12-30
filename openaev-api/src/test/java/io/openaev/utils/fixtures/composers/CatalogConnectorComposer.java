@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,8 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
     private final CatalogConnector catalogConnector;
     private final List<ConnectorInstanceComposer.Composer> connectorInstanceComposers =
         new ArrayList<>();
+    private final List<CatalogConnectorConfigurationComposer.Composer>
+        catalogConnectorConfigurationComposer = new ArrayList<>();
 
     public Composer(CatalogConnector catalogConnector) {
       this.catalogConnector = catalogConnector;
@@ -32,10 +35,23 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
       return this;
     }
 
+    public Composer withCatalogConnectorConfiguration(
+        CatalogConnectorConfigurationComposer.Composer configurationComposer) {
+      this.catalogConnectorConfigurationComposer.add(configurationComposer);
+      Set<CatalogConnectorConfiguration> tempConfigurations =
+          this.catalogConnector.getCatalogConnectorConfigurations();
+      tempConfigurations.add(configurationComposer.get());
+      configurationComposer.get().setCatalogConnector(catalogConnector);
+      this.catalogConnector.setCatalogConnectorConfigurations(tempConfigurations);
+      return this;
+    }
+
     @Override
     public CatalogConnectorComposer.Composer persist() {
       catalogConnectorRepository.save(catalogConnector);
       connectorInstanceComposers.forEach(ConnectorInstanceComposer.Composer::persist);
+      catalogConnectorConfigurationComposer.forEach(
+          CatalogConnectorConfigurationComposer.Composer::persist);
       return this;
     }
 
@@ -43,6 +59,8 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
     public CatalogConnectorComposer.Composer delete() {
       connectorInstanceComposers.forEach(ConnectorInstanceComposer.Composer::delete);
       catalogConnectorRepository.delete(catalogConnector);
+      catalogConnectorConfigurationComposer.forEach(
+          CatalogConnectorConfigurationComposer.Composer::delete);
       return this;
     }
 

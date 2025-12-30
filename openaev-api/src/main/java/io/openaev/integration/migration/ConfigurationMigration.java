@@ -3,7 +3,7 @@ package io.openaev.integration.migration;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import java.util.Optional;
 import java.util.Set;

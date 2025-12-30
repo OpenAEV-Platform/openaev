@@ -6,7 +6,7 @@ import { type FunctionComponent, useContext, useEffect, useMemo, useState } from
 
 import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
-import { fetchExecutors } from '../../../../actions/Executor';
+import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -147,7 +147,11 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
 
                     if (count > 0) {
                       return (
-                        <Tooltip key={executorType} title={`${base.executor_name} : ${count}`} arrow>
+                        <Tooltip
+                          key={executorType}
+                          title={`${base.executor_name} : ${count}`}
+                          arrow
+                        >
                           <div style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -201,7 +205,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       buildFilter('endpoint_platform', platforms ?? [], 'contains'),
     ],
   };
-  // only add an architecture filter if the payload is not compatible with all archs
+    // only add an architecture filter if the payload is not compatible with all archs
   if (quickFilter.filters && payloadArch && payloadArch != 'ALL_ARCHITECTURES') {
     quickFilter.filters?.push(buildFilter('endpoint_arch', [payloadArch], 'contains'));
   }

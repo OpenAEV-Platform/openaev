@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
@@ -13,7 +14,7 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -103,7 +104,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         "Enable execution of OpenAEV scenarios through your Crowdstrike instance.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.crowdstrike.com");
-    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+    connector.setContainerType(ConnectorType.EXECUTOR);
     connector.setCatalogConnectorConfigurations(
         new CrowdStrikeExecutorConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));

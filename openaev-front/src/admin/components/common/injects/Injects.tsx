@@ -140,8 +140,8 @@ const Injects: FunctionComponent<Props> = ({
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
     },
     {
-      field: 'inject_domains',
-      label: 'Payload domains',
+      field: 'inject_contract_domain',
+      label: t('Domains'),
       isSortable: true,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         return inject.inject_contract_domains?.length

@@ -10,7 +10,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.PlatformSettingsService;
@@ -104,7 +104,6 @@ public class CalderaExecutorIntegration extends Integration {
   @Override
   protected void innerStop() {
     this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
-    executorService.removeFromType(CALDERA_EXECUTOR_TYPE);
     timers.forEach(timer -> timer.cancel(true));
   }
 }

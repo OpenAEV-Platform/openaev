@@ -1,7 +1,7 @@
 package io.openaev.integration.local_fixtures;
 
 import io.openaev.integration.migration.ConfigurationMigration;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import org.springframework.stereotype.Component;
 

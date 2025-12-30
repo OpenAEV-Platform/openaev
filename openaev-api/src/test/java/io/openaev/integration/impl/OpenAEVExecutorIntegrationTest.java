@@ -20,7 +20,7 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
 import io.openaev.integrations.InjectorService;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.utilstest.RabbitMQTestListener;

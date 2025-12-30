@@ -1,7 +1,7 @@
 package io.openaev.rest.catalog_connector.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorType;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
@@ -9,17 +9,19 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Set;
 import lombok.Builder;
-import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Builder
-@Data
 public class CatalogConnectorOutput {
 
   @JsonProperty("catalog_connector_id")
   @NotBlank
   private String id;
+
+  @JsonProperty("catalog_connector_slug")
+  @NotBlank
+  private String slug;
 
   @JsonProperty("catalog_connector_title")
   @NotBlank
@@ -47,7 +49,7 @@ public class CatalogConnectorOutput {
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @JsonProperty("catalog_connector_type")
   @NotNull
-  private CatalogConnector.CONNECTOR_TYPE containerType;
+  private ConnectorType containerType;
 
   @JsonProperty("catalog_connector_last_verified_date")
   private Instant lastVerifiedDate;
@@ -57,4 +59,7 @@ public class CatalogConnectorOutput {
 
   @JsonProperty("catalog_connector_manager_supported")
   private boolean isManagerSupported;
+
+  @JsonProperty("instance_deployed_count")
+  private Integer instanceDeployedCount = 0;
 }

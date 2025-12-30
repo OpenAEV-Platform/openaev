@@ -14,7 +14,7 @@ import io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorServi
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -115,7 +115,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
   @Override
   protected void innerStop() {
-    executorService.remove(config.getId());
     timers.forEach(timer -> timer.cancel(true));
   }
 }

@@ -36,13 +36,6 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @JsonBackReference
   private CatalogConnector catalogConnector;
 
-  @Enumerated(EnumType.STRING)
-  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @Column(name = "connector_instance_source")
-  @JsonProperty("connector_instance_source")
-  @NotNull
-  private SOURCE source = SOURCE.OTHER;
-
   @Column(name = "connector_instance_restart_count")
   @JsonProperty("connector_instance_restart_count")
   private Integer restartCount;
@@ -70,13 +63,20 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @Column(name = "connector_instance_current_status")
   @JsonProperty("connector_instance_current_status")
   @NotNull
-  private CURRENT_STATUS_TYPE currentStatus = CURRENT_STATUS_TYPE.stopped;
+  private CURRENT_STATUS_TYPE currentStatus;
+
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "connector_instance_source")
+  @JsonProperty("connector_instance_source")
+  @NotNull
+  private SOURCE source = SOURCE.OTHER;
 
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "connector_instance_requested_status")
   @JsonProperty("connector_instance_requested_status")
-  private REQUESTED_STATUS_TYPE requestedStatus = REQUESTED_STATUS_TYPE.stopping;
+  private REQUESTED_STATUS_TYPE requestedStatus;
 
   @OneToMany(
       mappedBy = "connectorInstance",

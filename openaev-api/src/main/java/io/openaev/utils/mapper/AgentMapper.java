@@ -3,8 +3,8 @@ package io.openaev.utils.mapper;
 import static java.util.Collections.emptyList;
 
 import io.openaev.database.model.Agent;
+import io.openaev.rest.asset.endpoint.form.AgentExecutorOutput;
 import io.openaev.rest.asset.endpoint.form.AgentOutput;
-import io.openaev.rest.asset.endpoint.form.ExecutorOutput;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -35,7 +35,7 @@ public class AgentMapper {
 
     if (agent.getExecutor() != null) {
       builder.executor(
-          ExecutorOutput.builder()
+          AgentExecutorOutput.builder()
               .id(agent.getExecutor().getId())
               .name(agent.getExecutor().getName())
               .type(agent.getExecutor().getType())

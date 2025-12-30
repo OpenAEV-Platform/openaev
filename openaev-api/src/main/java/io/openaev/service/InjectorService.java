@@ -8,20 +8,25 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.RabbitmqConfig;
-import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Domain;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
+import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.response.InjectorConnection;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
+import io.openaev.utils.mapper.InjectorMapper;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
@@ -29,26 +34,82 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
-@RequiredArgsConstructor
 @Service("coreInjectorService")
 // TODO needs to be merged with integrations/InjectorService
-public class InjectorService {
+public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
   private static final String DUMMY_SUFFIX = "_dummy";
 
+  @Resource private RabbitmqConfig rabbitmqConfig;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
+
   private final FileService fileService;
+  private final ConnectorInstanceService connectorInstanceService;
   private final InjectorContractService injectorContractService;
   private final DomainService domainService;
 
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  private final InjectorMapper injectorMapper;
+
+  @Autowired
+  public InjectorService(
+      InjectorRepository injectorRepository,
+      InjectorContractRepository injectorContractRepository,
+      AttackPatternRepository attackPatternRepository,
+      ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
+      FileService fileService,
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      InjectorContractService injectorContractService,
+      DomainService domainService,
+      InjectorMapper injectorMapper,
+      CatalogConnectorMapper catalogConnectorMapper) {
+    super(
+        ConnectorType.INJECTOR,
+        connectorInstanceConfigurationRepository,
+        catalogConnectorService,
+        catalogConnectorMapper);
+    this.injectorRepository = injectorRepository;
+    this.injectorContractRepository = injectorContractRepository;
+    this.attackPatternRepository = attackPatternRepository;
+    this.fileService = fileService;
+    this.connectorInstanceService = connectorInstanceService;
+    this.injectorContractService = injectorContractService;
+    this.domainService = domainService;
+    this.injectorMapper = injectorMapper;
+  }
+
+  @Override
+  protected List<ConnectorInstancePersisted> getRelatedInstances() {
+    return connectorInstanceService.injectorConnectorInstances();
+  }
+
+  @Override
+  protected List<Injector> getAllConnectors() {
+    return fromIterable(injectorRepository.findAll());
+  }
+
+  @Override
+  protected Injector getConnectorById(String injectorId) {
+    return injectorRepository.findById(injectorId).orElse(null);
+  }
+
+  @Override
+  protected InjectorOutput mapToOutput(
+      Injector injector, CatalogConnector catalogConnector, boolean isVerified) {
+    return injectorMapper.toInjectorOutput(injector, catalogConnector, isVerified);
+  }
+
+  @Override
+  protected Injector createNewConnector() {
+    return new Injector();
+  }
 
   /**
    * Create a dummmy injector, that is used when importing the starter pack before the real
@@ -93,13 +154,39 @@ public class InjectorService {
     return injectorType;
   }
 
-  public Optional<Injector> getInjectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByType(injectorType);
-  }
-
   public List<Injector> findAll() {
     return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
         .collect(Collectors.toList());
+  }
+
+  /**
+   * Retrieve all injectors.
+   *
+   * @param isIncludeNext Include pending injectors.
+   * @return List of injector output
+   */
+  public Iterable<InjectorOutput> injectorsOutput(boolean isIncludeNext) {
+    return getConnectorsOutput(isIncludeNext);
+  }
+
+  /**
+   * Find injector by its type
+   *
+   * @param injectorType injector type to search for
+   * @return an Optional containing the injector if found, empty otherwise
+   */
+  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
+    return injectorRepository.findByType(injectorType);
+  }
+
+  /**
+   * Retrieves IDs of resources associated with an injector.
+   *
+   * @param injectorId injector identifier.
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  public ConnectorIds getInjectorRelationsId(String injectorId) {
+    return getConnectorRelationsId(injectorId);
   }
 
   public InjectorRegistration registerInjector(

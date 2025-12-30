@@ -2,9 +2,9 @@ package io.openaev.rest.catalog_connector;
 
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -13,15 +13,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,17 +36,13 @@ public class CatalogConnectorApi extends RestBehavior {
     return this.catalogConnectorService.catalogConnectors();
   }
 
-  @GetMapping(CATALOG_CONNECTOR_URI + "/{connectorId}")
+  @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}")
   @RBAC(
-      resourceId = "#connectorId",
+      resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
-  public CatalogConnectorOutput getConnector(@PathVariable String connectorId) {
-    return catalogConnectorService
-        .findById(connectorId)
-        .map(catalogConnectorMapper::toCatalogConnectorOutput)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Connector not found with id: " + connectorId));
+  public CatalogConnectorOutput getConnector(@PathVariable String catalogConnectorId) {
+    return this.catalogConnectorService.catalogConnectorOutput(catalogConnectorId);
   }
 
   @GetMapping(
@@ -63,5 +58,15 @@ public class CatalogConnectorApi extends RestBehavior {
     }
 
     return ResponseEntity.notFound().build();
+  }
+
+  @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations")
+  @RBAC(
+      resourceId = "#catalogConnectorId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.CATALOG)
+  public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
+      @PathVariable String catalogConnectorId) {
+    return catalogConnectorService.getCatalogConnectorConfigurations(catalogConnectorId);
   }
 }

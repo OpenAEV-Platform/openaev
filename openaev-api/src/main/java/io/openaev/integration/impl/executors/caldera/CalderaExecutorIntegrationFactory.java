@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.caldera;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
@@ -12,7 +13,7 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
 import io.openaev.integrations.InjectorService;
-import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
@@ -96,7 +97,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         "Enable execution of OpenAEV scenarios through your Caldera instance.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://caldera.mitre.org/");
-    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+    connector.setContainerType(ConnectorType.EXECUTOR);
     connector.setCatalogConnectorConfigurations(
         new CalderaExecutorConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));
