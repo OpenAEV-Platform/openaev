@@ -376,7 +376,12 @@ public class ExerciseApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    return this.exerciseService.createExercise(exercise);
+
+    Exercise savedExercise = this.exerciseService.createExercise(exercise);
+    if (input.isChaining()) {
+      workflowService.creationWorkflow(savedExercise.getId());
+    }
+    return savedExercise;
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}")
