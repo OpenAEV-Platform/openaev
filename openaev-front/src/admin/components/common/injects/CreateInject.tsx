@@ -62,7 +62,7 @@ const useStyles = makeStyles()(theme => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   kill_chain_phase: { width: '15%' },
-  injector_contract_labels: { width: '40%' },
+  injector_contract_labels: { width: '35%' },
   injector_contract_domains: { width: '15%' },
   injector_contract_platforms: { width: '10%' },
   attack_patterns: { width: '20%' },

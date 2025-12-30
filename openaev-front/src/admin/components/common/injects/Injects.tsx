@@ -79,8 +79,8 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   inject_type: { width: '15%' },
-  inject_title: { width: '15%' },
-  inject_domains: { width: '15%' },
+  inject_title: { width: '20%' },
+    inject_contract_domain: { width: '15%' },
   inject_depends_duration: { width: '18%' },
   inject_platforms: { width: '10%' },
   inject_enabled: { width: '12%' },
