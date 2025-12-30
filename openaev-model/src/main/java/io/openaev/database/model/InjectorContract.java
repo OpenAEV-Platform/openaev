@@ -1,8 +1,5 @@
 package io.openaev.database.model;
 
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,14 +20,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import javax.annotation.Nullable;
+import java.time.Instant;
+import java.util.*;
+
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
 
 @Getter
 @Setter
@@ -57,8 +58,12 @@ public class InjectorContract implements Base {
   private Map<String, String> labels = new HashMap<>();
 
   @Column(name = "injector_contract_manual")
-  @JsonProperty("injector_contract_manual")
   private Boolean manual;
+
+  @JsonProperty("injector_contract_manual")
+  public boolean getManualEffective() {
+    return Boolean.TRUE.equals(manual);
+  }
 
   @Column(name = "injector_contract_content")
   @JsonProperty("injector_contract_content")
@@ -70,19 +75,32 @@ public class InjectorContract implements Base {
   private ObjectNode convertedContent;
 
   @Column(name = "injector_contract_custom")
-  @JsonProperty("injector_contract_custom")
   private Boolean custom = false;
 
+  @JsonProperty("injector_contract_custom")
+  public boolean getCustomEffective() {
+    return Boolean.TRUE.equals(custom);
+  }
+
   @Column(name = "injector_contract_needs_executor")
-  @JsonProperty("injector_contract_needs_executor")
   private Boolean needsExecutor = false;
+
+  @JsonProperty("injector_contract_needs_executor")
+  public boolean getNeedsExecutorEffective() {
+    return Boolean.TRUE.equals(needsExecutor);
+  }
 
   @Type(StringArrayType.class)
   @Enumerated(EnumType.STRING)
   @Column(name = "injector_contract_platforms", columnDefinition = "text[]")
-  @JsonProperty("injector_contract_platforms")
   @Queryable(filterable = true)
+  @JsonProperty("injector_contract_platforms")
   private Endpoint.PLATFORM_TYPE[] platforms = new Endpoint.PLATFORM_TYPE[0];
+
+  @JsonProperty("injector_contract_platforms")
+  public Endpoint.PLATFORM_TYPE[] getInjectorContractPlatformEffective() {
+    return platforms;
+  }
 
   @Queryable(filterable = true, dynamicValues = true, path = "payload.executionArch")
   @JsonProperty("injector_contract_arch")
@@ -156,14 +174,24 @@ public class InjectorContract implements Base {
   }
 
   @Column(name = "injector_contract_atomic_testing")
-  @JsonProperty("injector_contract_atomic_testing")
   @Queryable(filterable = true)
+  @JsonProperty("injector_contract_atomic_testing")
   private boolean isAtomicTesting;
+
+  @JsonProperty("injector_contract_atomic_testing")
+  public boolean getAtomicTestingEffective() {
+    return isAtomicTesting;
+  }
 
   @Column(name = "injector_contract_import_available")
   @JsonProperty("injector_contract_import_available")
   @Queryable(filterable = true)
   private boolean isImportAvailable;
+
+  @JsonProperty("injector_contract_import_available")
+  public boolean getImportAvailableEffective() {
+    return isImportAvailable;
+  }
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
