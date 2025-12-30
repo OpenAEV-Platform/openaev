@@ -1966,5 +1966,17 @@
   "YYYY": "AAAA",
   "Hourly": "Ogni ora",
   "End date need to be strictly after start date": "La data di fine deve essere rigorosamente successiva alla data di inizio.",
-  "payload_domains": "Domini"
+  "payload_domains": "Domini",
+  "every_masc_singular": "Ogni",
+  "every_fem_singular": "Ogni",
+  "hours_singular": "ora",
+  "hours_plural": "ore",
+  "days_singular": "giorno",
+  "weeks_singular": "settimana",
+  "months_singular": "mese",
+  "every_masc_plural": "Ogni",
+  "every_fem_plural": "Ogni",
+  "weeks_plural": "settimane",
+  "days_plural": "giorni",
+  "months_plural": "mesi"
 }

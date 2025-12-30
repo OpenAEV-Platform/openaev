@@ -1,6 +1,6 @@
 import cronstrue from 'cronstrue/i18n';
 
-import { PeriodExpressionHandler, type UTCHourMinute } from './PeriodExpressionHandler';
+import { type LocalHourMinute, PeriodExpressionHandler } from './PeriodExpressionHandler';
 
 const generateHourlyCronExpression = (h: string, m: string, owd: boolean) => {
   if (owd) {
@@ -133,10 +133,12 @@ const unix_parser_set: Map<CronFieldPosition, CronFieldParser> = new Map<CronFie
 class CronField {
   field_expression: string;
   parser: CronFieldParser;
+  position: CronFieldPosition;
 
-  constructor(field_expression: string, parser: CronFieldParser) {
+  constructor(field_expression: string, parser: CronFieldParser, position: CronFieldPosition) {
     this.field_expression = field_expression;
     this.parser = parser;
+    this.position = position;
   }
 
   /**
@@ -146,8 +148,30 @@ class CronField {
    * @example for '1/22' returns '1'
    */
   getValue() {
-    const matches = this.field_expression.match('([^\\*])[\\/|#|L]?');
+    const matches = this.field_expression.match('([^\\*]+)[\\/|#|L]?');
     return matches?.[1];
+  }
+
+  /**
+   * Gets the localised time value if the field is a time part (minutes, hours)
+   * and it is a pure numerical expression.
+   * @returns the local timezone time value if applicable, otherwise gets the expression verbatim
+   */
+  getLocalisedTimeValue() {
+    if (this.isPureNumeric()) {
+      const dt = new Date();
+      switch (this.position) {
+        case CronFieldPosition.Hours:
+          dt.setUTCHours(Number(this.getValue()));
+          return dt.getHours().toString();
+        case CronFieldPosition.Minutes:
+          dt.setUTCHours(0, Number(this.getValue()));
+          return dt.getMinutes().toString();
+        default:
+          return this.field_expression;
+      }
+    }
+    return this.field_expression;
   }
 
   /**
@@ -214,6 +238,10 @@ function toCronExpression(fields: Map<CronFieldPosition, CronField>) {
   return Array.from(fields.entries().map(value => value[1].field_expression)).join(' ').trimEnd();
 }
 
+function toLocalisedCronExpression(fields: Map<CronFieldPosition, CronField>) {
+  return Array.from(fields.entries().map(value => value[1].getLocalisedTimeValue())).join(' ').trimEnd();
+}
+
 /**
  * A cron expression
  */
@@ -249,8 +277,16 @@ class Cron extends PeriodExpressionHandler {
     return toCronExpression(this.fields);
   }
 
+  toLocalisedCronExpression() {
+    return toLocalisedCronExpression(this.fields);
+  }
+
   toHumanReadableString(locale: string) {
-    return cronstrue.toString(this.toCronExpression(), { locale });
+    return cronstrue.toString(this.toLocalisedCronExpression(), { locale });
+  }
+
+  toTranslatableStringArray(locale: string): string[] {
+    return [this.toHumanReadableString(locale)];
   }
 
   getRecurrenceMagnitude(): string {
@@ -265,10 +301,12 @@ class Cron extends PeriodExpressionHandler {
     }
   }
 
-  getRecurrenceTime(): UTCHourMinute {
+  getRecurrenceTime(): LocalHourMinute {
+    const localDate = new Date();
+    localDate.setUTCHours(this.getHours()?.toNumber() || 0, this.getMinutes()?.toNumber() || 0, 0, 0);
     return {
-      hour: this.getHours()?.toNumber(),
-      minute: this.getMinutes()?.toNumber(),
+      hour: localDate.getHours(),
+      minute: localDate.getMinutes(),
     };
   }
 
@@ -390,7 +428,7 @@ class CronParser {
   parseParts(parts: string[]): Cron {
     const fields = new Map<CronFieldPosition, CronField>(
       this.parsers.entries().map(
-        (value, index) => [value[0], new CronField(parts[index], value[1])]));
+        (value, index) => [value[0], new CronField(parts[index], value[1], value[0])]));
 
     return new Cron(fields);
   }

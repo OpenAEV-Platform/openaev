@@ -1966,5 +1966,17 @@
   "YYYY": "YYYY",
   "Hourly": "按小时计费",
   "End date need to be strictly after start date": "结束日期必须严格晚于开始日期",
-  "payload_domains": "域名"
+  "payload_domains": "域名",
+  "every_masc_singular": "每",
+  "every_fem_singular": "每",
+  "hours_singular": "小时",
+  "hours_plural": "小时",
+  "days_singular": "日",
+  "weeks_singular": "周",
+  "months_singular": "月",
+  "every_masc_plural": "每",
+  "every_fem_plural": "每",
+  "weeks_plural": "周",
+  "days_plural": "天",
+  "months_plural": "个月"
 }

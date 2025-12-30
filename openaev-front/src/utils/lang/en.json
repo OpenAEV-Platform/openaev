@@ -1966,5 +1966,17 @@
   "YYYY": "YYYY",
   "Hourly": "Hourly",
   "End date need to be strictly after start date": "End date need to be strictly after start date",
-  "payload_domains": "Domains"
+  "payload_domains": "Domains",
+  "every_masc_singular": "Every",
+  "every_fem_singular": "Every",
+  "hours_singular": "hour",
+  "hours_plural": "hours",
+  "days_singular": "day",
+  "weeks_singular": "week",
+  "months_singular": "month",
+  "every_masc_plural": "Every",
+  "every_fem_plural": "Every",
+  "weeks_plural": "weeks",
+  "days_plural": "days",
+  "months_plural": "months"
 }

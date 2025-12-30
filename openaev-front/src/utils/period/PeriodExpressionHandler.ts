@@ -1,5 +1,5 @@
-export type UTCHourMinute = {
-  hour: number | undefined;
+export type LocalHourMinute = {
+  hour: number | (() => number) | undefined;
   minute: number | undefined;
 };
 
@@ -11,10 +11,17 @@ export abstract class PeriodExpressionHandler {
   }
 
   /**
-     * @returns the plain text interpretation of the cron expression
-     * @param locale the language code in which to output the plain text
-     */
+   * @returns the plain text interpretation of the cron expression
+   * @param locale the language code in which to output the plain text
+   */
   abstract toHumanReadableString(locale: string): string;
+
+  /**
+   * @returns an array with string codes to enable internationalisation
+   * to be handled by the i18n middleware
+   * @example ["every_plural", "2", "month_plural"]
+   */
+  abstract toTranslatableStringArray(locale: string): string[];
 
   /**
      * Checks whether the expression is supported by the UI widgets
@@ -40,5 +47,5 @@ export abstract class PeriodExpressionHandler {
      * Gets the hour and minute when the recurrence occurs
      * Hour part may be null due to the recurrence being an hourly recurrence
      */
-  abstract getRecurrenceTime(): UTCHourMinute;
+  abstract getRecurrenceTime(): LocalHourMinute;
 }

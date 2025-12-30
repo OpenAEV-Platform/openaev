@@ -76,7 +76,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
     // process time
 
     let sentence: string;
-    sentence = `(UTC) ${cronObject.toHumanReadableString(locale)}`;
+    sentence = `${cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ')}`;
     if (scenario.scenario_recurrence_end) {
       sentence += ` ${t('recurrence_from')} ${fld(scenario.scenario_recurrence_start)}`;
       sentence += ` ${t('recurrence_to')} ${fld(scenario.scenario_recurrence_end)}`;

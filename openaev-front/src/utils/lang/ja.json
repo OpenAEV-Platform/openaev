@@ -1966,5 +1966,17 @@
   "YYYY": "年",
   "Hourly": "時間単位",
   "End date need to be strictly after start date": "終了日は開始日より厳密に後でなければならない",
-  "payload_domains": "ドメイン"
+  "payload_domains": "ドメイン",
+  "every_masc_singular": "毎",
+  "every_fem_singular": "毎",
+  "hours_singular": "時間",
+  "hours_plural": "時間",
+  "days_singular": "",
+  "weeks_singular": "週",
+  "months_singular": "月",
+  "every_masc_plural": "毎",
+  "every_fem_plural": "毎",
+  "weeks_plural": "週",
+  "days_plural": "日",
+  "months_plural": "か月"
 }

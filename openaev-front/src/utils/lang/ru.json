@@ -1966,5 +1966,17 @@
   "YYYY": "ГГГГ",
   "Hourly": "Почасовая оплата",
   "End date need to be strictly after start date": "Дата окончания должна быть строго после даты начала",
-  "payload_domains": "Домены"
+  "payload_domains": "Домены",
+  "every_masc_singular": "Каждый",
+  "every_fem_singular": "Каждая",
+  "hours_singular": "час",
+  "hours_plural": "часа",
+  "days_singular": "день",
+  "weeks_singular": "неделю",
+  "months_singular": "месяц",
+  "every_masc_plural": "Каждые",
+  "every_fem_plural": "Каждые",
+  "weeks_plural": "недели",
+  "days_plural": "дня",
+  "months_plural": "месяца"
 }

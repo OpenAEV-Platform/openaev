@@ -1966,5 +1966,17 @@
   "YYYY": "AAAA",
   "Hourly": "Horaire",
   "End date need to be strictly after start date": "La date de fin doit être ultérieure à la date de début",
-  "payload_domains": "Domaines"
+  "payload_domains": "Domaines",
+  "every_masc_singular": "Chaque",
+  "every_fem_singular": "Chaque",
+  "hours_singular": "heure",
+  "hours_plural": "heures",
+  "days_singular": "jour",
+  "weeks_singular": "semaine",
+  "months_singular": "mois",
+  "every_masc_plural": "Tous les",
+  "every_fem_plural": "Toutes les",
+  "weeks_plural": "semaines",
+  "days_plural": "jours",
+  "months_plural": "mois"
 }
