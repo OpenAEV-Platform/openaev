@@ -10,6 +10,7 @@ import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
 import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
@@ -33,12 +34,12 @@ import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
-import io.openaev.service.VariableService;
+import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.cron.CronService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
@@ -106,10 +107,15 @@ public class ExerciseService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
-  private final InjectRepository injectRepository;
-  private final LessonsCategoryRepository lessonsCategoryRepository;
+  private final LessonsService lessonsService;
+  private final FileService fileService;
 
   private final InjectExpectationMapper injectExpectationMapper;
+
+  private final WorkflowService workflowService;
+  private final StepService stepService;
+  private final PauseExerciseService pauseExerciseService;
+  private final InjectStatusService injectStatusService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -139,6 +145,15 @@ public class ExerciseService {
 
     actionMetricCollector.addSimulationCreatedCount();
     return exerciseRepository.save(exercise);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise createExercise(@NotNull final Exercise exercise, boolean isChaining) {
+    Exercise savedExercise = createExercise(exercise);
+    if (isChaining) {
+      workflowService.creationWorkflow(savedExercise);
+    }
+    return savedExercise;
   }
 
   // -- READ --
@@ -439,6 +454,110 @@ public class ExerciseService {
     return getExerciseSimples(specificationCount, pageable, result);
   }
 
+  public Exercise findById(String exerciseId) {
+    return exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+  }
+
+  public List<Exercise> findAllById(List<String> exerciseIds) {
+    return exerciseRepository.findAllById(exerciseIds);
+  }
+
+  public Exercise saveExercise(Exercise exercise) {
+    return exerciseRepository.save(exercise);
+  }
+
+  public void deleteById(String exerciseId) {
+    exerciseRepository.deleteById(exerciseId);
+  }
+
+  public Exercise changeExerciseStatus(ExerciseStatus status, Exercise exercise) {
+    boolean isCloseState =
+        ExerciseStatus.CANCELED.equals(exercise.getStatus())
+            || ExerciseStatus.FINISHED.equals(exercise.getStatus());
+    boolean isExerciseChaining = workflowService.isExerciseChaining(exercise.getId());
+    if (isExerciseChaining) {
+      if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+          && ExerciseStatus.RUNNING.equals(status)) {
+        stepService.startWorkflow(exercise.getId());
+      }
+      // TODO
+      // CAS 1 : CANCEL || FINISHED -> SCHEDULED (Relaunch)
+      // CAS 1.1: no update template -> new idWorkflow Run but same workflow template version
+      // CAS 1.2: template updated -> new idWorkflow Run && increase workflow template version
+
+      // CAS 2 : SCHEDULED -> RUNNING (Force running??? not available on chaining,
+      // but need throwIfExerciseNotLaunchable(check if licence EE are present and/or needed for
+      // some Agent))
+
+      // CAS 3 : PAUSED -> RUNNING (Resume pause)
+      // CAS 4 : RUNNING -> PAUSED (Request pause)
+      // CAS 3 & 4 : To implement: manage queue, how keep data push into queue ?
+      // HOW re-push data into queue save during pause after end of pause ?
+      // option 1:
+      // a. automatically re-push into queue
+      // b. during check if workflow stoped re-push into queue
+      // option 2:
+      // a. add status paused into StepStatus
+      // b. if workflow STOP but Inject received output, step exec will be push into queue and set
+      // as STOP
+      // c. workflow change status STOP -> RUN
+      // d. All step exec with status STOP are analysed (loose of order)
+      // if same step receive 2 outputs at different time we cannot manage output by arrived time
+      // between steps
+      // maybe with update time of output ? Add system to reorder treatment ?
+      // CAS 5 : RUNNING -> CANCEL (cancel exercise)
+      // Change Workflow status to CANCEL
+      // Change STEP status to CANCEL
+      // If inject received new output what to do ?
+      // option 1: compute data into step but dont aware next step
+      // option 2: do nothing
+    }
+    // In case of rescheduled of an exercise.
+    if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
+      exercise.setStart(null);
+      exercise.setEnd(null);
+      // Reset pauses
+      exercise.setCurrentPause(null);
+      pauseExerciseService.deleteAll(pauseExerciseService.findAllForExercise(exercise.getId()));
+      // Reset injects outcome, communications and expectations
+      injectStatusService.deleteAllInjectStatusByInjects(exercise.getInjects());
+      exercise.getInjects().forEach(Inject::clean);
+      // Reset lessons learned answers
+      lessonsService.resetLessonsAnswer(exercise.getId());
+      // Delete exercise transient files (communications, ...)
+      fileService.deleteDirectory(exercise.getId());
+    }
+    // In case of manual start
+    if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      this.throwIfExerciseNotLaunchable(exercise);
+      Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
+      exercise.setStart(nextMinute);
+      actionMetricCollector.addSimulationPlayedCount();
+    }
+    // If exercise move from pause to running state,
+    // we log the pause date to be able to recompute inject dates.
+    if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
+      exercise.setCurrentPause(null);
+      pauseExerciseService.endPauseByExercise(lastPause, exercise);
+    }
+    // If pause is asked, just set the pause date.
+    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+        && ExerciseStatus.PAUSED.equals(status)) {
+      exercise.setCurrentPause(Instant.now());
+    }
+    // Cancelation
+    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+        && ExerciseStatus.CANCELED.equals(status)) {
+      exercise.setEnd(now());
+    }
+    exercise.setUpdatedAt(now());
+    exercise.setStatus(status);
+    return exerciseRepository.save(exercise);
+  }
+
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
     if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
@@ -731,9 +850,9 @@ public class ExerciseService {
     // Remove all association between users / exercises / teams
     this.exerciseTeamUserRepository.deleteTeamsFromAllReferences(teamIds);
     // Remove all association between injects and teams
-    this.injectRepository.removeTeamsForExercise(exerciseId, teamIds);
+    this.injectService.removeTeamsForExercise(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
-    this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, teamIds);
+    this.lessonsService.removeTeamsForExercise(exerciseId, teamIds);
     return teamService.find(fromIds(teamIds));
   }
 

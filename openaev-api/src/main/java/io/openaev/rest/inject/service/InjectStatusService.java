@@ -307,4 +307,12 @@ public class InjectStatusService {
     }
     throw new IllegalArgumentException(message);
   }
+
+  public void deleteAllInjectStatusByInjects(List<Inject> injects) {
+    injectStatusRepository.deleteAllById(
+        injects.stream()
+            .map(Inject::getStatus)
+            .map(i -> i.map(InjectStatus::getId).orElse(""))
+            .toList());
+  }
 }

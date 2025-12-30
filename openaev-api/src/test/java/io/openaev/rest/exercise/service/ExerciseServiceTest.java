@@ -21,10 +21,10 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.TeamService;
-import io.openaev.service.UserService;
-import io.openaev.service.VariableService;
+import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.cron.CronService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -89,6 +89,13 @@ class ExerciseServiceTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ExerciseService actualExerciseService;
 
+  @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private WorkflowService workflowService;
+  @Autowired private StepService stepService;
+  @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private InjectStatusService injectStatusService;
+
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @InjectMocks private ExerciseService mockedExerciseService;
@@ -119,9 +126,13 @@ class ExerciseServiceTest extends IntegrationTest {
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
-            injectRepository,
-            lessonsCategoryRepository,
-            injectExpectationMapper);
+            lessonsService,
+            fileService,
+            injectExpectationMapper,
+            workflowService,
+            stepService,
+            pauseExerciseService,
+            injectStatusService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

@@ -7,9 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static java.time.Duration.between;
 import static java.time.Instant.now;
-import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.LogExecutionTime;
@@ -17,7 +15,8 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
-import io.openaev.database.specification.*;
+import io.openaev.database.specification.ComcheckSpecification;
+import io.openaev.database.specification.ExerciseLogSpecification;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -34,7 +33,6 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -49,7 +47,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -75,18 +72,11 @@ public class ExerciseApi extends RestBehavior {
   private final LogRepository logRepository;
   private final TagRepository tagRepository;
   private final UserRepository userRepository;
-  private final PauseRepository pauseRepository;
   private final DocumentRepository documentRepository;
-  private final ExerciseRepository exerciseRepository;
   private final TeamRepository teamRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final LogRepository exerciseLogRepository;
   private final ComcheckRepository comcheckRepository;
-  private final LessonsCategoryRepository lessonsCategoryRepository;
-  private final LessonsQuestionRepository lessonsQuestionRepository;
-  private final LessonsAnswerRepository lessonsAnswerRepository;
-  private final InjectStatusRepository injectStatusRepository;
-  private final InjectRepository injectRepository;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
@@ -103,7 +93,6 @@ public class ExerciseApi extends RestBehavior {
   private final ExerciseService exerciseService;
   private final TeamService teamService;
   private final ExportService exportService;
-  private final ActionMetricCollector actionMetricCollector;
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final ScenarioService scenarioService;
@@ -129,8 +118,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Log createLog(@PathVariable String exerciseId, @Valid @RequestBody LogCreateInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     Log log = new Log();
     log.setUpdateAttributes(input);
     log.setExercise(exercise);
@@ -255,8 +243,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     input
         .getPlayersIds()
@@ -269,7 +256,7 @@ public class ExerciseApi extends RestBehavior {
                   userRepository.findById(playerId).orElseThrow(ElementNotFoundException::new));
               exerciseTeamUserRepository.save(exerciseTeamUser);
             });
-    return exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    return exerciseService.findById(exerciseId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -292,7 +279,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    return exerciseService.findById(exerciseId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -305,8 +292,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().addAll(fromIterable(teamUsers));
@@ -349,7 +335,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    return exerciseService.findById(exerciseId);
   }
 
   // endregion
@@ -376,12 +362,7 @@ public class ExerciseApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-
-    Exercise savedExercise = this.exerciseService.createExercise(exercise);
-    if (input.isChaining()) {
-      workflowService.creationWorkflow(savedExercise.getId());
-    }
-    return savedExercise;
+    return this.exerciseService.createExercise(exercise, input.isChaining());
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}")
@@ -402,8 +383,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseInformation(
       @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     exercise.setUpdateAttributes(input);
@@ -438,15 +418,14 @@ public class ExerciseApi extends RestBehavior {
   public Exercise updateExerciseStart(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStartDateInput input)
       throws InputValidationException {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     if (!exercise.getStatus().equals(ExerciseStatus.SCHEDULED)) {
       String message = "Change date is only possible in scheduling state";
       throw new InputValidationException("exercise_start_date", message);
     }
     exerciseService.throwIfExerciseNotLaunchable(exercise);
     exercise.setUpdateAttributes(input);
-    return exerciseRepository.save(exercise);
+    return exerciseService.saveExercise(exercise);
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/tags")
@@ -457,8 +436,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseTags(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateTagsInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule());
@@ -472,11 +450,10 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseLogos(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateLogoInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    return exerciseRepository.save(exercise);
+    return exerciseService.saveExercise(exercise);
   }
 
   // -- OPTION --
@@ -494,7 +471,7 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping(EXERCISE_URI + "/options")
   @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
-    return fromIterable(this.exerciseRepository.findAllById(ids)).stream()
+    return fromIterable(this.exerciseService.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }
@@ -507,10 +484,9 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseLessons(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     exercise.setLessonsAnonymized(input.isLessonsAnonymized());
-    return exerciseRepository.save(exercise);
+    return exerciseService.saveExercise(exercise);
   }
 
   @DeleteMapping(EXERCISE_URI + "/{exerciseId}")
@@ -520,7 +496,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExercise(@PathVariable String exerciseId) {
-    exerciseRepository.deleteById(exerciseId);
+    exerciseService.deleteById(exerciseId);
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}")
@@ -534,7 +510,7 @@ public class ExerciseApi extends RestBehavior {
     RawSimulation rawSimulation = exerciseService.rawSimulation(exerciseId);
     // We get the injects linked to this exercise
     List<RawInject> rawInjects =
-        injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
+        injectService.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
     // We get the tuple exercise/team/user
     List<RawExerciseTeamUser> listRawExerciseTeamUsers =
         exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseId));
@@ -651,8 +627,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise deleteDocument(@PathVariable String exerciseId, @PathVariable String documentId) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
         documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
@@ -671,7 +646,7 @@ public class ExerciseApi extends RestBehavior {
       // Delete document from all exercise injects
       injectService.cleanInjectsDocExercise(exerciseId, documentId);
     }
-    return exerciseRepository.save(exercise);
+    return exerciseService.saveExercise(exercise);
   }
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/status")
@@ -680,90 +655,18 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // todo fix @Transactional, for condition time we need value of workflow run created date
   public Exercise changeExerciseStatus(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input) {
     ExerciseStatus status = input.getStatus();
-    Exercise exercise =
-        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     // Check if next status is possible
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
       throw new UnsupportedOperationException(
           "Exercise cant support moving to status " + status.name());
     }
-    // In case of rescheduled of an exercise.
-    boolean isCloseState =
-        ExerciseStatus.CANCELED.equals(exercise.getStatus())
-            || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
-      exercise.setStart(null);
-      exercise.setEnd(null);
-      // Reset pauses
-      exercise.setCurrentPause(null);
-      pauseRepository.deleteAll(pauseRepository.findAllForExercise(exerciseId));
-      // Reset injects outcome, communications and expectations
-      this.injectStatusRepository.deleteAllById(
-          exercise.getInjects().stream()
-              .map(Inject::getStatus)
-              .map(i -> i.map(InjectStatus::getId).orElse(""))
-              .toList());
-      exercise.getInjects().forEach(Inject::clean);
-      // Reset lessons learned answers
-      List<LessonsAnswer> lessonsAnswers =
-          lessonsCategoryRepository
-              .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-              .stream()
-              .flatMap(
-                  lessonsCategory ->
-                      lessonsQuestionRepository
-                          .findAll(
-                              LessonsQuestionSpecification.fromCategory(lessonsCategory.getId()))
-                          .stream()
-                          .flatMap(
-                              lessonsQuestion ->
-                                  lessonsAnswerRepository
-                                      .findAll(
-                                          LessonsAnswerSpecification.fromQuestion(
-                                              lessonsQuestion.getId()))
-                                      .stream()))
-              .toList();
-      lessonsAnswerRepository.deleteAll(lessonsAnswers);
-      // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exerciseId);
-    }
-    // In case of manual start
-    if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
-        && ExerciseStatus.RUNNING.equals(status)) {
-      exerciseService.throwIfExerciseNotLaunchable(exercise);
-      Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
-      exercise.setStart(nextMinute);
-      actionMetricCollector.addSimulationPlayedCount();
-    }
-    // If exercise move from pause to running state,
-    // we log the pause date to be able to recompute inject dates.
-    if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
-        && ExerciseStatus.RUNNING.equals(status)) {
-      Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
-      exercise.setCurrentPause(null);
-      Pause pause = new Pause();
-      pause.setDate(lastPause);
-      pause.setExercise(exercise);
-      pause.setDuration(between(lastPause, now()).getSeconds());
-      pauseRepository.save(pause);
-    }
-    // If pause is asked, just set the pause date.
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
-        && ExerciseStatus.PAUSED.equals(status)) {
-      exercise.setCurrentPause(Instant.now());
-    }
-    // Cancelation
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
-        && ExerciseStatus.CANCELED.equals(status)) {
-      exercise.setEnd(now());
-    }
-    exercise.setUpdatedAt(now());
-    exercise.setStatus(status);
-    return exerciseRepository.save(exercise);
+    return exerciseService.changeExerciseStatus(status, exercise);
   }
 
   @LogExecutionTime
@@ -827,8 +730,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Communication> exerciseCommunications(@PathVariable String exerciseId) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     List<Communication> communications = new ArrayList<>();
     exercise
         .getInjects()
@@ -865,8 +767,7 @@ public class ExerciseApi extends RestBehavior {
       @RequestParam(required = false) final boolean isWithVariableValues,
       HttpServletResponse response)
       throws IOException {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = exerciseService.findById(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
 
     byte[] zippedExport = exportService.exportExerciseToZip(exercise, exportOptionsMask);
