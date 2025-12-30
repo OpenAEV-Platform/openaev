@@ -22,8 +22,9 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_ID",
       description =
           """
-                  ID of the builtin Tanium executor
-                  """)
+          ID of the builtin Tanium executor
+          """,
+      isRequired = true)
   @Getter
   @NotBlank
   private String id = TANIUM_EXECUTOR_DEFAULT_ID;
@@ -32,8 +33,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_API_URL",
       description =
           """
-                  Tanium API URL
-                  """)
+          Tanium API URL
+          """)
   @Getter
   @NotBlank
   private String url;
@@ -42,8 +43,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_API_BATCH_EXECUTION_ACTION_PAGINATION",
       description =
           """
-                  Tanium API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Tanium to execute a payload)
-                  """,
+          Tanium API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Tanium to execute a payload)
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -53,8 +54,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_API_REGISTER_INTERVAL",
       description =
           """
-                 Tanium API interval to register/update the computer groups/endpoints in OpenAEV (in seconds)
-                  """,
+          Tanium API interval to register/update the computer groups/endpoints in OpenAEV (in seconds)
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -64,8 +65,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_CLEAN_IMPLANT_INTERVAL",
       description =
           """
-                  Tanium clean old implant interval (in hours)
-                  """,
+          Tanium clean old implant interval (in hours)
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -75,8 +76,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_API_KEY",
       description =
           """
-                  Tanium API key
-                  """,
+          Tanium API key
+          """,
       valueFormat = CONNECTOR_CONFIGURATION_FORMAT.PASSWORD)
   @Getter
   @NotBlank
@@ -86,8 +87,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_COMPUTER_GROUP_ID",
       description =
           """
-                  Tanium Computer Group to be used in simulations
-                  """)
+          Tanium Computer Group to be used in simulations
+          """)
   @Getter
   @NotBlank
   private String computerGroupId = "1";
@@ -96,8 +97,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_ACTION_GROUP_ID",
       description =
           """
-                  Tanium Action Group to apply actions to
-                  """,
+          Tanium Action Group to apply actions to
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -107,8 +108,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID",
       description =
           """
-                  ID of the OpenAEV Tanium Windows package
-                  """,
+          ID of the OpenAEV Tanium Windows package
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -118,8 +119,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_TANIUM_UNIX_PACKAGE_ID",
       description =
           """
-                  ID of the OpenAEV Tanium Unix package
-                  """,
+          ID of the OpenAEV Tanium Unix package
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank

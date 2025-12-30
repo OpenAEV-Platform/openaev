@@ -5,7 +5,6 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.rest.connector_instance.service.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -52,8 +51,6 @@ public abstract class ConfigurationMigration {
     log.info("Migrating config for {}", configuration);
     ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(connector.get());
-    // add configs
-    instance.setConfigurations(new HashSet<>());
 
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
     if (configuration.isEnable()) {

@@ -22,8 +22,8 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_CALDERA_ID",
       description =
           """
-                  ID of the builtin Caldera executor
-                  """,
+          ID of the builtin Caldera executor
+          """,
       isRequired = true)
   @Getter
   @NotBlank
@@ -33,8 +33,8 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_CALDERA_URL",
       description =
           """
-                  Caldera URL
-                  """,
+          Caldera URL
+          """,
       isRequired = true)
   @Getter
   @NotBlank
@@ -44,8 +44,8 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_CALDERA_PUBLIC_URL",
       description =
           """
-                  Caldera URL accessible from endpoints (ex: http://caldera.myopenaev.myorganization.com:8888)
-                  """,
+          Caldera URL accessible from endpoints (ex: http://caldera.myopenaev.myorganization.com:8888)
+          """,
       isRequired = true)
   @Getter
   @NotBlank
@@ -55,8 +55,8 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_CALDERA_API_KEY",
       description =
           """
-                  Caldera API key
-                  """,
+          Caldera API key
+          """,
       isRequired = true,
       valueFormat = CONNECTOR_CONFIGURATION_FORMAT.PASSWORD)
   @Getter

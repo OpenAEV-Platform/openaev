@@ -31,7 +31,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   public static final String SENTINELONE_EXECUTOR_NAME = "SentinelOne";
   private static final String SENTINELONE_EXECUTOR_DOCUMENTATION_LINK =
       "https://docs.openaev.io/latest/deployment/ecosystem/executors/#sentinelone-agent";
-  private static final String SENTINELONE_EXECUTOR_BACKGROUND_COLOR = "#E03E41";
+  private static final String SENTINELONE_EXECUTOR_BACKGROUND_COLOR = "#6001FC";
 
   @QualifiedComponent(identifier = SENTINELONE_EXECUTOR_NAME)
   private SentinelOneExecutorContextService sentinelOneExecutorContextService;

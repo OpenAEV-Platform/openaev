@@ -22,8 +22,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_ID",
       description =
           """
-                  ID of the builtin SentinelOne executor
-                  """,
+          ID of the builtin SentinelOne executor
+          """,
       isRequired = true)
   @Getter
   @NotBlank
@@ -33,8 +33,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_URL",
       description =
           """
-                  SentinelOne URL, the API version used is the 2.1
-                  """,
+          SentinelOne URL, the API version used is the 2.1
+          """,
       isRequired = true)
   @Getter
   @NotBlank
@@ -44,8 +44,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_API_KEY",
       description =
           """
-                  SentinelOne API key
-                  """,
+          SentinelOne API key
+          """,
       valueFormat = CONNECTOR_CONFIGURATION_FORMAT.PASSWORD,
       isRequired = true)
   @Getter
@@ -56,8 +56,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_API_BATCH_EXECUTION_ACTION_PAGINATION",
       description =
           """
-                  SentinelOne API pagination per 5 seconds to set for agents batch executions (number of agents sent per 5 seconds to SentinelOne to execute a payload)
-                  """,
+          SentinelOne API pagination per 5 seconds to set for agents batch executions (number of agents sent per 5 seconds to SentinelOne to execute a payload)
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -67,8 +67,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_API_REGISTER_INTERVAL",
       description =
           """
-                  SentinelOne API interval to register/update the accounts/sites/groups/agents in OpenAEV (in seconds)
-                  """,
+          SentinelOne API interval to register/update the accounts/sites/groups/agents in OpenAEV (in seconds)
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -78,8 +78,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_CLEAN_IMPLANT_INTERVAL",
       description =
           """
-                  SentinelOne clean old implant interval (in hours)
-                  """,
+          SentinelOne clean old implant interval (in hours)
+          """,
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
@@ -89,8 +89,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_ACCOUNT_ID",
       description =
           """
-                  SentinelOne account id or accounts ids separated with commas (optional if site or group is filled)
-                  """)
+          SentinelOne account id or accounts ids separated with commas (optional if site or group is filled)
+          """)
   @Getter
   @NotBlank
   private String accountId;
@@ -99,8 +99,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_SITE_ID",
       description =
           """
-                  SentinelOne site id or sites ids separated with commas (optional if account or group is filled)
-                  """)
+          SentinelOne site id or sites ids separated with commas (optional if account or group is filled)
+          """)
   @Getter
   @NotBlank
   private String siteId;
@@ -109,8 +109,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_GROUP_ID",
       description =
           """
-                  SentinelOne group id or groups ids separated with commas (optional if site or account is filled)
-                  """)
+          SentinelOne group id or groups ids separated with commas (optional if site or account is filled)
+          """)
   @Getter
   @NotBlank
   private String groupId;
@@ -119,8 +119,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_WINDOWS_SCRIPT_ID",
       description =
           """
-                  Id of the OpenAEV SentinelOne Windows script
-                  """,
+          Id of the OpenAEV SentinelOne Windows script
+          """,
       isRequired = true)
   @Getter
   @NotBlank
@@ -130,8 +130,8 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_SENTINELONE_UNIX_SCRIPT_ID",
       description =
           """
-                  Id of the OpenAEV SentinelOne Unix script
-                  """,
+          Id of the OpenAEV SentinelOne Unix script
+          """,
       isRequired = true)
   @Getter
   @NotBlank

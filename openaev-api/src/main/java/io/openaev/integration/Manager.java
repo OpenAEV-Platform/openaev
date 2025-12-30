@@ -77,6 +77,7 @@ public class Manager {
                             .toList();
                     return factory.sync(newInstances).stream();
                   } catch (Exception e) {
+                    log.error("There was a problem syncing integration factories.", e);
                     throw new RuntimeException(e);
                   }
                 })
@@ -95,6 +96,7 @@ public class Manager {
               spawnedIntegrations.remove(entry.getKey());
             }
           } catch (Exception e) {
+            log.error("There was a problem maintaining running integrations.", e);
             throw new RuntimeException(e);
           }
         });

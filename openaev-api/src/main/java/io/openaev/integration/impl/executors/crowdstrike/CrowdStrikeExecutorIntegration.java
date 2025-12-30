@@ -108,7 +108,9 @@ public class CrowdStrikeExecutorIntegration extends Integration {
         taskScheduler.scheduleAtFixedRate(
             crowdStrikeExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
     timers.add(
-        taskScheduler.scheduleAtFixedRate(crowdStrikeGarbageCollectorService, Duration.ofHours(6)));
+        taskScheduler.scheduleAtFixedRate(
+            crowdStrikeGarbageCollectorService,
+            Duration.ofHours(this.config.getCleanImplantInterval())));
   }
 
   @Override

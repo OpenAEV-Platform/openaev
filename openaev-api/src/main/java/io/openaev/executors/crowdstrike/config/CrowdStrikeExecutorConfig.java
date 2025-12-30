@@ -21,7 +21,8 @@ public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
       description =
           """
           ID of the builtin Crowdstrike executor
-          """)
+          """,
+      isRequired = true)
   @Getter
   @NotBlank
   private String id = CROWDSTRIKE_EXECUTOR_DEFAULT_ID;
@@ -36,7 +37,7 @@ public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
       description =
           """
-          Crowdstrike API pagination per second to set for hosts batch executions (number of hosts sent per second to Crowdstrike to execute a payload)
+          Crowdstrike API pagination per 5 seconds to set for hosts batch executions (number of hosts sent per 5 seconds to Crowdstrike to execute a payload)
           """)
   @Getter
   @NotBlank
@@ -58,7 +59,7 @@ public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
       description =
           """
-          Interval before requesting a new implant image from the API
+          Crowdstrike clean old implant interval (in hours)
           """)
   @Getter
   @NotBlank
