@@ -92,7 +92,8 @@ public class ConnectorInstanceService {
    * @return the connector instance matching the ID
    * @throws EntityNotFoundException if no connector instance is found with the given ID
    */
-  public ConnectorInstancePersisted connectorInstanceById(String id) throws EntityNotFoundException {
+  public ConnectorInstancePersisted connectorInstanceById(String id)
+      throws EntityNotFoundException {
     return connectorInstanceRepository
         .findById(id)
         .orElseThrow(
@@ -295,7 +296,8 @@ public class ConnectorInstanceService {
     return configurations;
   }
 
-  private ConnectorInstanceConfiguration createTokenConfiguration(ConnectorInstancePersisted instance) {
+  private ConnectorInstanceConfiguration createTokenConfiguration(
+      ConnectorInstancePersisted instance) {
     Token token =
         tokenRepository.findAll(fromUser(currentUser().getId())).stream()
             .findFirst()
@@ -305,7 +307,7 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createContainerIdConfiguration(
-          ConnectorInstancePersisted instance, ConnectorType type) {
+      ConnectorInstancePersisted instance, ConnectorType type) {
     return createConfiguration(
         type.getIdKeyName(),
         objectMapper.getNodeFactory().textNode(UUID.randomUUID().toString()),
@@ -341,7 +343,7 @@ public class ConnectorInstanceService {
   }
 
   private List<ConnectorInstanceConfiguration> mergeConfigurations(
-          ConnectorInstancePersisted instance,
+      ConnectorInstancePersisted instance,
       Map<String, ConnectorInstanceConfiguration> existingConfigurationMap,
       List<ConnectorInstanceConfiguration> newConfigurations) {
 
@@ -410,8 +412,8 @@ public class ConnectorInstanceService {
   public ConnectorInstance refresh(ConnectorInstance instance) {
     if (instance instanceof ConnectorInstancePersisted) {
       return connectorInstanceRepository
-              .findById(((ConnectorInstancePersisted) instance).getId())
-              .orElse(null);
+          .findById(((ConnectorInstancePersisted) instance).getId())
+          .orElse(null);
     }
     return instance;
   }

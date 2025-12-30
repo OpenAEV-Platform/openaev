@@ -57,7 +57,8 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return map;
   }
 
-  private Output toConnectorOutput(T connector, Map<String, ConnectorInstancePersisted> instanceMap) {
+  private Output toConnectorOutput(
+      T connector, Map<String, ConnectorInstancePersisted> instanceMap) {
     ConnectorInstancePersisted instance = instanceMap.get(connector.getId());
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
@@ -91,7 +92,8 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
     List<T> connectors = getAllConnectors();
     List<ConnectorInstancePersisted> instances = getRelatedInstances();
-    Map<String, ConnectorInstancePersisted> instancesByConnectorIdMap = mapInstancesByConnectorId(instances);
+    Map<String, ConnectorInstancePersisted> instancesByConnectorIdMap =
+        mapInstancesByConnectorId(instances);
 
     List<Output> result = new ArrayList<>();
 

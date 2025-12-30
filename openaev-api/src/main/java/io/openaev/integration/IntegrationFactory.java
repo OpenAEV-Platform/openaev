@@ -2,8 +2,8 @@ package io.openaev.integration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;

@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ public class ConnectorInstanceComposer extends ComposerBase<ConnectorInstancePer
   public class Composer extends InnerComposerBase<ConnectorInstancePersisted> {
     private final ConnectorInstancePersisted connectorInstance;
     private final List<ConnectorInstanceConfigurationComposer.Composer>
-            connectorInstanceConfigurationComposer = new ArrayList<>();
+        connectorInstanceConfigurationComposer = new ArrayList<>();
     private Optional<CatalogConnectorComposer.Composer> catalogConnectorComposer = Optional.empty();
 
     public Composer(ConnectorInstancePersisted connectorInstance) {

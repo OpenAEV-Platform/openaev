@@ -2,7 +2,7 @@ package io.openaev.api.xtm_composer;
 
 import static io.openaev.api.xtm_composer.XtmComposerApi.XTMCOMPOSER_URI;
 import static io.openaev.database.model.SettingKeys.*;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstanceConfiguration;
@@ -20,6 +20,7 @@ import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
@@ -249,7 +250,7 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Instances management from xtmComposer endpoints")
   class XtmComposerInstance {
-    private ConnectorInstance getConnectorInstance(String connectorName)
+    private ConnectorInstancePersisted getConnectorInstance(String connectorName)
         throws JsonProcessingException {
       return connectorInstanceComposer
           .forConnectorInstance(createDefaultConnectorInstance())
@@ -288,8 +289,8 @@ public class XtmComposerApiTest extends IntegrationTest {
       @DisplayName(
           "Should retrieve all connector instances with configurations managed by xtmComposer")
       void should_retrieveAllInstancesManagedByXtmComposer() throws Exception {
-        ConnectorInstance instance = getConnectorInstance("Microsoft defender collector");
-        ConnectorInstance instance2 = getConnectorInstance("Microsoft sentinel collector");
+        ConnectorInstancePersisted instance = getConnectorInstance("Microsoft defender collector");
+        ConnectorInstancePersisted instance2 = getConnectorInstance("Microsoft sentinel collector");
 
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
@@ -384,7 +385,7 @@ public class XtmComposerApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-        Optional<ConnectorInstance> instanceDb =
+        Optional<ConnectorInstancePersisted> instanceDb =
             connectorInstanceRepository.findById(instance.getId());
         assertTrue(instanceDb.isPresent());
         assertEquals(
@@ -405,7 +406,7 @@ public class XtmComposerApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-        Optional<ConnectorInstance> instanceDb2 =
+        Optional<ConnectorInstancePersisted> instanceDb2 =
             connectorInstanceRepository.findById(instance.getId());
         assertTrue(instanceDb2.isPresent());
         assertEquals(
@@ -531,7 +532,7 @@ public class XtmComposerApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-        Optional<ConnectorInstance> instanceDb =
+        Optional<ConnectorInstancePersisted> instanceDb =
             connectorInstanceRepository.findById(instance.getId());
         assertTrue(instanceDb.isPresent());
         assertEquals(instanceDb.get().getRestartCount(), 16);

@@ -3,12 +3,13 @@ package io.openaev.integration.local_fixtures;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -60,7 +61,7 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
     connector.setShortDescription("Test integration init throws.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://testintegration_init_throws.example");
-    connector.setContainerType(CatalogConnector.CONNECTOR_TYPE.EXECUTOR);
+    connector.setContainerType(ConnectorType.EXECUTOR);
     connector.setCatalogConnectorConfigurations(
         new TestIntegrationConfiguration().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));

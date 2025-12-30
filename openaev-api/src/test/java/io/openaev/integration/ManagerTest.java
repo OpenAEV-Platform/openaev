@@ -95,7 +95,7 @@ public class ManagerTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
     List<ConnectorInstancePersisted> instances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
 
     assertThat(instances).hasSize(1);
 
@@ -123,7 +123,7 @@ public class ManagerTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
     List<ConnectorInstancePersisted> instances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
     ConnectorInstance singleInstance = instances.getFirst();
     assertThat(singleInstance.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
@@ -139,7 +139,7 @@ public class ManagerTest {
     manager.monitorIntegrations();
 
     List<ConnectorInstancePersisted> refreshedInstances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
     ConnectorInstance refreshedInstance = refreshedInstances.getFirst();
     assertThat(refreshedInstance.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
@@ -156,7 +156,7 @@ public class ManagerTest {
     manager.monitorIntegrations();
 
     List<ConnectorInstancePersisted> refreshedAgainInstances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
     ConnectorInstance refreshedAgainInstance = refreshedAgainInstances.getFirst();
     assertThat(refreshedAgainInstance.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
@@ -177,7 +177,7 @@ public class ManagerTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
     List<ConnectorInstancePersisted> instances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
     ConnectorInstance singleInstance = instances.getFirst();
     assertThat(singleInstance.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
@@ -192,7 +192,7 @@ public class ManagerTest {
     manager.monitorIntegrations();
 
     List<ConnectorInstancePersisted> refreshedInstances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
 
     assertThat(refreshedInstances).isEmpty();
     assertThat(manager.getSpawnedIntegrations()).isEmpty();
@@ -221,7 +221,7 @@ public class ManagerTest {
     // setup to stop instance
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
-        connectorInstanceRepository.findByCatalogConnectorId(connectors.getFirst().getId());
+        connectorInstanceRepository.findAllByCatalogConnectorId(connectors.getFirst().getId());
     ConnectorInstance singleInstance = instances.getFirst();
     singleInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(singleInstance);

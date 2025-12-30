@@ -45,7 +45,7 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
   @Autowired private ExecutorFixture executorFixture;
 
-  private ConnectorInstance getExecutorInstance(String executorId, String executorName)
+  private ConnectorInstancePersisted getExecutorInstance(String executorId, String executorName)
       throws JsonProcessingException {
     return connectorInstanceComposer
         .forConnectorInstance(createDefaultConnectorInstance())
@@ -74,7 +74,7 @@ public class ExecutorApiTest extends IntegrationTest {
       Executor executor = getExecutor("new-executor");
       List<Executor> existingExecutors = fromIterable(executorRepository.findAll());
       getExecutorInstance("PENDING_EXECUTOR_ID", "Pending executor");
-      ConnectorInstance connectorInstanceLinkToCreatedExecutor =
+      ConnectorInstancePersisted connectorInstanceLinkToCreatedExecutor =
           getExecutorInstance(executor.getId(), executor.getName());
 
       String response =
@@ -113,7 +113,7 @@ public class ExecutorApiTest extends IntegrationTest {
       getExecutor("tanium");
       List<Executor> existingExecutors = fromIterable(executorRepository.findAll());
       String pendingExecutorIdId = "PENDING_EXECUTOR_ID";
-      ConnectorInstance pendingExecutorInstance =
+      ConnectorInstancePersisted pendingExecutorInstance =
           getExecutorInstance(pendingExecutorIdId, "PENDING EXECUTOR");
 
       String response =
@@ -155,7 +155,8 @@ public class ExecutorApiTest extends IntegrationTest {
         "Given executor managed by XTM Composer, should return linked connector instance ID and catalog ID")
     void givenLinkedExecutor_shouldReturnInstanceAndCatalogId() throws Exception {
       Executor executor = getExecutor("CS-executor");
-      ConnectorInstance instance = getExecutorInstance(executor.getId(), executor.getName());
+      ConnectorInstancePersisted instance =
+          getExecutorInstance(executor.getId(), executor.getName());
       String response =
           mvc.perform(
                   get(EXECUTOR_URI + "/" + executor.getId() + "/related-ids")

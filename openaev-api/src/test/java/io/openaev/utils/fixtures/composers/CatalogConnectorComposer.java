@@ -1,8 +1,8 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import java.util.ArrayList;
 import java.util.List;

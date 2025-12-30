@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstanceLog;
-import java.util.HashSet;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import java.util.HashSet;
 
 public class ConnectorInstanceFixture {
   public static ConnectorInstancePersisted createMigratedInstance() {
@@ -14,6 +14,7 @@ public class ConnectorInstanceFixture {
     connectorInstance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
     return connectorInstance;
   }
+
   public static ConnectorInstancePersisted createDefaultConnectorInstance() {
     ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
     connectorInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);

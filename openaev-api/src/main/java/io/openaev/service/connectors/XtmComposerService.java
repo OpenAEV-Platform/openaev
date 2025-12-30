@@ -81,7 +81,8 @@ public class XtmComposerService {
     return hashWithSHA256(dataToHash);
   }
 
-  public XtmComposerInstanceOutput toXtmComposerInstanceOutput(ConnectorInstancePersisted instance) {
+  public XtmComposerInstanceOutput toXtmComposerInstanceOutput(
+      ConnectorInstancePersisted instance) {
     return XtmComposerInstanceOutput.builder()
         .id(instance.getId())
         .name(instance.getCatalogConnector().getTitle())

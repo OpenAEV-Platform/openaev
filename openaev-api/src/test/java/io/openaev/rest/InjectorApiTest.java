@@ -43,7 +43,7 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
 
-  private ConnectorInstance getInjectorInstance(String injectorId, String injectorName)
+  private ConnectorInstancePersisted getInjectorInstance(String injectorId, String injectorName)
       throws JsonProcessingException {
     return connectorInstanceComposer
         .forConnectorInstance(createDefaultConnectorInstance())
@@ -72,7 +72,7 @@ public class InjectorApiTest extends IntegrationTest {
       Injector injector = getInjector("nuclei");
       List<Injector> existingInjectors = fromIterable(injectorRepository.findAll());
       getInjectorInstance("PENDING_INJECTOR_ID", "Pending injector");
-      ConnectorInstance connectorInstanceLinkToCreatedInjector =
+      ConnectorInstancePersisted connectorInstanceLinkToCreatedInjector =
           getInjectorInstance(injector.getId(), injector.getName());
 
       String response =
@@ -111,7 +111,7 @@ public class InjectorApiTest extends IntegrationTest {
       getInjector("Mitre Attack");
       List<Injector> existingInjectors = fromIterable(injectorRepository.findAll());
       String pendingInjectorId = "PENDING_INJECTOR_ID";
-      ConnectorInstance pendingInjectorInstance =
+      ConnectorInstancePersisted pendingInjectorInstance =
           getInjectorInstance(pendingInjectorId, "PENDING INJECTOR");
 
       String response =
@@ -152,7 +152,8 @@ public class InjectorApiTest extends IntegrationTest {
         "Given injector managed by XTM Composer, should return linked connector instance ID and catalog ID")
     void givenLinkedInjector_shouldReturnInstanceAndCatalogId() throws Exception {
       Injector injector = getInjector("nmap");
-      ConnectorInstance instance = getInjectorInstance(injector.getId(), injector.getName());
+      ConnectorInstancePersisted instance =
+          getInjectorInstance(injector.getId(), injector.getName());
       String response =
           mvc.perform(
                   get(INJECT0R_URI + "/" + injector.getId() + "/related-ids")

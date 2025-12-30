@@ -3,7 +3,7 @@ package io.openaev.rest;
 import static io.openaev.database.model.SettingKeys.*;
 import static io.openaev.database.model.SettingKeys.XTM_COMPOSER_LAST_CONNECTIVITY_CHECK;
 import static io.openaev.rest.connector_instance.ConnectorInstanceApi.CONNECTOR_INSTANCE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.*;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -70,7 +70,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
 
-  private ConnectorInstance getConnectorInstance(
+  private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
     ConnectorInstanceComposer.Composer builder =
         connectorInstanceComposer
@@ -170,7 +170,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void duplicateCatalogConnectorInstance_should_throwError() throws Exception {
       when(eeService.isLicenseActive(any())).thenReturn(true);
       CatalogConnector catalogConnector = getCatalogConnector();
-      ConnectorInstance instance = createDefaultConnectorInstance();
+      ConnectorInstancePersisted instance = createDefaultConnectorInstance();
       instance.setCatalogConnector(catalogConnector);
       instance.setConfigurations(new HashSet<>());
       connectorInstanceRepository.save(instance);
@@ -264,7 +264,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           .getResponse()
           .getContentAsString();
 
-      List<ConnectorInstance> instanceDb =
+      List<ConnectorInstancePersisted> instanceDb =
           connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
       assertEquals(1, instanceDb.size());
       assertEquals(
@@ -452,7 +452,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       CatalogConnector catalogConnector =
           getCatalogConnectorWithConfiguration(Set.of(confDef1, confDef2));
-      ConnectorInstance connectorInstance =
+      ConnectorInstancePersisted connectorInstance =
           getConnectorInstance(
               catalogConnector,
               Set.of(createConnectorInstanceConfiguration("key-string-01", "old value 01")));
@@ -591,7 +591,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           .getResponse()
           .getContentAsString();
 
-      Optional<ConnectorInstance> instanceSaved =
+      Optional<ConnectorInstancePersisted> instanceSaved =
           connectorInstanceRepository.findById(connectorInstance.getId());
       assertTrue(instanceSaved.isPresent());
       assertTrue(
@@ -609,7 +609,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           .getResponse()
           .getContentAsString();
 
-      Optional<ConnectorInstance> instanceSaved2 =
+      Optional<ConnectorInstancePersisted> instanceSaved2 =
           connectorInstanceRepository.findById(connectorInstance.getId());
       assertTrue(instanceSaved2.isPresent());
       assertTrue(
@@ -622,8 +622,10 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @DisplayName("Given connector instance id should retrieve logs associated")
   void givenConnectorInstanceId_shouldRetrieveLogs() throws Exception {
     CatalogConnector catalogConnector = getCatalogConnector();
-    ConnectorInstance connectorInstance1 = getConnectorInstance(catalogConnector, Set.of());
-    ConnectorInstance connectorInstance2 = getConnectorInstance(catalogConnector, Set.of());
+    ConnectorInstancePersisted connectorInstance1 =
+        getConnectorInstance(catalogConnector, Set.of());
+    ConnectorInstancePersisted connectorInstance2 =
+        getConnectorInstance(catalogConnector, Set.of());
     ConnectorInstanceLog log0 = createConnectorInstanceLog("log 1");
     ConnectorInstanceLog log1 = createConnectorInstanceLog("log 2");
     ConnectorInstanceLog log2 = createConnectorInstanceLog("log 3");
