@@ -1,11 +1,12 @@
 package io.openaev.service.period;
 
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openaev.IntegrationTest;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -178,8 +179,20 @@ public class PeriodServiceTest extends IntegrationTest {
         @DisplayName("When target time on same month is passed, return expected instant next month")
         public void returnsExpectedInstantNextMonth() {
           Instant seed = Instant.parse("2022-04-24T10:43:56Z");
-          Instant expected = seed.plus(30, ChronoUnit.DAYS);
+          Instant expected = LocalDateTime.ofInstant(seed, UTC).plusMonths(1).toInstant(UTC);
           Instant reference = Instant.parse("2022-04-30T10:53:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName("When target time in january is passed, return expected instant next February")
+        public void returnsExpectedInstantNextFebruary() {
+          Instant seed = Instant.parse("2022-01-30T10:43:56Z");
+          // check it respects individual months durations
+          Instant expected = Instant.parse("2022-02-28T10:43:56Z");
+          Instant reference = Instant.parse("2022-01-31T10:53:56Z");
           Optional<Instant> next =
               periodService.getNextOccurrence(seed, reference, periodExpression);
           assertThat(next).isPresent().get().isEqualTo(expected);
@@ -204,7 +217,7 @@ public class PeriodServiceTest extends IntegrationTest {
         @DisplayName("When target time on same month is passed, return expected instant next month")
         public void returnsExpectedInstantNextMonth() {
           Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
-          Instant expected = seed.plus(30, ChronoUnit.DAYS);
+          Instant expected = LocalDateTime.ofInstant(seed, UTC).plusMonths(1).toInstant(UTC);
           Instant reference = Instant.parse("2022-04-30T12:43:56+02:00");
           Optional<Instant> next =
               periodService.getNextOccurrence(seed, reference, periodExpression);
@@ -237,7 +250,7 @@ public class PeriodServiceTest extends IntegrationTest {
         @DisplayName("When target time on same week is passed, return expected instant next week")
         public void returnsExpectedInstantNextWeek() {
           Instant seed = Instant.parse("2022-04-24T10:43:56Z");
-          Instant expected = seed.plus(7, ChronoUnit.DAYS);
+          Instant expected = LocalDateTime.ofInstant(seed, UTC).plusWeeks(1).toInstant(UTC);
           Instant reference = Instant.parse("2022-04-26T10:53:56Z");
           Optional<Instant> next =
               periodService.getNextOccurrence(seed, reference, periodExpression);
@@ -263,7 +276,7 @@ public class PeriodServiceTest extends IntegrationTest {
         @DisplayName("When target time on same week is passed, return expected instant next week")
         public void returnsExpectedInstantNextWeek() {
           Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
-          Instant expected = seed.plus(7, ChronoUnit.DAYS);
+          Instant expected = LocalDateTime.ofInstant(seed, UTC).plusWeeks(1).toInstant(UTC);
           Instant reference = Instant.parse("2022-04-26T12:43:56+02:00");
           Optional<Instant> next =
               periodService.getNextOccurrence(seed, reference, periodExpression);

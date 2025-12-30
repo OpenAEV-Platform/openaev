@@ -4,7 +4,9 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.utils.TimeUtils;
+import io.openaev.utils.time.TemporalIncrement;
+import io.openaev.utils.time.TimeUtils;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,23 +44,23 @@ public class TimeUtilsTest extends IntegrationTest {
 
   @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   @Nested
-  @DisplayName("ISO8601PeriodToMilliseconds tests")
-  public class ISO8601PeriodToMillisecondsTests {
+  @DisplayName("ISO8601PeriodToTemporalIncrement tests")
+  public class ISO8601PeriodToTemporalIncrementTests {
 
     Stream<Arguments> optionsForISO8601Assessment() {
       return Stream.of(
-          Arguments.of("P1D", 86400000L),
-          Arguments.of("PT10H", 36000000L),
-          Arguments.of("PT1000H", 3600000000L),
-          Arguments.of("P10W", 6048000000L),
-          Arguments.of("P10M", 25920000000L));
+          Arguments.of("P1D", new TemporalIncrement(1, ChronoUnit.DAYS)),
+          Arguments.of("PT10H", new TemporalIncrement(10, ChronoUnit.HOURS)),
+          Arguments.of("PT1000H", new TemporalIncrement(1000, ChronoUnit.HOURS)),
+          Arguments.of("P10W", new TemporalIncrement(10, ChronoUnit.WEEKS)),
+          Arguments.of("P10M", new TemporalIncrement(10, ChronoUnit.MONTHS)));
     }
 
     @ParameterizedTest
     @MethodSource("optionsForISO8601Assessment")
     @DisplayName("returns expected assessment")
-    public void returnsCorrectBool(String expression, long expected) {
-      assertThat(TimeUtils.ISO8601PeriodToMilliseconds(expression)).isEqualTo(expected);
+    public void returnsCorrectBool(String expression, TemporalIncrement expected) {
+      assertThat(TimeUtils.ISO8601PeriodToTemporalIncrement(expression)).isEqualTo(expected);
     }
 
     Stream<Arguments> optionsForISO8601AssessmentThrowing() {
@@ -73,7 +75,7 @@ public class TimeUtilsTest extends IntegrationTest {
     @MethodSource("optionsForISO8601AssessmentThrowing")
     @DisplayName("throws as expected")
     public void throwsAsExpected(String expression) {
-      assertThatThrownBy(() -> TimeUtils.ISO8601PeriodToMilliseconds(expression))
+      assertThatThrownBy(() -> TimeUtils.ISO8601PeriodToTemporalIncrement(expression))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }

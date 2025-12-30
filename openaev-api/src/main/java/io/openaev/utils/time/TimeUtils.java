@@ -1,13 +1,15 @@
-package io.openaev.utils;
+package io.openaev.utils.time;
 
 import static java.time.ZoneOffset.UTC;
 
 import io.openaev.cron.ScheduleFrequency;
+import io.openaev.utils.StringUtils;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,19 +26,18 @@ public class TimeUtils {
     return zonedDateTime.toInstant();
   }
 
-  public static long ISO8601PeriodToMilliseconds(@NotNull final String iso8601PeriodExpression) {
-    long second = 1000L;
+  public static TemporalIncrement ISO8601PeriodToTemporalIncrement(
+      @NotNull final String iso8601PeriodExpression) {
     Matcher matcher = matchPattern(iso8601PeriodExpression, ISO_8601_PERIOD_EXPRESSION_MASK);
     if (matcher.find()) {
-      long singleUnitMillis =
-          switch (ScheduleFrequency.fromString(matcher.group("magnitude"))) {
-            case HOURLY -> 3600 * second;
-            case DAILY -> 24 * 3600 * second;
-            case WEEKLY -> 7 * 24 * 3600 * second;
-            case MONTHLY -> 30 * 24 * 3600 * second;
-            default -> throw new IllegalArgumentException("Unrecognised period interval unit");
-          };
-      return singleUnitMillis * Integer.parseInt(matcher.group("digits"));
+      int amount = Integer.parseInt(matcher.group("digits"));
+      return switch (ScheduleFrequency.fromString(matcher.group("magnitude"))) {
+        case HOURLY -> new TemporalIncrement(amount, ChronoUnit.HOURS);
+        case DAILY -> new TemporalIncrement(amount, ChronoUnit.DAYS);
+        case WEEKLY -> new TemporalIncrement(amount, ChronoUnit.WEEKS);
+        case MONTHLY -> new TemporalIncrement(amount, ChronoUnit.MONTHS);
+        default -> throw new IllegalArgumentException("Unrecognised period interval unit");
+      };
     }
     throw new IllegalArgumentException(
         "Could not parse argument as ISO 8601 Period expression; argument: %s"

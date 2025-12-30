@@ -1,8 +1,12 @@
 package io.openaev.service.period;
 
+import static java.time.ZoneOffset.UTC;
+
 import io.openaev.utils.StringUtils;
-import io.openaev.utils.TimeUtils;
+import io.openaev.utils.time.TemporalIncrement;
+import io.openaev.utils.time.TimeUtils;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -19,11 +23,15 @@ public class PeriodService implements PeriodExpressionHandler {
       return Optional.empty();
     }
 
-    Instant occurrence = seed;
-    long millis = TimeUtils.ISO8601PeriodToMilliseconds(iso8601Period);
-    while (occurrence.isBefore(now) || occurrence.equals(now)) {
-      occurrence = occurrence.plusMillis(millis);
+    // we are forced to convert instants into local date times to increment by weeks or months
+    // because why not
+    LocalDateTime localOccurrence = LocalDateTime.ofInstant(seed, UTC);
+    LocalDateTime localNow = LocalDateTime.ofInstant(now, UTC);
+
+    TemporalIncrement increment = TimeUtils.ISO8601PeriodToTemporalIncrement(iso8601Period);
+    while (localOccurrence.isBefore(localNow) || localOccurrence.equals(localNow)) {
+      localOccurrence = localOccurrence.plus(increment.quantity(), increment.unit());
     }
-    return Optional.of(occurrence);
+    return Optional.of(localOccurrence.toInstant(UTC));
   }
 }
