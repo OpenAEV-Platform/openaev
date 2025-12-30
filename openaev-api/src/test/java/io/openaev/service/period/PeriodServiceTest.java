@@ -22,7 +22,7 @@ public class PeriodServiceTest extends IntegrationTest {
   public class ComputeNextOccurrence {
     @Nested
     @DisplayName("With null period expression")
-    public class WithNullCronExpression {
+    public class WithNullPeriodExpression {
       private final String periodExpression = null;
 
       @Test
@@ -36,7 +36,7 @@ public class PeriodServiceTest extends IntegrationTest {
 
     @Nested
     @DisplayName("With empty period expression")
-    public class WithEmptyCronExpression {
+    public class WithEmptyPeriodExpression {
       private final String periodExpression = "";
 
       @Test
