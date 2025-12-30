@@ -78,7 +78,6 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
-  private final DomainService domainService;
   private final InjectorContractDomainStatsService injectorContractDomainStatsService;
 
   /** Configuration flag for enabling email import from XLS files. */
