@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "@casl/ability": "6.7.3",
+    "@casl/ability": "6.7.5",
     "@casl/react": "5.0.0",
     "@ckeditor/ckeditor5-react": "9.5.0",
     "@dagrejs/dagre": "1.1.8",
