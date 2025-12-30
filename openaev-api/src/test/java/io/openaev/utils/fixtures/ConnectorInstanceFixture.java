@@ -11,6 +11,8 @@ import java.util.HashSet;
 public class ConnectorInstanceFixture {
   public static ConnectorInstancePersisted createMigratedInstance() {
     ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
     return connectorInstance;
   }
