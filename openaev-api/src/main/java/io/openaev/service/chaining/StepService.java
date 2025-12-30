@@ -9,11 +9,12 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import jakarta.validation.constraints.NotNull;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -22,64 +23,112 @@ public class StepService {
   private final StepRepository stepRepository;
   private final InjectExecutionStep injectExecutionStep;
 
-  private final ConditionService conditionService;
+  public final ConditionService conditionService;
+  private final QueueChainingService queueChainingService;
 
   public void createStepsTemplate(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
     Workflow workflow = workflowService.getWorkflowById(workflowId);
+
     for (StepsCreateInput.StepCreateInput stepInput : steps) {
       ActionStep actionStep = this.factoryAction(stepInput.getStepAction());
       if (actionStep == null) throw new BadRequestException("action step is null");
+
       Step step = actionStep.create(stepInput, workflow);
       step = this.saveStep(step);
-      this.stepCondition(stepInput, step, workflow);
+      this.stepCondition(stepInput, step);
 
-      this.saveStep(step);
     }
   }
 
-  public void startWorkflow(String workflowId) {
+  public void startWorkflow(String exerciseId) {
+    Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
     // Get all step template
-    // Check edition content
+    List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
+    // todo Check edition content
     // If edited increase version workflow template
     // Create new workflow RUN save
+    Workflow workflowRun = workflowService.launchWorkflow(exerciseId);
 
     // Find step template with condition valid
-    // For each step template IF condition valid create condition execution
+    List<Step> stepWithValidCondition = new ArrayList<>();
 
-    // Call wait(Step stepTemplate, String conditionExecutionId or Condition
-    // conditionExecutionWithoutParent)
+    for (Step step : stepsTemplate) {
+      Step stepWait = wait(step, workflowRun, null);
+      if (stepWait != null) {
+        stepWithValidCondition.add(stepWait);
+      }
+    }
 
     // IF NONE STEP TEMPLATE WITH CONDITION VALID update WORKFLOW with status END
+    // todo manage steptemplate with time condition in queue
+    /*if (stepWithValidCondition.isEmpty()) {
+        workflowRun.setStatus(WORKFLOW_STATUS.END);
+    }*/
   }
 
-  public void wait(Step stepTemplate) {
+  public Step wait(Step stepTemplate, Workflow workflowRun, String input) {
     ActionStep actionStep = this.factoryAction(stepTemplate.getStepAction());
     if (actionStep == null) throw new BadRequestException("action step is null");
+    Step stepTemplateP = findById(stepTemplate.getId());
+    // CHECK CONDITIONS
+    List<Condition> conditionExecution =
+        conditionService.checkCondition(
+            stepTemplateP, input, stepTemplateP.getData(), workflowRun, this);
 
-    Step stepWait = actionStep.wait(stepTemplate, null);
+    if (conditionExecution != null) {
+      Step stepWait = actionStep.wait(stepTemplateP, input, workflowRun);
+      stepWait.setWorkflow(workflowRun);
+      stepWait = this.saveStep(stepWait);
 
-    stepWait = this.saveStep(stepWait);
+      // stepTemplateP.getStepsExecuted().add(stepWait); // TODO Check
+      //this.saveStep(stepTemplateP);
+      Step finalStepWait = stepWait;
 
-    stepTemplate.getStepsExecuted().add(stepWait); // TODO Check
-    this.saveStep(stepTemplate);
+      // For each step template IF condition valid create condition execution;
+      conditionExecution.forEach(
+          condition -> {
+            condition.setStep(finalStepWait);
+          });
+      conditionService.saveAllConditions(conditionExecution);
+      // todo delete and push into queue
+      int countStepRun = stepRepository.countRunningStep(stepWait.getWorkflow().getId());
+      if (countStepRun > stepTemplateP.getLimitExecution()) {
+        //TODO check already executed (into condition ?)
+        return stepWait;
+      }
+      queueChainingService.toDeletePushIntoQueueRunStep(finalStepWait, this);
+      /*new Thread(() -> {
+          queueChainingService.toDeletePushIntoQueueRunStep(finalStepWait, this);
+      }, "will be run step id:"+stepWait.getId()).start();*/
+      return stepWait;
+    }
+
+    return null;
   }
 
   public void run(Step stepWait) {
     ActionStep actionStep = this.factoryAction(stepWait.getStepAction());
     if (actionStep == null) throw new BadRequestException("action step is null");
 
-    Step stepRun = actionStep.run(stepWait, null);
+    Step stepRun = actionStep.run(stepWait);
     if (stepRun == null) {
       stepWait.setStatus(STEP_STATUS.END);
       this.saveStep(stepWait);
-
+      // CHECK ALL STEP EXECUTED IF ALL ENDED -> WORKFLOW RUN ENDED
+      int runningStep = stepRepository.countRunningStep(stepWait.getWorkflow().getId());
+      if (runningStep == 0) {
+          //TODO manage steptemplate with time delay
+        Workflow run = stepWait.getWorkflow();
+        run.setStatus(WORKFLOW_STATUS.END);
+        workflowService.saveWorkflowRun(run);
+      }
     } else {
       stepRun.setStatus(STEP_STATUS.RUN);
       this.saveStep(stepRun);
     }
   }
 
-  private ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
+  public ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
     return switch (actionClass) {
       case STEP_ACTION_CLASS.INJECT_EXECUTION -> injectExecutionStep;
       default -> null;
@@ -90,8 +139,10 @@ public class StepService {
     this.stepRepository.saveAll(steps);
   }
 
-  private Condition stepCondition(
-      StepsCreateInput.StepCreateInput stepInput, Step step, Workflow workflow) {
+  private void stepCondition(StepsCreateInput.StepCreateInput stepInput, Step step) {
+    if (stepInput.conditions == null || stepInput.conditions.isEmpty()) {
+      return;
+    }
     ConditionCreateInput firstCondition =
         stepInput.conditions.stream()
             .filter(
@@ -104,13 +155,20 @@ public class StepService {
             .orElseThrow(
                 () -> new IllegalArgumentException("Only 1 condition can be first parent"));
 
+    Step stepFrom =
+        firstCondition.getStepFrom() != null
+            ? stepRepository.findById(firstCondition.getStepFrom()).orElse(null)
+            : null;
+
     Condition first =
         Condition.builder()
             .step(step)
             .type(firstCondition.getType())
             .key(firstCondition.getKey())
             .value(firstCondition.getValue())
+            .stepFrom(stepFrom)
             .build();
+
     first = conditionService.saveCondition(first);
 
     Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
@@ -134,6 +192,11 @@ public class StepService {
           temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
 
       for (ConditionCreateInput condition : conditions) {
+        Step stepFromCondition =
+            condition.getStepFrom() != null
+                ? stepRepository.findById(condition.getStepFrom()).orElse(null)
+                : null;
+
         Condition current =
             Condition.builder()
                 .type(condition.getType())
@@ -142,6 +205,7 @@ public class StepService {
                 .conditionParent(
                     temporaryIdAndSaveId.get(condition.getTemporaryIdConditionParent()))
                 .step(step)
+                .stepFrom(stepFromCondition)
                 .build();
 
         current = conditionService.saveCondition(current);
@@ -151,7 +215,6 @@ public class StepService {
         currentId.add(condition.getTemporaryId());
       }
     }
-    return first;
   }
 
   public Step saveStep(Step step) {
@@ -163,20 +226,43 @@ public class StepService {
         idStep, STEP_STATUS.TEMPLATE);
   }
 
+  public List<Step> findAllStepTemplateByWorkflow(String idWorkflow) {
+    return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
+  }
+
   public Step findStepWaitById(String idStep) {
     return this.stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(
         idStep, STEP_STATUS.WAIT);
   }
 
+  public List<Step> findAllStepRun() {
+    return this.stepRepository.findAllByStatus(STEP_STATUS.RUN);
+  }
+
+    /**
+     * Returns all RUN steps for a given Workflow Run and Step template.
+     *
+     * @param idStepTemplate the Step template identifier
+     * @param idWorkflowRun  the Workflow Run id
+     * @return all matching RUN steps
+     */
+    public List<Step> findAllStepRunByStepTemplateIdAndWorkflowRunId(
+            String idStepTemplate, String idWorkflowRun) {
+        return this.stepRepository.findAllByStatusAndStepTemplateIdAndWorkflowId(
+                STEP_STATUS.RUN, idStepTemplate, idWorkflowRun);
+    }
+
   public Step findById(String stepId) {
     return stepRepository.findById(stepId).orElseThrow(); // todo exc
   }
 
-  public static JsonPrimitive getField(String jsonString, String path) {
+  public static String getField(String jsonString, String path) {
     Map<String, Object> fieldsAndValue = new HashMap<>();
     fieldsAndValue.put(path, null);
     useJson(jsonString, fieldsAndValue, ACTION_JSON.GET);
-    return (JsonPrimitive) fieldsAndValue.get(path);
+    Object value = fieldsAndValue.get(path);
+    if(value instanceof JsonNull) return null;
+    return ((JsonPrimitive) value).getAsString();
   }
 
   public static String setField(String jsonString, String path, Object newValue) {

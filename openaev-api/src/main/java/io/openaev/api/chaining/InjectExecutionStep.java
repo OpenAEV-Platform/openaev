@@ -1,7 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.service.chaining.StepService.setField;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,13 +19,17 @@ import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.*;
+
+import static io.openaev.service.chaining.StepService.setField;
 
 @RequiredArgsConstructor
 @Component
@@ -52,7 +54,7 @@ public class InjectExecutionStep implements ActionStep {
   public Step create(StepsCreateInput.StepCreateInput step, Workflow workflow) {
     String data = this.stepData(step, workflow.getSimulation());
     String input = this.stepInput(step.conditions);
-    String outputParser = this.stepOutputParser(data);
+    String outputParser = this.stepOutputParser("");
     Step stepTemplate =
         Step.builder()
             .data(data)
@@ -67,12 +69,10 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   @Override
-  public Step wait(Step stepTemplate, String input) {
+  public Step wait(Step stepTemplate, String input, Workflow workflowRun) {
     // CALL BY methode update() or by start simulation
-    // Verif condition
-    // Creation step WAIT add to Queue or Table Queue
     Step waitStep = new Step();
-    waitStep.setWorkflow(stepTemplate.getWorkflow());
+    waitStep.setWorkflow(workflowRun);
     waitStep.setData(stepTemplate.getData());
     waitStep.setStepTemplate(stepTemplate);
     // TODO after output paser fromPayload or nuclei or nmap
@@ -85,7 +85,7 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   @Override
-  public Step run(Step waitStep, Workflow workflow) {
+  public Step run(Step waitStep) {
     // CALL BY QUEUE WAIT
     // Get params
     ObjectMapper om =
@@ -141,7 +141,36 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   @Override
-  public void update(StepsCreateInput.StepCreateInput step, Workflow workflow) {
+  public Step update(Step stepRun, Workflow workflowRun) {
+    String data = stepRun.getData();
+    String injectId = StepService.getField(data, "inject_id");
+    Inject inject = injectService.findInjectOrNull(injectId);
+    if (inject == null) return null;
+
+    InjectStatus injectStatus = inject.getStatus().orElse(null);
+
+    if (injectStatus != null) {
+      List<ExecutionTrace> traces = injectStatus.getTraces();
+      List<Map<String, Object>> output = new ArrayList<>();
+
+      for (ExecutionTrace trace : traces) {
+        Map<String, Object> map = new HashMap<>();
+        if (trace.getAgent() == null) continue;
+        map.put("agent_id", trace.getAgent().getId());
+        if (trace.getStructuredOutput() != null) {
+          map.put("parsed", trace.getStructuredOutput());
+        } else {
+          map.put("message", trace.getMessage());
+        }
+        output.add(map);
+      }
+      if (!output.isEmpty()) {
+        String outputs = gson.toJson(output);
+        stepRun.setOutput(outputs);
+      }
+      return stepRun;
+    }
+    return null;
     // Get output from inject
     // Save new output
     // check if "next" steps need this output
@@ -224,7 +253,7 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private String stepInput(List<ConditionCreateInput> conditions) {
-    if (conditions.isEmpty()) return "{}";
+    if (conditions == null || conditions.isEmpty()) return "{}";
     List<Map<String, Object>> inputs = new ArrayList<>();
 
     for (ConditionCreateInput condition : conditions) {
@@ -245,5 +274,39 @@ public class InjectExecutionStep implements ActionStep {
 
   private String setInjectId(String injectId, String dataStep) {
     return setField(dataStep, "inject_id", injectId);
+  }
+
+  public static List<StepsCreateInput.StepCreateInput> getInjectAsStepsCreateInput(
+      InjectInput input) {
+    StepsCreateInput.StepCreateInput stepCreateInput = new StepsCreateInput.StepCreateInput();
+    stepCreateInput.setDataStep(input);
+    stepCreateInput.setStepAction(STEP_ACTION_CLASS.INJECT_EXECUTION);
+    stepCreateInput.setLimitExecution(1);
+
+    if (input.getDependsDuration() != 0) {
+      ConditionCreateInput conditionCreateInput =
+          ConditionCreateInput.builder()
+              .temporaryId("0")
+              .type(CONDITION_TYPE.AFTER)
+              .key(null)
+              .value(String.valueOf(input.getDependsDuration()))
+              .build();
+      stepCreateInput.setConditions(List.of(conditionCreateInput));
+    }
+
+    if (!input.getDependsOn().isEmpty()) {
+        //todo add condition DEPEND_ON
+        //todo need front to link step, as done with actual chaining.
+        //todo if step not saved used tempararyId for step (to implement)
+        /*{
+            stepFrom: ""
+            type : "DEPEND_ON"
+        }*/
+    }
+
+    List<StepsCreateInput.StepCreateInput> inputStep = new ArrayList<>();
+    inputStep.add(stepCreateInput);
+
+    return inputStep;
   }
 }

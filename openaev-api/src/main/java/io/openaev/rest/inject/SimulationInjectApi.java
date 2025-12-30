@@ -1,15 +1,9 @@
 package io.openaev.rest.inject;
 
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.specification.CommunicationSpecification.fromInject;
-import static io.openaev.database.specification.InjectSpecification.fromSimulation;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static java.time.Instant.now;
-
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
+import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -18,6 +12,7 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.executors.Executor;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
@@ -26,6 +21,8 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.service.InjectSearchService;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,11 +32,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -49,6 +41,20 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.specification.CommunicationSpecification.fromInject;
+import static io.openaev.database.specification.InjectSpecification.fromSimulation;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static java.time.Instant.now;
 
 @Slf4j
 @RestController
@@ -65,11 +71,14 @@ public class SimulationInjectApi extends RestBehavior {
   private final TeamRepository teamRepository;
   private final ExecutionContextService executionContextService;
   private final InjectService injectService;
+  private final WorkflowService workflowService;
+  private final StepService stepService;
   private final InjectDuplicateService injectDuplicateService;
   private final InjectStatusService injectStatusService;
   private final SimulationInjectService simulationInjectService;
+    private final ExerciseService exerciseService;
 
-  @Operation(summary = "Retrieved injects for an exercise")
+    @Operation(summary = "Retrieved injects for an exercise")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -196,9 +205,19 @@ public class SimulationInjectApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Inject createInjectForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
-    return this.injectService.createInject(exercise, null, input);
+    Exercise exercise = exerciseService.findById(exerciseId);
+
+    if (workflowService.isExerciseChaining(exercise.getId())) {
+
+      List<StepsCreateInput.StepCreateInput> inputStep =
+          InjectExecutionStep.getInjectAsStepsCreateInput(input);
+
+      Workflow workflowTemplate = workflowService.findWorkflowTemplateByIdExercise(exerciseId);
+      stepService.createStepsTemplate(workflowTemplate.getId(), inputStep);
+      return null;
+    } else {
+      return this.injectService.createInject(exercise, null, input);
+    }
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")

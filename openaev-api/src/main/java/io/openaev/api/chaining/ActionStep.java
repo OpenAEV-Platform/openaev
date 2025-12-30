@@ -7,11 +7,11 @@ import io.openaev.database.model.Workflow;
 public interface ActionStep {
   Step create(StepsCreateInput.StepCreateInput step, Workflow workflow);
 
-  Step wait(Step step, String input);
+  Step wait(Step step, String input, Workflow workflowRun);
 
-  Step run(Step waitStep, Workflow workflow);
+  Step run(Step waitStep);
 
-  void update(StepsCreateInput.StepCreateInput step, Workflow workflow);
+  Step update(Step stepRun, Workflow workflowRun);
 
   void end(StepsCreateInput.StepCreateInput step, Workflow workflow);
 }
