@@ -51,7 +51,7 @@ public class TimeUtilsTest extends IntegrationTest {
           Arguments.of("PT10H", 36000000L),
           Arguments.of("PT1000H", 3600000000L),
           Arguments.of("P10W", 6048000000L),
-          Arguments.of("P10M", 181440000000L));
+          Arguments.of("P10M", 25920000000L));
     }
 
     @ParameterizedTest

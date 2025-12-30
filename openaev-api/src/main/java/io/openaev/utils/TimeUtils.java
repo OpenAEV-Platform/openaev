@@ -25,14 +25,15 @@ public class TimeUtils {
   }
 
   public static long ISO8601PeriodToMilliseconds(@NotNull final String iso8601PeriodExpression) {
+    long second = 1000L;
     Matcher matcher = matchPattern(iso8601PeriodExpression, ISO_8601_PERIOD_EXPRESSION_MASK);
     if (matcher.find()) {
       long singleUnitMillis =
           switch (ScheduleFrequency.fromString(matcher.group("magnitude"))) {
-            case HOURLY -> 3600000L;
-            case DAILY -> 86400000L;
-            case WEEKLY -> 604800000L;
-            case MONTHLY -> 18144000000L;
+            case HOURLY -> 3600 * second;
+            case DAILY -> 24 * 3600 * second;
+            case WEEKLY -> 7 * 24 * 3600 * second;
+            case MONTHLY -> 30 * 24 * 3600 * second;
             default -> throw new IllegalArgumentException("Unrecognised period interval unit");
           };
       return singleUnitMillis * Integer.parseInt(matcher.group("digits"));

@@ -5,6 +5,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import io.openaev.IntegrationTest;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,8 +48,8 @@ public class PeriodServiceTest extends IntegrationTest {
     }
 
     @Nested
-    @DisplayName("With valid period expression")
-    public class WithValidPeriodExpression {
+    @DisplayName("With day-based period expression")
+    public class WithDayBasedPeriodExpression {
       String periodExpression = "P1D";
 
       @Nested
@@ -98,6 +99,183 @@ public class PeriodServiceTest extends IntegrationTest {
         public void returnsExpectedInstantSameDay() {
           Instant expected = Instant.parse("2022-04-24T10:43:56Z");
           Instant reference = Instant.parse("2022-04-24T02:34:01+02:00");
+          Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+      }
+    }
+
+    @Nested
+    @DisplayName("With hour-based period expression")
+    public class WithHourBasedPeriodExpression {
+      String periodExpression = "P1H";
+
+      @Nested
+      @DisplayName("With UTC reference instant")
+      public class WithUTCReferenceInstant {
+        @Test
+        @DisplayName("When target time on same hour is passed, return expected instant next hour")
+        public void returnsExpectedInstantNextHour() {
+          Instant expected = Instant.parse("2022-04-24T11:43:56Z");
+          Instant reference = Instant.parse("2022-04-24T10:53:56Z");
+          Instant seed = Instant.parse("2022-04-24T10:43:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName(
+            "When target time on same hour is not yet passed, return expected instant same hour")
+        public void returnsExpectedInstantSameHour() {
+          Instant seed = Instant.parse("2022-04-24T10:43:56Z");
+          Instant reference = Instant.parse("2022-04-24T10:33:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(seed);
+        }
+      }
+
+      @Nested
+      @DisplayName("With Zoned reference instant")
+      public class WithZonedReferenceInstant {
+        @Test
+        @DisplayName("When target time on same hour is passed, return expected instant next hour")
+        public void returnsExpectedInstantNextHour() {
+          Instant expected = Instant.parse("2022-04-24T11:43:56Z");
+          Instant reference = Instant.parse("2022-04-24T12:53:56+02:00");
+          Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName(
+            "When target time on same hour is not yet passed, return expected instant same hour")
+        public void returnsExpectedInstantSameHour() {
+          Instant expected = Instant.parse("2022-04-24T10:43:56Z");
+          Instant reference = Instant.parse("2022-04-24T12:33:56+02:00");
+          Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+      }
+    }
+
+    @Nested
+    @DisplayName("With month-based period expression")
+    public class WithMonthBasedPeriodExpression {
+      String periodExpression = "P1M";
+
+      @Nested
+      @DisplayName("With UTC reference instant")
+      public class WithUTCReferenceInstant {
+        @Test
+        @DisplayName("When target time on same month is passed, return expected instant next month")
+        public void returnsExpectedInstantNextMonth() {
+          Instant seed = Instant.parse("2022-04-24T10:43:56Z");
+          Instant expected = seed.plus(30, ChronoUnit.DAYS);
+          Instant reference = Instant.parse("2022-04-30T10:53:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName(
+            "When target time on same month is not yet passed, return expected instant same month")
+        public void returnsExpectedInstantSameMonth() {
+          Instant seed = Instant.parse("2022-04-24T10:43:56Z");
+          Instant reference = Instant.parse("2022-04-23T10:43:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(seed);
+        }
+      }
+
+      @Nested
+      @DisplayName("With Zoned reference instant")
+      public class WithZonedReferenceInstant {
+        @Test
+        @DisplayName("When target time on same month is passed, return expected instant next month")
+        public void returnsExpectedInstantNextMonth() {
+          Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
+          Instant expected = seed.plus(30, ChronoUnit.DAYS);
+          Instant reference = Instant.parse("2022-04-30T12:43:56+02:00");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName(
+            "When target time on same month is not yet passed, return expected instant same month")
+        public void returnsExpectedInstantSameMonth() {
+          Instant expected = Instant.parse("2022-04-24T10:43:56Z");
+          Instant reference = Instant.parse("2022-04-23T12:43:56+02:00");
+          Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+      }
+    }
+
+    @Nested
+    @DisplayName("With week-based period expression")
+    public class WithWeekBasedPeriodExpression {
+      String periodExpression = "P1W";
+
+      @Nested
+      @DisplayName("With UTC reference instant")
+      public class WithUTCReferenceInstant {
+        @Test
+        @DisplayName("When target time on same week is passed, return expected instant next week")
+        public void returnsExpectedInstantNextWeek() {
+          Instant seed = Instant.parse("2022-04-24T10:43:56Z");
+          Instant expected = seed.plus(7, ChronoUnit.DAYS);
+          Instant reference = Instant.parse("2022-04-26T10:53:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName(
+            "When target time on same week is not yet passed, return expected instant same week")
+        public void returnsExpectedInstantSameWeek() {
+          Instant seed = Instant.parse("2022-04-24T10:43:56Z");
+          Instant reference = Instant.parse("2022-04-23T10:43:56Z");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(seed);
+        }
+      }
+
+      @Nested
+      @DisplayName("With Zoned reference instant")
+      public class WithZonedReferenceInstant {
+        @Test
+        @DisplayName("When target time on same week is passed, return expected instant next week")
+        public void returnsExpectedInstantNextWeek() {
+          Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
+          Instant expected = seed.plus(7, ChronoUnit.DAYS);
+          Instant reference = Instant.parse("2022-04-26T12:43:56+02:00");
+          Optional<Instant> next =
+              periodService.getNextOccurrence(seed, reference, periodExpression);
+          assertThat(next).isPresent().get().isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName(
+            "When target time on same week is not yet passed, return expected instant same week")
+        public void returnsExpectedInstantSameWeek() {
+          Instant expected = Instant.parse("2022-04-24T10:43:56Z");
+          Instant reference = Instant.parse("2022-04-23T12:43:56+02:00");
           Instant seed = Instant.parse("2022-04-24T12:43:56+02:00");
           Optional<Instant> next =
               periodService.getNextOccurrence(seed, reference, periodExpression);
