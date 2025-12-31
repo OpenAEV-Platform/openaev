@@ -308,11 +308,10 @@ public class ScenarioService {
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
   }
 
-  /** Scenario is recurring AND start date is before now AND end date is after now */
+  /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
     return this.scenarioRepository.findAll(
         ScenarioSpecification.isRecurring()
-            .and(ScenarioSpecification.recurrenceStartDateBefore(instant))
             .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
   }
 

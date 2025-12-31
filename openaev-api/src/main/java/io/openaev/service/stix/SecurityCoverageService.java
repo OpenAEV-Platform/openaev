@@ -42,6 +42,7 @@ import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import jakarta.annotation.Resource;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -327,14 +328,9 @@ public class SecurityCoverageService {
    */
   private void setRecurrence(Scenario scenario, SecurityCoverage securityCoverage) {
     if (scenario.getRecurrence() == null) {
-      // Start date must be before the recurrence and now
-      Instant start = Instant.now().minusSeconds(60);
-      // Recurrence must be at least 1 "true" minute after now to be scheduled and executed (see
-      // ScenarioExecutionJob and examples below)
-      // Example 1: recurrence 11:33:00 + 120 seconds = 11:35:00 -> job each minute to schedule and
-      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
-      // Example 2: recurrence 11:33:59 + 120 seconds = 11:35:59 -> job each minute to schedule and
-      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
+      // schedule first start in 2 minutes
+      // so that it is picked up soon after setting it up
+      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
       if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
         scenario.setRecurrenceStart(start);
         scenario.setRecurrence(securityCoverage.getScheduling());

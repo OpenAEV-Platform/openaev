@@ -1,5 +1,5 @@
 export type LocalHourMinute = {
-  hour: number | (() => number) | undefined;
+  hour: number | undefined;
   minute: number | undefined;
 };
 

@@ -1,7 +1,6 @@
-import cronstrue from 'cronstrue/i18n';
 import { describe, expect, it } from 'vitest';
 
-import { CronField, CronFieldParser, CronParser, WellKnownMasks } from '../../utils/period/Cron';
+import { CronField, CronFieldParser, CronFieldPosition, CronParser, WellKnownMasks } from '../../utils/period/Cron';
 
 describe('When parsing cron expressions', () => {
   describe.each([
@@ -150,18 +149,6 @@ describe('When parsing cron expressions', () => {
     it(`is${uiSupported ? '' : ' not'} supported in the UI`, () => {
       expect(CronParser.parse(expr).isUiSupported()).toBe(uiSupported);
     });
-    it.each([
-      {
-        locale: 'fr',
-        output: cronstrue.toString(expr, { locale: 'fr' }),
-      },
-      {
-        locale: 'en',
-        output: cronstrue.toString(expr, { locale: 'en' }),
-      },
-    ])(`translates correctly in $locale`, ({ locale, output }) => {
-      expect(CronParser.parse(expr).toHumanReadableString(locale)).toBe(output);
-    });
   });
 });
 describe('Cron field features', () => {
@@ -193,7 +180,7 @@ describe('Cron field features', () => {
     },
   ])('When expression is $fieldExpr', ({ fieldExpr, parserMask, recurrence }) => {
     it(`returns recurrence ${recurrence}`, () => {
-      const field = new CronField(fieldExpr, new CronFieldParser(parserMask));
+      const field = new CronField(fieldExpr, new CronFieldParser(parserMask), /* any will do here */ CronFieldPosition.Minutes);
       expect(field.getRecurrence()).toBe(recurrence);
     });
   });

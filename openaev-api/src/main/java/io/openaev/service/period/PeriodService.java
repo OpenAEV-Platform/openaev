@@ -19,7 +19,7 @@ public class PeriodService implements PeriodExpressionHandler {
 
   @Override
   public Optional<Instant> getNextOccurrence(Instant seed, Instant now, String iso8601Period) {
-    if (StringUtils.isBlank(iso8601Period)) {
+    if (StringUtils.isBlank(iso8601Period) || seed == null) {
       return Optional.empty();
     }
 

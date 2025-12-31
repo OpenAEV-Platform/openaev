@@ -7,6 +7,7 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import io.openaev.cron.ScheduleFrequency;
+import io.openaev.utils.StringUtils;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -47,6 +48,9 @@ public class CronService implements PeriodExpressionHandler {
   @Override
   public Optional<Instant> getNextOccurrence(
       Instant _seed /* unused */, Instant currentTime, String expression) {
+    if (StringUtils.isBlank(expression)) {
+      return Optional.empty();
+    }
     return this.getNextExecutionFromInstant(currentTime, UTC, expression);
   }
 

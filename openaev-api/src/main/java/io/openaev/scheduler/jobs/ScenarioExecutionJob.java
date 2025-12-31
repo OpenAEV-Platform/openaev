@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.quartz.DisallowConcurrentExecution;
@@ -44,20 +45,20 @@ public class ScenarioExecutionJob implements Job {
   }
 
   private void createExercisesFromScenarios() {
+    Instant now = Instant.now();
     // Find each scenario with cron where now is between start and end date
-    List<Scenario> scenarios = this.scenarioService.recurringScenarios(Instant.now());
+    List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
     // Filter on valid cron scenario -> Start date on cron is in 1 minute
     List<Scenario> validScenarios =
         scenarios.stream()
             .filter(
                 scenario -> {
-                  Instant startDate =
-                      scenarioRecurrenceService
-                          .getNextExecutionTime(scenario, Instant.now())
-                          .orElse(Instant.now())
-                          .minus(1, ChronoUnit.MINUTES);
-                  Instant now = Instant.now();
-
+                  Optional<Instant> nextOccurrence =
+                      scenarioRecurrenceService.getNextExecutionTime(scenario, now);
+                  if (nextOccurrence.isEmpty()) {
+                    return false;
+                  }
+                  Instant startDate = nextOccurrence.get().minus(1, ChronoUnit.MINUTES);
                   ZonedDateTime startDateMinute =
                       startDate.atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.MINUTES);
                   ZonedDateTime nowMinute =
@@ -80,9 +81,7 @@ public class ScenarioExecutionJob implements Job {
             scenario ->
                 this.scenarioToExerciseService.toExercise(
                     scenario,
-                    scenarioRecurrenceService
-                        .getNextExecutionTime(scenario, Instant.now())
-                        .orElse(Instant.now()),
+                    scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
                     false));
   }
 
