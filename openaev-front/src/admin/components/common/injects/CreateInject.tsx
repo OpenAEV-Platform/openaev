@@ -1,4 +1,4 @@
-import { Add, HelpOutlined, HighlightOffOutlined } from '@mui/icons-material';
+import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useMemo, useState } from 'react';
@@ -405,6 +405,7 @@ const CreateInject: FunctionComponent<Props> = ({
                   />
                 )}
               />
+              <ListItemIcon />
             </ListItem>
             {contracts.map((contract: InjectorContractFullOutput, index) => {
               const contractAttackPatterns = computeAttackPatterns(
@@ -485,6 +486,9 @@ const CreateInject: FunctionComponent<Props> = ({
                         </div>
                       )}
                     />
+                    <ListItemIcon>
+                      <KeyboardArrowRight />
+                    </ListItemIcon>
                   </ListItemButton>
                 </ListItem>
               );
@@ -552,11 +556,12 @@ const CreateInject: FunctionComponent<Props> = ({
               />
             </div>
           </Slide>
+
         )}
         {
           numberOfSelectedElements > 0 && (
             <BulkToolBar
-              info={t('Bulk select lets you addd multiple injects. They\'ll show as "missing content" until configured')}
+              info={t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured')}
               numberOfSelectedElements={numberOfSelectedElements}
               handleClearSelectedElements={handleClearSelectedElements}
               toolTasks={toolTasks}
