@@ -39,8 +39,8 @@ public class CronService implements PeriodExpressionHandler {
       new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.SPRING53))
           .parse(expression);
       return true;
-    } catch (IllegalArgumentException e) {
-      log.info("Cannot parse expression {} as a cron expression.", expression, e);
+    } catch (Exception e) {
+      log.info("Cannot parse expression '{}' as a cron expression.", expression, e);
       return false;
     }
   }
