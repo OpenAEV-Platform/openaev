@@ -437,7 +437,7 @@ public class InjectApi extends RestBehavior {
     injectsToDelete.forEach(inject -> inject.setListened(false));
 
     // Bulk delete
-    this.injectService.deleteAll(injectsToDelete);
+    this.injectService.deleteNativeAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
     return injectsToDelete;
   }
 

@@ -257,6 +257,13 @@ public class InjectService {
     }
   }
 
+  @Transactional(rollbackOn = Exception.class)
+  public void deleteNativeAllByIds(List<String> injectIds) {
+    if (!CollectionUtils.isEmpty(injectIds)) {
+      injectRepository.deleteByAllIdsNative(injectIds);
+    }
+  }
+
   /**
    * Delete all injects given as params
    *
