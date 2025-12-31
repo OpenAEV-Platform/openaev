@@ -141,7 +141,7 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   @Override
-  public Step update(Step stepRun, Workflow workflowRun) {
+  public Step update(Step stepRun) {
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
     Inject inject = injectService.findInjectOrNull(injectId);

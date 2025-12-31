@@ -11,7 +11,7 @@ public interface ActionStep {
 
   Step run(Step waitStep);
 
-  Step update(Step stepRun, Workflow workflowRun);
+  Step update(Step stepRun);
 
   void end(StepsCreateInput.StepCreateInput step, Workflow workflow);
 }

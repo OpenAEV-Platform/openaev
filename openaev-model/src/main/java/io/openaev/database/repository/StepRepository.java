@@ -24,10 +24,18 @@ public interface StepRepository extends JpaRepository<Step, String> {
       nativeQuery = true)
   int countRunningStep(@Param("idWorkflowRun") String idWorkflowRun);
 
-  List<Step> findAllByStatus(STEP_STATUS status);
+  @Query(
+      value =
+          "SELECT count(*) FROM steps where step_workflow_id=:idWorkflowRun and step_template_id=:stepTemplateId",
+      nativeQuery = true)
+  int countStepExecutedByStepTemplateIdAndWorkflowRunId(@Param("idWorkflowRun") String idWorkflowRun, @Param("stepTemplateId") String stepTemplateId);
 
-  List<Step> findAllByStatusAndStepTemplateIdAndWorkflowId(
-      STEP_STATUS status, String stepTemplateId, String idWorkflowRun);
+  List<Step> findAllByStatus(STEP_STATUS status);
+    @Query(
+            value =
+                    "SELECT * FROM steps where step_workflow_id=:idWorkflowRun and step_template_id=:stepTemplateId",
+            nativeQuery = true)
+  List<Step> findAllStepExecutedByStepTemplateIdAndWorkflowRunId(String stepTemplateId, String idWorkflowRun);
 
   // STEP EXECUTED
   List<Step> findAllByStepTemplateIdAndWorkflowId(String stepTemplateId, String idWorkflowRun);

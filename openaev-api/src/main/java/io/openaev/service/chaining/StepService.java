@@ -66,17 +66,17 @@ public class StepService {
     }*/
   }
 
-  public Step wait(Step stepTemplate, Workflow workflowRun, String input) {
-    ActionStep actionStep = this.factoryAction(stepTemplate.getStepAction());
+  public Step wait(Step nextStepTemplateToExecute, Workflow workflowRun, String input) {
+    ActionStep actionStep = this.factoryAction(nextStepTemplateToExecute.getStepAction());
     if (actionStep == null) throw new BadRequestException("action step is null");
-    Step stepTemplateP = findById(stepTemplate.getId());
+    Step nextStepTemplateToExecutePersisted = findById(nextStepTemplateToExecute.getId());
     // CHECK CONDITIONS
     List<Condition> conditionExecution =
         conditionService.checkCondition(
-            stepTemplateP, input, stepTemplateP.getData(), workflowRun, this);
+                nextStepTemplateToExecutePersisted, input, nextStepTemplateToExecutePersisted.getData(), workflowRun, this);
 
     if (conditionExecution != null) {
-      Step stepWait = actionStep.wait(stepTemplateP, input, workflowRun);
+      Step stepWait = actionStep.wait(nextStepTemplateToExecutePersisted, input, workflowRun);
       stepWait.setWorkflow(workflowRun);
       stepWait = this.saveStep(stepWait);
 
@@ -90,12 +90,6 @@ public class StepService {
             condition.setStep(finalStepWait);
           });
       conditionService.saveAllConditions(conditionExecution);
-      // todo delete and push into queue
-      int countStepRun = stepRepository.countRunningStep(stepWait.getWorkflow().getId());
-      if (countStepRun > stepTemplateP.getLimitExecution()) {
-        //TODO check already executed (into condition ?)
-        return stepWait;
-      }
       queueChainingService.toDeletePushIntoQueueRunStep(finalStepWait, this);
       /*new Thread(() -> {
           queueChainingService.toDeletePushIntoQueueRunStep(finalStepWait, this);
@@ -127,7 +121,10 @@ public class StepService {
       this.saveStep(stepRun);
     }
   }
+    public int countExecutedStep(String workflowRunId, String stepTemplateId) {
+        return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(workflowRunId, stepTemplateId);
 
+    }
   public ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
     return switch (actionClass) {
       case STEP_ACTION_CLASS.INJECT_EXECUTION -> injectExecutionStep;
@@ -240,16 +237,16 @@ public class StepService {
   }
 
     /**
-     * Returns all RUN steps for a given Workflow Run and Step template.
+     * Returns all EXECTUTED steps for a given Workflow Run and Step template.
      *
      * @param idStepTemplate the Step template identifier
      * @param idWorkflowRun  the Workflow Run id
      * @return all matching RUN steps
      */
-    public List<Step> findAllStepRunByStepTemplateIdAndWorkflowRunId(
+    public List<Step> findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
             String idStepTemplate, String idWorkflowRun) {
-        return this.stepRepository.findAllByStatusAndStepTemplateIdAndWorkflowId(
-                STEP_STATUS.RUN, idStepTemplate, idWorkflowRun);
+        return this.stepRepository.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
+                idStepTemplate, idWorkflowRun);
     }
 
   public Step findById(String stepId) {

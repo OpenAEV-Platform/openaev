@@ -21,12 +21,14 @@ public class QueueChainingScheduler {
 
   @Scheduled(cron = "0 * * * * *")
   public void toDeleteScheduleCheckOutput() {
+      //FOR QUEUE
+      // Take a step run
     List<Step> stepsRun = stepService.findAllStepRun();
     for (Step stepRun : stepsRun) {
       ActionStep actionStep = stepService.factoryAction(stepRun.getStepAction());
       if (actionStep == null) throw new BadRequestException("action step is null");
 
-      Step stepUpdated = actionStep.update(stepRun, null);
+      Step stepUpdated = actionStep.update(stepRun);
       if (stepUpdated != null) {
         stepService.saveStep(stepUpdated);
         // GET STEP TEMPLATE
