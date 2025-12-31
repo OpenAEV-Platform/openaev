@@ -306,23 +306,22 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @Test
   @DisplayName("When recurrence expression cannot be handled, do not create simulation")
-  public void whenRecurrenceExpressionCannotBeHandled_doNotCreateSimulation() throws JobExecutionException {
+  public void whenRecurrenceExpressionCannotBeHandled_doNotCreateSimulation()
+      throws JobExecutionException {
     Scenario scenario = ScenarioFixture.getScenario();
     scenario.setRecurrence("can not handle this expression!");
-    ScenarioComposer.Composer scenarioWrapper =
-            scenarioComposer.forScenario(scenario).persist();
+    ScenarioComposer.Composer scenarioWrapper = scenarioComposer.forScenario(scenario).persist();
 
     // -- EXECUTE --
     job.execute(null);
 
     // -- ASSERT --
     List<Exercise> createdExercises =
-            fromIterable(exerciseRepository.findAll()).stream()
-                    .filter(exercise -> exercise.getScenario() != null)
-                    .filter(
-                            exercise ->
-                                    scenarioWrapper.get().getId().equals(exercise.getScenario().getId()))
-                    .toList();
+        fromIterable(exerciseRepository.findAll()).stream()
+            .filter(exercise -> exercise.getScenario() != null)
+            .filter(
+                exercise -> scenarioWrapper.get().getId().equals(exercise.getScenario().getId()))
+            .toList();
     assertThat(createdExercises).isEmpty();
   }
 }
