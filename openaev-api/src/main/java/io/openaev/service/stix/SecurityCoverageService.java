@@ -40,6 +40,7 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -162,6 +163,9 @@ public class SecurityCoverageService {
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
     securityCoverage.setScheduling(scheduling);
+
+    // security coverage scenario overall duration
+    securityCoverage.setDuration(stixCoverageObj.getOptionalProperty(STIX_DURATION, ""));
 
     // Period Start
     Dictionary extensionObj =
@@ -333,6 +337,9 @@ public class SecurityCoverageService {
       Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
       if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
         scenario.setRecurrenceStart(start);
+        scenario.setRecurrenceEnd(
+            TimeUtils.incrementInstant(
+                start, TimeUtils.ISO8601PeriodToTemporalIncrement(securityCoverage.getDuration())));
         scenario.setRecurrence(securityCoverage.getScheduling());
       }
     }

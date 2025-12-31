@@ -44,6 +44,12 @@ public class TimeUtils {
             .formatted(iso8601PeriodExpression));
   }
 
+  public static Instant incrementInstant(Instant reference, TemporalIncrement increment) {
+    LocalDateTime ldt = LocalDateTime.ofInstant(reference, UTC);
+    ldt = ldt.plus(increment.quantity(), increment.unit());
+    return ldt.toInstant(UTC);
+  }
+
   public static boolean isISO8601PeriodExpression(String expression) {
     return matchPattern(expression, ISO_8601_PERIOD_EXPRESSION_MASK).find();
   }
