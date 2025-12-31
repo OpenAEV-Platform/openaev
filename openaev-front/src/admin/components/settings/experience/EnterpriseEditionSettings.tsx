@@ -125,14 +125,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                   status={null}
                 />
               </ListItem>
-              <ListItem divider>
-                <ListItemText primary={t('Creator')} />
-                <ItemBoolean
-                  variant="xlarge"
-                  neutralLabel={settings.platform_license?.license_creator}
-                  status={null}
-                />
-              </ListItem>
+
               <ListItem divider>
                 <ListItemText primary={t('Scope')} />
                 <ItemBoolean

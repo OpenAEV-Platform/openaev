@@ -4,7 +4,7 @@ import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
-import { type LabelColor, LabelColorDict } from './Theme';
+import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
 const EE_COLOR = '#0c7e69';
 
@@ -30,7 +30,10 @@ const ThemeLight = (
   borderRadius: 4,
   palette: {
     mode: 'light',
-    common: { white: '#ffffff' },
+    common: {
+      white: '#ffffff',
+      black: '#000000',
+    },
     error: {
       main: '#f44336',
       dark: '#c62828',
@@ -165,12 +168,12 @@ const ThemeLight = (
             borderTopRightRadius: 'inherit',
           },
           'pre': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             color: '#000000 !important',
             background: `${accent || THEME_LIGHT_DEFAULT_ACCENT} !important`,
           },
           'code': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             color: '#000000 !important',
             background: `${accent || THEME_LIGHT_DEFAULT_ACCENT} !important`,
             padding: 3,

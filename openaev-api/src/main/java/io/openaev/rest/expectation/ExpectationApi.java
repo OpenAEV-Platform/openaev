@@ -52,7 +52,7 @@ public class ExpectationApi extends RestBehavior {
           "Retrieves inject expectations of agents installed on an asset. If an expiration time is provided, it will return all expectations not expired within this timeframe independently of their results. Otherwise, it will return all expectations without any result.")
   @GetMapping(INJECTS_EXPECTATIONS_URI)
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public List<InjectExpectation> getInjectExpectationsNotFilledOrNotExpired(
+  public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     if (expirationTime == null) {
       return Stream.of(
@@ -64,9 +64,9 @@ public class ExpectationApi extends RestBehavior {
     }
 
     return Stream.of(
-            injectExpectationService.manualExpectationsNotExpired(expirationTime),
-            injectExpectationService.preventionExpectationsNotExpired(expirationTime),
-            injectExpectationService.detectionExpectationsNotExpired(expirationTime))
+            injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
+            injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
+            injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
         .flatMap(List::stream)
         .toList();
   }
@@ -93,7 +93,7 @@ public class ExpectationApi extends RestBehavior {
           "Retrieves inject expectations of agents installed on an asset for a given source ID.")
   @GetMapping(INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public List<InjectExpectation> getInjectExpectationsAssetsNotFilledForSource(
+  public List<InjectExpectation> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
       @PathVariable String sourceId,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     if (expirationTime == null) {
@@ -103,8 +103,12 @@ public class ExpectationApi extends RestBehavior {
           .toList();
     }
     return Stream.concat(
-            injectExpectationService.preventionExpectationsNotExpired(expirationTime).stream(),
-            injectExpectationService.detectionExpectationsNotExpired(expirationTime).stream())
+            injectExpectationService
+                .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                .stream(),
+            injectExpectationService
+                .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                .stream())
         .toList();
   }
 

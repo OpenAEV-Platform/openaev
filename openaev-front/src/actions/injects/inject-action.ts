@@ -1,18 +1,13 @@
-import { type Dispatch } from 'redux';
-
-import { getReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { simpleCall, simplePostCall } from '../../utils/Action';
 import {
-  type Exercise,
   type InjectExportFromSearchRequestInput,
   type InjectExportRequestInput,
   type InjectIndividualExportRequestInput,
-  type Scenario,
   type SearchPaginationInput,
 } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
-import * as schema from '../Schema';
 
-const INJECT_URI = '/api/injects';
+export const INJECT_URI = '/api/injects';
 
 export const exportInjectSearch = (data: InjectExportFromSearchRequestInput) => {
   const uri = '/api/injects/search/export';
@@ -34,50 +29,6 @@ export const exportInject = (injectId: string, data: InjectIndividualExportReque
   const uri = `/api/injects/${injectId}/inject_export`;
   return simplePostCall(uri, data, { responseType: 'arraybuffer' }).catch((error) => {
     MESSAGING$.notifyError('Could not request export of inject');
-    throw error;
-  });
-};
-
-// -- EXERCISES --
-
-export const fetchExerciseInjectsSimple = (exerciseId: Exercise['exercise_id']) => (dispatch: Dispatch) => {
-  const uri = `/api/exercises/${exerciseId}/injects/simple`;
-  return getReferential(schema.arrayOfInjects, uri)(dispatch);
-};
-
-export const searchExerciseInjectsSimple = (exerciseId: Exercise['exercise_id'], input: SearchPaginationInput) => {
-  const uri = `/api/exercises/${exerciseId}/injects/simple`;
-  return simplePostCall(uri, input);
-};
-
-export const importInjectsForSimulation = (simulationId: Exercise['exercise_id'], file: File) => {
-  const uri = `/api/exercises/${simulationId}/injects/import`;
-  const formData = new FormData();
-  formData.append('file', file);
-  return simplePostCall(uri, formData).catch((error) => {
-    MESSAGING$.notifyError('Could not import injects');
-    throw error;
-  });
-};
-
-// -- SCENARIOS --
-
-export const fetchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
-  const uri = `/api/scenarios/${scenarioId}/injects/simple`;
-  return getReferential(schema.arrayOfInjects, uri)(dispatch);
-};
-
-export const searchScenarioInjectsSimple = (scenarioId: Scenario['scenario_id'], input: SearchPaginationInput) => {
-  const uri = `/api/scenarios/${scenarioId}/injects/simple`;
-  return simplePostCall(uri, input);
-};
-
-export const importInjectsForScenario = (scenarioId: Scenario['scenario_id'], file: File) => {
-  const uri = `/api/scenarios/${scenarioId}/injects/import`;
-  const formData = new FormData();
-  formData.append('file', file);
-  return simplePostCall(uri, formData).catch((error) => {
-    MESSAGING$.notifyError('Could not import injects');
     throw error;
   });
 };

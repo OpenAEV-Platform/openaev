@@ -21,7 +21,10 @@ import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -33,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
   @Resource private SessionManager sessionManager;
   private final Argon2PasswordEncoder passwordEncoder =
@@ -42,10 +46,17 @@ public class UserService {
   private TagRepository tagRepository;
   private GroupRepository groupRepository;
   private OrganizationRepository organizationRepository;
+  private CacheManager cacheManager;
+  private Cache adminCache;
 
   @Autowired
   public void setOrganizationRepository(OrganizationRepository organizationRepository) {
     this.organizationRepository = organizationRepository;
+  }
+
+  @Autowired
+  public void setCacheManager(CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
   }
 
   @Autowired
@@ -152,9 +163,35 @@ public class UserService {
   }
 
   public User currentUser() {
-    return this.userRepository
-        .findById(SessionHelper.currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    User user;
+    // If we don't have the cache, we get it
+    if (adminCache == null) {
+      adminCache = cacheManager.getCache("adminUsers");
+    }
+    // If the cache is available
+    if (adminCache != null) {
+      // We try to check if the user is in the cache
+      user = adminCache.get(SessionHelper.currentUser().getId(), User.class);
+      // If not, we get it
+      if (user == null) {
+        user =
+            this.userRepository
+                .findById(SessionHelper.currentUser().getId())
+                .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+
+        // If the user is admin, we put him in cache
+        if (user.isAdmin()) {
+          adminCache.put(SessionHelper.currentUser().getId(), user);
+        }
+      }
+    } else {
+      // If for some reason, the cache is unavailable, we just get the user and return it
+      user =
+          this.userRepository
+              .findById(SessionHelper.currentUser().getId())
+              .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    }
+    return user;
   }
 
   // endregion

@@ -7,6 +7,7 @@ import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.Ee;
@@ -34,6 +35,7 @@ public class PayloadUpdateService {
 
   private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
+  private final DomainRepository domainRepository;
   private final PayloadRepository payloadRepository;
   private final DocumentService documentService;
 
@@ -64,6 +66,7 @@ public class PayloadUpdateService {
     List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
     payload.setDetectionRemediations(Collections.emptyList());
     payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    payload.setDomains(iterableToSet(domainRepository.findAllById(input.getDomainIds())));
     payload.setDetectionRemediations(originalDrs);
 
     if (payload instanceof Executable executable) {

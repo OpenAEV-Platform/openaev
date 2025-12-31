@@ -1,6 +1,7 @@
 package io.openaev.injector_contract;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.fields.ContractElement;
@@ -8,10 +9,7 @@ import io.openaev.injector_contract.variables.VariableHelper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -52,6 +50,10 @@ public class Contract {
   @JsonProperty("platforms")
   private List<PLATFORM_TYPE> platforms = new ArrayList<>();
 
+  @Setter
+  @JsonProperty("domains")
+  private Set<Domain> domains;
+
   private Contract(
       @NotNull final ContractConfig config,
       @NotBlank final String id,
@@ -59,7 +61,8 @@ public class Contract {
       final boolean manual,
       @NotEmpty final List<ContractElement> fields,
       final List<PLATFORM_TYPE> platforms,
-      final boolean needsExecutor) {
+      final boolean needsExecutor,
+      @NotEmpty final Set<Domain> domains) {
     this.config = config;
     this.id = id;
     this.label = label;
@@ -67,6 +70,7 @@ public class Contract {
     this.fields = fields;
     this.needsExecutor = needsExecutor;
     this.platforms = platforms;
+    this.domains = domains;
 
     // Default variables linked to ExecutionContext
     // User variables
@@ -85,7 +89,8 @@ public class Contract {
       @NotEmpty final Map<SupportedLanguage, String> label,
       @NotEmpty final List<ContractElement> fields,
       final List<PLATFORM_TYPE> platforms,
-      final boolean needsExecutor) {
+      final boolean needsExecutor,
+      @NotEmpty final Set<Domain> domains) {
     Contract contract =
         new Contract(
             config,
@@ -94,7 +99,8 @@ public class Contract {
             true,
             fields,
             platforms == null ? List.of(PLATFORM_TYPE.Generic) : platforms,
-            needsExecutor);
+            needsExecutor,
+            domains);
     contract.setAtomicTesting(false);
     return contract;
   }
@@ -105,7 +111,8 @@ public class Contract {
       @NotEmpty final Map<SupportedLanguage, String> label,
       @NotEmpty final List<ContractElement> fields,
       final List<PLATFORM_TYPE> platforms,
-      final boolean needsExecutor) {
+      final boolean needsExecutor,
+      @NotEmpty final Set<Domain> domains) {
     return new Contract(
         config,
         id,
@@ -113,7 +120,8 @@ public class Contract {
         false,
         fields,
         platforms == null ? List.of(PLATFORM_TYPE.Generic) : platforms,
-        needsExecutor);
+        needsExecutor,
+        domains);
   }
 
   public void addContext(String key, String value) {

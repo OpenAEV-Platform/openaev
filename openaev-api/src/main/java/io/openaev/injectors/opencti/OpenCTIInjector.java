@@ -1,7 +1,7 @@
 package io.openaev.injectors.opencti;
 
 import io.openaev.integrations.InjectorService;
-import java.util.List;
+import java.util.ArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +23,7 @@ public class OpenCTIInjector {
           null,
           null,
           false,
-          List.of());
+          new ArrayList<>());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

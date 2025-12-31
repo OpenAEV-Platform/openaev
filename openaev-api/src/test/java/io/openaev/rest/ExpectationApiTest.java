@@ -7,7 +7,7 @@ import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static io.openaev.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 import static io.openaev.utils.fixtures.InjectExpectationFixture.getInjectExpectationUpdateInput;

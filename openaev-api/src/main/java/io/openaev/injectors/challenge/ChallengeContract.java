@@ -21,9 +21,11 @@ import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -96,7 +98,8 @@ public class ChallengeContract extends Contractor {
             Map.of(en, "Publish challenges", fr, "Publier des challenges"),
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
-            false);
+            false,
+            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
     publishChallenge.setAtomicTesting(false);
     return List.of(publishChallenge);
   }

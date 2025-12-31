@@ -9,12 +9,16 @@ import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.Ee;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import jakarta.transaction.Transactional;
+import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -34,6 +38,7 @@ public class PayloadUpsertService {
   private final PayloadRepository payloadRepository;
   private final CollectorService collectorService;
   private final DocumentService documentService;
+  private final DomainService domainService;
 
   @Transactional(rollbackOn = Exception.class)
   public Payload upsertPayload(PayloadUpsertInput input) {
@@ -68,6 +73,13 @@ public class PayloadUpsertService {
       payload.setCollector(collector);
     }
 
+    payload.setDomains(
+        input.getDomains() != null
+            ? domainService.upserts(input.getDomains())
+            : new HashSet<>(
+                Set.of(
+                    domainService.upsert(
+                        new Domain(null, "To classify", "#FFFFFF", Instant.now(), null)))));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 
@@ -97,6 +109,9 @@ public class PayloadUpsertService {
       payload.setCollector(collector);
     }
 
+    final Set<Domain> existingDomains = this.domainService.upserts(payload.getDomains());
+    final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains());
+    payload.setDomains(this.domainService.mergeDomains(existingDomains, domainsToAdd));
     payload.setAttackPatterns(attackPatterns);
     payload.setTags(this.tagService.tagSet((input.getTagIds())));
 

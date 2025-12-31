@@ -1,6 +1,6 @@
 package io.openaev.rest.notification_rule;
 
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -16,6 +16,7 @@ import io.openaev.rest.notification_rule.form.CreateNotificationRuleInput;
 import io.openaev.rest.notification_rule.form.UpdateNotificationRuleInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -23,9 +24,13 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(PER_CLASS)
 public class NotificationRuleApiTest extends IntegrationTest {
 

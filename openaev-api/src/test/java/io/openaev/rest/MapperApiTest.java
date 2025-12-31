@@ -1,6 +1,6 @@
 package io.openaev.rest;
 
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +22,7 @@ import io.openaev.service.InjectImportService;
 import io.openaev.service.MapperService;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockMapper.MockMapperUtils;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -42,12 +43,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.ResourceUtils;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @ExtendWith(MockitoExtension.class)
 public class MapperApiTest extends IntegrationTest {
 

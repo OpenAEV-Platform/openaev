@@ -1,7 +1,5 @@
 package io.openaev.executors.caldera.service;
 
-import static io.openaev.executors.caldera.service.CalderaExecutorService.CALDERA_EXECUTOR_NAME;
-
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -13,10 +11,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service(CALDERA_EXECUTOR_NAME)
 @RequiredArgsConstructor
 public class CalderaExecutorContextService extends ExecutorContextService {
 

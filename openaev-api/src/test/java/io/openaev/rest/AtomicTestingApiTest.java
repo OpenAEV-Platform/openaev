@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -286,6 +286,21 @@ public class AtomicTestingApiTest extends IntegrationTest {
           getAtomicTestingWrapper(
                   InjectStatusFixture.createQueuingInjectStatus(),
                   executorFixture.getTaniumExecutor())
+              .persist()
+              .get();
+
+      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch"))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
+    @DisplayName("Throw license restricted error when relaunch with Sentinel One")
+    void given_sentinelone_should_not_relaunchAtomicTesting() throws Exception {
+      Inject atomicTesting =
+          getAtomicTestingWrapper(
+                  InjectStatusFixture.createQueuingInjectStatus(),
+                  executorFixture.getSentineloneExecutor())
               .persist()
               .get();
 

@@ -14,7 +14,7 @@ import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types.js';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
 import InjectorContractForm from './InjectorContractForm';
 
-const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackPatternsMap, onUpdate }) => {
+const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackPatternsMap, onUpdate, isPayloadInjector }) => {
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -30,28 +30,41 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
+
   const onSubmitEditMapping = (data) => {
-    const inputValues = R.pipe(
-      R.assoc('contract_attack_patterns_ids', R.pluck('id', data.injector_contract_attack_patterns)),
-      R.dissoc('injector_contract_attack_patterns'),
-    )(data);
-    return dispatch(updateInjectorContractMapping(injectorContract.injector_contract_id, inputValues)).then((result) => {
-      if (result.entities) {
-        if (onUpdate) {
-          const updated = result.entities.injector_contracts[result.result];
-          onUpdate(updated);
-        }
+    const {
+      injector_contract_attack_patterns,
+      injector_contract_domains,
+      ...restData
+    } = data;
+
+    const inputValues = {
+      ...restData,
+      contract_attack_patterns_ids:
+        injector_contract_attack_patterns?.map(p => p.id),
+      contract_domains: injector_contract_domains?.map(p => p.domain_id),
+    };
+
+    return dispatch(
+      updateInjectorContractMapping(
+        injectorContract.injector_contract_id,
+        inputValues,
+      ),
+    ).then((result) => {
+      if (result.entities && onUpdate) {
+        onUpdate(result.entities.injector_contracts[result.result]);
       }
       handleCloseEdit();
     });
   };
+
   const onSubmitEdit = (data, fields) => {
     const injectorContractContent = JSON.parse(injectorContract.injector_contract_content);
     const newInjectorContractContent = {
       ...injectorContractContent,
       label: { en: data.injector_contract_name },
       fields: injectorContractContent.fields.map((field) => {
-        const newField = field;
+        const newField = { ...field };
         if (!R.isNil(fields[field.key]?.readOnly)) {
           newField.readOnly = fields[field.key]?.readOnly;
         }
@@ -61,21 +74,21 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
         return newField;
       }),
     };
-    const inputValues = R.pipe(
-      R.assoc('contract_labels', { en: data.injector_contract_name }),
-      R.assoc('contract_attack_patterns_ids', R.pluck('id', data.injector_contract_attack_patterns)),
-      R.assoc('contract_content', JSON.stringify(newInjectorContractContent)),
-      R.dissoc('injector_contract_attack_patterns'),
-    )(data);
-    return dispatch(updateInjectorContract(injectorContract.injector_contract_id, inputValues)).then((result) => {
-      if (result.entities) {
-        if (onUpdate) {
-          const updated = result.entities.injector_contracts[result.result];
-          onUpdate(updated);
+
+    const inputValues = {
+      contract_labels: { en: data.injector_contract_name },
+      contract_attack_patterns_ids: R.pluck('id', data.injector_contract_attack_patterns),
+      contract_content: JSON.stringify(newInjectorContractContent),
+      contract_domains: data.injector_contract_domains, // doit être un tableau d'objets Domain complets
+    };
+
+    return dispatch(updateInjectorContract(injectorContract.injector_contract_id, inputValues))
+      .then((result) => {
+        if (result.entities && onUpdate) {
+          onUpdate(result.entities.injector_contracts[result.result]);
         }
-      }
-      handleCloseEdit();
-    });
+        handleCloseEdit();
+      });
   };
   const handleOpenDelete = () => {
     setOpenDelete(true);
@@ -87,15 +100,23 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
     handleCloseDelete();
   };
   const injectorContractAttackPatterns = attackPatternOptions(injectorContract.injector_contract_attack_patterns, attackPatternsMap, killChainPhasesMap);
-  let initialValues = null;
+
+  let initialValues;
+
   if (injectorContract.injector_contract_custom) {
-    initialValues = R.pipe(
-      R.assoc('injector_contract_name', injectorContract.injector_contract_labels.en),
-      R.assoc('injector_contract_attack_patterns', injectorContractAttackPatterns),
-    )(injectorContract);
+    initialValues = {
+      ...injectorContract,
+      injector_contract_name: injectorContract.injector_contract_labels.en,
+      injector_contract_attack_patterns: injectorContractAttackPatterns,
+      injector_contract_domains: injectorContract.injector_contract_domains,
+    };
   } else {
-    initialValues = { injector_contract_attack_patterns: injectorContractAttackPatterns };
+    initialValues = {
+      injector_contract_attack_patterns: injectorContractAttackPatterns,
+      injector_contract_domains: injectorContract.injector_contract_domains,
+    };
   }
+
   return (
     <>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
@@ -141,6 +162,7 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
             onSubmit={onSubmitEdit}
             handleClose={handleCloseEdit}
             contractTemplate={injectorContract}
+            isPayloadInjector={isPayloadInjector}
           />
         ) : (
           <InjectorContractForm
@@ -148,6 +170,7 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
             editing={true}
             onSubmit={onSubmitEditMapping}
             handleClose={handleCloseEdit}
+            isPayloadInjector={isPayloadInjector}
           />
         )}
       </Drawer>

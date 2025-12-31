@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
 import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
@@ -23,6 +23,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +31,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ExerciseLessonsApiTest extends IntegrationTest {

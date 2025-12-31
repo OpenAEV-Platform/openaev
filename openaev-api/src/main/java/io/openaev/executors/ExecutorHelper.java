@@ -12,6 +12,11 @@ public class ExecutorHelper {
   public static final String IMPLANT_LOCATION_WINDOWS =
       "\"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\runtimes\\";
   public static final String IMPLANT_LOCATION_UNIX = "/opt/openaev-agent/runtimes/";
+  // Clean payloads older than 24 hours
+  public static final String WINDOWS_CLEAN_PAYLOADS_COMMAND =
+      "Get-ChildItem -Path \"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\payloads\",\"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\runtimes\" -Directory -Recurse | Where-Object {$_.CreationTime -lt (Get-Date).AddHours(-24)} | Remove-Item -Recurse -Force";
+  public static final String UNIX_CLEAN_PAYLOADS_COMMAND =
+      "find /opt/openaev-agent/payloads /opt/openaev-agent/runtimes -type d -mmin +1440 -exec rm -rf {} + 2>/dev/null";
 
   private ExecutorHelper() {}
 

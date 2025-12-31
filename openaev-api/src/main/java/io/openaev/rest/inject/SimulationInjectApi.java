@@ -78,7 +78,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final SimulationInjectService simulationInjectService;
     private final ExerciseService exerciseService;
 
-    @Operation(summary = "Retrieved injects for an exercise")
+  @Operation(summary = "Retrieved injects for an exercise")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -218,6 +218,19 @@ public class SimulationInjectApi extends RestBehavior {
     } else {
       return this.injectService.createInject(exercise, null, input);
     }
+  }
+
+  @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/bulk")
+  @RBAC(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
+  public List<Inject> createInjectsForExercise(
+      @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
+    Exercise exercise =
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    return this.injectService.createAndSaveInjectList(exercise, null, inputs);
   }
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")

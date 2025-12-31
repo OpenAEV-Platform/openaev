@@ -10,6 +10,7 @@ import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
+import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -42,8 +43,11 @@ public class ExecutionExecutorServiceTest {
 
   @Test
   void test_launchExecutorContext_noAssetException() throws Exception {
+
     // Init datas
-    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
+    Command payloadCommand =
+        PayloadFixture.createCommand(
+            "cmd", "whoami", List.of(), "whoami", new HashSet<>(Set.of(PresetDomain.TOCLASSIFY)));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
@@ -75,7 +79,7 @@ public class ExecutionExecutorServiceTest {
     endpoint.setId("0123456789");
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveAgentlessAssetsTraces(Set.of(endpoint), injectStatus);
+    executorService.saveAgentlessAssetsTraces(new HashSet<>(Set.of(endpoint)), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository).saveAll(executionTrace.capture());
@@ -92,7 +96,7 @@ public class ExecutionExecutorServiceTest {
     // Init datas
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveAgentlessAssetsTraces(Set.of(), injectStatus);
+    executorService.saveAgentlessAssetsTraces(new HashSet<>(), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository, never()).saveAll(executionTrace.capture());
@@ -108,7 +112,7 @@ public class ExecutionExecutorServiceTest {
     endpoint.setAgents(List.of(agent));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveInactiveAgentsTraces(Set.of(agent), injectStatus);
+    executorService.saveInactiveAgentsTraces(new HashSet<>(Set.of(agent)), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository).saveAll(executionTrace.capture());
@@ -128,7 +132,7 @@ public class ExecutionExecutorServiceTest {
     // Init datas
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveInactiveAgentsTraces(Set.of(), injectStatus);
+    executorService.saveInactiveAgentsTraces(new HashSet<>(), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository, never()).saveAll(executionTrace.capture());
@@ -144,7 +148,7 @@ public class ExecutionExecutorServiceTest {
     endpoint.setAgents(List.of(agent));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveWithoutExecutorAgentsTraces(Set.of(agent), injectStatus);
+    executorService.saveWithoutExecutorAgentsTraces(new HashSet<>(Set.of(agent)), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository).saveAll(executionTrace.capture());
@@ -163,14 +167,14 @@ public class ExecutionExecutorServiceTest {
     // Init datas
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveWithoutExecutorAgentsTraces(Set.of(), injectStatus);
+    executorService.saveWithoutExecutorAgentsTraces(new HashSet<>(), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository, never()).saveAll(executionTrace.capture());
   }
 
   @Test
-  void test_saveCrowdstrikeAgentsErrorTraces() {
+  void test_saveCrowdstrikeSentineloneAgentsErrorTraces() {
     // Init datas
     Endpoint endpoint = EndpointFixture.createEndpoint();
     Agent agent = AgentFixture.createDefaultAgentSession();
@@ -178,8 +182,8 @@ public class ExecutionExecutorServiceTest {
     endpoint.setAgents(List.of(agent));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     // Run method to test
-    executorService.saveCrowdstrikeAgentsErrorTraces(
-        new Exception("EXCEPTION !!"), Set.of(agent), injectStatus);
+    executorService.saveAgentsErrorTraces(
+        new Exception("EXCEPTION !!"), new HashSet<>(Set.of(agent)), injectStatus);
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository).saveAll(executionTrace.capture());

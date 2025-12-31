@@ -1,31 +1,49 @@
-import { Button, GridLegacy, Switch, TextField as MUITextField, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  GridLegacy,
+  Switch,
+  TextField as MUITextField,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { useState } from 'react';
-import { Form } from 'react-final-form';
+import { Field, Form } from 'react-final-form';
 
 import CKEditor from '../../../../../components/CKEditor';
+import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import OldTextField from '../../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';
+import { useHelper } from '../../../../../store';
 
 const InjectorContractForm = (props) => {
-  const { onSubmit, initialValues, editing, handleClose, contractTemplate } = props;
+  const { onSubmit, initialValues, editing, handleClose, contractTemplate, isPayloadInjector } = props;
   const [fields, setFields] = useState({});
   const theme = useTheme();
   const { t } = useFormatter();
   const validate = (values) => {
     const errors = {};
-    const requiredFields = ['injector_contract_name'];
-    requiredFields.forEach((field) => {
-      if (!values[field]) {
-        errors[field] = t('This field is required.');
-      }
-    });
+
+    if (!values.injector_contract_name) {
+      errors.injector_contract_name = t('This field is required.');
+    }
+
+    if (!Array.isArray(values.injector_contract_domains) || values.injector_contract_domains.length === 0) {
+      errors.injector_contract_domains = t('This field is required.');
+    }
+
     return errors;
   };
+
   const contract = JSON.parse(contractTemplate.injector_contract_content);
+  const domainOptions = useHelper((helper) => {
+    return helper.getDomains();
+  });
+  const filteredDomains = domainOptions.filter(d => d.domain_name !== 'To classify');
+
   const renderField = (field) => {
     switch (field.type) {
       case 'textarea':
@@ -108,9 +126,44 @@ const InjectorContractForm = (props) => {
             label={t('Attack patterns')}
             values={values}
             setFieldValue={form.mutators.setValue}
-            style={{ marginTop: 20 }}
+            style={{ marginTop: theme.spacing(3) }}
             useExternalId={!editing}
           />
+          {!isPayloadInjector && (
+            <Box style={{ marginTop: theme.spacing(3) }}>
+              <Field name="injector_contract_domains">
+                {({ input, meta }) => (
+                  <AutocompleteField
+                    label={t('Domains')}
+                    variant="standard"
+                    multiple
+                    options={filteredDomains.map(d => ({
+                      id: d.domain_id,
+                      label: d.domain_name,
+                    }))}
+                    value={Array.isArray(input.value)
+                      ? input.value.map(v => v.domain_id)
+                      : []}
+                    onChange={(ids) => {
+                      const selected = filteredDomains.filter(d =>
+                        ids.includes(d.domain_id),
+                      );
+                      input.onChange(selected);
+                    }}
+                    onInputChange={() => { }}
+                    error={meta.error && meta.touched}
+                    helperText={meta.touched && meta.error ? meta.error : null}
+                    renderOption={(props, option) => (
+                      <Box component="li" {...props} key={option.domain_id}>
+                        {option.domain_name}
+                      </Box>
+                    )}
+                  />
+                )}
+              </Field>
+            </Box>
+          )}
+
           {contract.fields.map((field) => {
             return (
               <div
@@ -119,34 +172,34 @@ const InjectorContractForm = (props) => {
                   border: `1px solid ${theme.palette.action.hover}`,
                   padding: 10,
                   borderRadius: 4,
-                  marginTop: 20,
+                  marginTop: theme.spacing(2),
                 }}
               >
-                <Typography
-                  variant="h5"
-                  gutterBottom={true}
-                >
+                <Typography variant="h5" gutterBottom={true}>
                   {field.label}
                 </Typography>
+
                 <GridLegacy container={true} spacing={3}>
                   <GridLegacy item={true} xs={6}>
                     <Typography
                       variant="h4"
                       gutterBottom={true}
-                      style={{ marginTop: 20 }}
+                      style={{ marginTop: theme.spacing(2) }}
                     >
                       {t('Type')}
                     </Typography>
                     {field.type}
                   </GridLegacy>
+
                   <GridLegacy item={true} xs={6}>
                     <Typography
                       variant="h4"
                       gutterBottom={true}
-                      style={{ marginTop: 20 }}
+                      style={{ marginTop: theme.spacing(2) }}
                     >
                       {t('Read only')}
                     </Typography>
+
                     <Switch
                       size="small"
                       checked={!R.isNil(fields[field.key]?.readOnly) ? fields[field.key].readOnly : field.readOnly}
@@ -157,30 +210,35 @@ const InjectorContractForm = (props) => {
                     />
                   </GridLegacy>
                 </GridLegacy>
+
                 <Typography
                   variant="h4"
                   gutterBottom={true}
-                  style={{ marginTop: 10 }}
+                  style={{ marginTop: theme.spacing(2) }}
                 >
                   {t('Default value')}
                 </Typography>
+
                 {renderField(field)}
               </div>
             );
           })}
-          <div style={{
-            float: 'right',
-            marginTop: 20,
-          }}
+
+          <div
+            style={{
+              float: 'right',
+              marginTop: theme.spacing(2),
+            }}
           >
             <Button
               onClick={handleClose}
-              style={{ marginRight: 10 }}
+              style={{ marginRight: theme.spacing(2) }}
               disabled={submitting}
               variant="contained"
             >
               {t('Cancel')}
             </Button>
+
             <Button
               color="secondary"
               type="submit"

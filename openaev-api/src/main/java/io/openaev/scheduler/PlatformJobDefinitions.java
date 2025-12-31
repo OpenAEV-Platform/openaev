@@ -44,6 +44,14 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
+  public JobDetail managerIntegrationsSync() {
+    return JobBuilder.newJob(ManagerIntegrationsSyncJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("managerIntegrationsSync"))
+        .build();
+  }
+
+  @Bean
   public JobDetail getSecurityCoverageJobExecution() {
     return JobBuilder.newJob(SecurityCoverageJob.class)
         .storeDurably()

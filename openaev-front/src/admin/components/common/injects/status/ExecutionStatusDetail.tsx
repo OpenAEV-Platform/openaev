@@ -1,4 +1,4 @@
-import { Paper, Typography } from '@mui/material';
+import { Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 
@@ -58,20 +58,16 @@ const ExecutionStatusDetail = ({ injectId, target }: Props) => {
   return (
     <>
       {!loading && traces && traces.length > 0 && (
-        <>
-          <Typography variant="h4">{t('Execution logs')}</Typography>
-          <Paper variant="outlined" style={{ padding: theme.spacing(0, 3, 3) }}>
-            <>
-              {(isTeam || isPlayer) && (<MainTraces traces={traces} />)}
-              {isAsset && (<EndpointTraces key={target.id} endpoint={target} tracesByAgent={traces} />)}
-              {isAgent && (<AgentTraces traces={traces} isInitialExpanded />)}
-            </>
-          </Paper>
-        </>
+        <Paper variant="outlined" style={{ padding: theme.spacing(0, 3, 3) }}>
+          <>
+            {(isTeam || isPlayer) && (<MainTraces traces={traces} />)}
+            {isAsset && (<EndpointTraces key={target.id} endpoint={target} tracesByAgent={traces} />)}
+            {isAgent && (<AgentTraces traces={traces} isInitialExpanded />)}
+          </>
+        </Paper>
       )}
     </>
-  )
-  ;
+  );
 };
 
 export default ExecutionStatusDetail;

@@ -13,7 +13,6 @@ import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -191,57 +190,6 @@ public class InjectMapper {
     if (injectDependency != null) {
       injectOutput.setDependsOn(List.of(injectDependency));
     }
-    return injectOutput;
-  }
-
-  public InjectOutput toInjectOuput(Inject inject) {
-    InjectOutput injectOutput = new InjectOutput();
-    injectOutput.setId(inject.getId());
-    injectOutput.setTitle(inject.getTitle());
-    injectOutput.setEnabled(inject.isEnabled());
-    injectOutput.setExercise(
-        Optional.ofNullable(inject.getExercise()).map(Exercise::getId).orElse(null));
-    injectOutput.setScenario(
-        Optional.ofNullable(inject.getScenario()).map(Scenario::getId).orElse(null));
-    injectOutput.setDependsDuration(inject.getDependsDuration());
-    injectOutput.setInjectorContract(inject.getInjectorContract().orElse(null));
-    injectOutput.setTags(
-        inject.getTags() != null
-            ? new HashSet<>(inject.getTags().stream().map(Tag::getId).toList())
-            : new HashSet<>());
-    injectOutput.setTeams(
-        inject.getTeams() != null
-            ? inject.getTeams().stream().map(Team::getId).toList()
-            : new ArrayList<>());
-    injectOutput.setAssets(
-        inject.getAssets() != null
-            ? inject.getAssets().stream().map(Asset::getId).toList()
-            : new ArrayList<>());
-    injectOutput.setAssetGroups(
-        inject.getAssetGroups() != null
-            ? new ArrayList<>(inject.getAssetGroups().stream().map(AssetGroup::getId).toList())
-            : new ArrayList<>());
-    injectOutput.setContent(inject.getContent());
-    injectOutput.setReady(
-        InjectModelHelper.isReady(
-            injectOutput.getInjectorContract(),
-            injectOutput.getContent(),
-            inject.isAllTeams(),
-            injectOutput.getTeams(),
-            injectOutput.getAssets(),
-            injectOutput.getAssetGroups()));
-    injectOutput.setInjectType(
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .map(Injector::getType)
-            .orElse(null));
-    injectOutput.setDependsOn(
-        Optional.ofNullable(inject.getDependsOn())
-            .map(List::stream)
-            .flatMap(Stream::findAny)
-            .stream()
-            .toList());
     return injectOutput;
   }
 }

@@ -1,4 +1,4 @@
-name: test-feature-branch
+name: Deploy feature branch on staging
 on:
   workflow_dispatch:
     inputs:
@@ -51,6 +51,10 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -66,6 +70,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=filigran/openaev-platform:buildcache
+          cache-to: type=registry,ref=filigran/openaev-platform:buildcache,mode=max
     outputs:
       dockerBuildDigest: ${{ steps.buildpush.outputs.digest }}
 
@@ -97,7 +103,7 @@ jobs:
           job_templates launch 'Deploy OpenAEV feature branch for testing' \
             --wait \
             --inventory eu-west-staging \
-            --extra_vars '"{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}"'
+            --extra_vars '{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}'
 
       - name: Forge URL to match playbook limitations
         id: urlforge

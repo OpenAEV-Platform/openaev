@@ -74,6 +74,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainComposer domainComposer;
   @Autowired private ChallengeService challengeService;
   @Autowired private EntityManager entityManager;
   @Autowired private InjectRepository injectRepository;
@@ -98,6 +99,7 @@ class InjectImportTest extends IntegrationTest {
     injectorContractComposer.reset();
     payloadComposer.reset();
     collectorComposer.reset();
+    domainComposer.reset();
 
     staticArticleWrappers.clear();
 
@@ -182,6 +184,7 @@ class InjectImportTest extends IntegrationTest {
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultCommand())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withTag(
                                 tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(
@@ -198,6 +201,7 @@ class InjectImportTest extends IntegrationTest {
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultFileDrop())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withFileDrop(
                                 documentComposer
                                     .forDocument(
@@ -218,6 +222,7 @@ class InjectImportTest extends IntegrationTest {
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultExecutable())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withExecutable(
                                 documentComposer
                                     .forDocument(

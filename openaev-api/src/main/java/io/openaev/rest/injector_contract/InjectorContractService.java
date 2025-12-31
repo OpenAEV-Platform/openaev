@@ -4,8 +4,8 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
-import static io.openaev.utils.JpaUtils.createLeftJoin;
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,6 +18,7 @@ import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.ovh.OvhSmsContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
@@ -59,6 +60,7 @@ public class InjectorContractService {
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternService attackPatternService;
   private final VulnerabilityService vulnerabilityService;
+  private final DomainService domainService;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
@@ -217,12 +219,15 @@ public class InjectorContractService {
               new HashSet<>(input.getAttackPatternsIds()));
     }
     injectorContract.setAttackPatterns(aps);
-
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
     injectorContract.setInjector(
         updateRelation(input.getInjectorId(), injectorContract.getInjector(), injectorRepository));
+    injectorContract.setDomains(
+        !injectorContract.getInjector().isPayloads()
+            ? this.domainService.upserts(input.getDomains())
+            : new HashSet<>());
     return injectorContractRepository.save(injectorContract);
   }
 
@@ -238,6 +243,8 @@ public class InjectorContractService {
             new HashSet<>(input.getAttackPatternsIds())));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
+    injectorContract.setDomains(this.domainService.upserts(input.getDomains()));
+
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -266,6 +273,7 @@ public class InjectorContractService {
     injectorContract.setVulnerabilities(
         vulnerabilityService.findAllByIdsOrThrowIfMissing(
             new HashSet<>(input.getVulnerabilityIds())));
+    injectorContract.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -320,6 +328,12 @@ public class InjectorContractService {
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
 
+    Expression<String[]> domainsIdsExpression =
+        createJoinArrayAggOnId(cb, injectorContractRoot, "domains");
+
+    Expression<String[]> payloadDomainsIdsExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractPayloadJoin, "domains");
+
     // SELECT
     cq.multiselect(
             injectorContractRoot.get("id").alias("injector_contract_id"),
@@ -332,6 +346,8 @@ public class InjectorContractService {
             injectorContractInjectorJoin.get("type").alias("injector_contract_injector_type"),
             injectorContractInjectorJoin.get("name").alias("injector_contract_injector_name"),
             attackPatternIdsExpression.alias("injector_contract_attack_patterns"),
+            payloadDomainsIdsExpression.alias("payload_domains"),
+            domainsIdsExpression.alias("injector_contract_domains"),
             injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
             injectorContractPayloadJoin.get("executionArch").alias("payload_execution_arch"))
         .distinct(true);
@@ -360,9 +376,21 @@ public class InjectorContractService {
                     tuple.get("collector_type", String.class),
                     tuple.get("injector_contract_injector_type", String.class),
                     tuple.get("injector_contract_attack_patterns", String[].class),
+                    resolveEffectiveDomains(
+                        tuple.get("injector_contract_domains", String[].class),
+                        tuple.get("payload_domains", String[].class)),
                     tuple.get("injector_contract_updated_at", Instant.class),
                     tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
         .toList();
+  }
+
+  private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
+    String[] effectiveDomains =
+        (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
+    if (effectiveDomains == null) {
+      return List.of();
+    }
+    return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
   }
 
   private void selectForInjectorContractBase(
@@ -406,6 +434,9 @@ public class InjectorContractService {
       injectorContract.setAttackPatterns(attackPatterns);
     } else {
       injectorContract.setAttackPatterns(new ArrayList<>());
+    }
+    if (!injector.isPayloads() && in.getDomains() != null) {
+      injectorContract.setDomains(this.domainService.upserts(in.getDomains()));
     }
     return injectorContract;
   }

@@ -3,10 +3,11 @@ package io.openaev.service;
 import static io.openaev.database.model.Filters.FilterMode.and;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.database.specification.EndpointSpecification.*;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
-import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
@@ -320,25 +321,16 @@ public class EndpointService {
   }
 
   // -- INSTALLATION AGENT --
-  @Transactional
-  public void registerAgentEndpoint(AgentRegisterInput input) {
-    // Check if agent exists (only 1 agent can be found for Tanium)
-    List<Agent> existingAgents = agentService.findByExternalReference(input.getExternalReference());
-    if (!existingAgents.isEmpty()) {
-      updateExistingAgent(existingAgents.getFirst(), input);
-    } else {
-      // Check if endpoint exists
-      Optional<Endpoint> existingEndpoint =
-          findEndpointByAtLeastOneMacAddress(input.getMacAddresses());
-      if (existingEndpoint.isPresent()) {
-        updateExistingEndpointAndManageAgent(existingEndpoint.get(), input);
-      } else {
-        createNewEndpointAndAgent(input);
-      }
-    }
-  }
 
-  public List<Asset> syncAgentsEndpoints(
+  /**
+   * Get agents from SentinelOne, Crowdstrike API and register them into OpenAEV agents and
+   * endpoints
+   *
+   * @param inputs from the API
+   * @param existingAgents in the database
+   * @return OpenAEV agents
+   */
+  public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents) {
     List<Agent> agentsToSave = new ArrayList<>();
     List<Asset> endpointsToSave = new ArrayList<>();
@@ -390,7 +382,7 @@ public class EndpointService {
                                     Arrays.asList(input.getMacAddresses()).contains(macAddress)))
                 .findFirst();
         if (optionalInputToSave.isPresent()) {
-          // If no existing agent Crowdstrike in this endpoint, add to it
+          // If no existing agent Crowdstrike/SentinelOne in this endpoint, add to it
           if (existingAgents.stream()
               .noneMatch(agent -> agent.getAsset().getId().equals(endpointToUpdate.getId()))) {
             final AgentRegisterInput inputToSave = optionalInputToSave.get();
@@ -426,9 +418,8 @@ public class EndpointService {
       }
     }
     // Save all in database
-    List<Asset> endpoints = fromIterable(assetService.saveAllAssets(endpointsToSave));
-    agentService.saveAllAgents(agentsToSave);
-    return endpoints;
+    assetService.saveAllAssets(endpointsToSave);
+    return agentService.saveAllAgents(agentsToSave);
   }
 
   @Transactional
@@ -589,7 +580,8 @@ public class EndpointService {
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
-    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
+    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
+        || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       agent.setId(input.getExternalReference());
     }
     agent.setPrivilege(input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard);

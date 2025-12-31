@@ -1,5 +1,9 @@
 package io.openaev.database.model;
 
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
+import static lombok.AccessLevel.NONE;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -29,9 +33,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 import javax.annotation.Nullable;
 import java.time.Instant;
 import java.util.*;
-
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
 
 @Getter
 @Setter
@@ -154,6 +155,24 @@ public class InjectorContract implements Base {
   public void setAttackPatterns(List<AttackPattern> attackPatterns) {
     this.updatedAt = now();
     this.attackPatterns = attackPatterns;
+  }
+
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "injectors_contracts_domains",
+      joinColumns = @JoinColumn(name = "injector_contract_id"),
+      inverseJoinColumns = @JoinColumn(name = "domain_id"))
+  @Getter(NONE)
+  private Set<Domain> domains = new HashSet<>();
+
+  @JsonProperty("injector_contract_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"payload.domains.id", "domains.id"},
+      clazz = String[].class)
+  public Set<Domain> getDomains() {
+    return this.payload != null ? this.payload.getDomains() : this.domains;
   }
 
   @ArraySchema(schema = @Schema(type = "string"))
