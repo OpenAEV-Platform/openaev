@@ -19,7 +19,7 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
   private static final String GATEWAY_URI = "/plugin/products/gateway/graphql";
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_TANIUM_ID",
+      key = "EXECUTOR_ID",
       description =
           """
           ID of the builtin Tanium executor

@@ -19,7 +19,7 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
   private static final String API_URI = "/web/api/v2.1/";
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_SENTINELONE_ID",
+      key = "EXECUTOR_ID",
       description =
           """
           ID of the builtin SentinelOne executor

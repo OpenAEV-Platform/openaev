@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "executor.crowdstrike")
 public class CrowdStrikeExecutorConfig extends BaseIntegrationConfiguration {
   @IntegrationConfigKey(
-      key = "EXECUTOR_CROWDSTRIKE_ID",
+      key = "EXECUTOR_ID",
       description =
           """
           ID of the builtin Crowdstrike executor

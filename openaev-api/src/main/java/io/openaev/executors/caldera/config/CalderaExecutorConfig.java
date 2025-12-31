@@ -19,7 +19,7 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
   private static final String PLUGIN_ACCESS_URI = "/plugin/access";
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_CALDERA_ID",
+      key = "EXECUTOR_ID",
       description =
           """
           ID of the builtin Caldera executor
