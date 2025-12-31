@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.sql.Statement;
 
 @Component
-public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
+public class V4_60__Add_workflow_step_entities extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -34,7 +34,7 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
         CREATE UNIQUE INDEX IF NOT EXISTS uk_workflow_template
             ON workflows (workflow_id, workflow_simulation_id)
             WHERE workflow_status = 'TEMPLATE';
-         """);
+            """);
 
       select.execute(
           """
@@ -88,7 +88,7 @@ public class V4_53__Add_workflow_step_entities extends BaseJavaMigration {
             condition_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             UNIQUE ( condition_key, condition_value, condition_type, condition_parent_id, step_id)
           );
-        """);
+            """);
     }
   }
 }
