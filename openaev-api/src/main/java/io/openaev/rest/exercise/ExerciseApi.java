@@ -702,7 +702,7 @@ public class ExerciseApi extends RestBehavior {
               .map(Inject::getStatus)
               .map(i -> i.map(InjectStatus::getId).orElse(""))
               .toList());
-      exercise.getInjects().forEach(Inject::clean);
+      exerciseService.cleanInjects(exercise.getId());
       // Reset lessons learned answers
       List<LessonsAnswer> lessonsAnswers =
           lessonsCategoryRepository
