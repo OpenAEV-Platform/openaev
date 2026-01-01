@@ -48,7 +48,7 @@
     "normalizr": "3.6.2",
     "pdfmake": "0.2.20",
     "prop-types": "15.8.1",
-    "qs": "6.14.0",
+    "qs": "6.14.1",
     "ramda": "0.32.0",
     "react": "19.2.3",
     "react-apexcharts": "patch:react-apexcharts@npm%3A1.7.0#~/.yarn/patches/react-apexcharts-npm-1.7.0-334ef0640d.patch",
