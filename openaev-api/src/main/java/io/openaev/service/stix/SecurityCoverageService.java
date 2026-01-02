@@ -528,6 +528,7 @@ public class SecurityCoverageService {
         exercise,
         id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
         InjectorContract::getVulnerabilities,
+        Vulnerability::getId,
         Vulnerability::getId);
   }
 
@@ -538,12 +539,13 @@ public class SecurityCoverageService {
         exercise,
         id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
         InjectorContract::getAttackPatterns,
+        AttackPattern::getId,
         AttackPattern::getId);
   }
 
   private BaseType<?> getDnsIndicatorCoverage(
       StixRefToExternalRef stixExternalRef, Exercise exercise) {
-    return getCoverageForDnsResolution(
+    return getCoverageForSingleEntity(
         stixExternalRef.getHostname(),
         exercise,
         hostname ->
@@ -555,46 +557,37 @@ public class SecurityCoverageService {
                   Endpoint.PLATFORM_TYPE.MacOS.toString()
                 }),
         injectorContract -> (DnsResolution) injectorContract.getPayload(),
-        DnsResolution::getHostname);
+        payload -> ((DnsResolution) payload).getHostname(),
+        DnsResolution::getHostname
+        );
   }
 
-  private <T> BaseType<?> getCoverageForDnsResolution(
-      String externalRef,
-      Exercise exercise,
-      Function<String, Collection<Payload>> entityFetcher,
-      Function<InjectorContract, DnsResolution> contractExtractor,
-      Function<DnsResolution, String> idExtractor) {
-    // fetch entity
-    Optional<Payload> entity = entityFetcher.apply(externalRef).stream().findFirst();
-    if (entity.isEmpty()) {
-      return uncovered();
-    }
-
-    // find matching injects
-    List<Inject> injects =
-        exercise.getInjects().stream()
-            .filter(
-                i ->
-                    i.getInjectorContract().isPresent()
-                        && contractExtractor.apply(i.getInjectorContract().get()) != null
-                        && idExtractor
-                            .apply(contractExtractor.apply(i.getInjectorContract().get()))
-                            .equals(idExtractor.apply((DnsResolution) entity.get())))
-            .toList();
-
-    if (injects.isEmpty()) {
-      return uncovered();
-    }
-
-    return computeCoverageFromInjects(injects);
+    private <T, C> BaseType<?> getCoverageForSingleEntity(
+          String externalRef,
+          Exercise exercise,
+          Function<String, Collection<T>> entityFetcher,
+          Function<InjectorContract, C> singleEntityExtractor,
+          Function<T, String> idExtractor,
+          Function<C, String> contractIdExtractor) {
+      return getCoverage(
+              externalRef,
+              exercise,
+              entityFetcher,
+              contract -> Optional.ofNullable(singleEntityExtractor.apply(contract))
+                      .map(Collections::singletonList)
+                      .orElse(Collections.emptyList()),
+              idExtractor,
+              contractIdExtractor
+      );
   }
 
-  private <T> BaseType<?> getCoverage(
+  private <T, C> BaseType<?> getCoverage(
       String externalRef,
       Exercise exercise,
       Function<String, Collection<T>> entityFetcher,
-      Function<InjectorContract, Collection<T>> contractExtractor,
-      Function<T, String> idExtractor) {
+      Function<InjectorContract, Collection<C>> contractExtractor,
+      Function<T, String> idExtractor,
+      Function<C, String> contractIdExtractor) {
     // fetch entity
     Optional<T> entity = entityFetcher.apply(externalRef).stream().findFirst();
     if (entity.isEmpty()) {
@@ -609,7 +602,7 @@ public class SecurityCoverageService {
                     i.getInjectorContract().isPresent()
                         && contractExtractor.apply(i.getInjectorContract().get()).stream()
                             .anyMatch(
-                                e -> idExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
+                                e -> contractIdExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
             .toList();
 
     if (injects.isEmpty()) {

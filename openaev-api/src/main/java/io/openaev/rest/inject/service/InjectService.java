@@ -1180,6 +1180,7 @@ public class InjectService {
       extractCombinationAttackPatternPlatformArchitecture(Scenario scenario) {
 
     return scenario.getInjects().stream()
+        .filter(inject -> inject.getPayload().isEmpty() || !(inject.getPayload().get() instanceof DnsResolution))
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
         // Only keep attack patterns that specify both platform and architecture.
