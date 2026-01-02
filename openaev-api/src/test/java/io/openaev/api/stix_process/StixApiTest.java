@@ -86,6 +86,7 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutVulns;
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
+  private String stixSecurityCoverageWithDomainName;
   private AssetGroupComposer.Composer completeAssetGroup;
   private AssetGroupComposer.Composer emptyAssetGroup;
 
@@ -129,6 +130,10 @@ class StixApiTest extends IntegrationTest {
     stixSecurityCoverageOnlyVulns =
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-only-vulns.json");
+
+      stixSecurityCoverageWithDomainName =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-with-domain-name.json");
 
     attackPatternComposer
         .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(T_1003))
@@ -882,6 +887,31 @@ class StixApiTest extends IntegrationTest {
       Scenario duplicatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(duplicatedScenario.getSecurityCoverage()).isNull();
     }
+
+      @Test
+      @DisplayName(
+              "Should create scenario with domain resolution injects")
+      void shouldCreateScenarioWithDomainNameResolutionInjects()
+              throws Exception {
+          String createdResponse =
+                  mvc.perform(
+                                  post(STIX_URI + "/process-bundle")
+                                          .contentType(MediaType.APPLICATION_JSON)
+                                          .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName)))
+                          .andExpect(status().isOk())
+                          .andReturn()
+                          .getResponse()
+                          .getContentAsString();
+
+          String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+          Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+          assertThat(createdScenario.getName())
+                  .isEqualTo("test domain name");
+
+          Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+          assertThat(injects).hasSize(7);
+          assertThat(injects).anyMatch(inject -> inject.getPayload().isPresent() && inject.getPayload().get() instanceof DnsResolution);
+      }
   }
 
   private String getScenarioIdResponse(String content) throws Exception {
