@@ -1,11 +1,13 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.service.chaining.StepService.setField;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.google.gson.Gson;
+import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
@@ -23,13 +25,10 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.*;
-
-import static io.openaev.service.chaining.StepService.setField;
 
 @RequiredArgsConstructor
 @Component
@@ -151,22 +150,30 @@ public class InjectExecutionStep implements ActionStep {
 
     if (injectStatus != null) {
       List<ExecutionTrace> traces = injectStatus.getTraces();
-      List<Map<String, Object>> output = new ArrayList<>();
+      List<Map<String, JsonElement>> output = new ArrayList<>();
 
       for (ExecutionTrace trace : traces) {
-        Map<String, Object> map = new HashMap<>();
+        Map<String, JsonElement> map = new HashMap<>();
         if (trace.getAgent() == null) continue;
-        map.put("agent_id", trace.getAgent().getId());
+        map.put("agent_id", gson.toJsonTree(trace.getAgent().getId()));
         if (trace.getStructuredOutput() != null) {
-          map.put("parsed", trace.getStructuredOutput());
+          map.put("parsed", gson.toJsonTree(trace.getStructuredOutput()));
         } else {
-          map.put("message", trace.getMessage());
+          try {
+            map.put("message", JsonParser.parseString(trace.getMessage()));
+          } catch (JsonSyntaxException | IllegalStateException e) {
+            map.put("message", gson.toJsonTree(trace.getMessage()));
+          }
         }
         output.add(map);
       }
+
       if (!output.isEmpty()) {
-        String outputs = gson.toJson(output);
-        stepRun.setOutput(outputs);
+        JsonElement elements = gson.toJsonTree(output);
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("outputs", elements);
+
+        stepRun.setOutput(jsonObject.toString());
       }
       return stepRun;
     }
@@ -295,13 +302,13 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     if (!input.getDependsOn().isEmpty()) {
-        //todo add condition DEPEND_ON
-        //todo need front to link step, as done with actual chaining.
-        //todo if step not saved used tempararyId for step (to implement)
-        /*{
-            stepFrom: ""
-            type : "DEPEND_ON"
-        }*/
+      // todo add condition DEPEND_ON
+      // todo need front to link step, as done with actual chaining.
+      // todo if step not saved used tempararyId for step (to implement)
+      /*{
+          stepFrom: ""
+          type : "DEPEND_ON"
+      }*/
     }
 
     List<StepsCreateInput.StepCreateInput> inputStep = new ArrayList<>();
