@@ -86,7 +86,7 @@ class StixApiTest extends IntegrationTest {
   private JsonNode stixSecurityCoverageWithoutVulns;
   private JsonNode stixSecurityCoverageWithoutObjects;
   private JsonNode stixSecurityCoverageOnlyVulns;
-  private String stixSecurityCoverageWithDomainName;
+  private JsonNode stixSecurityCoverageWithDomainName;
   private AssetGroupComposer.Composer completeAssetGroup;
   private AssetGroupComposer.Composer emptyAssetGroup;
 
