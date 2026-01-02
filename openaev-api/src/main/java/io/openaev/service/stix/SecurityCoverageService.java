@@ -56,7 +56,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -558,27 +557,26 @@ public class SecurityCoverageService {
                 }),
         injectorContract -> (DnsResolution) injectorContract.getPayload(),
         payload -> ((DnsResolution) payload).getHostname(),
-        DnsResolution::getHostname
-        );
+        DnsResolution::getHostname);
   }
 
-    private <T, C> BaseType<?> getCoverageForSingleEntity(
-          String externalRef,
-          Exercise exercise,
-          Function<String, Collection<T>> entityFetcher,
-          Function<InjectorContract, C> singleEntityExtractor,
-          Function<T, String> idExtractor,
-          Function<C, String> contractIdExtractor) {
-      return getCoverage(
-              externalRef,
-              exercise,
-              entityFetcher,
-              contract -> Optional.ofNullable(singleEntityExtractor.apply(contract))
-                      .map(Collections::singletonList)
-                      .orElse(Collections.emptyList()),
-              idExtractor,
-              contractIdExtractor
-      );
+  private <T, C> BaseType<?> getCoverageForSingleEntity(
+      String externalRef,
+      Exercise exercise,
+      Function<String, Collection<T>> entityFetcher,
+      Function<InjectorContract, C> singleEntityExtractor,
+      Function<T, String> idExtractor,
+      Function<C, String> contractIdExtractor) {
+    return getCoverage(
+        externalRef,
+        exercise,
+        entityFetcher,
+        contract ->
+            Optional.ofNullable(singleEntityExtractor.apply(contract))
+                .map(Collections::singletonList)
+                .orElse(Collections.emptyList()),
+        idExtractor,
+        contractIdExtractor);
   }
 
   private <T, C> BaseType<?> getCoverage(
@@ -602,7 +600,10 @@ public class SecurityCoverageService {
                     i.getInjectorContract().isPresent()
                         && contractExtractor.apply(i.getInjectorContract().get()).stream()
                             .anyMatch(
-                                e -> contractIdExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
+                                e ->
+                                    contractIdExtractor
+                                        .apply(e)
+                                        .equals(idExtractor.apply(entity.get()))))
             .toList();
 
     if (injects.isEmpty()) {

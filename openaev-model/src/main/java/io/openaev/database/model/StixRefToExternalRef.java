@@ -35,6 +35,11 @@ public class StixRefToExternalRef {
     this.hostname = hostname;
   }
 
+  public StixRefToExternalRef(String stixRef, String externalRef) {
+    this.stixRef = stixRef;
+    this.externalRef = externalRef;
+  }
+
   @Override
   public boolean equals(final Object o) {
     if (this == o) {

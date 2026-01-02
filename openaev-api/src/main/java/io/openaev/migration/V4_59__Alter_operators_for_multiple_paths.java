@@ -5,8 +5,12 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
+<<<<<<<< HEAD:openaev-api/src/main/java/io/openaev/migration/V4_59__Alter_operators_for_multiple_paths.java
 @Component
 public class V4_59__Alter_operators_for_multiple_paths extends BaseJavaMigration {
+========
+public class V4_60__Alter_operators_for_multiple_paths extends BaseJavaMigration {
+>>>>>>>> 4995ac890 ([backend] feat(stix): fix tests (#3509)):openaev-api/src/main/java/io/openaev/migration/V4_60__Alter_operators_for_multiple_paths.java
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
