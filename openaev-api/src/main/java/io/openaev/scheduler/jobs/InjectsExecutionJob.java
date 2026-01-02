@@ -1,5 +1,11 @@
 package io.openaev.scheduler.jobs;
 
+import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
+import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.hasValidResults;
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.groupingBy;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
@@ -20,6 +26,13 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -33,20 +46,6 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
-
-import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.hasValidResults;
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.groupingBy;
 
 @Component
 @DisallowConcurrentExecution

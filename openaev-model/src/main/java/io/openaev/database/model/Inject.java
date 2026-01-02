@@ -1,5 +1,10 @@
 package io.openaev.database.model;
 
+import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -15,6 +20,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +30,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
 
 @Setter
 @Entity

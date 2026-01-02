@@ -1,5 +1,13 @@
 package io.openaev.rest.inject;
 
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.specification.CommunicationSpecification.fromInject;
+import static io.openaev.database.specification.InjectSpecification.fromSimulation;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static java.time.Instant.now;
+
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.api.chaining.InjectExecutionStep;
@@ -32,6 +40,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,20 +54,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.specification.CommunicationSpecification.fromInject;
-import static io.openaev.database.specification.InjectSpecification.fromSimulation;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static java.time.Instant.now;
 
 @Slf4j
 @RestController
@@ -76,7 +75,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final InjectDuplicateService injectDuplicateService;
   private final InjectStatusService injectStatusService;
   private final SimulationInjectService simulationInjectService;
-    private final ExerciseService exerciseService;
+  private final ExerciseService exerciseService;
 
   @Operation(summary = "Retrieved injects for an exercise")
   @ApiResponses(
@@ -216,7 +215,7 @@ public class SimulationInjectApi extends RestBehavior {
       stepService.createStepsTemplate(workflowTemplate.getId(), inputStep);
       return null;
     } else {
-      return this.injectService.createInject(exercise, null, input);
+      return this.injectService.createAndSaveInject(exercise, null, input);
     }
   }
 

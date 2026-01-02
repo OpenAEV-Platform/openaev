@@ -8,10 +8,9 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import io.openaev.database.model.Base;
 import jakarta.persistence.EntityManager;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.util.Collection;
+import org.springframework.stereotype.Component;
 
 @Component
 public class MonoIdSerializerHelper<T extends Base> extends JsonDeserializer<T>

@@ -5,14 +5,13 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
-import lombok.AllArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
@@ -94,7 +93,11 @@ public class ConditionService {
   }
 
   public List<Condition> checkCondition(
-      Step nextStepTemplateToExecute, String input, String data, Workflow workflowRun, StepService stepService) {
+      Step nextStepTemplateToExecute,
+      String input,
+      String data,
+      Workflow workflowRun,
+      StepService stepService) {
     List<Condition> conditionTemplate = findAllByStepId(nextStepTemplateToExecute.getId());
     List<Condition> conditionExecution = new ArrayList<>();
     // No condition means direct execution:
@@ -110,9 +113,10 @@ public class ConditionService {
         new Thread(
                 () -> {
                   queueChainingService.toDeletePushIntoQueueTemplateStepConditionTimeNotValid(
-                          nextStepTemplateToExecute, workflowRun, condition, input, stepService);
+                      nextStepTemplateToExecute, workflowRun, condition, input, stepService);
                 },
-                "condition time not valid, will be check later:" + nextStepTemplateToExecute.getId())
+                "condition time not valid, will be check later:"
+                    + nextStepTemplateToExecute.getId())
             .start();
         return null;
       } else {
@@ -149,16 +153,21 @@ public class ConditionService {
       String idStepFromTemplate = condition.getStepFrom().getId();
       // List of step template depend on, that has been run
       List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
-          stepService.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-              idStepFromTemplate, workflowRun.getId()).stream().filter(step -> step.getOutput() != null).toList();
+          stepService
+              .findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
+                  idStepFromTemplate, workflowRun.getId())
+              .stream()
+              .filter(step -> step.getOutput() != null)
+              .toList();
       // Count of current step template already run (status != END) into this workflow run
-        int stepExecutedCount = stepService.countExecutedStep(workflowRun.getId(), nextStepTemplateToExecute.getId());
-        //todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
-        // ( means at least 1 stepFrom is/has been running),
-        // to implement: check if input/output as already be used into the next stepToExecute
-        // This condition means:
-        // - the previews one has been executed and contain output
-        // - and the next one not reach his limit of execution
+      int stepExecutedCount =
+          stepService.countExecutedStep(workflowRun.getId(), nextStepTemplateToExecute.getId());
+      // todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
+      // ( means at least 1 stepFrom is/has been running),
+      // to implement: check if input/output as already be used into the next stepToExecute
+      // This condition means:
+      // - the previews one has been executed and contain output
+      // - and the next one not reach his limit of execution
       if (!dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
           && stepExecutedCount < nextStepTemplateToExecute.getLimitExecution()) {
         conditionExecution.add(isDependOn(condition.getStepFrom().getId()));
