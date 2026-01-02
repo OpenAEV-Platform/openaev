@@ -9,13 +9,14 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import jakarta.validation.constraints.NotNull;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class StepService {
@@ -36,7 +37,6 @@ public class StepService {
       Step step = actionStep.create(stepInput, workflow);
       step = this.saveStep(step);
       this.stepCondition(stepInput, step);
-
     }
   }
 
@@ -73,7 +73,11 @@ public class StepService {
     // CHECK CONDITIONS
     List<Condition> conditionExecution =
         conditionService.checkCondition(
-                nextStepTemplateToExecutePersisted, input, nextStepTemplateToExecutePersisted.getData(), workflowRun, this);
+            nextStepTemplateToExecutePersisted,
+            input,
+            nextStepTemplateToExecutePersisted.getData(),
+            workflowRun,
+            this);
 
     if (conditionExecution != null) {
       Step stepWait = actionStep.wait(nextStepTemplateToExecutePersisted, input, workflowRun);
@@ -81,7 +85,7 @@ public class StepService {
       stepWait = this.saveStep(stepWait);
 
       // stepTemplateP.getStepsExecuted().add(stepWait); // TODO Check
-      //this.saveStep(stepTemplateP);
+      // this.saveStep(stepTemplateP);
       Step finalStepWait = stepWait;
 
       // For each step template IF condition valid create condition execution;
@@ -111,7 +115,7 @@ public class StepService {
       // CHECK ALL STEP EXECUTED IF ALL ENDED -> WORKFLOW RUN ENDED
       int runningStep = stepRepository.countRunningStep(stepWait.getWorkflow().getId());
       if (runningStep == 0) {
-          //TODO manage steptemplate with time delay
+        // TODO manage steptemplate with time delay
         Workflow run = stepWait.getWorkflow();
         run.setStatus(WORKFLOW_STATUS.END);
         workflowService.saveWorkflowRun(run);
@@ -121,10 +125,12 @@ public class StepService {
       this.saveStep(stepRun);
     }
   }
-    public int countExecutedStep(String workflowRunId, String stepTemplateId) {
-        return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(workflowRunId, stepTemplateId);
 
-    }
+  public int countExecutedStep(String workflowRunId, String stepTemplateId) {
+    return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
+        workflowRunId, stepTemplateId);
+  }
+
   public ActionStep factoryAction(STEP_ACTION_CLASS actionClass) {
     return switch (actionClass) {
       case STEP_ACTION_CLASS.INJECT_EXECUTION -> injectExecutionStep;
@@ -236,18 +242,18 @@ public class StepService {
     return this.stepRepository.findAllByStatus(STEP_STATUS.RUN);
   }
 
-    /**
-     * Returns all EXECTUTED steps for a given Workflow Run and Step template.
-     *
-     * @param idStepTemplate the Step template identifier
-     * @param idWorkflowRun  the Workflow Run id
-     * @return all matching RUN steps
-     */
-    public List<Step> findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-            String idStepTemplate, String idWorkflowRun) {
-        return this.stepRepository.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-                idStepTemplate, idWorkflowRun);
-    }
+  /**
+   * Returns all EXECTUTED steps for a given Workflow Run and Step template.
+   *
+   * @param idStepTemplate the Step template identifier
+   * @param idWorkflowRun the Workflow Run id
+   * @return all matching RUN steps
+   */
+  public List<Step> findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
+      String idStepTemplate, String idWorkflowRun) {
+    return this.stepRepository.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
+        idStepTemplate, idWorkflowRun);
+  }
 
   public Step findById(String stepId) {
     return stepRepository.findById(stepId).orElseThrow(); // todo exc
@@ -258,8 +264,20 @@ public class StepService {
     fieldsAndValue.put(path, null);
     useJson(jsonString, fieldsAndValue, ACTION_JSON.GET);
     Object value = fieldsAndValue.get(path);
-    if(value instanceof JsonNull) return null;
-    return ((JsonPrimitive) value).getAsString();
+    if (value instanceof JsonNull) {
+      return null;
+    } else if (value instanceof JsonPrimitive) {
+      return ((JsonPrimitive) value).getAsString();
+    } else {
+      return value.toString();
+    }
+  }
+
+  public static Map<String, Object> getFields(String jsonString, String path) {
+    Map<String, Object> fieldsAndValue = new HashMap<>();
+    fieldsAndValue.put(path, null);
+    useJson(jsonString, fieldsAndValue, ACTION_JSON.GET);
+    return fieldsAndValue;
   }
 
   public static String setField(String jsonString, String path, Object newValue) {
@@ -278,11 +296,13 @@ public class StepService {
       String jsonString, Map<String, Object> fieldsAndValue, ACTION_JSON actionJson) {
     final Gson gson = new Gson();
     JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+    StringBuilder path = new StringBuilder();
     for (String field : fieldsAndValue.keySet()) {
       List<String> treeToUpdate = Arrays.asList(field.split("\\."));
       int indexFieldPath = 0;
 
       JsonElement o = jsonObject.get(treeToUpdate.get(indexFieldPath));
+      path.append(treeToUpdate.get(indexFieldPath)).append(".");
       if (o != null) {
         if (indexFieldPath == treeToUpdate.size() - 1) {
           actionJson(
@@ -294,13 +314,26 @@ public class StepService {
               null,
               indexFieldPath,
               actionJson,
-              TYPE_JSON.DEFAULT);
+              TYPE_JSON.DEFAULT,
+              path);
         } else if (o.isJsonArray()) {
           iterateJsonArray(
-              o.getAsJsonArray(), indexFieldPath, treeToUpdate, fieldsAndValue, field, actionJson);
+              o.getAsJsonArray(),
+              indexFieldPath,
+              treeToUpdate,
+              fieldsAndValue,
+              field,
+              actionJson,
+              path);
         } else if (o.isJsonObject()) {
           iterateJsonObject(
-              o.getAsJsonObject(), indexFieldPath, treeToUpdate, fieldsAndValue, field, actionJson);
+              o.getAsJsonObject(),
+              indexFieldPath,
+              treeToUpdate,
+              fieldsAndValue,
+              field,
+              actionJson,
+              path);
         }
       }
     }
@@ -313,7 +346,8 @@ public class StepService {
       List<String> treeToUpdate,
       Map<String, Object> fieldsAndValue,
       String field,
-      ACTION_JSON actionJson) {
+      ACTION_JSON actionJson,
+      StringBuilder path) {
 
     Integer tabIndex = null;
     if (NumberUtils.isParsable(treeToUpdate.get(index + 1))) {
@@ -321,6 +355,8 @@ public class StepService {
     }
     int indexArray = 0;
     for (JsonElement element : jsonArray) {
+      StringBuilder copyPath = new StringBuilder(path.toString());
+      copyPath.append(indexArray).append(".");
       if (tabIndex == null || tabIndex == indexArray) {
         if (tabIndex != null) index++;
         if (index == treeToUpdate.size() - 1 && tabIndex != null) {
@@ -333,13 +369,26 @@ public class StepService {
               indexArray,
               index,
               actionJson,
-              TYPE_JSON.ARRAY);
+              TYPE_JSON.ARRAY,
+              copyPath);
         } else if (element.isJsonObject()) {
           iterateJsonObject(
-              element.getAsJsonObject(), index, treeToUpdate, fieldsAndValue, field, actionJson);
+              element.getAsJsonObject(),
+              index,
+              treeToUpdate,
+              fieldsAndValue,
+              field,
+              actionJson,
+              copyPath);
         } else if (element.isJsonArray()) {
           iterateJsonArray(
-              element.getAsJsonArray(), index, treeToUpdate, fieldsAndValue, field, actionJson);
+              element.getAsJsonArray(),
+              index,
+              treeToUpdate,
+              fieldsAndValue,
+              field,
+              actionJson,
+              copyPath);
         }
       }
       indexArray++;
@@ -352,9 +401,12 @@ public class StepService {
       List<String> treeToUpdate,
       Map<String, Object> fieldsAndValue,
       String field,
-      ACTION_JSON actionJson) {
+      ACTION_JSON actionJson,
+      StringBuilder path) {
     index++;
+    path.append(treeToUpdate.get(index)).append(".");
     if (index == treeToUpdate.size() - 1) {
+      path.deleteCharAt(path.length() - 1);
       actionJson(
           fieldsAndValue,
           field,
@@ -364,7 +416,8 @@ public class StepService {
           null,
           index,
           actionJson,
-          TYPE_JSON.OBJECT);
+          TYPE_JSON.OBJECT,
+          path);
     } else if (jsonObject.get(treeToUpdate.get(index)).isJsonArray()) {
       iterateJsonArray(
           (JsonArray) jsonObject.get(treeToUpdate.get(index)),
@@ -372,7 +425,17 @@ public class StepService {
           treeToUpdate,
           fieldsAndValue,
           field,
-          actionJson);
+          actionJson,
+          path);
+    } else if (jsonObject.get(treeToUpdate.get(index)).isJsonObject()) {
+      iterateJsonObject(
+          (JsonObject) jsonObject.get(treeToUpdate.get(index)),
+          index,
+          treeToUpdate,
+          fieldsAndValue,
+          field,
+          actionJson,
+          path);
     }
   }
 
@@ -385,7 +448,8 @@ public class StepService {
       Integer tabIndexJsonArray,
       int index,
       @NotNull ACTION_JSON actionJson,
-      @NotNull TYPE_JSON typeJson) {
+      @NotNull TYPE_JSON typeJson,
+      StringBuilder path) {
     switch (actionJson) {
       case REPLACE -> {
         JsonPrimitive newValue = toJsonPrimitive(fieldsAndValue.get(field));
@@ -424,6 +488,7 @@ public class StepService {
           case OBJECT, DEFAULT -> {
             JsonObject object = jsonElement.getAsJsonObject();
             fieldsAndValue.put(field, object.get(tree.get(index)));
+            fieldsAndValue.put(path.toString(), object.get(tree.get(index)));
           }
           case ARRAY -> {
             if (jsonElement.isJsonPrimitive()) {
