@@ -4,7 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -29,11 +29,11 @@ public class CatalogConnectorService {
    * @return a list of catalog connector outputs with associated instance counts
    */
   public List<CatalogConnectorOutput> catalogConnectors() {
-    List<ConnectorInstance> instances = connectorInstanceService.connectorInstances();
+    List<ConnectorInstancePersisted> instances = connectorInstanceService.connectorInstances();
     return fromIterable(catalogConnectorRepository.findAll()).stream()
         .map(
             c -> {
-              List<ConnectorInstance> instancesMatching =
+              List<ConnectorInstancePersisted> instancesMatching =
                   instances.stream()
                       .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
                       .toList();
@@ -51,7 +51,7 @@ public class CatalogConnectorService {
    */
   public CatalogConnectorOutput catalogConnectorOutput(String catalogConnectorId)
       throws ElementNotFoundException {
-    List<ConnectorInstance> instances =
+    List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnectorId(catalogConnectorId);
 
     return this.findById(catalogConnectorId)
@@ -111,5 +111,9 @@ public class CatalogConnectorService {
                     new TreeSet<>(
                         Comparator.comparing(
                             CatalogConnectorConfiguration::getConnectorConfigurationKey))));
+  }
+
+  public Optional<CatalogConnector> findByFactoryClassName(String factoryClass) {
+    return catalogConnectorRepository.findByClassName(factoryClass);
   }
 }

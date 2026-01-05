@@ -1,8 +1,8 @@
 package io.openaev.executors.sentinelone.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -24,10 +24,8 @@ import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service(SentinelOneExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
 public class SentinelOneExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = SENTINELONE_EXECUTOR_NAME;

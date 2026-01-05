@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -64,7 +64,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   @Override
-  protected List<ConnectorInstance> getRelatedInstances() {
+  protected List<ConnectorInstancePersisted> getRelatedInstances() {
     return connectorInstanceService.collectorConnectorInstances();
   }
 

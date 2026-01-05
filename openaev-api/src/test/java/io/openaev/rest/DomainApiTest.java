@@ -1,6 +1,6 @@
 package io.openaev.rest;
 
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,10 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Domain;
 import io.openaev.rest.domain.form.DomainBaseInput;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -64,7 +64,7 @@ public class DomainApiTest extends IntegrationTest {
   public void whenDomainExists_upsertReturnsExistingDomain() throws Exception {
     Domain existingDomain =
         domainComposer
-            .forDomain(new Domain(null, "existing", "#123456", Instant.now(), null))
+            .forDomain(DomainFixture.getDomainWithNameAndColour("existing", "#123456"))
             .persist()
             .get();
 

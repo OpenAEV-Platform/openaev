@@ -1,17 +1,19 @@
 package io.openaev.execution;
 
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
-import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
-import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
+import io.openaev.integration.ComponentRequest;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -21,7 +23,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ExecutionExecutorService {
 
-  private final ApplicationContext context;
+  private final ManagerFactory managerFactory;
   private final ExecutionTraceRepository executionTraceRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
@@ -98,7 +99,9 @@ public class ExecutionExecutorService {
     if (!agents.isEmpty()) {
       try {
         ExecutorContextService executorContextService =
-            context.getBean(executorName, ExecutorContextService.class);
+            managerFactory
+                .getManager()
+                .request(new ComponentRequest(executorName), ExecutorContextService.class);
         executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
         atLeastOneExecution.set(true);
       } catch (Exception e) {
@@ -206,7 +209,11 @@ public class ExecutionExecutorService {
     try {
       Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
       ExecutorContextService executorContextService =
-          context.getBean(agent.getExecutor().getName(), ExecutorContextService.class);
+          managerFactory
+              .getManager()
+              .request(
+                  new ComponentRequest(agent.getExecutor().getName()),
+                  ExecutorContextService.class);
       executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
     } catch (Exception e) {
       log.error(e.getMessage(), e);

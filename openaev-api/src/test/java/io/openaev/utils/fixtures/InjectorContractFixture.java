@@ -58,13 +58,8 @@ public class InjectorContractFixture {
   }
 
   public static InjectorContract createPayloadInjectorContractWithFieldsContent(
-      Injector injector,
-      Payload payloadCommand,
-      List<ContractCardinalityElement> customFieldsContent)
-      throws JsonProcessingException {
+      List<ContractCardinalityElement> customFieldsContent) throws JsonProcessingException {
     InjectorContract injectorContract = new InjectorContract();
-    injectorContract.setInjector(injector);
-    injectorContract.setPayload(payloadCommand);
     injectorContract.setId(UUID.randomUUID().toString());
 
     ObjectMapper objectMapper = new ObjectMapper();
@@ -74,6 +69,18 @@ public class InjectorContractFixture {
     injectorContract.setContent(objectMapper.writeValueAsString(content));
     injectorContract.setConvertedContent(content);
 
+    return injectorContract;
+  }
+
+  public static InjectorContract createPayloadInjectorContractWithFieldsContent(
+      Injector injector,
+      Payload payloadCommand,
+      List<ContractCardinalityElement> customFieldsContent)
+      throws JsonProcessingException {
+    InjectorContract injectorContract =
+        createPayloadInjectorContractWithFieldsContent(customFieldsContent);
+    injectorContract.setInjector(injector);
+    injectorContract.setPayload(payloadCommand);
     return injectorContract;
   }
 
@@ -111,6 +118,15 @@ public class InjectorContractFixture {
   public static InjectorContract createPayloadInjectorContract(
       Injector injector, Payload payloadCommand) throws JsonProcessingException {
     return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
+  }
+
+  public static InjectorContract createPayloadInjectorContractWithObfuscator()
+      throws JsonProcessingException {
+    ContractSelect obfuscatorSelect =
+        new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
+    obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+
+    return createPayloadInjectorContractWithFieldsContent(List.of(obfuscatorSelect));
   }
 
   public static InjectorContract createPayloadInjectorContractWithObfuscator(

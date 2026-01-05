@@ -2,7 +2,7 @@ package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.engine.api.WidgetType.VERTICAL_BAR_CHART;
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static io.openaev.utils.fixtures.WidgetFixture.NAME;
 import static io.openaev.utils.fixtures.WidgetFixture.createDefaultWidget;

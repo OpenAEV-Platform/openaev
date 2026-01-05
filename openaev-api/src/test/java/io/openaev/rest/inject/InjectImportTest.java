@@ -99,6 +99,7 @@ class InjectImportTest extends IntegrationTest {
     injectorContractComposer.reset();
     payloadComposer.reset();
     collectorComposer.reset();
+    domainComposer.reset();
 
     staticArticleWrappers.clear();
 
@@ -126,8 +127,6 @@ class InjectImportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> getInjectWrappers() {
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
-
     // Inject in exercise with an article attached
     ArticleComposer.Composer articleWrapper =
         getStaticArticleWrappers().get(KNOWN_ARTICLE_WRAPPER_KEY);
@@ -184,7 +183,8 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultCommand(domains))
+                            .forPayload(PayloadFixture.createDefaultCommand())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withTag(
                                 tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(
@@ -200,7 +200,8 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultFileDrop(domains))
+                            .forPayload(PayloadFixture.createDefaultFileDrop())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withFileDrop(
                                 documentComposer
                                     .forDocument(
@@ -220,7 +221,8 @@ class InjectImportTest extends IntegrationTest {
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(
                         payloadComposer
-                            .forPayload(PayloadFixture.createDefaultExecutable(domains))
+                            .forPayload(PayloadFixture.createDefaultExecutable())
+                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withExecutable(
                                 documentComposer
                                     .forDocument(

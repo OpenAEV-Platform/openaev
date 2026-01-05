@@ -4,7 +4,7 @@ import static io.openaev.database.model.CustomDashboardParameters.CustomDashboar
 import static io.openaev.rest.dashboard.DashboardApi.DASHBOARD_URI;
 import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
 import static io.openaev.utils.CustomDashboardTimeRange.LAST_QUARTER;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;

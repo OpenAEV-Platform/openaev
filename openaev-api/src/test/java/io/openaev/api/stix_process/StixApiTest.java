@@ -240,7 +240,8 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Eligible asset groups are assigned by tag rule")
     void eligibleAssetGroupsAreAssignedByTagRule() throws Exception {
-      Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+      Set<Domain> domains =
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
       String label = "custom-label";
       tagRuleComposer
           .forTagRule(TagRuleFixture.createDefaultTagRule())

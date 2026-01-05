@@ -22,7 +22,7 @@ import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PayloadIcon from '../../../components/PayloadIcon';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { type Document, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
+import { type Document, type Domain, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { arrayToRecord } from '../../../utils/utils';
@@ -90,6 +90,8 @@ const fromPayloadStatusToChipColor = (payloadStatus: string) => {
       return 'default';
   }
 };
+
+type CsvFormattedPayload = Payload & { payload_formatted_domains: string };
 
 const Payloads = () => {
   // Standard hooks
@@ -204,6 +206,14 @@ const Payloads = () => {
   ];
   const [payloads, setPayloads] = useState<Payload[]>([]);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('payloads', buildSearchPagination({ sorts: initSorting('payload_name') }));
+  const setAndFormatPayloads = (payloads: CsvFormattedPayload[]) => {
+    payloads.forEach(payload =>
+      payload.payload_formatted_domains = payload.payload_domains
+        .map((domain: Domain) => domain.domain_name)
+        .join(', '),
+    );
+    setPayloads(payloads);
+  };
 
   // Export
   const exportProps = {
@@ -212,6 +222,7 @@ const Payloads = () => {
       'payload_type',
       'payload_name',
       'payload_description',
+      'payload_formatted_domains',
       'payload_source',
       'payload_status',
       'payload_created_at',
@@ -246,7 +257,7 @@ const Payloads = () => {
       <PaginationComponentV2
         fetch={searchPayloadsToLoad}
         searchPaginationInput={searchPaginationInput}
-        setContent={setPayloads}
+        setContent={setAndFormatPayloads}
         entityPrefix="payload"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
@@ -291,9 +302,9 @@ const Payloads = () => {
                     secondaryAction={(
                       <PayloadPopover
                         payload={payload}
-                        onUpdate={(result: Payload) => setPayloads(payloads.map(a => (a.payload_id !== result.payload_id ? a : result)))}
-                        onDuplicate={(result: Payload) => setPayloads([result, ...payloads])}
-                        onDelete={(result: string) => setPayloads(payloads.filter(a => (a.payload_id !== result)))}
+                        onUpdate={(result: Payload) => setAndFormatPayloads(payloads.map(a => (a.payload_id !== result.payload_id ? a : result)) as CsvFormattedPayload[])}
+                        onDuplicate={(result: Payload) => setAndFormatPayloads([result, ...payloads] as CsvFormattedPayload[])}
+                        onDelete={(result: string) => setAndFormatPayloads(payloads.filter(a => (a.payload_id !== result)) as CsvFormattedPayload[])}
                         disableUpdate={payload.payload_collector !== null}
                         disableDelete={payload.payload_collector !== null && payload.payload_status !== 'DEPRECATED'}
                       />
@@ -346,7 +357,7 @@ const Payloads = () => {
       </List>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
         <CreatePayload
-          onCreate={(result: Payload) => setPayloads([result, ...payloads])}
+          onCreate={(result: Payload) => setAndFormatPayloads([result, ...payloads] as CsvFormattedPayload[])}
         />
       </Can>
       <Drawer

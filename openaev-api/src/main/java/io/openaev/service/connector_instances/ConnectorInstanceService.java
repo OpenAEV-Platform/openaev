@@ -42,7 +42,7 @@ public class ConnectorInstanceService {
    *
    * @return the list of connector instances managed by XtmComposer
    */
-  public List<ConnectorInstance> connectorInstancesManagedByXtmComposer() {
+  public List<ConnectorInstancePersisted> connectorInstancesManagedByXtmComposer() {
     return connectorInstanceRepository.findAllManagedByXtmComposerAndConfiguration();
   }
 
@@ -51,7 +51,7 @@ public class ConnectorInstanceService {
    *
    * @return the list of injector connector instances
    */
-  public List<ConnectorInstance> injectorConnectorInstances() {
+  public List<ConnectorInstancePersisted> injectorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
         ConnectorType.INJECTOR);
   }
@@ -61,7 +61,7 @@ public class ConnectorInstanceService {
    *
    * @return the list of collector connector instances
    */
-  public List<ConnectorInstance> collectorConnectorInstances() {
+  public List<ConnectorInstancePersisted> collectorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
         ConnectorType.COLLECTOR);
   }
@@ -71,7 +71,7 @@ public class ConnectorInstanceService {
    *
    * @return the list of executor connector instances
    */
-  public List<ConnectorInstance> executorConnectorInstances() {
+  public List<ConnectorInstancePersisted> executorConnectorInstances() {
     return connectorInstanceRepository.findAllByCatalogConnectorContainerType(
         ConnectorType.EXECUTOR);
   }
@@ -81,7 +81,7 @@ public class ConnectorInstanceService {
    *
    * @return the list of connector instances
    */
-  public List<ConnectorInstance> connectorInstances() {
+  public List<ConnectorInstancePersisted> connectorInstances() {
     return fromIterable(connectorInstanceRepository.findAll());
   }
 
@@ -92,7 +92,8 @@ public class ConnectorInstanceService {
    * @return the connector instance matching the ID
    * @throws EntityNotFoundException if no connector instance is found with the given ID
    */
-  public ConnectorInstance connectorInstanceById(String id) throws EntityNotFoundException {
+  public ConnectorInstancePersisted connectorInstanceById(String id)
+      throws EntityNotFoundException {
     return connectorInstanceRepository
         .findById(id)
         .orElseThrow(
@@ -127,11 +128,11 @@ public class ConnectorInstanceService {
    * @param newCurrentStatus the new current status to set
    * @return the connector instance updated
    */
-  public ConnectorInstance updateCurrentStatus(
+  public ConnectorInstancePersisted updateCurrentStatus(
       String connectorInstanceId, ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
-    ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance = this.connectorInstanceById(connectorInstanceId);
     instance.setCurrentStatus(newCurrentStatus);
-    return this.save(instance);
+    return (ConnectorInstancePersisted) this.save(instance);
   }
 
   /**
@@ -141,10 +142,10 @@ public class ConnectorInstanceService {
    * @param newRequestedStatus the new requested status to set
    * @return the connector instance updated
    */
-  public ConnectorInstance updateRequestedStatus(
+  public ConnectorInstancePersisted updateRequestedStatus(
       ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
     instance.setRequestedStatus(newRequestedStatus);
-    return this.save(instance);
+    return (ConnectorInstancePersisted) this.save(instance);
   }
 
   /**
@@ -154,7 +155,10 @@ public class ConnectorInstanceService {
    * @return the saved connector instance
    */
   public ConnectorInstance save(ConnectorInstance connectorInstance) {
-    return connectorInstanceRepository.save(connectorInstance);
+    if (connectorInstance instanceof ConnectorInstancePersisted) {
+      return connectorInstanceRepository.save((ConnectorInstancePersisted) connectorInstance);
+    }
+    return connectorInstance;
   }
 
   /**
@@ -172,7 +176,7 @@ public class ConnectorInstanceService {
    * @param connector the catalog connector to search instances for
    * @return the list of connector instances for the given catalog connector
    */
-  public List<ConnectorInstance> findAllByCatalogConnector(CatalogConnector connector) {
+  public List<ConnectorInstancePersisted> findAllByCatalogConnector(CatalogConnector connector) {
     return connectorInstanceRepository.findAllByCatalogConnectorId(connector.getId());
   }
 
@@ -181,7 +185,7 @@ public class ConnectorInstanceService {
    *
    * @param instances the connector instances to save
    */
-  public void saveAll(Set<ConnectorInstance> instances) {
+  public void saveAll(Set<ConnectorInstancePersisted> instances) {
     connectorInstanceRepository.saveAll(instances);
   }
 
@@ -191,13 +195,13 @@ public class ConnectorInstanceService {
    * @param catalogId the catalog connector ID to search instances for
    * @return the list of connector instances for the given catalog connector ID
    */
-  public List<ConnectorInstance> findAllByCatalogConnectorId(String catalogId) {
+  public List<ConnectorInstancePersisted> findAllByCatalogConnectorId(String catalogId) {
     return connectorInstanceRepository.findAllByCatalogConnectorId(catalogId);
   }
 
-  private ConnectorInstance buildNewConnectorInstanceFromCatalog(
+  private ConnectorInstancePersisted buildNewConnectorInstanceFromCatalog(
       CatalogConnector catalogConnector) {
-    ConnectorInstance newInstance = new ConnectorInstance();
+    ConnectorInstancePersisted newInstance = new ConnectorInstancePersisted();
     newInstance.setCatalogConnector(catalogConnector);
     newInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     newInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
@@ -206,7 +210,7 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createConfiguration(
-      String key, JsonNode value, boolean isEncrypted, ConnectorInstance instance) {
+      String key, JsonNode value, boolean isEncrypted, ConnectorInstancePersisted instance) {
     ConnectorInstanceConfiguration conf = new ConnectorInstanceConfiguration();
     conf.setKey(key);
     conf.setValue(value);
@@ -274,7 +278,7 @@ public class ConnectorInstanceService {
 
   private List<ConnectorInstanceConfiguration> getConnectorInstanceConfigurationsFromInput(
       Map<String, CatalogConnectorConfiguration> configurationDefinitionsMap,
-      ConnectorInstance instance,
+      ConnectorInstancePersisted instance,
       CreateConnectorInstanceInput input) {
     List<ConnectorInstanceConfiguration> configurations = new ArrayList<>();
 
@@ -292,7 +296,8 @@ public class ConnectorInstanceService {
     return configurations;
   }
 
-  private ConnectorInstanceConfiguration createTokenConfiguration(ConnectorInstance instance) {
+  private ConnectorInstanceConfiguration createTokenConfiguration(
+      ConnectorInstancePersisted instance) {
     Token token =
         tokenRepository.findAll(fromUser(currentUser().getId())).stream()
             .findFirst()
@@ -302,7 +307,7 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createContainerIdConfiguration(
-      ConnectorInstance instance, ConnectorType type) {
+      ConnectorInstancePersisted instance, ConnectorType type) {
     return createConfiguration(
         type.getIdKeyName(),
         objectMapper.getNodeFactory().textNode(UUID.randomUUID().toString()),
@@ -317,10 +322,10 @@ public class ConnectorInstanceService {
    * @param input the input data for creating the connector instance
    * @return the created connector instance
    */
-  public ConnectorInstance createConnectorInstance(
+  public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
-    ConnectorInstance newInstance =
+    ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
         getConnectorInstanceConfigurationsFromInput(
@@ -334,11 +339,11 @@ public class ConnectorInstanceService {
             newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
 
     newInstance.setConfigurations(Set.copyOf(configurations));
-    return this.save(newInstance);
+    return (ConnectorInstancePersisted) this.save(newInstance);
   }
 
   private List<ConnectorInstanceConfiguration> mergeConfigurations(
-      ConnectorInstance instance,
+      ConnectorInstancePersisted instance,
       Map<String, ConnectorInstanceConfiguration> existingConfigurationMap,
       List<ConnectorInstanceConfiguration> newConfigurations) {
 
@@ -372,7 +377,7 @@ public class ConnectorInstanceService {
       String connectorInstanceId,
       Map<String, CatalogConnectorConfiguration> configurationDefinitionsMap,
       CreateConnectorInstanceInput input) {
-    ConnectorInstance instance = connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance = connectorInstanceById(connectorInstanceId);
     Map<String, ConnectorInstanceConfiguration> existingConfigurationMap =
         instance.getConfigurations().stream()
             .collect(Collectors.toMap(ConnectorInstanceConfiguration::getKey, Function.identity()));
@@ -393,14 +398,31 @@ public class ConnectorInstanceService {
    * @param input the health check input to set
    * @return the connector instance updated
    */
-  public ConnectorInstance patchConnectorInstanceHealthCheck(
+  public ConnectorInstancePersisted patchConnectorInstanceHealthCheck(
       String connectorInstanceId, ConnectorInstanceHealthInput input) {
-    ConnectorInstance instance = this.connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance = this.connectorInstanceById(connectorInstanceId);
 
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
 
-    return this.save(instance);
+    return (ConnectorInstancePersisted) this.save(instance);
+  }
+
+  public ConnectorInstance refresh(ConnectorInstance instance) {
+    if (instance instanceof ConnectorInstancePersisted) {
+      return connectorInstanceRepository
+          .findById(((ConnectorInstancePersisted) instance).getId())
+          .orElse(null);
+    }
+    return instance;
+  }
+
+  public ConnectorInstance createAutostartInstance(String id) {
+    ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
+    instance.setId(id);
+    instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);
+    instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
+    return instance;
   }
 }

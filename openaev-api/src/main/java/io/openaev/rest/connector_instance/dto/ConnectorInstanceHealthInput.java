@@ -4,8 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 public class ConnectorInstanceHealthInput {
 
   @Schema(description = "Connector instance restart count")

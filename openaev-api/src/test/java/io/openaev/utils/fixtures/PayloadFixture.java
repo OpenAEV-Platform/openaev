@@ -9,10 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import jakarta.annotation.Nullable;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class PayloadFixture {
 
@@ -35,6 +32,14 @@ public class PayloadFixture {
       String executor,
       String commandLine,
       @Nullable List<PayloadPrerequisite> prerequisites,
+      @Nullable String cleanupCmd) {
+    return createCommand(executor, commandLine, prerequisites, cleanupCmd, new HashSet<>());
+  }
+
+  public static Command createCommand(
+      String executor,
+      String commandLine,
+      @Nullable List<PayloadPrerequisite> prerequisites,
       @Nullable String cleanupCmd,
       Set<Domain> domains) {
     Command command = new Command(UUID.randomUUID().toString(), COMMAND_TYPE, COMMAND_PAYLOAD_NAME);
@@ -51,6 +56,10 @@ public class PayloadFixture {
     command.setDomains(domains);
     command.setAttackPatterns(Collections.emptyList());
     return command;
+  }
+
+  public static Payload createDefaultCommand() {
+    return createDefaultCommand(new HashSet<>());
   }
 
   public static Payload createDefaultCommand(Set<Domain> domains) {
@@ -115,6 +124,10 @@ public class PayloadFixture {
     return executable;
   }
 
+  public static Payload createDefaultExecutable() {
+    return createDefaultExecutable(new HashSet<>());
+  }
+
   public static Payload createDefaultExecutable(Set<Domain> domains) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
@@ -133,6 +146,10 @@ public class PayloadFixture {
     executable.setArguments(arguments);
     executable.setDomains(domains);
     return executable;
+  }
+
+  public static Payload createDefaultFileDrop() {
+    return createDefaultFileDrop(new HashSet<>());
   }
 
   public static Payload createDefaultFileDrop(Set<Domain> domains) {

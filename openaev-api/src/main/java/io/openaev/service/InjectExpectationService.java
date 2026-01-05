@@ -596,8 +596,7 @@ public class InjectExpectationService {
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
     // Insert the signature for all agent and inject in one query
-    injectExpectationRepositoryHelper.insertSignatureForAgentAndInject(
-        injectId, agentId, signatureType, date.toString());
+    injectExpectationRepository.insertSignature(signatureType, date.toString(), injectId, agentId);
   }
 
   /**
@@ -622,6 +621,7 @@ public class InjectExpectationService {
    * @param agentId the agentId for which to add the start date signature
    * @param date the date to set as the start date signature
    */
+  @Transactional
   public void addStartDateSignatureToInjectExpectationsByAgent(
       @NotBlank final String injectId,
       @NotBlank final String agentId,

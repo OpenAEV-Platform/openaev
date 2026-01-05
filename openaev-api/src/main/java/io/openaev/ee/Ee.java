@@ -18,10 +18,10 @@ package io.openaev.ee;
 import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
-import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.config.OpenAEVConfig;

@@ -15,6 +15,7 @@ import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.DataComputerGroup;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
+import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -54,8 +55,8 @@ public class TaniumExecutorServiceTest {
   void setUp() {
     taniumEndpoint = TaniumDeviceFixture.createDefaultTaniumEndpoint();
     taniumExecutor = new Executor();
-    taniumExecutor.setName(TaniumExecutorService.TANIUM_EXECUTOR_NAME);
-    taniumExecutor.setType(TaniumExecutorService.TANIUM_EXECUTOR_TYPE);
+    taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
+    taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
   }
 
   @Test

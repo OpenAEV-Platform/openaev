@@ -3,6 +3,7 @@ package io.openaev.executors.sentinelone.service;
 import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
@@ -14,18 +15,14 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
 public class SentinelOneGarbageCollectorService implements Runnable {
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorContextService sentinelOneExecutorContextService;
   private final AgentService agentService;
 
-  @Autowired
   public SentinelOneGarbageCollectorService(
       SentinelOneExecutorConfig config,
       SentinelOneExecutorContextService sentinelOneExecutorContextService,
@@ -37,9 +34,7 @@ public class SentinelOneGarbageCollectorService implements Runnable {
 
   @Override
   public void run() {
-    List<Agent> agents =
-        this.agentService.getAgentsByExecutorType(
-            SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE);
+    List<Agent> agents = this.agentService.getAgentsByExecutorType(SENTINELONE_EXECUTOR_TYPE);
     if (!agents.isEmpty()) {
       List<SentinelOneAction> actions = new ArrayList<>();
       log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");
