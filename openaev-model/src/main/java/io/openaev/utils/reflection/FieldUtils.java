@@ -5,6 +5,7 @@ import static java.lang.reflect.Modifier.isStatic;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.*;
 
@@ -40,6 +41,13 @@ public class FieldUtils {
       Collections.addAll(fields, c.getDeclaredFields());
     }
     return fields;
+  }
+
+  public static List<Field> getAllDeclaredAnnotatedFields(
+      final Class<?> type, final Class<? extends Annotation> annotationType) {
+    return getAllFields(type).stream()
+        .filter(field -> field.getAnnotation(annotationType) != null)
+        .toList();
   }
 
   public static Map<String, Field> getAllFieldsAsMap(final Class<?> clazz) {

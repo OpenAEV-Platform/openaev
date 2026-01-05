@@ -2,7 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

@@ -140,7 +140,8 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> createDefaultInjectWrappers() {
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     ArticleComposer.Composer articleToExportFromExercise =
         articleComposer

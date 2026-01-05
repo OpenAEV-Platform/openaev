@@ -3,13 +3,13 @@ package io.openaev.executors.tanium.service;
 import static io.openaev.utils.TimeUtils.toInstant;
 
 import io.openaev.database.model.*;
-import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.executors.tanium.model.TaniumEndpoint;
+import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -19,21 +19,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
 
-@ConditionalOnProperty(prefix = "executor.tanium", name = "enable")
 @Slf4j
-@Service
 public class TaniumExecutorService implements Runnable {
-
-  public static final String TANIUM_EXECUTOR_TYPE = "openaev_tanium";
-  public static final String TANIUM_EXECUTOR_NAME = "Tanium";
-  private static final String TANIUM_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#tanium-agent";
-  private static final String TANIUM_EXECUTOR_BACKGROUND_COLOR = "#E03E41";
-
   private final TaniumExecutorClient client;
   private final TaniumExecutorConfig config;
   private final EndpointService endpointService;
@@ -59,41 +47,19 @@ public class TaniumExecutorService implements Runnable {
     };
   }
 
-  @Autowired
   public TaniumExecutorService(
-      ExecutorService executorService,
+      Executor executor,
       TaniumExecutorClient client,
       TaniumExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService) {
+    this.executor = executor;
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    try {
-      if (config.isEnable()) {
-        this.executor =
-            executorService.register(
-                config.getId(),
-                TANIUM_EXECUTOR_TYPE,
-                TANIUM_EXECUTOR_NAME,
-                TANIUM_EXECUTOR_DOCUMENTATION_LINK,
-                TANIUM_EXECUTOR_BACKGROUND_COLOR,
-                getClass().getResourceAsStream("/img/icon-tanium.png"),
-                getClass().getResourceAsStream("/img/banner-tanium.png"),
-                new String[] {
-                  Endpoint.PLATFORM_TYPE.Windows.name(),
-                  Endpoint.PLATFORM_TYPE.Linux.name(),
-                  Endpoint.PLATFORM_TYPE.MacOS.name()
-                });
-      } else {
-        executorService.remove(config.getId());
-      }
-    } catch (Exception e) {
-      log.error(String.format("Error creating Tanium executor: %s", e), e);
-    }
   }
 
   @Override
@@ -124,7 +90,8 @@ public class TaniumExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(nodeEndpoints),
-                agentService.getAgentsByExecutorType(TANIUM_EXECUTOR_TYPE));
+                agentService.getAgentsByExecutorType(
+                    TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

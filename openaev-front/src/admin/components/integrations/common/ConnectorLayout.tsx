@@ -11,7 +11,7 @@ import { type InjectorHelper } from '../../../../actions/injectors/injector-help
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { useHelper } from '../../../../store';
+import { type store, useHelper } from '../../../../store';
 import type {
   CatalogConnectorOutput,
   ConnectorIds,
@@ -37,6 +37,7 @@ const ConnectorLayout = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(true);
   const [relatedIds, setRelatedIds] = useState<ConnectorIds>();
+  const [isRelatedIdsLoaded, setIsRelatedIdsLoaded] = useState<boolean>(false);
   const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
 
   const getConnectorHelper = () => {
@@ -63,23 +64,28 @@ const ConnectorLayout = () => {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    setIsRelatedIdsLoaded(false);
     apiRequest.getRelatedIds(connectorId).then(({ data }: { data: ConnectorIds }) => {
       setRelatedIds(data);
-      setLoading(false);
+      setIsRelatedIdsLoaded(true);
     });
   }, [connectorId]);
 
   useDataLoader(() => {
-    if (relatedIds === undefined || !connectorId) return;
-    dispatch(apiRequest.fetchSingle(connectorId));
+    if (!isRelatedIdsLoaded || !connectorId) {
+      return;
+    }
+    const promises: Promise<typeof store.dispatch>[] = [
+      dispatch(apiRequest.fetchSingle(connectorId)),
+    ];
     if (relatedIds?.catalog_connector_id) {
-      dispatch(fetchConnector(relatedIds.catalog_connector_id)).finally(() => setLoading(false));
+      promises.push(dispatch(fetchConnector(relatedIds.catalog_connector_id)));
     }
     if (relatedIds?.connector_instance_id) {
-      dispatch(fetchConnectorInstance(relatedIds.connector_instance_id));
+      promises.push(dispatch(fetchConnectorInstance(relatedIds.connector_instance_id)));
     }
-  }, [relatedIds?.connector_instance_id, relatedIds?.connector_instance_id]);
+    Promise.all(promises).finally(() => setLoading(false));
+  }, [isRelatedIdsLoaded]);
 
   const breadcrumbElements = connectorId
     ? [

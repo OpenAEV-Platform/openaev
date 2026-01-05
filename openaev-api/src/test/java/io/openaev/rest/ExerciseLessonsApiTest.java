@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
 import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;

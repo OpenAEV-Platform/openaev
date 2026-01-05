@@ -86,7 +86,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   @Override
-  protected List<ConnectorInstance> getRelatedInstances() {
+  protected List<ConnectorInstancePersisted> getRelatedInstances() {
     return connectorInstanceService.injectorConnectorInstances();
   }
 

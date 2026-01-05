@@ -1,9 +1,6 @@
 package io.openaev.service.connectors;
 
-import io.openaev.database.model.BaseConnectorEntity;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorType;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -28,7 +25,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     this.catalogConnectorMapper = catalogConnectorMapper;
   }
 
-  protected abstract List<ConnectorInstance> getRelatedInstances();
+  protected abstract List<ConnectorInstancePersisted> getRelatedInstances();
 
   protected abstract List<T> getAllConnectors();
 
@@ -47,9 +44,9 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         .orElse(null);
   }
 
-  private Map<String, ConnectorInstance> mapInstancesByConnectorId(
-      List<ConnectorInstance> instances) {
-    Map<String, ConnectorInstance> map = new HashMap<>();
+  private Map<String, ConnectorInstancePersisted> mapInstancesByConnectorId(
+      List<ConnectorInstancePersisted> instances) {
+    Map<String, ConnectorInstancePersisted> map = new HashMap<>();
     instances.forEach(
         instance -> {
           String connectorId = getConnectorIdFromInstance(instance);
@@ -60,8 +57,9 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return map;
   }
 
-  private Output toConnectorOutput(T connector, Map<String, ConnectorInstance> instanceMap) {
-    ConnectorInstance instance = instanceMap.get(connector.getId());
+  private Output toConnectorOutput(
+      T connector, Map<String, ConnectorInstancePersisted> instanceMap) {
+    ConnectorInstancePersisted instance = instanceMap.get(connector.getId());
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
         isVerified
@@ -72,7 +70,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return mapToOutput(connector, catalogConnector, isVerified);
   }
 
-  private T createExternalCollector(String collectorId, ConnectorInstance instance) {
+  private T createExternalCollector(String collectorId, ConnectorInstancePersisted instance) {
     T newConnector = createNewConnector();
     newConnector.setId(collectorId);
     newConnector.setName(instance.getCatalogConnector().getTitle());
@@ -93,8 +91,9 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
     List<T> connectors = getAllConnectors();
-    List<ConnectorInstance> instances = getRelatedInstances();
-    Map<String, ConnectorInstance> instancesByConnectorIdMap = mapInstancesByConnectorId(instances);
+    List<ConnectorInstancePersisted> instances = getRelatedInstances();
+    Map<String, ConnectorInstancePersisted> instancesByConnectorIdMap =
+        mapInstancesByConnectorId(instances);
 
     List<Output> result = new ArrayList<>();
 

@@ -19,10 +19,7 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.document.form.DocumentRelationsOutput;
 import io.openaev.rest.document.form.RelatedEntityOutput;
-import io.openaev.utils.fixtures.ChallengeFixture;
-import io.openaev.utils.fixtures.DocumentFixture;
-import io.openaev.utils.fixtures.FileFixture;
-import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ChallengeComposer;
 import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
@@ -79,7 +76,8 @@ class DocumentApiTest extends IntegrationTest {
   }
 
   private Document getDocumentWithPayload() {
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     PayloadComposer.Composer payload =
         payloadComposer.forPayload(PayloadFixture.createDefaultExecutable(domains));
 

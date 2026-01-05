@@ -14,6 +14,7 @@ import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
@@ -333,7 +334,8 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with honey.scan.me asset")
   public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
     contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
@@ -392,7 +394,8 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
     contractAssetGroup.setLinkedFields(

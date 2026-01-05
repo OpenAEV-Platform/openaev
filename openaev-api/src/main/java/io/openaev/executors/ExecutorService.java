@@ -63,7 +63,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   }
 
   @Override
-  protected List<ConnectorInstance> getRelatedInstances() {
+  protected List<ConnectorInstancePersisted> getRelatedInstances() {
     return connectorInstanceService.executorConnectorInstances();
   }
 

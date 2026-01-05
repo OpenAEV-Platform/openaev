@@ -3,7 +3,7 @@ package io.openaev.rest.scenario;
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ScenarioFixture.getScenario;
 import static io.openaev.utils.fixtures.TeamFixture.TEAM_NAME;
 import static org.hamcrest.Matchers.containsInAnyOrder;

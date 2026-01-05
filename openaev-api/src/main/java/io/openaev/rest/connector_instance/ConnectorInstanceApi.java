@@ -40,7 +40,7 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
       })
-  public ConnectorInstance createConnectorInstance(
+  public ConnectorInstancePersisted createConnectorInstance(
       @Valid @RequestBody CreateConnectorInstanceInput input) {
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
@@ -134,7 +134,7 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully updated requested status")
       })
-  public ConnectorInstance updateRequestedStatus(
+  public ConnectorInstancePersisted updateRequestedStatus(
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody UpdateConnectorInstanceRequestedStatus input) {
     return orchestrationService.updateRequestedStatus(

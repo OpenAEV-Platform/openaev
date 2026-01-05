@@ -1,5 +1,7 @@
 package io.openaev.executors.sentinelone.service;
 
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -50,8 +52,8 @@ public class SentinelOneExecutorServiceTest {
   void setUp() {
     sentinelOneAgent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
     sentinelOneExecutor = new Executor();
-    sentinelOneExecutor.setName(SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME);
-    sentinelOneExecutor.setType(SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE);
+    sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
+    sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
   }
 
   @Test

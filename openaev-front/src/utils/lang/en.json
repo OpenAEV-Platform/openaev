@@ -1297,6 +1297,7 @@
   "Payload info": "Payload info",
   "payload_attack_patterns": "Attack patterns",
   "payload_description": "Description",
+  "payload_domains": "Domains",
   "payload_execution_arch": "Architecture",
   "payload_name": "Name",
   "payload_platforms": "Platforms",

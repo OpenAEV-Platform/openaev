@@ -9,7 +9,7 @@ import {
   simplePutCall,
 } from '../../utils/Action';
 import {
-  type ConnectorInstance,
+  type ConnectorInstancePersisted,
   type CreateConnectorInstanceInput,
   type UpdateConnectorInstanceRequestedStatus,
 } from '../../utils/api-types';
@@ -17,7 +17,7 @@ import { connectorInstance } from './connector-instance-schema';
 
 const CONNECTOR_INSTANCE_URI = '/api/connector-instances';
 
-export const createConnectorInstance = (input: CreateConnectorInstanceInput): Promise<{ data: ConnectorInstance }> => {
+export const createConnectorInstance = (input: CreateConnectorInstanceInput): Promise<{ data: ConnectorInstancePersisted }> => {
   return simplePostCall(CONNECTOR_INSTANCE_URI, input, undefined, false);
 };
 

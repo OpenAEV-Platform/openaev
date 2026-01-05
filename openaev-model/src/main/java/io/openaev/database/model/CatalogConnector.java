@@ -141,12 +141,8 @@ public class CatalogConnector implements Base {
   @NotNull
   private Set<CatalogConnectorConfiguration> catalogConnectorConfigurations = new HashSet<>();
 
-  @OneToMany(
-      mappedBy = "catalogConnector",
-      fetch = FetchType.LAZY,
-      cascade = CascadeType.ALL,
-      orphanRemoval = true)
+  @OneToMany(mappedBy = "catalogConnector", fetch = FetchType.LAZY, orphanRemoval = true)
   @JsonProperty("catalog_connector_instances")
   @NotNull
-  private Set<ConnectorInstance> instances = new HashSet<>();
+  private Set<ConnectorInstancePersisted> instances = new HashSet<>();
 }

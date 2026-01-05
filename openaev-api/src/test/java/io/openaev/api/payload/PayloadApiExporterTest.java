@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Domain;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
@@ -38,7 +39,8 @@ class PayloadApiExporterTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
 
   PayloadComposer.Composer createPayloadComposer() {
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     return this.payloadComposer
         .forPayload(createDefaultCommand(domains))
         .withTag(tagComposer.forTag(getTagWithText("malware")))

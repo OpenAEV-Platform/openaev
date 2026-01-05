@@ -2,7 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openaev.service.UserService.buildAuthenticationToken;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
@@ -92,6 +92,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     groupComposer.reset();
     roleComposer.reset();
     grantComposer.reset();
+    domainComposer.reset();
   }
 
   @Nested
@@ -295,7 +296,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
                 .persist();
         em.flush();
-        Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
@@ -345,10 +347,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         em.flush();
 
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
@@ -617,7 +616,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         }
         em.flush();
         em.clear();
-        Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+        Set<Domain> domains =
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
@@ -993,10 +993,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .persist();
         em.flush();
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
         InjectorContractUpdateInput input = new InjectorContractUpdateInput();
         input.setContent("{\"fields\":[], \"arbitrary_field\": \"test\"}");
@@ -1031,10 +1028,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       @DisplayName("Creating contract succeeds from injector payload type")
       void createContractSucceedsFromInjectorPayloadType() throws Exception {
         Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         String newId = UUID.randomUUID().toString();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(newId);
@@ -1079,11 +1073,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       @Test
       @DisplayName("Creating contract succeeds")
       void createContractSucceeds() throws Exception {
-        Set<Domain> domains =
-            domainComposer
-                .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-                .persist()
-                .getSet();
+        Domain domain = DomainFixture.getRandomDomain();
+        Set<Domain> domains = domainComposer.forDomain(domain).persist().getSet();
         String newId = UUID.randomUUID().toString();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(newId);
@@ -1126,9 +1117,9 @@ public class InjectorContractApiTest extends IntegrationTest {
                                       "injector_contract_import_available":false,"injector_contract_arch":null,
                                       "injector_contract_injector_type":"openaev_email",
                                       "injector_contract_injector_type_name":"Email",
-                                      "injector_contract_domains":[{domain_name: "To classify", domain_color: "#FFFFFF"}]
+                                      "injector_contract_domains":[{domain_name: "%s", domain_color: "%s"}]
                                     }""",
-                    newId));
+                    newId, domain.getName(), domain.getColor()));
       }
 
       @Test
@@ -1349,10 +1340,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
     private void createStaticInjectorContract(boolean addPayload) {
       Set<Domain> domains =
-          domainComposer
-              .forDomain(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))
-              .persist()
-              .getSet();
+          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer

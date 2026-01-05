@@ -2,8 +2,6 @@ package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.repository.DomainRepository;
-import io.openaev.rest.domain.enums.PresetDomain;
-import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -22,13 +20,7 @@ public class DomainComposer extends ComposerBase<Domain> {
 
     @Override
     public Composer persist() {
-      Optional<Domain> domainOpt = domainRepository.findByName(domain.getName());
-      if (domainOpt.isEmpty()) {
-        this.domain = domainRepository.save(domain);
-        return this;
-      }
-
-      this.domain = domainOpt.get();
+      this.domain = domainRepository.save(domain);
       return this;
     }
 
@@ -49,6 +41,7 @@ public class DomainComposer extends ComposerBase<Domain> {
   }
 
   public Composer forDomain(Domain domain) {
-    return new Composer(domain != null ? domain : PresetDomain.TOCLASSIFY);
+    generatedItems.add(domain);
+    return new Composer(domain);
   }
 }

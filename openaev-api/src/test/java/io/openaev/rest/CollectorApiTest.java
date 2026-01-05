@@ -40,7 +40,7 @@ public class CollectorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
 
-  private ConnectorInstance getCollectorInstance(String collectorId, String collectorName)
+  private ConnectorInstancePersisted getCollectorInstance(String collectorId, String collectorName)
       throws JsonProcessingException {
     return connectorInstanceComposer
         .forConnectorInstance(createDefaultConnectorInstance())
@@ -70,7 +70,7 @@ public class CollectorApiTest extends IntegrationTest {
       Collector collector = getCollector("CS");
       List<Collector> existingCollectors = fromIterable(collectorRepository.findAll());
       getCollectorInstance("PENDING_COLLECTOR_ID", "Pending collector");
-      ConnectorInstance connectorInstanceLinkToCreatedCollector =
+      ConnectorInstancePersisted connectorInstanceLinkToCreatedCollector =
           getCollectorInstance(collector.getId(), collector.getName());
 
       String response =
@@ -109,7 +109,7 @@ public class CollectorApiTest extends IntegrationTest {
       getCollector("Mitre Attack");
       List<Collector> existingCollectors = fromIterable(collectorRepository.findAll());
       String pendingCollectorId = "PENDING_COLLECTOR_ID";
-      ConnectorInstance pendingCollectorInstance =
+      ConnectorInstancePersisted pendingCollectorInstance =
           getCollectorInstance(pendingCollectorId, "PENDING COLLECTOR");
 
       String response =
@@ -151,7 +151,8 @@ public class CollectorApiTest extends IntegrationTest {
         "Given collector managed by XTM Composer, should return linked connector instance ID and catalog ID")
     void givenLinkedCollector_shouldReturnInstanceAndCatalogId() throws Exception {
       Collector collector = getCollector("CS-collector");
-      ConnectorInstance instance = getCollectorInstance(collector.getId(), collector.getName());
+      ConnectorInstancePersisted instance =
+          getCollectorInstance(collector.getId(), collector.getName());
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")

@@ -1,14 +1,12 @@
 package io.openaev.utils.fixtures;
 
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_TYPE;
-import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_ID;
-import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_NAME;
-import static io.openaev.executors.openaev.OpenAEVExecutor.OPENAEV_EXECUTOR_TYPE;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_NAME;
-import static io.openaev.executors.sentinelone.service.SentinelOneExecutorService.SENTINELONE_EXECUTOR_TYPE;
-import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_NAME;
-import static io.openaev.executors.tanium.service.TaniumExecutorService.TANIUM_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.*;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ExecutorRepository;
@@ -26,6 +24,7 @@ public class ExecutorFixture {
     executor.setType(OPENAEV_EXECUTOR_TYPE);
     executor.setId(OPENAEV_EXECUTOR_ID);
     executor.setName(OPENAEV_EXECUTOR_NAME);
+    executor.setBackgroundColor(OPENAEV_EXECUTOR_BACKGROUND_COLOR);
     return executor;
   }
 

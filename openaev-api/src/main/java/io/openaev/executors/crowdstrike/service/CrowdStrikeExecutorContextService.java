@@ -1,8 +1,8 @@
 package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
-import static io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -13,7 +13,6 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
-import io.openaev.executors.exception.ExecutorException;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -24,10 +23,8 @@ import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service(CrowdStrikeExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
 public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
@@ -66,10 +63,6 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     eeService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
-    if (!this.crowdStrikeExecutorConfig.isEnable()) {
-      throw new ExecutorException(
-          "Fatal error: CrowdStrike executor is not enabled", CROWDSTRIKE_EXECUTOR_NAME);
-    }
     List<Agent> csAgents = new ArrayList<>(agents);
 
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate

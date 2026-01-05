@@ -10,6 +10,13 @@ import jakarta.annotation.Nullable;
 import java.util.Set;
 
 public class CatalogConnectorFixture {
+  public static CatalogConnector createCatalogConnectorWithClassName(String className) {
+    CatalogConnector connector = new CatalogConnector();
+    connector.setTitle(className);
+    connector.setSlug(className);
+    connector.setClassName(className);
+    return connector;
+  }
 
   public static CatalogConnector createDefaultCatalogConnectorManagedByXtmComposer(
       String connectorName) {

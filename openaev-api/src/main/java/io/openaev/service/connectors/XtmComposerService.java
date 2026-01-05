@@ -5,10 +5,7 @@ import static io.openaev.database.model.SettingKeys.*;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.Setting;
+import io.openaev.database.model.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PlatformSettingsService;
 import java.nio.charset.StandardCharsets;
@@ -74,7 +71,7 @@ public class XtmComposerService {
         .collect(Collectors.joining(";"));
   }
 
-  private String computeInstanceHash(ConnectorInstance instance) {
+  private String computeInstanceHash(ConnectorInstancePersisted instance) {
     if (instance == null) {
       throw new IllegalArgumentException("Instance cannot be null");
     }
@@ -84,7 +81,8 @@ public class XtmComposerService {
     return hashWithSHA256(dataToHash);
   }
 
-  public XtmComposerInstanceOutput toXtmComposerInstanceOutput(ConnectorInstance instance) {
+  public XtmComposerInstanceOutput toXtmComposerInstanceOutput(
+      ConnectorInstancePersisted instance) {
     return XtmComposerInstanceOutput.builder()
         .id(instance.getId())
         .name(instance.getCatalogConnector().getTitle())

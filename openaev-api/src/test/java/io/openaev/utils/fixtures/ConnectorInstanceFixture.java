@@ -5,12 +5,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstanceLog;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import java.util.HashSet;
 
 public class ConnectorInstanceFixture {
+  public static ConnectorInstancePersisted createMigratedInstance() {
+    ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+    return connectorInstance;
+  }
 
-  public static ConnectorInstance createDefaultConnectorInstance() {
-    ConnectorInstance connectorInstance = new ConnectorInstance();
+  public static ConnectorInstancePersisted createDefaultConnectorInstance() {
+    ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
     connectorInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);
     connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);

@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,11 +16,23 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
 
   public class Composer extends InnerComposerBase<CatalogConnector> {
     private final CatalogConnector catalogConnector;
+    private final List<ConnectorInstanceComposer.Composer> connectorInstanceComposers =
+        new ArrayList<>();
     private final List<CatalogConnectorConfigurationComposer.Composer>
         catalogConnectorConfigurationComposer = new ArrayList<>();
 
     public Composer(CatalogConnector catalogConnector) {
       this.catalogConnector = catalogConnector;
+    }
+
+    public Composer withConnectorInstance(
+        ConnectorInstanceComposer.Composer connectorInstanceComposer) {
+      connectorInstanceComposers.add(connectorInstanceComposer);
+      Set<ConnectorInstancePersisted> tempInstances = catalogConnector.getInstances();
+      tempInstances.add(connectorInstanceComposer.get());
+      connectorInstanceComposer.get().setCatalogConnector(catalogConnector);
+      catalogConnector.setInstances(tempInstances);
+      return this;
     }
 
     public Composer withCatalogConnectorConfiguration(
@@ -35,7 +48,8 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
 
     @Override
     public CatalogConnectorComposer.Composer persist() {
-      catalogConnectorRepository.save(this.catalogConnector);
+      catalogConnectorRepository.save(catalogConnector);
+      connectorInstanceComposers.forEach(ConnectorInstanceComposer.Composer::persist);
       catalogConnectorConfigurationComposer.forEach(
           CatalogConnectorConfigurationComposer.Composer::persist);
       return this;
@@ -43,7 +57,8 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
 
     @Override
     public CatalogConnectorComposer.Composer delete() {
-      catalogConnectorRepository.delete(this.catalogConnector);
+      connectorInstanceComposers.forEach(ConnectorInstanceComposer.Composer::delete);
+      catalogConnectorRepository.delete(catalogConnector);
       catalogConnectorConfigurationComposer.forEach(
           CatalogConnectorConfigurationComposer.Composer::delete);
       return this;
@@ -55,7 +70,7 @@ public class CatalogConnectorComposer extends ComposerBase<CatalogConnector> {
     }
   }
 
-  public Composer forCatalogConnector(CatalogConnector catalogConnector) {
+  public CatalogConnectorComposer.Composer forCatalogConnector(CatalogConnector catalogConnector) {
     generatedItems.add(catalogConnector);
     return new CatalogConnectorComposer.Composer(catalogConnector);
   }

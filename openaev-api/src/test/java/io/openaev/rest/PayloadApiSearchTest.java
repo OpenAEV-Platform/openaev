@@ -5,7 +5,7 @@ import static io.openaev.database.model.Endpoint.PLATFORM_TYPE.Linux;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PayloadFixture.*;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -20,6 +20,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.DocumentFixture;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -45,7 +46,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
 
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     Payload command = createDefaultCommand(domains);
     Payload commandSaved = this.payloadRepository.save(command);

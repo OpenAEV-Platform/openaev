@@ -61,7 +61,8 @@ public class ScenarioExportTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @DisplayName("When payloads have tags, scenario export has these tags")
   public void WhenPayloadsHaveTags_ScenarioExportHasTheseTags() throws Exception {
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
 
     ObjectMapper objectMapper = mapper.copy();
     Scenario scenario =

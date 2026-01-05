@@ -2,7 +2,7 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;

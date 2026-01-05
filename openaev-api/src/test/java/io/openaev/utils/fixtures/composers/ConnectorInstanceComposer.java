@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,16 +11,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ConnectorInstanceComposer extends ComposerBase<ConnectorInstance> {
+public class ConnectorInstanceComposer extends ComposerBase<ConnectorInstancePersisted> {
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
 
-  public class Composer extends InnerComposerBase<ConnectorInstance> {
-    private final ConnectorInstance connectorInstance;
+  public class Composer extends InnerComposerBase<ConnectorInstancePersisted> {
+    private final ConnectorInstancePersisted connectorInstance;
     private final List<ConnectorInstanceConfigurationComposer.Composer>
         connectorInstanceConfigurationComposer = new ArrayList<>();
     private Optional<CatalogConnectorComposer.Composer> catalogConnectorComposer = Optional.empty();
 
-    public Composer(ConnectorInstance connectorInstance) {
+    public Composer(ConnectorInstancePersisted connectorInstance) {
       this.connectorInstance = connectorInstance;
     }
 
@@ -44,7 +44,7 @@ public class ConnectorInstanceComposer extends ComposerBase<ConnectorInstance> {
     @Override
     public ConnectorInstanceComposer.Composer persist() {
       catalogConnectorComposer.ifPresent(CatalogConnectorComposer.Composer::persist);
-      connectorInstanceRepository.save(this.connectorInstance);
+      connectorInstanceRepository.save(connectorInstance);
       connectorInstanceConfigurationComposer.forEach(
           ConnectorInstanceConfigurationComposer.Composer::persist);
       return this;
@@ -60,13 +60,13 @@ public class ConnectorInstanceComposer extends ComposerBase<ConnectorInstance> {
     }
 
     @Override
-    public ConnectorInstance get() {
+    public ConnectorInstancePersisted get() {
       return this.connectorInstance;
     }
   }
 
   public ConnectorInstanceComposer.Composer forConnectorInstance(
-      ConnectorInstance connectorInstance) {
+      ConnectorInstancePersisted connectorInstance) {
     generatedItems.add(connectorInstance);
     return new ConnectorInstanceComposer.Composer(connectorInstance);
   }

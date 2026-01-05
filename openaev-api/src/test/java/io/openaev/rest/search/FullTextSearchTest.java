@@ -2,7 +2,7 @@ package io.openaev.rest.search;
 
 import static io.openaev.search.FullTextSearchApi.GLOBAL_SEARCH_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
-import static io.openaev.utils.JsonUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;

@@ -1297,6 +1297,7 @@
   "Payload info": "有效负载信息",
   "payload_attack_patterns": "攻击模式",
   "payload_description": "描述",
+  "payload_domains": "领域",
   "payload_execution_arch": "架构",
   "payload_name": "名称",
   "payload_platforms": "平台",

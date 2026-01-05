@@ -16,6 +16,7 @@ import io.openaev.database.model.Command;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,8 @@ class InjectModelHelperTest extends IntegrationTest {
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
 
-    Set<Domain> domains = domainComposer.forDomain(null).persist().getSet();
+    Set<Domain> domains =
+        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     Injector injector = createDefaultPayloadInjector();
     Command payloadCommand = createCommand("cmd", "whoami", List.of(), "whoami", domains);
     return createPayloadInjectorContract(injector, payloadCommand);

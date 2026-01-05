@@ -12,6 +12,8 @@ public interface CatalogConnectorRepository
     extends CrudRepository<CatalogConnector, String>, JpaSpecificationExecutor<CatalogConnector> {
   Optional<CatalogConnector> findByTitle(String title);
 
+  Optional<CatalogConnector> findByClassName(String factoryClass);
+
   @Query(
       "SELECT c FROM CatalogConnector c LEFT JOIN FETCH c.catalogConnectorConfigurations WHERE c.slug = :slug")
   Optional<CatalogConnector> findBySlugWithConfigurations(String slug);

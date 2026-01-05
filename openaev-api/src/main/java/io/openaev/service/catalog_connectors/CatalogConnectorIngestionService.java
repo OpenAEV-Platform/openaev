@@ -115,7 +115,7 @@ public class CatalogConnectorIngestionService {
 
   private void cleanupInstanceConfigurations(CatalogConnector connector) {
 
-    List<ConnectorInstance> instances =
+    List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connector);
 
     if (instances.isEmpty()) return;
@@ -128,7 +128,7 @@ public class CatalogConnectorIngestionService {
 
     List<ConnectorInstanceConfiguration> toDelete = new ArrayList<>();
 
-    for (ConnectorInstance instance : instances) {
+    for (ConnectorInstancePersisted instance : instances) {
 
       List<ConnectorInstanceConfiguration> instConfs =
           connectorInstanceConfigurationRepository.findByConnectorInstanceId(instance.getId());

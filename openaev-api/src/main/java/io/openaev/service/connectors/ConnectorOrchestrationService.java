@@ -55,7 +55,7 @@ public class ConnectorOrchestrationService {
       String xtmComposerId) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
 
-    List<ConnectorInstance> instances =
+    List<ConnectorInstancePersisted> instances =
         connectorInstanceService.connectorInstancesManagedByXtmComposer();
 
     return instances.stream().map(xtmComposerService::toXtmComposerInstanceOutput).toList();
@@ -75,7 +75,7 @@ public class ConnectorOrchestrationService {
       ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
 
-    ConnectorInstance instances =
+    ConnectorInstancePersisted instances =
         connectorInstanceService.updateCurrentStatus(connectorInstanceId, newCurrentStatus);
 
     return xtmComposerService.toXtmComposerInstanceOutput(instances);
@@ -102,11 +102,11 @@ public class ConnectorOrchestrationService {
    * @param requestedStatus the new requested status to set
    * @return the updated connector instance
    */
-  public ConnectorInstance updateRequestedStatus(
+  public ConnectorInstancePersisted updateRequestedStatus(
       String connectorInstanceId, ConnectorInstance.REQUESTED_STATUS_TYPE requestedStatus) {
     throwIfEnterpriseLicenseNotActive();
 
-    ConnectorInstance instance =
+    ConnectorInstancePersisted instance =
         connectorInstanceService.connectorInstanceById(connectorInstanceId);
     throwIfXtmComposerDownAndNeeded(instance.getCatalogConnector());
 
@@ -115,7 +115,7 @@ public class ConnectorOrchestrationService {
 
   private void throwIfConnectorInstanceAlreadyExist(String catalogId)
       throws DataIntegrityViolationException {
-    List<ConnectorInstance> existingInstances =
+    List<ConnectorInstancePersisted> existingInstances =
         connectorInstanceService.findAllByCatalogConnectorId(catalogId);
     if (!existingInstances.isEmpty()) {
       throw new DataIntegrityViolationException(
@@ -192,7 +192,7 @@ public class ConnectorOrchestrationService {
    * @param input CreateConnectorInstanceInput
    * @return Created ConnectorInstance
    */
-  public ConnectorInstance createConnectorInstance(
+  public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
     throwIfEnterpriseLicenseNotActive();
@@ -239,7 +239,7 @@ public class ConnectorOrchestrationService {
     if (logs.isEmpty()) {
       return null;
     }
-    ConnectorInstance instance =
+    ConnectorInstancePersisted instance =
         connectorInstanceService.connectorInstanceById(connectorInstanceId);
     return connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
@@ -258,7 +258,7 @@ public class ConnectorOrchestrationService {
   public XtmComposerInstanceOutput patchConnectorInstanceHealthCheck(
       String xtmComposerId, String connectorInstanceId, ConnectorInstanceHealthInput input) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
-    ConnectorInstance instances =
+    ConnectorInstancePersisted instances =
         connectorInstanceService.patchConnectorInstanceHealthCheck(connectorInstanceId, input);
     return xtmComposerService.toXtmComposerInstanceOutput(instances);
   }
