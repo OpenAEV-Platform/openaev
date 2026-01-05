@@ -411,7 +411,6 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Push same stix in order to check the number of created injects
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
