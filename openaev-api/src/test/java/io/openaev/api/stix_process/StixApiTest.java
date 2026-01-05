@@ -441,18 +441,7 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should create the scenario from stix bundle")
     void shouldCreateScenario() throws Exception {
-      String response =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      assertThat(response).isNotBlank();
-      String scenarioId = JsonPath.read(response, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
 
       // -- ASSERT Scenario --
@@ -508,18 +497,7 @@ class StixApiTest extends IntegrationTest {
         throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
-
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -540,18 +518,7 @@ class StixApiTest extends IntegrationTest {
           stixSecurityCoverageOnlyVulns
               .replace("opencti", "empty-asset-group")
               .replace("CVE-2025-56785", "CVE-2025-56786");
-
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -569,18 +536,7 @@ class StixApiTest extends IntegrationTest {
     void shouldCreateScenarioWithOneInjectWhenNoAssetGroupsExist() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "no-asset-groups");
-
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -595,17 +551,7 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should create scenario with 1 inject when labels are no defined")
     void shouldCreateScenarioWithOneInjectWhenLabelsAreNotDefined() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulns))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulns);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -622,17 +568,7 @@ class StixApiTest extends IntegrationTest {
         "Should update scenario from same security coverage and keep same number inject when updated stix has the same attacks")
     void shouldUpdateScenarioAndKeepSameNumberInjectsWhenUpdatedStixHasSameAttacks()
         throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -647,17 +583,7 @@ class StixApiTest extends IntegrationTest {
           stixSecurityCoverage.replace("2025-12-31T14:00:00Z", Instant.now().toString());
 
       // Push same stix in order to check the number of created injects
-      String updatedResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      scenarioId = getScenarioIdResponse(modifiedSecurityCoverage);
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -670,17 +596,7 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should update scenario from same security coverage but deleting injects when attack-objects are not defined in stix")
     void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsAttacks() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -690,18 +606,9 @@ class StixApiTest extends IntegrationTest {
 
       String modifiedSecurityCoverageWithoutTtps =
           stixSecurityCoverageWithoutTtps.replace("2025-12-31T14:00:00Z", Instant.now().toString());
-      // Push stix without object type attack-pattern
-      String updatedResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverageWithoutTtps))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
 
-      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      // Push stix without object type attack-pattern
+      scenarioId = getScenarioIdResponse(modifiedSecurityCoverageWithoutTtps);
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
@@ -723,17 +630,7 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should update scenario from same security coverage but deleting injects when vulnerabilities are not defined in stix")
     void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsVulnerabilities() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -749,17 +646,7 @@ class StixApiTest extends IntegrationTest {
               "2025-12-31T14:00:00Z", Instant.now().toString());
 
       // Push stix without object type attack-pattern
-      String updatedResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverageWithoutVulns))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      scenarioId = getScenarioIdResponse(modifiedSecurityCoverageWithoutVulns);
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
@@ -781,17 +668,7 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should update scenario from same security coverage but deleting injects when none objects are not defined in stix")
     void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsOtherObjects() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -802,18 +679,9 @@ class StixApiTest extends IntegrationTest {
       String modifiedSecurityCoverageWithoutObjects =
           stixSecurityCoverageWithoutObjects.replace(
               "2025-12-31T14:00:00Z", Instant.now().toString());
-      // Push stix without object type attack-pattern
-      String updatedResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverageWithoutObjects))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
 
-      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      // Push stix without object type attack-pattern
+      scenarioId = getScenarioIdResponse(modifiedSecurityCoverageWithoutObjects);
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
@@ -828,18 +696,7 @@ class StixApiTest extends IntegrationTest {
     void shouldNotUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "coverage");
-
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -852,15 +709,7 @@ class StixApiTest extends IntegrationTest {
               .replace("opencti", "empty-asset-groups")
               .replace("2025-12-31T14:00:00Z", Instant.now().toString());
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-          .andExpect(status().isOk())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
+      scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
@@ -872,18 +721,7 @@ class StixApiTest extends IntegrationTest {
     void shouldNotUpdateInjectsWhenTargetsAreAdded() throws Exception {
       String stixSecurityCoverageOnlyVulnsWithUpdatedLabel =
           stixSecurityCoverageOnlyVulns.replace("opencti", "empty-asset-groups");
-
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
@@ -896,15 +734,7 @@ class StixApiTest extends IntegrationTest {
               .replace("opencti", "coverage")
               .replace("2025-12-31T14:00:00Z", Instant.now().toString());
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(stixSecurityCoverageOnlyVulnsWithUpdatedLabel))
-          .andExpect(status().isOk())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
+      scenarioId = getScenarioIdResponse(stixSecurityCoverageOnlyVulnsWithUpdatedLabel);
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
@@ -917,39 +747,9 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should not remove security coverage even if scenario is deleted")
-    void shouldExistSecurityCoverage() throws Exception {
-      String response =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String scenarioId = JsonPath.read(response, "$.scenarioId");
-      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
-      String securityCoverageId = scenario.getSecurityCoverage().getId();
-      scenarioRepository.deleteById(response);
-
-      assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
-    }
-
-    @Test
     @DisplayName("Should update security coverage stix modified")
     void shouldUpdateSecurityCoverageStixModified() throws Exception {
-      String createdResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getSecurityCoverage().getStixModified())
           .isEqualTo("2025-12-31T14:00:00Z");
@@ -960,40 +760,27 @@ class StixApiTest extends IntegrationTest {
       String modifiedDateForTesting = Instant.now().toString();
       String modifiedSecurityCoverage =
           stixSecurityCoverage.replace("2025-12-31T14:00:00Z", modifiedDateForTesting);
-
-      String updatedResponse =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(modifiedSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      scenarioId = getScenarioIdResponse(modifiedSecurityCoverage);
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getSecurityCoverage().getStixModified())
           .isEqualTo(modifiedDateForTesting);
     }
 
     @Test
+    @DisplayName("Should not remove security coverage even if scenario is deleted")
+    void shouldExistSecurityCoverage() throws Exception {
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
+      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      String securityCoverageId = scenario.getSecurityCoverage().getId();
+      scenarioRepository.deleteById(scenarioId);
+      assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
+    }
+
+    @Test
     @DisplayName("Should not duplicate security coverage reference when scenario is duplicated")
     @WithMockUser(withCapabilities = {Capability.MANAGE_STIX_BUNDLE, Capability.MANAGE_ASSESSMENT})
     void shouldNotDuplicatedReferenceSecurityCoverage() throws Exception {
-
-      String response =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(stixSecurityCoverage))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String scenarioId = JsonPath.read(response, "$.scenarioId");
-
+      String scenarioId = getScenarioIdResponse(stixSecurityCoverage);
       String duplicated =
           mvc.perform(post(SCENARIO_URI + "/" + scenarioId).contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().isOk())
@@ -1002,11 +789,24 @@ class StixApiTest extends IntegrationTest {
               .getContentAsString();
 
       scenarioId = JsonPath.read(duplicated, "$.scenario_id");
-
       Scenario duplicatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-
       assertThat(duplicatedScenario.getSecurityCoverage()).isNull();
     }
+  }
+
+  private String getScenarioIdResponse(String content) throws Exception {
+    String response =
+        mvc.perform(
+                post(STIX_URI + "/process-bundle")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(content))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(response).isNotBlank();
+    String scenarioId = JsonPath.read(response, "$.scenarioId");
+    return scenarioId;
   }
 
   private String loadJsonWithStixObjectsAsText(String filePath) throws IOException {
