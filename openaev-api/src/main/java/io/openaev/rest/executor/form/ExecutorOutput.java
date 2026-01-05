@@ -1,14 +1,11 @@
 package io.openaev.rest.executor.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorSimpleOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import lombok.Builder;
-import org.hibernate.annotations.Type;
 
 @Builder
 @Schema(description = "Executor output")
