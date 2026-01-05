@@ -333,6 +333,9 @@ public class ScenarioService {
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
     RawScenario rawScenario = this.scenarioRepository.getScenarioById(scenarioId);
+    if (rawScenario == null) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
     Set<KillChainPhaseOutput> killChainPhases = new HashSet<>();
     if (rawScenario.getScenario_kill_chain_phases() != null) {
       try {
