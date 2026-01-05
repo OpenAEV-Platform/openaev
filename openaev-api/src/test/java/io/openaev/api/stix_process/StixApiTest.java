@@ -34,6 +34,7 @@ import jakarta.transaction.Transactional;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -75,6 +76,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
 
   private String stixSecurityCoverage;
+  private String stixSecurityCoverageNoDuration;
   private String stixSecurityCoverageNoLabels;
   private String stixSecurityCoverageWithoutTtps;
   private String stixSecurityCoverageWithoutVulns;
@@ -96,6 +98,10 @@ class StixApiTest extends IntegrationTest {
 
     stixSecurityCoverage =
         loadJsonWithStixObjectsAsText("src/test/resources/stix-bundles/security-coverage.json");
+
+    stixSecurityCoverageNoDuration =
+        loadJsonWithStixObjectsAsText(
+            "src/test/resources/stix-bundles/security-coverage-no-duration.json");
 
     stixSecurityCoverageNoLabels =
         loadJsonWithStixObjectsAsText(
@@ -368,6 +374,31 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Should create the scenario from stix bundle and not set recurrence end if not specified")
+    void shouldCreateScenarioNoEnd() throws Exception {
+      String response =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageNoDuration))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(response).isNotBlank();
+      String scenarioId = JsonPath.read(response, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+
+      // -- ASSERT Scenario --
+      assertThat(createdScenario.getRecurrence()).isEqualTo("P1D");
+      assertThat(createdScenario.getRecurrenceEnd()).isNull();
+      assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
+          .contains(OPENCTI_TAG_NAME);
+    }
+
+    @Test
     @DisplayName("Should create the scenario from stix bundle")
     void shouldCreateScenario() throws Exception {
       String response =
@@ -392,6 +423,9 @@ class StixApiTest extends IntegrationTest {
       assertThat(createdScenario.getSecurityCoverage().getExternalId())
           .isEqualTo("security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1");
       assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
+      // recurrence duration is set to P30D
+      assertThat(createdScenario.getRecurrenceEnd())
+          .isEqualTo(createdScenario.getRecurrenceStart().plus(30, ChronoUnit.DAYS));
       assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
           .contains(OPENCTI_TAG_NAME);
 

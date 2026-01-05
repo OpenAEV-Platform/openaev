@@ -40,6 +40,7 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import java.time.Instant;
@@ -335,12 +336,15 @@ public class SecurityCoverageService {
       // schedule first start in 2 minutes
       // so that it is picked up soon after setting it up
       Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
-      if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
+      if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
-        scenario.setRecurrenceEnd(
-            TimeUtils.incrementInstant(
-                start, TimeUtils.ISO8601PeriodToTemporalIncrement(securityCoverage.getDuration())));
         scenario.setRecurrence(securityCoverage.getScheduling());
+        if (!StringUtils.isBlank(securityCoverage.getDuration())) {
+          scenario.setRecurrenceEnd(
+              TimeUtils.incrementInstant(
+                  start,
+                  TimeUtils.ISO8601PeriodToTemporalIncrement(securityCoverage.getDuration())));
+        }
       }
     }
   }
