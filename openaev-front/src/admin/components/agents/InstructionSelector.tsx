@@ -7,7 +7,7 @@ import { useState } from 'react';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type Executor, type Token } from '../../../utils/api-types';
+import { type ExecutorOutput, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { copyToClipboard, download } from '../../../utils/utils';
 
@@ -22,7 +22,7 @@ const OPENAEV_AGENT = 'openaev_agent';
 interface InstructionSelectorProps {
   userToken: Token;
   platform: string;
-  selectedExecutor: Executor;
+  selectedExecutor: ExecutorOutput;
 }
 
 const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, platform, selectedExecutor }) => {

@@ -2411,9 +2411,12 @@ export interface ExecutorCreateInput {
 export interface ExecutorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
+  executor_background_color?: string;
+  executor_doc?: string;
   /** Executor id */
   executor_id: string;
   executor_name: string;
+  executor_platforms?: string[];
   executor_type: string;
   /** @format date-time */
   executor_updated_at?: string;

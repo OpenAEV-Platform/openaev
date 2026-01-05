@@ -36,7 +36,6 @@ public class ExecutorOutput {
   @JsonProperty("is_verified")
   private boolean verified = false;
 
-  @Type(StringArrayType.class)
   @JsonProperty("executor_platforms")
   private String[] platforms;
 
