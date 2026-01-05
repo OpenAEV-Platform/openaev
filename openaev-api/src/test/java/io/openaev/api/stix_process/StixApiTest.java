@@ -34,11 +34,13 @@ import jakarta.transaction.Transactional;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.io.IOUtils;
+import org.h2.schema.Domain;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -52,6 +54,7 @@ class StixApiTest extends IntegrationTest {
 
   public static final String T_1531 = "T1531";
   public static final String T_1003 = "T1003";
+  String stixModifiedDateForTesting = Instant.now().toString();
 
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
@@ -455,7 +458,7 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       String modifiedSecurityCoverage =
-          stixSecurityCoverage.replace("2025-08-04T14:00:00Z", "2025-12-20T14:00:00Z");
+          stixSecurityCoverage.replace("2025-08-04T14:00:00Z", stixModifiedDateForTesting);
 
       // Push same stix in order to check the number of created injects
       String updatedResponse =
@@ -510,7 +513,7 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       String modifiedSecurityCoverage =
-          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", "2025-12-10T13:00:00Z");
+          stixSecurityCoverage.replace("2025-08-04T14:00:00Z", stixModifiedDateForTesting);
 
       // Push an old Stix
       mvc.perform(
