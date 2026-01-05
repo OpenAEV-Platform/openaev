@@ -4,6 +4,7 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
@@ -167,5 +168,13 @@ public class ExpectationApi extends RestBehavior {
   public void updateInjectExpectation(
       @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
+  }
+
+  @Operation(summary = "Get available inject expectations for an inject (technical or human)")
+  @GetMapping(INJECTS_EXPECTATIONS_URI + "/available")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  public List<Expectation> getAvailableInjectExpectationsForInject(
+      @RequestParam boolean isHumanInject) {
+    return injectExpectationService.getAvailableInjectExpectationsForInject(isHumanInject);
   }
 }

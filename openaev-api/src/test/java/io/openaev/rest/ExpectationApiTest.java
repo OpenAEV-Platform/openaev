@@ -799,6 +799,50 @@ class ExpectationApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Get available InjectExpectations for injects")
+  class AvailableInjectExpectationsForInjects {
+
+    @Test
+    @DisplayName("Get available InjectExpectations for technical injects")
+    void getAvailableInjectExpectationsForTechnicalInjects() throws Exception {
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECTS_EXPECTATIONS_URI + "/available?isHumanInject=false")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertEquals(3, ((List<?>) JsonPath.read(response, "$")).size());
+      assertEquals("DETECTION", JsonPath.read(response, "$.[0].expectation_type"));
+      assertEquals("PREVENTION", JsonPath.read(response, "$.[1].expectation_type"));
+      assertEquals("VULNERABILITY", JsonPath.read(response, "$.[2].expectation_type"));
+    }
+
+    @Test
+    @DisplayName("Get available InjectExpectations for human injects")
+    void getAvailableInjectExpectationsForHumanInjects() throws Exception {
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECTS_EXPECTATIONS_URI + "/available?isHumanInject=true")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
+      assertEquals("MANUAL", JsonPath.read(response, "$.[0].expectation_type"));
+    }
+  }
+
   // -- PRIVATE HELPERS --
 
   private ExecutableInject newExecutableInjectWithTargets(boolean includeAssetGroup) {

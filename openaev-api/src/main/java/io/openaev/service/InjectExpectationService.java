@@ -15,6 +15,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.model.Expectation;
@@ -58,6 +59,7 @@ public class InjectExpectationService {
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
+  private final ExpectationBuilderService expectationBuilderService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -795,5 +797,15 @@ public class InjectExpectationService {
         .filter(ie -> List.of(PREVENTION, DETECTION).contains(ie.getType()))
         .forEach(
             injectExpectation -> injectExpectation.setResults(setUpFromCollectors(collectors)));
+  }
+
+  public List<io.openaev.model.inject.form.Expectation> getAvailableInjectExpectationsForInject(
+      boolean isHumanInject) {
+    return isHumanInject
+        ? List.of(expectationBuilderService.buildManualExpectation())
+        : List.of(
+            expectationBuilderService.buildDetectionExpectation(),
+            expectationBuilderService.buildPreventionExpectation(),
+            expectationBuilderService.buildVulnerabilityExpectation());
   }
 }
