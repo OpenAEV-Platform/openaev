@@ -585,7 +585,6 @@
   "Encrypted": "このメールを暗号化する",
   "End date": "終了日",
   "End date is required": "終了日は必須",
-  "End date need to be stricly after start date": "終了日は開始日以降に限る",
   "End date need to be strictly after start date": "終了日は開始日より厳密に後でなければならない",
   "End of Life": "終了日",
   "Endpoint": "終点",

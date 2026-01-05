@@ -585,7 +585,6 @@
   "Encrypted": "Cifrar este correo electrónico",
   "End date": "Fecha de finalización",
   "End date is required": "La fecha de finalización es obligatoria",
-  "End date need to be stricly after start date": "La fecha de finalización debe ser estrictamente posterior a la fecha de inicio.",
   "End date need to be strictly after start date": "La fecha final debe ser estrictamente posterior a la fecha de inicio",
   "End of Life": "Fin de vida",
   "Endpoint": "Punto final",
