@@ -400,6 +400,46 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Should throw bad request when security coverage is already saved")
+    void shouldThrowBadRequestWhenSecurityCoverageIsAlreadySaved() throws Exception {
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isOk());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Push same stix in order to check the number of created injects
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Should throw bad request when security coverage is Obsolete")
+    void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isOk());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Push an old Stix
+      mvc.perform(
+              post(STIX_URI + "/process-bundle")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(stixSecurityCoverage))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Should create the scenario from stix bundle")
     void shouldCreateScenario() throws Exception {
       String response =
@@ -463,6 +503,47 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Should update security coverage stix modified")
+    void shouldUpdateSecurityCoverageStixModified() throws Exception {
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverage))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getSecurityCoverage().getStixModified())
+          .isEqualTo("2025-12-31T14:00:00Z");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String modifiedDateForTesting = Instant.now().toString();
+      String modifiedSecurityCoverage =
+          stixSecurityCoverage.replace("2025-12-31T14:00:00Z", modifiedDateForTesting);
+
+      String updatedResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(modifiedSecurityCoverage))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      scenarioId = JsonPath.read(updatedResponse, "$.scenarioId");
+      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(updatedScenario.getSecurityCoverage().getStixModified())
+          .isEqualTo(modifiedDateForTesting);
+    }
+
+    @Test
     @DisplayName(
         "Should update scenario from same security coverage and keep same number inject when updated stix has the same attacks")
     void shouldUpdateScenarioAndKeepSameNumberInjectsWhenUpdatedStixHasSameAttacks()
@@ -509,46 +590,6 @@ class StixApiTest extends IntegrationTest {
       // ASSERT injects for updated stix
       injects = injectRepository.findByScenarioId(updatedScenario.getId());
       assertThat(injects).hasSize(4);
-    }
-
-    @Test
-    @DisplayName("Should throw bad request when security coverage is already saved")
-    void shouldThrowBadRequestWhenSecurityCoverageIsAlreadySaved() throws Exception {
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(stixSecurityCoverage))
-          .andExpect(status().isOk());
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // Push same stix in order to check the number of created injects
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(stixSecurityCoverage))
-          .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("Should throw bad request when security coverage is Obsolete")
-    void shouldThrowBadRequestWhenSecurityCoverageIsObsolete() throws Exception {
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(stixSecurityCoverage))
-          .andExpect(status().isOk());
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // Push an old Stix
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(stixSecurityCoverage))
-          .andExpect(status().isBadRequest());
     }
 
     @Test
