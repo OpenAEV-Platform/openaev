@@ -18,8 +18,14 @@ public class V4_53__Add_stix_modified_column extends BaseJavaMigration {
 
       statement.execute(
           """
-                UPDATE security_coverages SET security_coverage_stix_modified = security_coverage_updated_at
-                WHERE security_coverage_stix_modified IS NULL;
+
+              UPDATE security_coverages
+                    SET security_coverage_stix_modified =
+                        COALESCE(
+                            (security_coverage_content->>'modified')::TIMESTAMPTZ,
+                            security_coverage_updated_at
+                        )
+                    WHERE security_coverage_stix_modified IS NULL;
                 """);
     }
   }
