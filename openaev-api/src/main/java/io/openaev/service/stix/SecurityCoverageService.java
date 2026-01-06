@@ -24,7 +24,6 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -64,7 +63,6 @@ public class SecurityCoverageService {
   private final ScenarioService scenarioService;
   private final SecurityCoverageInjectService securityCoverageInjectService;
   private final TagService tagService;
-  private final CronService cronService;
   private final AttackPatternService attackPatternService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
@@ -333,7 +331,7 @@ public class SecurityCoverageService {
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
     setRecurrence(scenario, sa);
-    scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+    scenario.setTags(tagService.fetchTagsFromLabels(sa.getPlatformsAffinity()));
   }
 
   /**
