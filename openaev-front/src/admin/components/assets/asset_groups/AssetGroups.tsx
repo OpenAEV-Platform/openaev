@@ -70,7 +70,7 @@ const computeRuleValues = (assetGroup: AssetGroupOutput, t: (value: string) => s
         </>
       );
     }
-    return null;
+    return (<>-</>);
   };
 
   const computeStatic = () => {
@@ -146,9 +146,8 @@ const AssetGroups = () => {
       field: 'asset_group_assets',
       label: 'Rules',
       isSortable: false,
-      value: (assetGroup: AssetGroupOutput) => {
-        return computeRuleValues(assetGroup, t);
-      },
+      value: (assetGroup: AssetGroupOutput) =>
+        computeRuleValues(assetGroup, t),
     },
     {
       field: 'asset_group_tags',

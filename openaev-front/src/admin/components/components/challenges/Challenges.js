@@ -1,6 +1,5 @@
 import { RowingOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
-import * as R from 'ramda';
 import { useContext } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link, useLocation } from 'react-router';
@@ -249,25 +248,37 @@ const Challenges = () => {
                         ...inlineStyles.challenge_exercises,
                       }}
                     >
-                      {R.take(3, challenge.challenge_exercises).map((e) => {
-                        const exercise = exercisesMap[e] || {};
-                        return (
-                          <Tooltip
-                            key={exercise.exercise_id}
-                            title={exercise.exercise_name}
-                          >
-                            <Chip
-                              icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                              classes={{ root: classes.exercise }}
-                              variant="outlined"
-                              label={exercise.exercise_name}
-                              component={Link}
-                              clickable={true}
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                            />
-                          </Tooltip>
-                        );
-                      })}
+                      {challenge.challenge_exercises && challenge.challenge_exercises.length > 0 ? (
+                        challenge.challenge_exercises.slice(0, 3).map((e) => {
+                          const exercise = exercisesMap[e];
+
+                          if (!exercise) {
+                            return <span key={e}>-</span>;
+                          }
+
+                          return (
+                            <Tooltip
+                              key={exercise.exercise_id}
+                              title={exercise.exercise_name}
+                            >
+                              <Chip
+                                icon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                classes={{ root: classes.exercise }}
+                                variant="outlined"
+                                label={exercise.exercise_name}
+                                component={Link}
+                                clickable
+                                to={`/admin/simulations/${exercise.exercise_id}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                              />
+                            </Tooltip>
+                          );
+                        })
+                      ) : (
+                        <span>-</span>
+                      )}
                     </div>
                     <div
                       style={{

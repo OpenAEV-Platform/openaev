@@ -110,7 +110,8 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution Date',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return <>{fldt(injectResultOutput.inject_status?.tracking_sent_date)}</>;
+        const trackingDate = injectResultOutput.inject_status?.tracking_sent_date;
+        return <>{trackingDate ? fldt(trackingDate) : '-'}</>;
       },
     },
     {

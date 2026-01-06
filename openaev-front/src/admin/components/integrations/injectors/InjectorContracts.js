@@ -215,28 +215,38 @@ const InjectorContracts = () => {
                     className={classes.bodyItem}
                     style={inlineStyles.kill_chains}
                   >
-                    {
-                      Array.from(
+                    {injectorContract.injector_contract_attack_patterns?.length ? (() => {
+                      const killChains = Array.from(
                         new Set(
                           injectorContract.injector_contract_attack_patterns
-                            .map(n => attackPatternsMap[n]?.attack_pattern_kill_chain_phases ?? [])
-                            .flat()
-                            .map(o => killChainPhasesMap[o]?.phase_kill_chain_name ?? ''),
+                            .flatMap(n =>
+                              attackPatternsMap[n]?.attack_pattern_kill_chain_phases ?? [],
+                            )
+                            .map(o => killChainPhasesMap[o]?.phase_kill_chain_name)
+                            .filter(Boolean),
                         ),
-                      ).map((killChain) => {
-                        return (
-                          <Chip
-                            key={killChain}
-                            variant="outlined"
-                            classes={{ root: classes.chipInList }}
-                            style={{ width: 120 }}
-                            color="primary"
-                            label={killChain}
-                          />
-                        );
-                      })
-                    }
+                      );
+                      return killChains.length > 0
+                        ? (
+                            killChains.map(killChain => (
+                              <Chip
+                                key={killChain}
+                                variant="outlined"
+                                classes={{ root: classes.chipInList }}
+                                style={{ width: 120 }}
+                                color="primary"
+                                label={killChain}
+                              />
+                            ))
+                          )
+                        : (
+                            <span>-</span>
+                          );
+                    })() : (
+                      <span>-</span>
+                    )}
                   </div>
+
                   <div
                     className={classes.bodyItem}
                     style={inlineStyles.injector_contract_domains}
@@ -251,7 +261,17 @@ const InjectorContracts = () => {
                     className={classes.bodyItem}
                     style={inlineStyles.attack_patterns}
                   >
-                    {injectorContract.injector_contract_attack_patterns.map(n => `[${attackPatternsMap[n]?.attack_pattern_external_id ?? ''}] ${attackPatternsMap[n]?.attack_pattern_name ?? ''}`).join(', ')}
+                    {injectorContract.injector_contract_attack_patterns?.length
+                      ? injectorContract.injector_contract_attack_patterns
+                          .map((n) => {
+                            const pattern = attackPatternsMap[n];
+                            return pattern
+                              ? `[${pattern.attack_pattern_external_id}] ${pattern.attack_pattern_name}`
+                              : '-';
+                          })
+                          .join(', ')
+                      : '-'}
+
                   </div>
                   <div
                     className={classes.bodyItem}
