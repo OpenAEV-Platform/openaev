@@ -18,7 +18,6 @@ public class V4_53__Add_stix_modified_column extends BaseJavaMigration {
 
       statement.execute(
           """
-
               UPDATE security_coverages
                     SET security_coverage_stix_modified =
                         COALESCE(
