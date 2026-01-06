@@ -2,7 +2,7 @@ package io.openaev.executors.caldera.service;
 
 import static io.openaev.executors.caldera.service.CalderaExecutorService.toArch;
 import static io.openaev.executors.caldera.service.CalderaExecutorService.toPlatform;
-import static io.openaev.utils.TimeUtils.toInstant;
+import static io.openaev.utils.time.TimeUtils.toInstant;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

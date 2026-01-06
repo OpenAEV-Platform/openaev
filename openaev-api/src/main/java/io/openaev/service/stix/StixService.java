@@ -40,7 +40,6 @@ public class StixService {
           securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
       return scenario;
     } catch (BadRequestException | ParsingException e) {
-      log.error(String.format("Error while processing STIX bundle: %s", e.getMessage()), e);
       throw e;
     }
   }

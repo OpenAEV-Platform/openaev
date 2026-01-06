@@ -163,7 +163,6 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
             .getContentAsString();
 
     // --ASSERT--
-    ObjectMapper objectMapper = mapper.copy();
     String savedInjectExpectationTrace1Json =
         mapper.writeValueAsString(savedInjectExpectationTrace1);
     String savedInjectExpectationTrace2Json =

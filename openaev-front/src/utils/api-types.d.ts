@@ -3740,6 +3740,33 @@ export interface KillChainPhaseObject {
   order?: number;
 }
 
+/** Kill chain phases of the scenario */
+export interface KillChainPhaseOutput {
+  /** Creation date of the phase */
+  phase_created_at: string;
+  /** Description of the phase */
+  phase_description?: string;
+  /** External ID of the phase */
+  phase_external_id: string;
+  /** ID of the phase */
+  phase_id: string;
+  /** Name of the kill chain phase */
+  phase_kill_chain_name: string;
+  /** Name of the phase */
+  phase_name: string;
+  /**
+   * Order of the phase
+   * @format int64
+   */
+  phase_order?: number;
+  /** Short name of the phase */
+  phase_shortname: string;
+  /** Stix ID of the phase */
+  phase_stix_id?: string;
+  /** Update date of the phase */
+  phase_updated_at: string;
+}
+
 /** Kill chain phases */
 export interface KillChainPhaseSimple {
   phase_id: string;
@@ -5709,6 +5736,79 @@ export interface ScenarioInput {
   scenario_tags?: string[];
 }
 
+export interface ScenarioOutput {
+  /** Lesson anonymized state of the scenario */
+  lessonsAnonymized?: boolean;
+  /**
+   * Total number of users of the scenario
+   * @format int64
+   */
+  scenario_all_users_number?: number;
+  /** Category of the scenario */
+  scenario_category?: string;
+  /**
+   * Creation date of the scenario
+   * @format date-time
+   */
+  scenario_created_at: string;
+  /** Custom dashboard of the scenario */
+  scenario_custom_dashboard?: string;
+  /** @uniqueItems true */
+  scenario_dependencies?: string[];
+  /** Description of the scenario */
+  scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_exercises?: string[];
+  /** External URL of the scenario */
+  scenario_external_url?: string;
+  /** ID of the scenario */
+  scenario_id: string;
+  /** @uniqueItems true */
+  scenario_kill_chain_phases?: KillChainPhaseOutput[];
+  /** From value of the scenario */
+  scenario_mail_from: string;
+  /** Main focus value of the scenario */
+  scenario_main_focus?: string;
+  /** Footer of the scenario */
+  scenario_message_footer?: string;
+  /** Header of the scenario */
+  scenario_message_header?: string;
+  /** Name of the scenario */
+  scenario_name: string;
+  /** @uniqueItems true */
+  scenario_platforms?: string[];
+  /** Recurrence of the scenario */
+  scenario_recurrence?: string;
+  /**
+   * Recurrence end date of the scenario
+   * @format date-time
+   */
+  scenario_recurrence_end?: string;
+  /**
+   * Recurrence start date of the scenario
+   * @format date-time
+   */
+  scenario_recurrence_start?: string;
+  /** Severity of the scenario */
+  scenario_severity?: string;
+  /** Subtitle of the scenario */
+  scenario_subtitle?: string;
+  /** @uniqueItems true */
+  scenario_tags?: string[];
+  /** @uniqueItems true */
+  scenario_teams_users?: ScenarioTeamUserOutput[];
+  /**
+   * Update date of the scenario
+   * @format date-time
+   */
+  scenario_updated_at: string;
+  /**
+   * Active total number of users of the scenario
+   * @format int64
+   */
+  scenario_users_number?: number;
+}
+
 export interface ScenarioRecurrenceInput {
   scenario_recurrence?: string;
   /** @format date-time */
@@ -5736,6 +5836,16 @@ export interface ScenarioTeamPlayersEnableInput {
 export interface ScenarioTeamUser {
   scenario_id?: string;
   team_id?: string;
+  user_id?: string;
+}
+
+/** Enabled users of the scenario */
+export interface ScenarioTeamUserOutput {
+  /** ID of the scenario */
+  scenario_id?: string;
+  /** ID of the team */
+  team_id?: string;
+  /** ID of the user */
   user_id?: string;
 }
 

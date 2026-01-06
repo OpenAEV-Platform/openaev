@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -25,8 +24,8 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.ScenarioService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.ObjectBase;
@@ -41,8 +40,11 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.StringUtils;
+import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -162,6 +164,9 @@ public class SecurityCoverageService {
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
     securityCoverage.setScheduling(scheduling);
+
+    // security coverage scenario overall duration
+    securityCoverage.setDuration(stixCoverageObj.getOptionalProperty(STIX_DURATION, ""));
 
     // Period Start
     Dictionary extensionObj =
@@ -328,32 +333,18 @@ public class SecurityCoverageService {
    */
   private void setRecurrence(Scenario scenario, SecurityCoverage securityCoverage) {
     if (scenario.getRecurrence() == null) {
-      // Start date must be before the recurrence and now
-      Instant start = Instant.now().minusSeconds(60);
-      // Recurrence must be at least 1 "true" minute after now to be scheduled and executed (see
-      // ScenarioExecutionJob and examples below)
-      // Example 1: recurrence 11:33:00 + 120 seconds = 11:35:00 -> job each minute to schedule and
-      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
-      // Example 2: recurrence 11:33:59 + 120 seconds = 11:35:59 -> job each minute to schedule and
-      // execute at recurrence (without second) 11:35 - 1 minute = 11:34
-      Instant recurrence = Instant.now().plusSeconds(120);
-      if (securityCoverage.getScheduling() != null && !securityCoverage.getScheduling().isEmpty()) {
+      // schedule first start in 2 minutes
+      // so that it is picked up soon after setting it up
+      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
+      if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
-        ScheduleFrequency frequency = ScheduleFrequency.DAILY;
-        if (securityCoverage.getScheduling().contains("W")) {
-          frequency = ScheduleFrequency.WEEKLY;
-        } else if (securityCoverage.getScheduling().contains("M")) {
-          frequency = ScheduleFrequency.MONTHLY;
+        scenario.setRecurrence(securityCoverage.getScheduling());
+        if (!StringUtils.isBlank(securityCoverage.getDuration())) {
+          scenario.setRecurrenceEnd(
+              TimeUtils.incrementInstant(
+                  start,
+                  TimeUtils.ISO8601PeriodToTemporalIncrement(securityCoverage.getDuration())));
         }
-        // TODO cron should be generated from start-date + iso duration
-        // Currently UI is not able to support any cron expression
-        // Parsing is limited to same case like 1 day at 9h00.
-        // Monthly option is not supported yet back in the UI.
-        String cron = cronService.getCronExpression(frequency, recurrence);
-        scenario.setRecurrence(cron);
-      } else {
-        String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, recurrence);
-        scenario.setRecurrence(cron);
       }
     }
   }

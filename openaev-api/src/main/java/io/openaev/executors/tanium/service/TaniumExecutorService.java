@@ -1,6 +1,6 @@
 package io.openaev.executors.tanium.service;
 
-import static io.openaev.utils.TimeUtils.toInstant;
+import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;

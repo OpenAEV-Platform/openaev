@@ -19,7 +19,7 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
@@ -61,7 +61,7 @@ public class RBACAspect {
     Optional<HttpMappingInfo> httpMappingInfo = getHttpMappingInfo(method, paramMap);
 
     // Create SpEL evaluation context to retrieve the resource ID if it exists
-    EvaluationContext context = new StandardEvaluationContext();
+    EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
 
     // Add all method parameters to context
     for (int i = 0; i < parameterNames.length; i++) {

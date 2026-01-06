@@ -173,7 +173,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
         input.setContent("vaultcmd /listcreds:\"Windows Credentials\"");
       }
       case DnsResolution ignored -> input.setHostname("example.com");
-      default -> {}
+      default -> throw new UnsupportedOperationException("Invalid payload type");
     }
 
     // -- MUST NOT BE USED FOR DetectionRemediationRequest.payload value construction --
@@ -214,7 +214,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
         command.setContent("vaultcmd /listcreds:\"Windows Credentials\"");
       }
       case DnsResolution dnsResolution -> dnsResolution.setHostname("example.com");
-      default -> {}
+      default -> throw new UnsupportedOperationException("Invalid payload type");
     }
 
     // -- MUST NOT BE USED FOR DetectionRemediationRequest.payload value construction --

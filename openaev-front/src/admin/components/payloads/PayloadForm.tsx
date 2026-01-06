@@ -167,7 +167,7 @@ const PayloadForm = ({
   const {
     handleSubmit,
     control,
-    formState: { errors, isDirty, isSubmitting, defaultValues, dirtyFields },
+    formState: { isDirty, isSubmitting, defaultValues, dirtyFields },
   } = methods;
 
   const getTabForField = (fieldName: string): string | undefined => {
@@ -206,17 +206,34 @@ const PayloadForm = ({
   }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
+  const focusFirstErrorTab = () => {
+    const fields = Object.keys(
+      methods.getValues(),
+    ) as (keyof PayloadCreateInput)[];
+
+    const firstErrorField = fields.find(
+      field => methods.getFieldState(field).error,
+    );
+    if (!firstErrorField) return;
+
+    const rootField = String(firstErrorField).split('.')[0];
+    const tabName = getTabForField(rootField);
+    if (!tabName) return;
+
+    handleChangeTab(tabName);
+  };
+
   const handleSubmitWithoutDefault = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isValid = await methods.trigger();
     if (!isValid) {
-      const firstErrorField = Object.keys(errors)[0];
-      const tabName = getTabForField(firstErrorField);
-      if (tabName) handleChangeTab(tabName);
-    } else {
-      handleSubmit(onSubmit)(e);
+      focusFirstErrorTab();
+      return;
     }
+
+    await handleSubmit(onSubmit)(e);
   };
+
   const trackedUseWatch = useWatch({
     control,
     name: trackedFields as unknown as keyof PayloadCreateInput,

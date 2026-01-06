@@ -18,7 +18,7 @@ import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
@@ -127,12 +127,14 @@ class ScenarioInjectApiTest extends IntegrationTest {
     assertNotNull(response);
     SCENARIO_INJECT_ID = JsonPath.read(response, "$.inject_id");
     response =
-        mvc.perform(get(SCENARIO_URI + "/" + SCENARIO.getId()).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                    .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$.scenario_injects[0]"));
+    assertEquals(SCENARIO_INJECT_ID, JsonPath.read(response, "$[0].inject_id"));
   }
 
   @DisplayName("Retrieve injects for scenario")

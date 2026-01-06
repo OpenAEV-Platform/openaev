@@ -27,6 +27,7 @@ interface InjectExpectationsProps {
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
   injectId?: string;
+  isHumanInject: boolean;
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
@@ -34,6 +35,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   expectationDatas,
   handleExpectations,
   injectId,
+  isHumanInject,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -133,11 +135,12 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      { userCanAddExpectations
+      { userCanAddExpectations && (isHumanInject || (!isHumanInject && predefinedExpectations?.length != 0))
         && (
           <InjectAddExpectation
             handleAddExpectation={handleAddExpectation}
             predefinedExpectations={predefinedExpectations}
+            isHumanInject={isHumanInject}
           />
         )}
     </>

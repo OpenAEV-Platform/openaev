@@ -214,6 +214,12 @@ class ExpectationUtilsTest extends IntegrationTest {
                     preventionTargetIpv4SignatureValues.add(signature.getValue());
                 case EXPECTATION_SIGNATURE_TYPE_TARGET_HOSTNAME_ADDRESS ->
                     preventionTargetHostnamesSignatureValues.add(signature.getValue());
+                case EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME -> {
+                  /* intentionally ignored */
+                }
+                default ->
+                    throw new IllegalArgumentException(
+                        "Invalid signature type: " + signature.getType());
               }
             });
 

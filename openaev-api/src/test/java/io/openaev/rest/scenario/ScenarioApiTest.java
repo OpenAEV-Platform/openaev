@@ -163,8 +163,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void retrieveScenariosTest() throws Exception {
     // -- PREPARE --
-    Scenario testScenario =
-        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
 
     // -- EXECUTE --
     String response =
@@ -200,6 +199,16 @@ public class ScenarioApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
+  }
+
+  @DisplayName("Requesting non existing scenario by ID fails gracefully")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  void failsafeNonExistScenarioId() throws Exception {
+    // -- EXECUTE --
+    this.mvc
+        .perform(get(SCENARIO_URI + "/DOESNOTEXIST").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound());
   }
 
   @DisplayName("Update scenario")
