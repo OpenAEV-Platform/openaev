@@ -2307,6 +2307,25 @@ export interface ExercisesGlobalScoresOutput {
   global_scores_by_exercise_ids: Record<string, ExpectationResultsByType[]>;
 }
 
+export interface Expectation {
+  expectation_description?: string;
+  expectation_expectation_group?: boolean;
+  /** @format int64 */
+  expectation_expiration_time?: number;
+  expectation_name?: string;
+  /** @format double */
+  expectation_score?: number;
+  expectation_type?:
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+}
+
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
