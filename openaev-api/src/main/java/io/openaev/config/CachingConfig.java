@@ -25,7 +25,7 @@ public class CachingConfig {
      * Execution traces for instance can receive several thousands a sec and not fetching the user
      * everytime helps for the RBAC
      */
-    CaffeineCacheManager cacheManager = new CaffeineCacheManager("license", "global", "lowRetentionCache");
+    CaffeineCacheManager cacheManager = new CaffeineCacheManager("license", "global", "adminUsers");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
@@ -34,9 +34,9 @@ public class CachingConfig {
   }
 
   /** Emptying the cache every second to avoid old data on the admin users being persisted */
-  @CacheEvict(value = "lowRetentionCache", allEntries = true)
+  @CacheEvict(value = "adminUsers", allEntries = true)
   @Scheduled(fixedRateString = "1000")
-  public void emptyLowRetentionCache() {
-    log.debug("emptying low retention cache");
+  public void emptyAdminUsersCache() {
+    log.debug("emptying admin users cache");
   }
 }
