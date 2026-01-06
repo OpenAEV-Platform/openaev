@@ -433,11 +433,8 @@ public class InjectApi extends RestBehavior {
     List<Inject> injectsToDelete =
         getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
 
-    // FIXME: This is a workaround to prevent the GUI from blocking when deleting elements
-    injectsToDelete.forEach(inject -> inject.setListened(false));
-
     // Bulk delete
-    this.injectService.deleteNativeAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
+    this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
     return injectsToDelete;
   }
 
