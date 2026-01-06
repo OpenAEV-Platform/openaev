@@ -17,6 +17,7 @@ import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.PayloadCommandBlock;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.caldera.client.model.Ability;
 import io.openaev.injectors.caldera.client.model.Agent;
 import io.openaev.injectors.caldera.client.model.ExploitResult;
@@ -37,13 +38,9 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-@Component(CalderaContract.TYPE)
-@RequiredArgsConstructor
 @Slf4j
 public class CalderaExecutor extends Injector {
 
@@ -56,6 +53,21 @@ public class CalderaExecutor extends Injector {
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
+
+  public CalderaExecutor(
+      InjectorContext context,
+      CalderaInjectorService calderaService,
+      AgentService agentService,
+      AssetGroupService assetGroupService,
+      InjectExpectationService injectExpectationService,
+      InjectService injectService) {
+    super(context);
+    this.calderaService = calderaService;
+    this.agentService = agentService;
+    this.assetGroupService = assetGroupService;
+    this.injectExpectationService = injectExpectationService;
+    this.injectService = injectService;
+  }
 
   @Override
   @Transactional

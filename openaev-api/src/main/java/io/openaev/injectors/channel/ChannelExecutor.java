@@ -6,12 +6,12 @@ import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.channel.model.ArticleVariable;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.injectors.email.service.EmailService;
@@ -20,37 +20,42 @@ import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChannelExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-@Component(ChannelContract.TYPE)
-@RequiredArgsConstructor
 public class ChannelExecutor extends Injector {
 
   public static final String VARIABLE_ARTICLES = "articles";
   public static final String VARIABLE_ARTICLE = "article";
 
-  @Resource private OpenAEVConfig openAEVConfig;
   private final ArticleRepository articleRepository;
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
 
+  public ChannelExecutor(
+      InjectorContext context,
+      ArticleRepository articleRepository,
+      EmailService emailService,
+      InjectExpectationService injectExpectationService) {
+    super(context);
+    this.articleRepository = articleRepository;
+    this.emailService = emailService;
+    this.injectExpectationService = injectExpectationService;
+  }
+
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
 
-  private String buildArticleUri(ExecutionContext context, Article article) {
-    String userId = context.getUser().getId();
+  private String buildArticleUri(ExecutionContext executionContext, Article article) {
+    String userId = executionContext.getUser().getId();
     String channelId = article.getChannel().getId();
     String exerciseId = article.getExercise().getId();
     String queryOptions = "article=" + article.getId() + "&user=" + userId;
-    return openAEVConfig.getBaseUrl()
+    return this.context.getOpenAEVConfig().getBaseUrl()
         + "/channels/"
         + exerciseId
         + "/"

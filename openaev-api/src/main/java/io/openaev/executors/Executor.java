@@ -12,6 +12,9 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.integration.ComponentRequest;
+import io.openaev.integration.ManagerFactory;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectorService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -39,6 +42,7 @@ public class Executor {
 
   private final QueueService queueService;
   private final ActionMetricCollector actionMetricCollector;
+  private final ManagerFactory managerFactory;
 
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
@@ -63,10 +67,20 @@ public class Executor {
     return this.injectStatusRepository.save(injectStatus);
   }
 
+  private io.openaev.executors.Injector getInjectorExecutor(Injector injector) {
+    try {
+      return managerFactory
+          .getManager()
+          .request(new ComponentRequest(injector.getType()), io.openaev.executors.Injector.class);
+    } catch (Exception e) {
+      throw new ElementNotFoundException("Failed to get executor for type: " + injector.getType());
+    }
+  }
+
   private InjectStatus executeInternal(ExecutableInject executableInject, Injector injector) {
     Inject inject = executableInject.getInjection().getInject();
-    io.openaev.executors.Injector executor =
-        this.context.getBean(injector.getType(), io.openaev.executors.Injector.class);
+    io.openaev.executors.Injector executor = getInjectorExecutor(injector);
+
     Execution execution = executor.executeInjection(executableInject);
     // After execution, expectations are already created
     // Injection status is filled after complete execution

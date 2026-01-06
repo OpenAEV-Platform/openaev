@@ -6,19 +6,21 @@ import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.mastodon.model.MastodonContent;
 import io.openaev.injectors.mastodon.service.MastodonService;
 import io.openaev.model.ExecutionProcess;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
-@Component(MastodonContract.TYPE)
-@RequiredArgsConstructor
 public class MastodonExecutor extends Injector {
 
   private final MastodonService mastodonService;
+
+  public MastodonExecutor(InjectorContext context, final MastodonService mastodonService) {
+    super(context);
+    this.mastodonService = mastodonService;
+  }
 
   @Override
   public ExecutionProcess process(

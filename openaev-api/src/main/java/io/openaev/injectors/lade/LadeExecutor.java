@@ -10,18 +10,20 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
+import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.lade.service.LadeService;
 import io.openaev.model.ExecutionProcess;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
-@Component(LadeContract.TYPE)
-@RequiredArgsConstructor
 public class LadeExecutor extends Injector {
 
   private final LadeService ladeService;
+
+  public LadeExecutor(InjectorContext context, final LadeService ladeService) {
+    super(context);
+    this.ladeService = ladeService;
+  }
 
   @Override
   public ExecutionProcess process(
