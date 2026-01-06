@@ -924,14 +924,14 @@ class StixApiTest extends IntegrationTest {
       return rootNode;
     }
 
-    ObjectNode firstObject = (ObjectNode) objectsNode.get(index);
+    ObjectNode objectNode = (ObjectNode) objectsNode.get(index);
 
     if (newValues != null && !newValues.isEmpty()) {
       ArrayNode arrayNode = objectMapper.createArrayNode();
       newValues.forEach(arrayNode::add);
-      firstObject.set(fieldName, arrayNode);
+      objectNode.set(fieldName, arrayNode);
     } else if (newValue != null) {
-      firstObject.put(fieldName, newValue);
+      objectNode.put(fieldName, newValue);
     }
 
     ((ObjectNode) rootNode.path("event"))
