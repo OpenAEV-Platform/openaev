@@ -38,7 +38,6 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAllById(assetIds));
   }
 
-  @Cacheable("lowRetentionCache")
   public List<Asset> assetsFromFilterGroups(@NotNull Filters.FilterGroup filterGroup) {
     if (filterGroup.getFilters() == null || filterGroup.getFilters().isEmpty()) {
       return List.of();
