@@ -72,6 +72,11 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_labels")
   private Set<String> labels = new HashSet<>();
 
+  @Type(ListArrayType.class)
+  @Column(name = "security_coverage_platforms_affinity", columnDefinition = "text[]")
+  @JsonProperty("security_coverage_platforms_affinity")
+  private Set<String> platformsAffinity = new HashSet<>();
+
   @Type(JsonType.class)
   @Column(name = "security_coverage_attack_pattern_refs", columnDefinition = "jsonb")
   @JsonProperty("security_coverage_attack_pattern_refs")

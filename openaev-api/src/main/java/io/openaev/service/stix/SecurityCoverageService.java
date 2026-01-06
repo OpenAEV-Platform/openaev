@@ -149,9 +149,21 @@ public class SecurityCoverageService {
         labels.add(stixString.getValue());
       }
     }
+
     // Force opencti tag
     labels.add(OPENCTI_TAG_NAME);
     securityCoverage.setLabels(labels);
+
+    // platform affinity
+    Set<String> platformAffinity = new HashSet<>();
+    if (stixCoverageObj.hasProperty(STIX_PLATFORMS_AFFINITY)
+        && stixCoverageObj.getProperty(STIX_PLATFORMS_AFFINITY).getValue() != null) {
+      for (StixString stixString :
+          (List<StixString>) stixCoverageObj.getProperty(STIX_PLATFORMS_AFFINITY).getValue()) {
+        platformAffinity.add(stixString.getValue());
+      }
+    }
+    securityCoverage.setPlatformsAffinity(platformAffinity);
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
