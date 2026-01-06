@@ -15,6 +15,7 @@ import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.channel.model.VirtualArticle;
 import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;

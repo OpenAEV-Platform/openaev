@@ -99,16 +99,12 @@ public class NotificationRuleApiTest extends IntegrationTest {
             .resourceId("testid")
             .subject("testsubject")
             .build();
-    String response =
-        mvc.perform(
-                post(NOTIFICATION_RULE_URI)
-                    .content(asJsonString(input))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().is4xxClientError())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    mvc.perform(
+            post(NOTIFICATION_RULE_URI)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().is4xxClientError());
   }
 
   @Test

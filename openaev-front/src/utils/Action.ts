@@ -13,23 +13,13 @@ import { api } from '../network';
 import { store } from '../store';
 import { MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
-import enOpenAEV from './lang/en.json';
-import esOpenAEV from './lang/es.json';
-import frOpenAEV from './lang/fr.json';
-import zhOpenAEV from './lang/zh.json';
+import { oaevLocaleMap } from './locales';
 
 const isEmptyPath = R.isNil(window.BASE_PATH) || R.isEmpty(window.BASE_PATH);
 const contextPath = isEmptyPath || window.BASE_PATH === '/' ? '' : window.BASE_PATH;
 export const APP_BASE_PATH = isEmptyPath || contextPath.startsWith('/') ? contextPath : `/${contextPath}`;
 
 const cache = createIntlCache();
-
-const langOpenAEV = {
-  en: enOpenAEV,
-  es: esOpenAEV,
-  fr: frOpenAEV,
-  zh: zhOpenAEV,
-};
 
 export const buildUri = (uri: string) => `${APP_BASE_PATH}${uri}`;
 
@@ -53,16 +43,16 @@ const buildError = (data: AxiosError) => {
 };
 
 const notifySuccess = (message: string) => {
-  const messages = langOpenAEV[LANG as keyof typeof langOpenAEV] as Record<string, string>;
+  const messages = oaevLocaleMap[LANG as keyof typeof oaevLocaleMap] as Record<string, string>;
   const intl = createIntl({
     locale: LANG,
-    messages: langOpenAEV[LANG as keyof typeof langOpenAEV],
+    messages: oaevLocaleMap[LANG as keyof typeof oaevLocaleMap],
   }, cache);
 
-  if (!messages[message]) {
-    MESSAGING$.notifySuccess(message);
-  } else {
+  if (messages[message]) {
     MESSAGING$.notifySuccess(intl.formatMessage({ id: message }));
+  } else {
+    MESSAGING$.notifySuccess(message);
   }
 };
 
@@ -283,5 +273,5 @@ export const sendErrorToBackend = async (error: Error, stack: ErrorInfo) => {
     timestamp: new Date().toISOString(),
     level: 'SEVERE',
   };
-  simplePostCall('/api/logs', errorDetails);
+  await simplePostCall('/api/logs', errorDetails);
 };

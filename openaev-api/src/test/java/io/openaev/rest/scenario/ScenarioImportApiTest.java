@@ -13,7 +13,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import java.util.UUID;

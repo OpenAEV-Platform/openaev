@@ -57,7 +57,9 @@ public class TaniumGarbageCollectorService implements Runnable {
         action.setCommandEncoded(
             Base64.getEncoder().encodeToString(UNIX_CLEAN_PAYLOADS_COMMAND.getBytes()));
         actions.add(action);
-      }
+      default ->
+                throw new IllegalArgumentException("Invalid platform: " + endpoint.getPlatform());
+          }
       taniumExecutorContextService.executeActions(actions);
     }
   }

@@ -1,5 +1,4 @@
-name: Auto close issues and add solved label
-
+name: Auto Close and Solve Issues
 on:
   pull_request:
     branches:
@@ -7,89 +6,113 @@ on:
       - master
     types:
       - closed
-
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
 jobs:
-  check_issues_linked:
-    runs-on: ubuntu-latest
+  extract_issue_number:
     if: github.event.pull_request.merged == true
-    outputs:
-      issue_numbers: ${{ steps.get_linked_issues.outputs.issue_numbers }}
-    steps:
-      - name: Get linked issues from PR Development tab and matches with issues in PR description
-        id: get_linked_issues
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const query = `
-              query ($owner: String!, $repo: String!, $prNumber: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $prNumber) {
-                    closingIssuesReferences(first: 10) {
-                      nodes {
-                        number
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-            
-            const variables = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              prNumber: context.payload.pull_request.number
-            };
-            
-            const result = await github.graphql(query, variables);
-            const linkedIssues = result.repository.pullRequest.closingIssuesReferences.nodes.map(issue => issue.number);
-            if (linkedIssues.length > 0) {
-             const pr = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.payload.pull_request.number
-              });
-              const prBody = pr.data.body || "";
-              const issueRegex = /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #(\d+)/gi;
-              let issuesInDescription = []
-              while ((match = issueRegex.exec(prBody)) !== null) {
-                issuesInDescription.push(match[2]);
-              }
-              issuesInDescription = [...new Set(issuesInDescription)];
-            
-              core.setOutput("issue_numbers", issuesInDescription.join(' '));
-            }
-  auto_close_and_solve:
-    needs: check_issues_linked
-    if: ${{ needs.check_issues_linked.outputs.issue_numbers != '' && github.event.pull_request.merged == true}}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      issue_numbers: ${{ steps.extract.outputs.issue_numbers }}
     steps:
-      - name: Add "solved" label to issues
-        uses: actions/github-script@v7
+      - name: Extract issue numbers from PR title
+        id: extract
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issueNumbers = "${{ needs.check_issues_linked.outputs.issue_numbers }}".split(' ');
-            for (const issueNumber of issueNumbers) {
-              github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                labels: ["solved"]
-              });
+            const prTitle = context.payload.pull_request.title;
+            core.info(`PR Title: ${prTitle}`);
+            
+            // Match only issue-containing groups at the end
+            const endPattern = /(?:\((?:[^)]*#\d+[^)]*)\)|#\d+)(?:\s+(?:\((?:[^)]*#\d+[^)]*)\)|#\d+))*\s*$/;
+            const endMatch = prTitle.match(endPattern);
+            
+            let issueNumbers = [];
+            
+            if (endMatch) {
+              // Extract all #number patterns from the matched section
+              const allMatches = endMatch[0].matchAll(/#(\d+)/g);
+              issueNumbers = [...allMatches]
+                .map(match => match[1])
+                .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+            
+              if (issueNumbers.length > 0) {
+                core.info(`Found ${issueNumbers.length} issue number(s): ${issueNumbers.join(', ')}`);
+                core.setOutput('issue_numbers', issueNumbers.join(' '));
+              } else {
+                core.warning('No issue numbers found at the end of PR title');
+                core.setOutput('issue_numbers', '');
+              }
+            } else {
+              core.warning('No issue numbers found at the end of PR title');
+              core.setOutput('issue_numbers', '');
             }
-      - name: Close the issues
-        if: startsWith(github.event.pull_request.base.ref, 'release/')
-        uses: actions/github-script@v7
+
+  auto_close_and_solve:
+    needs: extract_issue_number
+    if: needs.extract_issue_number.outputs.issue_numbers != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Add "solved" label and close issues
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issueNumbers = "${{ needs.check_issues_linked.outputs.issue_numbers }}".split(' ');
+            const issueNumbers = "${{ needs.extract_issue_number.outputs.issue_numbers }}"
+              .split(' ')
+              .filter(num => num.trim() !== '');
+            
+            core.info(`Processing ${issueNumbers.length} issue(s): ${issueNumbers.join(', ')}`);
+            core.startGroup('Processing Issues');
+            
+            let successCount = 0;
+            let failureCount = 0;
+            
             for (const issueNumber of issueNumbers) {
-              github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                state: "closed"
-              });
+              try {
+                core.startGroup(`Issue #${issueNumber}`);
+            
+                // Add "solved" label
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parseInt(issueNumber),
+                  labels: ["solved"]
+                });
+                core.info(`✓ Added "solved" label`);
+            
+                // Close the issue
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parseInt(issueNumber),
+                  state: "closed"
+                });
+                core.info(`✓ Closed issue`);
+            
+                successCount++;
+                core.endGroup();
+            
+              } catch (error) {
+                core.error(`✗ Failed to process issue #${issueNumber}: ${error.message}`);
+                failureCount++;
+                core.endGroup();
+              }
+            }
+            
+            core.endGroup();
+            
+            // Summary
+            core.notice(`Successfully processed ${successCount} issue(s)`);
+            if (failureCount > 0) {
+              core.warning(`Failed to process ${failureCount} issue(s)`);
             }
