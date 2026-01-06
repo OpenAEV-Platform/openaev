@@ -3,6 +3,7 @@ import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import availableExpectationsForInject from '../../../../../actions/expectations/expectation-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -22,7 +23,6 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface InjectExpectationsProps {
-  predefinedExpectationDatas: ExpectationInput[];
   expectationDatas: ExpectationInput[];
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
@@ -31,7 +31,6 @@ interface InjectExpectationsProps {
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
-  predefinedExpectationDatas = [],
   expectationDatas,
   handleExpectations,
   injectId,
@@ -46,12 +45,13 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
     || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [sortedExpectations, setSortedExpectations] = useState<ExpectationInput[]>([]);
+  const [availableExpectations, setAvailableExpectations] = useState<ExpectationInput[]>([]);
   const [sortBy] = useState('expectation_name');
   const [sortAsc] = useState(true);
 
   // Filter predefinedExpectations already included into expectations
-  const predefinedExpectations = useMemo(() => predefinedExpectationDatas
-    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type)), [sortedExpectations]);
+  const predefinedExpectations = useMemo(() => availableExpectations
+    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type)), [sortedExpectations, availableExpectations]);
 
   const sortExpectations = R.sortWith(
     sortAsc
@@ -64,6 +64,14 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
       setSortedExpectations(sortExpectations(expectationDatas));
     }
   }, [expectationDatas]);
+
+  useEffect(() => {
+    if (!availableExpectations || availableExpectations.length === 0) {
+      availableExpectationsForInject(isHumanInject).then((result: { data: ExpectationInput[] }) => {
+        setAvailableExpectations(result.data);
+      });
+    }
+  }, [availableExpectations]);
 
   // -- ACTIONS --
 
@@ -139,7 +147,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
         && (
           <InjectAddExpectation
             handleAddExpectation={handleAddExpectation}
-            predefinedExpectations={predefinedExpectations}
+            predefinedExpectations={predefinedExpectations.filter(e => e.expectation_type !== 'MANUAL')} // Manual expectations can be added as many times as we want
             isHumanInject={isHumanInject}
           />
         )}

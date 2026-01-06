@@ -799,7 +799,7 @@ public class InjectExpectationService {
             injectExpectation -> injectExpectation.setResults(setUpFromCollectors(collectors)));
   }
 
-  public List<io.openaev.model.inject.form.Expectation> getAvailableInjectExpectationsForInject(
+  public List<io.openaev.model.inject.form.Expectation> getAvailableExpectationsForInject(
       boolean isHumanInject) {
     return isHumanInject
         ? List.of(expectationBuilderService.buildManualExpectation())

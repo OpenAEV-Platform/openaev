@@ -170,11 +170,10 @@ public class ExpectationApi extends RestBehavior {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
   }
 
-  @Operation(summary = "Get available inject expectations for an inject (technical or human)")
+  @Operation(summary = "Get available expectations for an inject (technical or human)")
   @GetMapping(INJECTS_EXPECTATIONS_URI + "/available")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  public List<Expectation> getAvailableInjectExpectationsForInject(
-      @RequestParam boolean isHumanInject) {
-    return injectExpectationService.getAvailableInjectExpectationsForInject(isHumanInject);
+  public List<Expectation> getAvailableExpectationsForInject(@RequestParam boolean isHumanInject) {
+    return injectExpectationService.getAvailableExpectationsForInject(isHumanInject);
   }
 }
