@@ -556,7 +556,6 @@ const CreateInject: FunctionComponent<Props> = ({
               />
             </div>
           </Slide>
-
         )}
         {
           numberOfSelectedElements > 0 && (
