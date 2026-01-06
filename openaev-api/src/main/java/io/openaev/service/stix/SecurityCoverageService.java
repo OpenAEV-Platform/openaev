@@ -177,7 +177,7 @@ public class SecurityCoverageService {
     }
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
-    stixCoverageObj.setInstantIfPresent(STIX_MODIFIED, securityCoverage::setStixModified);
+    stixCoverageObj.setInstantIfPresent(MODIFIED, securityCoverage::setStixModified);
 
     log.info("Saving Security coverage with external ID: {}", securityCoverage.getExternalId());
     return save(securityCoverage);
