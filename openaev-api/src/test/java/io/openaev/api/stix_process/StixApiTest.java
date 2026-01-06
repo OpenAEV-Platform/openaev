@@ -230,15 +230,18 @@ class StixApiTest extends IntegrationTest {
     void
         whenSecurityCoverageSDOHasLabelsPropertyButNotTheOpenctiValue_shouldForceAddingOpenctiTagToScenario()
             throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverage, CommonProperties.LABELS.name(), null, List.of("some-label"));
+              stixSecurityCoverage,
+              CommonProperties.LABELS.toString(),
+              null,
+              List.of("some-label"));
 
       String response =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(updated))
+                      .content(mapper.writeValueAsString(updated)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -280,7 +283,7 @@ class StixApiTest extends IntegrationTest {
                   .withAttackPattern(attackPatternWrapper))
           .persist();
 
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage, CommonProperties.LABELS.name(), label, emptyList());
 
@@ -291,7 +294,7 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(updated))
+                      .content(mapper.writeValueAsString(updated)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -323,14 +326,14 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return 400 when STIX bundle has no security coverage")
     void shouldReturnBadRequestWhenNoSecurityCoverage() throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverage, CommonProperties.TYPE.name(), "x-other-type", emptyList());
+              stixSecurityCoverage, CommonProperties.TYPE.toString(), "x-other-type", emptyList());
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(updated))
+                  .content(mapper.writeValueAsString(updated)))
           .andExpect(status().isBadRequest());
     }
 
@@ -439,11 +442,18 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      JsonNode updated =
+          updateStixObjectField(
+              stixSecurityCoverage,
+              CommonProperties.MODIFIED.toString(),
+              Instant.now().minus(30, ChronoUnit.DAYS).toString(),
+              emptyList());
+
       // Push an old Stix
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage)))
+                  .content(mapper.writeValueAsString(updated)))
           .andExpect(status().isBadRequest());
     }
 
@@ -504,13 +514,13 @@ class StixApiTest extends IntegrationTest {
         "Should create scenario with 1 injects with 3 assets when contract has no field asset group but asset")
     void shouldCreateScenarioWithOneInjectWithThreeEndpointsWhenContractHasNotAssetGroupField()
         throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageOnlyVulns,
               CommonProperties.LABELS.toString(),
               null,
               List.of("coverage"));
-      String scenarioId = getScenarioIdResponse(updated);
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -527,19 +537,15 @@ class StixApiTest extends IntegrationTest {
         "Should create scenario with 1 injects with 1 asset group when contract has field asset group")
     void shouldCreateScenarioWithOneInjectWithOneAssetGroupWhenContractHasAssetGroupField()
         throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageOnlyVulns,
               CommonProperties.LABELS.toString(),
               null,
               List.of("empty-asset-group"));
       updated =
-          updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              StixConstants.STIX_NAME,
-              "CVE-2025-56786",
-              emptyList());
-      String scenarioId = getScenarioIdResponse(updated);
+          updateStixObjectField(updated, StixConstants.STIX_NAME, "CVE-2025-56786", emptyList());
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -555,13 +561,13 @@ class StixApiTest extends IntegrationTest {
     @DisplayName(
         "Should create scenario with 1 inject for vulnerability when no asset group is present")
     void shouldCreateScenarioWithOneInjectWhenNoAssetGroupsExist() throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageOnlyVulns,
               CommonProperties.LABELS.toString(),
               null,
               List.of("no-asset-groups"));
-      String scenarioId = getScenarioIdResponse(updated);
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -605,7 +611,7 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage,
               CommonProperties.MODIFIED.toString(),
@@ -613,7 +619,7 @@ class StixApiTest extends IntegrationTest {
               emptyList());
 
       // Push same stix in order to check the number of created injects
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
@@ -634,7 +640,7 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(4);
 
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageWithoutTtps,
               CommonProperties.MODIFIED.toString(),
@@ -642,7 +648,7 @@ class StixApiTest extends IntegrationTest {
               emptyList());
 
       // Push stix without object type attack-pattern
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
@@ -675,7 +681,7 @@ class StixApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageWithoutVulns,
               CommonProperties.MODIFIED.toString(),
@@ -683,7 +689,7 @@ class StixApiTest extends IntegrationTest {
               emptyList());
 
       // Push stix without object type attack-pattern
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
@@ -713,7 +719,7 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(4);
 
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageWithoutObjects,
               CommonProperties.MODIFIED.toString(),
@@ -721,7 +727,7 @@ class StixApiTest extends IntegrationTest {
               emptyList());
 
       // Push stix without object type attack-pattern
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
@@ -734,13 +740,13 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should not update existing injects when some target is removed")
     void shouldNotUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageOnlyVulns,
               CommonProperties.LABELS.toString(),
               null,
               List.of("coverage"));
-      String scenarioId = getScenarioIdResponse(updated);
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -750,18 +756,12 @@ class StixApiTest extends IntegrationTest {
 
       updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("empty-asset-groups"));
+              updated, CommonProperties.LABELS.toString(), null, List.of("empty-asset-groups"));
       updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.MODIFIED.toString(),
-              Instant.now().toString(),
-              emptyList());
+              updated, CommonProperties.MODIFIED.toString(), Instant.now().toString(), emptyList());
 
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
@@ -771,13 +771,13 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should not update existing injects when more targets are added")
     void shouldNotUpdateInjectsWhenTargetsAreAdded() throws Exception {
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverageOnlyVulns,
               CommonProperties.LABELS.toString(),
               null,
               List.of("empty-asset-groups"));
-      String scenarioId = getScenarioIdResponse(updated);
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
@@ -787,18 +787,12 @@ class StixApiTest extends IntegrationTest {
 
       updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("coverage"));
+              updated, CommonProperties.LABELS.toString(), null, List.of("coverage"));
       updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.MODIFIED.toString(),
-              Instant.now().toString(),
-              null);
+              updated, CommonProperties.MODIFIED.toString(), Instant.now().toString(), null);
 
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
@@ -822,13 +816,13 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
 
       String modifiedDateForTesting = Instant.now().toString();
-      String updated =
+      JsonNode updated =
           updateStixObjectField(
               stixSecurityCoverage,
               CommonProperties.MODIFIED.toString(),
               modifiedDateForTesting,
               null);
-      scenarioId = getScenarioIdResponse(updated);
+      scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getSecurityCoverage().getStixModified())
           .isEqualTo(modifiedDateForTesting);
@@ -892,22 +886,33 @@ class StixApiTest extends IntegrationTest {
     return rootNode;
   }
 
-  private String updateStixObjectField(
+  private JsonNode updateStixObjectField(
       JsonNode rootNode, String fieldName, String newValue, List<String> newValues)
       throws JsonProcessingException {
-    JsonNode objectsArray = rootNode.path("event").path("stix_objects").path("objects");
-    if (!objectsArray.isArray() || objectsArray.size() == 0)
-      return mapper.writeValueAsString(rootNode);
 
-    ObjectNode firstObject = (ObjectNode) objectsArray.get(0);
+    ObjectMapper objectMapper = new ObjectMapper();
 
-    if (newValues != null) {
-      ArrayNode arrayNode = mapper.createArrayNode();
+    JsonNode stixTextNode = rootNode.path("event").path("stix_objects");
+    ObjectNode stixNode = (ObjectNode) objectMapper.readTree(stixTextNode.asText());
+
+    JsonNode objectsNode = stixNode.path("objects");
+    if (!objectsNode.isArray() || objectsNode.size() == 0) {
+      return rootNode;
+    }
+
+    ObjectNode firstObject = (ObjectNode) objectsNode.get(0);
+
+    if (newValues != null && !newValues.isEmpty()) {
+      ArrayNode arrayNode = objectMapper.createArrayNode();
       newValues.forEach(arrayNode::add);
       firstObject.set(fieldName, arrayNode);
     } else if (newValue != null) {
       firstObject.put(fieldName, newValue);
     }
-    return mapper.writeValueAsString(rootNode);
+
+    ((ObjectNode) rootNode.path("event"))
+        .put("stix_objects", objectMapper.writeValueAsString(stixNode));
+
+    return rootNode;
   }
 }
