@@ -289,7 +289,7 @@ class StixApiTest extends IntegrationTest {
 
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverage, CommonProperties.LABELS.name(), label, emptyList(), 0);
+              stixSecurityCoverage, CommonProperties.LABELS.toString(), null, List.of(label), 0);
 
       String response =
           mvc.perform(
