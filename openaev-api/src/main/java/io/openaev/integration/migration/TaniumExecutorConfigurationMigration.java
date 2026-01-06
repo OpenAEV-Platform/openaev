@@ -12,11 +12,13 @@ public class TaniumExecutorConfigurationMigration extends ConfigurationMigration
   public TaniumExecutorConfigurationMigration(
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
-      TaniumExecutorConfig config, EncryptionFactory encryptionFactory) {
+      TaniumExecutorConfig config,
+      EncryptionFactory encryptionFactory) {
     super(
         config,
         TaniumExecutorIntegrationFactory.class.getCanonicalName(),
         catalogConnectorService,
-        connectorInstanceService, encryptionFactory);
+        connectorInstanceService,
+        encryptionFactory);
   }
 }

@@ -1,7 +1,5 @@
 package io.openaev.integration.migration;
 
-import static io.openaev.database.model.CatalogConnectorConfiguration.ENCRYPTED_FORMATS;
-
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
@@ -66,7 +64,8 @@ public abstract class ConfigurationMigration {
     }
     instance.setSource(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION);
 
-    instance.setConfigurations(configuration.toInstanceConfigurationSet(instance, encryptionFactory));
+    instance.setConfigurations(
+        configuration.toInstanceConfigurationSet(instance, encryptionFactory));
 
     connectorInstanceService.save(instance);
   }
