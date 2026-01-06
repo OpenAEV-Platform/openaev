@@ -74,7 +74,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopov
           connectorInstanceId={instance.connector_instance_id}
           onClose={onCloseUpdateConnectorInstanceDrawer}
           connectorType={catalogConnector.catalog_connector_type}
-          disabled={!isXtmComposerUp}
+          disabled={!isXtmComposerUp && catalogConnector.catalog_connector_manager_supported}
           disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
         />
       )}

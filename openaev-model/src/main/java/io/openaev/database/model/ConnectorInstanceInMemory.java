@@ -19,4 +19,11 @@ public class ConnectorInstanceInMemory extends ConnectorInstance {
   private String className;
 
   private String id;
+
+  private CatalogConnector catalogConnector;
+
+  @Override
+  public CatalogConnector getCatalogConnector() {
+    return this.catalogConnector;
+  }
 }

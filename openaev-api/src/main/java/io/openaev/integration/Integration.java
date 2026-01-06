@@ -2,6 +2,7 @@ package io.openaev.integration;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.helper.ConnectorInstanceHashHelper;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
@@ -21,6 +22,8 @@ public abstract class Integration {
   protected ConnectorInstance.CURRENT_STATUS_TYPE currentStatus =
       ConnectorInstance.CURRENT_STATUS_TYPE.stopped;
 
+  private String appliedHash;
+
   protected Integration(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
@@ -36,6 +39,8 @@ public abstract class Integration {
     if (ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
       this.innerStart();
       this.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
+      this.appliedHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
+      ;
     } else {
       log.warn("Trying to start already started instance.");
     }
@@ -57,6 +62,25 @@ public abstract class Integration {
         // exit early to finally block
         this.stop();
         return;
+      }
+
+      String instanceHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
+      if (this.appliedHash == null) {
+        this.appliedHash = instanceHash;
+      }
+      boolean isRunning =
+          ConnectorInstancePersisted.CURRENT_STATUS_TYPE.started.equals(this.currentStatus);
+      boolean isStoppingRequested =
+          ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping.equals(
+              this.connectorInstance.getRequestedStatus());
+
+      if (isRunning
+          && !isStoppingRequested
+          && this.appliedHash != null
+          && !instanceHash.equals(this.appliedHash)) {
+
+        this.stop();
+        this.start();
       }
       // only try to start stopped instances
       if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting.equals(

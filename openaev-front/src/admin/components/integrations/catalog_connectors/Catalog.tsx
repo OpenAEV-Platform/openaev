@@ -69,7 +69,7 @@ const Catalog = () => {
           catalogConnectorSlug={selectedConnector.catalog_connector_slug}
           onClose={onCloseCreateConnectorInstanceDrawer}
           connectorType={selectedConnector.catalog_connector_type}
-          disabled={!isXtmComposerUp}
+          disabled={!isXtmComposerUp && selectedConnector.catalog_connector_manager_supported}
           disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedConnector.catalog_connector_type.toLowerCase() })}
         />
       )}

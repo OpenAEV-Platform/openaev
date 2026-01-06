@@ -41,4 +41,6 @@ public abstract class ConnectorInstance {
   public abstract void setConfigurations(Set<ConnectorInstanceConfiguration> newConfigurations);
 
   public abstract String getClassName();
+
+  public abstract CatalogConnector getCatalogConnector();
 }

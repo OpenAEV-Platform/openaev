@@ -6,16 +6,13 @@ import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.database.model.*;
+import io.openaev.helper.ConnectorInstanceHashHelper;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PlatformSettingsService;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,54 +30,6 @@ public class XtmComposerService {
     return XtmComposerOutput.builder().id(composerId).version(composerVersion).build();
   }
 
-  private String hashWithSHA256(String text) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
-
-      // Convert byte array to hex string
-      StringBuilder hexString = new StringBuilder(2 * hash.length);
-      for (byte b : hash) {
-        String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private String getImageVersionString(CatalogConnector catalogConnector) {
-    if (catalogConnector.getContainerImage().isEmpty()) {
-      return "";
-    }
-    return String.format(
-        "%s:%s", catalogConnector.getContainerImage(), catalogConnector.getContainerVersion());
-  }
-
-  private String transformConnectorInstanceConfigurationToString(
-      Set<ConnectorInstanceConfiguration> configurations) {
-    return configurations.stream()
-        .filter(c -> c != null && c.getKey() != null && c.getValue() != null)
-        .sorted(Comparator.comparing(ConnectorInstanceConfiguration::getKey))
-        .map(c -> String.format("%s=%s", c.getKey(), c.getValue()))
-        .collect(Collectors.joining(";"));
-  }
-
-  private String computeInstanceHash(ConnectorInstancePersisted instance) {
-    if (instance == null) {
-      throw new IllegalArgumentException("Instance cannot be null");
-    }
-    String image = getImageVersionString(instance.getCatalogConnector());
-    String config = transformConnectorInstanceConfigurationToString(instance.getConfigurations());
-    String dataToHash = String.format("IMAGE[%s]|CONFIG[%s]", image, config);
-    return hashWithSHA256(dataToHash);
-  }
-
   public XtmComposerInstanceOutput toXtmComposerInstanceOutput(
       ConnectorInstancePersisted instance) {
     return XtmComposerInstanceOutput.builder()
@@ -89,7 +38,7 @@ public class XtmComposerService {
         .currentStatus(instance.getCurrentStatus())
         .requestedStatus(instance.getRequestedStatus())
         .image(instance.getCatalogConnector().getContainerImage())
-        .hash(computeInstanceHash(instance))
+        .hash(ConnectorInstanceHashHelper.computeInstanceHash(instance))
         .configurations(
             instance.getConfigurations().stream()
                 .map(
