@@ -19,6 +19,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -41,6 +42,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final PlatformSettingsService platformSettingsService;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
+  private final EncryptionFactory encryptionFactory;
 
   public CalderaExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -54,7 +56,8 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       InjectorService injectorService,
       PlatformSettingsService platformSettingsService,
       ThreadPoolTaskScheduler taskScheduler,
-      FileService fileService) {
+      FileService fileService,
+      EncryptionFactory encryptionFactory) {
     super(connectorInstanceService, catalogConnectorService);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -68,6 +71,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     this.platformSettingsService = platformSettingsService;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
+    this.encryptionFactory = encryptionFactory;
   }
 
   @Override
@@ -115,7 +119,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance.getConfigurations(), CalderaExecutorConfig.class),
+            instance, CalderaExecutorConfig.class, encryptionFactory),
         endpointService,
         agentService,
         executorService,

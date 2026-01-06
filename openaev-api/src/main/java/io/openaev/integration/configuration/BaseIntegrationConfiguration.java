@@ -3,11 +3,10 @@ package io.openaev.integration.configuration;
 import static io.openaev.database.model.CatalogConnectorConfiguration.ENCRYPTED_FORMATS;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.*;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
 import jakarta.validation.constraints.NotNull;
@@ -26,7 +25,9 @@ public class BaseIntegrationConfiguration {
   @Getter @Setter private boolean enable = false;
 
   public static <T extends BaseIntegrationConfiguration> T fromConnectorInstanceConfigurationSet(
-      @NotNull Set<ConnectorInstanceConfiguration> configurations, Class<T> targetClass)
+      @NotNull ConnectorInstance instance,
+      Class<T> targetClass,
+      EncryptionFactory encryptionFactory)
       throws NoSuchMethodException,
           InvocationTargetException,
           InstantiationException,
@@ -37,12 +38,26 @@ public class BaseIntegrationConfiguration {
         FieldUtils.getAllDeclaredAnnotatedFields(targetClass, IntegrationConfigKey.class);
     for (Field field : annotatedFields) {
       Optional<ConnectorInstanceConfiguration> config =
-          configurations.stream()
+          instance.getConfigurations().stream()
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
               .findFirst();
       if (config.isPresent()) {
-        FieldUtils.setField(
-            newObj, field, JsonUtils.fromJsonNode(config.get().getValue(), field.getType()));
+        if (config.get().isEncrypted() && instance instanceof ConnectorInstancePersisted) {
+          FieldUtils.setField(
+              newObj,
+              field,
+              JsonUtils.fromJsonNode(
+                  new ObjectMapper()
+                      .valueToTree(
+                          encryptionFactory
+                              .getEncryptionService(
+                                  ((ConnectorInstancePersisted) instance).getCatalogConnector())
+                              .decrypt(config.get().getValue().asText())),
+                  field.getType()));
+        } else {
+          FieldUtils.setField(
+              newObj, field, JsonUtils.fromJsonNode(config.get().getValue(), field.getType()));
+        }
       } else {
         FieldUtils.setField(newObj, field, null);
       }
@@ -51,20 +66,35 @@ public class BaseIntegrationConfiguration {
   }
 
   public Set<ConnectorInstanceConfiguration> toInstanceConfigurationSet(
-      ConnectorInstancePersisted relatedInstance) {
+      ConnectorInstancePersisted relatedInstance, EncryptionFactory encryptionFactory) {
     List<Field> annotatedFields =
         FieldUtils.getAllDeclaredAnnotatedFields(this.getClass(), IntegrationConfigKey.class);
     return annotatedFields.stream()
         .map(
-            af ->
-                ConnectorInstanceConfiguration.builder()
-                    .key(af.getAnnotation(IntegrationConfigKey.class).key())
-                    .value(mapper.valueToTree(FieldUtils.getField(this, af)))
-                    .isEncrypted(
-                        ENCRYPTED_FORMATS.contains(
-                            af.getAnnotation(IntegrationConfigKey.class).valueFormat()))
-                    .connectorInstance(relatedInstance)
-                    .build())
+            af -> {
+              JsonNode value = mapper.valueToTree(FieldUtils.getField(this, af));
+              boolean isEncrypted =
+                  ENCRYPTED_FORMATS.contains(
+                      af.getAnnotation(IntegrationConfigKey.class).valueFormat());
+              if (isEncrypted) {
+                try {
+                  value =
+                      mapper.valueToTree(
+                          encryptionFactory
+                              .getEncryptionService(relatedInstance.getCatalogConnector())
+                              .encrypt(value.toString()));
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }
+
+              return ConnectorInstanceConfiguration.builder()
+                  .key(af.getAnnotation(IntegrationConfigKey.class).key())
+                  .value(value)
+                  .isEncrypted(isEncrypted)
+                  .connectorInstance(relatedInstance)
+                  .build();
+            })
         .collect(Collectors.toSet());
   }
 

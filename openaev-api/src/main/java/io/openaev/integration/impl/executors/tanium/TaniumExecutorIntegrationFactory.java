@@ -20,6 +20,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -43,6 +44,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
+  private final EncryptionFactory encryptionFactory;
 
   public TaniumExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -57,7 +59,8 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
       Ee eeService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
-      FileService fileService) {
+      FileService fileService,
+      EncryptionFactory encryptionFactory) {
     super(connectorInstanceService, catalogConnectorService);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -72,6 +75,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
+    this.encryptionFactory = encryptionFactory;
   }
 
   @Override
@@ -121,7 +125,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
         connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance.getConfigurations(), TaniumExecutorConfig.class),
+            instance, TaniumExecutorConfig.class, encryptionFactory),
         endpointService,
         agentService,
         assetGroupService,

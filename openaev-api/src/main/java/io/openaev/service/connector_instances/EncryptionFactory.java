@@ -12,6 +12,8 @@ public class EncryptionFactory {
 
   private final XtmComposerEncryptionService xtmComposerEncryptionService;
 
+  private final NativeEncryptionService nativeEncryptionService;
+
   /**
    * Gets the appropriate encryption strategy based on catalog connector type.
    *
@@ -22,7 +24,6 @@ public class EncryptionFactory {
     if (catalogConnector.isManagerSupported()) {
       return xtmComposerEncryptionService;
     }
-    log.warn("Built-in encryption not yet implemented for instance");
-    return null; // TODO issue 4313
+    return nativeEncryptionService;
   }
 }

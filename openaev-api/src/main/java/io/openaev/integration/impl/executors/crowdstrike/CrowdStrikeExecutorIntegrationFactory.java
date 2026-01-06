@@ -20,6 +20,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -42,6 +43,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final ConnectorInstanceService connectorInstanceService;
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
+  private final EncryptionFactory encryptionFactory;
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -56,7 +58,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
       CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration,
-      FileService fileService) {
+      FileService fileService,
+      EncryptionFactory encryptionFactory) {
     super(connectorInstanceService, catalogConnectorService);
     this.client = client;
     this.endpointService = endpointService;
@@ -71,6 +74,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.connectorInstanceService = connectorInstanceService;
     this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
     this.fileService = fileService;
+    this.encryptionFactory = encryptionFactory;
   }
 
   @Override
@@ -122,7 +126,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         connectorInstanceService,
         client,
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance.getConfigurations(), CrowdStrikeExecutorConfig.class),
+            instance, CrowdStrikeExecutorConfig.class, encryptionFactory),
         endpointService,
         agentService,
         assetGroupService,
