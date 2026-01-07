@@ -2337,6 +2337,7 @@ export interface ExpectationUpdateInput {
   expectation_score: number;
   source_id: string;
   source_name: string;
+  source_platform?: string;
   source_type: string;
 }
 
@@ -2849,6 +2850,7 @@ export interface InjectExpectationResult {
   score?: number;
   sourceId?: string;
   sourceName?: string;
+  sourcePlatform?: string;
   sourceType?: string;
 }
 

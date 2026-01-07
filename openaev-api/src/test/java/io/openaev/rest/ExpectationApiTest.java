@@ -412,6 +412,7 @@ class ExpectationApiTest extends IntegrationTest {
                       .sourceId(savedCollector.getId())
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
+                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                       .score(50.0)
                       .build()));
 
@@ -491,6 +492,7 @@ class ExpectationApiTest extends IntegrationTest {
                       .sourceId(savedCollector.getId())
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
+                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                       .result("result")
                       .score(80.0)
                       .build()));
@@ -573,6 +575,7 @@ class ExpectationApiTest extends IntegrationTest {
                       .sourceId(savedCollector.getId())
                       .sourceName(savedCollector.getName())
                       .sourceType(savedCollector.getType())
+                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                       .result("result")
                       .score(90.0)
                       .build()));

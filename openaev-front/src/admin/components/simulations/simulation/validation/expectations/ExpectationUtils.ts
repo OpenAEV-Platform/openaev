@@ -1,4 +1,4 @@
-import { type InjectExpectation } from '../../../../../../utils/api-types';
+import { type InjectExpectation, type InjectExpectationResult } from '../../../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { isManualExpectation } from '../../../../common/injects/expectations/ExpectationUtils';
 
@@ -47,4 +47,20 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectation) => 
     return true;
   }
   return false;
+};
+
+/**
+ * Returns a formatted label for the source of an expectation result.
+ *
+ * @param {InjectExpectationResult | null | undefined} expectationResult - The result object containing source information.
+ * @returns {string} The formatted source label, e.g. "sourceName (sourcePlatform)" or "-" if not available.
+ */
+export const getSourceLabel = (
+  expectationResult?: InjectExpectationResult | null,
+): string => {
+  return `${expectationResult?.sourceName ?? '-'}${
+    expectationResult?.sourcePlatform
+      ? ` (${expectationResult.sourcePlatform})`
+      : ''
+  }`;
 };

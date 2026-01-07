@@ -21,6 +21,9 @@ public class ExpectationUpdateInput {
   @NotNull
   private String sourceName;
 
+  @JsonProperty("source_platform")
+  private String sourcePlatform;
+
   @JsonProperty("expectation_score")
   @NotNull
   private Double score;

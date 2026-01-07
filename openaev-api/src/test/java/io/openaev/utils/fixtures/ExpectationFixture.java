@@ -53,6 +53,7 @@ public class ExpectationFixture {
         .sourceId(sourceId)
         .sourceName("security-platform-name")
         .sourceType("security-platform-type")
+        .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
         .score(score)
         .build();
   }
