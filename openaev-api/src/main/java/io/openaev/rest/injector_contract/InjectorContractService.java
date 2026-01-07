@@ -305,6 +305,9 @@ public class InjectorContractService {
             supportedTargetTypes.add(TargetType.ASSETS_GROUPS);
         case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET -> supportedTargetTypes.add(TargetType.ASSETS);
         case CONTRACT_ELEMENT_CONTENT_TYPE_TEAM -> supportedTargetTypes.add(TargetType.TEAMS);
+        default -> {
+          // ignore other types: expectations, text, textarea
+        }
       }
     }
 

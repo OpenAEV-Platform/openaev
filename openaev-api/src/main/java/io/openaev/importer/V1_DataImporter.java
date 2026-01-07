@@ -33,7 +33,7 @@ import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
 import io.openaev.service.InjectorService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Resource;

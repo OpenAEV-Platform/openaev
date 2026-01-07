@@ -1,9 +1,9 @@
 import { type FunctionComponent } from 'react';
 
-import { type Executor } from '../../../utils/api-types';
+import { type ExecutorOutput } from '../../../utils/api-types';
 
 interface ExecutorBannerProps {
-  executor: Executor;
+  executor: ExecutorOutput;
   height?: number;
 }
 

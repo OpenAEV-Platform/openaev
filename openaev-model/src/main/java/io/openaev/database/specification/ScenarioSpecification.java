@@ -27,6 +27,13 @@ public class ScenarioSpecification {
             cb.lessThanOrEqualTo(root.get("recurrenceStart"), startDate));
   }
 
+  public static Specification<Scenario> recurrenceSartDateAfter(@NotNull final Instant startDate) {
+    return (root, query, cb) ->
+        cb.or(
+            cb.isNull(root.get("recurrenceStart")),
+            cb.greaterThanOrEqualTo(root.get("recurrenceStart"), startDate));
+  }
+
   public static Specification<Scenario> recurrenceStopDateAfter(@NotNull final Instant stopDate) {
     return (root, query, cb) ->
         cb.or(

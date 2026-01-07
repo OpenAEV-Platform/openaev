@@ -1,6 +1,6 @@
 package io.openaev.executors.crowdstrike.service;
 
-import static io.openaev.utils.TimeUtils.toInstant;
+import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;

@@ -128,14 +128,9 @@ class CveApiTest extends IntegrationTest {
           .getResponse()
           .getContentAsString();
 
-      Assertions.assertTrue(
-          updateInput
-              .getDescription()
-              .equals(
-                  vulnerabilityRepository
-                      .findById(cve.getId())
-                      .map(cve1 -> cve1.getDescription())
-                      .get()));
+      Assertions.assertEquals(
+          updateInput.getDescription(),
+          vulnerabilityRepository.findById(cve.getId()).map(cve1 -> cve1.getDescription()).get());
     }
 
     @Test

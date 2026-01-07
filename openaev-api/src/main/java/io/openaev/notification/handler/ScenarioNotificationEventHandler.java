@@ -8,7 +8,7 @@ import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.service.NotificationRuleService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import jakarta.validation.constraints.NotNull;
 import java.time.ZoneId;
