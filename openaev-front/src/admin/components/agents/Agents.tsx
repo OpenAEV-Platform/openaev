@@ -10,7 +10,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type Executor } from '../../../utils/api-types';
+import { type ExecutorOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ExecutorDocumentationLink from './ExecutorDocumentationLink';
@@ -29,7 +29,7 @@ const Executors = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const [platform, setPlatform] = useState<null | string>(null);
-  const [selectedExecutor, setSelectedExecutor] = useState<null | Executor>(null);
+  const [selectedExecutor, setSelectedExecutor] = useState<null | ExecutorOutput>(null);
   const [activeStep, setActiveStep] = useState(0);
   const dispatch = useAppDispatch();
 
@@ -53,9 +53,9 @@ const Executors = () => {
     openaev_sentinelone: 4,
   };
 
-  const sortedExecutors = executors.sort((a: Executor, b: Executor) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
+  const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
-  const showEEChip = (executor: Executor) => !settings.platform_license?.license_is_validated
+  const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
     && (executor.executor_type === OPENAEV_TANIUM || executor.executor_type === OPENAEV_CROWDSTRIKE || executor.executor_type === OPENAEV_SENTINELONE);
 
   // -- Manage Dialogs
@@ -88,7 +88,7 @@ const Executors = () => {
         .
       </Alert>
       <Grid container spacing={3}>
-        {sortedExecutors.map((executor: Executor) => (
+        {sortedExecutors.map((executor: ExecutorOutput) => (
           <Grid key={executor.executor_id} style={{ width: '20%' }}>
             <ExecutorSelector
               executor={executor}

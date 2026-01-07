@@ -23,6 +23,9 @@ public class ExecutorMapper {
         .updatedAt(executor.getUpdatedAt())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(isVerified)
+        .platforms(executor.getPlatforms())
+        .doc(executor.getDoc())
+        .backgroundColor(executor.getBackgroundColor())
         .build();
   }
 }
