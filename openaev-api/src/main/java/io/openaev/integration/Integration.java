@@ -40,7 +40,6 @@ public abstract class Integration {
       this.innerStart();
       this.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
       this.appliedHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
-      ;
     } else {
       log.warn("Trying to start already started instance.");
     }
@@ -65,9 +64,7 @@ public abstract class Integration {
       }
 
       String instanceHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
-      if (this.appliedHash == null) {
-        this.appliedHash = instanceHash;
-      }
+
       boolean isRunning =
           ConnectorInstancePersisted.CURRENT_STATUS_TYPE.started.equals(this.currentStatus);
       boolean isStoppingRequested =
