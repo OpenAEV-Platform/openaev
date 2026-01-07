@@ -316,17 +316,9 @@ public class ExecutableInjectService {
 
   private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
     DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
-    dnsResolution.getArguments().stream()
-        .filter(argument -> inject.getContent().has(argument.getKey()))
-        .forEach(
-            argument -> {
-              dnsResolution.setHostname(
-                  replaceArgumentsByValue(
-                      dnsResolution.getHostname(),
-                      dnsResolution.getArguments(),
-                      null,
-                      inject.getContent()));
-            });
+    dnsResolution.setHostname(
+        replaceArgumentsByValue(
+            dnsResolution.getHostname(), dnsResolution.getArguments(), null, inject.getContent()));
     return dnsResolution;
   }
 }

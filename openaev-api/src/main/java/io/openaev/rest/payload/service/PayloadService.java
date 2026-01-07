@@ -14,6 +14,7 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
+import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -318,6 +319,12 @@ public class PayloadService {
         Payload.class);
   }
 
+  /**
+   * Upsert for the Dynamic DNS Resolution payload, who run DNS Resolution by domain name given by
+   * argument
+   *
+   * @return the Dynamic DNS Resolution payload
+   */
   public DnsResolution getDynamicDnsResolutionPayload() {
     return payloadRepository
         .findById(DYNAMIC_DNS_RESOLUTION_UUID)
@@ -325,6 +332,12 @@ public class PayloadService {
         .orElseGet(this::createDynamicDnsResolutionPayload);
   }
 
+  /**
+   * Create for the Dynamic DNS Resolution payload, who run DNS Resolution by domain name given by
+   * argument
+   *
+   * @return the created Dynamic DNS Resolution payload
+   */
   private DnsResolution createDynamicDnsResolutionPayload() {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
     dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
@@ -334,17 +347,13 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
     dynamicDnsResolutionPayload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
     dynamicDnsResolutionPayload.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+    dynamicDnsResolutionPayload.setPlatforms(ALL_PLATFORMS);
 
     PayloadArgument argument = new PayloadArgument();
     argument.setType("text");
     argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
     argument.setDefaultValue("filigran.io");
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
-
-    dynamicDnsResolutionPayload.setPlatforms(
-        new Endpoint.PLATFORM_TYPE[] {
-          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
-        });
 
     dynamicDnsResolutionPayload.setExpectations(
         new InjectExpectation.EXPECTATION_TYPE[] {

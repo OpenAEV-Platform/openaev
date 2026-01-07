@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import static io.openaev.helper.CryptoHelper.md5Hex;
+import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
@@ -526,8 +527,12 @@ public class SecurityCoverageService {
         stixExternalRef.getExternalRef(),
         exercise,
         id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
-        InjectorContract::getVulnerabilities,
-        Vulnerability::getId,
+        inject -> {
+          if (inject.getInjectorContract().isPresent()) {
+            return inject.getInjectorContract().get().getVulnerabilities();
+          }
+          return Collections.emptyList();
+        },
         Vulnerability::getId);
   }
 
@@ -537,55 +542,44 @@ public class SecurityCoverageService {
         stixExternalRef.getExternalRef(),
         exercise,
         id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
-        InjectorContract::getAttackPatterns,
-        AttackPattern::getId,
+        inject -> {
+          if (inject.getInjectorContract().isPresent()) {
+            return inject.getInjectorContract().get().getAttackPatterns();
+          }
+          return Collections.emptyList();
+        },
         AttackPattern::getId);
   }
 
   private BaseType<?> getDnsIndicatorCoverage(
       StixRefToExternalRef stixExternalRef, Exercise exercise) {
-    return getCoverageForSingleEntity(
+    return getCoverage(
         stixExternalRef.getHostname(),
         exercise,
         hostname ->
-            payloadRepository.findAllByHostnameAndPlatforms(
-                hostname,
-                new String[] {
-                  Endpoint.PLATFORM_TYPE.Windows.toString(),
-                  Endpoint.PLATFORM_TYPE.Linux.toString(),
-                  Endpoint.PLATFORM_TYPE.MacOS.toString()
-                }),
-        injectorContract -> (DnsResolution) injectorContract.getPayload(),
-        payload -> ((DnsResolution) payload).getHostname(),
-        DnsResolution::getHostname);
-  }
-
-  private <T, C> BaseType<?> getCoverageForSingleEntity(
-      String externalRef,
-      Exercise exercise,
-      Function<String, Collection<T>> entityFetcher,
-      Function<InjectorContract, C> singleEntityExtractor,
-      Function<T, String> idExtractor,
-      Function<C, String> contractIdExtractor) {
-    return getCoverage(
-        externalRef,
-        exercise,
-        entityFetcher,
-        contract ->
-            Optional.ofNullable(singleEntityExtractor.apply(contract))
+            exercise.getInjects().stream()
+                .filter(
+                    inject ->
+                        inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                            && hostname.equals(
+                                inject
+                                    .getContent()
+                                    .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                                    .textValue()))
+                .collect(Collectors.toList()),
+        inject ->
+            Optional.ofNullable(inject)
                 .map(Collections::singletonList)
                 .orElse(Collections.emptyList()),
-        idExtractor,
-        contractIdExtractor);
+        Inject::getId);
   }
 
-  private <T, C> BaseType<?> getCoverage(
+  private <T> BaseType<?> getCoverage(
       String externalRef,
       Exercise exercise,
       Function<String, Collection<T>> entityFetcher,
-      Function<InjectorContract, Collection<C>> contractExtractor,
-      Function<T, String> idExtractor,
-      Function<C, String> contractIdExtractor) {
+      Function<Inject, Collection<T>> contractExtractor,
+      Function<T, String> idExtractor) {
     // fetch entity
     Optional<T> entity = entityFetcher.apply(externalRef).stream().findFirst();
     if (entity.isEmpty()) {
@@ -597,13 +591,9 @@ public class SecurityCoverageService {
         exercise.getInjects().stream()
             .filter(
                 i ->
-                    i.getInjectorContract().isPresent()
-                        && contractExtractor.apply(i.getInjectorContract().get()).stream()
-                            .anyMatch(
-                                e ->
-                                    contractIdExtractor
-                                        .apply(e)
-                                        .equals(idExtractor.apply(entity.get()))))
+                    contractExtractor.apply(i).stream()
+                        .anyMatch(
+                            e -> idExtractor.apply(e).equals(idExtractor.apply(entity.get()))))
             .toList();
 
     if (injects.isEmpty()) {

@@ -114,7 +114,7 @@ public class SecurityCoverageInjectService {
    *
    * <ul>
    *   <li>Resolves internal indicators from the coverage
-   *   <li>Remove all inject from scenario linked to dns resolutionif there is no indicators to
+   *   <li>Remove all inject from scenario linked to dns resolution if there is no indicators to
    *       manage
    *   <li>Generates injects based on injector contract related to these indicators
    *   <li>Delete injects who doesn't exist anymore on the STIX
@@ -158,7 +158,7 @@ public class SecurityCoverageInjectService {
             return;
           }
 
-          // 5. Fetch existing Payloads for hostname and platform
+          // 5. Fetch Dynamic DNS Resolution Payload
           DnsResolution dynamicDnsResolutionPayload =
               payloadService.getDynamicDnsResolutionPayload();
 
@@ -677,28 +677,8 @@ public class SecurityCoverageInjectService {
             injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
+    // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
     return inject;
   }
-
-  //
-  //  /**
-  //   * Check for the existance of payload on database by indicator hostname
-  //   *
-  //   * @param indicator to search
-  //   * @return founded payload, null if not
-  //   */
-  //  private Payload foundExistingPayload(StixRefToExternalRef indicator) {
-  //    return payloadRepository
-  //        .findAllByHostnameAndPlatforms(
-  //            indicator.getHostname(),
-  //            new String[] {
-  //              Endpoint.PLATFORM_TYPE.Windows.toString(),
-  //              Endpoint.PLATFORM_TYPE.Linux.toString(),
-  //              Endpoint.PLATFORM_TYPE.MacOS.toString()
-  //            })
-  //        .stream()
-  //        .findFirst()
-  //        .orElse(null);
-  //  }
 }
