@@ -97,7 +97,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     grantComposer.reset();
     domainComposer.reset();
     domainRepository.deleteAll();
-    entityManager.flush();
+    em.flush();
   }
 
   @Nested
@@ -1563,8 +1563,6 @@ public class InjectorContractApiTest extends IntegrationTest {
       contract3.setDomains(new HashSet<>(cloudDomain));
 
       injectorContractComposer.forInjectorContract(contract3).withInjector(validInjector).persist();
-
-
 
       InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
 
