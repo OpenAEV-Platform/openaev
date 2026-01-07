@@ -49,7 +49,8 @@ public class ConfigurationMigrationTest {
           new TestIntegrationConfiguration(),
           FACTORY_CLASSNAME,
           catalogConnectorService,
-          connectorInstanceService, encryptionFactory);
+          connectorInstanceService,
+          encryptionFactory);
     }
   }
 

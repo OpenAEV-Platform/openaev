@@ -81,7 +81,8 @@ public class SentinelOneExecutorIntegrationTest {
         eeService,
         licenseCacheManager,
         taskScheduler,
-        fileService, encryptionFactory);
+        fileService,
+        encryptionFactory);
   }
 
   @Test
@@ -169,6 +170,7 @@ public class SentinelOneExecutorIntegrationTest {
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
-                        sentinelOneExecutorConfig.toInstanceConfigurationSet(instance, encryptionFactory)));
+                        sentinelOneExecutorConfig.toInstanceConfigurationSet(
+                            instance, encryptionFactory)));
   }
 }

@@ -9,8 +9,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CrowdStrikeExecutorConfigurationMigration extends ConfigurationMigration {
-  private final EncryptionFactory encryptionFactory;
-
   public CrowdStrikeExecutorConfigurationMigration(
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
@@ -22,6 +20,5 @@ public class CrowdStrikeExecutorConfigurationMigration extends ConfigurationMigr
         catalogConnectorService,
         connectorInstanceService,
         encryptionFactory);
-    this.encryptionFactory = encryptionFactory;
   }
 }
