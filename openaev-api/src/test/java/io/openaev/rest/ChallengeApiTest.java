@@ -20,7 +20,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;

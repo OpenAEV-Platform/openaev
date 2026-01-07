@@ -54,6 +54,8 @@ public class TaniumGarbageCollectorService implements Runnable {
                   this.config.getUnixPackageId(),
                   Base64.getEncoder().encodeToString(UNIX_COMMAND_LINE.getBytes()));
             }
+            default ->
+                throw new IllegalArgumentException("Invalid platform: " + endpoint.getPlatform());
           }
         });
   }

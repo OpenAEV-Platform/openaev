@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
-import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.RawScenarioSimple;
 import io.openaev.helper.MultiIdSetDeserializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -38,7 +38,7 @@ public class ScenarioSimple {
     return simple;
   }
 
-  public static ScenarioSimple fromRawScenario(@NotNull final RawScenario scenario) {
+  public static ScenarioSimple fromRawScenario(@NotNull final RawScenarioSimple scenario) {
     ScenarioSimple simple = new ScenarioSimple();
     simple.setId(scenario.getScenario_id());
     simple.setName(scenario.getScenario_name());

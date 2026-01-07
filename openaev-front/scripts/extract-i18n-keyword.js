@@ -94,4 +94,4 @@ async function main() {
   await mergeWithExistingData();
 }
 
-main();
+await main();

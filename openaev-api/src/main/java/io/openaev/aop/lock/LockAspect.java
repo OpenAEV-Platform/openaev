@@ -12,9 +12,10 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 
 @Aspect
@@ -34,6 +35,7 @@ public class LockAspect {
     // concurrent scenarios
     // (example: user with 10000+ implants triggered by the same inject)
     this.lockStripes.put(LockResourceType.INJECT, Striped.lock(4096));
+    this.lockStripes.put(LockResourceType.SECURITY_COVERAGE, Striped.lock(4096));
 
     log.info("Initialized LockAspect with stripe configurations");
   }
@@ -93,7 +95,7 @@ public class LockAspect {
     Object[] args = joinPoint.getArgs();
 
     // Create evaluation context
-    StandardEvaluationContext context = new StandardEvaluationContext();
+    EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
 
     // Add method parameters to context
     String[] paramNames = signature.getParameterNames();

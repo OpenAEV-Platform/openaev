@@ -53,7 +53,11 @@ public class SecurityCoverage implements Base {
 
   @Column(name = "security_coverage_scheduling", nullable = false)
   @JsonProperty("security_coverage_scheduling")
-  private String scheduling; // duration
+  private String scheduling;
+
+  @Transient
+  @JsonProperty("security_coverage_duration")
+  private String duration;
 
   @Column(name = "security_coverage_period_start")
   @JsonProperty("security_coverage_period_start")
@@ -62,6 +66,10 @@ public class SecurityCoverage implements Base {
   @Column(name = "security_coverage_period_end")
   @JsonProperty("security_coverage_period_end")
   private Instant periodEnd;
+
+  @Column(name = "security_coverage_stix_modified")
+  @JsonProperty("security_coverage_stix_modified")
+  private Instant stixModified;
 
   @Type(ListArrayType.class)
   @Column(name = "security_coverage_labels", columnDefinition = "text[]")
@@ -77,6 +85,15 @@ public class SecurityCoverage implements Base {
   @Column(name = "security_coverage_content", columnDefinition = "jsonb", nullable = false)
   @JsonProperty("security_coverage_content")
   private String content;
+
+  @Column(
+      name = "security_coverage_bundle_hash_md5",
+      nullable = false,
+      unique = true,
+      length = 32 // MD5 produces a 32-character hex string
+      )
+  @JsonIgnore
+  private String bundleHashMd5;
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_vulnerabilities_refs", columnDefinition = "jsonb")

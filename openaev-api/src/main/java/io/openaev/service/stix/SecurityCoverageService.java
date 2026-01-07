@@ -1,6 +1,8 @@
 package io.openaev.service.stix;
 
+import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
+import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
@@ -8,8 +10,9 @@ import static io.openaev.utils.constants.StixConstants.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.cron.ScheduleFrequency;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -21,8 +24,8 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.ScenarioService;
-import io.openaev.service.cron.CronService;
+import io.openaev.service.period.CronService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.ObjectBase;
@@ -37,9 +40,11 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.StringUtils;
+import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
-import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -47,6 +52,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
@@ -78,29 +84,52 @@ public class SecurityCoverageService {
   private final SecurityCoverageConnector connector;
 
   /**
-   * Builds and persists a {@link SecurityCoverage} from a provided STIX JSON string.
+   * Parses a STIX JSON string, validates it, and delegates to create and persist a
+   * SecurityCoverage.
    *
-   * <p>This method parses the input STIX content, extracts relevant fields, maps them to a {@link
-   * SecurityCoverage} domain object, and saves it. It also extracts referenced attack patterns and
-   * sets optional fields like description and scheduling.
-   *
-   * @param stixJson STIX-formatted JSON string representing a security coverage
+   * @param stixJson the STIX bundle as a JSON string
    * @return the saved {@link SecurityCoverage} object
-   * @throws IOException if the input cannot be parsed into JSON
-   * @throws ParsingException if the STIX bundle is malformed
+   * @throws JsonProcessingException if the input cannot be parsed into JSON
+   * @throws ParsingException if the STIX bundle is obsolete or already stored
+   * @throws BadRequestException if validation fails
    */
-  public SecurityCoverage buildSecurityCoverageFromStix(String stixJson)
-      throws IOException, ParsingException {
+  public SecurityCoverage processAndBuildStixToSecurityCoverage(String stixJson)
+      throws ParsingException, BadRequestException, JsonProcessingException {
 
     JsonNode root = objectMapper.readTree(stixJson);
+    String stixJsonHash = md5Hex(stixJson);
     Bundle bundle = stixParser.parseBundle(root.toString());
-
     ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
-
-    // Mandatory fields
     String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+
+    return buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId, stixJsonHash);
+  }
+
+  /**
+   * Maps a validated STIX object to a {@link SecurityCoverage}, sets optional fields, extracts
+   * attack patterns, and persists it.
+   *
+   * @param stixCoverageObj parsed object from Stix bundle related to Security Coverage
+   * @param bundle the STIX bundle
+   * @param externalId Security coverage external ID
+   * @param stixJsonHash MD5 hash of the STIX JSON content
+   * @return the saved {@link SecurityCoverage} object
+   * @throws ParsingException if the STIX bundle is malformed
+   * @throws BadRequestException if the STIX bundle is obsolete or already stored
+   */
+  @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
+  private SecurityCoverage buildSecurityCoverageFromStix(
+      ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
+      throws ParsingException, BadRequestException {
+
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
+
+    // Validations related to the pertinence of the received bundle
+    checkExistingBundle(externalId, stixJsonHash, securityCoverage);
+    checkLastBundle(stixCoverageObj, externalId, securityCoverage);
+
     securityCoverage.setExternalId(externalId);
+    securityCoverage.setBundleHashMd5(stixJsonHash);
 
     String name = stixCoverageObj.getRequiredProperty(STIX_NAME);
     securityCoverage.setName(name);
@@ -120,7 +149,7 @@ public class SecurityCoverageService {
         labels.add(stixString.getValue());
       }
     }
-    // force opencti
+    // Force opencti tag
     labels.add(OPENCTI_TAG_NAME);
     securityCoverage.setLabels(labels);
 
@@ -136,6 +165,9 @@ public class SecurityCoverageService {
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
     securityCoverage.setScheduling(scheduling);
 
+    // security coverage scenario overall duration
+    securityCoverage.setDuration(stixCoverageObj.getOptionalProperty(STIX_DURATION, ""));
+
     // Period Start
     Dictionary extensionObj =
         (Dictionary) stixCoverageObj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
@@ -145,7 +177,67 @@ public class SecurityCoverageService {
     }
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
+    stixCoverageObj.setInstantIfPresent(MODIFIED, securityCoverage::setStixModified);
+
+    log.info("Saving Security coverage with external ID: {}", securityCoverage.getExternalId());
     return save(securityCoverage);
+  }
+
+  /**
+   * Ensures the incoming STIX object is newer than the stored one. Throws an error if the STIX
+   * modified date is missing, invalid, or not newer.
+   */
+  private static void checkLastBundle(
+      ObjectBase stixCoverageObj, String externalId, SecurityCoverage securityCoverage)
+      throws ParsingException, BadRequestException {
+    // Check If stix coverage is the last one
+    Object modifiedObj = stixCoverageObj.getProperty(MODIFIED).getValue();
+
+    if (modifiedObj == null) {
+      throw new ParsingException("STIX object missing mandatory modified date");
+    }
+
+    Instant stixModified;
+    try {
+      stixModified = Instant.parse(modifiedObj.toString());
+    } catch (Exception e) {
+      throw new ParsingException("Invalid STIX modified date format", e);
+    }
+
+    Instant currentModified = securityCoverage.getStixModified();
+
+    // Last STIX modified date must be newer than the stored modified
+    log.info(
+        "SecurityCoverage Update Check: externalId={}, currentModified={}, stixModified={}",
+        externalId,
+        currentModified,
+        stixModified);
+    boolean isNewer = currentModified == null || stixModified.isAfter(currentModified);
+    if (!isNewer) {
+      throw new BadRequestException(
+          "The STIX package is obsolete because a newer version has already been computed.");
+    }
+  }
+
+  /**
+   * Checks whether the incoming STIX bundle is a duplicate by comparing its content hash to the
+   * stored one.
+   */
+  private static void checkExistingBundle(
+      String externalId, String stixJsonHash, SecurityCoverage securityCoverage)
+      throws BadRequestException {
+    // Check if contentHash already matches (duplicate)
+    if (stixJsonHash.equals(securityCoverage.getBundleHashMd5())) {
+      log.info(
+          "Duplicate STIX bundle detected for externalId={} -> returning existing object",
+          externalId);
+      // We could also simply return the existing security cover and avoid returning the error and
+      // also avoid continue with the retry;
+      throw new BadRequestException(
+          String.format(
+              "Duplicate STIX bundle detected for externalId: %s -> returning existing object",
+              externalId));
+    }
   }
 
   /**
@@ -185,6 +277,10 @@ public class SecurityCoverageService {
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
             scenario, securityCoverage);
     scenario.setInjects(injects);
+    log.info(
+        "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
+        scenario.getId(),
+        securityCoverage.getExternalId());
     return scenario;
   }
 
@@ -225,27 +321,33 @@ public class SecurityCoverageService {
     scenario.setMainFocus(Scenario.MAIN_FOCUS_INCIDENT_RESPONSE);
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
-    Instant start = sa.getPeriodStart() != null ? sa.getPeriodStart() : Instant.now();
-    if (sa.getScheduling() != null && !sa.getScheduling().isEmpty()) {
-      scenario.setRecurrenceStart(start);
-      ScheduleFrequency frequency = ScheduleFrequency.DAILY;
-      if (sa.getScheduling().contains("W")) {
-        frequency = ScheduleFrequency.WEEKLY;
-      } else if (sa.getScheduling().contains("M")) {
-        frequency = ScheduleFrequency.MONTHLY;
-      }
-      // TODO cron should be generated from start-date + iso duration
-      // Currently UI is not able to support any cron expression
-      // Parsing is limited to same case like 1 day at 9h00.
-      // Monthly option is not supported yet back in the UI.
-      String cron = cronService.getCronExpression(frequency, start);
-      scenario.setRecurrence(cron);
-    } else {
-      String cron = cronService.getCronExpression(ScheduleFrequency.ONESHOT, start);
-      scenario.setRecurrence(cron);
-    }
-
+    setRecurrence(scenario, sa);
     scenario.setTags(tagService.fetchTagsFromLabels(sa.getLabels()));
+  }
+
+  /**
+   * Set recurrence for the scenario coming from OpenCTI. The scenario will start immediately after
+   * the save
+   *
+   * @param scenario
+   * @param securityCoverage
+   */
+  private void setRecurrence(Scenario scenario, SecurityCoverage securityCoverage) {
+    if (scenario.getRecurrence() == null) {
+      // schedule first start in 2 minutes
+      // so that it is picked up soon after setting it up
+      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
+      if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
+        scenario.setRecurrenceStart(start);
+        scenario.setRecurrence(securityCoverage.getScheduling());
+        if (!StringUtils.isBlank(securityCoverage.getDuration())) {
+          scenario.setRecurrenceEnd(
+              TimeUtils.incrementInstant(
+                  start,
+                  TimeUtils.ISO8601PeriodToTemporalIncrement(securityCoverage.getDuration())));
+        }
+      }
+    }
   }
 
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)

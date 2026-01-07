@@ -7,6 +7,7 @@ import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_S
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.utils.JsonUtils.asJsonString;
@@ -31,12 +32,11 @@ import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
-import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -85,13 +85,14 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
   @SpyBean private InjectStatusService injectStatusService;
-  @SpyBean private DocumentService documentService;
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DetectionRemediationComposer detectionRemediationComposer;
+  @Autowired private CollectorComposer collectorComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
@@ -1014,6 +1015,7 @@ class InjectApiTest extends IntegrationTest {
     @Transactional
     @DisplayName("Finding Handling")
     class FindingHandlingTest {
+
       @Test
       @DisplayName("Should link finding to targeted asset")
       void given_targetedAsset_should_linkFindingToIt() throws Exception {
@@ -1439,6 +1441,61 @@ class InjectApiTest extends IntegrationTest {
 
       // ASSERT
       mvc.perform(requestBuilder).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "Should return List of Collector related to detection remediations from a payload when an Inject Id is given")
+    void shouldReturnListCollectorRelatedToDetectionRemediationsWhenInjectIdIsGiven()
+        throws Exception {
+      // PREPARE
+      Collector collector =
+          collectorComposer
+              .forCollector(CollectorFixture.createDefaultCollector("SENTINEL"))
+              .persist()
+              .get();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withPayload(
+                          payloadComposer
+                              .forPayload(PayloadFixture.createDefaultCommand())
+                              .withDetectionRemediation(
+                                  detectionRemediationComposer
+                                      .forDetectionRemediation(
+                                          DetectionRemediationFixture
+                                              .createDefaultDetectionRemediation())
+                                      .withCollector(collectorComposer.forCollector(collector)))))
+              .persist()
+              .get();
+
+      // EXECUTE
+      MockHttpServletRequestBuilder requestBuilder =
+          get(ATOMIC_TESTING_URI + "/" + inject.getId() + "/collectors")
+              .accept(MediaType.APPLICATION_JSON);
+
+      // ASSERT
+      String result =
+          mvc.perform(requestBuilder)
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      JsonNode rootNode = new ObjectMapper().readTree(result);
+
+      // ASSERTIONS
+      assertTrue(rootNode.isArray(), "Response should be a JSON array");
+      assertEquals(1, rootNode.size(), "There should be exactly 1 collector");
+
+      JsonNode collectorNode = rootNode.get(0);
+      assertEquals("SENTINEL", collectorNode.get("collector_name").asText());
     }
   }
 }

@@ -44,6 +44,16 @@ public class InjectFixture {
     return inject;
   }
 
+  public static Inject createInjectWithManualExpectation(
+      InjectorContract injectorContract, String title, String manualExpectationTitle) {
+    Inject inject = createInjectWithTitle(title);
+    inject.setInjectorContract(injectorContract);
+    inject.setEnabled(true);
+    inject.setDependsDuration(0L);
+    inject.setContent(injectContent(manualExpectationTitle));
+    return inject;
+  }
+
   private static ObjectNode injectContent() {
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode injectContent = objectMapper.createObjectNode();
@@ -52,6 +62,19 @@ public class InjectFixture {
         objectMapper.convertValue(
             List.of(
                 ExpectationFixture.createExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)),
+            ArrayNode.class));
+    return injectContent;
+  }
+
+  private static ObjectNode injectContent(String expectationName) {
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode injectContent = objectMapper.createObjectNode();
+    injectContent.set(
+        CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS,
+        objectMapper.convertValue(
+            List.of(
+                ExpectationFixture.createExpectation(
+                    InjectExpectation.EXPECTATION_TYPE.MANUAL, expectationName)),
             ArrayNode.class));
     return injectContent;
   }

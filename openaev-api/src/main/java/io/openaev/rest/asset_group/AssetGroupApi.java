@@ -208,6 +208,7 @@ public class AssetGroupApi extends RestBehavior {
           if (StringUtils.isEmpty(sourceId)) {
             throw new BadRequestException("Missing simulation or scenario id");
           }
+          // fall through intentional
         }
       case ATOMIC_TESTING:
         {
