@@ -102,9 +102,7 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
       return "UNKNOWN";
     }
     if (cc.getContainerImage() != null && !cc.getContainerImage().isBlank()) {
-      return String.format(
-              "IMAGE[%s:%s]",
-              cc.getContainerImage(), cc.getContainerVersion());
+      return String.format("IMAGE[%s:%s]", cc.getContainerImage(), cc.getContainerVersion());
     }
 
     return String.format("BUILTIN[%s]", this.getClassName());

@@ -22,7 +22,7 @@ public class ConnectorInstanceInMemory extends ConnectorInstance {
 
   @Override
   public String getHashIdentity() {
-    if(className == null) {
+    if (className == null) {
       return "UNKNOWN";
     }
     return String.format("BUILTIN[%s]", className);
