@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
@@ -83,9 +84,8 @@ public class Payload implements GrantableBase {
   }
 
   @Id
+  @ControlledUuidGeneration
   @Column(name = "payload_id")
-  @GeneratedValue(generator = "UUID")
-  @UuidGenerator
   @JsonProperty("payload_id")
   @NotBlank
   private String id;

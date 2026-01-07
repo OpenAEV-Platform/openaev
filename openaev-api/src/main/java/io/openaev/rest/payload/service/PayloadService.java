@@ -13,6 +13,7 @@ import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupF
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -37,6 +38,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
+import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -55,6 +57,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class PayloadService {
 
+  public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
+  public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
+      "#{" + DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY + "}";
+  private static final String DYNAMIC_DNS_RESOLUTION_UUID = "ff16dc60-ea6f-4925-8509-20557e09c676";
+
   @Resource protected ObjectMapper mapper;
 
   private final PayloadRepository payloadRepository;
@@ -64,6 +71,7 @@ public class PayloadService {
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
   private final DomainService domainService;
+  private final TagService tagService;
   private final PayloadUtils payloadUtils;
 
   public void updateInjectorContractsForPayload(Payload payload) {
@@ -308,5 +316,51 @@ public class PayloadService {
             currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)),
         handleArchitectureFilter(searchPaginationInput),
         Payload.class);
+  }
+
+  public DnsResolution getDynamicDnsResolutionPayload() {
+    return payloadRepository
+        .findById(DYNAMIC_DNS_RESOLUTION_UUID)
+        .map(payload -> (DnsResolution) payload)
+        .orElseGet(this::createDynamicDnsResolutionPayload);
+  }
+
+  private DnsResolution createDynamicDnsResolutionPayload() {
+    DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
+    dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
+    dynamicDnsResolutionPayload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
+    dynamicDnsResolutionPayload.setName("Dynamic DNS Resolution");
+    dynamicDnsResolutionPayload.setDescription("Dynamic DNS Resolution by argument");
+    dynamicDnsResolutionPayload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    dynamicDnsResolutionPayload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    dynamicDnsResolutionPayload.setType(DnsResolution.DNS_RESOLUTION_TYPE);
+
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType("text");
+    argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
+    argument.setDefaultValue("filigran.io");
+    dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
+
+    dynamicDnsResolutionPayload.setPlatforms(
+        new Endpoint.PLATFORM_TYPE[] {
+          Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+        });
+
+    dynamicDnsResolutionPayload.setExpectations(
+        new InjectExpectation.EXPECTATION_TYPE[] {
+          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        });
+
+    dynamicDnsResolutionPayload.setDomains(
+        domainService.upserts(
+            Set.of(PresetDomain.ENDPOINT, PresetDomain.NETWORK, PresetDomain.URL_FILTERING)));
+
+    dynamicDnsResolutionPayload.setTags(
+        tagService.fetchTagsFromLabels(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+
+    DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
+    updateInjectorContractsForPayload(saved);
+    return saved;
   }
 }
