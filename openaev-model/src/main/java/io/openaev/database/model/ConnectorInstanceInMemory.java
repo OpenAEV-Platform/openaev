@@ -20,10 +20,11 @@ public class ConnectorInstanceInMemory extends ConnectorInstance {
 
   private String id;
 
-  private CatalogConnector catalogConnector;
-
   @Override
-  public CatalogConnector getCatalogConnector() {
-    return this.catalogConnector;
+  public String getHashIdentity() {
+    if(className == null) {
+      return "UNKNOWN";
+    }
+    return String.format("BUILTIN[%s]", className);
   }
 }

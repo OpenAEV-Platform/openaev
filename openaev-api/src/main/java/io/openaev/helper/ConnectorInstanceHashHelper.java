@@ -1,6 +1,5 @@
 package io.openaev.helper;
 
-import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import java.nio.charset.StandardCharsets;
@@ -19,29 +18,11 @@ public final class ConnectorInstanceHashHelper {
       throw new IllegalArgumentException("ConnectorInstance cannot be null");
     }
 
-    String identity = computeConnectorIdentity(instance.getCatalogConnector());
+    String identity = instance.getHashIdentity();
     String config = transformConfigurationsToString(instance.getConfigurations());
 
     String dataToHash = String.format("%s|CONFIG[%s]", identity, config);
     return hashWithSHA256(dataToHash);
-  }
-
-  // Identity
-  private static String computeConnectorIdentity(CatalogConnector catalogConnector) {
-    if (catalogConnector == null) {
-      return "UNKNOWN";
-    }
-
-    // External connector
-    if (catalogConnector.getContainerImage() != null
-        && !catalogConnector.getContainerImage().isBlank()) {
-      return String.format(
-          "IMAGE[%s:%s]",
-          catalogConnector.getContainerImage(), catalogConnector.getContainerVersion());
-    }
-
-    // Built-in connector
-    return String.format("BUILTIN[%s]", catalogConnector.getClassName());
   }
 
   // Configuration normalization

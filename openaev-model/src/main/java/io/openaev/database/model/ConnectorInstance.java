@@ -42,5 +42,5 @@ public abstract class ConnectorInstance {
 
   public abstract String getClassName();
 
-  public abstract CatalogConnector getCatalogConnector();
+  public abstract String getHashIdentity();
 }
