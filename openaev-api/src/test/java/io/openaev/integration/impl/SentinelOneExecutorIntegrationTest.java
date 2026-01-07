@@ -28,6 +28,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private SentinelOneExecutorConfig sentinelOneExecutorConfig;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   @Autowired
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
@@ -79,7 +81,7 @@ public class SentinelOneExecutorIntegrationTest {
         eeService,
         licenseCacheManager,
         taskScheduler,
-        fileService);
+        fileService, encryptionFactory);
   }
 
   @Test
@@ -167,6 +169,6 @@ public class SentinelOneExecutorIntegrationTest {
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
-                        sentinelOneExecutorConfig.toInstanceConfigurationSet(instance)));
+                        sentinelOneExecutorConfig.toInstanceConfigurationSet(instance, encryptionFactory)));
   }
 }

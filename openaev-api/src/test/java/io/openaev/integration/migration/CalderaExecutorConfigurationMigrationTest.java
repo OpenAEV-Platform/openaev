@@ -10,6 +10,7 @@ import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
@@ -44,6 +45,7 @@ public class CalderaExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorService catalogConnectorService;
     @Autowired private ConnectorInstanceService connectorInstanceService;
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+    @Autowired private EncryptionFactory encryptionFactory;
 
     @Autowired private CalderaExecutorConfig beanConfig;
 
@@ -97,7 +99,7 @@ public class CalderaExecutorConfigurationMigrationTest {
                   left.getKey().compareTo(right.getKey())
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
-          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance));
+          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
     }
   }
 

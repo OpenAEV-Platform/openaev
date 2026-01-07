@@ -28,6 +28,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,7 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private TaniumExecutorConfig taniumExecutorConfig;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
@@ -78,7 +80,8 @@ public class TaniumExecutorIntegrationTest {
         eeService,
         licenseCacheManager,
         taskScheduler,
-        fileService);
+        fileService,
+        encryptionFactory);
   }
 
   @Test
@@ -165,6 +168,8 @@ public class TaniumExecutorIntegrationTest {
                             left.getKey().compareTo(right.getKey())
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
-                    .hasSameElementsAs(taniumExecutorConfig.toInstanceConfigurationSet(instance)));
+                    .hasSameElementsAs(
+                        taniumExecutorConfig.toInstanceConfigurationSet(
+                            instance, encryptionFactory)));
   }
 }

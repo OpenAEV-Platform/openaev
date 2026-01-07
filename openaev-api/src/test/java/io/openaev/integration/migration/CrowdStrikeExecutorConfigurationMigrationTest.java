@@ -10,6 +10,7 @@ import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCrowdstrikeConfig;
@@ -49,6 +50,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorService catalogConnectorService;
     @Autowired private ConnectorInstanceService connectorInstanceService;
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+    @Autowired private EncryptionFactory encryptionFactory;
 
     @Autowired private CrowdStrikeExecutorConfig beanConfig;
 
@@ -102,7 +104,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
                   left.getKey().compareTo(right.getKey())
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
-          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance));
+          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
     }
   }
 

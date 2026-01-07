@@ -26,6 +26,7 @@ import io.openaev.integrations.InjectorService;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,7 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CalderaExecutorConfig calderaExecutorConfig;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
@@ -77,7 +79,8 @@ public class CalderaExecutorIntegrationTest {
         injectorService,
         platformSettingsService,
         taskScheduler,
-        fileService);
+        fileService,
+        encryptionFactory);
   }
 
   @Test
@@ -164,6 +167,8 @@ public class CalderaExecutorIntegrationTest {
                             left.getKey().compareTo(right.getKey())
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
-                    .hasSameElementsAs(calderaExecutorConfig.toInstanceConfigurationSet(instance)));
+                    .hasSameElementsAs(
+                        calderaExecutorConfig.toInstanceConfigurationSet(
+                            instance, encryptionFactory)));
   }
 }
