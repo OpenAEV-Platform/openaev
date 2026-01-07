@@ -1123,6 +1123,7 @@ export interface ConnectorInstancePersisted {
     | "OTHER";
   /** @format date-time */
   connector_instance_started_at?: string;
+  hashIdentity?: string;
   listened?: boolean;
 }
 
