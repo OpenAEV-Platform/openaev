@@ -24,6 +24,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.helper.StreamHelper;
+import io.openaev.injectors.challenge.ChallengeContract;
+import io.openaev.injectors.email.EmailContract;
+import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.model.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
@@ -805,12 +809,32 @@ class ExpectationApiTest extends IntegrationTest {
   class AvailableInjectExpectationsForInjects {
 
     @Test
-    @DisplayName("Get available InjectExpectations for technical injects")
-    void getAvailableInjectExpectationsForTechnicalInjects() throws Exception {
-      // -- EXECUTE --
-      String response =
+    @DisplayName("Get available InjectExpectations for injects")
+    void getAvailableInjectExpectationsForInjects() throws Exception {
+      List<InjectorContract> injectorContracts =
+          StreamHelper.fromIterable(injectorContractRepository.findAll());
+      InjectorContract mailInjectorContract =
+          injectorContracts.stream()
+              .filter(ic -> ic.getInjector().getType().equals(EmailContract.TYPE))
+              .toList()
+              .getFirst();
+      InjectorContract challengeInjectorContract =
+          injectorContracts.stream()
+              .filter(ic -> ic.getInjector().getType().equals(ChallengeContract.TYPE))
+              .toList()
+              .getFirst();
+      InjectorContract implantInjectorContract =
+          injectorContracts.stream()
+              .filter(ic -> ic.getInjector().getType().equals(OpenAEVImplantContract.TYPE))
+              .toList()
+              .getFirst();
+
+      // -- EXECUTE FOR MAIL --
+      String responseMail =
           mvc.perform(
-                  get(INJECTS_EXPECTATIONS_URI + "/available?isHumanInject=false")
+                  get(INJECTS_EXPECTATIONS_URI
+                          + "/available?injectorContractId="
+                          + mailInjectorContract.getId())
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -818,19 +842,15 @@ class ExpectationApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -- ASSERT --
-      assertEquals(3, ((List<?>) JsonPath.read(response, "$")).size());
-      assertEquals("DETECTION", JsonPath.read(response, "$.[0].expectation_type"));
-      assertEquals("PREVENTION", JsonPath.read(response, "$.[1].expectation_type"));
-      assertEquals("VULNERABILITY", JsonPath.read(response, "$.[2].expectation_type"));
-    }
+      assertEquals(1, ((List<?>) JsonPath.read(responseMail, "$")).size());
+      assertEquals("MANUAL", JsonPath.read(responseMail, "$.[0].expectation_type"));
 
-    @Test
-    @DisplayName("Get available InjectExpectations for human injects")
-    void getAvailableInjectExpectationsForHumanInjects() throws Exception {
-      // -- EXECUTE --
-      String response =
+      // -- EXECUTE FOR CHALLENGE --
+      String responseChallenge =
           mvc.perform(
-                  get(INJECTS_EXPECTATIONS_URI + "/available?isHumanInject=true")
+                  get(INJECTS_EXPECTATIONS_URI
+                          + "/available?injectorContractId="
+                          + challengeInjectorContract.getId())
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -838,8 +858,45 @@ class ExpectationApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -- ASSERT --
-      assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
-      assertEquals("MANUAL", JsonPath.read(response, "$.[0].expectation_type"));
+      assertEquals(2, ((List<?>) JsonPath.read(responseChallenge, "$")).size());
+      assertEquals("CHALLENGE", JsonPath.read(responseChallenge, "$.[0].expectation_type"));
+      assertEquals("MANUAL", JsonPath.read(responseChallenge, "$.[1].expectation_type"));
+
+      // -- EXECUTE FOR TECHNICAL INJECTOR CONTRACT CREATED --
+      String responseCreated =
+          mvc.perform(
+                  get(INJECTS_EXPECTATIONS_URI
+                          + "/available?injectorContractId="
+                          + savedInjectorContract.getId())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertEquals(3, ((List<?>) JsonPath.read(responseCreated, "$")).size());
+      assertEquals("DETECTION", JsonPath.read(responseCreated, "$.[0].expectation_type"));
+      assertEquals("PREVENTION", JsonPath.read(responseCreated, "$.[1].expectation_type"));
+      assertEquals("VULNERABILITY", JsonPath.read(responseCreated, "$.[2].expectation_type"));
+
+      // -- EXECUTE FOR IMPLANT --
+      String responseImplant =
+          mvc.perform(
+                  get(INJECTS_EXPECTATIONS_URI
+                          + "/available?injectorContractId="
+                          + implantInjectorContract.getId())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertEquals(3, ((List<?>) JsonPath.read(responseImplant, "$")).size());
+      assertEquals("DETECTION", JsonPath.read(responseImplant, "$.[0].expectation_type"));
+      assertEquals("PREVENTION", JsonPath.read(responseImplant, "$.[1].expectation_type"));
+      assertEquals("VULNERABILITY", JsonPath.read(responseImplant, "$.[2].expectation_type"));
     }
   }
 

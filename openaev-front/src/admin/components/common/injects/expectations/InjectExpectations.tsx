@@ -27,14 +27,14 @@ interface InjectExpectationsProps {
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
   injectId?: string;
-  isHumanInject: boolean;
+  injectorContractId: string;
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   expectationDatas,
   handleExpectations,
   injectId,
-  isHumanInject,
+  injectorContractId,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -51,7 +51,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   // Filter predefinedExpectations already included into expectations
   const predefinedExpectations = useMemo(() => availableExpectations
-    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type)), [sortedExpectations, availableExpectations]);
+    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type) || pe.expectation_type === 'MANUAL'), [sortedExpectations, availableExpectations]);
 
   const sortExpectations = R.sortWith(
     sortAsc
@@ -67,7 +67,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   useEffect(() => {
     if (!availableExpectations || availableExpectations.length === 0) {
-      availableExpectationsForInject(isHumanInject).then((result: { data: ExpectationInput[] }) => {
+      availableExpectationsForInject(injectorContractId).then((result: { data: ExpectationInput[] }) => {
         setAvailableExpectations(result.data);
       });
     }
@@ -143,12 +143,11 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      { userCanAddExpectations && (isHumanInject || (!isHumanInject && predefinedExpectations?.length != 0))
+      { userCanAddExpectations && predefinedExpectations?.length != 0
         && (
           <InjectAddExpectation
             handleAddExpectation={handleAddExpectation}
-            predefinedExpectations={predefinedExpectations.filter(e => e.expectation_type !== 'MANUAL')} // Manual expectations can be added as many times as we want
-            isHumanInject={isHumanInject}
+            predefinedExpectations={predefinedExpectations}
           />
         )}
     </>
