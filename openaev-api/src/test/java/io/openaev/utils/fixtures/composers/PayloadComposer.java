@@ -4,6 +4,7 @@ import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.composers.payload_composers.OutputParserComposer;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class PayloadComposer extends ComposerBase<Payload> {
 
   @Autowired PayloadRepository payloadRepository;
+  @Autowired EntityManager entityManager;
 
   public class Composer extends InnerComposerBase<Payload> {
 
@@ -92,10 +94,10 @@ public class PayloadComposer extends ComposerBase<Payload> {
       documentComposer.ifPresent(DocumentComposer.Composer::persist);
       domainComposers.forEach(DomainComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
-      detectionRemediationComposers.forEach(DetectionRemediationComposer.Composer::persist);
       attackPatternComposers.forEach(AttackPatternComposer.Composer::persist);
-      payload.setId(null);
       payloadRepository.save(payload);
+      entityManager.flush();
+      detectionRemediationComposers.forEach(DetectionRemediationComposer.Composer::persist);
       return this;
     }
 
