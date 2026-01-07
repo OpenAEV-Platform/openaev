@@ -232,6 +232,9 @@ public class InjectStatusService {
         case ERROR, COMMAND_NOT_FOUND, AGENT_INACTIVE -> errorCount++;
         case MAYBE_PREVENTED, MAYBE_PARTIAL_PREVENTED, COMMAND_CANNOT_BE_EXECUTED ->
             maybePreventedCount++;
+        default ->
+            throw new IllegalArgumentException(
+                "Invalid execution trace status: " + trace.getStatus());
       }
     }
 

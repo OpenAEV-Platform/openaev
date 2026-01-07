@@ -46,13 +46,17 @@ For general suggestions or questions about the project or the documentation, you
 
 * You can look through opened issues and help triage them (ask for more information, suggest workarounds, suggest label, flag issues etc.)
 
-* If you are interested in contributing to developping OpenAEV, please refer to the [detailed documentation](https://docs.openaev.io). It can be either a to fix an issue which is meaningful to you, or to develop a feature requested by others.
+* If you are interested in contributing to developping OpenAEV, please refer to the [detailed documentation](https://docs.openaev.io). It can be either to fix an issue which is meaningful to you, or to develop a feature requested by others.
 
-* All commits messages must be formatted as: `[component] Message (#issuenumber)` where component should be:
-  * api
-  * frontend
-  * worker
-  * doc
+* All commit messages must follow the Conventional Commits format: `[<context>] <type>(<scope>?): <short description> (#<issue-number>?)`
+
+  - `<context>` depends on the repository (e.g., backend, frontend, tools, agent, collector-name, docs, etc.)
+  - `<type>` must be one of the predefined commit types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+  - `<scope>` is optional and describes the affected part of the code
+  - `#<issue-number>` is optional but recommended when applicable
+
+**Example:**
+[backend] feat(auth): add JWT authentication (#123)
 
 ### How can you get in touch for other questions ?
 

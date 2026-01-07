@@ -2,7 +2,7 @@ package io.openaev.executors.caldera.service;
 
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_TYPE;
 import static io.openaev.service.EndpointService.DELETE_TTL;
-import static io.openaev.utils.TimeUtils.toInstant;
+import static io.openaev.utils.time.TimeUtils.toInstant;
 import static java.time.Instant.now;
 
 import com.cronutils.utils.VisibleForTesting;

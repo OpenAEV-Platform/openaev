@@ -67,7 +67,6 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ChallengeService challengeService;
 
-  private static final int DEFAULT_EXPORT_OPTIONS = ExportOptions.mask(false, false, false);
   private static final int FULL_EXPORT_OPTIONS = ExportOptions.mask(true, true, true);
 
   @BeforeEach

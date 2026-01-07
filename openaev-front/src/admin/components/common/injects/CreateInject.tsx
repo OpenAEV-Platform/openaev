@@ -362,7 +362,7 @@ const CreateInject: FunctionComponent<Props> = ({
         gridTemplateColumns: selectedContract ? `60% calc(40% - ${theme.spacing(2)})` : '1fr',
         gap: theme.spacing(2),
         overflow: 'hidden',
-        padding: 0,
+        padding: `${theme.spacing(2.5)} 0 ${theme.spacing(2.5)} ${theme.spacing(2.5)}`,
       }}
     >
       <>
@@ -381,6 +381,8 @@ const CreateInject: FunctionComponent<Props> = ({
             <ListItem
               classes={{ root: classes.itemHead }}
               divider={false}
+              style={{ paddingTop: 0 }}
+              secondaryAction={<>&nbsp;</>}
             >
               {!isAtomic && (
                 <ListItemIcon style={{ minWidth: 40 }}>
@@ -393,7 +395,7 @@ const CreateInject: FunctionComponent<Props> = ({
                   />
                 </ListItemIcon>
               )}
-              <ListItemIcon />
+              <ListItemIcon style={{ minWidth: 56 }} />
               <ListItemText
                 primary={(
                   <SortHeadersComponentV2
@@ -403,65 +405,95 @@ const CreateInject: FunctionComponent<Props> = ({
                   />
                 )}
               />
-
+              <ListItemIcon />
             </ListItem>
             {contracts.map((contract: InjectorContractFullOutput, index) => {
-              const contractAttackPatterns = computeAttackPatterns(contract.injector_contract_attack_patterns, attackPatternsMap);
+              const contractAttackPatterns = computeAttackPatterns(
+                contract.injector_contract_attack_patterns,
+                attackPatternsMap,
+              );
+
               const contractKillChainPhase = contractAttackPatterns
-                .flatMap((contractAttackPattern: AttackPattern) => contractAttackPattern.attack_pattern_kill_chain_phases ?? [])
+                .flatMap(ap => ap.attack_pattern_kill_chain_phases ?? [])
                 .at(0);
-              const resolvedContractKillChainPhase = contractKillChainPhase && killChainPhasesMap[contractKillChainPhase];
+
+              const resolvedContractKillChainPhase
+                = contractKillChainPhase && killChainPhasesMap[contractKillChainPhase];
+
               return (
-                <ListItemButton
+                <ListItem
                   key={contract.injector_contract_id}
                   divider
-                  onClick={() => {
-                    selectContract(contract);
-                    handleClearSelectedElements();
-                  }}
-                  selected={selectedContract?.injector_contract_id === contract.injector_contract_id}
-                  disabled={(selectedContract?.injector_contract_id === contract.injector_contract_id)}
+                  disablePadding
+                  secondaryAction={<>&nbsp;</>}
                 >
-                  {!isAtomic && (
-                    <ListItemIcon
-                      style={{ minWidth: 40 }}
-                      onClick={event => (event.shiftKey
-                        ? onRowShiftClick(index, contract, event)
-                        : handleToggle(contract, event))}
-                    >
-                      <Checkbox
-                        edge="start"
-                        checked={
-                          (selectAll && !(contract.injector_contract_id
-                            in (deSelectedElements || {})))
+                  <ListItemButton
+                    onClick={() => {
+                      selectContract(contract);
+                      handleClearSelectedElements();
+                    }}
+                    selected={selectedContract?.injector_contract_id === contract.injector_contract_id}
+                    disabled={selectedContract?.injector_contract_id === contract.injector_contract_id}
+                  >
+                    {!isAtomic && (
+                      <ListItemIcon
+                        style={{ minWidth: 40 }}
+                        onClick={event => (
+                          event.shiftKey
+                            ? onRowShiftClick(index, contract, event)
+                            : handleToggle(contract, event)
+                        )}
+                      >
+                        <Checkbox
+                          edge="start"
+                          checked={
+                            (selectAll
+                              && !(contract.injector_contract_id in (deSelectedElements || {})))
                             || contract.injector_contract_id in (selectedElements || {})
+                          }
+                          disableRipple
+                        />
+                      </ListItemIcon>
+                    )}
+
+                    <ListItemIcon style={{ minWidth: 56 }}>
+                      <InjectIcon
+                        variant="list"
+                        type={
+                          contract.injector_contract_payload_type
+                          ?? contract.injector_contract_injector_type
                         }
-                        disableRipple
+                        isPayload={isNotEmptyField(contract.injector_contract_payload_type)}
                       />
                     </ListItemIcon>
-                  )}
-                  <ListItemIcon>
-                    <InjectIcon
-                      variant="list"
-                      type={contract.injector_contract_payload_type ?? contract.injector_contract_injector_type}
-                      isPayload={isNotEmptyField(contract.injector_contract_payload_type)}
+
+                    <ListItemText
+                      primary={(
+                        <div className={classes.bodyItems}>
+                          {headers.map(header => (
+                            <div
+                              key={header.field}
+                              className={classes.bodyItem}
+                              style={inlineStyles[header.field]}
+                            >
+                              {header.value?.(
+                                contract,
+                                resolvedContractKillChainPhase,
+                                contractAttackPatterns,
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     />
-                  </ListItemIcon>
-                  {headers.map(header => (
-                    <div
-                      key={header.field}
-                      className={classes.bodyItem}
-                      style={inlineStyles[header.field]}
-                    >
-                      {header.value?.(contract, resolvedContractKillChainPhase, contractAttackPatterns)}
-                    </div>
-                  ))}
-                  <ListItemIcon>
-                    <KeyboardArrowRight />
-                  </ListItemIcon>
-                </ListItemButton>
+                    <ListItemIcon>
+                      <KeyboardArrowRight />
+                    </ListItemIcon>
+                  </ListItemButton>
+                </ListItem>
               );
             })}
+
           </List>
         </div>
         {selectedContract && numberOfSelectedElements === 0 && (
@@ -524,12 +556,11 @@ const CreateInject: FunctionComponent<Props> = ({
               />
             </div>
           </Slide>
-
         )}
         {
           numberOfSelectedElements > 0 && (
             <BulkToolBar
-              info={t('Bulk select lets you addd multiple injects. They\'ll show as "missing content" until configured')}
+              info={t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured')}
               numberOfSelectedElements={numberOfSelectedElements}
               handleClearSelectedElements={handleClearSelectedElements}
               toolTasks={toolTasks}

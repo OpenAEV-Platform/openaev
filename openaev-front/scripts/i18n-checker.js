@@ -56,6 +56,7 @@ const checkLanguageSupport = (lang) => {
     }
     return null;
   };
+
   const read = (dirPath) => {
     const files = fs.readdirSync(dirPath);
     files.forEach((file) => {

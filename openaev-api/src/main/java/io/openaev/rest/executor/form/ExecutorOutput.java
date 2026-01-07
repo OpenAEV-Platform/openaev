@@ -32,4 +32,13 @@ public class ExecutorOutput {
 
   @JsonProperty("is_verified")
   private boolean verified = false;
+
+  @JsonProperty("executor_platforms")
+  private String[] platforms;
+
+  @JsonProperty("executor_doc")
+  private String doc;
+
+  @JsonProperty("executor_background_color")
+  private String backgroundColor;
 }

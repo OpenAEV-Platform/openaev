@@ -17,6 +17,7 @@
           "period_end": "2025-09-04T14:00:00Z",
           "period_start": "2025-08-04T14:00:00Z",
           "periodicity": "P1D",
+          "duration": "P30D",
           "spec_version": "2.1",
           "type": "security-coverage",
           "extensions": {

@@ -1,0 +1,157 @@
+{
+  "internal": {
+    "work_id": "work_68949a7b-c1c2-4649-b3de-7db804ba02bb_2025-10-27T23:29:34.933Z"
+  },
+  "event": {
+    "stix_objects": {
+      "id": "bundle--c038a34d-411d-4a12-8f5e-fb957dbe9dc2",
+      "type": "bundle",
+      "objects": [
+        {
+          "created": "2025-08-04T14:00:00Z",
+          "description": "Security coverage test plan for threat context XYZ.",
+          "id": "security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1",
+          "labels": [
+            "opencti"
+          ],
+          "covered_ref": "64f9b3ef-cca7-4820-9230-8594ddeeccb5",
+          "modified": "2025-12-31T14:00:00Z",
+          "name": "Security Coverage Q3 2025 - Threat Report XYZ",
+          "period_end": "2025-09-04T14:00:00Z",
+          "period_start": "2025-08-04T14:00:00Z",
+          "periodicity": "P1D",
+          "spec_version": "2.1",
+          "type": "security-coverage",
+          "extensions": {
+            "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+              "extension_type": "new-sdo",
+              "id": "b19abcdf-01f7-48a4-a7b9-a2e7ddde1763",
+              "type": "Security-Coverage",
+              "created_at": "2025-08-04T14:00:00Z",
+              "updated_at": "2025-08-04T14:00:00Z",
+              "is_inferred": false,
+              "creator_ids": [
+                "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+              ]
+            }
+          }
+        },
+        {
+          "aliases": [
+            "T1531"
+          ],
+          "confidence": 100,
+          "created": "2019-10-09T18:48:31.906Z",
+          "created_by_ref": "identity--f11b0831-e7e6-5214-9431-ccf054e53e94",
+          "description": "Adversaries may interrupt availability of system and network resources by inhibiting access to accounts utilized by legitimate users. Accounts may be deleted, locked, or manipulated (ex: changed credentials) to remove access to accounts. Adversaries may also subsequently log off and/or perform a [System Shutdown/Reboot](https://attack.mitre.org/techniques/T1529) to set malicious changes into place.(Citation: CarbonBlack LockerGoga 2019)(Citation: Unit42 LockerGoga 2019)\n\nIn Windows, [Net](https://attack.mitre.org/software/S0039) utility, `Set-LocalUser` and `Set-ADAccountPassword` [PowerShell](https://attack.mitre.org/techniques/T1059/001) cmdlets may be used by adversaries to modify user accounts. In Linux, the `passwd` utility may be used to change passwords. Accounts could also be disabled by Group Policy. \n\nAdversaries who use ransomware or similar attacks may first perform this and other Impact behaviors, such as [Data Destruction](https://attack.mitre.org/techniques/T1485) and [Defacement](https://attack.mitre.org/techniques/T1491), in order to impede incident response/recovery before completing the [Data Encrypted for Impact](https://attack.mitre.org/techniques/T1486) objective.",
+          "id": "attack-pattern--a24d97e6-401c-51fc-be24-8f797a35d1f1",
+          "modified": "2025-01-31T14:04:33.112Z",
+          "name": "Account Access Removal",
+          "object_marking_refs": [
+            "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
+            "marking-definition--608d7dcb-0237-5e3e-9fb0-8d879f80f5dd"
+          ],
+          "revoked": false,
+          "spec_version": "2.1",
+          "type": "attack-pattern",
+          "x_mitre_detection": "Use process monitoring to monitor the execution and command line parameters of binaries involved in deleting accounts or changing passwords, such as use of [Net](https://attack.mitre.org/software/S0039). Windows event logs may also designate activity associated with an adversary's attempt to remove access to an account:\n\n* Event ID 4723 - An attempt was made to change an account's password\n* Event ID 4724 - An attempt was made to reset an account's password\n* Event ID 4726 - A user account was deleted\n* Event ID 4740 - A user account was locked out\n\nAlerting on [Net](https://attack.mitre.org/software/S0039) and these Event IDs may generate a high degree of false positives, so compare against baseline knowledge for how systems are typically used and correlate modification events with other indications of malicious activity where possible.",
+          "x_mitre_id": "T1531",
+          "x_mitre_platforms": [
+            "Windows",
+            "Linux",
+            "macOS",
+            "IaaS",
+            "SaaS",
+            "Office Suite"
+          ],
+          "x_opencti_id": "65224fd3-a2e1-4fd8-9f20-37bbfdafea82",
+          "x_opencti_type": "Attack-Pattern",
+          "extensions": {
+            "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b": {
+              "id": "T1531"
+            }
+          }
+        },
+        {
+          "aliases": [
+            "OS Credential Dumping"
+          ],
+          "confidence": 100,
+          "created": "2024-04-15T13:30:53.662Z",
+          "created_by_ref": "identity--b2a8fbec-b4fb-563c-a052-7b5b4ab23070",
+          "description": "Adversaries may attempt to dump credentials to obtain account login and credential material, normally in the form of a hash or a clear text password. Credentials can be obtained from OS caches, memory, or structures.(Citation: Brining MimiKatz to Unix) Credentials can then be used to perform [Lateral Movement](https://attack.mitre.org/tactics/TA0008) and access restricted information.\n\nSeveral of the tools mentioned in associated sub-techniques may be used by both adversaries and professional security testers. Additional custom tools likely exist as well.",
+          "id": "attack-pattern--033921be-85df-5f05-8bc0-d3d9fc945db9",
+          "modified": "2025-01-31T19:43:51.136Z",
+          "name": "T1003",
+          "object_marking_refs": [
+            "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
+            "marking-definition--608d7dcb-0237-5e3e-9fb0-8d879f80f5dd"
+          ],
+          "revoked": false,
+          "spec_version": "2.1",
+          "type": "attack-pattern",
+          "x_mitre_id": "T1003",
+          "x_mitre_platforms": [
+            "Windows",
+            "Linux",
+            "macOS"
+          ],
+          "x_opencti_id": "eb25bbe2-7af3-4d93-837c-d1933eb521e7",
+          "x_opencti_type": "Attack-Pattern",
+          "extensions": {
+            "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b": {
+              "id": "T1003"
+            }
+          }
+        },
+        {
+          "id": "vulnerability--de1172d3-a3e8-51a8-9014-30e572f3b975",
+          "spec_version": "2.1",
+          "revoked": false,
+          "confidence": 100,
+          "created": "2025-09-08T10:48:57.905Z",
+          "modified": "2025-09-08T10:48:57.961Z",
+          "name": "CVE-2023-48788",
+          "x_opencti_cisa_kev": false,
+          "x_opencti_workflow_id": "4c52b960-bb81-4285-974b-7b5aecc3b62c",
+          "external_references": [
+            {
+              "source_name": "Aruba Networks Inc.",
+              "description": "CVE-2021-44228 - Apache log4j library vulnerability",
+              "url": "https://www.arubanetworks.com/assets/alert/ARUBA-PSA-2021-019.txt",
+              "external_id": "ARUBA-PSA-2021-019"
+            }
+          ],
+          "x_opencti_id": "50e82364-5bce-453e-9e79-b9743774d310",
+          "x_opencti_type": "Vulnerability",
+          "type": "vulnerability"
+        },
+        {
+          "aliases": [
+            "T1531"
+          ],
+          "confidence": 100,
+          "created": "2019-10-09T18:48:31.906Z",
+          "created_by_ref": "identity--be52eaf9-be82-46db-92b2-9e808fad3f86",
+          "description": "Non-MITRE attack pattern",
+          "id": "attack-pattern--c1fad538-bb66-4e3f-97f5-9a9a15fd34b1",
+          "modified": "2025-01-31T14:04:33.112Z",
+          "name": "Attack!",
+          "object_marking_refs": [
+            "marking-definition--5ec5c3bd-99b6-45c1-b47d-4a74661af0f1",
+            "marking-definition--d79c734e-0d18-405c-92f1-8b4ebb1a6e4f"
+          ],
+          "revoked": false,
+          "spec_version": "2.1",
+          "type": "attack-pattern",
+          "x_opencti_id": "1cd1b639-8b8a-4620-bc73-cfd6fdf0e588",
+          "x_opencti_type": "Attack-Pattern",
+          "extensions": {
+            "extension-definition--322b8f77-262a-4cb8-a915-1e441e00329b": {
+            }
+          }
+        }
+      ]
+    }
+  }
+}

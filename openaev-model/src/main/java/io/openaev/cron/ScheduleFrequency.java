@@ -7,6 +7,7 @@ public enum ScheduleFrequency {
   DAILY("d"),
   WEEKLY("w"),
   MONTHLY("m"),
+  HOURLY("h"),
   ONESHOT("os");
 
   private final String value;

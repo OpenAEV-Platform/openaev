@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
-import { type Executor } from '../../../utils/api-types';
+import { type ExecutorOutput } from '../../../utils/api-types';
 
 const useStyles = makeStyles()(() => ({
   area: {
@@ -15,7 +15,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface PlatformSelectorProps {
-  selectedExecutor: Executor;
+  selectedExecutor: ExecutorOutput;
   setPlatform: (platform: string) => void;
   setActiveStep: (step: number) => void;
 }

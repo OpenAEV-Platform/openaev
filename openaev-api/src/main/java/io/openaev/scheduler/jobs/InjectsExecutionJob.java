@@ -7,6 +7,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
@@ -30,8 +31,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Spliterators;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -41,9 +44,13 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.core.env.Environment;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.SpelParseException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -191,7 +198,8 @@ public class InjectsExecutionJob implements Job {
    * @param exerciseId the id of the exercise
    * @param inject the inject to check
    */
-  private void checkErrorMessagesPreExecution(String exerciseId, Inject inject)
+  @VisibleForTesting
+  protected void checkErrorMessagesPreExecution(String exerciseId, Inject inject)
       throws ErrorMessagesPreExecutionException {
     List<InjectDependency> injectDependencies =
         injectDependenciesRepository.findParents(List.of(inject.getId()));
@@ -207,30 +215,71 @@ public class InjectsExecutionJob implements Job {
       List<String> errorMessages = new ArrayList<>();
 
       for (InjectDependency injectDependency : injectDependencies) {
-        String expressionToEvaluate = injectDependency.getInjectDependencyCondition().toString();
-        List<String> conditions =
-            injectDependency.getInjectDependencyCondition().getConditions().stream()
-                .map(InjectDependencyConditions.Condition::toString)
-                .toList();
-        for (String condition : conditions) {
-          expressionToEvaluate =
-              expressionToEvaluate.replaceAll(
-                  condition.split("==")[0].trim(),
-                  String.format("#this['%s']", condition.split("==")[0].trim()));
-        }
+        List<String> availableKeys =
+            new ArrayList<>(
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(
+                            injectDependency
+                                .getCompositeId()
+                                .getInjectParent()
+                                .getContent()
+                                .get("expectations")
+                                .elements(),
+                            0),
+                        false)
+                    .map(
+                        jsonNode -> {
+                          if (jsonNode
+                              .get("expectation_type")
+                              .asText()
+                              .equals(InjectExpectation.EXPECTATION_TYPE.MANUAL.name())) {
+                            return jsonNode.get("expectation_name").asText().toLowerCase();
+                          }
+                          return jsonNode.get("expectation_type").asText().toLowerCase();
+                        })
+                    .toList());
+        availableKeys.add("execution");
 
-        ExpressionParser parser = new SpelExpressionParser();
-        Expression exp = parser.parseExpression(expressionToEvaluate);
-        boolean canBeExecuted = Boolean.TRUE.equals(exp.getValue(mapCondition, Boolean.class));
-        if (!canBeExecuted) {
-          if (errorMessages.isEmpty()) {
-            errorMessages.add(
-                "This inject depends on other injects expectations that are not met. The following conditions were not as expected : ");
+        if (injectDependency.getInjectDependencyCondition().getConditions().stream()
+            .allMatch(condition -> availableKeys.contains(condition.getKey().toLowerCase()))) {
+          String expressionToEvaluate = injectDependency.getInjectDependencyCondition().toString();
+          List<String> conditions =
+              injectDependency.getInjectDependencyCondition().getConditions().stream()
+                  .map(InjectDependencyConditions.Condition::toString)
+                  .toList();
+          for (String condition : conditions) {
+            expressionToEvaluate =
+                expressionToEvaluate.replaceAll(
+                    condition.split("==")[0].trim(),
+                    String.format("#this['%s']", condition.split("==")[0].trim()));
           }
-          errorMessages.addAll(
-              labelFromCondition(
-                  injectDependency.getCompositeId().getInjectParent(),
-                  injectDependency.getInjectDependencyCondition()));
+
+          ExpressionParser parser = new SpelExpressionParser();
+
+          EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
+          try {
+            Expression exp = parser.parseExpression(expressionToEvaluate);
+            boolean canBeExecuted =
+                Boolean.TRUE.equals(exp.getValue(context, mapCondition, Boolean.class));
+            if (!canBeExecuted) {
+              if (errorMessages.isEmpty()) {
+                errorMessages.add(
+                    "This inject depends on other injects expectations that are not met. The following conditions were not as expected : ");
+              }
+              errorMessages.addAll(
+                  labelFromCondition(
+                      injectDependency.getCompositeId().getInjectParent(),
+                      injectDependency.getInjectDependencyCondition()));
+            }
+
+          } catch (EvaluationException | SpelParseException e) {
+            log.warn(e.getMessage(), e);
+            errorMessages.add(
+                "There was an error during the evaluation of the condition of the inject");
+          }
+        } else {
+          log.warn("A key in the conditions didn't matched any expectations");
+          errorMessages.add("A key in the conditions didn't matched any expectations");
         }
       }
       if (!errorMessages.isEmpty()) {

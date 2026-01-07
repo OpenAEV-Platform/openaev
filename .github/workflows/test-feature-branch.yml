@@ -7,27 +7,29 @@ on:
         default: '{ "SPRING_PROFILES_ACTIVE": "ci" }'
         required: false
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   openaev-platform:
     name: openaev-platform
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: jirutka/setup-alpine@v1
         with:
-          branch: v3.18
+          branch: v3.23
           extra-repositories: |
             https://dl-cdn.alpinelinux.org/alpine/edge/community/
           packages: >
             nodejs npm git tini gcc g++ make musl-dev cargo openjdk21-jdk maven postfix postfix-pcre
-
       - name: Setup Node.js
         run: |
           npm install -g  yarn
         shell: alpine.sh --root {0}
-
       - name: Build into Alpine
         run: |
           export JAVA_HOME=/usr/lib/jvm/default-jvm/
@@ -37,10 +39,8 @@ jobs:
           cd ../
           mvn install -DskipTests -Pdev
         shell: alpine.sh {0}
-
       - run: mkdir -p openaev-build/
       - run: cp openaev-api/target/openaev-api.jar openaev-build/
-
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -74,7 +74,6 @@ jobs:
           cache-to: type=registry,ref=filigran/openaev-platform:buildcache,mode=max
     outputs:
       dockerBuildDigest: ${{ steps.buildpush.outputs.digest }}
-
   deploy:
     name: deploy
     needs: [openaev-platform]
@@ -90,10 +89,8 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-
       - name: Install AWX cli
         run: pip install awxkit
-
       - name: Deploy feature environment via AWX
         run: |
           awx --conf.host ${{ secrets.AWX_URL }} \
@@ -104,7 +101,6 @@ jobs:
             --wait \
             --inventory eu-west-staging \
             --extra_vars '{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}'
-
       - name: Forge URL to match playbook limitations
         id: urlforge
         run: |
