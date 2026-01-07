@@ -48,7 +48,7 @@ public interface ExerciseRepository
               + "left join injects_statuses as status on inject.inject_id = status.status_inject and status.status_name not in ('DRAFT', 'PENDING', 'QUEUING', 'EXECUTING')"
               + "left join scenarios_exercises as se on e.exercise_id = se.exercise_id "
               + "where e.exercise_status = 'RUNNING' group by e.exercise_id, se.scenario_id having count(status) = count(inject) "
-              + "and count(inject) filter (where inject.inject_collect_status = 'COMPLETED' or status.status_name <> 'ERROR') = count(inject) filter (where status.status_name <> 'ERROR');",
+              + "and count(inject) filter (where inject.inject_collect_status = 'COMPLETED' and status.status_name <> 'ERROR') = count(inject) filter (where status.status_name <> 'ERROR');",
       nativeQuery = true)
   List<Exercise> thatMustBeFinished();
 
