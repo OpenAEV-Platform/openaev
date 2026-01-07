@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
@@ -77,6 +78,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DomainRepository domainRepository;
 
   @Autowired private UserComposer userComposer;
   @Autowired private GroupComposer groupComposer;
@@ -94,6 +96,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     roleComposer.reset();
     grantComposer.reset();
     domainComposer.reset();
+    domainRepository.deleteAll();
+    entityManager.flush();
   }
 
   @Nested
@@ -1560,8 +1564,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
       injectorContractComposer.forInjectorContract(contract3).withInjector(validInjector).persist();
 
-      entityManager.flush();
-      entityManager.clear();
+
 
       InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
 
