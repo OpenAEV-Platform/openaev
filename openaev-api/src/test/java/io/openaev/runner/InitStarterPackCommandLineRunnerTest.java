@@ -1,5 +1,6 @@
 package io.openaev.runner;
 
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doThrow;
@@ -82,9 +83,6 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     initStarterPackCommandLineRunner.run();
 
     // VERIFY
-    long tagCount = tagRepository.count();
-    assertEquals(1, tagCount); // 1 by default, because OpenCTI tag is created by other process
-
     long assetsCount = assetRepository.count();
     assertEquals(0, assetsCount);
 
@@ -126,9 +124,6 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
     initStarterPackCommandLineRunner.run();
 
     // VERIFY
-    long tagCount = tagRepository.count();
-    assertEquals(1, tagCount); // 1 by default, because OpenCTI tag is created by other process
-
     long assetsCount = assetRepository.count();
     assertEquals(0, assetsCount);
 
@@ -436,17 +431,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   }
 
   private void verifyTagsExist() {
-    long tagCount = tagRepository.count();
-    assertEquals(3, tagCount);
-
-    Optional<Tag> tagVulnerability = tagRepository.findByName("vulnerability");
-    assertTrue(tagVulnerability.isPresent());
-
-    Optional<Tag> tagCisco = tagRepository.findByName("cisco");
-    assertTrue(tagCisco.isPresent());
-
-    Optional<Tag> tagOpenCTI = tagRepository.findByName("opencti");
-    assertTrue(tagOpenCTI.isPresent());
+    assertThat(tagRepository.findByName(Tag.VULNERABILITY_TAG_NAME)).isPresent();
+    assertThat(tagRepository.findByName(Tag.CISCO_TAG_NAME)).isPresent();
+    assertThat(tagRepository.findByName(Tag.OPENCTI_TAG_NAME)).isPresent();
   }
 
   private void verifyEndpointExist() {

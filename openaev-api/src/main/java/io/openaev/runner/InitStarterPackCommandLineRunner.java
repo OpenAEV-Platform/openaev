@@ -1,7 +1,5 @@
 package io.openaev.runner;
 
-import static io.openaev.utils.StringUtils.generateRandomColor;
-
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -10,7 +8,6 @@ import io.openaev.jsonapi.ResourceObject;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
-import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -46,13 +43,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           Config.DEFAULT_FILE_DASHBOARD_HOME, SettingKeys.DEFAULT_HOME_DASHBOARD.key(),
           Config.DEFAULT_FILE_DASHBOARD_SCENARIO, SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key(),
           Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
-
-  private static final class Tags {
-
-    static final String VULNERABILITY = "vulnerability";
-    static final String CISCO = "cisco";
-    static final String OPENCTI = "opencti";
-  }
 
   private static final class HoneyScanMeEndpoint {
 
@@ -251,13 +241,6 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       defaultDashboardSetting.setValue(dashboardId);
       settingRepository.save(defaultDashboardSetting);
     }
-  }
-
-  private Tag createTag(String name) {
-    TagCreateInput tagCreateInput = new TagCreateInput();
-    tagCreateInput.setName(name);
-    tagCreateInput.setColor(generateRandomColor());
-    return this.tagService.upsertTag(tagCreateInput);
   }
 
   private void createSetting() {
