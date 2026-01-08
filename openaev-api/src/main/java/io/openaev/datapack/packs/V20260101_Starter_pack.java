@@ -12,7 +12,6 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -21,8 +20,30 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class V20260101_Starter_pack extends DataPack {
+  public V20260101_Starter_pack(
+      DataPackService dataPackService,
+      SettingRepository settingRepository,
+      TagRuleRepository tagRuleRepository,
+      TagService tagService,
+      EndpointService endpointService,
+      AssetGroupService assetGroupService,
+      TagRuleService tagRuleService,
+      ImportService importService,
+      ZipJsonService<CustomDashboard> zipJsonService,
+      ResourcePatternResolver resolver) {
+    super(dataPackService);
+    this.settingRepository = settingRepository;
+    this.tagRuleRepository = tagRuleRepository;
+    this.tagService = tagService;
+    this.endpointService = endpointService;
+    this.assetGroupService = assetGroupService;
+    this.tagRuleService = tagRuleService;
+    this.importService = importService;
+    this.zipJsonService = zipJsonService;
+    this.resolver = resolver;
+  }
+
   private static final class Config {
 
     static final String STARTER_PACK_KEY = "starterpack";

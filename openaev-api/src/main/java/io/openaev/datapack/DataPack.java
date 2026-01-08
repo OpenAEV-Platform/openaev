@@ -7,12 +7,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public abstract class DataPack {
+  private final DataPackService dataPackService;
+
+  protected DataPack(DataPackService dataPackService) {
+    this.dataPackService = dataPackService;
+  }
+
   protected abstract void doProcess();
 
   @Getter private final String packId = this.getClass().getCanonicalName();
 
   @Transactional(rollbackFor = Exception.class)
-  public DataPackProcessingResult process(DataPackService dataPackService) {
+  public DataPackProcessingResult process() {
     return dataPackService
         .findById(packId)
         .map(

@@ -4,21 +4,31 @@ import io.openaev.database.model.*;
 import io.openaev.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.DataPackService;
 import io.openaev.service.TagRuleService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
 
   private final TagService tagService;
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
+
+  public V20260107_Tags_and_tagrules_and_assetgroups(
+      DataPackService dataPackService,
+      TagService tagService,
+      TagRuleService tagRuleService,
+      AssetGroupService assetGroupService) {
+    super(dataPackService);
+    this.tagService = tagService;
+    this.tagRuleService = tagRuleService;
+    this.assetGroupService = assetGroupService;
+  }
 
   private Optional<TagRule> findTagRuleForPlatform(
       Set<TagRule> tagRules, Endpoint.PLATFORM_TYPE platform) {

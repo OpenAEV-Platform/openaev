@@ -1,4 +1,4 @@
-package io.openaev.runner;
+package io.openaev.datapack;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +10,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.datapack.packs.V20260101_Starter_pack;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;
@@ -36,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("StarterPack process tests")
 @Transactional
-public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
+public class StarterPackTest extends IntegrationTest {
 
   @Autowired private TagRepository tagRepository;
   @Autowired private AssetRepository assetRepository;
@@ -62,12 +63,15 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectRepository injectRepository;
 
+  @Autowired private DataPackService dataPackService;
+
   @Test
   @DisplayName("Should not init StarterPack for disabled feature")
   public void shouldNotInitStarterPackForDisabledFeature() {
     // PREPARE
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -77,10 +81,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", false);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", false);
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -103,8 +107,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should not init StarterPack if already integrated")
   public void shouldNotInitStarterPackIfAlreadyIntegrated() {
     // PREPARE
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -114,14 +119,17 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    datapack.process();
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     Setting setting = new Setting();
     setting.setKey("starterpack");
     setting.setValue("Mock StarterPack integration");
     settingRepository.save(setting);
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -144,8 +152,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should not init StarterPack Scenarios for import failure")
   public void shouldNotInitStarterPackScenariosForImportFailure() throws Exception {
     // PREPARE
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -155,18 +164,17 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             mockImportService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
-    long scenarioCount = scenarioRepository.count();
-    assertEquals(0, scenarioCount);
+    assertThat(scenarioRepository.findAll()).isEmpty();
     this.verifyDashboardExist();
     this.verifyParameterExist();
     this.verifyDefaultHomeDashboardParameterExist();
@@ -179,8 +187,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should not init StarterPack Dashboards for import failure")
   public void shouldNotInitStarterPackDashboardsForImportFailure() throws Exception {
     // PREPARE
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -190,13 +199,13 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             mockZipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockZipJsonService)
         .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""));
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
@@ -212,8 +221,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should not init StarterPack Scenarios and Dashboards for import failure")
   public void shouldNotInitStarterPackScenariosAndDashboardsForImportFailure() throws Exception {
     // PREPARE
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -223,7 +233,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             mockResolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockResolver)
         .getResources(eq("classpath:starterpack/scenarios/*"));
@@ -232,7 +242,7 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
         .getResources(eq("classpath:starterpack/dashboards/*"));
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
@@ -249,8 +259,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack")
   public void shouldInitStarterPack() {
     // PREPARE
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -260,10 +271,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
@@ -282,13 +293,12 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Should init StarterPack even if OpenCTI tag rule doesn't exist")
   public void shouldInitStarterPackEvenIfOpenCTITagRuleDoesntExist() {
     // PREPARE
-    Optional<Tag> openCtiTag = this.tagRepository.findByName("opencti");
-    assertFalse(openCtiTag.isEmpty());
-    List<TagRule> tagRules = this.tagRuleRepository.findByTags(List.of(openCtiTag.get().getId()));
+    List<TagRule> tagRules = this.tagRuleRepository.findByTagNames(List.of("opencti"));
     tagRules.forEach(tagRule -> this.tagRuleRepository.deleteById(tagRule.getId()));
 
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -298,10 +308,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
@@ -334,8 +344,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
         .withPayload(payloadComposer.forPayload(payload))
         .persist();
 
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -345,10 +356,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
@@ -391,8 +402,9 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
         .withPayload(payloadComposer.forPayload(payload))
         .persist();
 
-    InitStarterPackCommandLineRunner initStarterPackCommandLineRunner =
-        new InitStarterPackCommandLineRunner(
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
             settingRepository,
             tagRuleRepository,
             tagService,
@@ -402,10 +414,10 @@ public class InitStarterPackCommandLineRunnerTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
-    ReflectionTestUtils.setField(initStarterPackCommandLineRunner, "isStarterPackEnabled", true);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    initStarterPackCommandLineRunner.run();
+    datapack.process();
 
     // VERIFY
     this.verifyTagsExist();
