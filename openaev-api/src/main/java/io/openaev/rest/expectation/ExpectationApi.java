@@ -4,10 +4,12 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.service.ExpectationService;
 import io.openaev.service.InjectExpectationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.transaction.Transactional;
@@ -27,6 +29,7 @@ public class ExpectationApi extends RestBehavior {
   public static final String INJECTS_EXPECTATIONS_URI = "/api/injects/expectations";
 
   private final InjectExpectationService injectExpectationService;
+  private final ExpectationService expectationService;
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(EXPECTATIONS_URI + "/{expectationId}")
@@ -167,5 +170,13 @@ public class ExpectationApi extends RestBehavior {
   public void updateInjectExpectation(
       @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
+  }
+
+  @Operation(summary = "Get available expectations for an inject by injector contract id")
+  @GetMapping(INJECTS_EXPECTATIONS_URI + "/available")
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  public List<Expectation> getAvailableExpectationsForInject(
+      @RequestParam @NotBlank String injectorContractId) {
+    return expectationService.getAvailableExpectationsForInject(injectorContractId);
   }
 }

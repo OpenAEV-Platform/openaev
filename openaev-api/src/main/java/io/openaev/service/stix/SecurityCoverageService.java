@@ -177,6 +177,7 @@ public class SecurityCoverageService {
     }
 
     securityCoverage.setContent(stixCoverageObj.toStix(objectMapper).toString());
+    stixCoverageObj.setInstantIfPresent(MODIFIED, securityCoverage::setStixModified);
 
     log.info("Saving Security coverage with external ID: {}", securityCoverage.getExternalId());
     return save(securityCoverage);
@@ -203,15 +204,15 @@ public class SecurityCoverageService {
       throw new ParsingException("Invalid STIX modified date format", e);
     }
 
-    Instant currentUpdated = securityCoverage.getUpdatedAt();
+    Instant currentModified = securityCoverage.getStixModified();
 
-    // STIX modified date must be newer than the stored updatedAt
+    // Last STIX modified date must be newer than the stored modified
     log.info(
-        "SecurityCoverage Update Check: externalId={}, currentUpdated={}, stixModified={}",
+        "SecurityCoverage Update Check: externalId={}, currentModified={}, stixModified={}",
         externalId,
-        currentUpdated,
+        currentModified,
         stixModified);
-    boolean isNewer = currentUpdated == null || stixModified.isAfter(currentUpdated);
+    boolean isNewer = currentModified == null || stixModified.isAfter(currentModified);
     if (!isNewer) {
       throw new BadRequestException(
           "The STIX package is obsolete because a newer version has already been computed.");

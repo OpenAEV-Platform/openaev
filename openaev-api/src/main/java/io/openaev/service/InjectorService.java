@@ -200,6 +200,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Declare queueing
     Connection connection = null;
     try {
+      if (rabbitmqConfig.isSsl()) {
+        factory.useSslProtocol();
+      }
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
         fileService.uploadFile(

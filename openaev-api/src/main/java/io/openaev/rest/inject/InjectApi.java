@@ -88,6 +88,7 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
+  private final GrantRepository grantRepository;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
 
   private final RabbitmqConfig rabbitmqConfig;
@@ -486,11 +487,8 @@ public class InjectApi extends RestBehavior {
     List<Inject> injectsToDelete =
         getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
 
-    // FIXME: This is a workaround to prevent the GUI from blocking when deleting elements
-    injectsToDelete.forEach(inject -> inject.setListened(false));
-
     // Bulk delete
-    this.injectService.deleteAll(injectsToDelete);
+    this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
     return injectsToDelete;
   }
 
