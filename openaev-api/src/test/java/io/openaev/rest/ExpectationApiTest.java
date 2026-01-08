@@ -1,8 +1,9 @@
 package io.openaev.rest;
 
+import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALLENGE;
+import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
-import static io.openaev.expectation.ExpectationType.DETECTION;
-import static io.openaev.expectation.ExpectationType.PREVENTION;
+import static io.openaev.expectation.ExpectationType.*;
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
 import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
@@ -843,7 +844,7 @@ class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(1, ((List<?>) JsonPath.read(responseMail, "$")).size());
-      assertEquals("MANUAL", JsonPath.read(responseMail, "$.[0].expectation_type"));
+      assertEquals(MANUAL.name(), JsonPath.read(responseMail, "$.[0].expectation_type"));
 
       // -- EXECUTE FOR CHALLENGE --
       String responseChallenge =
@@ -859,8 +860,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(2, ((List<?>) JsonPath.read(responseChallenge, "$")).size());
-      assertEquals("CHALLENGE", JsonPath.read(responseChallenge, "$.[0].expectation_type"));
-      assertEquals("MANUAL", JsonPath.read(responseChallenge, "$.[1].expectation_type"));
+      assertEquals(CHALLENGE.name(), JsonPath.read(responseChallenge, "$.[0].expectation_type"));
+      assertEquals(MANUAL.name(), JsonPath.read(responseChallenge, "$.[1].expectation_type"));
 
       // -- EXECUTE FOR TECHNICAL INJECTOR CONTRACT CREATED --
       String responseCreated =
@@ -876,9 +877,9 @@ class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(3, ((List<?>) JsonPath.read(responseCreated, "$")).size());
-      assertEquals("DETECTION", JsonPath.read(responseCreated, "$.[0].expectation_type"));
-      assertEquals("PREVENTION", JsonPath.read(responseCreated, "$.[1].expectation_type"));
-      assertEquals("VULNERABILITY", JsonPath.read(responseCreated, "$.[2].expectation_type"));
+      assertEquals(DETECTION.name(), JsonPath.read(responseCreated, "$.[0].expectation_type"));
+      assertEquals(PREVENTION.name(), JsonPath.read(responseCreated, "$.[1].expectation_type"));
+      assertEquals(VULNERABILITY.name(), JsonPath.read(responseCreated, "$.[2].expectation_type"));
 
       // -- EXECUTE FOR IMPLANT --
       String responseImplant =
@@ -894,9 +895,9 @@ class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(3, ((List<?>) JsonPath.read(responseImplant, "$")).size());
-      assertEquals("DETECTION", JsonPath.read(responseImplant, "$.[0].expectation_type"));
-      assertEquals("PREVENTION", JsonPath.read(responseImplant, "$.[1].expectation_type"));
-      assertEquals("VULNERABILITY", JsonPath.read(responseImplant, "$.[2].expectation_type"));
+      assertEquals(DETECTION.name(), JsonPath.read(responseImplant, "$.[0].expectation_type"));
+      assertEquals(PREVENTION.name(), JsonPath.read(responseImplant, "$.[1].expectation_type"));
+      assertEquals(VULNERABILITY.name(), JsonPath.read(responseImplant, "$.[2].expectation_type"));
     }
   }
 

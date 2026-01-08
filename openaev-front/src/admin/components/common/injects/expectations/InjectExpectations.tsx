@@ -3,7 +3,7 @@ import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import availableExpectationsForInject from '../../../../../actions/expectations/expectation-actions';
+import availableExpectationsForInjectorContract from '../../../../../actions/expectations/expectation-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -67,7 +67,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   useEffect(() => {
     if (!availableExpectations || availableExpectations.length === 0) {
-      availableExpectationsForInject(injectorContractId).then((result: { data: ExpectationInput[] }) => {
+      availableExpectationsForInjectorContract(injectorContractId).then((result: { data: ExpectationInput[] }) => {
         setAvailableExpectations(result.data);
       });
     }

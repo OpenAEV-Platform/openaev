@@ -9,6 +9,7 @@ import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.service.ExpectationService;
 import io.openaev.service.InjectExpectationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.transaction.Transactional;
@@ -18,7 +19,9 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RequiredArgsConstructor
 @RestController
@@ -28,6 +31,7 @@ public class ExpectationApi extends RestBehavior {
   public static final String INJECTS_EXPECTATIONS_URI = "/api/injects/expectations";
 
   private final InjectExpectationService injectExpectationService;
+  private final ExpectationService expectationService;
 
   @Transactional(rollbackOn = Exception.class)
   @PutMapping(EXPECTATIONS_URI + "/{expectationId}")
@@ -172,9 +176,13 @@ public class ExpectationApi extends RestBehavior {
 
   @Operation(summary = "Get available expectations for an inject by injector contract id")
   @GetMapping(INJECTS_EXPECTATIONS_URI + "/available")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<Expectation> getAvailableExpectationsForInject(
       @RequestParam String injectorContractId) {
-    return injectExpectationService.getAvailableExpectationsForInject(injectorContractId);
+    if (injectorContractId == null || injectorContractId.isBlank()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Injector contract id cannot be null");
+    }
+    return expectationService.getAvailableExpectationsForInject(injectorContractId);
   }
 }
