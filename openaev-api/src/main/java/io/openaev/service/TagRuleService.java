@@ -95,6 +95,17 @@ public class TagRuleService {
     return tagRuleRepository.save(tagRule);
   }
 
+  public TagRule updateAssetGroups(final TagRule tagRule, final List<AssetGroup> assetGroups) {
+    tagRule.setAssetGroups(assetGroups);
+    return this.tagRuleRepository.save(tagRule);
+  }
+
+  public TagRule addAssetGroup(final TagRule tagRule, AssetGroup assetGroup) {
+    Set<AssetGroup> assetGroups = new HashSet<>(tagRule.getAssetGroups());
+    assetGroups.add(assetGroup);
+    return this.updateAssetGroups(tagRule, new ArrayList<>(assetGroups.stream().toList()));
+  }
+
   public Page<TagRule> searchTagRule(SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(tagRuleRepository::findAll, searchPaginationInput, TagRule.class);
   }

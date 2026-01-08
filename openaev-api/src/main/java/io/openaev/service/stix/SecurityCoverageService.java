@@ -331,7 +331,11 @@ public class SecurityCoverageService {
     scenario.setExternalUrl(sa.getExternalUrl());
     scenario.setCategory(ATTACK_SCENARIO);
     setRecurrence(scenario, sa);
-    scenario.setTags(tagService.fetchTagsFromLabels(sa.getPlatformsAffinity()));
+    scenario.setTags(
+        tagService.fetchTagsFromLabels(
+            sa.getPlatformsAffinity().stream()
+                .map("security coverage: %s"::formatted)
+                .collect(Collectors.toSet())));
   }
 
   /**

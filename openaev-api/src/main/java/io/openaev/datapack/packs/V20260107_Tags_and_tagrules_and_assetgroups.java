@@ -1,14 +1,13 @@
 package io.openaev.datapack.packs;
 
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Filters;
+import io.openaev.database.model.*;
 import io.openaev.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.TagRuleService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,10 +20,26 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
 
+  private Optional<TagRule> findTagRuleForPlatform(
+      Set<TagRule> tagRules, Endpoint.PLATFORM_TYPE platform) {
+    String relevantTagName =
+        switch (platform) {
+          case Windows -> Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME;
+          case Linux -> Tag.SECURITY_COVERAGE_LINUX_TAG_NAME;
+          case MacOS -> Tag.SECURITY_COVERAGE_MACOS_TAG_NAME;
+          default ->
+              throw new IllegalArgumentException(
+                  "Unexpected platform type: %s".formatted(platform));
+        };
+    return tagRules.stream()
+        .filter(tr -> relevantTagName.equals(tr.getTag().getName()))
+        .findFirst();
+  }
+
   @Override
   public void doProcess() {
     tagService.ensureWellKnownTags();
-    tagRuleService.ensurePresetRules();
+    Set<TagRule> presetRules = tagRuleService.ensurePresetRules();
 
     Set<Endpoint.PLATFORM_TYPE> platformsToConsider =
         Set.of(
@@ -56,7 +71,13 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
         assetGroup.setName("All %s %s".formatted(platform.toString(), arch.toString()));
         assetGroup.setDynamicFilter(filterGroup);
 
-        this.assetGroupService.createAssetGroup(assetGroup);
+        AssetGroup saved = this.assetGroupService.createAssetGroup(assetGroup);
+
+        findTagRuleForPlatform(presetRules, platform)
+            .ifPresent(
+                tagRule -> {
+                  tagRuleService.addAssetGroup(tagRule, assetGroup);
+                });
       }
     }
   }

@@ -22,7 +22,7 @@ public class DataPackProcessor {
     List<DataPack> sortedPacks =
         packs.stream().sorted(Comparator.comparing(DataPack::getPackId)).toList();
     log.info(
-        "Process {} additional datapacks.",
+        "Processed {} additional datapacks.",
         packs.stream()
             .filter(
                 pack -> DataPackProcessingResult.PROCESSED.equals(pack.process(dataPackService)))
