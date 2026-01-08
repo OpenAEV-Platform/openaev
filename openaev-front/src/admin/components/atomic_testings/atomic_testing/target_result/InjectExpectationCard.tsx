@@ -214,7 +214,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
             </>
           )}
         </div>
-        {(!isAgentExpectation(injectExpectation) && !isPlayerExpectation(injectExpectation))
+        {(!isAgentExpectation(injectExpectation) && !isAssetExpectation(injectExpectation) && !isPlayerExpectation(injectExpectation))
           && (
             <div className={classes.lineContainer}>
               <Typography gutterBottom variant="h4">{t('Validation rule:')}</Typography>
@@ -222,7 +222,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
             </div>
           )}
 
-        {(['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
+        {(!isAssetGroupExpectation(injectExpectation) && ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
           && (
             <InjectExpectationResultList
               injectExpectationId={injectExpectation.inject_expectation_id}
