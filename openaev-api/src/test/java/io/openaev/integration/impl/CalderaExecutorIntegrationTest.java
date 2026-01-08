@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -59,6 +60,7 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CalderaExecutorConfig calderaExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
@@ -80,7 +82,8 @@ public class CalderaExecutorIntegrationTest {
         platformSettingsService,
         taskScheduler,
         fileService,
-        encryptionFactory);
+        encryptionFactory,
+        httpClientFactory);
   }
 
   @Test

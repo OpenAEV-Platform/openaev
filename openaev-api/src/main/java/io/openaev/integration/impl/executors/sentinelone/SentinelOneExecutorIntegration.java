@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
@@ -47,7 +48,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
 
   private SentinelOneExecutorConfig config;
-  private final SentinelOneExecutorClient client;
+  private SentinelOneExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -55,13 +56,13 @@ public class SentinelOneExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final HttpClientFactory httpClientFactory;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public SentinelOneExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      SentinelOneExecutorClient client,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -70,9 +71,9 @@ public class SentinelOneExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService) {
+      EncryptionService encryptionService,
+      HttpClientFactory httpClientFactory) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
-    this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -80,6 +81,7 @@ public class SentinelOneExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+    this.httpClientFactory = httpClientFactory;
 
     // Refresh the context to get the config
     try {
@@ -108,6 +110,7 @@ public class SentinelOneExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    client = new SentinelOneExecutorClient(config, httpClientFactory);
     sentinelOneExecutorContextService =
         new SentinelOneExecutorContextService(
             config, client, eeService, licenseCacheManager, executorService);

@@ -1,5 +1,6 @@
 package io.openaev.integration.local_fixtures;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
@@ -14,8 +15,9 @@ public class TestIntegrationFactoryNoCatalog extends IntegrationFactory {
   public TestIntegrationFactoryNoCatalog(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
   }
 
   @Override

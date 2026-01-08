@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.executors.crowdstrike;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -55,8 +56,9 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration,
       FileService fileService,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
     this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -118,7 +120,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     return new CrowdStrikeExecutorIntegration(
         instance,
         connectorInstanceService,
-        client,
         endpointService,
         agentService,
         assetGroupService,
@@ -127,6 +128,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         licenseCacheManager,
         componentRequestEngine,
         taskScheduler,
-        encryptionService);
+        encryptionService,
+        httpClientFactory);
   }
 }

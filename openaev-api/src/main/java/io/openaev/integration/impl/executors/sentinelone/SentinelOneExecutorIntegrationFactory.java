@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -56,8 +57,9 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.sentinelOneExecutorConfigurationMigration = sentinelOneExecutorConfigurationMigration;
@@ -117,7 +119,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     return new SentinelOneExecutorIntegration(
         instance,
         connectorInstanceService,
-        client,
         endpointService,
         agentService,
         assetGroupService,
@@ -126,6 +127,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         executorService,
         taskScheduler,
-        encryptionService);
+        encryptionService,
+        httpClientFactory);
   }
 }

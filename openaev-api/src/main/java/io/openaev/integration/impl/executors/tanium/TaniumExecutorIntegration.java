@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.tanium;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
@@ -46,7 +47,7 @@ public class TaniumExecutorIntegration extends Integration {
   private TaniumGarbageCollectorService taniumGarbageCollectorService;
 
   private TaniumExecutorConfig config;
-  private final TaniumExecutorClient client;
+  private TaniumExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -54,13 +55,13 @@ public class TaniumExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final HttpClientFactory httpClientFactory;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public TaniumExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      TaniumExecutorClient client,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -69,9 +70,9 @@ public class TaniumExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService) {
+      EncryptionService encryptionService,
+      HttpClientFactory httpClientFactory) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
-    this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -79,6 +80,7 @@ public class TaniumExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+    this.httpClientFactory = httpClientFactory;
 
     // Refresh the context to get the config
     try {
@@ -107,6 +109,7 @@ public class TaniumExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
         new TaniumExecutorContextService(
             eeService, licenseCacheManager, config, client, executorService);

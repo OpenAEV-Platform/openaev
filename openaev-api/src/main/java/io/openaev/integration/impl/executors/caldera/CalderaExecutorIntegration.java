@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.caldera;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -39,20 +40,20 @@ public class CalderaExecutorIntegration extends Integration {
   private CalderaExecutorService calderaExecutorService;
 
   private CalderaExecutorConfig config;
-  private final CalderaExecutorClient client;
+  private CalderaExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final InjectorService injectorService;
   private final PlatformSettingsService platformSettingsService;
   private final ExecutorService executorService;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final HttpClientFactory httpClientFactory;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public CalderaExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      CalderaExecutorClient client,
       EndpointService endpointService,
       AgentService agentService,
       ExecutorService executorService,
@@ -60,15 +61,16 @@ public class CalderaExecutorIntegration extends Integration {
       PlatformSettingsService platformSettingsService,
       InjectorService injectorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService) {
+      EncryptionService encryptionService,
+      HttpClientFactory httpClientFactory) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
-    this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.platformSettingsService = platformSettingsService;
     this.injectorService = injectorService;
     this.taskScheduler = taskScheduler;
     this.executorService = executorService;
+    this.httpClientFactory = httpClientFactory;
 
     // Refresh the context to get the config
     try {
@@ -97,6 +99,7 @@ public class CalderaExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    client = new CalderaExecutorClient(config, httpClientFactory);
     calderaExecutorContextService =
         new CalderaExecutorContextService(config, injectorService, client);
     calderaExecutorService =

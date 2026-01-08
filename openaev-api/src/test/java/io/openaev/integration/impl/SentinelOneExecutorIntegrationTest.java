@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -61,6 +62,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private SentinelOneExecutorConfig sentinelOneExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
@@ -82,7 +84,8 @@ public class SentinelOneExecutorIntegrationTest {
         licenseCacheManager,
         taskScheduler,
         fileService,
-        encryptionFactory);
+        encryptionFactory,
+        httpClientFactory);
   }
 
   @Test

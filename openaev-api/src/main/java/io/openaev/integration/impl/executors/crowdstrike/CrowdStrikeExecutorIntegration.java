@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.crowdstrike;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
@@ -49,7 +50,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
-  private final CrowdStrikeExecutorClient client;
+  private CrowdStrikeExecutorClient client;
   private CrowdStrikeExecutorConfig config;
   private final EndpointService endpointService;
   private final AgentService agentService;
@@ -58,11 +59,11 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final Ee eeService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
+  private final HttpClientFactory httpClientFactory;
 
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      CrowdStrikeExecutorClient client,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -71,16 +72,17 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionService encryptionService) {
+      EncryptionService encryptionService,
+      HttpClientFactory httpClientFactory) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
     this.taskScheduler = taskScheduler;
-    this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
     this.executorService = executorService;
     this.eeService = eeService;
     this.licenseCacheManager = licenseCacheManager;
+    this.httpClientFactory = httpClientFactory;
 
     // Refresh the context to get the config
     try {
@@ -109,6 +111,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
         new CrowdStrikeExecutorContextService(
             config, client, eeService, licenseCacheManager, executorService);

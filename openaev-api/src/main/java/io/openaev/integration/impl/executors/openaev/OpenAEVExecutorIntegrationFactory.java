@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.executors.openaev;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorService;
@@ -26,8 +27,9 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
       AssetAgentJobRepository assetAgentJobRepository,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;

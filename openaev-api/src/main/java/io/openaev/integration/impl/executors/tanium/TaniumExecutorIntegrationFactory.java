@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.executors.tanium;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -41,6 +42,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
+  private final HttpClientFactory httpClientFactory;
 
   public TaniumExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -56,8 +58,9 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.taniumExecutorConfigurationMigration = taniumExecutorConfigurationMigration;
@@ -69,6 +72,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
+    this.httpClientFactory = httpClientFactory;
   }
 
   @Override
@@ -117,7 +121,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     return new TaniumExecutorIntegration(
         instance,
         connectorInstanceService,
-        client,
         endpointService,
         agentService,
         assetGroupService,
@@ -126,6 +129,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         executorService,
         taskScheduler,
-        encryptionService);
+        encryptionService,
+        httpClientFactory);
   }
 }

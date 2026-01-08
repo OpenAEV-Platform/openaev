@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.executors.caldera;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -53,8 +54,9 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       PlatformSettingsService platformSettingsService,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.calderaExecutorConfigurationMigration = calderaExecutorConfigurationMigration;
@@ -111,7 +113,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     return new CalderaExecutorIntegration(
         instance,
         connectorInstanceService,
-        client,
         endpointService,
         agentService,
         executorService,
@@ -119,6 +120,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         platformSettingsService,
         injectorService,
         taskScheduler,
-        encryptionService);
+        encryptionService,
+        httpClientFactory);
   }
 }

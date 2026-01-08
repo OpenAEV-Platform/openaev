@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -61,6 +62,7 @@ public class CrowdStrikeExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private HttpClientFactory httpClientFactory;
 
   @Autowired
   private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
@@ -82,7 +84,8 @@ public class CrowdStrikeExecutorIntegrationTest {
         taskScheduler,
         crowdStrikeExecutorConfigurationMigration,
         fileService,
-        encryptionFactory);
+        encryptionFactory,
+        httpClientFactory);
   }
 
   @Test

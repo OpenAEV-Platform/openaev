@@ -1,5 +1,6 @@
 package io.openaev.integration.local_fixtures;
 
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -29,8 +30,9 @@ public class TestIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       TestIntegrationConfigurationMigration testIntegrationConfigurationMigration,
       ComponentRequestEngine componentRequestEngine,
-      EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
+      EncryptionFactory encryptionFactory,
+      HttpClientFactory httpClientFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
     this.fileService = fileService;
     this.catalogConnectorService = catalogConnectorService;
     this.testIntegrationConfigurationMigration = testIntegrationConfigurationMigration;
