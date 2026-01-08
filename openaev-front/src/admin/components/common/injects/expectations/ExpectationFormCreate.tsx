@@ -59,7 +59,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const [expectationType, setExpectationType] = useState<string>(predefinedExpectations?.length > 0 ? predefinedExpectations[0].expectation_type : 'MANUAL');
 
-  const manualExpectationExpirationTime = useExpectationExpirationTime(predefinedExpectations?.length > 0 ? predefinedExpectations[0].expectation_type as InjectExpectation['inject_expectation_type'] : 'MANUAL');
+  const expectationExpirationTime = useExpectationExpirationTime(predefinedExpectations?.length > 0 ? predefinedExpectations[0].expectation_type as InjectExpectation['inject_expectation_type'] : 'MANUAL');
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
