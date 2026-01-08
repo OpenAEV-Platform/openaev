@@ -100,6 +100,18 @@ public class CalderaExecutorConfigurationMigrationTest {
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
           .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
+
+      assertThat("caldera_api_key")
+          .isNotEqualTo(
+              instance.getConfigurations().stream()
+                  .filter(
+                      connectorInstanceConfiguration ->
+                          "EXECUTOR_CALDERA_API_KEY"
+                              .equals(connectorInstanceConfiguration.getKey()))
+                  .findFirst()
+                  .orElseThrow()
+                  .getValue()
+                  .asText());
     }
   }
 

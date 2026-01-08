@@ -1,6 +1,5 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -12,7 +11,6 @@ import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -21,7 +19,6 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -32,8 +29,6 @@ import org.springframework.stereotype.Service;
 public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
-  private final ConnectorInstanceService connectorInstanceService;
-  private final CatalogConnectorService catalogConnectorService;
   private final SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
 
   private final SentinelOneExecutorClient client;
@@ -44,7 +39,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
-  private final EncryptionFactory encryptionFactory;
 
   public SentinelOneExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -61,11 +55,9 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService);
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
-    this.connectorInstanceService = connectorInstanceService;
-    this.catalogConnectorService = catalogConnectorService;
     this.sentinelOneExecutorConfigurationMigration = sentinelOneExecutorConfigurationMigration;
     this.client = client;
     this.agentService = agentService;
@@ -75,7 +67,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.licenseCacheManager = licenseCacheManager;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
-    this.encryptionFactory = encryptionFactory;
   }
 
   @Override
@@ -114,18 +105,11 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
-      throws JsonProcessingException,
-          InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
+  public Integration spawn(ConnectorInstance instance) {
     return new SentinelOneExecutorIntegration(
         instance,
         connectorInstanceService,
         client,
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance, SentinelOneExecutorConfig.class, encryptionFactory),
         endpointService,
         agentService,
         assetGroupService,
@@ -133,6 +117,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         licenseCacheManager,
         componentRequestEngine,
         executorService,
-        taskScheduler);
+        taskScheduler,
+        encryptionFactory);
   }
 }

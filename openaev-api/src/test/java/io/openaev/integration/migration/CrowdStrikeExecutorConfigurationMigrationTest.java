@@ -105,6 +105,18 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
           .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
+
+      assertThat("cs_client_secret")
+          .isNotEqualTo(
+              instance.getConfigurations().stream()
+                  .filter(
+                      connectorInstanceConfiguration ->
+                          "EXECUTOR_CROWDSTRIKE_CLIENT_SECRET"
+                              .equals(connectorInstanceConfiguration.getKey()))
+                  .findFirst()
+                  .orElseThrow()
+                  .getValue()
+                  .asText());
     }
   }
 

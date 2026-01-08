@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 public class EncryptionFactory {
 
   private final XtmComposerEncryptionService xtmComposerEncryptionService;
-
   private final NativeEncryptionService nativeEncryptionService;
 
   /**

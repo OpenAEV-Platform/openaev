@@ -8,6 +8,7 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -18,19 +19,18 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final ConnectorInstanceService connectorInstanceService;
 
   public OpenAEVExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
-      AssetAgentJobRepository assetAgentJobRepository) {
-    super(connectorInstanceService, catalogConnectorService);
+      AssetAgentJobRepository assetAgentJobRepository,
+      EncryptionFactory encryptionFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;
-    this.connectorInstanceService = connectorInstanceService;
   }
 
   @Override
@@ -62,6 +62,7 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
         connectorInstanceService,
         executorService,
         assetAgentJobRepository,
-        componentRequestEngine);
+        componentRequestEngine,
+        encryptionFactory);
   }
 }

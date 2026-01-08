@@ -1,11 +1,13 @@
 package io.openaev.integration.impl.executors.tanium;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.service.TaniumExecutorContextService;
@@ -14,16 +16,21 @@ import io.openaev.executors.tanium.service.TaniumGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
+@Slf4j
 public class TaniumExecutorIntegration extends Integration {
   public static final String TANIUM_EXECUTOR_DEFAULT_ID = "722ddfb1-6c3b-4b97-91e3-9f606d05892e";
   public static final String TANIUM_EXECUTOR_TYPE = "openaev_tanium";
@@ -38,7 +45,7 @@ public class TaniumExecutorIntegration extends Integration {
   private TaniumExecutorService taniumExecutorService;
   private TaniumGarbageCollectorService taniumGarbageCollectorService;
 
-  private final TaniumExecutorConfig config;
+  private TaniumExecutorConfig config;
   private final TaniumExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
@@ -54,7 +61,6 @@ public class TaniumExecutorIntegration extends Integration {
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
       TaniumExecutorClient client,
-      TaniumExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -62,10 +68,10 @@ public class TaniumExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
-      ThreadPoolTaskScheduler taskScheduler) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+      ThreadPoolTaskScheduler taskScheduler,
+      EncryptionFactory encryptionFactory) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionFactory);
     this.client = client;
-    this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
@@ -73,6 +79,15 @@ public class TaniumExecutorIntegration extends Integration {
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
+
+    // Refresh the context to get the config
+    try {
+      refresh();
+    } catch (Exception e) {
+      log.error("Error during initialization of the Tanium Executor", e);
+      throw new ExecutorException(
+          e, "Error during initialization of the Executor", TANIUM_EXECUTOR_NAME);
+    }
   }
 
   @Override
@@ -108,6 +123,18 @@ public class TaniumExecutorIntegration extends Integration {
         taskScheduler.scheduleAtFixedRate(
             taniumGarbageCollectorService,
             Duration.ofHours(this.config.getCleanImplantInterval())));
+  }
+
+  @Override
+  protected void refresh()
+      throws JsonProcessingException,
+          InvocationTargetException,
+          NoSuchMethodException,
+          InstantiationException,
+          IllegalAccessException {
+    this.config =
+        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
+            this.getConnectorInstance(), TaniumExecutorConfig.class, this.encryptionFactory);
   }
 
   @Override

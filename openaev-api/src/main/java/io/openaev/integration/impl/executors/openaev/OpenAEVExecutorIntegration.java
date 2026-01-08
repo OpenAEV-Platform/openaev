@@ -9,6 +9,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 
 public class OpenAEVExecutorIntegration extends Integration {
   private final ExecutorService executorService;
@@ -29,8 +30,9 @@ public class OpenAEVExecutorIntegration extends Integration {
       ConnectorInstanceService connectorInstanceService,
       ExecutorService executorService,
       AssetAgentJobRepository assetAgentJobRepository,
-      ComponentRequestEngine componentRequestEngine) {
-    super(componentRequestEngine, instance, connectorInstanceService);
+      ComponentRequestEngine componentRequestEngine,
+      EncryptionFactory encryptionFactory) {
+    super(componentRequestEngine, instance, connectorInstanceService, encryptionFactory);
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.executorService = executorService;
   }
@@ -52,6 +54,11 @@ public class OpenAEVExecutorIntegration extends Integration {
         });
 
     this.openAEVExecutorContextService = new OpenAEVExecutorContextService(assetAgentJobRepository);
+  }
+
+  @Override
+  protected void refresh() throws Exception {
+    // Nothing to refresh from DB
   }
 
   @Override

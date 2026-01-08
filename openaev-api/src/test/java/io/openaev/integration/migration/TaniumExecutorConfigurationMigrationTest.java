@@ -106,6 +106,16 @@ public class TaniumExecutorConfigurationMigrationTest {
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
           .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
+      assertThat("tanium_api_key")
+          .isNotEqualTo(
+              instance.getConfigurations().stream()
+                  .filter(
+                      connectorInstanceConfiguration ->
+                          "EXECUTOR_TANIUM_API_KEY".equals(connectorInstanceConfiguration.getKey()))
+                  .findFirst()
+                  .orElseThrow()
+                  .getValue()
+                  .asText());
     }
   }
 

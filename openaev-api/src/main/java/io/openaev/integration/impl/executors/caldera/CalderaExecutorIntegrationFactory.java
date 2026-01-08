@@ -1,6 +1,5 @@
 package io.openaev.integration.impl.executors.caldera;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -10,7 +9,6 @@ import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
-import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
 import io.openaev.integrations.InjectorService;
 import io.openaev.service.AgentService;
@@ -20,7 +18,6 @@ import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -31,8 +28,6 @@ import org.springframework.stereotype.Service;
 public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
-  private final ConnectorInstanceService connectorInstanceService;
-  private final CatalogConnectorService catalogConnectorService;
   private final CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
   private final CalderaExecutorClient client;
@@ -42,7 +37,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final PlatformSettingsService platformSettingsService;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
-  private final EncryptionFactory encryptionFactory;
 
   public CalderaExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -58,11 +52,9 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       EncryptionFactory encryptionFactory) {
-    super(connectorInstanceService, catalogConnectorService);
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
-    this.connectorInstanceService = connectorInstanceService;
-    this.catalogConnectorService = catalogConnectorService;
     this.calderaExecutorConfigurationMigration = calderaExecutorConfigurationMigration;
     this.client = client;
     this.agentService = agentService;
@@ -71,7 +63,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     this.platformSettingsService = platformSettingsService;
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
-    this.encryptionFactory = encryptionFactory;
   }
 
   @Override
@@ -108,24 +99,18 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
-      throws JsonProcessingException,
-          InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
+  public Integration spawn(ConnectorInstance instance) {
     return new CalderaExecutorIntegration(
         instance,
         connectorInstanceService,
         client,
-        BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            instance, CalderaExecutorConfig.class, encryptionFactory),
         endpointService,
         agentService,
         executorService,
         componentRequestEngine,
         platformSettingsService,
         injectorService,
-        taskScheduler);
+        taskScheduler,
+        encryptionFactory);
   }
 }
