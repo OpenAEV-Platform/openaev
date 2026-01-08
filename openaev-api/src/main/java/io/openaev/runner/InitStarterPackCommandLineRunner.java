@@ -11,11 +11,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.ImportService;
-import io.openaev.service.TagRuleService;
-import io.openaev.service.ZipJsonService;
+import io.openaev.service.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Command line runner that initializes the starter pack on first application start. */
 @Slf4j
 @Component
-@Transactional()
+@Transactional
 @RequiredArgsConstructor
 public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
@@ -94,6 +90,11 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
 
   @Override
   public void run(String... args) {
+    // unconditionally run this code
+    Set<Tag> tags = tagService.ensureWellKnownTags();
+    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
+
+    // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
       return;
@@ -105,13 +106,28 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     }
 
     try {
-      Tag tagVulnerability = this.createTag(Tags.VULNERABILITY);
-      Tag tagCisco = this.createTag(Tags.CISCO);
-      Tag openCti = this.createTag(Tags.OPENCTI);
       Endpoint honeyScanMeEndpoint =
           this.createHoneyScanMeAgentlessEndpoint(
-              List.of(tagVulnerability.getId(), tagCisco.getId()));
-      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup(openCti);
+              new ArrayList<>(
+                  tags.stream()
+                      .filter(
+                          t ->
+                              List.of(Tag.CISCO_TAG_NAME, Tag.VULNERABILITY_TAG_NAME)
+                                  .contains(t.getName()))
+                      .map(Tag::getId)
+                      .toList()));
+      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+
+      TagRule openCTITagRule =
+          tagRules.stream()
+              .filter(tr -> Tag.OPENCTI_TAG_NAME.equals(tr.getTag().getName()))
+              .findFirst()
+              .orElseThrow();
+      this.tagRuleService.updateTagRule(
+          openCTITagRule.getId(),
+          openCTITagRule.getTag().getName(),
+          new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
+
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
     } catch (Exception e) {
@@ -133,7 +149,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     return this.endpointService.createEndpoint(endpointInput);
   }
 
-  private AssetGroup createAllEndpointsAssetGroup(Tag openCti) {
+  private AssetGroup createAllEndpointsAssetGroup() {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -148,26 +164,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
     allEndpointsAssetGroup.setName(AllEndpointsAssetGroup.NAME);
     allEndpointsAssetGroup.setDynamicFilter(filterGroup);
 
-    AssetGroup createdAllEndpointAssetGroup =
-        this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
-
-    Optional<TagRule> openCtiTagRule = this.tagRuleService.findByTagName(Tags.OPENCTI);
-    openCtiTagRule.ifPresentOrElse(
-        tagRule -> {
-          List<String> existingAssetGroupRules =
-              new ArrayList<>(tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList());
-          existingAssetGroupRules.add(createdAllEndpointAssetGroup.getId());
-          this.tagRuleService.updateTagRule(tagRule.getId(), Tags.OPENCTI, existingAssetGroupRules);
-        },
-        () -> {
-          // Could happen if InitTagRuleCommandLineRunner doesn't run yet
-          TagRule tagRule = new TagRule();
-          tagRule.setTag(openCti);
-          tagRule.setAssetGroups(List.of(createdAllEndpointAssetGroup));
-          this.tagRuleRepository.save(tagRule);
-        });
-
-    return createdAllEndpointAssetGroup;
+    return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
   }
 
   private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {

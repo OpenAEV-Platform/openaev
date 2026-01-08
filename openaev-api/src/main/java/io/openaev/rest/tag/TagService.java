@@ -9,10 +9,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -26,6 +23,21 @@ public class TagService {
 
   public Set<Tag> tagSet(@NotNull final List<String> tagIds) {
     return iterableToSet(this.tagRepository.findAllById(tagIds));
+  }
+
+  public Tag createTag(String name) {
+    return createTag(name, getColourForName(name));
+  }
+
+  private Tag createTag(String name, String colour) {
+    TagCreateInput tagCreateInput = new TagCreateInput();
+    tagCreateInput.setName(name);
+    tagCreateInput.setColor(colour);
+    return upsertTag(tagCreateInput);
+  }
+
+  private String getColourForName(String name) {
+    return Tag.WellKnown.getOrDefault(name, generateRandomColor());
   }
 
   public Tag upsertTag(TagCreateInput input) {
@@ -69,5 +81,22 @@ public class TagService {
     }
 
     return tags;
+  }
+
+  public Set<Tag> ensureWellKnownTags() {
+    Set<Tag> wellKnownTags = new HashSet<>();
+    for (Map.Entry<String, String> entry : Tag.WellKnown.entrySet()) {
+      wellKnownTags.add(
+          this.tagRepository
+              .findByName(entry.getKey())
+              .orElseGet(
+                  () -> {
+                    Tag tag = new Tag();
+                    tag.setName(entry.getKey());
+                    tag.setColor(entry.getValue());
+                    return tagRepository.save(tag);
+                  }));
+    }
+    return wellKnownTags;
   }
 }

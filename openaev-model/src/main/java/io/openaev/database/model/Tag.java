@@ -27,27 +27,21 @@ import org.hibernate.annotations.UuidGenerator;
 public class Tag implements Base {
 
   public static final String OPENCTI_TAG_NAME = "opencti";
-  public static final String SECURITY_COVERAGE_LINUX_X86_TAG_NAME = "security coverage: linux x86";
-  public static final String SECURITY_COVERAGE_LINUX_ARM64_TAG_NAME =
-      "security coverage: linux arm64";
-  public static final String SECURITY_COVERAGE_WINDOWS_X86_TAG_NAME =
-      "security coverage: windows w86";
-  public static final String SECURITY_COVERAGE_WINDOWS_ARM64_TAG_NAME =
-      "security coverage: windows arm64";
-  public static final String SECURITY_COVERAGE_MACOS_X86_TAG_NAME = "security coverage: macos x86";
-  public static final String SECURITY_COVERAGE_MACOS_ARM64_TAG_NAME =
-      "security coverage: macos arm64";
+  public static final String SECURITY_COVERAGE_LINUX_TAG_NAME = "security coverage: linux";
+  public static final String SECURITY_COVERAGE_WINDOWS_TAG_NAME = "security coverage: windows";
+  public static final String SECURITY_COVERAGE_MACOS_TAG_NAME = "security coverage: macos";
+  public static final String CISCO_TAG_NAME = "cisco";
+  public static final String VULNERABILITY_TAG_NAME = "vulnerability";
 
   // map: name, color
   public static Map<String, String> WellKnown =
       Map.of(
           OPENCTI_TAG_NAME, "#0fbcff",
-          SECURITY_COVERAGE_LINUX_X86_TAG_NAME, "#f5c100",
-          SECURITY_COVERAGE_LINUX_ARM64_TAG_NAME, "#f5c100",
-          SECURITY_COVERAGE_WINDOWS_X86_TAG_NAME, "#00a2ed",
-          SECURITY_COVERAGE_WINDOWS_ARM64_TAG_NAME, "#00a2ed",
-          SECURITY_COVERAGE_MACOS_X86_TAG_NAME, "#b7f500",
-          SECURITY_COVERAGE_MACOS_ARM64_TAG_NAME, "#b7f500");
+          SECURITY_COVERAGE_LINUX_TAG_NAME, "#f5c100",
+          SECURITY_COVERAGE_WINDOWS_TAG_NAME, "#00a2ed",
+          SECURITY_COVERAGE_MACOS_TAG_NAME, "#b7f500",
+          CISCO_TAG_NAME, "#049fd9",
+          VULNERABILITY_TAG_NAME, "#ff0019");
 
   @Setter
   @Id

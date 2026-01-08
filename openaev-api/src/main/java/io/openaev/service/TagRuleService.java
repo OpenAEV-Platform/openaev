@@ -11,6 +11,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.tag.TagService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,6 +29,7 @@ public class TagRuleService {
 
   private final TagRuleRepository tagRuleRepository;
   private final TagRepository tagRepository;
+  private final TagService tagService;
   private final AssetGroupRepository assetGroupRepository;
 
   public Optional<TagRule> findById(String id) {
@@ -187,5 +189,16 @@ public class TagRuleService {
                                 new ElementNotFoundException(
                                     "Asset Group not found with id: " + id)))
             .collect(Collectors.toList());
+  }
+
+  public Set<TagRule> ensurePresetRules() {
+    Set<TagRule> tagRules = new HashSet<>();
+    for (String tagName : TagRule.RESERVED_TAG_NAMES) {
+      Tag tag = tagRepository.findByName(tagName).orElseGet(() -> tagService.createTag(tagName));
+      tagRules.add(
+          this.findByTagName(tag.getName())
+              .orElseGet(() -> this.createTagRule(tag, new ArrayList<>(), true)));
+    }
+    return tagRules;
   }
 }
