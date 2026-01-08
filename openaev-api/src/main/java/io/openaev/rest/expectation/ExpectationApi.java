@@ -19,9 +19,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 @RequiredArgsConstructor
 @RestController
@@ -178,11 +176,7 @@ public class ExpectationApi extends RestBehavior {
   @GetMapping(INJECTS_EXPECTATIONS_URI + "/available")
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<Expectation> getAvailableExpectationsForInject(
-      @RequestParam String injectorContractId) {
-    if (injectorContractId == null || injectorContractId.isBlank()) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Injector contract id cannot be null");
-    }
+      @RequestParam @NotBlank String injectorContractId) {
     return expectationService.getAvailableExpectationsForInject(injectorContractId);
   }
 }

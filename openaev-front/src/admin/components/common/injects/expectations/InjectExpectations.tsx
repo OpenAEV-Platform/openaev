@@ -50,6 +50,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const [sortAsc] = useState(true);
 
   // Filter predefinedExpectations already included into expectations
+  // Manual expectations can be added as many times as we want
   const predefinedExpectations = useMemo(() => availableExpectations
     .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type) || pe.expectation_type === 'MANUAL'), [sortedExpectations, availableExpectations]);
 
