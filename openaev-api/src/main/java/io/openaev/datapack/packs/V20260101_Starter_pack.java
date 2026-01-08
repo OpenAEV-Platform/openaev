@@ -1,8 +1,9 @@
-package io.openaev.runner;
+package io.openaev.datapack.packs;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.TagRuleRepository;
+import io.openaev.datapack.DataPack;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
@@ -14,19 +15,14 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-/** Command line runner that initializes the starter pack on first application start. */
-@Slf4j
 @Component
-@Transactional
+@Slf4j
 @RequiredArgsConstructor
-public class InitStarterPackCommandLineRunner implements CommandLineRunner {
-
+public class V20260101_Starter_pack extends DataPack {
   private static final class Config {
 
     static final String STARTER_PACK_KEY = "starterpack";
@@ -79,11 +75,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
   private String errorMessage = null;
 
   @Override
-  public void run(String... args) {
-    // unconditionally run this code
-    Set<Tag> tags = tagService.ensureWellKnownTags();
-    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
-
+  protected void doProcess() {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
@@ -94,6 +86,10 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       log.info("Starter pack already initialized");
       return;
     }
+
+    // unconditionally run this code
+    Set<Tag> tags = tagService.ensureWellKnownTags();
+    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
 
     try {
       Endpoint honeyScanMeEndpoint =
@@ -121,7 +117,7 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
     } catch (Exception e) {
-      recordError("Unexpected error during StarterPack initialization; cause " + e.getMessage());
+      recordError("Unexpected error during StarterPack initialization.", e);
     }
 
     this.createSetting();
@@ -169,10 +165,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                     resourceToAdd.getFilename());
               } catch (Exception e) {
                 recordError(
-                    "Failed to import StarterPack scenario file : "
-                        + resourceToAdd.getFilename()
-                        + "; cause "
-                        + e.getMessage());
+                    "Failed to import StarterPack scenario file : " + resourceToAdd.getFilename(),
+                    e);
               }
             });
   }
@@ -195,10 +189,8 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
                     resourceToAdd.getFilename());
               } catch (Exception e) {
                 recordError(
-                    "Failed to import StarterPack dashboard file : "
-                        + resourceToAdd.getFilename()
-                        + "; cause "
-                        + e.getMessage());
+                    "Failed to import StarterPack dashboard file : " + resourceToAdd.getFilename(),
+                    e);
               }
             });
   }
@@ -214,17 +206,16 @@ public class InitStarterPackCommandLineRunner implements CommandLineRunner {
           "Failed to import StarterPack files from resource folder "
               + Config.STARTER_PACK_KEY
               + "/"
-              + folderName
-              + "; cause "
-              + e.getMessage());
+              + folderName,
+          e);
       return Collections.emptyList();
     }
   }
 
-  private void recordError(@NotBlank final String message) {
+  private void recordError(@NotBlank final String message, Throwable cause) {
     this.hasError = true;
     this.errorMessage = message;
-    log.error(message);
+    log.error(message, cause);
   }
 
   private void setDefaultDashboard(String filename, String dashboardId) {

@@ -31,6 +31,13 @@ public class V4_53__Add_platform_arch_specific_default_asset_groups extends Base
           FROM protected
           WHERE tag_id = protected.id;
           """);
+
+      statement.execute(
+          """
+          CREATE TABLE datapacks(
+              datapack_id VARCHAR(255) PRIMARY KEY
+          );
+          """);
     }
   }
 }
