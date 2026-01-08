@@ -37,6 +37,22 @@ import org.hibernate.annotations.UpdateTimestamp;
 })
 public class AssetGroup implements Base {
 
+  public Map<Endpoint.PLATFORM_TYPE, Map<Endpoint.PLATFORM_ARCH, String>> wellKnown() {
+    return Map.of(
+        Endpoint.PLATFORM_TYPE.Linux,
+            Map.of(
+                Endpoint.PLATFORM_ARCH.x86_64, "9cf4d8c4-9b61-4a35-ad6a-f081e1d0ef95",
+                Endpoint.PLATFORM_ARCH.arm64, "a3e8763a-5ca1-432c-8513-e553d95d9dbc"),
+        Endpoint.PLATFORM_TYPE.Windows,
+            Map.of(
+                Endpoint.PLATFORM_ARCH.x86_64, "a3fa9b8e-3b57-434d-baf1-bc44362525fd",
+                Endpoint.PLATFORM_ARCH.arm64, "1585a3f8-190a-4f71-bf62-56bff624d011"),
+        Endpoint.PLATFORM_TYPE.MacOS,
+            Map.of(
+                Endpoint.PLATFORM_ARCH.x86_64, "4faaf01d-b340-480c-a25d-026827de3846",
+                Endpoint.PLATFORM_ARCH.arm64, "431b76a8-4d3d-4002-a7c1-058a69dffb81"));
+  }
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "asset_group_id")

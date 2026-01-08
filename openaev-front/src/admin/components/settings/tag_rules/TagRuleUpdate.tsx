@@ -21,6 +21,7 @@ const TagRuleUpdate: FunctionComponent<TagRuleUpdateComponentProps> = ({
     tag_name: tagRule.tag_name ?? '',
     tag_rule_id: tagRule.tag_rule_id ?? '',
     asset_groups: tagRule.asset_groups,
+    tag_rule_protected: tagRule.tag_rule_protected,
   };
 
   const onSubmit = (data: TagRuleInput) => {

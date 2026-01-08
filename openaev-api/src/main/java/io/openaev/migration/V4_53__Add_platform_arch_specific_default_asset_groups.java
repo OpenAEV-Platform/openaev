@@ -16,6 +16,21 @@ public class V4_53__Add_platform_arch_specific_default_asset_groups extends Base
           ALTER TABLE security_coverages
           ADD COLUMN security_coverage_platforms_affinity TEXT[];
           """);
+
+      statement.execute(
+          """
+          ALTER TABLE tag_rules
+          ADD COLUMN tag_rule_protected BOOLEAN NOT NULL DEFAULT FALSE;
+
+          -- update the only known immutable tag so far
+          WITH protected AS (
+              SELECT tag_id as id, CASE WHEN tag_name = 'opencti' THEN TRUE ELSE FALSE END AS status
+              FROM tags
+          )
+          UPDATE tag_rules SET tag_rule_protected = protected.status
+          FROM protected
+          WHERE tag_id = protected.id;
+          """);
     }
   }
 }

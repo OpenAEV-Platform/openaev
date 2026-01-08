@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
@@ -45,16 +44,29 @@ public class TagRuleService {
   }
 
   public TagRule createTagRule(@NotBlank final String tagName, final List<String> assetGroupIds) {
-    // we block creation of tagrule for the opencti tag as the only rule for this tag will be
-    // created by default
-    if (OPENCTI_TAG_NAME.equals(tagName)) {
+    return createTagRule(getTag(tagName), assetGroupIds, false);
+  }
+
+  public TagRule createTagRule(
+      @NotBlank final String tagName,
+      final List<String> assetGroupIds,
+      final boolean allowCreatingReserved) {
+    return createTagRule(getTag(tagName), assetGroupIds, allowCreatingReserved);
+  }
+
+  public TagRule createTagRule(
+      @NotBlank final Tag tag,
+      final List<String> assetGroupIds,
+      final boolean allowCreatingReserved) {
+    // we block creation of tag rules for reserved tags
+    if (TagRule.RESERVED_TAG_NAMES.contains(tag.getName()) && !allowCreatingReserved) {
       throw new ForbiddenException(
-          "Creation of a rule is not allowed for the tag " + OPENCTI_TAG_NAME);
+          "Creation of a rule is not allowed for the tag " + tag.getName());
     }
 
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
     TagRule tagRule = new TagRule();
-    tagRule.setTag(getTag(tagName));
+    tagRule.setTag(tag);
     tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
     return tagRuleRepository.save(tagRule);
   }
@@ -69,12 +81,11 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
-    // we block update of the tag in the opencti tag rule
-    if (OPENCTI_TAG_NAME.equals(tagRule.getTag().getName()) && !OPENCTI_TAG_NAME.equals(tagName)) {
-      throw new ForbiddenException("Update of the tag " + OPENCTI_TAG_NAME + " is not allowed");
+    try {
+      tagRule.setTag(getTag(tagName));
+    } catch (UnsupportedOperationException e) {
+      throw new ForbiddenException("Cannot change the tag for protected tag rule.", e);
     }
-
-    tagRule.setTag(getTag(tagName));
 
     // if one of the asset groups doesn't exist throw a ResourceNotFoundException
     tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
@@ -94,9 +105,9 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
     // we block deletion of tagrule for the opencti tag
-    if (OPENCTI_TAG_NAME.equals(tagRule.getTag().getName())) {
+    if (tagRule.isProtected()) {
       throw new ForbiddenException(
-          "Deletion of a rule of the tag " + OPENCTI_TAG_NAME + " is not allowed");
+          "Deletion of a rule of the tag " + tagRule.getTag().getName() + " is not allowed");
     }
 
     tagRuleRepository.deleteById(tagRuleId);

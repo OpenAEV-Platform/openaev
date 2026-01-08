@@ -1,7 +1,7 @@
 package io.openaev.service.stix;
 
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.helper.CryptoHelper.md5Hex;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;

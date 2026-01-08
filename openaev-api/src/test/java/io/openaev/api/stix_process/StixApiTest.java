@@ -1,10 +1,10 @@
 package io.openaev.api.stix_process;
 
 import static io.openaev.api.stix_process.StixApi.STIX_URI;
+import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
-import static io.openaev.rest.tag.TagService.OPENCTI_TAG_NAME;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;

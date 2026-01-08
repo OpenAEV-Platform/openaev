@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,6 +25,29 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "tags")
 @EntityListeners(ModelBaseListener.class)
 public class Tag implements Base {
+
+  public static final String OPENCTI_TAG_NAME = "opencti";
+  public static final String SECURITY_COVERAGE_LINUX_X86_TAG_NAME = "security coverage: linux x86";
+  public static final String SECURITY_COVERAGE_LINUX_ARM64_TAG_NAME =
+      "security coverage: linux arm64";
+  public static final String SECURITY_COVERAGE_WINDOWS_X86_TAG_NAME =
+      "security coverage: windows w86";
+  public static final String SECURITY_COVERAGE_WINDOWS_ARM64_TAG_NAME =
+      "security coverage: windows arm64";
+  public static final String SECURITY_COVERAGE_MACOS_X86_TAG_NAME = "security coverage: macos x86";
+  public static final String SECURITY_COVERAGE_MACOS_ARM64_TAG_NAME =
+      "security coverage: macos arm64";
+
+  // map: name, color
+  public static Map<String, String> WellKnown =
+      Map.of(
+          OPENCTI_TAG_NAME, "#0fbcff",
+          SECURITY_COVERAGE_LINUX_X86_TAG_NAME, "#f5c100",
+          SECURITY_COVERAGE_LINUX_ARM64_TAG_NAME, "#f5c100",
+          SECURITY_COVERAGE_WINDOWS_X86_TAG_NAME, "#00a2ed",
+          SECURITY_COVERAGE_WINDOWS_ARM64_TAG_NAME, "#00a2ed",
+          SECURITY_COVERAGE_MACOS_X86_TAG_NAME, "#b7f500",
+          SECURITY_COVERAGE_MACOS_ARM64_TAG_NAME, "#b7f500");
 
   @Setter
   @Id
