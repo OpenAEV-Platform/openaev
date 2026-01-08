@@ -150,6 +150,7 @@ const InjectContentForm = ({
       handleExpectations={onExpectationChange}
       readOnly={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
       injectId={injectId}
+      isHumanInject={enhancedFieldsMapByType.has('team')}
       injectorContractId={getValues('inject_injector_contract.injector_contract_id')}
     />
   );

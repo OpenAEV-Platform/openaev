@@ -5,7 +5,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.FileService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.utils.TimeUtils;
+import io.openaev.utils.time.TimeUtils;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.*;

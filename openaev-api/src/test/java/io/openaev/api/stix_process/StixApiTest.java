@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.*;
@@ -105,6 +107,10 @@ class StixApiTest extends IntegrationTest {
 
     stixSecurityCoverageNoDuration =
         loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-no-duration.json");
+
+    stixSecurityCoverageNoDuration =
+        loadJsonWithStixObjectsAsText(
             "src/test/resources/stix-bundles/security-coverage-no-duration.json");
 
     stixSecurityCoverageNoLabels =
@@ -389,6 +395,31 @@ class StixApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(structurallyInvalidStix))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "Should create the scenario from stix bundle and not set recurrence end if not specified")
+    void shouldCreateScenarioNoEnd() throws Exception {
+      String response =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(stixSecurityCoverageNoDuration))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(response).isNotBlank();
+      String scenarioId = JsonPath.read(response, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+
+      // -- ASSERT Scenario --
+      assertThat(createdScenario.getRecurrence()).isEqualTo("P1D");
+      assertThat(createdScenario.getRecurrenceEnd()).isNull();
+      assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
+          .contains(OPENCTI_TAG_NAME);
     }
 
     @Test
