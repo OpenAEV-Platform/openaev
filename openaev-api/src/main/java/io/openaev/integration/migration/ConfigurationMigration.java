@@ -65,7 +65,8 @@ public abstract class ConfigurationMigration {
     instance.setSource(ConnectorInstancePersisted.SOURCE.PROPERTIES_MIGRATION);
 
     instance.setConfigurations(
-        configuration.toInstanceConfigurationSet(instance, encryptionFactory));
+        configuration.toInstanceConfigurationSet(
+            instance, encryptionFactory.getEncryptionService(instance.getCatalogConnector())));
 
     connectorInstanceService.save(instance);
   }

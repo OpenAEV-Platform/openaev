@@ -170,6 +170,8 @@ public class TaniumExecutorIntegrationTest {
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
                         taniumExecutorConfig.toInstanceConfigurationSet(
-                            instance, encryptionFactory)));
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
   }
 }

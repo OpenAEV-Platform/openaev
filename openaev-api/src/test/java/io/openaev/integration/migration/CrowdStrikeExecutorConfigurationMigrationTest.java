@@ -104,7 +104,10 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
                   left.getKey().compareTo(right.getKey())
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
-          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
+          .hasSameElementsAs(
+              beanConfig.toInstanceConfigurationSet(
+                  instance,
+                  encryptionFactory.getEncryptionService(instance.getCatalogConnector())));
 
       assertThat("cs_client_secret")
           .isNotEqualTo(

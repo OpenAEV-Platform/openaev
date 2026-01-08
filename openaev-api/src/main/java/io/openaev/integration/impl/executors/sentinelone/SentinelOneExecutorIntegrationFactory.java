@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.sentinelone;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorService;
@@ -19,6 +20,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -106,6 +108,12 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   public Integration spawn(ConnectorInstance instance) {
+    EncryptionService encryptionService = null;
+    if (instance instanceof ConnectorInstancePersisted) {
+      encryptionService =
+          encryptionFactory.getEncryptionService(
+              ((ConnectorInstancePersisted) instance).getCatalogConnector());
+    }
     return new SentinelOneExecutorIntegration(
         instance,
         connectorInstanceService,
@@ -118,6 +126,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         executorService,
         taskScheduler,
-        encryptionFactory);
+        encryptionService);
   }
 }

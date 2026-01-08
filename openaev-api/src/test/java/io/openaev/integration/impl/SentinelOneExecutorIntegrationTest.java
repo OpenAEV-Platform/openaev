@@ -171,6 +171,8 @@ public class SentinelOneExecutorIntegrationTest {
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
                         sentinelOneExecutorConfig.toInstanceConfigurationSet(
-                            instance, encryptionFactory)));
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
   }
 }

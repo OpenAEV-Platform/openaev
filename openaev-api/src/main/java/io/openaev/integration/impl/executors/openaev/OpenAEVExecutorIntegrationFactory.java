@@ -63,6 +63,6 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
         executorService,
         assetAgentJobRepository,
         componentRequestEngine,
-        encryptionFactory);
+        null);
   }
 }

@@ -17,7 +17,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -60,8 +60,8 @@ public class CalderaExecutorIntegration extends Integration {
       PlatformSettingsService platformSettingsService,
       InjectorService injectorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionFactory encryptionFactory) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionFactory);
+      EncryptionService encryptionService) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
     this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -125,7 +125,7 @@ public class CalderaExecutorIntegration extends Integration {
           IllegalAccessException {
     this.config =
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), CalderaExecutorConfig.class, this.encryptionFactory);
+            this.getConnectorInstance(), CalderaExecutorConfig.class, this.encryptionService);
   }
 
   @Override

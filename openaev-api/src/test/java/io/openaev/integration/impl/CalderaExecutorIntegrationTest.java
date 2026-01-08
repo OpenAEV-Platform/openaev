@@ -169,6 +169,8 @@ public class CalderaExecutorIntegrationTest {
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
                         calderaExecutorConfig.toInstanceConfigurationSet(
-                            instance, encryptionFactory)));
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
   }
 }

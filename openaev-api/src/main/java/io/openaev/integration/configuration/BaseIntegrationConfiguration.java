@@ -6,7 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
-import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
 import jakarta.validation.constraints.NotNull;
@@ -27,7 +27,7 @@ public class BaseIntegrationConfiguration {
   public static <T extends BaseIntegrationConfiguration> T fromConnectorInstanceConfigurationSet(
       @NotNull ConnectorInstance instance,
       Class<T> targetClass,
-      EncryptionFactory encryptionFactory)
+      EncryptionService encryptionService)
       throws NoSuchMethodException,
           InvocationTargetException,
           InstantiationException,
@@ -42,17 +42,15 @@ public class BaseIntegrationConfiguration {
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
               .findFirst();
       if (config.isPresent()) {
-        if (config.get().isEncrypted() && instance instanceof ConnectorInstancePersisted) {
+        if (config.get().isEncrypted()
+            && instance instanceof ConnectorInstancePersisted
+            && encryptionService != null) {
           FieldUtils.setField(
               newObj,
               field,
               JsonUtils.fromJsonNode(
                   new ObjectMapper()
-                      .valueToTree(
-                          encryptionFactory
-                              .getEncryptionService(
-                                  ((ConnectorInstancePersisted) instance).getCatalogConnector())
-                              .decrypt(config.get().getValue().asText())),
+                      .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
                   field.getType()));
         } else {
           FieldUtils.setField(
@@ -66,7 +64,7 @@ public class BaseIntegrationConfiguration {
   }
 
   public Set<ConnectorInstanceConfiguration> toInstanceConfigurationSet(
-      ConnectorInstancePersisted relatedInstance, EncryptionFactory encryptionFactory) {
+      ConnectorInstancePersisted relatedInstance, EncryptionService encryptionService) {
     List<Field> annotatedFields =
         FieldUtils.getAllDeclaredAnnotatedFields(this.getClass(), IntegrationConfigKey.class);
     return annotatedFields.stream()
@@ -78,11 +76,7 @@ public class BaseIntegrationConfiguration {
                       af.getAnnotation(IntegrationConfigKey.class).valueFormat());
               if (isEncrypted) {
                 try {
-                  value =
-                      mapper.valueToTree(
-                          encryptionFactory
-                              .getEncryptionService(relatedInstance.getCatalogConnector())
-                              .encrypt(value.toString()));
+                  value = mapper.valueToTree(encryptionService.encrypt(value.toString()));
                 } catch (Exception e) {
                   throw new RuntimeException(e);
                 }

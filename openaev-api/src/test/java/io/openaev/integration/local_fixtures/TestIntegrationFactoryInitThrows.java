@@ -1,8 +1,8 @@
 package io.openaev.integration.local_fixtures;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -10,7 +10,8 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.lang.reflect.InvocationTargetException;
+import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +28,9 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
       CatalogConnectorService catalogConnectorService,
       FileService fileService,
       TestIntegrationConfigurationMigration testIntegrationConfigurationMigration,
-      ComponentRequestEngine componentRequestEngine) {
-    super(connectorInstanceService, catalogConnectorService);
+      ComponentRequestEngine componentRequestEngine,
+      EncryptionFactory encryptionFactory) {
+    super(connectorInstanceService, catalogConnectorService, encryptionFactory);
     this.fileService = fileService;
     this.catalogConnectorService = catalogConnectorService;
     this.testIntegrationConfigurationMigration = testIntegrationConfigurationMigration;
@@ -68,12 +70,14 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
-      throws JsonProcessingException,
-          InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
-    return new TestIntegration(componentRequestEngine, instance, connectorInstanceService);
+  public Integration spawn(ConnectorInstance instance) {
+    EncryptionService encryptionService = null;
+    if (instance instanceof ConnectorInstancePersisted) {
+      encryptionService =
+          encryptionFactory.getEncryptionService(
+              ((ConnectorInstancePersisted) instance).getCatalogConnector());
+    }
+    return new TestIntegration(
+        componentRequestEngine, instance, connectorInstanceService, encryptionService);
   }
 }

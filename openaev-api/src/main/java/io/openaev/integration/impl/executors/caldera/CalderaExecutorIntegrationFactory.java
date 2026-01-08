@@ -2,6 +2,7 @@ package io.openaev.integration.impl.executors.caldera;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -18,6 +19,7 @@ import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -100,6 +102,12 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   public Integration spawn(ConnectorInstance instance) {
+    EncryptionService encryptionService = null;
+    if (instance instanceof ConnectorInstancePersisted) {
+      encryptionService =
+          encryptionFactory.getEncryptionService(
+              ((ConnectorInstancePersisted) instance).getCatalogConnector());
+    }
     return new CalderaExecutorIntegration(
         instance,
         connectorInstanceService,
@@ -111,6 +119,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         platformSettingsService,
         injectorService,
         taskScheduler,
-        encryptionFactory);
+        encryptionService);
   }
 }

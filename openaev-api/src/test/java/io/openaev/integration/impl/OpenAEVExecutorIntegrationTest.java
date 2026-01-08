@@ -63,7 +63,8 @@ public class OpenAEVExecutorIntegrationTest {
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        assetAgentJobRepository);
+        assetAgentJobRepository,
+        null);
   }
 
   @Test

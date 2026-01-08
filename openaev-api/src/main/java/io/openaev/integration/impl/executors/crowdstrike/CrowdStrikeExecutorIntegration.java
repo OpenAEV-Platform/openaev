@@ -21,7 +21,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -71,8 +71,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionFactory encryptionFactory) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionFactory);
+      EncryptionService encryptionService) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
     this.taskScheduler = taskScheduler;
     this.client = client;
     this.endpointService = endpointService;
@@ -137,7 +137,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
           IllegalAccessException {
     this.config =
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), CrowdStrikeExecutorConfig.class, this.encryptionFactory);
+            this.getConnectorInstance(), CrowdStrikeExecutorConfig.class, this.encryptionService);
   }
 
   @Override

@@ -171,6 +171,8 @@ public class CrowdStrikeExecutorIntegrationTest {
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
                         crowdStrikeExecutorConfig.toInstanceConfigurationSet(
-                            instance, encryptionFactory)));
+                            instance,
+                            encryptionFactory.getEncryptionService(
+                                instance.getCatalogConnector()))));
   }
 }

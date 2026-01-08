@@ -4,7 +4,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.helper.ConnectorInstanceHashHelper;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -18,7 +18,7 @@ public abstract class Integration {
   private final ComponentRequestEngine componentRequestEngine;
   @Getter private ConnectorInstance connectorInstance;
   private final ConnectorInstanceService connectorInstanceService;
-  protected final EncryptionFactory encryptionFactory;
+  protected EncryptionService encryptionService;
 
   @Getter
   protected ConnectorInstance.CURRENT_STATUS_TYPE currentStatus =
@@ -30,11 +30,11 @@ public abstract class Integration {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      EncryptionFactory encryptionFactory) {
+      EncryptionService encryptionService) {
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstance = connectorInstance;
     this.connectorInstanceService = connectorInstanceService;
-    this.encryptionFactory = encryptionFactory;
+    this.encryptionService = encryptionService;
   }
 
   protected abstract void innerStart() throws Exception;

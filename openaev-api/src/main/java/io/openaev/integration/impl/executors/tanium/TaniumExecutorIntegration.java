@@ -21,7 +21,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -69,8 +69,8 @@ public class TaniumExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler,
-      EncryptionFactory encryptionFactory) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionFactory);
+      EncryptionService encryptionService) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, encryptionService);
     this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -134,7 +134,7 @@ public class TaniumExecutorIntegration extends Integration {
           IllegalAccessException {
     this.config =
         BaseIntegrationConfiguration.fromConnectorInstanceConfigurationSet(
-            this.getConnectorInstance(), TaniumExecutorConfig.class, this.encryptionFactory);
+            this.getConnectorInstance(), TaniumExecutorConfig.class, this.encryptionService);
   }
 
   @Override

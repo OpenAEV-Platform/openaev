@@ -107,7 +107,10 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   left.getKey().compareTo(right.getKey())
                       & left.getValue().toString().compareTo(right.getValue().toString()),
               ConnectorInstanceConfiguration.class)
-          .hasSameElementsAs(beanConfig.toInstanceConfigurationSet(instance, encryptionFactory));
+          .hasSameElementsAs(
+              beanConfig.toInstanceConfigurationSet(
+                  instance,
+                  encryptionFactory.getEncryptionService(instance.getCatalogConnector())));
 
       assertThat("sentinelOne_api_key")
           .isNotEqualTo(
