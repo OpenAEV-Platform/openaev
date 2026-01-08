@@ -34,8 +34,9 @@ public class LockAspect {
     // 1024 is the default number of locks, but we increase it to reduce contention for highly
     // concurrent scenarios
     // (example: user with 10000+ implants triggered by the same inject)
-    this.lockStripes.put(LockResourceType.INJECT, Striped.lock(4096));
-    this.lockStripes.put(LockResourceType.SECURITY_COVERAGE, Striped.lock(4096));
+    for (LockResourceType type : LockResourceType.values()) {
+      this.lockStripes.put(type, Striped.lock(type.stripes()));
+    }
 
     log.info("Initialized LockAspect with stripe configurations");
   }

@@ -1,5 +1,8 @@
 package io.openaev.integration;
 
+import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
+
+import io.openaev.aop.lock.Lock;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import java.util.*;
@@ -65,6 +68,7 @@ public class Manager {
   }
 
   @Transactional
+  @Lock(type = MANAGER_FACTORY, key = "manager-factory")
   public void monitorIntegrations() {
     Map<ConnectorInstance, Integration> newIntegrationsMap =
         factories.stream()
