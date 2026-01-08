@@ -12,7 +12,7 @@ public class TestIntegration extends Integration {
   @QualifiedComponent(identifier = TEST_COMPONENT_IDENTIFIER)
   private TestIntegrationComponent testIntegrationComponent;
 
-  protected TestIntegration(
+  public TestIntegration(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService) {

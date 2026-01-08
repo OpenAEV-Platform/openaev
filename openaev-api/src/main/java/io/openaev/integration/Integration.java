@@ -63,34 +63,39 @@ public abstract class Integration {
         return;
       }
 
-      String instanceHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
+      final String instanceHash =
+          ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
 
-      boolean isRunning =
+      final boolean isRunning =
           ConnectorInstancePersisted.CURRENT_STATUS_TYPE.started.equals(this.currentStatus);
-      boolean isStoppingRequested =
+
+      final boolean isStopped =
+          ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus);
+
+      final boolean isStoppingRequested =
           ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping.equals(
               this.connectorInstance.getRequestedStatus());
 
-      if (isRunning
-          && !isStoppingRequested
-          && this.appliedHash != null
-          && !instanceHash.equals(this.appliedHash)) {
+      final boolean isStartingRequested =
+          ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting.equals(
+              this.connectorInstance.getRequestedStatus());
 
+      final boolean hasHashChanged =
+          this.appliedHash != null && !instanceHash.equals(this.appliedHash);
+
+      if (isRunning && isStoppingRequested) {
+        this.stop();
+        return;
+      }
+      if (isRunning && hasHashChanged) {
         this.stop();
         this.start();
+        return;
       }
-      // only try to start stopped instances
-      if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting.equals(
-              this.connectorInstance.getRequestedStatus())
-          && ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
+      if (isStartingRequested && isStopped) {
         this.start();
       }
 
-      // stop instances in any state
-      if (ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.stopping.equals(
-          this.connectorInstance.getRequestedStatus())) {
-        this.stop();
-      }
     } finally {
       // always save instance if applicable (e.g. state has changed)
       // even if something went wrong when starting the integration

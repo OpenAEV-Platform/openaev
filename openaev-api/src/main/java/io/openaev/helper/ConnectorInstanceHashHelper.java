@@ -1,10 +1,9 @@
 package io.openaev.helper;
 
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
+
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,27 +37,5 @@ public final class ConnectorInstanceHashHelper {
         .sorted(Comparator.comparing(ConnectorInstanceConfiguration::getKey))
         .map(c -> String.format("%s=%s", c.getKey(), c.getValue()))
         .collect(Collectors.joining(";"));
-  }
-
-  // Hashing
-  private static String hashWithSHA256(String text) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
-
-      // Convert byte array to hex string
-      StringBuilder hexString = new StringBuilder(2 * hash.length);
-      for (byte b : hash) {
-        String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException(e);
-    }
   }
 }
