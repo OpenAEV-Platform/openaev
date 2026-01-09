@@ -58,6 +58,7 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
   let iconBarElements: IconBarElement[] = [];
 
   allDomains.map((domain: Domain) => {
+    if (domain.domain_name !== 'To classify'){
       let selectedDomains = data.security_domain_average.filter(s => s.label === domain.domain_name);
       if (selectedDomains.length > 0){
         if(selectedDomains[0].label !== "To classify" && selectedDomains[0].data) {
@@ -91,6 +92,7 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
         };
         iconBarElements.push(element);
       }
+    }
   });
 
 
