@@ -22,12 +22,14 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.service.connector_instances.EncryptionService;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 
 @Service
 @Profile("!test")
+@Slf4j
 public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
@@ -109,6 +111,8 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       encryptionService =
           encryptionFactory.getEncryptionService(
               ((ConnectorInstancePersisted) instance).getCatalogConnector());
+    } else {
+      log.warn("The encryption service cannot be instanced. You might want to look into that.");
     }
     return new CalderaExecutorIntegration(
         instance,

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
+import io.openaev.rest.exception.UncypherableElementException;
 import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
@@ -42,9 +43,9 @@ public class BaseIntegrationConfiguration {
               .filter(c -> c.getKey().equals(field.getAnnotation(IntegrationConfigKey.class).key()))
               .findFirst();
       if (config.isPresent()) {
-        if (config.get().isEncrypted()
-            && instance instanceof ConnectorInstancePersisted
-            && encryptionService != null) {
+        // If the field is encrypted and can be decrypted
+        if (config.get().isEncrypted() && encryptionService != null) {
+          // Decrypt the field and set it
           FieldUtils.setField(
               newObj,
               field,
@@ -53,6 +54,7 @@ public class BaseIntegrationConfiguration {
                       .valueToTree(encryptionService.decrypt(config.get().getValue().asText())),
                   field.getType()));
         } else {
+          // Otherwise, we just set the field
           FieldUtils.setField(
               newObj, field, JsonUtils.fromJsonNode(config.get().getValue(), field.getType()));
         }
@@ -74,11 +76,13 @@ public class BaseIntegrationConfiguration {
               boolean isEncrypted =
                   ENCRYPTED_FORMATS.contains(
                       af.getAnnotation(IntegrationConfigKey.class).valueFormat());
-              if (isEncrypted) {
+              // If the field is encrypted and can be decrypted
+              if (isEncrypted && encryptionService != null) {
                 try {
                   value = mapper.valueToTree(encryptionService.encrypt(value.toString()));
                 } catch (Exception e) {
-                  throw new RuntimeException(e);
+                  throw new UncypherableElementException(
+                      "Cannot cypher the element : " + af.getName(), e);
                 }
               }
 
