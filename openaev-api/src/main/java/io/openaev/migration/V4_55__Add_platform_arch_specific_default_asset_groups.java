@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_53__Add_platform_arch_specific_default_asset_groups extends BaseJavaMigration {
+public class V4_55__Add_platform_arch_specific_default_asset_groups extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
