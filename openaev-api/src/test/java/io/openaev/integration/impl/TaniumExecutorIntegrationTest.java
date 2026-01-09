@@ -6,10 +6,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorInstanceConfiguration;
-import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.Ee;
 import io.openaev.executors.ExecutorContextService;
@@ -30,6 +27,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -176,5 +174,19 @@ public class TaniumExecutorIntegrationTest {
                             instance,
                             encryptionFactory.getEncryptionService(
                                 instance.getCatalogConnector()))));
+  }
+
+  @Test
+  @DisplayName(
+      "When factory is initialised ans an instance is spawned with an unsupported connector instance type, the encryption service is null")
+  public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+
+    integrationFactory.initialise();
+
+    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    AssertionsForClassTypes.assertThat(
+            FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
+        .isNull();
   }
 }
