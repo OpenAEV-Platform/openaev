@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,6 +26,14 @@ import org.hibernate.annotations.UuidGenerator;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class SecurityCoverage implements Base {
+
+  private Set<String> getDefaultPlatformsAffinity() {
+    return new HashSet<>(
+        List.of(
+            Endpoint.PLATFORM_TYPE.Windows.toString().toLowerCase(),
+            Endpoint.PLATFORM_TYPE.Linux.toString().toLowerCase(),
+            Endpoint.PLATFORM_TYPE.MacOS.toString().toLowerCase()));
+  }
 
   @Id
   @Column(name = "security_coverage_id")
@@ -79,7 +88,14 @@ public class SecurityCoverage implements Base {
   @Type(ListArrayType.class)
   @Column(name = "security_coverage_platforms_affinity", columnDefinition = "text[]")
   @JsonProperty("security_coverage_platforms_affinity")
-  private Set<String> platformsAffinity = new HashSet<>();
+  // not we want to force a default to these values
+  private Set<String> platformsAffinity = getDefaultPlatformsAffinity();
+
+  public Set<String> getPlatformsAffinity() {
+    return platformsAffinity == null || platformsAffinity.isEmpty()
+        ? getDefaultPlatformsAffinity()
+        : platformsAffinity;
+  }
 
   @Type(JsonType.class)
   @Column(name = "security_coverage_attack_pattern_refs", columnDefinition = "jsonb")
