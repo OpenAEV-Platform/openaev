@@ -4,6 +4,7 @@ import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.utils.constants.StixConstants.STIX_PLATFORMS_AFFINITY;
 import static io.openaev.utils.fixtures.VulnerabilityFixture.CVE_2023_48788;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -178,23 +179,6 @@ class StixApiTest extends IntegrationTest {
             vulnerabilityComposer.forVulnerability(
                 VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56786")))
         .persist();
-
-    tagRuleComposer
-        .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("empty-asset-group")))
-        .withAssetGroup(emptyAssetGroup)
-        .persist();
-
-    tagRuleComposer
-        .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("coverage")))
-        .withAssetGroup(completeAssetGroup)
-        .persist();
-
-    tagRuleComposer
-        .forTagRule(new TagRule())
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("no-asset-groups")))
-        .persist();
   }
 
   @Nested
@@ -203,9 +187,10 @@ class StixApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "When Security Coverage SDO has no labels property, should force adding opencti tag to scenario")
-    void whenSecurityCoverageSDOHasNoLabelsProperty_shouldForceAddingOpenctiTagToScenario()
-        throws Exception {
+        "When Security Coverage SDO has no platforms affinity property, should force adding default platforms tag to scenario")
+    void
+        whenSecurityCoverageSDOHasNoPlatformsAffinityProperty_shouldForceAddingDefaultPlatformsTagToScenario()
+            throws Exception {
       String response =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
@@ -234,7 +219,8 @@ class StixApiTest extends IntegrationTest {
       String label = "custom-label";
       tagRuleComposer
           .forTagRule(TagRuleFixture.createDefaultTagRule())
-          .withTag(tagComposer.forTag(TagFixture.getTagWithText(label)))
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
           .withAssetGroup(
               assetGroupComposer
                   .forAssetGroup(
@@ -503,11 +489,20 @@ class StixApiTest extends IntegrationTest {
         throws Exception {
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("coverage"),
-              0);
+              stixSecurityCoverageOnlyVulns, STIX_PLATFORMS_AFFINITY, null, List.of("windows"), 0);
+
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("windows asset group"))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
+
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
@@ -527,11 +522,19 @@ class StixApiTest extends IntegrationTest {
         throws Exception {
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("empty-asset-group"),
-              0);
+              stixSecurityCoverageOnlyVulns, STIX_PLATFORMS_AFFINITY, null, List.of("windows"), 0);
+
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("windows asset group"))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
       updated =
           updateStixObjectField(updated, StixConstants.STIX_NAME, "CVE-2025-56786", emptyList(), 1);
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
@@ -570,8 +573,8 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should create scenario with 1 inject when labels are no defined")
-    void shouldCreateScenarioWithOneInjectWhenLabelsAreNotDefined() throws Exception {
+    @DisplayName("Should create scenario with 1 inject when platforms affinity are no defined")
+    void shouldCreateScenarioWithOneInjectWhenPlatformsAffinityAreNotDefined() throws Exception {
       String scenarioId =
           getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverageOnlyVulns));
       Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
@@ -736,11 +739,19 @@ class StixApiTest extends IntegrationTest {
     void shouldNotUpdateInjectsWhenSomeTargetIsRemoved() throws Exception {
       JsonNode updated =
           updateStixObjectField(
-              stixSecurityCoverageOnlyVulns,
-              CommonProperties.LABELS.toString(),
-              null,
-              List.of("coverage"),
-              0);
+              stixSecurityCoverageOnlyVulns, STIX_PLATFORMS_AFFINITY, null, List.of("windows"), 0);
+
+      tagRuleComposer
+          .forTagRule(TagRuleFixture.createDefaultTagRule())
+          .withTag(
+              tagComposer.forTag(TagFixture.getTagWithText(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME)))
+          .withAssetGroup(
+              assetGroupComposer
+                  .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("windows asset group"))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                  .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .persist();
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
       Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
       assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");

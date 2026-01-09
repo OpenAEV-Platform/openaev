@@ -1,6 +1,5 @@
 package io.openaev.service.stix;
 
-import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
@@ -147,9 +146,6 @@ public class SecurityCoverageService {
         labels.add(stixString.getValue());
       }
     }
-
-    // Force opencti tag
-    labels.add(OPENCTI_TAG_NAME);
     securityCoverage.setLabels(labels);
 
     // platform affinity
