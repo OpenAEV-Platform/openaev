@@ -249,7 +249,7 @@ public interface InjectExpectationRepository
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
-    LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id 
+    LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
     LEFT JOIN payloads_domains p_d ON p_d.payload_id = ic.injector_contract_payload
     LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id

@@ -8,6 +8,7 @@ import { type WidgetInputWithoutLayout } from '../WidgetUtils';
 import HistogramParameters from './histogram/HistogramParameters';
 import ListWidgetParameters from './list/ListWidgetParameters';
 import NumberWidgetParameters from './number/NumberWidgetParameters';
+import WidgetSecurityDomainsParameters from './domains/WidgetSecurityDomainsParameters';
 
 const WidgetConfigurationParameters: FunctionComponent<{
   widgetType: Widget['widget_type'];
@@ -22,6 +23,8 @@ const WidgetConfigurationParameters: FunctionComponent<{
         return <ListWidgetParameters setValue={setValue} control={control} widgetType={widgetType} />;
       case 'number':
         return <NumberWidgetParameters widgetType={widgetType} control={control} setValue={setValue} />;
+      case 'average':
+        return <WidgetSecurityDomainsParameters widgetType={widgetType} control={control} setValue={setValue}/>
       default:
         return <HistogramParameters setValue={setValue} control={control} widgetType={widgetType} />;
     }

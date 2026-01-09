@@ -1,5 +1,7 @@
 package io.openaev.engine.query;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,7 +11,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class EsDomainsAvgData {
 
-  private String key;
-  private String domain;
-  private Float avg;
+  private String label;
+  private List<EsSeries> data = new ArrayList<>();
 }

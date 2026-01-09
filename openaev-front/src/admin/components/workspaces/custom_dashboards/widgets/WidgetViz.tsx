@@ -11,6 +11,7 @@ import NumberWidget from './viz/NumberWidget';
 import SecurityCoverage from './viz/SecurityCoverage';
 import VerticalBarChart from './viz/VerticalBarChart';
 import { getWidgetTitle, type WidgetVizData, WidgetVizDataType } from './WidgetUtils';
+import SecurityDomainsWidget from './viz/domains/SecurityDomainsWidget';
 
 interface WidgetTemporalVizProps {
   widget: Widget;
@@ -136,6 +137,11 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage }:
           data={vizData.data}
         />
       );
+    case 'average':
+      if (vizData.type !== WidgetVizDataType.AVERAGE) {
+        return 'Not implemented yet';
+      }
+      return (<SecurityDomainsWidget widgetId={widget.widget_id} data={vizData.data}/>)
     default:
       return 'Not implemented yet';
   }

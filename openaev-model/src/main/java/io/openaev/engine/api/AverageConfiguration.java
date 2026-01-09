@@ -6,13 +6,11 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AverageConfiguration extends WidgetConfiguration{
+public class AverageConfiguration extends WidgetConfiguration {
 
-  @NotBlank
-  private String field;
+  @NotBlank private String field;
 
   public AverageConfiguration() {
     super(WidgetConfigurationType.AVERAGE);
   }
-
 }

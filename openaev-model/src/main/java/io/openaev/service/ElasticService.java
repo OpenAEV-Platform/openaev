@@ -509,73 +509,114 @@ public class ElasticService implements EngineService {
   }
 
   public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
-    AverageConfiguration widgetConfig =  averageRuntime.getConfig();
+    AverageConfiguration widgetConfig = averageRuntime.getConfig();
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
         buildQuery(
             user,
             null,
-            averageRuntime
-                .getConfig()
-                .getSeries()
-                .getFirst()
-                .getFilter(),
+            averageRuntime.getConfig().getSeries().getFirst().getFilter(),
             averageRuntime.getParameters(),
             averageRuntime.getDefinitionParameters());
+
     Query query;
-    if (isAllTime(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
+    if (isAllTime(
+        widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
       query = queryBuilder.must(filterQuery).build()._toQuery();
     } else {
-      Instant finalStart = calcStartDate(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters());
-      Instant finalEnd = calcEndDate(widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters());
+      Instant finalStart =
+          calcStartDate(
+              widgetConfig,
+              averageRuntime.getParameters(),
+              averageRuntime.getDefinitionParameters());
+      Instant finalEnd =
+          calcEndDate(
+              widgetConfig,
+              averageRuntime.getParameters(),
+              averageRuntime.getDefinitionParameters());
       Query dateRangeQuery =
           buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
       query = queryBuilder.must(dateRangeQuery, filterQuery).build()._toQuery();
     }
 
-    String aggregationKey = "average_widget";
     try {
-      String field = averageRuntime.getParameters().getOrDefault(widgetConfig.getField(), widgetConfig.getField());
-      String elasticField = toElasticField(field);
 
-      SearchRequest.Builder searchBuilder =
+      String domainField = toElasticField("base_security_domains_side");
+      String domainAggregationKey = "by_security_domain";
+
+      String typeField = toElasticField("inject_expectation_type");
+      String typeAggregationKey = "by_inject_expectation_type";
+
+      String statusField = toElasticField("inject_expectation_status");
+      String statusAggregationKey = "by_inject_expectation_status";
+
+      SearchRequest request =
           new SearchRequest.Builder()
               .index(engineConfig.getIndexPrefix() + "*")
               .size(0)
-              .query(query);
-
-      TermsAggregation termsAggregation =
-          new TermsAggregation.Builder()
-              .field(elasticField)
+              .query(query)
+              .aggregations(
+                  domainAggregationKey,
+                  agg ->
+                      agg.terms(t -> t.field(domainField))
+                          .aggregations(
+                              typeAggregationKey,
+                              sub ->
+                                  sub.terms(t -> t.field(typeField))
+                                      .aggregations(
+                                          statusAggregationKey,
+                                          subAg -> subAg.terms(t -> t.field(statusField)))))
               .build();
 
-      searchBuilder.aggregations(
-          aggregationKey, new Aggregation.Builder().terms(termsAggregation).build());
+      SearchResponse<Void> response = elasticClient.search(request, Void.class);
 
-      SearchResponse<Void> response = elasticClient.search(searchBuilder
-          .aggregations("by_type", a -> a
-              .terms(t -> t.field("type.keyword"))
-              .aggregations("avg_score", sub -> sub.avg(v -> v.field("score")))).build(), Void.class);
+      Buckets<StringTermsBucket> domainBuckets =
+          response.aggregations().get(domainAggregationKey).sterms().buckets();
 
-      Aggregate aggregate = response.aggregations().get(aggregationKey);
+      Map<String, String> resolutions = new HashMap<>();
+      List<String> ids =
+          domainBuckets.array().stream()
+              .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
+              .distinct()
+              .toList();
+      resolutions.putAll(resolveIdsRepresentative(user, ids));
 
-      Buckets<StringTermsBucket> buckets = aggregate.sterms().buckets();
-
-      List<EsExpectationsAvgData> data =
-          buckets.array().stream()
+      List<EsDomainsAvgData> data =
+          domainBuckets.array().stream()
               .map(
                   b -> {
                     String key = b.key().stringValue();
-                    AvgAggregate avgAgg = b.aggregations().get("avg_score").avg();
-                    Double avg = avgAgg != null ? avgAgg.value() : null;
-                    return new EsExpectationsAvgData(key, avg);
+                    String label = resolutions.get(key);
+                    Buckets<StringTermsBucket> typeBuckets =
+                        b.aggregations().get(typeAggregationKey).sterms().buckets();
+                    List<EsSeries> typesData =
+                        typeBuckets.array().stream()
+                            .map(
+                                t -> {
+                                  String typeLabel = t.key().stringValue();
+                                  long typeCount = t.docCount();
+                                  Buckets<StringTermsBucket> statusBuckets =
+                                      t.aggregations().get(statusAggregationKey).sterms().buckets();
+                                  List<EsSeriesData> statusData =
+                                      statusBuckets.array().stream()
+                                          .map(
+                                              s -> {
+                                                String statusLabel = s.key().stringValue();
+                                                return new EsSeriesData(
+                                                    statusLabel, statusLabel, s.docCount());
+                                              })
+                                          .toList();
+                                  return new EsSeries(typeLabel, typeCount, statusData);
+                                })
+                            .toList();
+                    return new EsDomainsAvgData(label, typesData);
                   })
               .toList();
 
       return new EsAvgs(data);
 
-    }catch (Exception e) {
+    } catch (Exception e) {
       log.error(String.format("count exception: %s", e.getMessage()), e);
     }
     return new EsAvgs(new ArrayList<>());

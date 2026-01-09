@@ -15,6 +15,7 @@ import WidgetSecurityCoverageSeriesSelection from './histogram/WidgetSecurityCov
 import WidgetPerspectiveSelection from './list/WidgetPerspectiveSelection';
 import WidgetConfigurationParameters from './WidgetConfigurationParameters';
 import WidgetTypeSelection from './WidgetTypeSelection';
+import WidgetSecurityDomainsSeriesSelection from './domains/WidgetSecurityDomainsSeriesSelection';
 
 const ActionsComponent: FunctionComponent<{
   disabled: boolean;
@@ -63,6 +64,19 @@ const WidgetForm: FunctionComponent<Props> = ({
     z.object({
       title: z.string().optional(),
       widget_configuration_type: z.literal('flat'),
+      series: z.array(z.object({
+        name: z.string().optional(),
+        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
+      })),
+      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
+      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+      start: z.string().optional().nullable(),
+      end: z.string().optional().nullable(),
+    }),
+    // AverageConfiguration
+    z.object({
+      title: z.string().optional(),
+      widget_configuration_type: z.literal('average'),
       series: z.array(z.object({
         name: z.string().optional(),
         filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
@@ -138,7 +152,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<WidgetInputWithoutLayout>().with({
-        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number']),
+        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number','average']),
         // @ts-expect-error: types assigned to properties are necessary for validation purposes
         widget_config: widgetConfigSchema,
       }),
@@ -219,6 +233,16 @@ const WidgetForm: FunctionComponent<Props> = ({
             )}
           />
         );
+      case 'average':
+        return (
+          <Controller
+            control={control}
+            name="widget_config.series"
+            render={({ field: { value, onChange } }) => (
+              <WidgetSecurityDomainsSeriesSelection entity="expectation-inject" onSubmit={nextStep} currentSeries={value ?? [{ name: '' }]} onChange={onChange}/>
+            )}
+          />
+        )
       case 'list':
         return (
           <Controller

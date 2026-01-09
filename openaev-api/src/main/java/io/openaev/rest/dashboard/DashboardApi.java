@@ -43,7 +43,8 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public EsAvgs average(@PathVariable final String widgetId,
+  public EsAvgs average(
+      @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.average(widgetId, parameters);
   }

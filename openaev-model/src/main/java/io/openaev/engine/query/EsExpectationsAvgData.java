@@ -1,6 +1,5 @@
 package io.openaev.engine.query;
 
-import io.openaev.database.model.InjectExpectation;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;

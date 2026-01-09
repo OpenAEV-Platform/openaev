@@ -54,8 +54,11 @@ public class DashboardService {
 
   public EsAvgs average(String widgetId, Map<String, String> parameters) {
     WidgetContext widgetContext = getWidgetContext(widgetId, parameters);
-    AverageConfiguration config = (AverageConfiguration) widgetContext.widget().getWidgetConfiguration();
-    AverageRuntime runtime = new AverageRuntime(config, widgetContext.parameters(), widgetContext.definitionParameters());
+    AverageConfiguration config =
+        (AverageConfiguration) widgetContext.widget().getWidgetConfiguration();
+    AverageRuntime runtime =
+        new AverageRuntime(
+            config, widgetContext.parameters(), widgetContext.definitionParameters());
     return engineService.average(widgetContext.user(), runtime);
   }
 

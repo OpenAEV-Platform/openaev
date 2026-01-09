@@ -1,16 +1,14 @@
 package io.openaev.engine.model.securitydomain;
 
+import static io.openaev.engine.EsUtils.buildRestrictions;
 
 import io.openaev.database.raw.RawDomain;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.engine.Handler;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.time.Instant;
 import java.util.List;
-
-import static io.openaev.engine.EsUtils.buildRestrictions;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service
 public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
@@ -30,7 +28,7 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
         .map(
             domain -> {
               EsSecurityDomain esSecurityDomain = new EsSecurityDomain();
-              //Base
+              // Base
               esSecurityDomain.setBase_id(domain.getDomain_id());
               esSecurityDomain.setBase_representative(domain.getDomain_name());
               esSecurityDomain.setBase_created_at(domain.getDomain_created_at());
@@ -40,9 +38,7 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
 
               esSecurityDomain.setDomain_color(domain.getDomain_color());
               return esSecurityDomain;
-            }
-        )
+            })
         .toList();
   }
-
 }
