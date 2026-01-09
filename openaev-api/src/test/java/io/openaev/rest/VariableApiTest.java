@@ -15,7 +15,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Variable;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.VariableRepository;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;

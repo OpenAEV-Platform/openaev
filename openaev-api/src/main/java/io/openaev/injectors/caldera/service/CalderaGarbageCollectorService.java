@@ -5,7 +5,7 @@ import static java.time.Instant.now;
 import io.openaev.injectors.caldera.client.CalderaInjectorClient;
 import io.openaev.injectors.caldera.client.model.Agent;
 import io.openaev.service.AgentService;
-import io.openaev.utils.TimeUtils;
+import io.openaev.utils.time.TimeUtils;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;

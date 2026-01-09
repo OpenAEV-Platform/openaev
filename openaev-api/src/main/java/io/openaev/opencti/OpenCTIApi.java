@@ -5,7 +5,7 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExerciseSimple;
-import io.openaev.service.ScenarioService;
+import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;

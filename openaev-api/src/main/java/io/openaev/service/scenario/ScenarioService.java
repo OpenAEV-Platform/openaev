@@ -1,4 +1,4 @@
-package io.openaev.service;
+package io.openaev.service.scenario;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
@@ -45,6 +45,7 @@ import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.service.*;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -307,11 +308,10 @@ public class ScenarioService {
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
   }
 
-  /** Scenario is recurring AND start date is before now AND end date is after now */
+  /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
     return this.scenarioRepository.findAll(
         ScenarioSpecification.isRecurring()
-            .and(ScenarioSpecification.recurrenceStartDateBefore(instant))
             .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
   }
 
@@ -333,6 +333,9 @@ public class ScenarioService {
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
     RawScenario rawScenario = this.scenarioRepository.getScenarioById(scenarioId);
+    if (rawScenario == null) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
     Set<KillChainPhaseOutput> killChainPhases = new HashSet<>();
     if (rawScenario.getScenario_kill_chain_phases() != null) {
       try {
