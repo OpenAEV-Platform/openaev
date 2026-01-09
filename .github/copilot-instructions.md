@@ -8,7 +8,7 @@
 - **Backend**: Spring Boot 3.3.7 (Java 21), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
 - **Frontend**: React 19, TypeScript, Vite, Material-UI, Yarn 4.12.0
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
-- **Size**: ~2,000+ Java files, ~1,000+ TypeScript/React files
+- **Size**: ~1,882 Java files, ~809 TypeScript/React files
 
 ## Critical Build Requirements
 
