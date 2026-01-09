@@ -1,4 +1,4 @@
-package io.openaev.datapack;
+package io.openaev.datapack.packs;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,7 +10,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.datapack.packs.V20260101_Starter_pack;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;

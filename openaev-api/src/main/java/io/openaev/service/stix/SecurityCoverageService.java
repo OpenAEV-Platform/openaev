@@ -333,7 +333,7 @@ public class SecurityCoverageService {
     scenario.setCategory(ATTACK_SCENARIO);
     setRecurrence(scenario, sa);
     scenario.setTags(
-        tagService.fetchTagsFromLabels(
+        tagService.findOrCreateTagsFromNames(
             sa.getPlatformsAffinity().stream()
                 .map("security coverage: %s"::formatted)
                 .collect(Collectors.toSet())));

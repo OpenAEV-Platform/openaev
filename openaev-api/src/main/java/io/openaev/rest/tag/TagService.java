@@ -59,16 +59,16 @@ public class TagService {
   }
 
   /**
-   * Generate a set of tag from a set of labels
+   * Finds or creates tags based on a list of names. Created tags will be assigned a random colour.
    *
-   * @param labels
-   * @return set of tags
+   * @param names collection of strings, each representing a requested tag
+   * @return set of tags exactly matching the provided set of names
    */
-  public Set<Tag> fetchTagsFromLabels(Set<String> labels) {
-    Set<Tag> tags = new HashSet();
+  public Set<Tag> findOrCreateTagsFromNames(Set<String> names) {
+    Set<Tag> tags = new HashSet<>();
 
-    if (labels != null) {
-      for (String label : labels) {
+    if (names != null) {
+      for (String label : names) {
         if (label == null || label.isBlank()) {
           continue;
         }
@@ -83,6 +83,11 @@ public class TagService {
     return tags;
   }
 
+  /**
+   * Ensures a collection of well known tags is created.
+   *
+   * @return the complete set of well known tags
+   */
   public Set<Tag> ensureWellKnownTags() {
     Set<Tag> wellKnownTags = new HashSet<>();
     for (Map.Entry<String, String> entry : Tag.WellKnown.entrySet()) {
