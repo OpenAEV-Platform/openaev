@@ -126,15 +126,18 @@ export const countryOptions = () => countries.features.map(
   }) as Option,
 );
 
-export const countryOption = (iso3: string | undefined) => {
+export const countryOption = (iso3: string | undefined): Option | undefined => {
   if (!iso3) {
     return undefined;
   }
   const country = R.head(
     countries.features.filter(n => n.properties.ISO3 === iso3),
   );
+  if (!country) {
+    return undefined;
+  }
   return {
     id: country.properties.ISO3,
     label: country.properties.NAME,
-  } as Option;
+  };
 };
