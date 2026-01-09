@@ -26,7 +26,7 @@ export const searchAttackPatternsWithAIWebservice = (files: File[], text: string
   files.forEach((file) => {
     formData.append('files', file);
   });
-  formData.append('text', new Blob([JSON.stringify({ text })], { type: 'application/json' }));
+  formData.append('text', text);
   return simplePostCall(`${ATTACK_PATTERN_URI}/search-with-ai`, formData);
 };
 
