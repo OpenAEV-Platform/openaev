@@ -169,11 +169,11 @@ yarn generate-types-from-api    # Generate TypeScript types from API
 
 **Before finalizing any PR, ALWAYS:**
 
-1. **Run code review tool**: Use the automated code review tool to catch issues early
-2. **Address all feedback**: Review comments and fix legitimate issues found
-3. **Re-run after significant changes**: If you make substantial updates, run code review again
+1. **Run automated review**: Use your code review tool to catch issues early
+2. **Address feedback**: Review comments and fix legitimate issues found
+3. **Re-run after major changes**: If you make substantial updates, run review again
 4. **Focus on your changes**: Only address issues in code you modified or added
-5. **Ignore false positives**: Use judgment - the tool may flag incorrect issues
+5. **Use judgment**: The tool may flag false positives - ignore if not applicable
 
 **Code Review Checklist:**
 - Formatting: `mvn spotless:check` (backend), `yarn lint` (frontend)
