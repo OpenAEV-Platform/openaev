@@ -177,7 +177,7 @@ public class CalderaExecutorIntegrationTest {
 
   @Test
   @DisplayName(
-      "When factory is initialised ans an instance is spawned with an unsupported connector instance type, the encryption service is null")
+      "When factory is initialised and an instance is spawned with an unsupported connector instance type, the encryption service is null")
   public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 

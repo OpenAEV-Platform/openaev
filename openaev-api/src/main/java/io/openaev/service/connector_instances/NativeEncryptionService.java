@@ -1,6 +1,7 @@
 package io.openaev.service.connector_instances;
 
 import io.openaev.config.OpenAEVAdminConfig;
+import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,8 @@ public class NativeEncryptionService implements EncryptionService {
   public NativeEncryptionService(@Autowired OpenAEVAdminConfig config) {
     encryptor =
         Encryptors.delux(
-            config.getEncryptionKey(), Hex.encodeHexString(config.getEncryptionSalt().getBytes()));
+            config.getEncryptionKey(),
+            Hex.encodeHexString(config.getEncryptionSalt().getBytes(StandardCharsets.UTF_8)));
   }
 
   /**

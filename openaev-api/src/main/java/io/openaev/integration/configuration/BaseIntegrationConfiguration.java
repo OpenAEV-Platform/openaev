@@ -6,7 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
-import io.openaev.rest.exception.UncypherableElementException;
+import io.openaev.rest.exception.UnencryptableElementException;
 import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.JsonUtils;
 import io.openaev.utils.reflection.FieldUtils;
@@ -20,7 +20,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class BaseIntegrationConfiguration {
   private final ObjectMapper mapper = new ObjectMapper();
   @Getter @Setter private boolean enable = false;
@@ -76,13 +78,21 @@ public class BaseIntegrationConfiguration {
               boolean isEncrypted =
                   ENCRYPTED_FORMATS.contains(
                       af.getAnnotation(IntegrationConfigKey.class).valueFormat());
-              // If the field is encrypted and can be decrypted
-              if (isEncrypted && encryptionService != null) {
-                try {
-                  value = mapper.valueToTree(encryptionService.encrypt(value.toString()));
-                } catch (Exception e) {
-                  throw new UncypherableElementException(
-                      "Cannot cypher the element : " + af.getName(), e);
+              // If the field is encrypted
+              if (isEncrypted) {
+                // If the encryption service is not null, we use it
+                if (encryptionService != null) {
+                  try {
+                    value = mapper.valueToTree(encryptionService.encrypt(value.toString()));
+                  } catch (Exception e) {
+                    throw new UnencryptableElementException(
+                        "Cannot encrypt the element : " + af.getName(), e);
+                  }
+                } else {
+                  // If the encryption service is null, there might be an issue with how the
+                  // executor has been initialized
+                  log.warn(
+                      "A encrypted element cannot be decrypted due to the encryption service being null. You might want to look into that as this can cause issue.");
                 }
               }
 
