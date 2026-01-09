@@ -16,12 +16,11 @@ import io.openaev.database.model.Domain;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
-import io.openaev.utils.fixtures.DomainFixture;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
