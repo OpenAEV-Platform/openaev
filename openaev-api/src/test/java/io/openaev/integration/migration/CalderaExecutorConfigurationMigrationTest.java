@@ -1,6 +1,9 @@
 package io.openaev.integration.migration;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -8,17 +11,21 @@ import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
+import io.openaev.rest.exception.UncypherableElementException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
+import org.bouncycastle.openssl.EncryptionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -115,6 +122,27 @@ public class CalderaExecutorConfigurationMigrationTest {
                   .orElseThrow()
                   .getValue()
                   .asText());
+    }
+
+    @Test
+    @DisplayName("When encryption service is not working throw exception")
+    public void whenEncryptionServiceNotWorking_throwException() throws Exception {
+      catalogConnectorComposer
+          .forCatalogConnector(
+              CatalogConnectorFixture.createCatalogConnectorWithClassName(
+                  CalderaExecutorIntegrationFactory.class.getCanonicalName()))
+          .persist();
+      EncryptionFactory encryptionFactory = Mockito.mock(EncryptionFactory.class);
+      EncryptionService encryptionService = Mockito.mock(EncryptionService.class);
+      when(encryptionFactory.getEncryptionService(any())).thenReturn(encryptionService);
+      when(encryptionService.encrypt(any())).thenThrow(new EncryptionException(""));
+
+      CalderaExecutorConfigurationMigration mockedCalderaExecutorConfigurationMigration =
+          new CalderaExecutorConfigurationMigration(
+              beanConfig, catalogConnectorService, connectorInstanceService, encryptionFactory);
+
+      assertThatThrownBy(mockedCalderaExecutorConfigurationMigration::migrate)
+          .isInstanceOf(UncypherableElementException.class);
     }
   }
 
