@@ -21,7 +21,7 @@ public class DataPackProcessor {
         packs.stream().sorted(Comparator.comparing(DataPack::getPackId)).toList();
     log.info(
         "Processed {} additional datapacks.",
-        packs.stream()
+        sortedPacks.stream()
             .filter(pack -> DataPackProcessingResult.PROCESSED.equals(pack.process()))
             .count());
   }
