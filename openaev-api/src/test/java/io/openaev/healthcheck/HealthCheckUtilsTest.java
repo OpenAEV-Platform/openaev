@@ -19,6 +19,9 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+
+import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

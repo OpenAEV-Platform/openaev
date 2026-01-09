@@ -39,6 +39,7 @@ public class HealthCheck {
     SUBJECT("subject"),
     BODY("body"),
     OPTIONAL_ARGS("optional_args"),
+    MESSAGE("message"),
     UNKNOWN("unknown");
 
     private final String value;

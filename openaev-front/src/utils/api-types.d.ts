@@ -2932,6 +2932,7 @@ export interface HealthCheck {
     | "SUBJECT"
     | "BODY"
     | "OPTIONAL_ARGS"
+    | "MESSAGE"
     | "UNKNOWN";
 }
 
