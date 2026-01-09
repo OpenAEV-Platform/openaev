@@ -1,9 +1,11 @@
 package io.openaev.service.stix;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatNoException;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.utils.fixtures.*;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -187,5 +190,49 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
     Optional<SecurityCoverageSendJob> job =
         securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
     assertThat(job).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Existence of send job row does not prevent deleting simulation")
+  public void existenceOfSendJobRowDoesNotPreventDeletingSimulation() {
+    ExerciseComposer.Composer exerciseWrapper = createExerciseWrapper();
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+
+    injectExpectationComposer.generatedItems.forEach(
+        exp ->
+            exp.setResults(
+                List.of(
+                    InjectExpectationResult.builder()
+                        .score(100.0)
+                        .sourceId(UUID.randomUUID().toString())
+                        .sourceName("Unit Tests")
+                        .sourceType("manual")
+                        .build())));
+
+    scenarioComposer
+        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+        .withSimulation(exerciseWrapper)
+        .persist();
+    entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
+
+    // force create send job
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+        List.of(exerciseWrapper.get()));
+    entityManager.flush();
+
+    // act -- verify deletion
+
+    assertThatNoException()
+        .isThrownBy(
+            () -> {
+              exerciseRepository.delete(exerciseWrapper.get());
+              entityManager.flush();
+              entityManager.clear();
+            });
+
+    // assert
+    assertThat(exerciseRepository.findById(exerciseWrapper.get().getId())).isEmpty();
+    assertThat(securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get())).isEmpty();
   }
 }

@@ -466,13 +466,13 @@ class InjectServiceTest {
     // Arrange
     List<String> injectIds = List.of("id1", "id2");
 
-    doNothing().when(injectRepository).deleteAllById(injectIds);
+    doNothing().when(injectRepository).deleteByAllIdsNative(injectIds);
 
     // Act
     injectService.deleteAllByIds(injectIds);
 
     // Assert
-    verify(injectRepository, times(1)).deleteAllById(injectIds);
+    verify(injectRepository, times(1)).deleteByAllIdsNative(injectIds);
   }
 
   @DisplayName("Test delete all injects by empty IDs list")
@@ -485,7 +485,7 @@ class InjectServiceTest {
     injectService.deleteAllByIds(injectIds);
 
     // Assert
-    verify(injectRepository, never()).deleteAllById(any());
+    verify(injectRepository, never()).deleteByAllIdsNative(any());
   }
 
   @DisplayName("Test delete all injects by null IDs list")
@@ -498,7 +498,7 @@ class InjectServiceTest {
     injectService.deleteAllByIds(injectIds);
 
     // Assert
-    verify(injectRepository, never()).deleteAllById(any());
+    verify(injectRepository, never()).deleteByAllIdsNative(any());
   }
 
   @DisplayName("Test canApplyTargetType with manual inject")

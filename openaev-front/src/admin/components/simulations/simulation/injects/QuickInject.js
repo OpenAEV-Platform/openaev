@@ -856,9 +856,6 @@ class QuickInject extends Component {
     const hasExpectations = injectorContract.fields
       .map(f => f.key)
       .includes('expectations');
-    const predefinedExpectations = injectorContract.fields.filter(
-      f => f.key === 'expectations',
-    ).flatMap(f => f.predefinedExpectations);
     const expectationsNotManual = injectorContract.fields.filter(
       f => f.expectation === true,
     );
@@ -1259,10 +1256,9 @@ class QuickInject extends Component {
                       {hasExpectations
                         && (
                           <InjectExpectations
-                            predefinedExpectationDatas={predefinedExpectations}
                             expectationDatas={expectations}
                             handleExpectations={this.handleExpectations.bind(this)}
-                            isHumanInject={true}
+                            injectorContractId={this.props.injectorContract.injector_contract_id}
                           />
                         )}
                     </>
