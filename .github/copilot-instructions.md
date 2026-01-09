@@ -60,63 +60,42 @@ Primary CI runs on every push:
 
 ## Project Structure
 
-### Root Directory Files
+### Root Files
 - `pom.xml` - Parent Maven POM (Spring Boot 3.3.7, Java 21)
 - `.drone.yml` - Primary CI/CD pipeline
-- `docker-compose.yml` - Development services (in `openaev-dev/`)
-- `Dockerfile` - Production image
-- `Dockerfile_ga` - GitHub Actions build image
-- `renovate.json` - Dependency management config
+- `docker-compose.yml` - Dev services (in `openaev-dev/`)
+- `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
 
-### Backend Structure
+### Backend
 ```
-openaev-model/          # Domain models, entities, DTOs
+openaev-model/       # Domain models, entities, DTOs
+openaev-framework/   # Core framework, utilities, base services
+openaev-api/         # REST API, main application
   src/main/java/io/openaev/
-    database/           # JPA entities
-    model/              # DTOs and domain models
-
-openaev-framework/      # Core framework, utilities, base services
-  src/main/java/io/openaev/
-    config/             # Configuration classes
-    database/           # Database utilities, repositories
-    rest/               # Base REST controllers
-    service/            # Base services
-
-openaev-api/           # REST API, main application
-  src/main/java/io/openaev/
-    api/                # REST controllers
-    config/             # API-specific configs
-    injectors/          # Integration modules (email, SMS, Caldera, etc.)
-    service/            # Business logic services
-    OpenAevApplication.java  # Main Spring Boot class
+    api/             # REST controllers
+    injectors/       # Integration modules
+    service/         # Business logic
+    OpenAevApplication.java
   src/main/resources/
-    application.properties  # 352 lines of configuration
-    db/migration/       # Flyway database migrations
+    application.properties  # 352 lines
+    db/migration/    # Flyway migrations
 ```
 
-### Frontend Structure
+### Frontend
 ```
 openaev-front/
   src/
-    actions/            # Redux actions
-    admin/              # Admin UI components
-    components/         # Reusable React components
-    constants/          # Constants, enums
-    reducers/           # Redux reducers
-    static/             # Static assets, locales
-    utils/              # Utilities, API types
-    index.tsx           # Entry point
-  builder/
-    dev/                # Dev server scripts
-    prod/               # Production build scripts (esbuild)
-  packages/
-    eslint-plugin-custom-rules/  # Custom ESLint rules
-  package.json          # 2.0.10, Node >= 22.11.0
+    actions/         # Redux actions
+    admin/           # Admin UI
+    components/      # Reusable components
+    utils/           # Utilities, API types
+  builder/prod/      # Production build (esbuild)
+  package.json       # 2.0.10, Node >= 22.11.0
 ```
 
-### Configuration Files
+### Config Files
 - **Backend**: `pom.xml` (spotless-maven-plugin, Google Java Format)
-- **Frontend**: `eslint.config.js`, `tsconfig.json`, `vite.config.ts`, `builder/prod/prod.js`
+- **Frontend**: `eslint.config.js`, `tsconfig.json`, `vite.config.ts`
 
 ## Common Issues & Workarounds
 
@@ -168,20 +147,60 @@ yarn generate-types-from-api    # Generate TypeScript types from API
 ## Code Review Guidelines
 
 **Before finalizing any PR, ALWAYS:**
+1. Run automated review to catch issues early
+2. Address feedback and fix legitimate issues found
+3. Re-run after major changes
+4. Focus on your changes only
+5. Use judgment - ignore false positives
 
-1. **Run automated review**: Use your code review tool to catch issues early
-2. **Address feedback**: Review comments and fix legitimate issues found
-3. **Re-run after major changes**: If you make substantial updates, run review again
-4. **Focus on your changes**: Only address issues in code you modified or added
-5. **Use judgment**: The tool may flag false positives - ignore if not applicable
+**When reviewing code, focus on:**
 
-**Code Review Checklist:**
+### Security Critical Issues
+- Check for hardcoded secrets, API keys, or credentials
+- Look for SQL injection and XSS vulnerabilities
+- Verify proper input validation and sanitization
+- Review authentication and authorization logic
+
+### Performance Red Flags
+- Identify N+1 database query problems
+- Spot inefficient loops and algorithmic issues
+- Check for memory leaks and resource cleanup
+- Review caching opportunities for expensive operations
+
+### Code Quality Essentials
+- Functions should be focused and appropriately sized
+- Use clear, descriptive naming conventions
+- Ensure proper error handling throughout
+
+### Review Style
+- Be specific and actionable in feedback
+- Explain the "why" behind recommendations
+- Acknowledge good patterns when you see them
+- Ask clarifying questions when code intent is unclear
+
+**Always prioritize security vulnerabilities and performance issues that could impact users.**
+
+**Example - Suggest changes to improve readability:**
+```javascript
+// Instead of:
+if (user.email && user.email.includes('@') && user.email.length > 5) {
+  submitButton.enabled = true;
+} else {
+  submitButton.enabled = false;
+}
+
+// Consider:
+function isValidEmail(email) {
+  return email && email.includes('@') && email.length > 5;
+}
+submitButton.enabled = isValidEmail(user.email);
+```
+
+**Checklist:**
 - Formatting: `mvn spotless:check` (backend), `yarn lint` (frontend)
 - Type safety: `yarn check-ts` (frontend only)
 - Tests: Ensure existing tests pass, add tests for new functionality
 - Coverage: Maintain 50% line, 30% branch coverage (backend)
-- Security: No hardcoded credentials, proper input validation
-- Documentation: Update relevant docs if behavior changes
 
 ## Important Notes
 
