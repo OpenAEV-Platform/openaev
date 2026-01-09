@@ -107,6 +107,10 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-no-duration.json");
 
+    stixSecurityCoverageNoDuration =
+        loadJsonWithStixObjects(
+            "src/test/resources/stix-bundles/security-coverage-no-duration.json");
+
     stixSecurityCoverageNoLabels =
         loadJsonWithStixObjects("src/test/resources/stix-bundles/security-coverage-no-labels.json");
 

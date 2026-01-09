@@ -88,7 +88,6 @@ public class InjectApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
-  private final GrantRepository grantRepository;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
 
   private final RabbitmqConfig rabbitmqConfig;
