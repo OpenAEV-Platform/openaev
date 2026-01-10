@@ -96,6 +96,12 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
   // -- HANDLE FIELDS --
   const [fieldOptions, setFieldOptions] = useState<GroupOption[]>([]);
 
+  // Watch the current field value to validate it when options change
+  const currentField = useWatch({
+    control,
+    name: mode === 'temporal' ? 'widget_config.date_attribute' : 'widget_config.field',
+  });
+
   useEffect(() => {
     // If in structural mode with multiple entities, only show common fields
     if (mode === 'structural' && entities.length > 1) {
@@ -130,7 +136,11 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             });
 
           setFieldOptions(finalOptions);
-          if (finalOptions.length === 1) {
+
+          // Clear field value if it's no longer in the available options
+          if (currentField && !finalOptions.some(o => o.id === currentField)) {
+            setValue('widget_config.field', '');
+          } else if (finalOptions.length === 1) {
             setValue('widget_config.field', finalOptions[0].id);
           }
         });
@@ -148,8 +158,13 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             };
           });
         setFieldOptions(finalOptions);
-        if (finalOptions.length === 1) {
-          setValue('widget_config.field', finalOptions[0].id); // If only one option is available, hide the field and set it automatically
+
+        // Clear field value if it's no longer in the available options
+        const fieldName = mode === 'temporal' ? 'widget_config.date_attribute' : 'widget_config.field';
+        if (currentField && !finalOptions.some(o => o.id === currentField)) {
+          setValue(fieldName, '');
+        } else if (finalOptions.length === 1) {
+          setValue(fieldName, finalOptions[0].id); // If only one option is available, hide the field and set it automatically
         }
       });
     }
