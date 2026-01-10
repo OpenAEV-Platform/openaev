@@ -123,7 +123,7 @@ public class ChannelService {
           });
 
       // -- VALIDATION TYPE --
-      processByValidationType(user, injects, publishedArticles, expectationExecutions.size() > 0);
+      processByValidationType(user, injects, publishedArticles, !expectationExecutions.isEmpty());
     }
     return channelReader;
   }

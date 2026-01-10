@@ -158,30 +158,21 @@ public class FilterUtilsJpa {
       @NotNull final CriteriaBuilder cb,
       @NotNull final Class<?> type) {
     return switch (operator) {
-      case not_contains -> (paths, texts) ->
-          notContainsTexts((Expression<String>) paths, cb, texts, type);
-      case contains -> (paths, texts) ->
-          containsTexts((Expression<String>) paths, cb, texts, type);
-      case not_starts_with -> (paths, texts) ->
-          notStartWithTexts((Expression<String>) paths, cb, texts, type);
-      case starts_with -> (paths, texts) ->
-          startWithTexts((Expression<String>) paths, cb, texts, type);
-      case empty -> (paths, texts) ->
-          empty((Expression<String>) paths, cb, type);
-      case not_empty -> (paths, texts) ->
-          notEmpty((Expression<String>) paths, cb, type);
-      case gt -> (paths, texts) ->
-          greaterThanTexts((Expression<Instant>) paths, cb, texts);
-      case gte -> (paths, texts) ->
-          greaterThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
-      case lt -> (paths, texts) ->
-          lessThanTexts((Expression<Instant>) paths, cb, texts);
-      case lte -> (paths, texts) ->
-          lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
-      case not_eq -> (paths, texts) ->
-          notEqualsTexts((Expression<String>) paths, cb, texts, type);
-      default -> (paths, texts) ->
-          equalsTexts((Expression<String>) paths, cb, texts, type);
+      case not_contains ->
+          (paths, texts) -> notContainsTexts((Expression<String>) paths, cb, texts, type);
+      case contains -> (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type);
+      case not_starts_with ->
+          (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
+      case starts_with ->
+          (paths, texts) -> startWithTexts((Expression<String>) paths, cb, texts, type);
+      case empty -> (paths, texts) -> empty((Expression<String>) paths, cb, type);
+      case not_empty -> (paths, texts) -> notEmpty((Expression<String>) paths, cb, type);
+      case gt -> (paths, texts) -> greaterThanTexts((Expression<Instant>) paths, cb, texts);
+      case gte -> (paths, texts) -> greaterThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
+      case lt -> (paths, texts) -> lessThanTexts((Expression<Instant>) paths, cb, texts);
+      case lte -> (paths, texts) -> lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
+      case not_eq -> (paths, texts) -> notEqualsTexts((Expression<String>) paths, cb, texts, type);
+      default -> (paths, texts) -> equalsTexts((Expression<String>) paths, cb, texts, type);
     };
   }
 }

@@ -164,9 +164,7 @@ public class Finding implements Base {
     if (getInject() == null) {
       return null;
     }
-    return Optional.ofNullable(getInject().getExercise())
-        .map(Exercise::getScenario)
-        .orElse(null);
+    return Optional.ofNullable(getInject().getExercise()).map(Exercise::getScenario).orElse(null);
   }
 
   @JsonProperty("finding_asset_groups")

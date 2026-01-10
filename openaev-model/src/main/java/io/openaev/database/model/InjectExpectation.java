@@ -35,9 +35,11 @@ public class InjectExpectation implements Base, Cloneable {
     try {
       InjectExpectation clone = (InjectExpectation) super.clone();
       // Deep copy mutable collections to prevent shared state
-      clone.signatures = this.signatures != null ? new ArrayList<>(this.signatures) : new ArrayList<>();
+      clone.signatures =
+          this.signatures != null ? new ArrayList<>(this.signatures) : new ArrayList<>();
       clone.results = this.results != null ? new ArrayList<>(this.results) : new ArrayList<>();
-      clone.traces = new ArrayList<>(); // Traces should not be copied as they belong to the original
+      clone.traces =
+          new ArrayList<>(); // Traces should not be copied as they belong to the original
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new AssertionError("Clone should be supported for Cloneable objects", e);
