@@ -320,7 +320,8 @@ public class InjectImportService {
 
       // We also get the list of teams into a map to be able to get them easily later on
       // We include ALL teams (both contextual and non-contextual) to allow reusing existing teams
-      // This matches the behavior of ZIP imports where existing teams are reused
+      // This ensures that common team names like "Communication" or "Human Resources" can be reused
+      // across multiple imports without causing "already exists" errors
       Map<String, Team> mapTeamByName =
           StreamSupport.stream(teamRepository.findAll().spliterator(), false)
               .collect(
