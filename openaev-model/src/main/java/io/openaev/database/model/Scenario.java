@@ -32,6 +32,36 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
 
+/**
+ * Entity representing a simulation scenario in OpenAEV.
+ *
+ * <p>A Scenario is a reusable template that defines:
+ *
+ * <ul>
+ *   <li>A collection of injects (attack simulations) to execute
+ *   <li>Target teams and their configurations
+ *   <li>Documentation (articles, documents)
+ *   <li>Lessons learned categories
+ *   <li>Recurrence settings for automated execution
+ * </ul>
+ *
+ * <p>Scenarios can be instantiated into {@link Exercise} instances for actual execution. They serve
+ * as templates that can be reused across multiple exercises, supporting the planning and scheduling
+ * of security assessments, tabletop exercises, and attack simulations.
+ *
+ * <p>Key features:
+ *
+ * <ul>
+ *   <li>RBAC-enabled via {@link Grantable} annotation
+ *   <li>Supports scheduled recurrence via cron expressions
+ *   <li>Integrates with external threat intelligence via OpenCTI
+ *   <li>Tracks kill chain phases and attack patterns from MITRE ATT&CK
+ * </ul>
+ *
+ * @see Exercise
+ * @see Inject
+ * @see Team
+ */
 @Data
 @Entity
 @Table(name = "scenarios")
@@ -44,7 +74,19 @@ import org.hibernate.annotations.*;
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
 public class Scenario implements GrantableBase {
 
+  /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
+    /** Scenario has scheduled recurrence. */
+    SCHEDULED,
+    /** Scenario has no planned recurrence. */
+    NOT_PLANNED,
+  }
+
+  /** Dependency sources for scenarios. */
+  public enum Dependency {
+    /** Scenario originated from a starter pack. */
+    @JsonProperty("STARTERPACK")
+    STARTERPACK;
     SCHEDULED,
     NOT_PLANNED,
   }
@@ -54,23 +96,34 @@ public class Scenario implements GrantableBase {
     STARTERPACK;
   }
 
+  /** Severity levels for scenario classification. */
   public enum SEVERITY {
+    /** Low severity scenario. */
     @JsonProperty("low")
     low,
+    /** Medium severity scenario. */
     @JsonProperty("medium")
     medium,
+    /** High severity scenario. */
     @JsonProperty("high")
     high,
+    /** Critical severity scenario. */
     @JsonProperty("critical")
     critical,
   }
 
+  /** Main focus: Incident Response exercises. */
   public static final String MAIN_FOCUS_INCIDENT_RESPONSE = "incident-response";
+  /** Main focus: Endpoint Protection validation. */
   public static final String MAIN_FOCUS_ENDPOINT_PROTECTION = "endpoint-protection";
+  /** Main focus: Web Filtering effectiveness. */
   public static final String MAIN_FOCUS_WEB_FILTERING = "web-filtering";
+  /** Main focus: Standard Operating Procedure testing. */
   public static final String MAIN_FOCUS_STANDARD_OPERATING_PROCEDURE =
       "standard-operating-procedure";
+  /** Main focus: Crisis Communication drills. */
   public static final String MAIN_FOCUS_CRISIS_COMMUNICATION = "crisis-communication";
+  /** Main focus: Strategic Reaction capabilities. */
   public static final String MAIN_FOCUS_STRATEGIC_REACTION = "strategic-reaction";
 
   @Id

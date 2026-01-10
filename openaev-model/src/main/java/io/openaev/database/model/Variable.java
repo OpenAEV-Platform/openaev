@@ -16,16 +16,37 @@ import java.util.Objects;
 import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * Entity representing a custom variable for exercises and scenarios.
+ *
+ * <p>Variables provide a templating mechanism that allows dynamic content substitution in inject
+ * content, email templates, and other text fields. They support:
+ *
+ * <ul>
+ *   <li>Exercise-scoped variables (specific to one exercise)
+ *   <li>Scenario-scoped variables (inherited by all exercises from the scenario)
+ *   <li>String and Object value types
+ * </ul>
+ *
+ * <p>Variable keys follow a snake_case naming convention (e.g., {@code company_name},
+ * {@code target_ip}) and are referenced in templates using a specific syntax.
+ *
+ * @see Exercise
+ * @see Scenario
+ */
 @Data
 @Entity
 @EntityListeners(ModelBaseListener.class)
 @Table(name = "variables")
 public class Variable implements Base {
 
+  /** Types of variable values. */
   public enum VariableType {
+    /** Simple string value. */
     @JsonProperty("String")
     String,
 
+    /** Complex object/JSON value. */
     @JsonProperty("Object")
     Object,
   }

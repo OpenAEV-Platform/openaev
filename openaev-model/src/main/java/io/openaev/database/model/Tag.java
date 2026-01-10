@@ -20,6 +20,20 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * Entity representing a tag for categorizing and organizing entities.
+ *
+ * <p>Tags provide a flexible labeling system that can be applied to scenarios, exercises, injects,
+ * and other entities. They support:
+ *
+ * <ul>
+ *   <li>Free-form categorization with custom names
+ *   <li>Visual distinction through customizable colors
+ *   <li>Filtering and search across the platform
+ * </ul>
+ *
+ * <p>Tags are globally accessible to all users (no RBAC restrictions).
+ */
 @Entity
 @Table(name = "tags")
 @EntityListeners(ModelBaseListener.class)
@@ -32,7 +46,7 @@ public class Tag implements Base {
   @UuidGenerator
   @JsonProperty("tag_id")
   @NotBlank
-  @Schema(description = "ID of the tag")
+  @Schema(description = "Unique identifier of the tag")
   private String id;
 
   @Getter

@@ -57,16 +57,31 @@ public class ExpectationBuilderService {
 
   private final ExpectationPropertiesConfig expectationPropertiesConfig;
 
+  /**
+   * Builds a prevention expectation with default configuration.
+   *
+   * @return a configured prevention expectation
+   */
   public Expectation buildPreventionExpectation() {
     return buildExpectation(
         PREVENTION, PREVENTION_NAME, expectationPropertiesConfig.getPreventionExpirationTime());
   }
 
+  /**
+   * Builds a detection expectation with default configuration.
+   *
+   * @return a configured detection expectation
+   */
   public Expectation buildDetectionExpectation() {
     return buildExpectation(
         DETECTION, DETECTION_NAME, expectationPropertiesConfig.getDetectionExpirationTime());
   }
 
+  /**
+   * Builds a vulnerability expectation with default configuration.
+   *
+   * @return a configured vulnerability expectation
+   */
   public Expectation buildVulnerabilityExpectation() {
     return buildExpectation(
         VULNERABILITY,
@@ -74,30 +89,63 @@ public class ExpectationBuilderService {
         expectationPropertiesConfig.getVulnerabilityExpirationTime());
   }
 
+  /**
+   * Builds a challenge expectation with default configuration.
+   *
+   * @return a configured challenge expectation
+   */
   public Expectation buildChallengeExpectation() {
     return buildExpectation(
         CHALLENGE, CHALLENGE_NAME, expectationPropertiesConfig.getChallengeExpirationTime());
   }
 
+  /**
+   * Builds an article/channel expectation with default configuration.
+   *
+   * @return a configured article expectation
+   */
   public Expectation buildArticleExpectation() {
     return buildExpectation(
         ARTICLE, ARTICLE_NAME, expectationPropertiesConfig.getArticleExpirationTime());
   }
 
+  /**
+   * Builds a text expectation with default configuration.
+   *
+   * @return a configured text expectation
+   */
   public Expectation buildTextExpectation() {
     return buildExpectation(TEXT, TEXT_NAME, expectationPropertiesConfig.getManualExpirationTime());
   }
 
+  /**
+   * Builds a manual expectation with default configuration.
+   *
+   * @return a configured manual expectation
+   */
   public Expectation buildManualExpectation() {
     return buildExpectation(
         MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
   }
 
+  /**
+   * Builds a document upload expectation with default configuration.
+   *
+   * @return a configured document expectation
+   */
   public Expectation buildDocumentExpectation() {
     return buildExpectation(
         DOCUMENT, DOCUMENT_NAME, expectationPropertiesConfig.getManualExpirationTime());
   }
 
+  /**
+   * Internal helper to build an expectation with the specified parameters.
+   *
+   * @param type the expectation type
+   * @param name the display name
+   * @param expirationTime the expiration time in seconds
+   * @return a configured expectation
+   */
   private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
     Expectation expectation = new Expectation();
     expectation.setType(type);

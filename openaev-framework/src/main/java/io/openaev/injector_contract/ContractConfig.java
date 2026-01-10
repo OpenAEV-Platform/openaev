@@ -5,30 +5,51 @@ import io.openaev.helper.SupportedLanguage;
 import java.util.Map;
 import lombok.Getter;
 
+/**
+ * Configuration metadata for an injector contract.
+ *
+ * <p>This class holds the display and identification properties used to present an injector in the
+ * user interface, including:
+ *
+ * <ul>
+ *   <li>Type identifier for the injector
+ *   <li>Localized labels for different languages
+ *   <li>Theme-specific colors for UI presentation
+ *   <li>Visibility control (expose flag)
+ * </ul>
+ *
+ * @see Contract
+ * @see Contractor
+ */
 @Getter
 public class ContractConfig {
 
+  /** Unique type identifier for this injector (e.g., "email", "sms", "caldera"). */
   private final String type;
 
+  /** Whether this contract should be visible and available for use. */
   private final boolean expose;
 
+  /** Localized display labels, keyed by supported language. */
   private final Map<SupportedLanguage, String> label;
 
+  /** Color to use in dark theme UI (hex format, e.g., "#FF5733"). */
   @JsonProperty("color_dark")
   private final String colorDark;
 
+  /** Color to use in light theme UI (hex format, e.g., "#FF5733"). */
   @JsonProperty("color_light")
   private final String colorLight;
 
   /**
    * Creates a new ContractConfig.
    *
-   * @param type the injector type
-   * @param label the label map for supported languages
-   * @param colorDark the dark theme color
-   * @param colorLight the light theme color
+   * @param type the injector type identifier
+   * @param label the localized labels for supported languages
+   * @param colorDark the color for dark theme UI
+   * @param colorLight the color for light theme UI
    * @param icon the icon path (currently unused, kept for API compatibility)
-   * @param expose whether the contract is exposed
+   * @param expose whether the contract should be visible and available
    */
   @SuppressWarnings("java:S1172") // icon parameter kept for API compatibility
   public ContractConfig(

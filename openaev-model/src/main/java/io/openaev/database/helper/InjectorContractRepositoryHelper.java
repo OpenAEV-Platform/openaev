@@ -8,20 +8,37 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Repository helper for complex injector contract queries.
+ *
+ * <p>This helper provides custom query operations for {@link InjectorContract} entities that
+ * require dynamic SQL generation or complex joins not easily expressed through Spring Data JPA
+ * repository methods.
+ *
+ * @see InjectorContract
+ */
 @Repository
 public class InjectorContractRepositoryHelper {
 
   @PersistenceContext private EntityManager entityManager;
 
   /**
-   * Searches InjectorContract from database based on the attack pattern and a list of
-   * platform-architecture pairs
+   * Searches for injector contracts matching an attack pattern and platform-architecture
+   * constraints.
    *
-   * @param attackPatternExternalId the external ID of the attack pattern to search for
-   * @param platformArchitecturePairs a list of platform-architecture pairs to filter the contracts
-   *     (e.g., Linux:x86_64, macOS:arm64)
+   * <p>This method performs a complex query that joins injector contracts with payloads and attack
+   * patterns, filtering by the external attack pattern ID and ensuring platform and architecture
+   * compatibility.
+   *
+   * <p>Results are randomly ordered to provide variety when selecting contracts for automated
+   * attack simulations.
+   *
+   * @param attackPatternExternalId the external ID (MITRE ATT&CK ID) of the attack pattern to
+   *     search for (prefix matching is used)
+   * @param platformArchitecturePairs a list of platform-architecture pairs to filter the contracts,
+   *     formatted as "Platform:Architecture" (e.g., "Linux:x86_64", "macOS:arm64")
    * @param limit the maximum number of results to return
-   * @return a list of InjectorContract objects that match the search criteria
+   * @return a list of matching {@link InjectorContract} objects, randomly ordered
    */
   public List<InjectorContract> searchInjectorContractsByAttackPatternAndEnvironment(
       String attackPatternExternalId, List<String> platformArchitecturePairs, Integer limit) {
