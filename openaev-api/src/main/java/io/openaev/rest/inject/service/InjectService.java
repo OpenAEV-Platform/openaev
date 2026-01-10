@@ -785,6 +785,10 @@ public class InjectService {
       return;
     }
 
+    // Check if inject is technical (needs executor)
+    boolean isTechnical =
+        injectToUpdate.getInjectorContract().map(InjectorContract::getNeedsExecutor).orElse(false);
+
     for (var operation : operations) {
       switch (operation.getField()) {
         case TEAMS ->
@@ -793,18 +797,26 @@ public class InjectService {
                 operation.getValues(),
                 teamsFromDB,
                 operation.getOperation());
-        case ASSETS ->
+        case ASSETS -> {
+          // Only update assets for technical injects
+          if (isTechnical) {
             updateInjectEntities(
                 injectToUpdate.getAssets(),
                 operation.getValues(),
                 assetsFromDB,
                 operation.getOperation());
-        case ASSET_GROUPS ->
+          }
+        }
+        case ASSET_GROUPS -> {
+          // Only update asset groups for technical injects
+          if (isTechnical) {
             updateInjectEntities(
                 injectToUpdate.getAssetGroups(),
                 operation.getValues(),
                 assetGroupsFromDB,
                 operation.getOperation());
+          }
+        }
         default ->
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }

@@ -850,4 +850,283 @@ class InjectServiceTest {
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
   }
+
+  @DisplayName(
+      "Test bulk update with non-technical injects should not update assets and asset groups")
+  @Test
+  void bulkUpdateNonTechnicalInjectsShouldNotUpdateAssetsAndAssetGroups() {
+    // Arrange
+    Team t1 = new Team();
+    t1.setId("team1");
+    Asset a0 = new Asset();
+    a0.setId("asset0");
+    AssetGroup ag0 = new AssetGroup();
+    ag0.setId("assetgroup0");
+
+    // Create non-technical inject (needsExecutor = false)
+    InjectorContract nonTechnicalContract = new InjectorContract();
+    nonTechnicalContract.setNeedsExecutor(false);
+
+    Inject nonTechnicalInject = new Inject();
+    nonTechnicalInject.setId("inject1");
+    nonTechnicalInject.setInjectorContract(nonTechnicalContract);
+    nonTechnicalInject.setTeams(new ArrayList<>(List.of()));
+    nonTechnicalInject.setAssets(new ArrayList<>(List.of(a0)));
+    nonTechnicalInject.setAssetGroups(new ArrayList<>(List.of(ag0)));
+
+    List<Inject> injectsToUpdate = List.of(nonTechnicalInject);
+
+    // Operations to add teams, replace assets, and replace asset groups
+    InjectBulkUpdateOperation teamOp = new InjectBulkUpdateOperation();
+    teamOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    teamOp.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    teamOp.setValues(List.of("team1"));
+
+    InjectBulkUpdateOperation assetOp = new InjectBulkUpdateOperation();
+    assetOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetOp.setValues(List.of("asset1"));
+
+    InjectBulkUpdateOperation assetGroupOp = new InjectBulkUpdateOperation();
+    assetGroupOp.setField(InjectBulkUpdateSupportedFields.ASSET_GROUPS);
+    assetGroupOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetGroupOp.setValues(List.of("assetgroup1"));
+
+    List<InjectBulkUpdateOperation> operations = List.of(teamOp, assetOp, assetGroupOp);
+
+    // Mock data
+    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
+    Asset a1 = new Asset();
+    a1.setId("asset1");
+    when(assetService.assets(any())).thenReturn(List.of(a1));
+    AssetGroup ag1 = new AssetGroup();
+    ag1.setId("assetgroup1");
+    when(assetGroupService.assetGroups(any())).thenReturn(List.of(ag1));
+    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+
+    // Assert
+    assertNotNull(updatedInjects);
+    assertEquals(1, updatedInjects.size());
+    Inject updated = updatedInjects.getFirst();
+
+    // Teams should be updated (allowed for all inject types)
+    assertEquals(1, updated.getTeams().size());
+    assertTrue(updated.getTeams().contains(t1));
+
+    // Assets and asset groups should NOT be updated for non-technical injects
+    assertEquals(1, updated.getAssets().size());
+    assertTrue(updated.getAssets().contains(a0)); // Original asset still there
+    assertEquals(1, updated.getAssetGroups().size());
+    assertTrue(updated.getAssetGroups().contains(ag0)); // Original asset group still there
+  }
+
+  @DisplayName("Test bulk update with technical injects should update assets and asset groups")
+  @Test
+  void bulkUpdateTechnicalInjectsShouldUpdateAssetsAndAssetGroups() {
+    // Arrange
+    Team t1 = new Team();
+    t1.setId("team1");
+    Asset a0 = new Asset();
+    a0.setId("asset0");
+    AssetGroup ag0 = new AssetGroup();
+    ag0.setId("assetgroup0");
+
+    // Create technical inject (needsExecutor = true)
+    InjectorContract technicalContract = new InjectorContract();
+    technicalContract.setNeedsExecutor(true);
+
+    Inject technicalInject = new Inject();
+    technicalInject.setId("inject1");
+    technicalInject.setInjectorContract(technicalContract);
+    technicalInject.setTeams(new ArrayList<>(List.of()));
+    technicalInject.setAssets(new ArrayList<>(List.of(a0)));
+    technicalInject.setAssetGroups(new ArrayList<>(List.of(ag0)));
+
+    List<Inject> injectsToUpdate = List.of(technicalInject);
+
+    // Operations to add teams, replace assets, and replace asset groups
+    InjectBulkUpdateOperation teamOp = new InjectBulkUpdateOperation();
+    teamOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    teamOp.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    teamOp.setValues(List.of("team1"));
+
+    InjectBulkUpdateOperation assetOp = new InjectBulkUpdateOperation();
+    assetOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetOp.setValues(List.of("asset1"));
+
+    InjectBulkUpdateOperation assetGroupOp = new InjectBulkUpdateOperation();
+    assetGroupOp.setField(InjectBulkUpdateSupportedFields.ASSET_GROUPS);
+    assetGroupOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetGroupOp.setValues(List.of("assetgroup1"));
+
+    List<InjectBulkUpdateOperation> operations = List.of(teamOp, assetOp, assetGroupOp);
+
+    // Mock data
+    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
+    Asset a1 = new Asset();
+    a1.setId("asset1");
+    when(assetService.assets(any())).thenReturn(List.of(a1));
+    AssetGroup ag1 = new AssetGroup();
+    ag1.setId("assetgroup1");
+    when(assetGroupService.assetGroups(any())).thenReturn(List.of(ag1));
+    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+
+    // Assert
+    assertNotNull(updatedInjects);
+    assertEquals(1, updatedInjects.size());
+    Inject updated = updatedInjects.getFirst();
+
+    // Teams should be updated
+    assertEquals(1, updated.getTeams().size());
+    assertTrue(updated.getTeams().contains(t1));
+
+    // Assets and asset groups SHOULD be updated for technical injects
+    assertEquals(1, updated.getAssets().size());
+    assertTrue(updated.getAssets().contains(a1)); // New asset should be there
+    assertFalse(updated.getAssets().contains(a0)); // Old asset should be replaced
+
+    assertEquals(1, updated.getAssetGroups().size());
+    assertTrue(updated.getAssetGroups().contains(ag1)); // New asset group should be there
+    assertFalse(updated.getAssetGroups().contains(ag0)); // Old asset group should be replaced
+  }
+
+  @DisplayName("Test bulk update with mixed technical and non-technical injects")
+  @Test
+  void bulkUpdateMixedInjectsShouldUpdateSelectivelyBasedOnType() {
+    // Arrange
+    Team t1 = new Team();
+    t1.setId("team1");
+    Asset a0 = new Asset();
+    a0.setId("asset0");
+    Asset a1 = new Asset();
+    a1.setId("asset1");
+
+    // Create non-technical inject
+    InjectorContract nonTechnicalContract = new InjectorContract();
+    nonTechnicalContract.setNeedsExecutor(false);
+    Inject nonTechnicalInject = new Inject();
+    nonTechnicalInject.setId("inject1");
+    nonTechnicalInject.setInjectorContract(nonTechnicalContract);
+    nonTechnicalInject.setTeams(new ArrayList<>(List.of()));
+    nonTechnicalInject.setAssets(new ArrayList<>(List.of(a0)));
+
+    // Create technical inject
+    InjectorContract technicalContract = new InjectorContract();
+    technicalContract.setNeedsExecutor(true);
+    Inject technicalInject = new Inject();
+    technicalInject.setId("inject2");
+    technicalInject.setInjectorContract(technicalContract);
+    technicalInject.setTeams(new ArrayList<>(List.of()));
+    technicalInject.setAssets(new ArrayList<>(List.of(a0)));
+
+    List<Inject> injectsToUpdate = List.of(nonTechnicalInject, technicalInject);
+
+    // Operations
+    InjectBulkUpdateOperation teamOp = new InjectBulkUpdateOperation();
+    teamOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    teamOp.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    teamOp.setValues(List.of("team1"));
+
+    InjectBulkUpdateOperation assetOp = new InjectBulkUpdateOperation();
+    assetOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetOp.setValues(List.of("asset1"));
+
+    List<InjectBulkUpdateOperation> operations = List.of(teamOp, assetOp);
+
+    // Mock data
+    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
+    when(assetService.assets(any())).thenReturn(List.of(a1));
+    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+
+    // Assert
+    assertNotNull(updatedInjects);
+    assertEquals(2, updatedInjects.size());
+
+    Inject updatedNonTechnical = updatedInjects.get(0);
+    Inject updatedTechnical = updatedInjects.get(1);
+
+    // Both should have teams updated
+    assertEquals(1, updatedNonTechnical.getTeams().size());
+    assertTrue(updatedNonTechnical.getTeams().contains(t1));
+    assertEquals(1, updatedTechnical.getTeams().size());
+    assertTrue(updatedTechnical.getTeams().contains(t1));
+
+    // Non-technical should NOT have assets updated
+    assertEquals(1, updatedNonTechnical.getAssets().size());
+    assertTrue(updatedNonTechnical.getAssets().contains(a0));
+    assertFalse(updatedNonTechnical.getAssets().contains(a1));
+
+    // Technical SHOULD have assets updated
+    assertEquals(1, updatedTechnical.getAssets().size());
+    assertTrue(updatedTechnical.getAssets().contains(a1));
+    assertFalse(updatedTechnical.getAssets().contains(a0));
+  }
+
+  @DisplayName(
+      "Test bulk update with inject without InjectorContract should not update assets and asset groups")
+  @Test
+  void bulkUpdateInjectWithoutContractShouldNotUpdateAssetsAndAssetGroups() {
+    // Arrange
+    Team t1 = new Team();
+    t1.setId("team1");
+    Asset a0 = new Asset();
+    a0.setId("asset0");
+
+    // Create inject without InjectorContract
+    Inject injectWithoutContract = new Inject();
+    injectWithoutContract.setId("inject1");
+    injectWithoutContract.setInjectorContract(null);
+    injectWithoutContract.setTeams(new ArrayList<>(List.of()));
+    injectWithoutContract.setAssets(new ArrayList<>(List.of(a0)));
+
+    List<Inject> injectsToUpdate = List.of(injectWithoutContract);
+
+    // Operations
+    InjectBulkUpdateOperation teamOp = new InjectBulkUpdateOperation();
+    teamOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    teamOp.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    teamOp.setValues(List.of("team1"));
+
+    InjectBulkUpdateOperation assetOp = new InjectBulkUpdateOperation();
+    assetOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetOp.setValues(List.of("asset1"));
+
+    List<InjectBulkUpdateOperation> operations = List.of(teamOp, assetOp);
+
+    // Mock data
+    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
+    Asset a1 = new Asset();
+    a1.setId("asset1");
+    when(assetService.assets(any())).thenReturn(List.of(a1));
+    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+
+    // Assert
+    assertNotNull(updatedInjects);
+    assertEquals(1, updatedInjects.size());
+    Inject updated = updatedInjects.getFirst();
+
+    // Teams should be updated
+    assertEquals(1, updated.getTeams().size());
+    assertTrue(updated.getTeams().contains(t1));
+
+    // Assets should NOT be updated (contract is null, treated as non-technical)
+    assertEquals(1, updated.getAssets().size());
+    assertTrue(updated.getAssets().contains(a0));
+    assertFalse(updated.getAssets().contains(a1));
+  }
 }
