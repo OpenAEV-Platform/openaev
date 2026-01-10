@@ -278,8 +278,8 @@ public class InjectsExecutionJob implements Job {
                 "There was an error during the evaluation of the condition of the inject");
           }
         } else {
-          log.warn("A key in the conditions didn't matched any expectations");
-          errorMessages.add("A key in the conditions didn't matched any expectations");
+          log.warn("A key in the conditions didn't match any expectations");
+          errorMessages.add("A key in the conditions didn't match any expectations");
         }
       }
       if (!errorMessages.isEmpty()) {

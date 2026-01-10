@@ -184,8 +184,6 @@ public class InjectMapper {
             injectOutput.getAssets(),
             injectOutput.getAssetGroups()));
     injectOutput.setInjectType(injectType);
-    injectOutput.setTeams(
-        teams != null ? new ArrayList<>(Arrays.asList(teams)) : new ArrayList<>());
     injectOutput.setContent(content);
     if (injectDependency != null) {
       injectOutput.setDependsOn(List.of(injectDependency));

@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 public class S3Config {
 
   @JsonProperty("use-aws-role")
-  @Value("${openbas.s3.use-aws-role:${openaev.s3.use-aws-role:false}}")
+  @Value("${openaev.s3.use-aws-role:false}")
   private boolean useAwsRole;
 
   @JsonProperty("sts-endpoint")
-  @Value("${openbas.s3.sts-endpoint:${openaev.s3.sts-endpoint:#{null}}}")
+  @Value("${openaev.s3.sts-endpoint:#{null}}")
   private String stsEndpoint;
 }

@@ -4,20 +4,22 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.RabbitmqConfig;
-import jakarta.annotation.Resource;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeoutException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class QueueService {
 
   public static final String ROUTING_KEY = "_push_routing_";
   public static final String EXCHANGE_KEY = "_amqp.connector.exchange";
 
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  private final RabbitmqConfig rabbitmqConfig;
 
   public void publish(String injectType, String publishedJson)
       throws IOException, TimeoutException {
@@ -27,31 +29,15 @@ public class QueueService {
     factory.setUsername(rabbitmqConfig.getUser());
     factory.setPassword(rabbitmqConfig.getPass());
     factory.setVirtualHost(rabbitmqConfig.getVhost());
-    Connection connection = null;
-    Channel channel = null;
-    try {
-      connection = factory.newConnection();
-      channel = connection.createChannel();
+
+    try (Connection connection = factory.newConnection();
+        Channel channel = connection.createChannel()) {
       String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
       String exchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
-      channel.basicPublish(exchangeKey, routingKey, null, publishedJson.getBytes());
-    } finally {
-      if (channel != null) {
-        try {
-          channel.close();
-        } catch (IOException | TimeoutException ex) {
-          log.error("Unable to close RabbitMQ channel", ex);
-        }
-      }
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (IOException ex) {
-          log.error(
-              "Unable to close RabbitMQ connection. You should worry as this could impact performance",
-              ex);
-        }
-      }
+      channel.basicPublish(exchangeKey, routingKey, null, publishedJson.getBytes(StandardCharsets.UTF_8));
+    } catch (IOException | TimeoutException ex) {
+      log.error("Error publishing to RabbitMQ", ex);
+      throw ex;
     }
   }
 }

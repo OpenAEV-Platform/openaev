@@ -54,6 +54,6 @@ public class RabbitmqConfig {
       "${openbas.rabbitmq.trust-store-password:${openaev.rabbitmq.trust-store-password:#{null}}}")
   private String trustStorePassword;
 
-  @Value("${openbas.rabbitmq.trust.store:${openaev.rabbitmq.trust.store:#{null}}}")
+  @Value("${openbas.rabbitmq.trust-store:${openaev.rabbitmq.trust-store:#{null}}}")
   private Resource trustStore;
 }

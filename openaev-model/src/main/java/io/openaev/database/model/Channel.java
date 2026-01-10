@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
+@Getter
 @Setter
 @Entity
 @Table(name = "channels")
@@ -100,61 +101,8 @@ public class Channel implements Base {
   private List<Article> articles;
 
   @Override
-  public String getId() {
-    return id;
-  }
-
-  @Override
   public boolean isUserHasAccess(User user) {
     return user.isAdmin();
-  }
-
-  public String getType() {
-    return type;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public String getMode() {
-    return mode;
-  }
-
-  public String getPrimaryColorDark() {
-    return primaryColorDark;
-  }
-
-  public String getPrimaryColorLight() {
-    return primaryColorLight;
-  }
-
-  public String getSecondaryColorDark() {
-    return secondaryColorDark;
-  }
-
-  public String getSecondaryColorLight() {
-    return secondaryColorLight;
-  }
-
-  public Document getLogoDark() {
-    return logoDark;
-  }
-
-  public Document getLogoLight() {
-    return logoLight;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
   }
 
   public List<Document> getLogos() {

@@ -10,6 +10,9 @@ public class Ipv4OrIpv6Validator implements ConstraintValidator<Ipv4OrIpv6Constr
 
   @Override
   public boolean isValid(final String[] ips, final ConstraintValidatorContext cxt) {
+    if (ips == null || ips.length == 0) {
+      return true; // null or empty arrays are considered valid (use @NotEmpty if required)
+    }
     InetAddressValidator validator = InetAddressValidator.getInstance();
     return Arrays.stream(ips).allMatch(validator::isValid);
   }

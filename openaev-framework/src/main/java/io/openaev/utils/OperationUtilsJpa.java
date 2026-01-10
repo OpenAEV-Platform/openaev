@@ -158,7 +158,7 @@ public class OperationUtilsJpa {
 
     if (type.isAssignableFrom(Map.class) || type.getName().contains("ImmutableCollections")) {
       Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
-      return cb.like(cb.lower(values), text.toLowerCase() + "%");
+      return cb.like(values, text.toLowerCase() + "%");
     }
 
     return cb.like(cb.lower(paths), text.toLowerCase() + "%");

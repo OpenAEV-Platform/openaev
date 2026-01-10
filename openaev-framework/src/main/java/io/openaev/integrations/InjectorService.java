@@ -18,7 +18,6 @@ import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.Contractor;
 import io.openaev.service.FileService;
-import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.time.Instant;
@@ -26,50 +25,21 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class InjectorService {
 
-  private static final String TOCLASSIFY = "To classify";
+  private static final String TO_CLASSIFY = "To classify";
 
-  @Resource protected ObjectMapper mapper;
-
-  private FileService fileService;
-
-  private InjectorRepository injectorRepository;
-
-  private InjectorContractRepository injectorContractRepository;
-
-  private AttackPatternRepository attackPatternRepository;
-
-  private DomainRepository domainRepository;
-
-  @Resource
-  public void setFileService(FileService fileService) {
-    this.fileService = fileService;
-  }
-
-  @Autowired
-  public void setAttackPatternRepository(AttackPatternRepository attackPatternRepository) {
-    this.attackPatternRepository = attackPatternRepository;
-  }
-
-  @Autowired
-  public void setInjectorRepository(InjectorRepository injectorRepository) {
-    this.injectorRepository = injectorRepository;
-  }
-
-  @Autowired
-  public void setInjectorContractRepository(InjectorContractRepository injectorContractRepository) {
-    this.injectorContractRepository = injectorContractRepository;
-  }
-
-  @Autowired
-  public void setDomainRepository(DomainRepository domainRepository) {
-    this.domainRepository = domainRepository;
-  }
+  private final ObjectMapper mapper;
+  private final FileService fileService;
+  private final InjectorRepository injectorRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final AttackPatternRepository attackPatternRepository;
+  private final DomainRepository domainRepository;
 
   @Transactional
   public void register(
@@ -129,7 +99,7 @@ public class InjectorService {
                 // Find matching static contract for this DB contract
                 Optional<Contract> current =
                     staticContracts.stream()
-                        .filter(cSTATIQUE -> cSTATIQUE.getId().equals(contractDB.getId()))
+                        .filter(contract -> contract.getId().equals(contractDB.getId()))
                         .findFirst();
                 if (current.isPresent()) {
                   existing.add(contractDB.getId());
@@ -166,7 +136,6 @@ public class InjectorService {
                     throw new RuntimeException(e);
                   }
                   toUpdates.add(contractDB);
-                  // pas custom && (pas de payloads OU payload est null)
                 } else if (!contractDB.getCustom()
                     && (!injector.isPayloads() || contractDB.getPayload() == null)) {
                   // Delete non-custom contracts that no longer exist in static contracts
@@ -176,39 +145,7 @@ public class InjectorService {
       List<InjectorContract> toCreates =
           staticContracts.stream()
               .filter(c -> !existing.contains(c.getId()))
-              .map(
-                  in -> {
-                    InjectorContract injectorContract = new InjectorContract();
-                    injectorContract.setId(in.getId());
-                    injectorContract.setManual(in.isManual());
-                    injectorContract.setAtomicTesting(in.isAtomicTesting());
-                    injectorContract.setPlatforms(in.getPlatforms().toArray(new PLATFORM_TYPE[0]));
-                    injectorContract.setNeedsExecutor(in.isNeedsExecutor());
-                    Map<String, String> labels =
-                        in.getLabel().entrySet().stream()
-                            .collect(
-                                Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue));
-                    injectorContract.setLabels(labels);
-                    injectorContract.setInjector(injector);
-                    if (!in.getAttackPatternsExternalIds().isEmpty()) {
-                      List<AttackPattern> attackPatterns =
-                          fromIterable(
-                              attackPatternRepository.findAllByExternalIdInIgnoreCase(
-                                  in.getAttackPatternsExternalIds()));
-                      injectorContract.setAttackPatterns(attackPatterns);
-                    } else {
-                      injectorContract.setAttackPatterns(new ArrayList<>());
-                    }
-                    try {
-                      injectorContract.setContent(mapper.writeValueAsString(in));
-                    } catch (JsonProcessingException e) {
-                      throw new RuntimeException(e);
-                    }
-                    if (!isPayloads && in.getDomains() != null) {
-                      injectorContract.setDomains(this.upserts(in.getDomains()));
-                    }
-                    return injectorContract;
-                  })
+              .map(contract -> createInjectorContract(contract, injector, isPayloads))
               .toList();
       injectorContractRepository.deleteAllById(toDeletes);
       injectorContractRepository.saveAll(toCreates);
@@ -230,39 +167,56 @@ public class InjectorService {
       // Save the contracts
       List<InjectorContract> injectorContracts =
           staticContracts.stream()
-              .map(
-                  in -> {
-                    InjectorContract injectorContract = new InjectorContract();
-                    injectorContract.setId(in.getId());
-                    injectorContract.setManual(in.isManual());
-                    injectorContract.setAtomicTesting(in.isAtomicTesting());
-                    injectorContract.setPlatforms(in.getPlatforms().toArray(new PLATFORM_TYPE[0]));
-                    injectorContract.setNeedsExecutor(in.isNeedsExecutor());
-                    Map<String, String> labels =
-                        in.getLabel().entrySet().stream()
-                            .collect(
-                                Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue));
-                    injectorContract.setLabels(labels);
-                    injectorContract.setInjector(savedInjector);
-                    if (!in.getAttackPatternsExternalIds().isEmpty()) {
-                      injectorContract.setAttackPatterns(
-                          fromIterable(
-                              attackPatternRepository.findAllById(
-                                  in.getAttackPatternsExternalIds())));
-                    }
-                    try {
-                      injectorContract.setContent(mapper.writeValueAsString(in));
-                    } catch (JsonProcessingException e) {
-                      throw new RuntimeException(e);
-                    }
-                    if (!isPayloads && in.getDomains() != null) {
-                      injectorContract.setDomains(this.upserts(in.getDomains()));
-                    }
-                    return injectorContract;
-                  })
+              .map(contract -> createInjectorContract(contract, savedInjector, isPayloads))
               .toList();
       injectorContractRepository.saveAll(injectorContracts);
     }
+  }
+
+  /**
+   * Creates an InjectorContract from a Contract definition.
+   *
+   * @param contract the contract definition
+   * @param injector the parent injector
+   * @param isPayloads whether this is a payload-based injector
+   * @return the created InjectorContract
+   */
+  private InjectorContract createInjectorContract(
+      Contract contract, Injector injector, boolean isPayloads) {
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(contract.getId());
+    injectorContract.setManual(contract.isManual());
+    injectorContract.setAtomicTesting(contract.isAtomicTesting());
+    injectorContract.setPlatforms(contract.getPlatforms().toArray(new PLATFORM_TYPE[0]));
+    injectorContract.setNeedsExecutor(contract.isNeedsExecutor());
+
+    Map<String, String> labels =
+        contract.getLabel().entrySet().stream()
+            .collect(Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue));
+    injectorContract.setLabels(labels);
+    injectorContract.setInjector(injector);
+
+    if (!contract.getAttackPatternsExternalIds().isEmpty()) {
+      List<AttackPattern> attackPatterns =
+          fromIterable(
+              attackPatternRepository.findAllByExternalIdInIgnoreCase(
+                  contract.getAttackPatternsExternalIds()));
+      injectorContract.setAttackPatterns(attackPatterns);
+    } else {
+      injectorContract.setAttackPatterns(new ArrayList<>());
+    }
+
+    try {
+      injectorContract.setContent(mapper.writeValueAsString(contract));
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (!isPayloads && contract.getDomains() != null) {
+      injectorContract.setDomains(this.upserts(contract.getDomains()));
+    }
+
+    return injectorContract;
   }
 
   public Iterable<Injector> injectors() {
@@ -297,7 +251,7 @@ public class InjectorService {
     if (isExistingDomainsEmptyOrToClassify && domainsEmptyOrToClassify) {
       return new HashSet<>(
           Collections.singletonList(
-              this.upsert(new Domain(null, "To classify", "#FFFFFF", Instant.now(), null))));
+              this.upsert(new Domain(null, TO_CLASSIFY, "#FFFFFF", Instant.now(), null))));
     }
 
     Set<Domain> domainsToAdd = domains;
@@ -316,6 +270,6 @@ public class InjectorService {
   private boolean isEmptyOrToClassify(final Set<Domain> domains) {
     return domains == null
         || domains.isEmpty()
-        || (domains.size() == 1 && TOCLASSIFY.equals(domains.iterator().next().getName()));
+        || (domains.size() == 1 && TO_CLASSIFY.equals(domains.iterator().next().getName()));
   }
 }

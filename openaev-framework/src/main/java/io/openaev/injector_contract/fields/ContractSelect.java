@@ -12,7 +12,7 @@ import lombok.Setter;
 public class ContractSelect extends ContractCardinalityElement {
 
   private Map<String, String> choices = new HashMap<>();
-  private Map<String, String> choiceInformations = new HashMap<>();
+  private Map<String, String> choiceInformation = new HashMap<>();
 
   public ContractSelect(String key, String label, ContractCardinality cardinality) {
     super(key, label, cardinality);

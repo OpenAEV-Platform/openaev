@@ -4,7 +4,6 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
@@ -121,16 +120,25 @@ public class OpenAEVConfig {
   private String frontendUrl;
 
   public String getBaseUrl() {
-    return url(baseUrl);
+    return normalizeUrl(baseUrl);
   }
 
   public String getBaseUrlForAgent() {
-    return hasText(agentUrl) ? url(agentUrl) : url(baseUrl);
+    return hasText(agentUrl) ? normalizeUrl(agentUrl) : normalizeUrl(baseUrl);
   }
 
   // -- PRIVATE --
 
-  private String url(@NotBlank final String url) {
+  /**
+   * Normalizes a URL by removing trailing slashes.
+   *
+   * @param url the URL to normalize
+   * @return the normalized URL without trailing slash, or null if input is null/empty
+   */
+  private String normalizeUrl(final String url) {
+    if (!hasText(url)) {
+      return null;
+    }
     return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 }

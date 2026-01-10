@@ -84,6 +84,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    depends_on:
+      - openaev-dev-pgsql
   openaev-dev-elasticsearch:
     container_name: openaev-dev-elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
@@ -94,7 +96,7 @@ services:
       - discovery.type=single-node
       - xpack.ml.enabled=false
       - xpack.security.enabled=false
-      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
       - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
       - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
     restart: unless-stopped
@@ -119,7 +121,7 @@ services:
       - ossnapshots:/usr/share/opensearch/snapshots
     environment:
       - discovery.type=single-node
-      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
       - "OPENSEARCH_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
       - "DISABLE_SECURITY_PLUGIN=true" # Disables Security plugin
     restart: unless-stopped
@@ -140,7 +142,7 @@ services:
       - discovery.type=single-node
       - xpack.ml.enabled=false
       - xpack.security.enabled=false
-      # -XX:UseSVE=0 is necessary for Apple M4 architecture
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
       - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
       - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
     restart: unless-stopped

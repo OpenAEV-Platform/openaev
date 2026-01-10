@@ -65,8 +65,8 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 
 | File | Description |
 |------|-------------|
+| `.env.example` | Example environment variables (copy to `.env`) |
 | `docker-compose.yml` | Docker Compose configuration for all services |
-| `.env.example` | Example environment variables |
 | `caldera.yml` | Caldera server configuration |
 | `rabbitmq.conf` | RabbitMQ configuration |
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
@@ -82,9 +82,9 @@ Both Elasticsearch and OpenSearch are configured but use different ports to avoi
 
 Run only one search engine at a time in development, or configure the backend to use the correct port.
 
-### Apple Silicon (M4) Support
+### Apple Silicon Support
 
-The Elasticsearch and OpenSearch configurations include `-XX:UseSVE=0` JVM option for compatibility with Apple M4 architecture.
+The Elasticsearch and OpenSearch configurations include `-XX:UseSVE=0` JVM option for compatibility with Apple Silicon architecture (M1/M2/M3/M4).
 
 ### Telemetry (Optional)
 
