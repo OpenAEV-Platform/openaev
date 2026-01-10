@@ -126,14 +126,16 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             : [];
 
           // Filter to only include common fields
-          const finalOptions = optionsByEntity[0]
-            .filter(o => commonFieldIds.includes(o.id))
-            .map((o) => {
-              return {
-                ...o,
-                label: t(o.label),
-              };
-            });
+          const finalOptions = optionsByEntity.length > 0
+            ? optionsByEntity[0]
+                .filter(o => commonFieldIds.includes(o.id))
+                .map((o) => {
+                  return {
+                    ...o,
+                    label: t(o.label),
+                  };
+                })
+            : [];
 
           setFieldOptions(finalOptions);
 
