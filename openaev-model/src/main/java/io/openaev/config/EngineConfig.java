@@ -81,22 +81,6 @@ public class EngineConfig {
 
     /** Default SSL certificate verification setting. */
     public static final boolean REJECT_UNAUTHORIZED = true;
-
-    public static final String ENGINE_SELECTOR = "elk";
-    public static final String ENGINE_AWS_MODE = "no";
-    public static final String ENGINE_AWS_HOST = "search-...us-west-2.es.amazonaws.com";
-    public static final String ENGINE_AWS_REGION = "us-west-2";
-    public static final String INDEX_PREFIX = "openaev";
-    public static final String INDEX_SUFFIX = "-000001";
-    public static final String NUMBER_OF_SHARDS = "1";
-    public static final String NUMBER_OF_REPLICAS = "1";
-    public static final int MAX_RESULT_WINDOW = 100000;
-    public static final int ENTITIES_CAP = 100;
-    public static final int SEARCH_CAP = 500;
-    public static final int MAX_PRIMARY_SHARD_DOCS = 75000000;
-    public static final String MAX_PRIMARY_SHARDS_SIZE = "50Gb";
-    public static final String MAX_FIELD_SIZE = "4096";
-    public static final boolean REJECT_UNAUTHORIZED = true;
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
