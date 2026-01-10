@@ -34,7 +34,8 @@ public class QueueService {
         Channel channel = connection.createChannel()) {
       String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
       String exchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
-      channel.basicPublish(exchangeKey, routingKey, null, publishedJson.getBytes(StandardCharsets.UTF_8));
+      channel.basicPublish(
+          exchangeKey, routingKey, null, publishedJson.getBytes(StandardCharsets.UTF_8));
     } catch (IOException | TimeoutException ex) {
       log.error("Error publishing to RabbitMQ", ex);
       throw ex;
