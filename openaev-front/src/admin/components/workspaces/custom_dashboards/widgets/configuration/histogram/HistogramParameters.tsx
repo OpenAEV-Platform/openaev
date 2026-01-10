@@ -97,23 +97,63 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
   const [fieldOptions, setFieldOptions] = useState<GroupOption[]>([]);
 
   useEffect(() => {
-    engineSchemas(entities).then((response: { data: PropertySchemaDTO[] }) => {
-      const finalOptions = getEntityPropertiesListOptions(
-        response.data,
-        widgetType,
-        d => mode === 'temporal' ? d.schema_property_type === 'instant' : d.schema_property_type !== 'instant')
-        .map((o) => {
-          return {
-            ...o,
-            label: t(o.label),
-          };
+    // If in structural mode with multiple entities, only show common fields
+    if (mode === 'structural' && entities.length > 1) {
+      // Fetch schemas for each entity separately
+      Promise.all(entities.map(entity => engineSchemas([entity])))
+        .then((responses: { data: PropertySchemaDTO[] }[]) => {
+          // Get field options for each entity
+          const optionsByEntity = responses.map(response =>
+            getEntityPropertiesListOptions(
+              response.data,
+              widgetType,
+              d => d.schema_property_type !== 'instant',
+            ),
+          );
+
+          // Find intersection of fields (fields that exist in ALL entities)
+          const commonFieldIds = optionsByEntity.length > 0
+            ? optionsByEntity.reduce((common, entityOptions) => {
+                const entityFieldIds = new Set(entityOptions.map(o => o.id));
+                return common.filter(id => entityFieldIds.has(id));
+              }, optionsByEntity[0].map(o => o.id))
+            : [];
+
+          // Filter to only include common fields
+          const finalOptions = optionsByEntity[0]
+            .filter(o => commonFieldIds.includes(o.id))
+            .map((o) => {
+              return {
+                ...o,
+                label: t(o.label),
+              };
+            });
+
+          setFieldOptions(finalOptions);
+          if (finalOptions.length === 1) {
+            setValue('widget_config.field', finalOptions[0].id);
+          }
         });
-      setFieldOptions(finalOptions);
-      if (finalOptions.length === 1) {
-        setValue('widget_config.field', finalOptions[0].id); // If only one option is available, hide the field and set it automatically
-      }
-    });
-  }, [mode]);
+    } else {
+      // Single entity or temporal mode - show all fields
+      engineSchemas(entities).then((response: { data: PropertySchemaDTO[] }) => {
+        const finalOptions = getEntityPropertiesListOptions(
+          response.data,
+          widgetType,
+          d => mode === 'temporal' ? d.schema_property_type === 'instant' : d.schema_property_type !== 'instant')
+          .map((o) => {
+            return {
+              ...o,
+              label: t(o.label),
+            };
+          });
+        setFieldOptions(finalOptions);
+        if (finalOptions.length === 1) {
+          setValue('widget_config.field', finalOptions[0].id); // If only one option is available, hide the field and set it automatically
+        }
+      });
+    }
+  }, [mode, entities.length]);
 
   return (
     <>
