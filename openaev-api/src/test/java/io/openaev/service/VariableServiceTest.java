@@ -8,9 +8,9 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Variable;
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
-import java.util.NoSuchElementException;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -98,6 +98,6 @@ public class VariableServiceTest extends IntegrationTest {
   @Order(4)
   void deleteVariableTest() {
     this.variableService.deleteVariable(VARIABLE_ID);
-    assertThrows(NoSuchElementException.class, () -> this.variableService.variable(VARIABLE_ID));
+    assertThrows(ElementNotFoundException.class, () -> this.variableService.variable(VARIABLE_ID));
   }
 }
