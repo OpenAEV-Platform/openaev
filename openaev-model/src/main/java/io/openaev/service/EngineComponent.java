@@ -45,10 +45,11 @@ public class EngineComponent {
    * Creates and configures the search engine service based on configuration.
    *
    * @return the configured {@link EngineService} implementation
+   * @throws Exception if there is an issue during engine initialization
    * @throws IllegalStateException if the engine selector is not supported
    */
   @Bean
-  public EngineService engine() {
+  public EngineService engine() throws Exception {
     if (config.getEngineSelector().equalsIgnoreCase("elk")) {
       return new ElasticService(
           searchEngine, elasticDriver, indexingStatusRepository, config, commonSearchService);
