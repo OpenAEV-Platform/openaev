@@ -123,16 +123,18 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
           );
 
           // Find intersection of fields (fields that exist in ALL entities)
-          const commonFieldIds = optionsByEntity.length > 0
-            ? optionsByEntity[0].map(o => o.id).filter(id =>
-                entityFieldSets.every(fieldSet => fieldSet.has(id)),
+          const commonFieldIdsSet = optionsByEntity.length > 0
+            ? new Set(
+                optionsByEntity[0]
+                  .map(o => o.id)
+                  .filter(id => entityFieldSets.every(fieldSet => fieldSet.has(id))),
               )
-            : [];
+            : new Set<string>();
 
           // Filter to only include common fields
           const finalOptions = optionsByEntity.length > 0
             ? optionsByEntity[0]
-                .filter(o => commonFieldIds.includes(o.id))
+                .filter(o => commonFieldIdsSet.has(o.id))
                 .map((o) => {
                   return {
                     ...o,
