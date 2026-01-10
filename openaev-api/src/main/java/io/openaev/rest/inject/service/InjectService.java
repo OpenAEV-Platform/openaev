@@ -460,6 +460,16 @@ public class InjectService {
     return injectorContractService.checkTargetSupport(ic.get(), targetType);
   }
 
+  /**
+   * Determines if an inject is technical (requires an executor to run).
+   *
+   * @param inject the inject to check
+   * @return true if the inject is technical (needsExecutor = true), false otherwise
+   */
+  private boolean isTechnicalInject(final Inject inject) {
+    return inject.getInjectorContract().map(InjectorContract::getNeedsExecutor).orElse(false);
+  }
+
   public void assignAssetGroup(final Inject inject, List<AssetGroup> assetGroups) {
     if (this.canApplyTargetType(inject, TargetType.ASSETS_GROUPS)) {
       inject.setAssetGroups(assetGroups);
@@ -786,8 +796,7 @@ public class InjectService {
     }
 
     // Check if inject is technical (needs executor)
-    boolean isTechnical =
-        injectToUpdate.getInjectorContract().map(InjectorContract::getNeedsExecutor).orElse(false);
+    boolean isTechnical = isTechnicalInject(injectToUpdate);
 
     for (var operation : operations) {
       switch (operation.getField()) {
