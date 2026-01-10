@@ -1,5 +1,6 @@
 package io.openaev.injector_contract;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.helper.SupportedLanguage;
 import java.util.Map;
 import lombok.Getter;
@@ -12,20 +13,35 @@ public class ContractConfig {
   private final boolean expose;
 
   private final Map<SupportedLanguage, String> label;
-  private final String color_dark;
-  private final String color_light;
 
+  @JsonProperty("color_dark")
+  private final String colorDark;
+
+  @JsonProperty("color_light")
+  private final String colorLight;
+
+  /**
+   * Creates a new ContractConfig.
+   *
+   * @param type the injector type
+   * @param label the label map for supported languages
+   * @param colorDark the dark theme color
+   * @param colorLight the light theme color
+   * @param icon the icon path (currently unused, kept for API compatibility)
+   * @param expose whether the contract is exposed
+   */
+  @SuppressWarnings("java:S1172") // icon parameter kept for API compatibility
   public ContractConfig(
       String type,
       Map<SupportedLanguage, String> label,
-      String color_dark,
-      String color_light,
+      String colorDark,
+      String colorLight,
       String icon,
       boolean expose) {
     this.type = type;
     this.expose = expose;
-    this.color_dark = color_dark;
-    this.color_light = color_light;
+    this.colorDark = colorDark;
+    this.colorLight = colorLight;
     this.label = label;
   }
 }

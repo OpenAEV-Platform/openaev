@@ -48,7 +48,7 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroups);
   }
 
-  public List<AssetGroup> assetGroups(@NotBlank final List<String> assetGroupIds) {
+  public List<AssetGroup> assetGroups(@NotNull final List<String> assetGroupIds) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findAllById(assetGroupIds));
     return computeDynamicAssets(assetGroups);

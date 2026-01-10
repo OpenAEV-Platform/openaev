@@ -9,10 +9,12 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class AssetUtils {
 
+  private AssetUtils() {}
+
   /**
    * Build platform-architecture pairs from every endpoint in the list
    *
-   * @param endpointList list of attack patterns (TTPs)
+   * @param endpointList list of endpoints
    * @return set of (Platform × Architecture) combinations
    */
   public static Set<Pair<Endpoint.PLATFORM_TYPE, String>> extractPlatformArchPairs(

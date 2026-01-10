@@ -16,8 +16,8 @@ public class InjectorContractContentOutputElement {
   private String[] labels;
 
   @JsonProperty("isMultiple")
-  boolean isMultiple;
+  private boolean multiple;
 
   @JsonProperty("isFindingCompatible")
-  boolean isFindingCompatible;
+  private boolean findingCompatible;
 }

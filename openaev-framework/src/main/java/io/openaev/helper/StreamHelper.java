@@ -1,7 +1,5 @@
 package io.openaev.helper;
 
-import static java.util.stream.StreamSupport.stream;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -14,7 +12,7 @@ public class StreamHelper {
   private StreamHelper() {}
 
   public static <T> List<T> fromIterable(Iterable<T> results) {
-    return stream(results.spliterator(), false).collect(Collectors.toList());
+    return StreamSupport.stream(results.spliterator(), false).collect(Collectors.toList());
   }
 
   public static <T> Set<T> iterableToSet(Iterable<T> results) {

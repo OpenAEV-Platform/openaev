@@ -8,7 +8,9 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
-public class DatabaseHelper {
+public final class DatabaseHelper {
+
+  private DatabaseHelper() {}
 
   public static <T> T updateRelation(
       String inputRelationId, Base current, CrudRepository<T, String> repository) {

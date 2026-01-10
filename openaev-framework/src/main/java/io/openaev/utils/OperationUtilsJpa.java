@@ -304,7 +304,7 @@ public class OperationUtilsJpa {
   }
 
   private static boolean isEmpty(List<String> texts) {
-    return texts == null || texts.isEmpty() || texts.stream().anyMatch(s -> !hasText(s));
+    return texts == null || texts.isEmpty() || texts.stream().allMatch(s -> !hasText(s));
   }
 
   private static boolean isEmpty(String text) {

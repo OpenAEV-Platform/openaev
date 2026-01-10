@@ -17,8 +17,7 @@ public class CryptoHelper {
       MessageDigest md = MessageDigest.getInstance("MD5");
       return hex(md.digest(message.getBytes("CP1252"))).toLowerCase();
     } catch (Exception e) {
-      // Nothing to do
+      throw new RuntimeException("Failed to compute MD5 hash", e);
     }
-    return null;
   }
 }

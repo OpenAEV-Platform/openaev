@@ -33,7 +33,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Slf4j
-public class RabbitMQHelper {
+public final class RabbitMQHelper {
+
+  private RabbitMQHelper() {}
 
   private static String rabbitMQVersion;
 

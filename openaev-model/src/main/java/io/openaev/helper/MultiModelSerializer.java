@@ -7,20 +7,14 @@ import io.openaev.database.model.Base;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Custom JSON serializer that serializes a List of Base entities as a full JSON array.
- *
- * @deprecated Use {@link MultiModelSerializer} instead. This class name is misleading as it is a
- *     serializer, not a deserializer.
- */
-@Deprecated(forRemoval = true)
-public class MultiModelDeserializer extends StdSerializer<List<Base>> {
+/** Custom JSON serializer that serializes a List of Base entities as a full JSON array. */
+public class MultiModelSerializer extends StdSerializer<List<Base>> {
 
-  public MultiModelDeserializer() {
+  public MultiModelSerializer() {
     this(null);
   }
 
-  public MultiModelDeserializer(Class<List<Base>> t) {
+  public MultiModelSerializer(Class<List<Base>> t) {
     super(t);
   }
 

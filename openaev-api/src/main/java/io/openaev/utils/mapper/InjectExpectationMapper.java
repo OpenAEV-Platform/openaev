@@ -18,7 +18,6 @@ import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -88,7 +87,7 @@ public class InjectExpectationMapper {
           ExpectationType type = ExpectationType.of(typeNode.asText().toUpperCase());
           uniqueTypes.add(type);
         } catch (IllegalArgumentException e) {
-          log.warn("Expectation Type is no valid", e);
+          log.warn("Expectation Type is not valid", e);
         }
       }
     }
@@ -103,7 +102,7 @@ public class InjectExpectationMapper {
    * @param injects
    * @return List of InjectExpectationResultsByAttackPattern
    */
-  public InjectExpectationResultsByAttackPattern toInjectExpectationResultsByattackPattern(
+  public InjectExpectationResultsByAttackPattern toInjectExpectationResultsByAttackPattern(
       final AttackPattern attackPattern, @NotNull final List<Inject> injects) {
 
     return InjectExpectationResultsByAttackPattern.builder()
@@ -171,7 +170,7 @@ public class InjectExpectationMapper {
    * @return List of InjectResultsByType
    */
   private List<ExpectationResultsByType> buildExpectationResultsFromInjectContents(
-      @NotBlank Set<String> injectIds) {
+      @NotNull Set<String> injectIds) {
 
     // Fetch all inject contents in order to extract expectations defined in every inject
     List<String> rawContents = injectRepository.findContentsByInjectIds(injectIds);

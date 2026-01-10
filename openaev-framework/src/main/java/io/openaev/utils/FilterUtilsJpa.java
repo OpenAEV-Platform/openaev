@@ -141,56 +141,47 @@ public class FilterUtilsJpa {
       @NotNull final Filter filter,
       @NotNull final CriteriaBuilder cb,
       @NotNull final Class<?> type) {
+    FilterOperator operator = filter.getOperator();
+    if (operator == null) {
+      operator = FilterOperator.eq;
+    }
     BiFunction<Expression<U>, List<String>, Predicate> operation =
-        computeOperation(filter.getOperator(), cb, type);
+        computeOperation(operator, cb, type);
     return operation.apply(paths, filter.getValues());
   }
 
   // -- OPERATOR --
 
+  @SuppressWarnings("unchecked")
   private static <U> BiFunction<Expression<U>, List<String>, Predicate> computeOperation(
-      @Nullable final FilterOperator operator,
+      @NotNull final FilterOperator operator,
       @NotNull final CriteriaBuilder cb,
       @NotNull final Class<?> type) {
-    if (operator == null) {
-      throw new IllegalArgumentException("Operator cannot be null");
-    }
-    if (operator.equals(FilterOperator.not_contains)) {
-      return (Expression<U> paths, List<String> texts) ->
+    return switch (operator) {
+      case not_contains -> (paths, texts) ->
           notContainsTexts((Expression<String>) paths, cb, texts, type);
-    } else if (operator.equals(FilterOperator.contains)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case contains -> (paths, texts) ->
           containsTexts((Expression<String>) paths, cb, texts, type);
-    } else if (operator.equals(FilterOperator.not_starts_with)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case not_starts_with -> (paths, texts) ->
           notStartWithTexts((Expression<String>) paths, cb, texts, type);
-    } else if (operator.equals(FilterOperator.starts_with)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case starts_with -> (paths, texts) ->
           startWithTexts((Expression<String>) paths, cb, texts, type);
-    } else if (operator.equals(FilterOperator.empty)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case empty -> (paths, texts) ->
           empty((Expression<String>) paths, cb, type);
-    } else if (operator.equals(FilterOperator.not_empty)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case not_empty -> (paths, texts) ->
           notEmpty((Expression<String>) paths, cb, type);
-    } else if (operator.equals(FilterOperator.gt)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case gt -> (paths, texts) ->
           greaterThanTexts((Expression<Instant>) paths, cb, texts);
-    } else if (operator.equals(FilterOperator.gte)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case gte -> (paths, texts) ->
           greaterThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
-    } else if (operator.equals(FilterOperator.lt)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case lt -> (paths, texts) ->
           lessThanTexts((Expression<Instant>) paths, cb, texts);
-    } else if (operator.equals(FilterOperator.lte)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case lte -> (paths, texts) ->
           lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
-    } else if (operator.equals(FilterOperator.not_eq)) {
-      return (Expression<U> paths, List<String> texts) ->
+      case not_eq -> (paths, texts) ->
           notEqualsTexts((Expression<String>) paths, cb, texts, type);
-    } else { // Default case -> equals
-      return (Expression<U> paths, List<String> texts) ->
+      default -> (paths, texts) ->
           equalsTexts((Expression<String>) paths, cb, texts, type);
-    }
+    };
   }
 }

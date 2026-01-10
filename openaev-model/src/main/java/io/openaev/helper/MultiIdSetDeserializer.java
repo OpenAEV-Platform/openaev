@@ -8,6 +8,13 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Custom JSON serializer that serializes a Set of Base entities to an array of their ID strings.
+ *
+ * @deprecated Use {@link MultiIdSetSerializer} instead. This class name is misleading as it is a
+ *     serializer, not a deserializer.
+ */
+@Deprecated(forRemoval = true)
 public class MultiIdSetDeserializer extends StdSerializer<Set<Base>> {
 
   public MultiIdSetDeserializer() {

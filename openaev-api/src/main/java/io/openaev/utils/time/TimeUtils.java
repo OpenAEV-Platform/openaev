@@ -13,6 +13,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TimeUtils {
+
+  private TimeUtils() {}
+
   private static final String ISO_8601_PERIOD_EXPRESSION_MASK =
       "PT?(?<digits>\\d+)(?<magnitude>[HDWM])";
 

@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -83,7 +83,7 @@ public class Mitigation implements Base {
       name = "mitigations_attack_patterns",
       joinColumns = @JoinColumn(name = "mitigation_id"),
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("mitigation_attack_patterns")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 }

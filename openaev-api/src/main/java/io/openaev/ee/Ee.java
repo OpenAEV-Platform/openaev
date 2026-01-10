@@ -29,7 +29,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.*;
 import java.time.Instant;
@@ -93,7 +93,7 @@ public class Ee {
     }
   }
 
-  private Map<String, Setting> mapOfSettings(@NotBlank List<Setting> settings) {
+  private Map<String, Setting> mapOfSettings(@NotNull List<Setting> settings) {
     return settings.stream().collect(Collectors.toMap(Setting::getKey, Function.identity()));
   }
 

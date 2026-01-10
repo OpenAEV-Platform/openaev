@@ -7,19 +7,16 @@ import io.openaev.database.model.Base;
 import java.io.IOException;
 
 /**
- * Custom JSON serializer that serializes a Base entity to just its ID string.
- *
- * @deprecated Use {@link MonoIdSerializer} instead. This class name is misleading as it is a
- *     serializer, not a deserializer.
+ * Custom JSON serializer that serializes a Base entity to just its ID string. This is useful for
+ * relationships where only the ID needs to be included in the JSON output.
  */
-@Deprecated(forRemoval = true)
-public class MonoIdDeserializer extends StdSerializer<Base> {
+public class MonoIdSerializer extends StdSerializer<Base> {
 
-  public MonoIdDeserializer() {
+  public MonoIdSerializer() {
     this(null);
   }
 
-  public MonoIdDeserializer(Class<Base> t) {
+  public MonoIdSerializer(Class<Base> t) {
     super(t);
   }
 

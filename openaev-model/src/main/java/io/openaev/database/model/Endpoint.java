@@ -7,7 +7,7 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -107,7 +107,7 @@ public class Endpoint extends Asset {
       orphanRemoval = true)
   // method
   @JsonProperty("asset_agents")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   private List<Agent> agents = new ArrayList<>();
 
   // -- INJECT --

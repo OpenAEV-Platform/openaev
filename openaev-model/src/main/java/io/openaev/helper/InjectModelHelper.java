@@ -15,8 +15,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -252,22 +250,19 @@ public class InjectModelHelper {
       return Optional.empty();
     }
 
-    if (exercise != null) {
-      if (exercise.getStatus().equals(ExerciseStatus.CANCELED)) {
-        return Optional.empty();
-      }
-      return exercise
-          .getStart()
-          .map(source -> computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise));
+    // At this point exercise cannot be null (if both were null, we returned at first condition;
+    // if only scenario was not null, we returned above)
+    assert exercise != null;
+    if (exercise.getStatus().equals(ExerciseStatus.CANCELED)) {
+      return Optional.empty();
     }
-    return Optional.ofNullable(LocalDateTime.now().toInstant(ZoneOffset.UTC));
+    return exercise
+        .getStart()
+        .map(source -> computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise));
   }
 
   public static Instant getSentAt(Optional<InjectStatus> status) {
-    if (status.isPresent()) {
-      return status.orElseThrow().getTrackingSentDate();
-    }
-    return null;
+    return status.map(InjectStatus::getTrackingSentDate).orElse(null);
   }
 
   private static boolean isFieldSet(
@@ -316,7 +311,7 @@ public class InjectModelHelper {
     return isSet;
   }
 
-  public static boolean isDetectionOrPrevention(@NotNull final ObjectNode content) {
+  public static boolean isDetectionOrPrevention(final ObjectNode content) {
     if (content == null
         || content.get("expectations") == null
         || content.get("expectations").isNull()) {
@@ -325,18 +320,17 @@ public class InjectModelHelper {
 
     JsonNode valueNode = content.get("expectations");
 
-    List<InjectExpectation.EXPECTATION_TYPE> values = new ArrayList<>();
     if (valueNode.isArray()) {
       for (JsonNode node : valueNode) {
         if (!node.isNull()
-            && !node.get("expectation_type").isNull()
-            && (InjectExpectation.EXPECTATION_TYPE.DETECTION.equals(
-                    InjectExpectation.EXPECTATION_TYPE.valueOf(
-                        node.get("expectation_type").asText()))
-                || InjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(
-                    InjectExpectation.EXPECTATION_TYPE.valueOf(
-                        node.get("expectation_type").asText())))) {
-          return true;
+            && node.get("expectation_type") != null
+            && !node.get("expectation_type").isNull()) {
+          InjectExpectation.EXPECTATION_TYPE type =
+              InjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
+          if (InjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
+              || InjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
+            return true;
+          }
         }
       }
     }

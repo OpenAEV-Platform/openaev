@@ -12,7 +12,11 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.helper.*;
+import io.openaev.helper.InjectStatisticsHelper;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -181,7 +185,7 @@ public class Scenario implements GrantableBase {
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "scenario_custom_dashboard")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("scenario_custom_dashboard")
   @Schema(type = "string")
   private CustomDashboard customDashboard;
@@ -201,7 +205,7 @@ public class Scenario implements GrantableBase {
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @Getter(NONE)
   private Set<Inject> injects = new HashSet<>();
 
@@ -217,7 +221,7 @@ public class Scenario implements GrantableBase {
       name = "scenarios_teams",
       joinColumns = @JoinColumn(name = "scenario_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_teams")
   private List<Team> teams = new ArrayList<>();
 
@@ -233,7 +237,7 @@ public class Scenario implements GrantableBase {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("scenario_teams_users")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   private List<ScenarioTeamUser> teamUsers = new ArrayList<>();
 
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
@@ -246,7 +250,7 @@ public class Scenario implements GrantableBase {
       name = "scenarios_tags",
       joinColumns = @JoinColumn(name = "scenario_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("scenario_tags")
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
@@ -263,19 +267,19 @@ public class Scenario implements GrantableBase {
       name = "scenarios_documents",
       joinColumns = @JoinColumn(name = "scenario_id"),
       inverseJoinColumns = @JoinColumn(name = "document_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_documents")
   private List<Document> documents = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_articles")
   private List<Article> articles = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(type = "string"))
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_lessons_categories")
   private List<LessonsCategory> lessonsCategories = new ArrayList<>();
 
@@ -290,7 +294,7 @@ public class Scenario implements GrantableBase {
       name = "scenarios_exercises",
       joinColumns = @JoinColumn(name = "scenario_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_exercises")
   @Setter(NONE)
   private List<Exercise> exercises;
@@ -324,14 +328,14 @@ public class Scenario implements GrantableBase {
 
   @ArraySchema(schema = @Schema(type = "string"))
   @JsonProperty("scenario_planners")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getPlanners() {
     return getUsersByType(this.getGrants(), PLANNER);
   }
 
   @ArraySchema(schema = @Schema(type = "string"))
   @JsonProperty("scenario_observers")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getObservers() {
     return getUsersByType(this.getGrants(), PLANNER, OBSERVER);
   }
@@ -355,7 +359,7 @@ public class Scenario implements GrantableBase {
 
   @ArraySchema(schema = @Schema(type = "string"))
   @JsonProperty("scenario_users")
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getUsers() {
     return getTeamUsers().stream().map(ScenarioTeamUser::getUser).distinct().toList();
   }

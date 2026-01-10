@@ -18,7 +18,7 @@ public class ChannelExpectation implements Expectation {
   private Long expirationTime;
 
   public ChannelExpectation(io.openaev.model.inject.form.Expectation expectation, Article article) {
-    setScore(Objects.requireNonNullElse(score, 100.0));
+    setScore(Objects.requireNonNullElse(expectation.getScore(), 100.0));
     setArticle(article);
     setName(article.getName());
     setExpectationGroup(expectation.isExpectationGroup());

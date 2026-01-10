@@ -23,6 +23,7 @@ import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,7 +107,7 @@ public class InjectorService {
       }
     }
     // Check error to avoid changing ID
-    List<Contract> contractSTATIQUE = contractor.contracts();
+    List<Contract> staticContracts = contractor.contracts();
     if (injector != null) {
       injector.setName(name);
       injector.setExternal(false);
@@ -125,14 +126,9 @@ public class InjectorService {
           .getContracts()
           .forEach(
               contractDB -> {
-
-                // Contractor -> code static
-                // Injector -> code DB
-
-                // 1. contrat statique a changé
-                // 2. contrat dynamique a changé
+                // Find matching static contract for this DB contract
                 Optional<Contract> current =
-                    contractSTATIQUE.stream()
+                    staticContracts.stream()
                         .filter(cSTATIQUE -> cSTATIQUE.getId().equals(contractDB.getId()))
                         .findFirst();
                 if (current.isPresent()) {
@@ -173,11 +169,12 @@ public class InjectorService {
                   // pas custom && (pas de payloads OU payload est null)
                 } else if (!contractDB.getCustom()
                     && (!injector.isPayloads() || contractDB.getPayload() == null)) {
+                  // Delete non-custom contracts that no longer exist in static contracts
                   toDeletes.add(contractDB.getId());
                 }
               });
       List<InjectorContract> toCreates =
-          contractSTATIQUE.stream()
+          staticContracts.stream()
               .filter(c -> !existing.contains(c.getId()))
               .map(
                   in -> {
@@ -232,7 +229,7 @@ public class InjectorService {
       Injector savedInjector = injectorRepository.save(newInjector);
       // Save the contracts
       List<InjectorContract> injectorContracts =
-          contractSTATIQUE.stream()
+          staticContracts.stream()
               .map(
                   in -> {
                     InjectorContract injectorContract = new InjectorContract();
@@ -290,8 +287,7 @@ public class InjectorService {
   }
 
   private String randomColor() {
-    Random rand = new Random();
-    return String.format("#%06x", rand.nextInt(0xffffff + 1));
+    return String.format("#%06x", ThreadLocalRandom.current().nextInt(0xffffff + 1));
   }
 
   public Set<Domain> mergeDomains(final Set<Domain> existingDomains, final Set<Domain> domains) {

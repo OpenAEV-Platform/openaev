@@ -18,9 +18,37 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 
-public class InjectExpectationResultUtils {
+/**
+ * Utility class for building and managing InjectExpectationResult objects.
+ *
+ * <p>This class provides methods for:
+ *
+ * <ul>
+ *   <li>Building result objects for different sources (media pressure, manual validation, etc.)
+ *   <li>Computing scores from result collections
+ *   <li>Managing result lifecycle (add, delete, expire)
+ *   <li>Checking result status conditions
+ * </ul>
+ *
+ * <p>Note: For aggregating expectation results by types and computing averages, see {@link
+ * io.openaev.utils.InjectExpectationResultUtils}.
+ */
+public final class ExpectationResultBuilder {
 
-  private InjectExpectationResultUtils() {}
+  private ExpectationResultBuilder() {}
+
+  // Source type and ID constants
+  public static final String MEDIA_PRESSURE_SOURCE_ID = "media-pressure";
+  public static final String MEDIA_PRESSURE_SOURCE_TYPE = "media-pressure";
+  public static final String MEDIA_PRESSURE_SOURCE_NAME = "Media pressure read";
+
+  public static final String PLAYER_MANUAL_VALIDATION_SOURCE_ID = "player-manual-validation";
+  public static final String PLAYER_MANUAL_VALIDATION_SOURCE_TYPE = "player-manual-validation";
+  public static final String PLAYER_MANUAL_VALIDATION_SOURCE_NAME = "Player Manual Validation";
+
+  public static final String TEAM_MANUAL_VALIDATION_SOURCE_ID = "team-manual-validation";
+  public static final String TEAM_MANUAL_VALIDATION_SOURCE_TYPE = "team-manual-validation";
+  public static final String TEAM_MANUAL_VALIDATION_SOURCE_NAME = "Team Manual Validation";
 
   // -- SCORE --
 
@@ -130,9 +158,9 @@ public class InjectExpectationResultUtils {
   public static InjectExpectationResult buildForMediaPressure(
       @NotNull final InjectExpectation injectExpectation) {
     return InjectExpectationResult.builder()
-        .sourceId("media-pressure")
-        .sourceType("media-pressure")
-        .sourceName("Media pressure read")
+        .sourceId(MEDIA_PRESSURE_SOURCE_ID)
+        .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
+        .sourceName(MEDIA_PRESSURE_SOURCE_NAME)
         .result(Instant.now().toString())
         .date(Instant.now().toString())
         .score(injectExpectation.getExpectedScore())
@@ -153,9 +181,9 @@ public class InjectExpectationResultUtils {
   public static InjectExpectationResult buildForPlayerManualValidation(
       @NotNull final String result, @NotNull final Double score) {
     return InjectExpectationResult.builder()
-        .sourceId("player-manual-validation")
-        .sourceType("player-manual-validation")
-        .sourceName("Player Manual Validation")
+        .sourceId(PLAYER_MANUAL_VALIDATION_SOURCE_ID)
+        .sourceType(PLAYER_MANUAL_VALIDATION_SOURCE_TYPE)
+        .sourceName(PLAYER_MANUAL_VALIDATION_SOURCE_NAME)
         .result(result)
         .score(score)
         .date(String.valueOf(Instant.now()))
@@ -165,9 +193,9 @@ public class InjectExpectationResultUtils {
   public static InjectExpectationResult buildForTeamManualValidation(
       @NotNull final String result, @NotNull final Double score) {
     return InjectExpectationResult.builder()
-        .sourceId("team-manual-validation")
-        .sourceType("team-manual-validation")
-        .sourceName("Team Manual Validation")
+        .sourceId(TEAM_MANUAL_VALIDATION_SOURCE_ID)
+        .sourceType(TEAM_MANUAL_VALIDATION_SOURCE_TYPE)
+        .sourceName(TEAM_MANUAL_VALIDATION_SOURCE_NAME)
         .result(result)
         .score(score)
         .date(String.valueOf(Instant.now()))

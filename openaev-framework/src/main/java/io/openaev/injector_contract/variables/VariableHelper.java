@@ -10,6 +10,10 @@ import java.util.List;
 
 public class VariableHelper {
 
+  private VariableHelper() {
+    // Utility class - prevent instantiation
+  }
+
   public static final String USER = "user";
   public static final String EXERCISE = "exercise";
   public static final String TEAMS = "teams";
@@ -32,7 +36,7 @@ public class VariableHelper {
               variable(USER + ".lastname", "Last name of the user", VariableType.String, One),
               variable(USER + ".lang", "Language of the user", VariableType.String, One)));
 
-  public static final ContractVariable exerciceVariable =
+  public static final ContractVariable exerciseVariable =
       variable(
           EXERCISE,
           "Exercise of the current injection",
@@ -40,7 +44,7 @@ public class VariableHelper {
           One,
           List.of(
               variable(
-                  EXERCISE + ".id", "Id of the user in the platform", VariableType.String, One),
+                  EXERCISE + ".id", "Id of the exercise in the platform", VariableType.String, One),
               variable(EXERCISE + ".name", "Name of the exercise", VariableType.String, One),
               variable(
                   EXERCISE + ".description",

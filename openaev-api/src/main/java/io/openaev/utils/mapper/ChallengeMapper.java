@@ -5,11 +5,13 @@ import io.openaev.rest.document.form.RelatedEntityOutput;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ChallengeMapper {
+public final class ChallengeMapper {
+
+  private ChallengeMapper() {}
 
   public static Set<RelatedEntityOutput> toRelatedEntityOutputs(Set<Challenge> challenges) {
     return challenges.stream()
-        .map(challenge -> toRelatedEntityOutput(challenge))
+        .map(ChallengeMapper::toRelatedEntityOutput)
         .collect(Collectors.toSet());
   }
 

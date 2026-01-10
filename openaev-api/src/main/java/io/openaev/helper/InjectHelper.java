@@ -53,7 +53,7 @@ public class InjectHelper {
       // We get all the teams for this inject
       // But those team can be used in other exercises with different players enabled
       // So we need to focus on team players only enabled in the context of the current exercise
-      if (inject.getInject().isAtomicTesting()) {
+      if (inject.isAtomicTesting()) {
         return teams.stream()
             .flatMap(team -> team.getUsers().stream().map(user -> Tuples.of(user, team.getName())));
       }
@@ -98,6 +98,20 @@ public class InjectHelper {
 
   // -- EXECUTABLE INJECT --
 
+  private ExecutableInject toExecutableInject(Inject inject) {
+    // TODO This is inefficient, we need to refactor this with our own query
+    Hibernate.initialize(inject.getTags());
+    Hibernate.initialize(inject.getUser());
+    return new ExecutableInject(
+        true,
+        false,
+        inject,
+        getInjectTeams(inject),
+        inject.getAssets(), // TODO There is also inefficient lazy loading inside this get function
+        inject.getAssetGroups(),
+        usersFromInjection(inject));
+  }
+
   @Transactional
   public List<ExecutableInject> getInjectsToRun() {
     // Get injects
@@ -106,21 +120,7 @@ public class InjectHelper {
         injects.stream()
             .filter(this::isBeforeOrEqualsNow)
             .sorted(Inject.executionComparator)
-            .map(
-                inject -> {
-                  // TODO This is inefficient, we need to refactor this loop with our own query
-                  Hibernate.initialize(inject.getTags());
-                  Hibernate.initialize(inject.getUser());
-                  return new ExecutableInject(
-                      true,
-                      false,
-                      inject,
-                      getInjectTeams(inject),
-                      inject.getAssets(), // TODO There is also inefficient lazy loading inside this
-                      // get function
-                      inject.getAssetGroups(),
-                      usersFromInjection(inject));
-                });
+            .map(this::toExecutableInject);
     // Get atomic testing injects
     List<Inject> atomicTests =
         this.injectRepository.findAll(InjectSpecification.forAtomicTesting());
@@ -128,19 +128,7 @@ public class InjectHelper {
         atomicTests.stream()
             .filter(this::isBeforeOrEqualsNow)
             .sorted(Inject.executionComparator)
-            .map(
-                inject -> {
-                  Hibernate.initialize(inject.getTags());
-                  Hibernate.initialize(inject.getUser());
-                  return new ExecutableInject(
-                      true,
-                      false,
-                      inject,
-                      getInjectTeams(inject),
-                      inject.getAssets(),
-                      inject.getAssetGroups(),
-                      usersFromInjection(inject));
-                });
+            .map(this::toExecutableInject);
     // Combine injects
     return concat(executableInjects, executableAtomicTests).collect(Collectors.toList());
   }

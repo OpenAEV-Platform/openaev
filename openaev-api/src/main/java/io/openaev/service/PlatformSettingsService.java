@@ -32,6 +32,7 @@ import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -137,12 +138,12 @@ public class PlatformSettingsService {
   }
 
   // -- MAP UTILS --
-  private Map<String, Setting> mapOfSettings(@NotBlank List<Setting> settings) {
+  private Map<String, Setting> mapOfSettings(@NotNull List<Setting> settings) {
     return settings.stream().collect(Collectors.toMap(Setting::getKey, Function.identity()));
   }
 
   private String getValueFromMapOfSettings(
-      @NotBlank Map<String, Setting> dbSettings, @NotBlank final String key) {
+      @NotNull Map<String, Setting> dbSettings, @NotBlank final String key) {
     return Optional.ofNullable(dbSettings.get(key)).map(Setting::getValue).orElse(null);
   }
 

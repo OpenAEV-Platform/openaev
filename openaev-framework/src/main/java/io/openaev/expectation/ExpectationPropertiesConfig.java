@@ -14,9 +14,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ExpectationPropertiesConfig {
 
-  public static long DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME = 21600L; // 6 hours
-  public static long DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME = 86400L; // 24 hours
-  public static int DEFAULT_MANUAL_EXPECTATION_SCORE = 50;
+  public static final long DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME = 21600L; // 6 hours
+  public static final long DEFAULT_HUMAN_EXPECTATION_EXPIRATION_TIME = 86400L; // 24 hours
+  public static final int DEFAULT_MANUAL_EXPECTATION_SCORE = 50;
 
   @Value(
       "${openbas.expectation.technical.expiration-time:${openaev.expectation.technical.expiration-time:#{null}}}")
@@ -95,7 +95,7 @@ public class ExpectationPropertiesConfig {
 
   public int getDefaultExpectationScoreValue() {
     if (defaultManualExpectationScore == null
-        || defaultManualExpectationScore < 1
+        || defaultManualExpectationScore < 0
         || defaultManualExpectationScore > 100) {
       log.warn(
           "The provided default score value is invalid. It should be within the acceptable range of 0 to 100. The score will be set to the default of 50.");

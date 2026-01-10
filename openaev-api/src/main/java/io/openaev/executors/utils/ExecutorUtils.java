@@ -19,7 +19,7 @@ public class ExecutorUtils {
    */
   public Set<Agent> removeInactiveAgentsFromAgents(Set<Agent> agents) {
     Set<Agent> agentsToFilter = new HashSet<>(agents);
-    Set<Agent> inactiveAgents = foundInactiveAgents(agents);
+    Set<Agent> inactiveAgents = findInactiveAgents(agents);
     agentsToFilter.removeAll(inactiveAgents);
     return agentsToFilter;
   }
@@ -32,50 +32,50 @@ public class ExecutorUtils {
    */
   public Set<Agent> removeAgentsWithoutExecutorFromAgents(Set<Agent> agents) {
     Set<Agent> agentsToFilter = new HashSet<>(agents);
-    Set<Agent> inactiveAgents = foundAgentsWithoutExecutor(agents);
+    Set<Agent> inactiveAgents = findAgentsWithoutExecutor(agents);
     agentsToFilter.removeAll(inactiveAgents);
     return agentsToFilter;
   }
 
   /**
-   * Found all inactive agents from a list of agents
+   * Find all inactive agents from a list of agents
    *
    * @param agents to filter
-   * @return inactives agents
+   * @return inactive agents
    */
-  public Set<Agent> foundInactiveAgents(Set<Agent> agents) {
+  public Set<Agent> findInactiveAgents(Set<Agent> agents) {
     return agents.stream().filter(agent -> !agent.isActive()).collect(Collectors.toSet());
   }
 
   /**
-   * Found all agents whitout executor from a list of agents
+   * Find all agents without executor from a list of agents
    *
    * @param agents to filter
    * @return agents without executor
    */
-  public Set<Agent> foundAgentsWithoutExecutor(Set<Agent> agents) {
+  public Set<Agent> findAgentsWithoutExecutor(Set<Agent> agents) {
     return agents.stream().filter(agent -> agent.getExecutor() == null).collect(Collectors.toSet());
   }
 
   /**
-   * Found all agents from a list of agents and an executor type
+   * Find all agents from a list of agents and an executor type
    *
    * @param agents to filter
    * @param executorType to filter
-   * @return founded agents from the given executor type
+   * @return agents matching the given executor type
    */
-  public Set<Agent> foundAgentsByExecutorType(Set<Agent> agents, String executorType) {
+  public Set<Agent> findAgentsByExecutorType(Set<Agent> agents, String executorType) {
     return agents.stream()
         .filter(agent -> executorType.equals(agent.getExecutor().getType()))
         .collect(Collectors.toSet());
   }
 
   /**
-   * Found all agents from the given OS
+   * Find all agents from the given OS
    *
    * @param agents to filter
    * @param platform to filter
-   * @return founded agents from the given OS
+   * @return agents matching the given OS
    */
   public static List<Agent> getAgentsFromOS(List<Agent> agents, Endpoint.PLATFORM_TYPE platform) {
     return agents.stream()
@@ -84,12 +84,12 @@ public class ExecutorUtils {
   }
 
   /**
-   * Found all agents from the given OS and arch
+   * Find all agents from the given OS and arch
    *
    * @param agents to filter
    * @param platform to filter
    * @param arch to filter
-   * @return founded agents from the given OS and arch
+   * @return agents matching the given OS and arch
    */
   public static List<Agent> getAgentsFromOSAndArch(
       List<Agent> agents, Endpoint.PLATFORM_TYPE platform, Endpoint.PLATFORM_ARCH arch) {

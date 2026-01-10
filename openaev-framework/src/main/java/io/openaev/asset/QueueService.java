@@ -1,6 +1,5 @@
 package io.openaev.asset;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -18,8 +17,6 @@ public class QueueService {
   public static final String ROUTING_KEY = "_push_routing_";
   public static final String EXCHANGE_KEY = "_amqp.connector.exchange";
 
-  @Resource protected ObjectMapper mapper;
-
   @Resource private RabbitmqConfig rabbitmqConfig;
 
   public void publish(String injectType, String publishedJson)
@@ -31,13 +28,21 @@ public class QueueService {
     factory.setPassword(rabbitmqConfig.getPass());
     factory.setVirtualHost(rabbitmqConfig.getVhost());
     Connection connection = null;
+    Channel channel = null;
     try {
       connection = factory.newConnection();
-      Channel channel = connection.createChannel();
+      channel = connection.createChannel();
       String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
       String exchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
       channel.basicPublish(exchangeKey, routingKey, null, publishedJson.getBytes());
     } finally {
+      if (channel != null) {
+        try {
+          channel.close();
+        } catch (IOException | TimeoutException ex) {
+          log.error("Unable to close RabbitMQ channel", ex);
+        }
+      }
       if (connection != null) {
         try {
           connection.close();

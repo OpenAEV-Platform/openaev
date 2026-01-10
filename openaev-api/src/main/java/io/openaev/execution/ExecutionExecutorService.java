@@ -47,17 +47,17 @@ public class ExecutionExecutorService {
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
     // Filter each list to do something for each specific case and then remove the specific agents
     // from the main "agents" list to execute payloads at the end for the remaining "normal" agents
-    Set<Agent> inactiveAgents = executorUtils.foundInactiveAgents(agents);
+    Set<Agent> inactiveAgents = executorUtils.findInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
-    Set<Agent> agentsWithoutExecutor = executorUtils.foundAgentsWithoutExecutor(agents);
+    Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
     Set<Agent> crowdstrikeAgents =
-        executorUtils.foundAgentsByExecutorType(agents, CROWDSTRIKE_EXECUTOR_TYPE);
+        executorUtils.findAgentsByExecutorType(agents, CROWDSTRIKE_EXECUTOR_TYPE);
     agents.removeAll(crowdstrikeAgents);
     Set<Agent> sentineloneAgents =
-        executorUtils.foundAgentsByExecutorType(agents, SENTINELONE_EXECUTOR_TYPE);
+        executorUtils.findAgentsByExecutorType(agents, SENTINELONE_EXECUTOR_TYPE);
     agents.removeAll(sentineloneAgents);
-    Set<Agent> taniumAgents = executorUtils.foundAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
+    Set<Agent> taniumAgents = executorUtils.findAgentsByExecutorType(agents, TANIUM_EXECUTOR_TYPE);
     agents.removeAll(taniumAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);

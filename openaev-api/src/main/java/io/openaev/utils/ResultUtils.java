@@ -87,7 +87,7 @@ public class ResultUtils {
     return groupedByAttackPattern.entrySet().stream()
         .map(
             entry ->
-                injectExpectationMapper.toInjectExpectationResultsByattackPattern(
+                injectExpectationMapper.toInjectExpectationResultsByAttackPattern(
                     entry.getKey(), entry.getValue()))
         .toList();
   }

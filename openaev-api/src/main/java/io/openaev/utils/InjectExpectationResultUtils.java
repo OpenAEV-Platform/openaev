@@ -11,6 +11,8 @@ import java.util.function.BiFunction;
 
 public class InjectExpectationResultUtils {
 
+  private InjectExpectationResultUtils() {}
+
   public static <T> List<ExpectationResultsByType> getExpectationResultByTypes(
       List<T> expectations, BiFunction<List<EXPECTATION_TYPE>, List<T>, List<Double>> getScores) {
     return computeExpectationResults(expectations, getScores);
@@ -182,16 +184,20 @@ public class InjectExpectationResultUtils {
       }
 
       double numberExpectations = 0;
-      for (ResultDistribution distribution : distribution) {
-        numberExpectations += distribution.value();
+      for (ResultDistribution dist : distribution) {
+        numberExpectations += dist.value();
+      }
+
+      if (numberExpectations == 0) {
+        return 0;
       }
 
       double numberSuccess =
           distribution.stream()
               .filter(d -> Objects.equals(d.id, ExpectationType.SUCCESS_ID))
               .findFirst()
-              .get()
-              .value();
+              .map(ResultDistribution::value)
+              .orElse(0);
 
       return numberSuccess / numberExpectations;
     }

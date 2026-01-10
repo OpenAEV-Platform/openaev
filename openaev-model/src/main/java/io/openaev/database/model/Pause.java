@@ -2,7 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -30,7 +30,7 @@ public class Pause implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "pause_exercise")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("pause_exercise")
   @Schema(type = "string")
   private Exercise exercise;
@@ -42,6 +42,9 @@ public class Pause implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
+    if (exercise == null) {
+      return user.isAdmin();
+    }
     return exercise.isUserHasAccess(user);
   }
 

@@ -31,6 +31,11 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
     restart: unless-stopped
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
@@ -51,7 +56,7 @@ services:
       CALDERA_URL: http://localhost:8888
     volumes:
       - type: bind
-        source: caldera.yml
+        source: ./caldera.yml
         target: /usr/src/app/conf/local.yml
 #  openaev-pyroscope:
 #    container_name: openaev-pyroscope
@@ -72,8 +77,8 @@ services:
 #      - "1010:1010"
   openaev-dev-pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
+    container_name: openaev-dev-pgadmin
+    restart: unless-stopped
     ports:
       - "5050:80"
     environment:
@@ -103,6 +108,9 @@ services:
     ports:
       - 9200:9200
       - 9300:9300
+  # NOTE: OpenSearch and Elasticsearch both use port 9200 by default.
+  # OpenSearch is configured to use port 9202 to avoid conflicts.
+  # Only run one search engine at a time, or use different ports.
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
     image: opensearchproject/opensearch:3.3.2
@@ -112,8 +120,7 @@ services:
     environment:
       - discovery.type=single-node
       # -XX:UseSVE=0 is necessary for Apple M4 architecture
-      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
-      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "OPENSEARCH_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
       - "DISABLE_SECURITY_PLUGIN=true" # Disables Security plugin
     restart: unless-stopped
     ulimits:
@@ -124,7 +131,7 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - 9200:9200
+      - 9202:9200
       - 9600:9600
   openaev-test-elasticsearch:
     container_name: openaev-test-elasticsearch
@@ -166,7 +173,7 @@ services:
     ports:
       - 5602:5601
     depends_on:
-      - openaev-dev-elasticsearch
+      - openaev-test-elasticsearch
 volumes:
   esdata:
     driver: local
@@ -176,5 +183,5 @@ volumes:
     driver: local
   ossnapshots:
     driver: local
-  pgdata  :
+  pgdata:
     driver: local

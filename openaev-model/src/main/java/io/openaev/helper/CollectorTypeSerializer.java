@@ -6,14 +6,8 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import io.openaev.database.model.Collector;
 import java.io.IOException;
 
-/**
- * Custom JSON serializer that serializes a Collector entity to just its type string.
- *
- * @deprecated Use {@link CollectorTypeSerializer} instead. This class name was misleading as it is
- *     a serializer, not a deserializer.
- */
-@Deprecated(forRemoval = true)
-public class CollectorTypeDeserializer extends JsonSerializer<Collector> {
+/** Custom JSON serializer that serializes a Collector entity to just its type string. */
+public class CollectorTypeSerializer extends JsonSerializer<Collector> {
 
   @Override
   public void serialize(

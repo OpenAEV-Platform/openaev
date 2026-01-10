@@ -4,6 +4,8 @@ import io.openaev.rest.log.form.LogDetailsInput;
 
 public class LogUtils {
 
+  private LogUtils() {}
+
   public static String buildLogMessage(LogDetailsInput logDetailsInput, String level) {
     return "Message "
         + level

@@ -7,7 +7,9 @@ import com.fasterxml.jackson.datatype.hibernate6.Hibernate6Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-public class ObjectMapperHelper {
+public final class ObjectMapperHelper {
+
+  private ObjectMapperHelper() {}
 
   public static ObjectMapper openAEVJsonMapper() {
     ObjectMapper mapper = new ObjectMapper();

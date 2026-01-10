@@ -11,7 +11,7 @@ import static io.openaev.model.expectation.PreventionExpectation.preventionExpec
 import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAsset;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForMediaPressure;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;

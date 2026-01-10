@@ -1,7 +1,7 @@
 package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.hasValidResults;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasValidResults;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;

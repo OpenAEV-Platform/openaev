@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.database.converter.ContentConverter;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -37,19 +37,19 @@ public class ExecutionTrace implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_inject_status_id")
   @Schema(type = "string")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   private InjectStatus injectStatus;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_inject_test_status_id")
   @Schema(type = "string")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   private InjectTestStatus injectTestStatus;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_agent_id")
   @Schema(type = "string")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   private Agent agent;
 
   @Column(name = "execution_message")

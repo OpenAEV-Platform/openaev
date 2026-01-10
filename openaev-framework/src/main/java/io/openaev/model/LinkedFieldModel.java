@@ -2,7 +2,11 @@ package io.openaev.model;
 
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractFieldType;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class LinkedFieldModel {
 
   private String key;
@@ -16,21 +20,5 @@ public class LinkedFieldModel {
 
   public static LinkedFieldModel fromField(ContractElement fieldContract) {
     return new LinkedFieldModel(fieldContract.getKey(), fieldContract.getType());
-  }
-
-  public String getKey() {
-    return key;
-  }
-
-  public void setKey(String key) {
-    this.key = key;
-  }
-
-  public ContractFieldType getType() {
-    return type;
-  }
-
-  public void setType(ContractFieldType type) {
-    this.type = type;
   }
 }

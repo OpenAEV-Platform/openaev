@@ -10,6 +10,8 @@ import org.jetbrains.annotations.NotNull;
 
 public class ArchitectureFilterUtils {
 
+  private ArchitectureFilterUtils() {}
+
   private static final String PAYLOAD_EXECUTION_ARCH = "payload_execution_arch";
   private static final String INJECTOR_CONTRACT_ARCH = "injector_contract_arch";
   private static final String ENDPOINT_ARCH = "endpoint_arch";

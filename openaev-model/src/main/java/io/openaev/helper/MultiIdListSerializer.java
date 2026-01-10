@@ -8,19 +8,15 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Custom JSON serializer that serializes a List of Base entities as a full JSON array.
- *
- * @deprecated Use {@link MultiModelSerializer} instead. This class name is misleading as it is a
- *     serializer, not a deserializer.
+ * Custom JSON serializer that serializes a List of Base entities to an array of their ID strings.
  */
-@Deprecated(forRemoval = true)
-public class MultiModelDeserializer extends StdSerializer<List<Base>> {
+public class MultiIdListSerializer extends StdSerializer<List<Base>> {
 
-  public MultiModelDeserializer() {
+  public MultiIdListSerializer() {
     this(null);
   }
 
-  public MultiModelDeserializer(Class<List<Base>> t) {
+  public MultiIdListSerializer(Class<List<Base>> t) {
     super(t);
   }
 
@@ -28,6 +24,8 @@ public class MultiModelDeserializer extends StdSerializer<List<Base>> {
   public void serialize(
       List<Base> base, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
       throws IOException {
-    jsonGenerator.writeObject(base);
+    List<String> ids = base.stream().map(Base::getId).toList();
+    String[] arrayIds = ids.toArray(new String[0]);
+    jsonGenerator.writeArray(arrayIds, 0, arrayIds.length);
   }
 }

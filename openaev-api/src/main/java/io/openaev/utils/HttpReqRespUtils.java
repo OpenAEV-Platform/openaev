@@ -5,6 +5,9 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 public class HttpReqRespUtils {
+
+  private HttpReqRespUtils() {}
+
   private static final String[] IP_HEADER_CANDIDATES = {
     "X-Forwarded-For",
     "Proxy-Client-IP",

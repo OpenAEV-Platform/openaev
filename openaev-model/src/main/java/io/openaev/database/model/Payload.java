@@ -13,9 +13,9 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -120,7 +120,7 @@ public class Payload implements GrantableBase {
       name = "payloads_attack_patterns",
       joinColumns = @JoinColumn(name = "payload_id"),
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("payload_attack_patterns")
   @Queryable(filterable = true, searchable = true, dynamicValues = true, path = "attackPatterns.id")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
@@ -190,7 +190,7 @@ public class Payload implements GrantableBase {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_collector")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("payload_collector")
   @IncludeOption(key = "exclude from payload export")
   @Schema(type = "string")
@@ -213,7 +213,7 @@ public class Payload implements GrantableBase {
       name = "payloads_tags",
       joinColumns = @JoinColumn(name = "payload_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("payload_tags")
   private Set<Tag> tags = new HashSet<>();
 

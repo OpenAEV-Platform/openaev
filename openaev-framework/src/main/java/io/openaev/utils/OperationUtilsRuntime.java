@@ -6,6 +6,10 @@ import java.util.List;
 
 public class OperationUtilsRuntime {
 
+  private OperationUtilsRuntime() {
+    // Utility class - prevent instantiation
+  }
+
   // -- NOT CONTAINS --
 
   public static boolean notContainsTexts(
@@ -76,18 +80,24 @@ public class OperationUtilsRuntime {
   }
 
   public static boolean startWithText(@NotNull final Object value, @NotBlank final String text) {
-    return ((String) value).toLowerCase().startsWith(text.toLowerCase());
+    return value.toString().toLowerCase().startsWith(text.toLowerCase());
   }
 
-  // -- NOT START WITH --
+  // -- NOT EMPTY --
 
-  public static boolean notEmpty(@NotNull final Object value) {
+  public static boolean notEmpty(final Object value) {
     return !empty(value);
   }
 
-  // -- START WITH --
+  // -- EMPTY --
 
-  public static boolean empty(@NotNull final Object value) {
-    return value == null || ((String) value).isBlank();
+  public static boolean empty(final Object value) {
+    if (value == null) {
+      return true;
+    }
+    if (value instanceof String stringValue) {
+      return stringValue.isBlank();
+    }
+    return false;
   }
 }

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -68,7 +68,7 @@ public class Document implements Base {
       name = "documents_tags",
       joinColumns = @JoinColumn(name = "document_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("document_tags")
   @Queryable(sortable = true)
   private Set<Tag> tags = new HashSet<>();
@@ -79,7 +79,7 @@ public class Document implements Base {
       name = "exercises_documents",
       joinColumns = @JoinColumn(name = "document_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("document_exercises")
   private Set<Exercise> exercises = new HashSet<>();
 
@@ -89,7 +89,7 @@ public class Document implements Base {
       name = "scenarios_documents",
       joinColumns = @JoinColumn(name = "document_id"),
       inverseJoinColumns = @JoinColumn(name = "scenario_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("document_scenarios")
   private Set<Scenario> scenarios = new HashSet<>();
 
@@ -151,7 +151,11 @@ public class Document implements Base {
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return exercises.stream().anyMatch(exercise -> exercise.isUserHasAccess(user));
+    if (user.isAdmin()) {
+      return true;
+    }
+    return exercises.stream().anyMatch(exercise -> exercise.isUserHasAccess(user))
+        || scenarios.stream().anyMatch(scenario -> scenario.isUserHasAccess(user));
   }
 
   @Override

@@ -15,6 +15,8 @@ import org.apache.coyote.BadRequestException;
 
 public class SecurityCoverageUtils {
 
+  private SecurityCoverageUtils() {}
+
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
    *

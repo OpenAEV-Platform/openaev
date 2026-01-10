@@ -155,7 +155,9 @@ public class UserService {
   }
 
   public User user(@NotBlank final String userId) {
-    return this.userRepository.findById(userId).orElseThrow();
+    return this.userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
   public List<User> users() {

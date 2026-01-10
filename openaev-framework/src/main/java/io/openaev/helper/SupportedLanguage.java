@@ -16,11 +16,9 @@ public enum SupportedLanguage {
    * @return the SupportedLanguage enum constant representing the specified value.
    */
   public static SupportedLanguage of(String value) {
-    switch (value.toLowerCase()) {
-      case "auto":
-        return en;
-      default:
-        return valueOf(value);
-    }
+    return switch (value.toLowerCase()) {
+      case "auto" -> en;
+      default -> valueOf(value);
+    };
   }
 }

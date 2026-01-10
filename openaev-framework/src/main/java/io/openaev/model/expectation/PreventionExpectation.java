@@ -8,11 +8,11 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.model.Expectation;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 

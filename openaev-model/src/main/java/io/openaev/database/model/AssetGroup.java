@@ -10,8 +10,8 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
-import io.openaev.helper.MultiIdListDeserializer;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -74,7 +74,7 @@ public class AssetGroup implements Base {
       name = "asset_groups_assets",
       joinColumns = @JoinColumn(name = "asset_group_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("asset_group_assets")
   private List<Asset> assets = new ArrayList<>();
 
@@ -85,7 +85,7 @@ public class AssetGroup implements Base {
 
   // Getter is Mandatory when we use @Transient annotation
   @ArraySchema(schema = @Schema(type = "string"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Asset> getDynamicAssets() {
     return this.dynamicAssets;
   }
@@ -98,7 +98,7 @@ public class AssetGroup implements Base {
       name = "asset_groups_tags",
       joinColumns = @JoinColumn(name = "asset_group_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("asset_group_tags")
   @Queryable(filterable = true, sortable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();

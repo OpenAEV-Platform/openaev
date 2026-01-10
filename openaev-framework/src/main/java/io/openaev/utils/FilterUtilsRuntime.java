@@ -11,12 +11,11 @@ import io.openaev.database.model.Filters.FilterMode;
 import io.openaev.database.model.Filters.FilterOperator;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
-import jakarta.validation.constraints.NotNull;
+import jakarta.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 
 public class FilterUtilsRuntime {
 
@@ -111,34 +110,30 @@ public class FilterUtilsRuntime {
       throw new RuntimeException(e);
     }
 
+    if (currentObject == null) {
+      return null;
+    }
+
     return Map.entry((Class<Object>) currentObject.getClass(), currentObject);
   }
 
   // -- OPERATOR --
 
   private static BiFunction<Object, List<String>, Boolean> computeOperation(
-      @NotNull final FilterOperator operator) {
+      @Nullable final FilterOperator operator) {
     if (operator == null) {
-      // Default case
       return OperationUtilsRuntime::equalsTexts;
     }
 
-    if (operator.equals(FilterOperator.not_contains)) {
-      return OperationUtilsRuntime::notContainsTexts;
-    } else if (operator.equals(FilterOperator.contains)) {
-      return OperationUtilsRuntime::containsTexts;
-    } else if (operator.equals(FilterOperator.not_starts_with)) {
-      return OperationUtilsRuntime::notStartWithTexts;
-    } else if (operator.equals(FilterOperator.starts_with)) {
-      return OperationUtilsRuntime::startWithTexts;
-    } else if (operator.equals(FilterOperator.not_eq)) {
-      return OperationUtilsRuntime::notEqualsTexts;
-    } else if (operator.equals(FilterOperator.empty)) {
-      return (value, texts) -> OperationUtilsRuntime.empty(value);
-    } else if (operator.equals(FilterOperator.not_empty)) {
-      return (value, texts) -> OperationUtilsRuntime.notEmpty(value);
-    } else { // Default case
-      return OperationUtilsRuntime::equalsTexts;
-    }
+    return switch (operator) {
+      case not_contains -> OperationUtilsRuntime::notContainsTexts;
+      case contains -> OperationUtilsRuntime::containsTexts;
+      case not_starts_with -> OperationUtilsRuntime::notStartWithTexts;
+      case starts_with -> OperationUtilsRuntime::startWithTexts;
+      case not_eq -> OperationUtilsRuntime::notEqualsTexts;
+      case empty -> (value, texts) -> OperationUtilsRuntime.empty(value);
+      case not_empty -> (value, texts) -> OperationUtilsRuntime.notEmpty(value);
+      default -> OperationUtilsRuntime::equalsTexts;
+    };
   }
 }

@@ -7,7 +7,10 @@ import java.io.StringReader;
 import java.util.Map;
 import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
 
-public class TemplateHelper {
+public final class TemplateHelper {
+
+  private TemplateHelper() {}
+
   public static String buildContextualContent(String content, ExecutionContext context)
       throws Exception {
     return buildContentWithDataMap(content, context);
