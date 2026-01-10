@@ -149,6 +149,7 @@ const InjectForm = ({
           if (
             field.type === 'textarea'
             && field.richText
+            && typeof initialValues.inject_content[field.key] === 'string'
           ) {
             initialValues.inject_content[field.key] = (initialValues.inject_content[field.key] as string)
               .replaceAll('<#list challenges as challenge>', '&lt;#list challenges as challenge&gt;')

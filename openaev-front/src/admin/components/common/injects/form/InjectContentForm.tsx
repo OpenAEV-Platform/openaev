@@ -174,10 +174,10 @@ const InjectContentForm = ({
         if (
           field.type === 'textarea'
           && field.richText
-          && defaultValue
+          && typeof defaultValue === 'string'
           && defaultValue.length > 0
         ) {
-          defaultValue = (defaultValue as string ?? '').replaceAll('<#list challenges as challenge>', '&lt;#list challenges as challenge&gt;')
+          defaultValue = defaultValue.replaceAll('<#list challenges as challenge>', '&lt;#list challenges as challenge&gt;')
             .replaceAll('<#list articles as article>', '&lt;#list articles as article&gt;')
             .replaceAll('</#list>', '&lt;/#list&gt;');
         }
