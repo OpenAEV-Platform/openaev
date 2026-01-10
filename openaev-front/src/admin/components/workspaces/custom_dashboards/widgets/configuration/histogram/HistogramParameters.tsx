@@ -117,12 +117,16 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             ),
           );
 
+          // Create Sets upfront for better performance
+          const entityFieldSets = optionsByEntity.map(options =>
+            new Set(options.map(o => o.id)),
+          );
+
           // Find intersection of fields (fields that exist in ALL entities)
           const commonFieldIds = optionsByEntity.length > 0
-            ? optionsByEntity.reduce((common, entityOptions) => {
-                const entityFieldIds = new Set(entityOptions.map(o => o.id));
-                return common.filter(id => entityFieldIds.has(id));
-              }, optionsByEntity[0].map(o => o.id))
+            ? optionsByEntity[0].map(o => o.id).filter(id =>
+                entityFieldSets.every(fieldSet => fieldSet.has(id)),
+              )
             : [];
 
           // Filter to only include common fields
@@ -170,7 +174,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
         }
       });
     }
-  }, [mode, entities.length]);
+  }, [mode, entities.length, currentField, widgetType, setValue, t]);
 
   return (
     <>
