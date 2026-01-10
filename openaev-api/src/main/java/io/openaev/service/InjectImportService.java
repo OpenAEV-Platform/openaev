@@ -319,28 +319,12 @@ public class InjectImportService {
                       (first, second) -> first));
 
       // We also get the list of teams into a map to be able to get them easily later on
-      // First, all the teams that are non-contextual
+      // We include ALL teams (both contextual and non-contextual) to allow reusing existing teams
+      // This matches the behavior of ZIP imports where existing teams are reused
       Map<String, Team> mapTeamByName =
           StreamSupport.stream(teamRepository.findAll().spliterator(), false)
-              .filter(team -> !team.getContextual())
               .collect(
                   Collectors.toMap(Team::getName, Function.identity(), (first, second) -> first));
-
-      // Then we add the contextual teams of the scenario
-      List<Team> teams;
-      if (exercise != null) {
-        teams = exercise.getTeams();
-      } else if (scenario != null) {
-        teams = scenario.getTeams();
-      } else {
-        throw new IllegalArgumentException(
-            "At least one of exercise or scenario should be present");
-      }
-      mapTeamByName.putAll(
-          teams.stream()
-              .filter(Team::getContextual)
-              .collect(
-                  Collectors.toMap(Team::getName, Function.identity(), (first, second) -> first)));
 
       ZoneOffset zoneOffset = ZoneOffset.ofTotalSeconds(timezoneOffset * 60);
 
@@ -879,7 +863,7 @@ public class InjectImportService {
                 } else if (mapTeamByName.containsKey(teamName)) {
                   inject.getTeams().add(mapTeamByName.get(teamName));
                 } else {
-                  // The team does not exist, we create a new one
+                  // The team does not exist, we create a new contextual one
                   Team team = new Team();
                   team.setName(teamName);
                   team.setContextual(true);
@@ -887,7 +871,7 @@ public class InjectImportService {
                   mapTeamByName.put(team.getName(), team);
                   inject.getTeams().add(team);
 
-                  // We aldo add a message so the user knows there was a new team created
+                  // We also add a message so the user knows there was a new team created
                   importMessages.add(
                       new ImportMessage(
                           ImportMessage.MessageLevel.WARN,
