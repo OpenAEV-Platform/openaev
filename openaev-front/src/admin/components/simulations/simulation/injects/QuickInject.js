@@ -396,7 +396,7 @@ class QuickInject extends Component {
         } else if (
           field.type === 'textarea'
           && field.richText
-          && data[field.key]
+          && typeof data[field.key] === 'string'
           && data[field.key].length > 0
         ) {
           finalData[field.key] = data[field.key]
@@ -772,7 +772,7 @@ class QuickInject extends Component {
           if (
             field.type === 'textarea'
             && field.richText
-            && defaultValue
+            && typeof defaultValue === 'string'
             && defaultValue.length > 0
           ) {
             defaultValue = defaultValue
@@ -784,7 +784,7 @@ class QuickInject extends Component {
           if (
             field.type === 'textarea'
             && field.richText
-            && defaultValue
+            && typeof defaultValue === 'string'
             && defaultValue.length > 0
           ) {
             defaultValue = defaultValue
@@ -884,7 +884,7 @@ class QuickInject extends Component {
         if (
           field.type === 'textarea'
           && field.richText
-          && initialValues[field.key]
+          && typeof initialValues[field.key] === 'string'
           && initialValues[field.key].length > 0
         ) {
           initialValues[field.key] = initialValues[field.key]
