@@ -14,9 +14,9 @@ import org.springframework.stereotype.Service;
 /**
  * Factory component for creating the appropriate search engine service.
  *
- * <p>This component is responsible for instantiating either an {@link ElasticService} or
- * {@link OpenSearchService} based on the configured engine selector. The created service is
- * registered as a Spring bean.
+ * <p>This component is responsible for instantiating either an {@link ElasticService} or {@link
+ * OpenSearchService} based on the configured engine selector. The created service is registered as
+ * a Spring bean.
  *
  * <p>Supported engine selectors:
  *

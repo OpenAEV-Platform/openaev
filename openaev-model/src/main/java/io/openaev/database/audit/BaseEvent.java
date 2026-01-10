@@ -15,9 +15,9 @@ import org.springframework.web.context.request.RequestContextHolder;
  * Event object representing a database entity lifecycle event.
  *
  * <p>This class encapsulates information about create, update, and delete operations on entities
- * that implement the {@link Base} interface. Events are published via Spring's
- * {@link org.springframework.context.ApplicationEventPublisher} and can be consumed by event
- * listeners for real-time notifications, audit logging, or synchronization with external systems.
+ * that implement the {@link Base} interface. Events are published via Spring's {@link
+ * org.springframework.context.ApplicationEventPublisher} and can be consumed by event listeners for
+ * real-time notifications, audit logging, or synchronization with external systems.
  *
  * <p>The event includes:
  *

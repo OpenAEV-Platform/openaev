@@ -13,8 +13,8 @@ import java.util.Map;
 /**
  * Utility class for working with JPA relationship annotations via reflection.
  *
- * <p>This class provides methods to identify and manipulate JPA relationship fields
- * ({@link OneToMany}, {@link ManyToOne}, {@link OneToOne}, {@link ManyToMany}) on entity classes.
+ * <p>This class provides methods to identify and manipulate JPA relationship fields ({@link
+ * OneToMany}, {@link ManyToOne}, {@link OneToOne}, {@link ManyToMany}) on entity classes.
  *
  * @see FieldUtils
  * @see CollectionUtils

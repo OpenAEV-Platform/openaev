@@ -8,8 +8,8 @@ import lombok.Setter;
 /**
  * Contract element representing a boolean checkbox field.
  *
- * <p>Checkbox fields allow users to toggle a boolean value on or off. They are useful for
- * optional features, confirmations, or binary choices.
+ * <p>Checkbox fields allow users to toggle a boolean value on or off. They are useful for optional
+ * features, confirmations, or binary choices.
  *
  * @see ContractElement
  */

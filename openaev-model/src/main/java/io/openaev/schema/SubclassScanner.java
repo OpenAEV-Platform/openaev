@@ -9,8 +9,8 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
  * Utility class for scanning and finding subclasses of a given class at runtime.
  *
  * <p>This scanner uses Spring's classpath scanning capabilities to find all classes that extend or
- * implement a given parent class within a specified package. It's primarily used by
- * {@link SchemaUtils} to build comprehensive property schemas that include all subclass properties.
+ * implement a given parent class within a specified package. It's primarily used by {@link
+ * SchemaUtils} to build comprehensive property schemas that include all subclass properties.
  *
  * @see SchemaUtils#schemaWithSubtypes(Class)
  */

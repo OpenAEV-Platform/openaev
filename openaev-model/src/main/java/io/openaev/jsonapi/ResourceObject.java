@@ -8,8 +8,8 @@ import java.util.Map;
  * Represents a resource object in a JSON API document.
  *
  * <p>According to the JSON API specification, a resource object must contain at least an {@code id}
- * and {@code type}. It may also contain {@code attributes} (the resource's data) and
- * {@code relationships} (links to related resources).
+ * and {@code type}. It may also contain {@code attributes} (the resource's data) and {@code
+ * relationships} (links to related resources).
  *
  * <p>Example JSON representation:
  *

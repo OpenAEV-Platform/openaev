@@ -71,8 +71,8 @@ public interface Base {
   /**
    * Copies properties from an input object to this entity.
    *
-   * <p>Used for partial updates via API requests. Properties are copied using Spring's
-   * {@link BeanUtils#copyProperties(Object, Object)}.
+   * <p>Used for partial updates via API requests. Properties are copied using Spring's {@link
+   * BeanUtils#copyProperties(Object, Object)}.
    *
    * @param input the source object containing updated values
    */

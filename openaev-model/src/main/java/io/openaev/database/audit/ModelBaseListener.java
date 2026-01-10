@@ -106,9 +106,9 @@ public class ModelBaseListener {
   /**
    * Handles the post-remove lifecycle callback.
    *
-   * <p>Published after an entity has been removed from the database. This triggers an
-   * {@link IndexEvent} to synchronize the search index. Note that search index create/update
-   * operations are handled by a separate scheduled job.
+   * <p>Published after an entity has been removed from the database. This triggers an {@link
+   * IndexEvent} to synchronize the search index. Note that search index create/update operations
+   * are handled by a separate scheduled job.
    *
    * @param base the removed entity
    */

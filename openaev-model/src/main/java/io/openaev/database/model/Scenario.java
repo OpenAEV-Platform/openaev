@@ -86,14 +86,7 @@ public class Scenario implements GrantableBase {
   public enum Dependency {
     /** Scenario originated from a starter pack. */
     @JsonProperty("STARTERPACK")
-    STARTERPACK;
-    SCHEDULED,
-    NOT_PLANNED,
-  }
-
-  public enum Dependency {
-    @JsonProperty("STARTERPACK")
-    STARTERPACK;
+    STARTERPACK
   }
 
   /** Severity levels for scenario classification. */
@@ -114,15 +107,20 @@ public class Scenario implements GrantableBase {
 
   /** Main focus: Incident Response exercises. */
   public static final String MAIN_FOCUS_INCIDENT_RESPONSE = "incident-response";
+
   /** Main focus: Endpoint Protection validation. */
   public static final String MAIN_FOCUS_ENDPOINT_PROTECTION = "endpoint-protection";
+
   /** Main focus: Web Filtering effectiveness. */
   public static final String MAIN_FOCUS_WEB_FILTERING = "web-filtering";
+
   /** Main focus: Standard Operating Procedure testing. */
   public static final String MAIN_FOCUS_STANDARD_OPERATING_PROCEDURE =
       "standard-operating-procedure";
+
   /** Main focus: Crisis Communication drills. */
   public static final String MAIN_FOCUS_CRISIS_COMMUNICATION = "crisis-communication";
+
   /** Main focus: Strategic Reaction capabilities. */
   public static final String MAIN_FOCUS_STRATEGIC_REACTION = "strategic-reaction";
 

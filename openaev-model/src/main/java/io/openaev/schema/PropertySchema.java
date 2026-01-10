@@ -108,9 +108,7 @@ public class PropertySchema {
     return Optional.ofNullable(this.jsonName).orElse(this.name);
   }
 
-  /**
-   * Represents join table configuration for many-to-many relationships.
-   */
+  /** Represents join table configuration for many-to-many relationships. */
   @Builder
   @Getter
   public static class JoinTable {

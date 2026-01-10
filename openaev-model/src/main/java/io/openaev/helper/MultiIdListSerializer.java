@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Custom JSON serializer that serializes a {@link List} of {@link Base} entities to a JSON array
- * of their ID strings.
+ * Custom JSON serializer that serializes a {@link List} of {@link Base} entities to a JSON array of
+ * their ID strings.
  *
  * <p>This serializer is useful for collection relationship fields where only entity IDs need to be
  * included in the JSON output, reducing payload size and avoiding circular references.

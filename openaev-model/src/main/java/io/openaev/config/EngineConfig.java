@@ -39,34 +39,49 @@ public class EngineConfig {
   public static class Defaults {
     /** Default engine selector (Elasticsearch). */
     public static final String ENGINE_SELECTOR = "elk";
+
     /** Default AWS mode (disabled). */
     public static final String ENGINE_AWS_MODE = "no";
+
     /** Default AWS Elasticsearch host. */
     public static final String ENGINE_AWS_HOST = "search-...us-west-2.es.amazonaws.com";
+
     /** Default AWS region. */
     public static final String ENGINE_AWS_REGION = "us-west-2";
+
     /** Default index name prefix. */
     public static final String INDEX_PREFIX = "openaev";
+
     /** Default index name suffix for rollover. */
     public static final String INDEX_SUFFIX = "-000001";
+
     /** Default number of primary shards. */
     public static final String NUMBER_OF_SHARDS = "1";
+
     /** Default number of replica shards. */
     public static final String NUMBER_OF_REPLICAS = "1";
+
     /** Default maximum result window for pagination. */
     public static final int MAX_RESULT_WINDOW = 100000;
+
     /** Default maximum number of entities returned. */
     public static final int ENTITIES_CAP = 100;
+
     /** Default maximum number of search results. */
     public static final int SEARCH_CAP = 500;
+
     /** Default maximum number of documents per primary shard. */
     public static final int MAX_PRIMARY_SHARD_DOCS = 75000000;
+
     /** Default maximum size of primary shards. */
     public static final String MAX_PRIMARY_SHARDS_SIZE = "50Gb";
+
     /** Default maximum field size in bytes. */
     public static final String MAX_FIELD_SIZE = "4096";
+
     /** Default SSL certificate verification setting. */
     public static final boolean REJECT_UNAUTHORIZED = true;
+
     public static final String ENGINE_SELECTOR = "elk";
     public static final String ENGINE_AWS_MODE = "no";
     public static final String ENGINE_AWS_HOST = "search-...us-west-2.es.amazonaws.com";

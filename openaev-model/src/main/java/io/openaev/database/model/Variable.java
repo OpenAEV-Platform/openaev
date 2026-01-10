@@ -28,8 +28,8 @@ import org.hibernate.annotations.UuidGenerator;
  *   <li>String and Object value types
  * </ul>
  *
- * <p>Variable keys follow a snake_case naming convention (e.g., {@code company_name},
- * {@code target_ip}) and are referenced in templates using a specific syntax.
+ * <p>Variable keys follow a snake_case naming convention (e.g., {@code company_name}, {@code
+ * target_ip}) and are referenced in templates using a specific syntax.
  *
  * @see Exercise
  * @see Scenario

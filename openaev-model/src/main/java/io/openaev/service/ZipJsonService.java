@@ -236,15 +236,14 @@ public class ZipJsonService<T extends Base> {
     return bytes.toByteArray();
   }
 
-  /**
-   * Container for parsed ZIP archive contents.
-   */
+  /** Container for parsed ZIP archive contents. */
   @Getter
   @AllArgsConstructor
   @NoArgsConstructor(access = AccessLevel.PRIVATE)
   public static class ParsedZip {
     /** The JSON API document from the archive. */
     JsonApiDocument<ResourceObject> document;
+
     /** Additional files from the archive, keyed by path. */
     Map<String, byte[]> extras;
   }
