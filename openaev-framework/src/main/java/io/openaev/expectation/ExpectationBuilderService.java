@@ -7,19 +7,52 @@ import io.openaev.model.inject.form.Expectation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service for building pre-configured expectation instances.
+ *
+ * <p>This service provides factory methods for creating expectations with default configurations.
+ * Each expectation type has appropriate default names and expiration times based on the platform
+ * configuration.
+ *
+ * <p>Usage example:
+ *
+ * <pre>{@code
+ * Expectation prevention = expectationBuilderService.buildPreventionExpectation();
+ * Expectation detection = expectationBuilderService.buildDetectionExpectation();
+ * }</pre>
+ *
+ * @see ExpectationPropertiesConfig for expiration time configuration
+ */
 @RequiredArgsConstructor
 @Service
 public class ExpectationBuilderService {
 
+  // Default expectation names
+  /** Default name for prevention expectations. */
   public static final String PREVENTION_NAME = "Prevention";
+
+  /** Default name for detection expectations. */
   public static final String DETECTION_NAME = "Detection";
+
+  /** Default name for vulnerability expectations. */
   public static final String VULNERABILITY_NAME = "Vulnerability";
+
+  /** Default name for challenge expectations. */
   public static final String CHALLENGE_NAME = "Expect targets to complete the challenge(s)";
+
+  /** Default name for article/channel expectations. */
   public static final String ARTICLE_NAME = "Expect targets to read the article(s)";
+
+  /** Default name for text expectations. */
   public static final String TEXT_NAME = "Simple expectation";
+
+  /** Default name for manual expectations. */
   public static final String MANUAL_NAME = "Manual expectation";
+
+  /** Default name for document expectations. */
   public static final String DOCUMENT_NAME = "A document must be sent / uploaded";
 
+  /** Default score for all expectations (100%). */
   public static final Double DEFAULT_EXPECTATION_SCORE = 100.0;
 
   private final ExpectationPropertiesConfig expectationPropertiesConfig;

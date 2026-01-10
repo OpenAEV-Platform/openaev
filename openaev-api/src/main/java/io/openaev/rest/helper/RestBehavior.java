@@ -218,7 +218,7 @@ public class RestBehavior {
       })
   public ResponseEntity<ErrorMessage> handleEntityNotFoundException(EntityNotFoundException ex) {
     ErrorMessage message = new ErrorMessage("Element not found: " + ex.getMessage());
-    log.warn(String.format("ElementNotFoundException: %s", ex.getMessage()), ex);
+    log.warn(String.format("EntityNotFoundException: %s", ex.getMessage()), ex);
     return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
   }
 

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.helper.ObjectMapperHelper;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -222,16 +223,17 @@ public class InjectUtils {
     return true;
   }
 
+  private static final ObjectMapper STATIC_MAPPER = ObjectMapperHelper.openAEVJsonMapper();
+
   public static Inject duplicateInject(@NotNull Inject injectOrigin) {
-    ObjectMapper objectMapper = new ObjectMapper();
     Inject duplicatedInject = new Inject();
     duplicatedInject.setUser(injectOrigin.getUser());
     duplicatedInject.setTitle(injectOrigin.getTitle());
     duplicatedInject.setDescription(injectOrigin.getDescription());
     try {
       ObjectNode content =
-          objectMapper.readValue(
-              objectMapper.writeValueAsString(injectOrigin.getContent()), ObjectNode.class);
+          STATIC_MAPPER.readValue(
+              STATIC_MAPPER.writeValueAsString(injectOrigin.getContent()), ObjectNode.class);
       duplicatedInject.setContent(content);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);

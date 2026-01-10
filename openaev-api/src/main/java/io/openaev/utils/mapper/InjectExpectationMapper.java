@@ -37,7 +37,7 @@ public class InjectExpectationMapper {
       EnumSet.allOf(ExpectationType.class);
 
   private final InjectRepository injectRepository;
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper;
   private final InjectUtils injectUtils;
 
   /**

@@ -26,55 +26,114 @@ import java.util.function.Function;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 
-public class FilterUtilsJpa {
+/**
+ * Utility class for building JPA Specifications from filter groups.
+ *
+ * <p>This class provides methods to convert filter definitions into JPA Specifications that can be
+ * used with Spring Data repositories for dynamic querying.
+ *
+ * <p>Supported filter operators:
+ *
+ * <ul>
+ *   <li>{@code eq} - Equals
+ *   <li>{@code not_eq} - Not equals
+ *   <li>{@code contains} - Contains substring
+ *   <li>{@code not_contains} - Does not contain substring
+ *   <li>{@code starts_with} - Starts with prefix
+ *   <li>{@code not_starts_with} - Does not start with prefix
+ *   <li>{@code empty} - Is null or empty
+ *   <li>{@code not_empty} - Is not null or empty
+ *   <li>{@code gt}, {@code gte}, {@code lt}, {@code lte} - Date/time comparisons
+ * </ul>
+ */
+public final class FilterUtilsJpa {
 
-  private FilterUtilsJpa() {}
+  private FilterUtilsJpa() {
+    // Utility class - prevent instantiation
+  }
 
+  /** Default page number for pagination. */
   public static final int PAGE_NUMBER_OPTION = 0;
+
+  /** Default page size for pagination. */
   public static final int PAGE_SIZE_OPTION = 100;
 
+  /**
+   * Represents a selectable option with an ID and display label.
+   *
+   * @param id the option identifier
+   * @param label the display label
+   */
   public record Option(String id, String label) {}
 
+  /** Empty specification that matches all records. */
   public static final Specification<?> EMPTY_SPECIFICATION = (root, query, cb) -> cb.conjunction();
 
+  /**
+   * Computes a JPA Specification from a filter group.
+   *
+   * @param filterGroup the filter group to convert (may be null)
+   * @param <T> the entity type
+   * @return a Specification representing the filter group, or an empty specification if null
+   */
   @SuppressWarnings("unchecked")
   public static <T> Specification<T> computeFilterGroupJpa(
       @Nullable final FilterGroup filterGroup) {
     return computeFilterGroupJpa(filterGroup, new HashMap<>());
   }
 
+  /**
+   * Computes a JPA Specification from a filter group with existing joins.
+   *
+   * @param filterGroup the filter group to convert (may be null)
+   * @param joinMap map of existing joins to reuse
+   * @param <T> the entity type
+   * @return a Specification representing the filter group, or an empty specification if null
+   */
   @SuppressWarnings("unchecked")
   public static <T> Specification<T> computeFilterGroupJpa(
       @Nullable final FilterGroup filterGroup, Map<String, Join<Base, Base>> joinMap) {
     if (filterGroup == null) {
       return (Specification<T>) EMPTY_SPECIFICATION;
     }
-    List<Filter> filters = Optional.ofNullable(filterGroup.getFilters()).orElse(new ArrayList<>());
-    FilterMode mode = Optional.ofNullable(filterGroup.getMode()).orElse(and);
 
-    if (!filters.isEmpty()) {
-      List<Specification<T>> list =
-          filters.stream()
-              .map(
-                  (Function<? super Filter, Specification<T>>)
-                      f -> FilterUtilsJpa.computeFilter(f, joinMap))
-              .toList();
-      Specification<T> result = null;
-      for (Specification<T> el : list) {
-        if (result == null) {
-          result = el;
-        } else {
-          if (or.equals(mode)) {
-            result = result.or(el);
-          } else {
-            // Default case
-            result = result.and(el);
-          }
-        }
-      }
-      return result;
+    List<Filter> filters = Optional.ofNullable(filterGroup.getFilters()).orElse(List.of());
+    if (filters.isEmpty()) {
+      return (Specification<T>) EMPTY_SPECIFICATION;
     }
-    return (Specification<T>) EMPTY_SPECIFICATION;
+
+    FilterMode mode = Optional.ofNullable(filterGroup.getMode()).orElse(and);
+    List<Specification<T>> specifications =
+        filters.stream()
+            .map(
+                (Function<? super Filter, Specification<T>>)
+                    f -> FilterUtilsJpa.computeFilter(f, joinMap))
+            .toList();
+
+    return combineSpecifications(specifications, mode);
+  }
+
+  /**
+   * Combines multiple specifications using the specified mode.
+   *
+   * @param specifications the specifications to combine
+   * @param mode the combination mode (AND or OR)
+   * @param <T> the entity type
+   * @return the combined specification
+   */
+  @SuppressWarnings("unchecked")
+  private static <T> Specification<T> combineSpecifications(
+      List<Specification<T>> specifications, FilterMode mode) {
+    if (specifications.isEmpty()) {
+      return (Specification<T>) EMPTY_SPECIFICATION;
+    }
+
+    Specification<T> result = specifications.get(0);
+    for (int i = 1; i < specifications.size(); i++) {
+      Specification<T> current = specifications.get(i);
+      result = or.equals(mode) ? result.or(current) : result.and(current);
+    }
+    return result;
   }
 
   @SuppressWarnings("unchecked")

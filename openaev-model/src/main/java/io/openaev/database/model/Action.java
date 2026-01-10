@@ -6,7 +6,7 @@ public enum Action {
   LAUNCH,
   // Following actions should only be used for first level of API.
   // For sub-resources, use the parent resource's actions instead.
-  // Exemple: To delete an article form a scenario, you need the WRITE on the scenario resource, not
+  // Example: To delete an article from a scenario, you need the WRITE on the scenario resource, not
   // DELETE on the article resource.
   DELETE,
   SEARCH,

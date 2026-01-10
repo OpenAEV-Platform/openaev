@@ -1,5 +1,11 @@
+# OpenTelemetry Collector Configuration for OpenAEV Development
+# =============================================================
+# This configuration receives OTLP metrics over HTTP and exports to file and debug output.
+# Enable the openaev-telemetry-otlp service in docker-compose.yml to use this.
+
 extensions:
   health_check:
+    endpoint: 0.0.0.0:13133
 
 receivers:
   otlp:
@@ -9,16 +15,23 @@ receivers:
 
 processors:
   batch:
+    timeout: 10s
+    send_batch_size: 1024
 
 exporters:
   file:
-    path: ./telemetry.json
+    # Path inside the container (mapped via volume in docker-compose.yml)
+    path: /telemetry.json
   debug:
     verbosity: detailed
 
 service:
   pipelines:
     metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, file]
+    traces:
       receivers: [otlp]
       processors: [batch]
       exporters: [debug, file]

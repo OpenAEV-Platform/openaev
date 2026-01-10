@@ -23,11 +23,20 @@ public enum ExternalServiceDependency {
   }
 
   public static ExternalServiceDependency fromValue(String value) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException("Value cannot be null or blank");
+    }
     for (ExternalServiceDependency type : ExternalServiceDependency.values()) {
       if (type.value.equalsIgnoreCase(value)) {
         return type;
       }
     }
-    return null;
+    throw new IllegalArgumentException(
+        String.format(
+            "Unknown ExternalServiceDependency value: '%s'. Valid values are: %s",
+            value,
+            java.util.Arrays.stream(ExternalServiceDependency.values())
+                .map(ExternalServiceDependency::getValue)
+                .collect(java.util.stream.Collectors.joining(", "))));
   }
 }

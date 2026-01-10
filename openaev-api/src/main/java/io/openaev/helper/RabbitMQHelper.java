@@ -37,7 +37,8 @@ public final class RabbitMQHelper {
 
   private RabbitMQHelper() {}
 
-  private static String rabbitMQVersion;
+  private static volatile String rabbitMQVersion;
+  private static final Object VERSION_LOCK = new Object();
 
   /**
    * Return the version of Rabbit MQ we're using
@@ -45,47 +46,53 @@ public final class RabbitMQHelper {
    * @return the rabbit MQ version
    */
   public static String getRabbitMQVersion(RabbitmqConfig rabbitmqConfig) {
-    // If we already have the version, we don't need to get it again
+    // Double-checked locking for thread-safe lazy initialization
     if (rabbitMQVersion == null && rabbitmqConfig.getHostname() != null) {
-      // Init the rabbit MQ management api overview url
-      String uri =
-          "http://"
-              + rabbitmqConfig.getHostname()
-              + ":"
-              + rabbitmqConfig.getManagementPort()
-              + "/api/overview";
+      synchronized (VERSION_LOCK) {
+        if (rabbitMQVersion != null) {
+          return rabbitMQVersion;
+        }
 
-      RestTemplate restTemplate;
-      try {
-        restTemplate = rabbitMQRestTemplate(rabbitmqConfig);
-      } catch (KeyStoreException
-          | NoSuchAlgorithmException
-          | KeyManagementException
-          | CertificateException
-          | IOException e) {
-        log.error(e.getMessage(), e);
-        return null;
+        // Init the rabbit MQ management api overview url
+        String uri =
+            "http://"
+                + rabbitmqConfig.getHostname()
+                + ":"
+                + rabbitmqConfig.getManagementPort()
+                + "/api/overview";
+
+        RestTemplate restTemplate;
+        try {
+          restTemplate = rabbitMQRestTemplate(rabbitmqConfig);
+        } catch (KeyStoreException
+            | NoSuchAlgorithmException
+            | KeyManagementException
+            | CertificateException
+            | IOException e) {
+          log.error(e.getMessage(), e);
+          return null;
+        }
+
+        // Init the headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.setBasicAuth(rabbitmqConfig.getUser(), rabbitmqConfig.getPass());
+        HttpEntity<String> entity = new HttpEntity<>("parameters", headers);
+
+        // Make the call
+        ResponseEntity<?> result;
+        try {
+          result = restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
+        } catch (RestClientException e) {
+          log.error(e.getMessage(), e);
+          return null;
+        }
+
+        // Init the parser to get the rabbit_mq version
+        BasicJsonParser jsonParser = new BasicJsonParser();
+        rabbitMQVersion =
+            (String) jsonParser.parseMap((String) result.getBody()).get("rabbitmq_version");
       }
-
-      // Init the headers
-      HttpHeaders headers = new HttpHeaders();
-      headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-      headers.setBasicAuth(rabbitmqConfig.getUser(), rabbitmqConfig.getPass());
-      HttpEntity<String> entity = new HttpEntity<>("parameters", headers);
-
-      // Make the call
-      ResponseEntity<?> result;
-      try {
-        result = restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
-      } catch (RestClientException e) {
-        log.error(e.getMessage(), e);
-        return null;
-      }
-
-      // Init the parser to get the rabbit_mq version
-      BasicJsonParser jsonParser = new BasicJsonParser();
-      rabbitMQVersion =
-          (String) jsonParser.parseMap((String) result.getBody()).get("rabbitmq_version");
     }
 
     return rabbitMQVersion;

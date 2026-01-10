@@ -88,7 +88,7 @@ public class Tag implements Base {
   }
 
   public void setColor(String color) {
-    this.color = color.toLowerCase();
+    this.color = color != null ? color.toLowerCase() : null;
   }
 
   @Override

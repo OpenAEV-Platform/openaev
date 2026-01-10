@@ -17,11 +17,36 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
-public class FilterUtilsRuntime {
+/**
+ * Utility class for building runtime predicates from filter groups.
+ *
+ * <p>This class provides methods to convert filter definitions into Java Predicates that can be
+ * used for in-memory filtering of collections. This is useful when filtering needs to happen
+ * outside of the database layer.
+ *
+ * <p>Supported filter operators:
+ *
+ * <ul>
+ *   <li>{@code eq} - Equals (case-insensitive)
+ *   <li>{@code not_eq} - Not equals
+ *   <li>{@code contains} - Contains substring (case-insensitive)
+ *   <li>{@code not_contains} - Does not contain substring
+ *   <li>{@code starts_with} - Starts with prefix (case-insensitive)
+ *   <li>{@code not_starts_with} - Does not start with prefix
+ *   <li>{@code empty} - Is null or blank
+ *   <li>{@code not_empty} - Is not null or blank
+ * </ul>
+ *
+ * @see FilterUtilsJpa for JPA-based filtering
+ */
+public final class FilterUtilsRuntime {
 
-  private FilterUtilsRuntime() {}
+  private FilterUtilsRuntime() {
+    // Utility class - prevent instantiation
+  }
 
-  private static final Predicate<Object> EMPTY_PREDICATE = (value) -> true;
+  /** Predicate that always returns true (matches all values). */
+  private static final Predicate<Object> EMPTY_PREDICATE = value -> true;
 
   public static Predicate<Object> computeFilterGroupRuntime(
       @Nullable final FilterGroup filterGroup) {

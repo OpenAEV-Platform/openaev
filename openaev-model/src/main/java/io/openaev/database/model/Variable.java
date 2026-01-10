@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -82,4 +83,17 @@ public class Variable implements Base {
   @JsonProperty("variable_updated_at")
   @NotNull
   private Instant updatedAt = now();
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
+    Base base = (Base) o;
+    return id.equals(base.getId());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id);
+  }
 }

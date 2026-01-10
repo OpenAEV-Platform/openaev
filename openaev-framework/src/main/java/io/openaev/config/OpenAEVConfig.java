@@ -10,6 +10,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * Main configuration class for the OpenAEV platform.
+ *
+ * <p>This component holds the core application configuration including:
+ *
+ * <ul>
+ *   <li>Application identity (name, version, instance ID)
+ *   <li>URLs (base URL, frontend URL, agent URL)
+ *   <li>Authentication settings (local, OpenID, SAML2, Kerberos)
+ *   <li>Security settings (cookies, certificates)
+ *   <li>Map tile server configuration
+ *   <li>Queue configuration for background processing
+ * </ul>
+ *
+ * <p>Configuration can be provided via properties with either {@code openbas.*} or {@code
+ * openaev.*} prefixes for backward compatibility.
+ */
 @Component
 @Data
 @ConfigurationProperties(prefix = "openaev")

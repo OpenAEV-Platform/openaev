@@ -318,6 +318,12 @@ public class Scenario implements GrantableBase {
   @Transient
   private final ResourceType resourceType = ResourceType.SCENARIO;
 
+  @JsonIgnore
+  @Override
+  public boolean isUserHasAccess(User user) {
+    return user.isAdmin() || getObservers().contains(user);
+  }
+
   // -- LESSONS --
 
   public List<Inject> getInjects() {
@@ -410,6 +416,14 @@ public class Scenario implements GrantableBase {
   @JsonProperty("scenario_dependencies")
   @Queryable(filterable = true, searchable = true, sortable = true)
   private Dependency[] dependencies;
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
+    Base base = (Base) o;
+    return id.equals(base.getId());
+  }
 
   @Override
   public int hashCode() {

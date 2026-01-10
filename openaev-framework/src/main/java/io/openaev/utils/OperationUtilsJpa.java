@@ -9,9 +9,27 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-public class OperationUtilsJpa {
+/**
+ * Utility class providing JPA Criteria API predicate builders for filter operations.
+ *
+ * <p>This class contains methods for building JPA Predicates for various filter operations
+ * including text matching, comparisons, and array/map operations. All string comparisons are
+ * case-insensitive.
+ *
+ * <p>Special handling is provided for:
+ *
+ * <ul>
+ *   <li>Array types - uses PostgreSQL array functions
+ *   <li>Map types - extracts values for comparison
+ *   <li>Boolean values - parses string representations
+ *   <li>Date/time values - parses ISO-8601 instant strings
+ * </ul>
+ */
+public final class OperationUtilsJpa {
 
-  private OperationUtilsJpa() {}
+  private OperationUtilsJpa() {
+    // Utility class - prevent instantiation
+  }
 
   // -- NOT CONTAINS --
 
