@@ -37,8 +37,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
   // or dimension of widgets.
   const [widgetsLayouts, setWidgetsLayouts] = useState<Record<string, Layout>>({});
 
-  // Array of all widgets, refreshed when dashboard is updated.
-  // Sync our local layouts immediately (same pattern as OpenCTI).
+  // Array of all widgets, refreshed when dashboard is updated (same pattern as OpenCTI).
+  // Sync our local layouts immediately.
   const widgetsArray = useMemo(() => {
     const widgets = customDashboard?.custom_dashboard_widgets ?? [];
     setWidgetsLayouts(
@@ -97,7 +97,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
     }));
   };
 
-  const onLayoutChange = async (layouts: Layout[]) => {
+  const onLayoutChange = (layouts: Layout[]) => {
     if (deleting || !customDashboard) {
       setDeleting(false);
       return;
@@ -116,7 +116,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
       });
     });
 
-    // Update local layouts state immediately
+    // Update local layouts state immediately (same pattern as OpenCTI)
     setWidgetsLayouts(newLayouts);
 
     // Filter to only layouts that actually changed
@@ -131,27 +131,14 @@ const CustomDashboardReactLayout: FunctionComponent<{
       );
     });
 
-    // Only make API calls for changed layouts
+    // Only make API calls for changed layouts (don't update React state to avoid re-renders)
     if (changedLayouts.length > 0) {
-      await Promise.all(
+      Promise.all(
         changedLayouts.map(layout =>
           updateCustomDashboardWidgetLayout(customDashboard.custom_dashboard_id, layout.i, layoutMap.get(layout.i)!),
         ),
       );
     }
-
-    // Update dashboard state
-    setCustomDashboard(prev => prev && {
-      ...prev,
-      custom_dashboard_widgets: prev.custom_dashboard_widgets?.map((widget) => {
-        const newLayout = layoutMap.get(widget.widget_id);
-        if (!newLayout) return widget;
-        return {
-          ...widget,
-          widget_layout: newLayout,
-        };
-      }),
-    });
   };
 
   const paperStyle = {
