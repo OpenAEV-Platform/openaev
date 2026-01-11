@@ -1,5 +1,6 @@
 package io.openaev.helper;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 /**
@@ -34,16 +35,17 @@ public class CryptoHelper {
   /**
    * Computes the MD5 hash of a string and returns it as a lowercase hexadecimal string.
    *
-   * <p>This method is primarily used for generating Gravatar URLs from email addresses.
+   * <p>This method is primarily used for generating Gravatar URLs from email addresses. UTF-8
+   * encoding is used to ensure consistent hashing across all Unicode characters.
    *
    * @param message the string to hash
    * @return the MD5 hash as a lowercase hexadecimal string
-   * @throws RuntimeException if the MD5 algorithm is not available or encoding fails
+   * @throws RuntimeException if the MD5 algorithm is not available
    */
   public static String md5Hex(String message) {
     try {
       MessageDigest md = MessageDigest.getInstance("MD5");
-      return hex(md.digest(message.getBytes("CP1252"))).toLowerCase();
+      return hex(md.digest(message.getBytes(StandardCharsets.UTF_8))).toLowerCase();
     } catch (Exception e) {
       throw new RuntimeException("Failed to compute MD5 hash", e);
     }

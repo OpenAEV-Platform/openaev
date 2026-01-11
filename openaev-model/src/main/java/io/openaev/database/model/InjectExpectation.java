@@ -30,16 +30,30 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners(ModelBaseListener.class)
 public class InjectExpectation implements Base, Cloneable {
 
+  /**
+   * Creates a shallow clone of this InjectExpectation with deep-copied collections.
+   *
+   * <p>The following collections are deep-copied to prevent shared mutable state:
+   *
+   * <ul>
+   *   <li>{@code signatures} - copied to new ArrayList
+   *   <li>{@code results} - copied to new ArrayList
+   * </ul>
+   *
+   * <p><strong>Important:</strong> The {@code traces} collection is intentionally NOT copied and
+   * will be empty in the clone. Traces represent execution history that belongs to the original
+   * expectation instance and should not be duplicated when cloning for a new execution context.
+   *
+   * @return a new InjectExpectation with copied signatures and results, but empty traces
+   */
   @Override
   public InjectExpectation clone() {
     try {
       InjectExpectation clone = (InjectExpectation) super.clone();
-      // Deep copy mutable collections to prevent shared state
       clone.signatures =
           this.signatures != null ? new ArrayList<>(this.signatures) : new ArrayList<>();
       clone.results = this.results != null ? new ArrayList<>(this.results) : new ArrayList<>();
-      clone.traces =
-          new ArrayList<>(); // Traces should not be copied as they belong to the original
+      clone.traces = new ArrayList<>();
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new AssertionError("Clone should be supported for Cloneable objects", e);
