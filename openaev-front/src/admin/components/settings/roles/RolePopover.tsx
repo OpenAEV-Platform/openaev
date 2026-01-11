@@ -87,7 +87,7 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
         handleClose={() => setOpenUpdate(false)}
         title={t('Update role')}
       >
-        <RoleForm onSubmit={onSubmit} handleClose={() => setOpenUpdate(false)} editing={true} initialValues={role} />
+        <RoleForm onSubmit={onSubmit} handleClose={() => setOpenUpdate(false)} editing initialValues={role} />
       </Drawer>
     </>
   );

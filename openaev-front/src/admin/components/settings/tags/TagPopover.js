@@ -1,21 +1,17 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem, Slide } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteTag, updateTag } from '../../../../actions/Tag';
 import Drawer from '../../../../components/common/Drawer';
+import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import TagForm from './TagForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 class TagPopover extends Component {
   constructor(props) {
@@ -131,7 +127,7 @@ class TagPopover extends Component {
         >
           <TagForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={this.onSubmitEdit.bind(this)}
             handleClose={this.handleCloseEdit.bind(this)}
           />

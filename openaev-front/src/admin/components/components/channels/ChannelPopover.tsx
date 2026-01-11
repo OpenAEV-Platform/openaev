@@ -50,11 +50,11 @@ const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
 
   // Button Popover
   const entries = [{
-    label: t('Update'),
+    label: 'Update',
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CHANNELS),
   }, {
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CHANNELS),
   }];
@@ -76,7 +76,7 @@ const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
         slots={{ transition: Transition }}
         open={openEdit}
         onClose={() => setOpenEdit(false)}
-        fullWidth={true}
+        fullWidth
         maxWidth="md"
         slotProps={{ paper: { elevation: 1 } }}
       >
@@ -84,7 +84,7 @@ const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
         <DialogContent>
           <ChannelForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={onSubmitEdit}
             handleClose={() => setOpenEdit(false)}
           />

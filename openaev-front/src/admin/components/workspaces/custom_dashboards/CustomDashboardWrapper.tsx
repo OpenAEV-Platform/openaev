@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 
@@ -16,6 +16,8 @@ import CustomDashboardComponent from './CustomDashboardComponent';
 import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
 import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
 import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
+
+const MIN_LOADING_TIME = 800; // Minimum time to show loader to avoid blinking
 
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];
@@ -66,7 +68,9 @@ const CustomDashboardWrapper = ({
   const parametersLocalStorage = useReadLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey);
   const [, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
   const [parameters, setParameters] = useState<Record<string, ParameterOption>>({});
-  const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
+  const [gridReady, setGridReady] = useState(false);
+  const loadingStartTime = useRef<number>(Date.now());
 
   const [, setSearchParams] = useSearchParams();
 
@@ -89,6 +93,15 @@ const CustomDashboardWrapper = ({
       return newParams;
     }, { replace: true });
   };
+
+  const setDataReadyWithDelay = () => {
+    const elapsed = Date.now() - loadingStartTime.current;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    setTimeout(() => setDataReady(true), remainingTime);
+  };
+
+  // Compute loading state: show loader until both data AND grid are ready
+  const loading = !dataReady || !gridReady;
 
   useEffect(() => {
     if (!customDashboard) {
@@ -118,21 +131,36 @@ const CustomDashboardWrapper = ({
     };
     handleParametersInitialization().then((params) => {
       setParameters(params || {});
-      setLoading(false);
+      setDataReadyWithDelay();
     });
   }, [customDashboard, parametersLocalStorage, paramsBuilder, setParametersLocalStorage]);
 
   useEffect(() => {
     if (customDashboardId) {
-      fetchCustomDashboard().then((response) => {
-        const dashboard = response.data;
-        if (!dashboard) {
-          return;
-        }
-        setCustomDashboard(dashboard);
-      });
+      // Reset loading state when dashboard ID changes
+      setDataReady(false);
+      setGridReady(false);
+      loadingStartTime.current = Date.now();
+      fetchCustomDashboard()
+        .then((response) => {
+          const dashboard = response.data;
+          if (!dashboard) {
+            // Dashboard not found, mark as ready (will show no dashboard message)
+            setDataReadyWithDelay();
+            setGridReady(true); // No grid to wait for
+            return;
+          }
+          setCustomDashboard(dashboard);
+        })
+        .catch(() => {
+          // Fetch failed, mark as ready (will show error or no dashboard)
+          setDataReadyWithDelay();
+          setGridReady(true); // No grid to wait for
+        });
     } else {
-      setLoading(false);
+      // No dashboard ID, mark as ready immediately
+      setDataReadyWithDelay();
+      setGridReady(true); // No grid to wait for
       setCustomDashboard(undefined);
     }
   }, [customDashboardId, fetchCustomDashboard]);
@@ -152,6 +180,7 @@ const CustomDashboardWrapper = ({
     fetchAttackPaths,
     openWidgetDataDrawer: handleOpenWidgetDataDrawer,
     closeWidgetDataDrawer: handleCloseWidgetDataDrawer,
+    setGridReady,
   }), [
     customDashboard,
     parameters,

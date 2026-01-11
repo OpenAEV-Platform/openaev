@@ -1,20 +1,16 @@
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, MoreHorizOutlined, ShareOutlined } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, GridLegacy, Slide, Typography } from '@mui/material';
+import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, GridLegacy, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { forwardRef, useState } from 'react';
+import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import Transition from '../../../components/common/Transition';
 import Empty from '../../../components/Empty';
 import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const useStyles = makeStyles()(() => ({
   container: {

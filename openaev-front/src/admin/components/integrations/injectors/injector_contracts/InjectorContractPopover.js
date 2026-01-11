@@ -158,7 +158,7 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
         {injectorContract.injector_contract_custom ? (
           <InjectorContractCustomForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={onSubmitEdit}
             handleClose={handleCloseEdit}
             contractTemplate={injectorContract}
@@ -167,7 +167,7 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
         ) : (
           <InjectorContractForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={onSubmitEditMapping}
             handleClose={handleCloseEdit}
             isPayloadInjector={isPayloadInjector}

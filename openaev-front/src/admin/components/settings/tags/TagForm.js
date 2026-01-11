@@ -24,7 +24,7 @@ class TagForm extends Component {
     const { t, onSubmit, initialValues, handleClose, editing } = this.props;
     return (
       <Form
-        keepDirtyOnReinitialize={true}
+        keepDirtyOnReinitialize
         initialValues={initialValues}
         onSubmit={onSubmit}
         validate={this.validate.bind(this)}
@@ -33,13 +33,13 @@ class TagForm extends Component {
           <form id="tagForm" onSubmit={handleSubmit}>
             <OldTextField
               name="tag_name"
-              fullWidth={true}
+              fullWidth
               label={t('Value')}
               style={{ marginTop: 10 }}
             />
             <DeprecatedColorPickerField
               name="tag_color"
-              fullWidth={true}
+              fullWidth
               label={t('Color')}
               style={{ marginTop: 20 }}
             />

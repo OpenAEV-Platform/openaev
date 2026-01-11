@@ -10,7 +10,7 @@ interface PaperProps {
 const useStyles = makeStyles()(theme => ({
   paper: {
     padding: theme.spacing(2),
-    borderRadius: 6,
+    borderRadius: theme.borderRadius,
   },
 }));
 

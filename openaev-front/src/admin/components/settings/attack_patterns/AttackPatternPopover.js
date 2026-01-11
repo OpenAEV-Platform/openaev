@@ -106,7 +106,7 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
       >
         <AttackPatternForm
           initialValues={initialValues}
-          editing={true}
+          editing
           onSubmit={onSubmitEdit}
           handleClose={handleCloseEdit}
         />

@@ -56,11 +56,11 @@ const VariablePopover: FunctionComponent<Props> = ({
 
   // Button Popover
   const entries = [{
-    label: t('Update'),
+    label: 'Update',
     action: () => handleUpdate(),
     userRight: permissions.canManage,
   }, {
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleDelete(),
     userRight: permissions.canManage,
   }];

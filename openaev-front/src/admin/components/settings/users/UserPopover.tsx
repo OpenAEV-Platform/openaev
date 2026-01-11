@@ -136,7 +136,7 @@ const UserPopover = ({ user, onUpdate, onDelete }: UserPopoverProps) => {
       >
         <UserForm
           initialValues={initialValues}
-          editing={true}
+          editing
           onSubmit={onSubmitEdit}
           handleClose={handleCloseEdit}
         />

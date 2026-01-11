@@ -33,7 +33,7 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
         ? (
             <ButtonPopover
               entries={[{
-                label: t('Select a dashboard'),
+                label: 'Select a dashboard',
                 action: handleOpenSelectDashboardDialog,
                 userRight: true,
               }]}

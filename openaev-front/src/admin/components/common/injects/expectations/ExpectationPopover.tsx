@@ -90,11 +90,11 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   // Button Popover
   const entries = [
     {
-      label: t('Update'),
+      label: 'Update',
       action: () => handleOpenEdit(),
       userRight: userManageExpectations,
     }, {
-      label: t('Remove'),
+      label: 'Remove',
       action: () => handleOpenDelete(),
       userRight: userManageExpectations,
     }];

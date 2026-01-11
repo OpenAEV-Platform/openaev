@@ -1,4 +1,7 @@
-import { CircularProgress } from '@mui/material';
+import './Theme'; // Import for Theme augmentation
+
+import { type Theme, useTheme } from '@mui/material/styles';
+import { FiligranLoader } from 'filigran-icon';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -32,7 +35,6 @@ const useStyles = makeStyles()(() => ({
     verticalAlign: 'middle',
     textAlign: 'center',
   },
-  loaderCircle: { display: 'inline-block' },
 }));
 
 type LoaderVariant = 'inElement' | 'default';
@@ -50,6 +52,7 @@ const Loader: FunctionComponent<LoaderProps> = ({
   size,
 }) => {
   const { classes } = useStyles();
+  const theme = useTheme<Theme>();
 
   const getContainer = (): string => {
     if (size === 'xs') {
@@ -61,9 +64,9 @@ const Loader: FunctionComponent<LoaderProps> = ({
     return classes.container;
   };
 
-  const getSize = (): string | number => {
+  const getSize = (): number => {
     if (size === 'xs') {
-      return '1rem';
+      return 16;
     }
     if (variant === 'inElement') {
       return 40;
@@ -85,11 +88,7 @@ const Loader: FunctionComponent<LoaderProps> = ({
         className={variant === 'inElement' ? classes.loaderInElement : classes.loader}
         style={loaderStyle}
       >
-        <CircularProgress
-          size={getSize()}
-          thickness={1}
-          className={classes.loaderCircle}
-        />
+        <FiligranLoader height={getSize()} color={theme?.palette?.common?.grey} />
       </div>
     </div>
   );

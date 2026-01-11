@@ -144,27 +144,27 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   // Button Popover
   const entries = [];
   entries.push({
-    label: t('Update'),
+    label: 'Update',
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
   if (managePlayers) entries.push({
-    label: t('Manage players'),
+    label: 'Manage players',
     action: () => managePlayers(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
   if (onRemoveTeam && !onRemoveTeamFromInject && !team.team_contextual) entries.push({
-    label: t('Remove from the context'),
+    label: 'Remove from the context',
     action: () => handleOpenRemove(),
     userRight: true,
   });
   if (onRemoveTeamFromInject) entries.push({
-    label: t('Remove from the inject'),
+    label: 'Remove from the inject',
     action: () => handleOpenRemoveFromInject(),
     userRight: true,
   });
   entries.push({
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),
   });

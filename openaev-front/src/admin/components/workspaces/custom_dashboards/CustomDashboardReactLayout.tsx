@@ -11,7 +11,7 @@ const CustomDashboardReactLayout: FunctionComponent<{
   readOnly: boolean;
   style?: CSSProperties;
 }> = ({ readOnly, style = {} }) => {
-  const { customDashboard, setCustomDashboard } = useContext(CustomDashboardContext);
+  const { customDashboard, setCustomDashboard, setGridReady } = useContext(CustomDashboardContext);
 
   // Create ReactGridLayout inside component (same pattern as OpenCTI)
   const ReactGridLayout = useMemo(() => WidthProvider(RGL), []);
@@ -19,9 +19,12 @@ const CustomDashboardReactLayout: FunctionComponent<{
   // Hide grid until WidthProvider has measured container (prevents initial layout animation)
   const [isReady, setIsReady] = useState(false);
   useEffect(() => {
-    const timeout = setTimeout(() => setIsReady(true), 150);
+    const timeout = setTimeout(() => {
+      setIsReady(true);
+      setGridReady(true); // Notify parent that grid is ready
+    }, 150);
     return () => clearTimeout(timeout);
-  }, []);
+  }, [setGridReady]);
 
   const [deleting, setDeleting] = useState(false);
   const [idToResize, setIdToResize] = useState<string | null>(null);

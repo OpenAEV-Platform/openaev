@@ -21,14 +21,13 @@ import {
   ListItemSecondaryAction,
   ListItemText,
   MenuItem,
-  Slide,
   Switch,
   Typography,
 } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { Form } from 'react-final-form';
 import { FieldArray } from 'react-final-form-arrays';
 import { connect } from 'react-redux';
@@ -55,11 +54,6 @@ import TeamPopover from '../../../components/teams/TeamPopover';
 import AvailableVariablesDialog from '../variables/AvailableVariablesDialog';
 
 export const EMAIL_CONTRACT = '138ad8f8-32f8-4a22-8114-aaa12322bd09';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const styles = theme => ({
   header: {

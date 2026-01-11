@@ -78,7 +78,7 @@ const WidgetPopover: FunctionComponent<Props> = ({
         toggleDialog={toggleDialog}
         initialValues={initialValues}
         onSubmit={onSubmit}
-        editing={true}
+        editing
       />
       <DialogDelete
         open={openDelete}
