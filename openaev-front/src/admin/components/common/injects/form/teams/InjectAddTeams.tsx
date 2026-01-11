@@ -131,15 +131,17 @@ const InjectAddTeams: FunctionComponent<Props> = ({
       </ListItemButton>
       <Dialog
         open={open}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleClose}
         fullWidth
         maxWidth="lg"
-        PaperProps={{
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
+        slotProps={{
+          paper: {
+            elevation: 1,
+            sx: {
+              minHeight: 580,
+              maxHeight: 580,
+            },
           },
         }}
       >

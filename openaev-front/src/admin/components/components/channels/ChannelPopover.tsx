@@ -1,9 +1,10 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteChannel, updateChannel } from '../../../../actions/channels/channel-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
+import DialogDelete from '../../../../components/common/DialogDelete';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Channel, type ChannelUpdateInput } from '../../../../utils/api-types';
@@ -49,11 +50,11 @@ const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
 
   // Button Popover
   const entries = [{
-    label: 'Update',
+    label: t('Update'),
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CHANNELS),
   }, {
-    label: 'Delete',
+    label: t('Delete'),
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CHANNELS),
   }];
@@ -65,31 +66,19 @@ const ChannelPopover: FunctionComponent<Props> = ({ channel }) => {
         variant="icon"
       />
 
-      <Dialog
+      <DialogDelete
         open={openDelete}
-        TransitionComponent={Transition}
-        onClose={() => setOpenDelete(false)}
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogContent>
-          <DialogContentText>
-            {t('Do you want to delete this channel?')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDelete(false)}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
-            {t('Delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        handleClose={() => setOpenDelete(false)}
+        handleSubmit={submitDelete}
+        text={t('Do you want to delete this channel?')}
+      />
       <Dialog
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         open={openEdit}
         onClose={() => setOpenEdit(false)}
         fullWidth={true}
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Update the channel')}</DialogTitle>
         <DialogContent>

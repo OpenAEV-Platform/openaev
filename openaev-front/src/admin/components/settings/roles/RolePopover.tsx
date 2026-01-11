@@ -50,12 +50,12 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
   // Button Popover
   const entries = [];
   if (onUpdate) entries.push({
-    label: t('Update'),
+    label: 'Update',
     action: () => handleUpdate(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
   });
   if (onDelete) entries.push({
-    label: t('Delete'),
+    label: 'Delete',
     action: () => handleDelete(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
   });

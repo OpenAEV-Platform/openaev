@@ -28,21 +28,26 @@ const ConnectorList = () => {
     searchColumns,
   );
 
-  // Fetching data
-  const getConnectorsHelper = () => {
+  // Fetching data - hooks must be called at top level unconditionally
+  const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutors() }));
+  const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectors() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectors() }));
+
+  // Select the appropriate connectors based on connector type
+  const getRawConnectors = (): (CollectorOutput | ExecutorOutput | InjectorOutput)[] => {
     switch (connectorType) {
       case 'executor':
-        return useHelper((helper: ExecutorHelper) => ({ connectors: helper.getExecutors() }));
+        return executors;
       case 'injector':
-        return useHelper((helper: InjectorHelper) => ({ connectors: helper.getInjectors() }));
+        return injectors;
       case 'collector':
-        return useHelper((helper: CollectorHelper) => ({ connectors: helper.getCollectors() }));
+        return collectors;
       default:
-        return null;
+        return [];
     }
   };
 
-  const { connectors: rawConnectors } = getConnectorsHelper();
+  const rawConnectors = getRawConnectors();
   const connectors = normalizeSingle
     ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput) => normalizeSingle(c))
     : rawConnectors;
@@ -75,7 +80,7 @@ const ConnectorList = () => {
                 connectorUseCases: [],
               }}
               cardActionUrl={routes.detail(connector.id)}
-              isNotClickable={connector.catalog == null && connectorType != 'injector'}
+              isNotClickable={connector.catalog === null && connectorType !== 'injector'}
               showLastUpdatedAt
             />
           </Grid>

@@ -1,6 +1,8 @@
 import { type LocalHourMinute, PeriodExpressionHandler } from './PeriodExpressionHandler';
 
-const ISO8601PeriodMask: string = 'PT?(\\d+)([HDWM])';
+// Compile RegExp once for better performance
+// Matches ISO 8601 duration formats: P[n]D, PT[n]H, PT[n]M, P[n]W, P[n]M (months before T)
+const ISO8601PeriodRegex = /^P(?:(\d+)([DWM])|T(\d+)([HM]))$/;
 
 class ISO8601Period extends PeriodExpressionHandler {
   constructor(expression: string) {
@@ -12,7 +14,7 @@ class ISO8601Period extends PeriodExpressionHandler {
   }
 
   isValid(): boolean {
-    return new RegExp(ISO8601PeriodMask).test(this.rawExpression);
+    return ISO8601PeriodRegex.test(this.rawExpression);
   }
 
   toHumanReadableString(_locale: string): string {
@@ -23,39 +25,49 @@ class ISO8601Period extends PeriodExpressionHandler {
     let prefix: string;
     let suffix: string;
     const amount = Number(this.getRecurrenceAmount() || '1');
-    const num_accord = Math.abs(amount) === 1 ? 'singular' : 'plural';
+    const numAccord = Math.abs(amount) === 1 ? 'singular' : 'plural';
     switch (this.getRecurrenceMagnitude()) {
+      case 'minutely':
+        prefix = `every_fem_${numAccord}`;
+        suffix = 'minutes';
+        break;
       case 'hourly':
-        prefix = 'every_fem_' + num_accord;
+        prefix = `every_fem_${numAccord}`;
         suffix = 'hours';
         break;
       case 'weekly':
-        prefix = 'every_fem_' + num_accord;
+        prefix = `every_fem_${numAccord}`;
         suffix = 'weeks';
         break;
       case 'monthly':
-        prefix = 'every_masc_' + num_accord;
+        prefix = `every_masc_${numAccord}`;
         suffix = 'months';
         break;
-      default: // let's say daily is default
-        prefix = 'every_masc_' + num_accord;
+      default: // daily is default
+        prefix = `every_masc_${numAccord}`;
         suffix = 'days';
         break;
     }
-    return num_accord == 'plural' ? [prefix, amount.toString(), suffix + '_' + num_accord] : [prefix, suffix + '_' + num_accord];
+    return numAccord === 'plural' ? [prefix, amount.toString(), `${suffix}_${numAccord}`] : [prefix, `${suffix}_${numAccord}`];
   }
 
   getRecurrenceMagnitude(): string {
-    switch (new RegExp(ISO8601PeriodMask).exec(this.rawExpression)?.[2]) {
+    const match = ISO8601PeriodRegex.exec(this.rawExpression);
+    // Group 2 = date unit (D, W, M), Group 4 = time unit (H, M)
+    const unit = match?.[2] ?? match?.[4];
+    switch (unit) {
       case 'H': return 'hourly';
       case 'W': return 'weekly';
-      case 'M': return 'monthly';
+      case 'M': return match?.[2] ? 'monthly' : 'minutely'; // M before T = months, after T = minutes
+      case 'D': return 'daily';
       default: return 'daily';
     }
   }
 
   getRecurrenceAmount(): string | undefined {
-    return new RegExp(ISO8601PeriodMask).exec(this.rawExpression)?.[1];
+    const match = ISO8601PeriodRegex.exec(this.rawExpression);
+    // Group 1 = date amount, Group 3 = time amount
+    return match?.[1] ?? match?.[3];
   }
 
   getRecurrenceTime(): LocalHourMinute {
@@ -66,7 +78,7 @@ class ISO8601Period extends PeriodExpressionHandler {
   }
 
   static canHandleExpression(expression: string) {
-    return new RegExp(ISO8601PeriodMask).test(expression);
+    return ISO8601PeriodRegex.test(expression);
   }
 }
 

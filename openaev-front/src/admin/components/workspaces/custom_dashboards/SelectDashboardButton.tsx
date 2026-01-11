@@ -29,11 +29,11 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
 
   return (
     <>
-      {variant == 'popover'
+      {variant === 'popover'
         ? (
             <ButtonPopover
               entries={[{
-                label: 'Select a dashboard',
+                label: t('Select a dashboard'),
                 action: handleOpenSelectDashboardDialog,
                 userRight: true,
               }]}

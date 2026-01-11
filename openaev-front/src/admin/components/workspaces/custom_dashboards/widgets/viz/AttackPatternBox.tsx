@@ -22,7 +22,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 const getBackgroundColor = (successRate: number | null): string | undefined => {
-  if (successRate == undefined) return undefined;
+  if (successRate === null) return undefined;
   if (successRate === 1) return SUCCESS_100_COLOR;
   if (successRate === 0) return SUCCESS_25_COLOR;
   if (successRate >= 0.75) return SUCCESS_75_COLOR;
@@ -36,7 +36,7 @@ const getTextColor = (theme: Theme, total: number): string | undefined => {
 
 interface AttackPatternBoxProps {
   attackPatternName: string;
-  attackPatternExerternalId: string;
+  attackPatternExternalId: string;
   successRate: number | null;
   total?: number;
   style?: CSSProperties;
@@ -45,7 +45,7 @@ interface AttackPatternBoxProps {
 
 const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
   attackPatternName,
-  attackPatternExerternalId,
+  attackPatternExternalId,
   successRate = null,
   total,
   style = {},
@@ -99,7 +99,7 @@ const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
         <Typography sx={nameTypographySx}>
           {attackPatternName}
         </Typography>
-        {successRate != null && total && total > 0 && (
+        {successRate !== null && total && total > 0 && (
           <Typography sx={rateTypographySx}>
             {successCount}
             /
@@ -107,7 +107,7 @@ const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
           </Typography>
         )}
         <Typography sx={idTypographySx}>
-          {attackPatternExerternalId}
+          {attackPatternExternalId}
         </Typography>
       </div>
     </Button>

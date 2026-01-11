@@ -49,9 +49,9 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
   return (
     <Dialog
       open={open}
-      TransitionComponent={Transition}
+      slots={{ transition: Transition }}
       onClose={onClose}
-      PaperProps={{ elevation: 1 }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>

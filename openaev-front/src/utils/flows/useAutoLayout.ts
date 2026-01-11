@@ -16,8 +16,7 @@ function compareNodes(xs: Map<string, Node>, ys: Map<string, Node>) {
   // the number of nodes changed, so we already know that the nodes are not equal
   if (xs.size !== ys.size) return false;
 
-  // @ts-expect-error - Map entries iteration type issue
-  for (const [id, x] of xs.entries()) {
+  for (const [id, x] of Array.from(xs.entries())) {
     const y = ys.get(id);
 
     // the node doesn't exist in the next state so it just got added
@@ -57,6 +56,10 @@ function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectations
     compareElements,
   );
   const nodesInitialized = useNodesInitialized();
+
+  // Memoize targetResults length to avoid unnecessary re-renders
+  const targetResultsLength = targetResults.length;
+
   useEffect(() => {
     // Only run the layout if there are nodes and they have been initialized with
     // their dimensions
@@ -84,7 +87,7 @@ function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectations
         node.sourcePosition = getSourceHandlePosition(options.direction);
         node.targetPosition = getTargetHandlePosition(options.direction);
       }
-      for (const edge of edges) {
+      for (const edge of nextEdges) {
         edge.style = {
           ...edge.style,
           opacity: 1,
@@ -94,7 +97,7 @@ function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectations
       setEdges(nextEdges);
     };
     runLayout();
-  }, [nodesInitialized, elements, setNodes, setEdges, targetResults]);
+  }, [nodesInitialized, elements, setNodes, setEdges, targetResultsLength, options, getNodes, getEdges]);
 }
 
 export default useAutoLayout;

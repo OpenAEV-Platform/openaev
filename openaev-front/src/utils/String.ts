@@ -92,5 +92,7 @@ export const formatMacAddress = (mac: string): string => {
 };
 
 export const formatIp = (ip: string): string => {
-  return ip.toUpperCase();
+  // IPv4 addresses are numeric, IPv6 hex digits are case-insensitive
+  // Return as-is since IP addresses don't need case transformation
+  return ip;
 };

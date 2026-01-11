@@ -18,7 +18,7 @@ const Paper: FunctionComponent<PaperProps> = ({ children, className = '' }) => {
   const { classes } = useStyles();
 
   return (
-    <PaperMui variant="outlined" className={classes.paper + ' ' + className}>
+    <PaperMui variant="outlined" className={`${classes.paper} ${className}`.trim()}>
       {children}
     </PaperMui>
   );

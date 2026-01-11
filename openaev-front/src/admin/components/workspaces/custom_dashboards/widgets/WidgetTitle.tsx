@@ -38,7 +38,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       return null;
     }
     const { difference_count, previous_interval_count } = vizData.data;
-    // extract serie's name (only 1 serie for number widget)
+    // extract series name (only 1 series item for number widget)
     let resourceName = '';
     if ('series' in widget.widget_config) {
       const seriesItem = widget.widget_config.series[0];
@@ -54,7 +54,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
     }
     // Compute the widget time range to get the correct sentence
     let widgetTimeRange;
-    if (widget.widget_config.time_range == 'DEFAULT') {
+    if (widget.widget_config.time_range === 'DEFAULT') {
       widgetTimeRange = getTimeRangeFromDashboard(customDashboard, customDashboardParameters);
     } else {
       widgetTimeRange = widget.widget_config.time_range;

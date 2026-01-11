@@ -2,10 +2,10 @@ import { AddCircleOutline } from '@mui/icons-material';
 import { type FunctionComponent, memo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   node: {
-    'border': '2px dashed rgba(255, 255, 255, 0.12)',
-    'borderLeft': '2px solid rgba(255, 255, 255, 0.3)',
+    'border': `2px dashed ${theme.palette.divider}`,
+    'borderLeft': `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}`,
     'borderRadius': 4,
     'width': 50,
     'height': 50,
@@ -14,10 +14,10 @@ const useStyles = makeStyles()(() => ({
     'alignItems': 'center',
     'flexWrap': 'wrap',
     'textAlign': 'center',
-    'backgroundColor': '#09101e',
-    'color': 'white',
+    'backgroundColor': theme.palette.background.paper,
+    'color': theme.palette.text.primary,
     'cursor': 'none !important',
-    '&:hover': { backgroundColor: '#0d1626' },
+    '&:hover': { backgroundColor: theme.palette.action.hover },
   },
   iconContainer: { width: '100%' },
   icon: { textAlign: 'center' },
@@ -53,7 +53,6 @@ const NodePhantomComponent: FunctionComponent<Props> = (props) => {
         <div
           className={classes.node}
           style={{
-            color: 'white',
             height: props.newNodeSize,
             width: props.newNodeSize,
           }}

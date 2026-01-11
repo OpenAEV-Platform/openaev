@@ -66,11 +66,11 @@ const CreateVariable: FunctionComponent<Props> = ({ inline }) => {
       )}
       <Dialog
         open={open}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={() => setOpen(false)}
         fullWidth
         maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle>{t('Create a new variable')}</DialogTitle>
         <DialogContent>

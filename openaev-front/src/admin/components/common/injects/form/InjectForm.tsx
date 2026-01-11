@@ -283,7 +283,7 @@ const InjectForm = ({
   useEffect(() => {
     const fieldsToSubscribe: (keyof InjectInputForm)[] = [];
     injectorContractContent?.fields.forEach((field) => {
-      if (field.key == 'teams') {
+      if (field.key === 'teams') {
         fieldsToSubscribe.push('inject_all_teams');
       }
       if (field.mandatoryConditionFields?.length) {

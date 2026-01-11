@@ -27,7 +27,7 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
       return;
     }
     const dataPointIndex = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
-    if (!dataPointIndex || Number(dataPointIndex.y) == 0) {
+    if (!dataPointIndex || Number(dataPointIndex.y) === 0) {
       return;
     }
 

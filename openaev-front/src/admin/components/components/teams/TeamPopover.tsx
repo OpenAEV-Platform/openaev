@@ -144,27 +144,27 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   // Button Popover
   const entries = [];
   entries.push({
-    label: 'Update',
+    label: t('Update'),
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
   if (managePlayers) entries.push({
-    label: 'Manage players',
+    label: t('Manage players'),
     action: () => managePlayers(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
   if (onRemoveTeam && !onRemoveTeamFromInject && !team.team_contextual) entries.push({
-    label: 'Remove from the context',
+    label: t('Remove from the context'),
     action: () => handleOpenRemove(),
     userRight: true,
   });
   if (onRemoveTeamFromInject) entries.push({
-    label: 'Remove from the inject',
+    label: t('Remove from the inject'),
     action: () => handleOpenRemoveFromInject(),
     userRight: true,
   });
   entries.push({
-    label: 'Delete',
+    label: t('Delete'),
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),
   });
@@ -192,9 +192,9 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
       </Dialog>
       <MuiDialog
         open={openRemove}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseRemove}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -210,9 +210,9 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
       </MuiDialog>
       <MuiDialog
         open={openRemoveFromInject}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseRemoveFromInject}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

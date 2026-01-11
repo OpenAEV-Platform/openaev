@@ -1,6 +1,6 @@
 import * as qs from 'qs';
 import * as R from 'ramda';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 
@@ -31,6 +31,10 @@ const useUriState = (localStorageKey: string, initSearchPaginationInput: SearchP
 
   const [input, setInput] = useState<SearchPaginationInput>(initSearchPaginationInput);
 
+  // Use ref to store onChange to avoid triggering useEffect when callback reference changes
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const helpers: UriHelpers = {
     retrieveFromUri: () => {
       const built = retrieveFromUri(localStorageKey, searchParams);
@@ -52,7 +56,7 @@ const useUriState = (localStorageKey: string, initSearchPaginationInput: SearchP
   };
 
   useEffect(() => {
-    onChange(input);
+    onChangeRef.current(input);
   }, [input]);
 
   return helpers;

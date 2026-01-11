@@ -134,7 +134,7 @@ const KillChainPhaseColumn: FunctionComponent<{
           <AttackPatternBox
             key={stat.attackPattern.attack_pattern_id}
             attackPatternName={stat.attackPattern.attack_pattern_name}
-            attackPatternExerternalId={stat.attackPattern.attack_pattern_external_id}
+            attackPatternExternalId={stat.attackPattern.attack_pattern_external_id}
             successRate={stat.total === 0 ? null : (stat.success / stat.total)}
             total={stat.total}
             onClick={() => onAttackPatternBoxClick(stat)}

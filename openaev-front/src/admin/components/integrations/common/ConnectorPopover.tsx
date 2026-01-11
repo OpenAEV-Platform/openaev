@@ -44,11 +44,11 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName }: ConnectorPopov
   // Button Popover
   const entries = [
     {
-      //   label: t('Delete'),
+      //   label: 'Delete',
       //   action: handleDelete,
       //   userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
       // }, {
-      label: t('Update'),
+      label: 'Update',
       action: () => onOpenUpdateConnectorInstanceDrawer(),
       userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
     }];

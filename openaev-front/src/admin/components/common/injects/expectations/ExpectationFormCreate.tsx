@@ -119,7 +119,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
 
   useEffect(() => {
     reset(computeValuesFromType(watchType));
-  }, [watchType]);
+  }, [watchType, reset]);
 
   return (
     <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
