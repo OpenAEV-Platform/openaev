@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   render(): ReactNode {
-    if (this.state.stack) {
+    if (this.state.error) {
       /* eslint-disable i18next/no-literal-string */
       return this.props.display ?? (
         <Alert severity="error">

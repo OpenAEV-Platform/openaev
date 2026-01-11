@@ -100,8 +100,9 @@ const CustomDashboardWrapper = ({
     setTimeout(() => setDataReady(true), remainingTime);
   };
 
-  // Compute loading state: show loader until both data AND grid are ready
-  const loading = !dataReady || !gridReady;
+  // Compute loading state: show loader until data is ready
+  // Note: gridReady is handled internally by CustomDashboardReactLayout with visibility:hidden
+  const loading = !dataReady;
 
   useEffect(() => {
     if (!customDashboard) {
