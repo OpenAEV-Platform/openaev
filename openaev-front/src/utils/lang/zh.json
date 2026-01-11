@@ -697,6 +697,7 @@
   "FAILED": "失败",
   "Failed": "已失败",
   "failed": "已失败",
+  "Failed to copy to clipboard": "复制到剪贴板失败",
   "Failed to delete vulnerability.": "删除漏洞失败",
   "Failed to update vulnerability.": "更新漏洞失败。",
   "Failure": "失败",

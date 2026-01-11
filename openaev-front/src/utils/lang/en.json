@@ -697,6 +697,7 @@
   "FAILED": "Failed",
   "Failed": "Failed",
   "failed": "failed",
+  "Failed to copy to clipboard": "Failed to copy to clipboard",
   "Failed to delete vulnerability.": "Failed to delete vulnerability.",
   "Failed to update vulnerability.": "Failed to update vulnerability.",
   "Failure": "Failure",

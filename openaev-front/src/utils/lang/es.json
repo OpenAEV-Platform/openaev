@@ -697,6 +697,7 @@
   "FAILED": "Falló",
   "Failed": "Fallado",
   "failed": "fallado",
+  "Failed to copy to clipboard": "Error al copiar al portapapeles",
   "Failed to delete vulnerability.": "Error al eliminar vulnerabilidad.",
   "Failed to update vulnerability.": "Error al actualizar vulnerabilidad.",
   "Failure": "Fallo",

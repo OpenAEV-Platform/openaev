@@ -69,7 +69,7 @@ const CustomDashboardWrapper = ({
   const [, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
   const [parameters, setParameters] = useState<Record<string, ParameterOption>>({});
   const [dataReady, setDataReady] = useState(false);
-  const [gridReady, setGridReady] = useState(false);
+  const [_gridReady, setGridReady] = useState(false);
   const loadingStartTime = useRef<number>(Date.now());
 
   const [, setSearchParams] = useSearchParams();

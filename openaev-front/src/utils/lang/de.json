@@ -697,6 +697,7 @@
   "FAILED": "Fehlgeschlagen",
   "Failed": "Fehlgeschlagen",
   "failed": "failed",
+  "Failed to copy to clipboard": "Kopieren in die Zwischenablage fehlgeschlagen",
   "Failed to delete vulnerability.": "Schwachstelle konnte nicht gelöscht werden.",
   "Failed to update vulnerability.": "Aktualisierung der Sicherheitslücke fehlgeschlagen.",
   "Failure": "Fehlgeschlagen",

@@ -697,6 +697,7 @@
   "FAILED": "Не удалось",
   "Failed": "Не удалось",
   "failed": "не удалось",
+  "Failed to copy to clipboard": "Не удалось скопировать в буфер обмена",
   "Failed to delete vulnerability.": "Не удалось удалить уязвимость.",
   "Failed to update vulnerability.": "Не удалось обновить уязвимость.",
   "Failure": "Сбой",

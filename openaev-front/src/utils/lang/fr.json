@@ -697,6 +697,7 @@
   "FAILED": "Echoué",
   "Failed": "Echoué",
   "failed": "Échoué",
+  "Failed to copy to clipboard": "Échec de la copie dans le presse-papiers",
   "Failed to delete vulnerability.": "Échec de la suppression de la vulnérabilité.",
   "Failed to update vulnerability.": "Échec de la mise à jour de la vulnérabilité.",
   "Failure": "Echec",

@@ -697,6 +697,7 @@
   "FAILED": "失敗",
   "Failed": "失敗",
   "failed": "失敗した",
+  "Failed to copy to clipboard": "クリップボードへのコピーに失敗しました",
   "Failed to delete vulnerability.": "脆弱性の削除に失敗しました。",
   "Failed to update vulnerability.": "脆弱性のアップデートに失敗した",
   "Failure": "失敗",
