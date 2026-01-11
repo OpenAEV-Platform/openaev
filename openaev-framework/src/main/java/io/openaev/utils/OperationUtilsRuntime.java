@@ -19,7 +19,11 @@ import java.util.List;
  *   <li>Empty/null checks
  * </ul>
  *
- * @see FilterUtilsRuntime
+ * <p>This is the runtime counterpart to {@link OperationUtilsJpa}, providing the same filtering
+ * logic for in-memory collections rather than database queries.
+ *
+ * @see FilterUtilsRuntime for building runtime predicates
+ * @see OperationUtilsJpa for JPA-based filtering
  */
 public class OperationUtilsRuntime {
 

@@ -19,11 +19,20 @@ import lombok.Data;
  *   <li>Links to other fields for dynamic behavior
  * </ul>
  *
- * <p>Subclasses provide specific field types like text, checkbox, select, etc.
+ * <p>Subclasses provide specific field types:
  *
- * @see ContractText
- * @see ContractCheckbox
- * @see ContractSelect
+ * <ul>
+ *   <li>{@link ContractText} - Single-line text input
+ *   <li>{@link ContractTextArea} - Multi-line text/rich text input
+ *   <li>{@link ContractCheckbox} - Boolean checkbox
+ *   <li>{@link ContractNumber} - Numeric input
+ *   <li>{@link ContractSelect} - Dropdown selection
+ *   <li>{@link ContractAsset}, {@link ContractAssetGroup} - Asset selection
+ *   <li>{@link ContractTeam} - Team selection
+ *   <li>{@link ContractExpectations} - Expectation configuration
+ * </ul>
+ *
+ * @see ContractDef for building contract field definitions
  */
 @Data
 public abstract class ContractElement {

@@ -81,8 +81,8 @@ public @interface Queryable {
    * Defines the JPA path used to query this property.
    *
    * <p>Follows Spring Data Specification conventions (e.g., {@code "organization.id"}). The path
-   * should end with a primitive value; otherwise, this may lead to
-   * {@link UnsupportedOperationException}.
+   * should end with a primitive value; otherwise, this may lead to {@link
+   * UnsupportedOperationException}.
    *
    * @return the JPA path, or an empty string to use the field name
    */
@@ -130,8 +130,8 @@ public @interface Queryable {
    * Sentinel class representing an "unassigned" state for type hint attributes.
    *
    * <p>This class is used as a default value for {@link #clazz()} and {@link #refEnumClazz()} to
-   * indicate that no type hint has been specified. {@code Void.class} cannot be used since
-   * {@code void} is a valid type that could cause ambiguity.
+   * indicate that no type hint has been specified. {@code Void.class} cannot be used since {@code
+   * void} is a valid type that could cause ambiguity.
    */
   class Unassigned {}
 }

@@ -23,6 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+/**
+ * Helper component for inject operations and execution context building.
+ *
+ * <p>Provides methods for retrieving pending injects, converting injects to executable form, and
+ * building execution contexts with team and user information. This component is central to the
+ * inject execution pipeline.
+ *
+ * @see io.openaev.execution.ExecutableInject
+ * @see io.openaev.execution.ExecutionContext
+ */
 @Component
 @RequiredArgsConstructor
 public class InjectHelper {
@@ -32,6 +42,16 @@ public class InjectHelper {
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
 
+  /**
+   * Retrieves the teams targeted by an inject.
+   *
+   * <p>If the inject targets all teams, returns all teams from the exercise. Otherwise, returns
+   * only the specifically targeted teams. Also initializes users within teams for player
+   * expectation processing.
+   *
+   * @param inject the inject to get teams for
+   * @return list of targeted teams with initialized users
+   */
   private List<Team> getInjectTeams(@NotNull final Inject inject) {
     Exercise exercise = inject.getExercise();
     if (inject
@@ -91,6 +111,15 @@ public class InjectHelper {
     return injectWhen.equals(now) || injectWhen.isBefore(now);
   }
 
+  /**
+   * Retrieves all pending injects within a time threshold.
+   *
+   * <p>Finds injects that are pending execution and scheduled within the specified number of
+   * minutes from now. Used for pre-loading upcoming injects.
+   *
+   * @param thresholdMinutes the time window in minutes to look ahead
+   * @return list of pending injects scheduled within the threshold
+   */
   public List<Inject> getAllPendingInjectsWithThresholdMinutes(int thresholdMinutes) {
     return this.injectRepository.findAll(
         InjectSpecification.pendingInjectWithThresholdMinutes(thresholdMinutes));
@@ -112,6 +141,16 @@ public class InjectHelper {
         usersFromInjection(inject));
   }
 
+  /**
+   * Retrieves all injects that are ready for execution.
+   *
+   * <p>Combines regular exercise injects and atomic testing injects that are scheduled for now or
+   * earlier, converting them to executable form with all necessary context (teams, assets, users).
+   *
+   * <p>This method runs in a transaction to ensure consistent data loading.
+   *
+   * @return list of executable injects ready to run, sorted by execution order
+   */
   @Transactional
   public List<ExecutableInject> getInjectsToRun() {
     // Get injects

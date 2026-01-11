@@ -15,7 +15,19 @@ import java.util.List;
  * including user information, exercise metadata, team data, and platform URIs.
  *
  * <p>Variables defined here are automatically available in all injection contracts and can be
- * referenced in templates using the standard variable syntax (e.g., {@code ${user.email}}).
+ * referenced in templates using the FreeMarker variable syntax (e.g., {@code ${user.email}}).
+ *
+ * <p>Available variable groups:
+ *
+ * <ul>
+ *   <li>{@link #userVariable} - Target user information (id, email, name, language)
+ *   <li>{@link #exerciseVariable} - Current exercise/scenario details
+ *   <li>{@link #teamVariable} - List of participating team names
+ *   <li>{@link #uriVariables} - Platform interface URLs
+ * </ul>
+ *
+ * @see ContractVariable
+ * @see Contract
  */
 public final class VariableHelper {
 

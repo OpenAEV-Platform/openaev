@@ -18,16 +18,47 @@ public class CopyObjectListUtils {
     return copyCollection(origins, clazz, destinations, true);
   }
 
+  /**
+   * Creates a deep copy of a list of entities preserving all properties including IDs.
+   *
+   * @param <T> the entity type extending Base
+   * @param origins the source list of entities to copy
+   * @param clazz the entity class
+   * @return a new list containing copies of all entities with IDs preserved
+   */
   public static <T extends Base> List<T> copy(@NotNull final List<T> origins, Class<T> clazz) {
     List<T> destinations = new ArrayList<>();
     return copyCollection(origins, clazz, destinations, false);
   }
 
+  /**
+   * Creates a deep copy of a set of entities preserving all properties including IDs.
+   *
+   * @param <T> the entity type extending Base
+   * @param origins the source set of entities to copy
+   * @param clazz the entity class
+   * @return a new set containing copies of all entities with IDs preserved
+   */
   public static <T extends Base> Set<T> copy(@NotNull final Set<T> origins, Class<T> clazz) {
     Set<T> destinations = new HashSet<>();
     return copyCollection(origins, clazz, destinations, false);
   }
 
+  /**
+   * Generic method for copying collections of entities.
+   *
+   * <p>Copies each entity from the origin collection to the destination collection, optionally
+   * excluding ID fields.
+   *
+   * @param <T> the entity type extending Base
+   * @param <C> the collection type
+   * @param origins the source collection of entities
+   * @param clazz the entity class
+   * @param destinations the destination collection to populate
+   * @param withoutId if true, excludes ID fields from the copy
+   * @return the destination collection populated with copied entities
+   * @throws RuntimeException if the copy operation fails
+   */
   public static <T extends Base, C extends Collection<T>> C copyCollection(
       @NotNull final C origins, Class<T> clazz, C destinations, Boolean withoutId) {
     origins.forEach(
@@ -50,6 +81,19 @@ public class CopyObjectListUtils {
     return destinations;
   }
 
+  /**
+   * Creates a copy of an object excluding fields annotated with {@code @Id}.
+   *
+   * <p>Uses reflection to copy all fields from the source object to a new instance of the target
+   * class, skipping any fields annotated with JPA's {@code @Id} annotation.
+   *
+   * @param <T> the target type
+   * @param <C> the source type
+   * @param origin the source object to copy from
+   * @param targetClass the target class to instantiate
+   * @return a new instance with all non-ID fields copied
+   * @throws RuntimeException if the copy operation fails
+   */
   public static <T, C> T copyObjectWithoutId(C origin, Class<T> targetClass) {
     try {
       T target = targetClass.getDeclaredConstructor().newInstance();

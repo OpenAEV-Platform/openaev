@@ -19,11 +19,17 @@ import java.util.Map;
  * <p>Special handling is provided for:
  *
  * <ul>
- *   <li>Array types - uses PostgreSQL array functions
- *   <li>Map types - extracts values for comparison
- *   <li>Boolean values - parses string representations
+ *   <li>Array types - uses PostgreSQL array functions (array_to_string, array_position)
+ *   <li>Map types (hstore) - extracts values using avals() function
+ *   <li>Boolean values - parses string representations ("true"/"false")
  *   <li>Date/time values - parses ISO-8601 instant strings
  * </ul>
+ *
+ * <p><b>Database Compatibility:</b> This class uses PostgreSQL-specific functions and requires
+ * custom SQL function wrappers (array_position_wrapper, array_to_string_wrapper) to be defined in
+ * the database.
+ *
+ * @see FilterUtilsJpa for high-level filter specification building
  */
 public final class OperationUtilsJpa {
 

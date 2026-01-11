@@ -8,7 +8,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * <p>Each field type corresponds to a specific UI input component and data format. Field types
  * determine how data is collected from users and validated.
  *
+ * <p>The JSON property value of each type is used for serialization and must match the frontend
+ * component expectations.
+ *
  * @see ContractElement
+ * @see ContractElement#getType()
  */
 public enum ContractFieldType {
   /** Single-line text input field. */

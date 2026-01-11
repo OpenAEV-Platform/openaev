@@ -16,6 +16,11 @@ import lombok.Setter;
  *       hostname, or other properties from the selected asset
  *   <li>Dynamic choice fields that update based on another field's selection
  * </ul>
+ *
+ * <p>Use the factory method {@link #fromField(ContractElement)} to create instances from contract
+ * elements.
+ *
+ * @see io.openaev.injector_contract.fields.ContractElement#setLinkedFields(java.util.List)
  */
 @Getter
 @Setter

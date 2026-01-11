@@ -23,7 +23,7 @@ import org.springframework.util.CollectionUtils;
  *   <li>Computing JPA paths from property schemas
  *   <li>Managing joins for nested properties
  *   <li>Building "in" and "not in" specifications
- *   <li>Array aggregation for relationship queries
+ *   <li>Array aggregation for relationship queries (PostgreSQL-specific)
  * </ul>
  *
  * <p>Path resolution supports:
@@ -33,6 +33,11 @@ import org.springframework.util.CollectionUtils;
  *   <li>Nested paths with automatic join creation (e.g., "user.organization.name")
  *   <li>Join table relationships
  * </ul>
+ *
+ * <p><b>Note:</b> Some methods use PostgreSQL-specific functions (e.g., array_agg) and may not work
+ * with other databases.
+ *
+ * @see FilterUtilsJpa for building filter specifications
  */
 public final class JpaUtils {
 

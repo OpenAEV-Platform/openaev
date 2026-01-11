@@ -11,9 +11,13 @@ import lombok.Data;
  * is used as input to create the appropriate expectation instances (Detection, Prevention, Manual,
  * etc.).
  *
+ * <p>This is a data transfer object (DTO) that is deserialized from JSON form submissions and then
+ * used to construct domain expectation objects.
+ *
  * @see io.openaev.model.Expectation
  * @see io.openaev.model.expectation.DetectionExpectation
  * @see io.openaev.model.expectation.PreventionExpectation
+ * @see io.openaev.expectation.ExpectationBuilderService
  */
 @Data
 public class Expectation {

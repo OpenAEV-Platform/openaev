@@ -32,18 +32,34 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+/**
+ * Helper class for RabbitMQ operations and management API interactions.
+ *
+ * <p>Provides utility methods for querying RabbitMQ server information through its management API,
+ * with support for SSL/TLS connections and insecure certificates.
+ *
+ * <p>This is a utility class and cannot be instantiated.
+ */
 @Slf4j
 public final class RabbitMQHelper {
 
   private RabbitMQHelper() {}
 
+  /** Cached RabbitMQ version (thread-safe lazy initialization). */
   private static volatile String rabbitMQVersion;
+
+  /** Lock object for thread-safe version initialization. */
   private static final Object VERSION_LOCK = new Object();
 
   /**
-   * Return the version of Rabbit MQ we're using
+   * Retrieves the RabbitMQ server version via the management API.
    *
-   * @return the rabbit MQ version
+   * <p>Uses double-checked locking for thread-safe lazy initialization. The version is cached after
+   * the first successful retrieval. Supports both SSL and non-SSL connections, with optional
+   * certificate validation bypass.
+   *
+   * @param rabbitmqConfig the RabbitMQ configuration containing connection details
+   * @return the RabbitMQ version string, or null if the version cannot be retrieved
    */
   public static String getRabbitMQVersion(RabbitmqConfig rabbitmqConfig) {
     // Double-checked locking for thread-safe lazy initialization

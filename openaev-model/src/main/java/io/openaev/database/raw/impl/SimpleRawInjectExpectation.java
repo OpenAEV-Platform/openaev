@@ -7,6 +7,18 @@ import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Simple implementation of {@link RawInjectExpectation} for programmatic construction.
+ *
+ * <p>This class provides a mutable implementation of the {@link RawInjectExpectation} projection
+ * interface, allowing expectation data to be constructed programmatically rather than exclusively
+ * from database queries.
+ *
+ * <p>Used when expectation data needs to be assembled from multiple sources or transformed before
+ * use.
+ *
+ * @see RawInjectExpectation
+ */
 @Getter
 @Setter
 public class SimpleRawInjectExpectation implements RawInjectExpectation {

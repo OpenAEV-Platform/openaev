@@ -11,14 +11,20 @@ import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
  * <ul>
  *   <li><b>DETECTION</b> - Expects security tools to detect the activity
  *   <li><b>PREVENTION</b> - Expects security controls to prevent the activity
+ *   <li><b>VULNERABILITY</b> - Expects vulnerability identification
  *   <li><b>MANUAL</b> - Requires manual verification by an operator
  *   <li><b>CHALLENGE</b> - Expects users to complete a challenge
  *   <li><b>ARTICLE</b> - Expects users to read an article/channel content
+ *   <li><b>DOCUMENT</b> - Expects document submission
+ *   <li><b>TEXT</b> - Simple text-based expectation
  * </ul>
+ *
+ * <p>All expectation implementations should provide immutable instances through factory methods.
  *
  * @see io.openaev.model.expectation.DetectionExpectation
  * @see io.openaev.model.expectation.PreventionExpectation
  * @see io.openaev.model.expectation.ManualExpectation
+ * @see io.openaev.model.expectation.VulnerabilityExpectation
  */
 public interface Expectation {
 

@@ -26,13 +26,25 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper component for processing and converting inject expectations.
+ *
+ * <p>Provides methods for extracting expectation results from various sources including inject
+ * content, raw database queries, and entity objects. Handles the complex logic of building
+ * expectation result aggregations by type.
+ *
+ * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class InjectExpectationMapper {
 
+  /** JSON property name for expectation type in inject content. */
   public static final String NODE_EXPECTATION_TYPE = "expectation_type";
 
+  /** Set of all available expectation types for completeness checking. */
   private static final EnumSet<ExpectationType> ALL_EXPECTATION_TYPES =
       EnumSet.allOf(ExpectationType.class);
 
