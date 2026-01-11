@@ -10,7 +10,8 @@ import lombok.Getter;
  * Represents a variable available for template substitution in contract content.
  *
  * <p>Contract variables enable dynamic content in injection templates. Variables can be referenced
- * using template syntax (e.g., {@code ${user.email}}) and are resolved at injection time.
+ * using FreeMarker template syntax (e.g., {@code ${user.email}}) and are resolved at injection
+ * time.
  *
  * <p>Variables support:
  *
@@ -20,7 +21,7 @@ import lombok.Getter;
  *   <li>Single or multiple value cardinality
  * </ul>
  *
- * <p>Example:
+ * <p>Example creating a nested variable structure:
  *
  * <pre>{@code
  * ContractVariable userVar = ContractVariable.variable(
@@ -34,6 +35,7 @@ import lombok.Getter;
  *
  * @see ContractCardinality
  * @see VariableType
+ * @see io.openaev.injector_contract.variables.VariableHelper for predefined variables
  */
 @Getter
 public class ContractVariable {

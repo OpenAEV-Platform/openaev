@@ -15,7 +15,11 @@ import java.util.function.Function;
  *   <li>A function to extract the property value from an Endpoint
  * </ul>
  *
+ * <p>This is used with {@link io.openaev.injector_contract.fields.ContractTargetedAsset} fields to
+ * allow users to select which property to use when targeting assets.
+ *
  * @see Endpoint
+ * @see io.openaev.injector_contract.fields.ContractTargetedAsset
  */
 public enum ContractTargetedProperty {
   /** Target using the endpoint's hostname. */
