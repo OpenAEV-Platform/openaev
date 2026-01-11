@@ -3,7 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
-import io.openaev.database.raw.RawInjectorsContracts;
+import io.openaev.database.raw.RawInjectorsContrats;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +27,7 @@ public interface InjectorContractRepository
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContracts();
+  List<RawInjectorsContrats> getAllRawInjectorsContracts();
 
   @Query(
       value =
@@ -47,7 +47,7 @@ public interface InjectorContractRepository
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContractsWithoutPayloadOrGranted(
+  List<RawInjectorsContrats> getAllRawInjectorsContractsWithoutPayloadOrGranted(
       @Param("userId") String userId);
 
   @NotNull

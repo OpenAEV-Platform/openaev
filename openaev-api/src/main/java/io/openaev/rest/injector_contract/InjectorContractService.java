@@ -10,7 +10,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectorsContracts;
+import io.openaev.database.raw.RawInjectorsContrats;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -187,7 +187,7 @@ public class InjectorContractService {
     return new PageImpl<>(injectorContractBaseOutputs, pageable, qs.total);
   }
 
-  public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
+  public Iterable<RawInjectorsContrats> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
