@@ -18,8 +18,7 @@ export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearch
       return buildSearchPagination(parse);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        // eslint-disable-next-line no-console
-        console.log(`Validation error: the uri has not a valid format ${err.issues}`);
+        // URI validation failed - return null to use default pagination
         return null;
       }
     }

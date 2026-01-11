@@ -100,8 +100,8 @@ export const readFileContent = (file: File): Promise<unknown> => {
   });
 };
 
-export const randomElements = (elements: never[], number: number) => {
-  const shuffled = elements.sort(() => 0.5 - Math.random());
+export const randomElements = <T>(elements: T[], number: number): T[] => {
+  const shuffled = [...elements].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, number);
 };
 

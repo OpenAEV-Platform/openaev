@@ -51,6 +51,6 @@ class CountryField extends Component {
 }
 
 /**
- * @deprecated The component use old form libnary react-final-form
+ * @deprecated The component uses old form library react-final-form
  */
 export default R.compose(inject18n, Component => withStyles(Component, styles))(CountryField);

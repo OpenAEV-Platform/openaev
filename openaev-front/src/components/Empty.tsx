@@ -1,4 +1,11 @@
-const Empty = ({ message, id = '' }) => (
+import { type FunctionComponent, type ReactNode } from 'react';
+
+interface EmptyProps {
+  message: ReactNode;
+  id?: string;
+}
+
+const Empty: FunctionComponent<EmptyProps> = ({ message, id = '' }) => (
   <div
     id={id}
     style={{

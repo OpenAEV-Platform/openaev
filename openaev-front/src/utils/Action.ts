@@ -11,13 +11,9 @@ import * as Constants from '../constants/ActionTypes';
 import { DATA_FETCH_ERROR } from '../constants/ActionTypes';
 import { api } from '../network';
 import { store } from '../store';
-import { MESSAGING$ } from './Environment';
+import { APP_BASE_PATH, MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import { oaevLocaleMap } from './locales';
-
-const isEmptyPath = R.isNil(window.BASE_PATH) || R.isEmpty(window.BASE_PATH);
-const contextPath = isEmptyPath || window.BASE_PATH === '/' ? '' : window.BASE_PATH;
-export const APP_BASE_PATH = isEmptyPath || contextPath.startsWith('/') ? contextPath : `/${contextPath}`;
 
 const cache = createIntlCache();
 

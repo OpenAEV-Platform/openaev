@@ -1,3 +1,5 @@
+import { type Dispatch } from 'redux';
+
 import {
   bulkDeleteReferential,
   delReferential,
@@ -10,85 +12,87 @@ import {
 } from '../utils/Action';
 import * as schema from './Schema';
 
+type AppDispatch = Dispatch;
+
 // -- INJECTS --
 
-export const fetchInject = injectId => (dispatch) => {
+export const fetchInject = (injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/injects/${injectId}`;
   return getReferential(schema.inject, uri)(dispatch);
 };
 
-export const bulkDeleteInjects = data => (dispatch) => {
-  const uri = `/api/injects`;
+export const bulkDeleteInjects = (data: string[]) => (dispatch: AppDispatch) => {
+  const uri = '/api/injects';
   return bulkDeleteReferential(uri, 'injects', data)(dispatch);
 };
 
-export const bulkDeleteInjectsSimple = (data) => {
-  const uri = `/api/injects`;
+export const bulkDeleteInjectsSimple = (data: string[]) => {
+  const uri = '/api/injects';
   return simpleDelCall(uri, { data });
 };
 
-export const bulkUpdateInject = data => (dispatch) => {
-  const uri = `/api/injects`;
+export const bulkUpdateInject = (data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+  const uri = '/api/injects';
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const bulkUpdateInjectSimple = (data) => {
-  const uri = `/api/injects`;
+export const bulkUpdateInjectSimple = (data: Record<string, unknown>) => {
+  const uri = '/api/injects';
   return simplePutCall(uri, data);
 };
 
 // -- EXERCISES --
 
-export const fetchExerciseInjects = exerciseId => (dispatch) => {
+export const fetchExerciseInjects = (exerciseId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects`;
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
 };
 
-export const fetchInjectTeams = (exerciseId, injectId) => (dispatch) => {
+export const fetchInjectTeams = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}/teams`;
   return getReferential(schema.arrayOfTeams, uri)(dispatch);
 };
 
-export const updateInjectForExercise = (exerciseId, injectId, data) => (dispatch) => {
+export const updateInjectForExercise = (exerciseId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
   const uri = `/api/injects/${exerciseId}/${injectId}`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const updateInjectTriggerForExercise = (exerciseId, injectId) => (dispatch) => {
+export const updateInjectTriggerForExercise = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}/trigger`;
-  return putReferential(schema.inject, uri)(dispatch);
+  return putReferential(schema.inject, uri, {})(dispatch);
 };
 
-export const updateInjectActivationForExercise = (exerciseId, injectId, data) => (dispatch) => {
+export const updateInjectActivationForExercise = (exerciseId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}/activation`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const addInjectForExercise = (exerciseId, data) => (dispatch) => {
+export const addInjectForExercise = (exerciseId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects`;
   return postReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const duplicateInjectForExercise = (exerciseId, injectId) => (dispatch) => {
+export const duplicateInjectForExercise = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}`;
   return postReferential(schema.inject, uri, null)(dispatch);
 };
 
-export const deleteInjectForExercise = (exerciseId, injectId) => (dispatch) => {
+export const deleteInjectForExercise = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}`;
   return delReferential(uri, 'injects', injectId)(dispatch);
 };
 
-export const executeInject = (exerciseId, values, files) => (dispatch) => {
+export const executeInject = (exerciseId: string, values: Record<string, unknown>, files: File[] | null) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/inject`;
   const formData = new FormData();
-  formData.append('file', files && files.length > 0 ? files[0] : null);
+  formData.append('file', files && files.length > 0 ? files[0] : '');
   const blob = new Blob([JSON.stringify(values)], { type: 'application/json' });
   formData.append('input', blob);
   return postReferential(schema.injectStatus, uri, formData)(dispatch);
 };
 
-export const injectDone = (exerciseId, injectId) => (dispatch) => {
+export const injectDone = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
   const data = {
     status: 'SUCCESS',
     message: 'Manual validation',
@@ -99,37 +103,37 @@ export const injectDone = (exerciseId, injectId) => (dispatch) => {
 
 // -- SCENARIOS --
 
-export const addInjectForScenario = (scenarioId, data) => (dispatch) => {
+export const addInjectForScenario = (scenarioId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects`;
   return postReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const playInjectsAssistantForScenario = (scenarioId, data) => {
+export const playInjectsAssistantForScenario = (scenarioId: string, data: Record<string, unknown>) => {
   const uri = `/api/scenarios/${scenarioId}/injects/assistant`;
   return simplePostCall(uri, data);
 };
 
-export const duplicateInjectForScenario = (scenarioId, injectId) => (dispatch) => {
+export const duplicateInjectForScenario = (scenarioId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects/${injectId}`;
   return postReferential(schema.inject, uri, null)(dispatch);
 };
 
-export const fetchScenarioInjects = scenarioId => (dispatch) => {
+export const fetchScenarioInjects = (scenarioId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects`;
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
 };
 
-export const updateInjectForScenario = (scenarioId, injectId, data) => (dispatch) => {
+export const updateInjectForScenario = (scenarioId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects/${injectId}`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const updateInjectActivationForScenario = (exerciseId, injectId, data) => (dispatch) => {
-  const uri = `/api/scenarios/${exerciseId}/injects/${injectId}/activation`;
+export const updateInjectActivationForScenario = (scenarioId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+  const uri = `/api/scenarios/${scenarioId}/injects/${injectId}/activation`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const deleteInjectScenario = (scenarioId, injectId) => (dispatch) => {
+export const deleteInjectScenario = (scenarioId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects/${injectId}`;
   return delReferential(uri, 'injects', injectId)(dispatch);
 };

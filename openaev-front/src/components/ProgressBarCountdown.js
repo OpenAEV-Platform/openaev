@@ -1,9 +1,9 @@
 import { LinearProgress } from '@mui/material';
-import { useEffect, useState } from 'react';
-
-const now = Math.round(Date.now() / 1000);
+import { useEffect, useMemo, useState } from 'react';
 
 const Countdown = ({ date, paused }) => {
+  const now = useMemo(() => Math.round(Date.now() / 1000), []);
+
   let dateInSeconds = date;
   if (date === null) {
     dateInSeconds = null;
@@ -40,7 +40,7 @@ const Countdown = ({ date, paused }) => {
   useEffect(() => {
     const timerID = setInterval(() => tick(), 1000);
     return () => clearInterval(timerID);
-  });
+  }, [paused, dateInSeconds, remainingTime]);
   return (
     <LinearProgress
       value={100 - percentRemaining}

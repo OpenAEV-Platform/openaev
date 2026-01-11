@@ -21,7 +21,7 @@ class Message extends Component {
       next: (messages) => {
         const firstMessage = head(messages);
         if (firstMessage) {
-          const text = firstMessage.text instanceof String
+          const text = typeof firstMessage.text === 'string'
             ? this.props.t(firstMessage.text)
             : firstMessage.text;
           const error = firstMessage.type === 'error';
