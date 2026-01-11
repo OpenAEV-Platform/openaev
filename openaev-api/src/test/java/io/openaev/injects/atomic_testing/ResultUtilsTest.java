@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.raw.RawInjectExpectation;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -32,6 +33,7 @@ class ResultUtilsTest extends IntegrationTest {
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectRepository injectRepository;
+  @Mock private ObjectMapper objectMapper;
   @Mock private InjectUtils injectUtils;
 
   private InjectExpectationMapper injectExpectationMapper;
@@ -39,7 +41,8 @@ class ResultUtilsTest extends IntegrationTest {
 
   @BeforeEach
   void before() {
-    injectExpectationMapper = new InjectExpectationMapper(injectRepository, injectUtils);
+    injectExpectationMapper =
+        new InjectExpectationMapper(injectRepository, objectMapper, injectUtils);
     resultUtils = new ResultUtils(injectExpectationRepository, injectExpectationMapper);
   }
 
