@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { useFormatter } from '../components/i18n';
 
-const useSearchAnFilter = (
+const useSearchAndFilter = (
   schema,
   defaultSortKey,
   searchColumns,
@@ -94,4 +94,4 @@ const useSearchAnFilter = (
   };
 };
 
-export default useSearchAnFilter;
+export default useSearchAndFilter;

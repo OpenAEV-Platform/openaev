@@ -1,6 +1,6 @@
 import { Button, type Theme, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import type { CSSProperties, FunctionComponent } from 'react';
+import { type CSSProperties, type FunctionComponent, memo, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { SUCCESS_25_COLOR, SUCCESS_50_COLOR, SUCCESS_75_COLOR, SUCCESS_100_COLOR } from './securityCoverageUtils';
@@ -34,14 +34,23 @@ const getTextColor = (theme: Theme, total: number): string | undefined => {
   return theme.palette.common.white;
 };
 
-const AttackPatternBox: FunctionComponent<{
+interface AttackPatternBoxProps {
   attackPatternName: string;
   attackPatternExerternalId: string;
   successRate: number | null;
   total?: number;
   style?: CSSProperties;
   onClick?: () => void;
-}> = ({ attackPatternName, attackPatternExerternalId, successRate = null, total, style = {}, onClick }) => {
+}
+
+const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
+  attackPatternName,
+  attackPatternExerternalId,
+  successRate = null,
+  total,
+  style = {},
+  onClick,
+}) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -49,45 +58,55 @@ const AttackPatternBox: FunctionComponent<{
   const backgroundColor = getBackgroundColor(successRate);
   const textColor = getTextColor(theme, total ?? 0);
 
+  // Memoize button style
+  const buttonStyle = useMemo(() => ({
+    backgroundColor,
+    ...style,
+  }), [backgroundColor, style]);
+
+  // Memoize typography styles
+  const nameTypographySx = useMemo(() => ({
+    textAlign: 'left' as const,
+    color: textColor,
+    whiteSpace: 'normal' as const,
+    fontSize: theme.typography.h3.fontSize,
+    gridColumn: total && total > 0 ? 'span 1' : 'span 2',
+  }), [textColor, theme.typography.h3.fontSize, total]);
+
+  const rateTypographySx = useMemo(() => ({
+    textAlign: 'right' as const,
+    fontSize: theme.typography.h3.fontSize,
+  }), [theme.typography.h3.fontSize]);
+
+  const idTypographySx = useMemo(() => ({
+    textAlign: 'left' as const,
+    color: textColor,
+    gridColumn: 'span 2',
+  }), [textColor]);
+
+  // Calculate success count
+  const successCount = successRate ? Math.round(successRate * (total ?? 0)) : 0;
+
   return (
     <Button
       aria-haspopup="true"
-      style={{
-        backgroundColor,
-        ...style,
-      }}
+      style={buttonStyle}
       className={classes.button}
       disabled={!onClick}
       onClick={onClick}
     >
       <div className={classes.container}>
-        <Typography sx={{
-          textAlign: 'left',
-          color: textColor,
-          whiteSpace: 'normal',
-          fontSize: theme.typography.h3.fontSize,
-          gridColumn: total && total > 0 ? 'span 1' : 'span 2',
-        }}
-        >
+        <Typography sx={nameTypographySx}>
           {attackPatternName}
         </Typography>
         {successRate != null && total && total > 0 && (
-          <Typography sx={{
-            textAlign: 'right',
-            fontSize: theme.typography.h3.fontSize,
-          }}
-          >
-            {successRate ? successRate * total : 0}
+          <Typography sx={rateTypographySx}>
+            {successCount}
             /
             {total}
           </Typography>
         )}
-        <Typography sx={{
-          textAlign: 'left',
-          color: textColor,
-          gridColumn: 'span 2',
-        }}
-        >
+        <Typography sx={idTypographySx}>
           {attackPatternExerternalId}
         </Typography>
       </div>
@@ -95,4 +114,4 @@ const AttackPatternBox: FunctionComponent<{
   );
 };
 
-export default AttackPatternBox;
+export default memo(AttackPatternBox);

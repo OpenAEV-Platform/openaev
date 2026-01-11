@@ -7,6 +7,40 @@ import { getSourceHandlePosition, getTargetHandlePosition } from './utils';
 
 export type LayoutOptions = { algorithm: keyof typeof layoutAlgorithms } & LayoutAlgorithmOptions;
 
+type Elements = {
+  nodeMap: Map<string, Node>;
+  edgeMap: Map<string, Edge>;
+};
+
+function compareNodes(xs: Map<string, Node>, ys: Map<string, Node>) {
+  // the number of nodes changed, so we already know that the nodes are not equal
+  if (xs.size !== ys.size) return false;
+
+  // @ts-expect-error - Map entries iteration type issue
+  for (const [id, x] of xs.entries()) {
+    const y = ys.get(id);
+
+    // the node doesn't exist in the next state so it just got added
+    if (!y) return false;
+    // We don't want to force a layout change while a user might be resizing a
+    // node, so we only compare the dimensions if the node is not currently
+    // being resized.
+    //
+    // We early return here instead of using a `continue` because there's no
+    // scenario where we'd want nodes to start moving around *while* a user is
+    // trying to resize a node or move it around.
+    if (x.resizing || x.dragging) return true;
+    if (x.width !== y.width || x.height !== y.height) return false;
+    if (x.data.label !== y.data.label) return false;
+  }
+
+  return true;
+}
+
+function compareElements(xs: Elements, ys: Elements) {
+  return compareNodes(xs.nodeMap, ys.nodeMap);
+}
+
 function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectationsStore[]) {
   const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const elements = useStore(
@@ -20,7 +54,6 @@ function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectations
     // The compare elements function will only update `elements` if something has
     // changed that should trigger a layout. This includes changes to a node's
     // dimensions, the number of nodes, or changes to edge sources/targets.
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     compareElements,
   );
   const nodesInitialized = useNodesInitialized();
@@ -65,39 +98,3 @@ function useAutoLayout(options: LayoutOptions, targetResults: InjectExpectations
 }
 
 export default useAutoLayout;
-
-type Elements = {
-  nodeMap: Map<string, Node>;
-  edgeMap: Map<string, Edge>;
-};
-
-function compareElements(xs: Elements, ys: Elements) {
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
-  return compareNodes(xs.nodeMap, ys.nodeMap);
-}
-
-function compareNodes(xs: Map<string, Node>, ys: Map<string, Node>) {
-  // the number of nodes changed, so we already know that the nodes are not equal
-  if (xs.size !== ys.size) return false;
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  for (const [id, x] of xs.entries()) {
-    const y = ys.get(id);
-
-    // the node doesn't exist in the next state so it just got added
-    if (!y) return false;
-    // We don't want to force a layout change while a user might be resizing a
-    // node, so we only compare the dimensions if the node is not currently
-    // being resized.
-    //
-    // We early return here instead of using a `continue` because there's no
-    // scenario where we'd want nodes to start moving around *while* a user is
-    // trying to resize a node or move it around.
-    if (x.resizing || x.dragging) return true;
-    if (x.width !== y.width || x.height !== y.height) return false;
-    if (x.data.label !== y.data.label) return false;
-  }
-
-  return true;
-}

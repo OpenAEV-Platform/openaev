@@ -3,6 +3,7 @@ import { type Dispatch } from 'redux';
 
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall } from '../utils/Action';
+import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
 import * as schema from './Schema';
 
 interface ResetValues {
@@ -16,15 +17,13 @@ interface LoginData {
   lang?: string;
 }
 
-interface PlatformParametersData { [key: string]: unknown }
-
 type AppDispatch = Dispatch;
 
 export const fetchPlatformParameters = () => (dispatch: AppDispatch) => {
   return getReferential(schema.platformParameters, '/api/settings')(dispatch);
 };
 
-export const updatePlatformParameters = (data: PlatformParametersData) => (dispatch: AppDispatch) => {
+export const updatePlatformParameters = (data: SettingsUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings',
@@ -32,7 +31,7 @@ export const updatePlatformParameters = (data: PlatformParametersData) => (dispa
   )(dispatch);
 };
 
-export const updatePlatformPolicies = (data: PlatformParametersData) => (dispatch: AppDispatch) => {
+export const updatePlatformPolicies = (data: PolicyInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/policies',
@@ -40,7 +39,7 @@ export const updatePlatformPolicies = (data: PlatformParametersData) => (dispatc
   )(dispatch);
 };
 
-export const updatePlatformEnterpriseEditionParameters = (data: PlatformParametersData) => (dispatch: AppDispatch) => {
+export const updatePlatformEnterpriseEditionParameters = (data: SettingsEnterpriseEditionUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/enterprise-edition',
@@ -48,7 +47,7 @@ export const updatePlatformEnterpriseEditionParameters = (data: PlatformParamete
   )(dispatch);
 };
 
-export const updatePlatformWhitemarkParameters = (data: PlatformParametersData) => (dispatch: AppDispatch) => {
+export const updatePlatformWhitemarkParameters = (data: SettingsPlatformWhitemarkUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/platform_whitemark',
@@ -56,7 +55,7 @@ export const updatePlatformWhitemarkParameters = (data: PlatformParametersData) 
   )(dispatch);
 };
 
-export const updatePlatformLightParameters = (data: PlatformParametersData) => (dispatch: AppDispatch) => {
+export const updatePlatformLightParameters = (data: ThemeInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/theme/light',
@@ -64,7 +63,7 @@ export const updatePlatformLightParameters = (data: PlatformParametersData) => (
   )(dispatch);
 };
 
-export const updatePlatformDarkParameters = (data: PlatformParametersData) => (dispatch: AppDispatch) => {
+export const updatePlatformDarkParameters = (data: ThemeInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/theme/dark',
@@ -134,7 +133,7 @@ export const checkKerberos = () => (dispatch: AppDispatch) => {
 
 export const fetchMe = () => (dispatch: AppDispatch) => {
   const ref = getReferential(schema.user, '/api/me')(dispatch);
-  return ref.then((data: unknown) => dispatch({
+  return ref.then((data: User) => dispatch({
     type: Constants.IDENTITY_LOGIN_SUCCESS,
     payload: data,
   }));

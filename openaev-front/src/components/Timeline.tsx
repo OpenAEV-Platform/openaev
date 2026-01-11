@@ -7,7 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type InjectStore } from '../actions/injects/Inject';
 import InjectIcon from '../admin/components/common/injects/InjectIcon';
 import { type Inject, type Team } from '../utils/api-types';
-import useSearchAnFilter from '../utils/SortingFiltering';
+import useSearchAndFilter from '../utils/SortingFiltering';
 import { truncate } from '../utils/String';
 import { splitDuration } from '../utils/Time';
 import { isNotEmptyField } from '../utils/utils';
@@ -167,7 +167,7 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
 
   // Re utilisation of filter and sort hook
   const searchColumns = ['title', 'description', 'content'];
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     'inject',
     'depends_duration',
     searchColumns,
@@ -184,7 +184,6 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
     : 60;
   const tickDuration = Math.round(totalDuration / 20);
   const ticks = [...Array(21)].map((_, i) => tickDuration * i);
-  // eslint-disable-next-line consistent-return
   const byTick = R.groupBy((inject: InjectStore) => {
     const duration = inject.inject_depends_duration;
     for (const tick of ticks) {
@@ -192,6 +191,8 @@ const Timeline: FunctionComponent<Props> = ({ injects, onSelectInject, teams }) 
         return tick - tickDuration;
       }
     }
+    // Return the last tick if duration exceeds all ticks
+    return ticks[ticks.length - 1];
   });
 
   const grid0 = theme.palette.mode === 'light' ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)';

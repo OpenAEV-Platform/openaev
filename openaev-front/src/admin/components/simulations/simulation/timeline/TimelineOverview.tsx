@@ -26,7 +26,7 @@ import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointC
 import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import useSearchAnFilter from '../../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../../utils/SortingFiltering';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { ArticleContext, ChallengeContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
@@ -89,7 +89,7 @@ const TimelineOverview = () => {
 
   // Sort
   const searchColumns = ['title', 'description', 'content'];
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     'inject',
     'depends_duration',
     searchColumns,

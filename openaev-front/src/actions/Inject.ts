@@ -10,6 +10,7 @@ import {
   simplePostCall,
   simplePutCall,
 } from '../utils/Action';
+import type { Inject, InjectAssistantInput, InjectBulkProcessingInput, InjectBulkUpdateInputs, InjectInput, InjectUpdateActivationInput } from '../utils/api-types';
 import * as schema from './Schema';
 
 type AppDispatch = Dispatch;
@@ -21,22 +22,22 @@ export const fetchInject = (injectId: string) => (dispatch: AppDispatch) => {
   return getReferential(schema.inject, uri)(dispatch);
 };
 
-export const bulkDeleteInjects = (data: string[]) => (dispatch: AppDispatch) => {
+export const bulkDeleteInjects = (data: InjectBulkProcessingInput) => (dispatch: AppDispatch) => {
   const uri = '/api/injects';
   return bulkDeleteReferential(uri, 'injects', data)(dispatch);
 };
 
-export const bulkDeleteInjectsSimple = (data: string[]) => {
+export const bulkDeleteInjectsSimple = (data: InjectBulkProcessingInput) => {
   const uri = '/api/injects';
   return simpleDelCall(uri, { data });
 };
 
-export const bulkUpdateInject = (data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const bulkUpdateInject = (data: InjectBulkUpdateInputs) => (dispatch: AppDispatch) => {
   const uri = '/api/injects';
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const bulkUpdateInjectSimple = (data: Record<string, unknown>) => {
+export const bulkUpdateInjectSimple = (data: InjectBulkUpdateInputs) => {
   const uri = '/api/injects';
   return simplePutCall(uri, data);
 };
@@ -53,7 +54,7 @@ export const fetchInjectTeams = (exerciseId: string, injectId: string) => (dispa
   return getReferential(schema.arrayOfTeams, uri)(dispatch);
 };
 
-export const updateInjectForExercise = (exerciseId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const updateInjectForExercise = (exerciseId: string, injectId: string, data: Inject | InjectInput) => (dispatch: AppDispatch) => {
   const uri = `/api/injects/${exerciseId}/${injectId}`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
@@ -63,12 +64,12 @@ export const updateInjectTriggerForExercise = (exerciseId: string, injectId: str
   return putReferential(schema.inject, uri, {})(dispatch);
 };
 
-export const updateInjectActivationForExercise = (exerciseId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const updateInjectActivationForExercise = (exerciseId: string, injectId: string, data: InjectUpdateActivationInput) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}/activation`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const addInjectForExercise = (exerciseId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const addInjectForExercise = (exerciseId: string, data: Inject | InjectInput) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects`;
   return postReferential(schema.inject, uri, data)(dispatch);
 };
@@ -83,7 +84,7 @@ export const deleteInjectForExercise = (exerciseId: string, injectId: string) =>
   return delReferential(uri, 'injects', injectId)(dispatch);
 };
 
-export const executeInject = (exerciseId: string, values: Record<string, unknown>, files: File[] | null) => (dispatch: AppDispatch) => {
+export const executeInject = (exerciseId: string, values: InjectInput, files: File[] | null) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/inject`;
   const formData = new FormData();
   formData.append('file', files && files.length > 0 ? files[0] : '');
@@ -103,12 +104,12 @@ export const injectDone = (exerciseId: string, injectId: string) => (dispatch: A
 
 // -- SCENARIOS --
 
-export const addInjectForScenario = (scenarioId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const addInjectForScenario = (scenarioId: string, data: Inject | InjectInput) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects`;
   return postReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const playInjectsAssistantForScenario = (scenarioId: string, data: Record<string, unknown>) => {
+export const playInjectsAssistantForScenario = (scenarioId: string, data: InjectAssistantInput) => {
   const uri = `/api/scenarios/${scenarioId}/injects/assistant`;
   return simplePostCall(uri, data);
 };
@@ -123,12 +124,12 @@ export const fetchScenarioInjects = (scenarioId: string) => (dispatch: AppDispat
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
 };
 
-export const updateInjectForScenario = (scenarioId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const updateInjectForScenario = (scenarioId: string, injectId: string, data: Inject | InjectInput) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects/${injectId}`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const updateInjectActivationForScenario = (scenarioId: string, injectId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const updateInjectActivationForScenario = (scenarioId: string, injectId: string, data: InjectUpdateActivationInput) => (dispatch: AppDispatch) => {
   const uri = `/api/scenarios/${scenarioId}/injects/${injectId}/activation`;
   return putReferential(schema.inject, uri, data)(dispatch);
 };

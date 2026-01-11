@@ -75,7 +75,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
     setOpenDeleteResult(false);
   };
   const onDelete = () => {
-    dispatch(deleteInjectExpectationResult(injectExpectation.inject_expectation_id, selectedResult?.sourceId)).then(() => {
+    dispatch(deleteInjectExpectationResult(injectExpectation.inject_expectation_id, selectedResult?.sourceId ?? '')).then(() => {
       fetchInjectResultOverviewOutput(inject.inject_id).then((result: { data: InjectResultOverviewOutput }) => {
         onUpdateInjectExpectationResult(result.data);
         onCloseDeleteInjectExpectationResult();

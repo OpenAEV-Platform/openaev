@@ -3,7 +3,7 @@ import { isNotEmptyField } from './utils';
 interface UserWithName {
   user_firstname?: string;
   user_lastname?: string;
-  user_email: string;
+  user_email?: string;
 }
 
 export const truncate = (str: string | null | undefined, limit: number): string | null | undefined => {
@@ -24,7 +24,7 @@ export const resolveUserName = (user: UserWithName): string => {
   if (user.user_firstname && user.user_lastname) {
     return `${user.user_firstname} ${user.user_lastname}`;
   }
-  return user.user_email;
+  return user.user_email ?? '';
 };
 
 export const resolveUserNames = (users: UserWithName[], withEmailAddress = false): string => {
@@ -32,10 +32,10 @@ export const resolveUserNames = (users: UserWithName[], withEmailAddress = false
     .map((user) => {
       if (user.user_firstname && user.user_lastname) {
         return `${user.user_firstname} ${user.user_lastname}${
-          withEmailAddress ? ` (${user.user_email})` : ''
+          withEmailAddress && user.user_email ? ` (${user.user_email})` : ''
         }`;
       }
-      return user.user_email;
+      return user.user_email ?? '';
     })
     .join(', ');
 };
@@ -48,13 +48,13 @@ export const getVisibleItems = <T>(items: T[] | null | undefined, limit: number)
 };
 
 // Generate label with name of remaining items
-export const getLabelOfRemainingItems = <T extends Record<string, unknown>>(
+export const getLabelOfRemainingItems = <T extends object>(
   items: T[] | null | undefined,
   start: number,
   property: keyof T,
 ): string | undefined => {
   return items?.slice(start, items?.length).map(
-    item => item[property],
+    item => String(item[property]),
   ).join(', ');
 };
 
@@ -69,8 +69,8 @@ export const getRemainingItemsCount = <T>(
 export type ExpectationStatus = 'PENDING' | 'SUCCESS' | 'PARTIAL' | 'FAILED';
 
 // Compute label for status
-export const computeLabel = (status: ExpectationStatus | string): string => {
-  if (status === 'PENDING') {
+export const computeLabel = (status: ExpectationStatus | string | undefined): string => {
+  if (status === 'PENDING' || status === undefined) {
     return 'Pending validation';
   }
   if (status === 'SUCCESS') {

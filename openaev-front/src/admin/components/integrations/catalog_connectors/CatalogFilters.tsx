@@ -7,7 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 
 const useStyles = makeStyles()(theme => ({
   filters: {
@@ -43,7 +43,7 @@ const CatalogFilters = ({ connectors, onFiltered }: CatalogFiltersProps) => {
 
   const searchColumns = ['title', 'short_description'];
 
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     'catalog_connector',
     'title',
     searchColumns,

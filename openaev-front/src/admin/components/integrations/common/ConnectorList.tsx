@@ -10,7 +10,7 @@ import { useHelper } from '../../../../store';
 import type { CatalogConnector, CollectorOutput, ExecutorOutput, InjectorOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import ConnectorCard from '../common/ConnectorCard';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
 
@@ -22,7 +22,7 @@ const ConnectorList = () => {
 
   // Filter and sort hook
   const searchColumns = ['name', 'description'];
-  const filtering = useSearchAnFilter(
+  const filtering = useSearchAndFilter(
     connectorType,
     'name',
     searchColumns,

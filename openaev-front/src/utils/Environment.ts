@@ -1,12 +1,12 @@
 import * as R from 'ramda';
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useLocation } from 'react-router';
 import { Subject, timer } from 'rxjs';
 import { debounce } from 'rxjs/operators';
 
-interface Message {
+export interface Message {
   type: 'error' | 'message';
-  text: string;
+  text: ReactNode;
   sticky?: boolean;
 }
 
@@ -14,12 +14,12 @@ interface Message {
 const MESSENGER$ = new Subject<Message[]>().pipe(debounce(() => timer(500)));
 export const MESSAGING$ = {
   messages: MESSENGER$,
-  notifyError: (text: string, sticky = false) => (MESSENGER$ as Subject<Message[]>).next([{
+  notifyError: (text: ReactNode, sticky = false) => (MESSENGER$ as Subject<Message[]>).next([{
     type: 'error',
     text,
     sticky,
   }]),
-  notifySuccess: (text: string) => (MESSENGER$ as Subject<Message[]>).next([{
+  notifySuccess: (text: ReactNode) => (MESSENGER$ as Subject<Message[]>).next([{
     type: 'message',
     text,
   }]),
@@ -60,7 +60,7 @@ type OrganizationsMap = Record<string, { organization_name?: string } | undefine
 type ExercisesMap = Record<string, { exercise_name?: string } | undefined>;
 type ScenariosMap = Record<string, { scenario_name?: string } | undefined>;
 
-export const exportData = <T extends Record<string, unknown>>(
+export const exportData = <T extends object>(
   type: string,
   keys: string[],
   data: T[],
@@ -70,7 +70,7 @@ export const exportData = <T extends Record<string, unknown>>(
   scenariosMap: ScenariosMap = {},
 ): Record<string, string | undefined>[] => {
   return data
-    .map(d => R.pick(keys, d) as Record<string, unknown>)
+    .map(d => R.pick(keys, d as Record<string, unknown>) as Record<string, unknown>)
     .map((d) => {
       let entry = d;
 

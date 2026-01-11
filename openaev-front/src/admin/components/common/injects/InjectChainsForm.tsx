@@ -399,10 +399,10 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
     const currentConditions = parentConditions.find(currentCondition => parent.inject!.inject_id === currentCondition.parentId);
 
     if (parent.inject !== undefined && currentConditions !== undefined) {
-      let expectationString = 'Execution';
+      let expectationString: string = 'Execution';
       if (currentConditions?.conditionElement !== undefined) {
         expectationString = getAvailableExpectations(parent.inject)
-          .find(expectation => !currentConditions?.conditionElement?.find(conditionElement => conditionElement.key === expectation));
+          .find(expectation => !currentConditions?.conditionElement?.find(conditionElement => conditionElement.key === expectation)) ?? 'Execution';
       }
       currentConditions.conditionElement?.push({
         key: expectationString,
@@ -450,10 +450,10 @@ const InjectForm: FunctionComponent<Props> = ({ values, form, injects, isDisable
 
     if (children.inject !== undefined && currentConditions !== undefined) {
       const updatedChildren = childrens.find(currentChildren => currentChildren.inject?.inject_id === children.inject?.inject_id);
-      let expectationString = 'Execution';
+      let expectationString: string = 'Execution';
       if (currentConditions?.conditionElement !== undefined) {
         expectationString = getAvailableExpectations(values as InjectOutput as InjectOutputType)
-          .find(expectation => !currentConditions?.conditionElement?.find(conditionElement => conditionElement.key === expectation));
+          .find(expectation => !currentConditions?.conditionElement?.find(conditionElement => conditionElement.key === expectation)) ?? 'Execution';
       }
       currentConditions.conditionElement?.push({
         key: expectationString,

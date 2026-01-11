@@ -1,11 +1,11 @@
 import { Alert, AlertTitle } from '@mui/material';
-import { Component, type ErrorInfo, type FunctionComponent, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type FunctionComponent, type LazyExoticComponent, type ReactElement, type ReactNode } from 'react';
 
 import { sendErrorToBackend } from '../utils/Action';
 import { useFormatter } from './i18n';
 
 interface ErrorBoundaryProps {
-  display: ReactNode;
+  display?: ReactNode;
   children: ReactNode;
 }
 
@@ -34,7 +34,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render(): ReactNode {
     if (this.state.stack) {
-      return this.props.display;
+      /* eslint-disable i18next/no-literal-string */
+      return this.props.display ?? (
+        <Alert severity="error">
+          <AlertTitle>Error</AlertTitle>
+          An unknown error occurred. Please contact your administrator or the OpenAEV maintainers.
+        </Alert>
+      );
+      /* eslint-enable i18next/no-literal-string */
     }
     return this.props.children;
   }
@@ -51,12 +58,16 @@ const SimpleError: FunctionComponent = () => {
   );
 };
 
-export const errorWrapper = <P extends object>(WrappedComponent: FunctionComponent<P>): FunctionComponent<P> => {
-  const WrappedWithErrorBoundary: FunctionComponent<P> = props => (
+type ComponentType<P = object> = FunctionComponent<P> | LazyExoticComponent<FunctionComponent<P>>;
+
+export const errorWrapper = <P extends object = Record<string, never>>(
+  WrappedComponent: ComponentType<P>,
+): ((props?: P) => ReactElement) => {
+  const WrappedWithErrorBoundary = (props?: P): ReactElement => (
     <ErrorBoundary display={<SimpleError />}>
-      <WrappedComponent {...props} />
+      <WrappedComponent {...(props ?? {} as P)} />
     </ErrorBoundary>
   );
-  WrappedWithErrorBoundary.displayName = `ErrorWrapper(${WrappedComponent.displayName || WrappedComponent.name || 'Component'})`;
+  WrappedWithErrorBoundary.displayName = `ErrorWrapper(${(WrappedComponent as FunctionComponent<P>).displayName || (WrappedComponent as FunctionComponent<P>).name || 'Component'})`;
   return WrappedWithErrorBoundary;
 };

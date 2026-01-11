@@ -1,7 +1,17 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../utils/Action';
-import type { SearchPaginationInput } from '../utils/api-types';
+import type {
+  CreateExerciseInput,
+  ExerciseTeamPlayersEnableInput,
+  ExerciseUpdateStartDateInput,
+  ExerciseUpdateStatusInput,
+  ExerciseUpdateTagsInput,
+  ExpectationUpdateInput,
+  LessonsInput,
+  SearchPaginationInput,
+  UpdateExerciseInput,
+} from '../utils/api-types';
 import * as schema from './Schema';
 
 type AppDispatch = Dispatch;
@@ -19,23 +29,23 @@ export const fetchExerciseInjectExpectations = (exerciseId: string) => (dispatch
   `/api/exercises/${exerciseId}/expectations`,
 )(dispatch);
 
-export const addExercise = (data: Record<string, unknown>) => (dispatch: AppDispatch) => postReferential(schema.exercise, '/api/exercises', data)(dispatch);
+export const addExercise = (data: CreateExerciseInput) => (dispatch: AppDispatch) => postReferential(schema.exercise, '/api/exercises', data)(dispatch);
 
 export const duplicateExercise = (exerciseId: string) => (dispatch: AppDispatch) => postReferential(schema.exercise, `/api/exercises/${exerciseId}`, null)(dispatch);
 
-export const updateExercise = (exerciseId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const updateExercise = (exerciseId: string, data: UpdateExerciseInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}`,
   data,
 )(dispatch);
 
-export const updateExerciseStartDate = (exerciseId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const updateExerciseStartDate = (exerciseId: string, data: ExerciseUpdateStartDateInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/start-date`,
   data,
 )(dispatch);
 
-export const updateExerciseLessons = (exerciseId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const updateExerciseLessons = (exerciseId: string, data: LessonsInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/lessons`,
   data,
@@ -46,43 +56,43 @@ export const fetchExerciseTeams = (exerciseId: string) => (dispatch: AppDispatch
   return getReferential(schema.arrayOfTeams, uri)(dispatch);
 };
 
-export const enableExerciseTeamPlayers = (exerciseId: string, teamId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const enableExerciseTeamPlayers = (exerciseId: string, teamId: string, data: ExerciseTeamPlayersEnableInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/teams/${teamId}/players/enable`,
   data,
 )(dispatch);
 
-export const disableExerciseTeamPlayers = (exerciseId: string, teamId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const disableExerciseTeamPlayers = (exerciseId: string, teamId: string, data: ExerciseTeamPlayersEnableInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/teams/${teamId}/players/disable`,
   data,
 )(dispatch);
 
-export const addExerciseTeamPlayers = (exerciseId: string, teamId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const addExerciseTeamPlayers = (exerciseId: string, teamId: string, data: ExerciseTeamPlayersEnableInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/teams/${teamId}/players/add`,
   data,
 )(dispatch);
 
-export const removeExerciseTeamPlayers = (exerciseId: string, teamId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const removeExerciseTeamPlayers = (exerciseId: string, teamId: string, data: ExerciseTeamPlayersEnableInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/teams/${teamId}/players/remove`,
   data,
 )(dispatch);
 
-export const updateExerciseTags = (exerciseId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const updateExerciseTags = (exerciseId: string, data: ExerciseUpdateTagsInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/tags`,
   data,
 )(dispatch);
 
-export const updateExerciseStatus = (exerciseId: string, status: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const updateExerciseStatus = (exerciseId: string, status: ExerciseUpdateStatusInput) => (dispatch: AppDispatch) => putReferential(
   schema.exercise,
   `/api/exercises/${exerciseId}/status`,
   status,
 )(dispatch);
 
-export const updateInjectExpectation = (injectExpectationId: string, data: Record<string, unknown>) => (dispatch: AppDispatch) => putReferential(
+export const updateInjectExpectation = (injectExpectationId: string, data: ExpectationUpdateInput) => (dispatch: AppDispatch) => putReferential(
   schema.injectexpectation,
   `/api/expectations/${injectExpectationId}`,
   data,
@@ -100,12 +110,12 @@ export const deleteExercise = (exerciseId: string) => (dispatch: AppDispatch) =>
   exerciseId,
 )(dispatch);
 
-export const importingExercise = (data: Record<string, unknown>) => (dispatch: AppDispatch) => {
+export const importingExercise = (data: FormData) => (dispatch: AppDispatch) => {
   const uri = '/api/exercises/import';
   return postReferential(null, uri, data)(dispatch);
 };
 
-export const fetchPlayerExercise = (exerciseId: string, userId: string) => (dispatch: AppDispatch) => {
-  const uri = `/api/player/exercises/${exerciseId}?userId=${userId}`;
+export const fetchPlayerExercise = (exerciseId: string, userId: string | null) => (dispatch: AppDispatch) => {
+  const uri = `/api/player/exercises/${exerciseId}${userId ? `?userId=${userId}` : ''}`;
   return getReferential(schema.exercise, uri)(dispatch);
 };

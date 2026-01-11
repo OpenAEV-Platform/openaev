@@ -12,7 +12,7 @@ interface ApiErrorResponse {
 }
 
 // eslint-disable-next-line import/prefer-default-export
-export const api = <T>(schema?: Schema<T>): AxiosInstance => {
+export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
   const instance = axios.create({ headers: { responseType: 'json' } });
   // Intercept to apply schema and test unauthorized users
   instance.interceptors.response.use(

@@ -1,5 +1,5 @@
 import { Button } from '@mui/material';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import ItemNumberDifference from '../../../../../../components/ItemNumberDifference';
@@ -34,19 +34,18 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
-  const onClick = () => {
+  const onClick = useCallback(() => {
     openWidgetDataDrawer({
       widgetId,
       filter_values: [],
       series_index: 0,
     });
-  };
+  }, [openWidgetDataDrawer, widgetId]);
 
   return (
     <div className={classes.numberContainer}>
       <Button onClick={onClick} className={classes.number} variant="text">
         {data.interval_count ?? '-'}
-
       </Button>
       <ItemNumberDifference
         difference={data.difference_count}
@@ -54,4 +53,5 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
     </div>
   );
 };
-export default NumberWidget;
+
+export default memo(NumberWidget);

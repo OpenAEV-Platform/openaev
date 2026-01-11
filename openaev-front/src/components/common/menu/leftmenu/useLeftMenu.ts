@@ -43,7 +43,7 @@ const useLeftMenu = (entries: LeftMenuEntries[]): {
     setSelectedMenu(null);
     localStorage.setItem('navOpen', String(!navOpen));
     setNavOpen(!navOpen);
-    MESSAGING$.toggleNav.next('toggle');
+    MESSAGING$.toggleNav.next();
   };
 
   const handleSelectedMenuOpen = (menu: string) => setSelectedMenu(menu);

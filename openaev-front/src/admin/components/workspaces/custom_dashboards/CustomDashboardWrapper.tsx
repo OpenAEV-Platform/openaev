@@ -23,7 +23,7 @@ interface CustomDashboardConfiguration {
   paramsBuilder?: (dashboardParams: CustomDashboard['custom_dashboard_parameters'], params: Record<string, ParameterOption>) => Promise<Record<string, ParameterOption>> | Record<string, ParameterOption>;
   parentContextId?: string;
   canChooseDashboard?: boolean;
-  handleSelectNewDashboard?: (dashboardId: string) => void; // ==onCustomDashboardIdChange
+  handleSelectNewDashboard?: (dashboardId: string) => void;
   fetchCustomDashboard: () => Promise<AxiosResponse<CustomDashboard>>;
   fetchCount: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsCountInterval>>;
   fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => Promise<AxiosResponse<EsSeries[]>>;
@@ -61,24 +61,33 @@ const CustomDashboardWrapper = ({
     fetchEntitiesRuntime,
     fetchAttackPaths,
   } = configuration || {};
+
   const [customDashboard, setCustomDashboard] = useState<CustomDashboard>();
   const parametersLocalStorage = useReadLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey);
   const [, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
   const [parameters, setParameters] = useState<Record<string, ParameterOption>>({});
   const [loading, setLoading] = useState(true);
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
+
   const handleOpenWidgetDataDrawer = (conf: WidgetDataDrawerConf) => {
-    searchParams.set('widget_id', conf.widgetId);
-    searchParams.set('series_index', (conf.series_index ?? '').toString());
-    searchParams.set('filter_values', (conf.filter_values ?? []).join(','));
-    setSearchParams(searchParams, { replace: true });
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set('widget_id', conf.widgetId);
+      newParams.set('series_index', (conf.series_index ?? '').toString());
+      newParams.set('filter_values', (conf.filter_values ?? []).join(','));
+      return newParams;
+    }, { replace: true });
   };
+
   const handleCloseWidgetDataDrawer = () => {
-    searchParams.delete('widget_id');
-    searchParams.delete('series_index');
-    searchParams.delete('filter_values');
-    setSearchParams(searchParams, { replace: true });
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('widget_id');
+      newParams.delete('series_index');
+      newParams.delete('filter_values');
+      return newParams;
+    }, { replace: true });
   };
 
   useEffect(() => {
@@ -90,7 +99,7 @@ const CustomDashboardWrapper = ({
       return;
     }
     const handleParametersInitialization = async () => {
-      let params: Record<string, ParameterOption> = parametersLocalStorage;
+      let params: Record<string, ParameterOption> = { ...parametersLocalStorage };
       customDashboard?.custom_dashboard_parameters?.forEach((p: {
         custom_dashboards_parameter_type: string;
         custom_dashboards_parameter_id: string;
@@ -111,7 +120,7 @@ const CustomDashboardWrapper = ({
       setParameters(params || {});
       setLoading(false);
     });
-  }, [customDashboard, parametersLocalStorage]);
+  }, [customDashboard, parametersLocalStorage, paramsBuilder, setParametersLocalStorage]);
 
   useEffect(() => {
     if (customDashboardId) {
@@ -126,7 +135,7 @@ const CustomDashboardWrapper = ({
       setLoading(false);
       setCustomDashboard(undefined);
     }
-  }, [customDashboardId]);
+  }, [customDashboardId, fetchCustomDashboard]);
 
   const contextValue: CustomDashboardContextType = useMemo(() => ({
     customDashboard,
@@ -143,7 +152,19 @@ const CustomDashboardWrapper = ({
     fetchAttackPaths,
     openWidgetDataDrawer: handleOpenWidgetDataDrawer,
     closeWidgetDataDrawer: handleCloseWidgetDataDrawer,
-  }), [customDashboard, setCustomDashboard, parameters, setParametersLocalStorage]);
+  }), [
+    customDashboard,
+    parameters,
+    setParametersLocalStorage,
+    contextId,
+    canChooseDashboard,
+    handleSelectNewDashboard,
+    fetchEntities,
+    fetchEntitiesRuntime,
+    fetchCount,
+    fetchSeries,
+    fetchAttackPaths,
+  ]);
 
   if (loading) {
     return <Loader />;
