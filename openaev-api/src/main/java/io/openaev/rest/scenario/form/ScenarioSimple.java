@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.raw.RawScenarioSimple;
-import io.openaev.helper.MultiIdSetDeserializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -28,7 +28,7 @@ public class ScenarioSimple {
   private String subtitle;
 
   @ArraySchema(schema = @Schema(type = "string"))
-  @JsonSerialize(using = MultiIdSetDeserializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("scenario_tags")
   private Set<Tag> tags = new HashSet<>();
 

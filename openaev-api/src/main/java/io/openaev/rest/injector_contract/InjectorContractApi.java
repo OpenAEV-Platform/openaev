@@ -7,7 +7,7 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.raw.RawInjectorsContrats;
+import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
