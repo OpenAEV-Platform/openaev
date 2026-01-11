@@ -9,10 +9,10 @@ import static io.openaev.utils.fixtures.RawInjectExpectationFixture.createDefaul
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.raw.RawInjectExpectation;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
