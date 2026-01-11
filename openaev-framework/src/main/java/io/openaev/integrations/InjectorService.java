@@ -36,10 +36,17 @@ import org.springframework.stereotype.Service;
  *
  * <ul>
  *   <li>Registration and update of injectors from contractors
- *   <li>Management of injector contracts
+ *   <li>Management of injector contracts (create, update, delete)
  *   <li>Domain upsert and merge operations
- *   <li>Attack pattern associations
+ *   <li>Attack pattern associations (MITRE ATT&CK)
+ *   <li>Injector icon management
  * </ul>
+ *
+ * <p>Injector registration is transactional - if any part of the registration fails, all changes
+ * are rolled back.
+ *
+ * @see Contractor for defining injector capabilities
+ * @see Contract for individual injection contracts
  */
 @Service
 @RequiredArgsConstructor

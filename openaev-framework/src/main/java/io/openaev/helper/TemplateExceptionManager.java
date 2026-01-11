@@ -22,6 +22,13 @@ import java.io.Writer;
  * <p>Example: If a template contains {@code ${user.middleName}} but the user has no middle name,
  * the output will contain the literal text {@code ${user.middleName}} instead of causing an error.
  *
+ * <p>This handler is typically configured when creating the FreeMarker {@code Configuration}:
+ *
+ * <pre>{@code
+ * Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
+ * cfg.setTemplateExceptionHandler(new TemplateExceptionManager());
+ * }</pre>
+ *
  * @see TemplateExceptionHandler
  */
 public class TemplateExceptionManager implements TemplateExceptionHandler {

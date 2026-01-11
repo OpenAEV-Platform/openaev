@@ -104,10 +104,15 @@ public class ContractDef {
   }
 
   /**
-   * Add a field that will be mandatory if another field is set
+   * Adds a field that becomes mandatory when another field is set.
    *
-   * @param element element to be mandatory
-   * @param conditionalElement if this field is set the element will be mandatory
+   * <p>This creates a conditional validation rule where filling in the conditional field triggers
+   * the requirement for this field.
+   *
+   * @param element the field that becomes mandatory when the condition is met
+   * @param conditionalElement the field that triggers the mandatory condition when set
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if either element is null
    */
   public ContractDef mandatoryOnCondition(
       ContractElement element, ContractElement conditionalElement) {
@@ -122,11 +127,16 @@ public class ContractDef {
   }
 
   /**
-   * Add a field that will be mandatory if another field is set with specific value
+   * Adds a field that becomes mandatory when another field has a specific value.
    *
-   * @param element element to be mandatory
-   * @param conditionalElement if this field is set with a specific value the element will be
-   *     mandatory
+   * <p>This creates a conditional validation rule where setting the conditional field to the
+   * specified value triggers the requirement for this field.
+   *
+   * @param element the field that becomes mandatory when the condition is met
+   * @param conditionalElement the field whose value triggers the mandatory condition
+   * @param value the value that triggers the mandatory condition
+   * @return this builder for method chaining
+   * @throws IllegalArgumentException if element or conditionalElement is null
    */
   public ContractDef mandatoryOnConditionValue(
       ContractElement element, ContractElement conditionalElement, String value) {

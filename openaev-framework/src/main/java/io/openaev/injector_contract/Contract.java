@@ -26,7 +26,25 @@ import lombok.Setter;
  *   <li>Associated attack patterns (MITRE ATT&CK)
  * </ul>
  *
- * <p>Contracts can be either manual (requiring human interaction) or executable (automated).
+ * <p>Contracts can be either manual (requiring human interaction) or executable (automated). Use
+ * the factory methods {@link #manualContract} and {@link #executableContract} to create instances.
+ *
+ * <p>Example creating an executable contract:
+ *
+ * <pre>{@code
+ * Contract emailContract = Contract.executableContract(
+ *     config,
+ *     "email-send",
+ *     Map.of(SupportedLanguage.en, "Send Email"),
+ *     ContractDef.contractBuilder()
+ *         .mandatory(ContractText.textField("subject", "Subject"))
+ *         .mandatory(ContractTextArea.richTextareaField("body", "Body"))
+ *         .build(),
+ *     List.of(PLATFORM_TYPE.Generic),
+ *     false,
+ *     Set.of(communicationDomain)
+ * );
+ * }</pre>
  *
  * @see ContractConfig
  * @see ContractElement

@@ -14,6 +14,13 @@ import org.springframework.stereotype.Service;
  * Each expectation type has appropriate default names and expiration times based on the platform
  * configuration.
  *
+ * <p>Supported expectation types:
+ *
+ * <ul>
+ *   <li><b>Technical:</b> Prevention, Detection, Vulnerability
+ *   <li><b>Human:</b> Challenge, Article, Manual, Document, Text
+ * </ul>
+ *
  * <p>Usage example:
  *
  * <pre>{@code
@@ -22,6 +29,7 @@ import org.springframework.stereotype.Service;
  * }</pre>
  *
  * @see ExpectationPropertiesConfig for expiration time configuration
+ * @see io.openaev.model.Expectation
  */
 @RequiredArgsConstructor
 @Service

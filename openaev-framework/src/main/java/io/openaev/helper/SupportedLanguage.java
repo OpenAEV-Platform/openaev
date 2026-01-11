@@ -6,7 +6,16 @@ import java.util.Arrays;
  * Enumeration of supported languages in the OpenAEV platform.
  *
  * <p>This enum provides language constants and utility methods for parsing language values from
- * strings.
+ * strings. It is used throughout the platform for internationalization (i18n) of:
+ *
+ * <ul>
+ *   <li>Injection labels and descriptions
+ *   <li>Contract field labels
+ *   <li>User-facing messages
+ *   <li>Report generation
+ * </ul>
+ *
+ * <p>The default language is English ({@link #en}).
  */
 public enum SupportedLanguage {
   /** French language */
