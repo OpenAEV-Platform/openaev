@@ -17,6 +17,26 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Repository interface for {@link Inject} entities.
+ *
+ * <p>This repository provides comprehensive data access operations for injects, which represent
+ * individual attack simulation steps within exercises and scenarios. It supports:
+ *
+ * <ul>
+ *   <li>Standard CRUD operations via {@link JpaRepository}
+ *   <li>Dynamic filtering via {@link JpaSpecificationExecutor}
+ *   <li>Statistical queries via {@link StatisticRepository}
+ *   <li>Complex queries for inject retrieval with relationships
+ *   <li>Search engine indexing support
+ *   <li>Import/export operations
+ *   <li>Team and asset management operations
+ * </ul>
+ *
+ * @see Inject
+ * @see io.openaev.database.model.Exercise
+ * @see io.openaev.database.model.Scenario
+ */
 @Repository
 public interface InjectRepository
     extends JpaRepository<Inject, String>, JpaSpecificationExecutor<Inject>, StatisticRepository {
