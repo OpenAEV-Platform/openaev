@@ -27,7 +27,7 @@ public interface InjectorContractRepository
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContracts();
+  List<RawInjectorsContrats> getAllRawInjectorsContracts();
 
   @Query(
       value =
@@ -47,7 +47,7 @@ public interface InjectorContractRepository
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContractsWithoutPayloadOrGranted(
+  List<RawInjectorsContrats> getAllRawInjectorsContractsWithoutPayloadOrGranted(
       @Param("userId") String userId);
 
   @NotNull
