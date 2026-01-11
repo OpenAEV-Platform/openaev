@@ -20,13 +20,25 @@ import org.springframework.stereotype.Service;
  *
  * <p>This service handles the connection management and message publishing to RabbitMQ exchanges.
  * It supports both SSL and non-SSL connections based on configuration.
+ *
+ * <p>Messages are published to a topic exchange with routing keys based on the inject type,
+ * allowing subscribers to selectively consume messages for specific injection types.
+ *
+ * <p><b>Thread Safety:</b> This service creates new connections for each publish operation, making
+ * it safe for concurrent use. For high-throughput scenarios, consider implementing connection
+ * pooling.
+ *
+ * @see RabbitmqConfig for connection configuration
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class QueueService {
 
+  /** Routing key suffix used for constructing the full routing key. */
   public static final String ROUTING_KEY = "_push_routing_";
+
+  /** Exchange key suffix used for constructing the full exchange name. */
   public static final String EXCHANGE_KEY = "_amqp.connector.exchange";
 
   private final RabbitmqConfig rabbitmqConfig;

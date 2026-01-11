@@ -136,10 +136,26 @@ public class OpenAEVConfig {
   @Value("${openbas.frontend-url:${openaev.frontend-url:}}")
   private String frontendUrl;
 
+  /**
+   * Returns the normalized base URL for the platform.
+   *
+   * <p>The URL is normalized by removing any trailing slash.
+   *
+   * @return the base URL without trailing slash, or null if not configured
+   */
   public String getBaseUrl() {
     return normalizeUrl(baseUrl);
   }
 
+  /**
+   * Returns the URL that agents should use to connect to the platform.
+   *
+   * <p>If an explicit agent URL is configured, it will be used. Otherwise, falls back to the base
+   * URL. This allows configuring a different endpoint for agent communication (e.g., for network
+   * segregation or load balancing).
+   *
+   * @return the agent URL without trailing slash, or the base URL if agent URL is not configured
+   */
   public String getBaseUrlForAgent() {
     return hasText(agentUrl) ? normalizeUrl(agentUrl) : normalizeUrl(baseUrl);
   }
