@@ -4,8 +4,8 @@ import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALL
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openaev.expectation.ExpectationType.*;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_ID;
-import static io.openaev.injectors.openaev.OpenAEVInjector.OPENAEV_INJECTOR_NAME;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;

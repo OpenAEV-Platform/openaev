@@ -1,19 +1,20 @@
-package io.openaev.injectors.openaev;
+package io.openaev.integration.impl.injectors.openaev;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Endpoint;
+import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
+import io.openaev.integration.ComponentRequestEngine;
+import io.openaev.integration.Integration;
+import io.openaev.integration.QualifiedComponent;
 import io.openaev.integrations.InjectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
-@Component
-@Slf4j
-public class OpenAEVInjector {
-
+public class OpenaevInjectorIntegration extends Integration {
   public static final String OPENAEV_INJECTOR_NAME = "OpenAEV Implant";
   public static final String OPENAEV_INJECTOR_ID = "49229430-b5b5-431f-ba5b-f36f599b0144";
 
@@ -39,18 +40,56 @@ public class OpenAEVInjector {
         + "\"";
   }
 
-  @Autowired
-  public OpenAEVInjector(
+  private final InjectorService injectorService;
+  private final OpenAEVImplantContract openAEVImplantContract;
+  private final OpenAEVConfig openAEVConfig;
+
+  @QualifiedComponent(identifier = OpenAEVImplantContract.TYPE)
+  private OpenAEVImplantExecutor openAEVImplantExecutor;
+
+  public OpenaevInjectorIntegration(
+      ComponentRequestEngine componentRequestEngine,
+      ConnectorInstance connectorInstance,
+      ConnectorInstanceService connectorInstanceService,
       InjectorService injectorService,
-      OpenAEVImplantContract contract,
+      OpenAEVImplantContract openAEVImplantContract,
       OpenAEVConfig openAEVConfig) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    this.injectorService = injectorService;
+    this.openAEVImplantContract = openAEVImplantContract;
+    this.openAEVConfig = openAEVConfig;
+  }
+
+  @Override
+  protected void innerStart() throws Exception {
+    Map<String, String> executorCommands = buildExecutorCommands(openAEVConfig);
+    Map<String, String> executorClearCommands = buildExecutorClearCommands();
+
+    injectorService.register(
+        OPENAEV_INJECTOR_ID,
+        OPENAEV_INJECTOR_NAME,
+        openAEVImplantContract,
+        false,
+        "simulation-implant",
+        executorCommands,
+        executorClearCommands,
+        true,
+        List.of());
+  }
+
+  @Override
+  protected void innerStop() {
+    // TODO
+  }
+
+  private Map<String, String> buildExecutorCommands(OpenAEVConfig cfg) {
+    Map<String, String> commands = new HashMap<>();
     String tokenVar = "token=\"" + openAEVConfig.getAdminToken() + "\"";
     String serverVar = "server=\"" + openAEVConfig.getBaseUrlForAgent() + "\"";
     String unsecuredCertificateVar =
         "unsecured_certificate=\"" + openAEVConfig.isUnsecuredCertificate() + "\"";
     String withProxyVar = "with_proxy=\"" + openAEVConfig.isWithProxy() + "\"";
-    Map<String, String> executorCommands = new HashMap<>();
-    executorCommands.put(
+    commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
             + tokenVar
@@ -63,7 +102,7 @@ public class OpenAEVInjector {
             + ";"
             + dlVar(openAEVConfig, "windows", "x86_64")
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
-    executorCommands.put(
+    commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
             + tokenVar
@@ -76,7 +115,7 @@ public class OpenAEVInjector {
             + ";"
             + dlVar(openAEVConfig, "windows", "arm64")
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
-    executorCommands.put(
+    commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
             + serverVar
@@ -89,7 +128,7 @@ public class OpenAEVInjector {
             + ";curl -s -X GET "
             + dlUri(openAEVConfig, "linux", "x86_64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
-    executorCommands.put(
+    commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
             + serverVar
@@ -102,7 +141,7 @@ public class OpenAEVInjector {
             + ";curl -s -X GET "
             + dlUri(openAEVConfig, "linux", "arm64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
-    executorCommands.put(
+    commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
             + serverVar
@@ -115,7 +154,7 @@ public class OpenAEVInjector {
             + ";curl -s -X GET "
             + dlUri(openAEVConfig, "macos", "x86_64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
-    executorCommands.put(
+    commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
             + serverVar
@@ -128,38 +167,31 @@ public class OpenAEVInjector {
             + ";curl -s -X GET "
             + dlUri(openAEVConfig, "macos", "arm64")
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
-    Map<String, String> executorClearCommands = new HashMap<>();
-    executorClearCommands.put(
+
+    return commands;
+  }
+
+  private Map<String, String> buildExecutorClearCommands() {
+    Map<String, String> clear = new HashMap<>();
+    clear.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;cd \"$location\";Get-ChildItem -Recurse -Filter *implant* | Remove-Item");
-    executorClearCommands.put(
+    clear.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;cd \"$location\";Get-ChildItem -Recurse -Filter *implant* | Remove-Item");
-    executorClearCommands.put(
+    clear.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
-    executorClearCommands.put(
+    clear.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
-    executorClearCommands.put(
+    clear.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
-    executorClearCommands.put(
+    clear.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
-    try {
-      injectorService.register(
-          OPENAEV_INJECTOR_ID,
-          OPENAEV_INJECTOR_NAME,
-          contract,
-          false,
-          "simulation-implant",
-          executorCommands,
-          executorClearCommands,
-          true,
-          List.of());
-    } catch (Exception e) {
-      log.error(String.format("Error creating OpenAEV implant injector (%s)", e.getMessage()), e);
-    }
+
+    return clear;
   }
 }
