@@ -1565,6 +1565,7 @@
   "Should be a valid XLS file": "Deve essere un file XLS valido",
   "Should have at least one asset or one asset group": "Deve avere almeno un asset o un gruppo di asset",
   "Should not be empty": "Non deve essere vuoto",
+  "Should not exceed 255 characters": "Non deve superare i 255 caratteri",
   "Show all assets": "Mostra tutti gli asset",
   "Show covered TTP only": "Mostra solo il TTP coperto",
   "Show in findings": "Mostra nei risultati",
