@@ -73,7 +73,6 @@ public class TaniumExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         taniumExecutorConfigurationMigration,
-        client,
         agentService,
         endpointService,
         assetGroupService,

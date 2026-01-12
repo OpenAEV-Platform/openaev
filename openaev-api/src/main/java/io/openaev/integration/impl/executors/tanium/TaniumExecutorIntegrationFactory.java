@@ -36,7 +36,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final ComponentRequestEngine componentRequestEngine;
   private final TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
-  private final TaniumExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -52,7 +51,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
       TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration,
-      TaniumExecutorClient client,
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -66,7 +64,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.taniumExecutorConfigurationMigration = taniumExecutorConfigurationMigration;
-    this.client = client;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;

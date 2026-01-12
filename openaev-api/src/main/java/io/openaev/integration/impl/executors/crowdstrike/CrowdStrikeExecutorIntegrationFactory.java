@@ -32,7 +32,6 @@ import org.springframework.stereotype.Service;
 @Profile("!test")
 @Slf4j
 public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
-  private final CrowdStrikeExecutorClient client;
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
@@ -47,7 +46,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      CrowdStrikeExecutorClient client,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -61,7 +59,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       EncryptionFactory encryptionFactory,
       HttpClientFactory httpClientFactory) {
     super(connectorInstanceService, catalogConnectorService, encryptionFactory, httpClientFactory);
-    this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;

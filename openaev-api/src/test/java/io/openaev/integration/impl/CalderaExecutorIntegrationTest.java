@@ -73,7 +73,6 @@ public class CalderaExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         calderaExecutorConfigurationMigration,
-        client,
         agentService,
         endpointService,
         injectorService,

@@ -35,7 +35,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final ComponentRequestEngine componentRequestEngine;
   private final CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
-  private final CalderaExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final InjectorService injectorService;
@@ -49,7 +48,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
       CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration,
-      CalderaExecutorClient client,
       AgentService agentService,
       EndpointService endpointService,
       InjectorService injectorService,
@@ -62,7 +60,6 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.calderaExecutorConfigurationMigration = calderaExecutorConfigurationMigration;
-    this.client = client;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.injectorService = injectorService;

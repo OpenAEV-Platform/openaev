@@ -36,7 +36,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final ComponentRequestEngine componentRequestEngine;
   private final SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
 
-  private final SentinelOneExecutorClient client;
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -51,7 +50,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
       SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration,
-      SentinelOneExecutorClient client,
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -65,7 +63,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.sentinelOneExecutorConfigurationMigration = sentinelOneExecutorConfigurationMigration;
-    this.client = client;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;

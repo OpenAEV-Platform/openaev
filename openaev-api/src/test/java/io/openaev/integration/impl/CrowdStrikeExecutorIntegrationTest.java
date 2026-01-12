@@ -71,7 +71,6 @@ public class CrowdStrikeExecutorIntegrationTest {
     return new CrowdStrikeExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
-        client,
         endpointService,
         agentService,
         assetGroupService,

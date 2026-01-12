@@ -74,7 +74,6 @@ public class SentinelOneExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         sentinelOneExecutorConfigurationMigration,
-        client,
         agentService,
         endpointService,
         assetGroupService,
