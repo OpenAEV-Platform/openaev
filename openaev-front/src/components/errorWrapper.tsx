@@ -3,7 +3,7 @@ import { type ComponentProps, type ComponentType } from 'react';
 import { ErrorBoundary, SimpleError } from './Error';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const errorWrapper = (Component: ComponentType<any>) => {
+const errorWrapper = (Component: ComponentType<any>) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const WrappedComponent = (props?: ComponentProps<any>) => (
     <ErrorBoundary display={<SimpleError />}>
