@@ -1,7 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.service.chaining.StepService.setField;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,10 +23,13 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.utils.TargetType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.*;
+
+import static io.openaev.service.chaining.StepService.setField;
 
 @RequiredArgsConstructor
 @Component
@@ -167,6 +168,9 @@ public class InjectExecutionStep implements ActionStep {
         }
         output.add(map);
       }
+
+      // TODO : manage Output parser
+      //
 
       if (!output.isEmpty()) {
         JsonElement elements = gson.toJsonTree(output);

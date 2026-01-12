@@ -34,13 +34,20 @@ services:
     restart: unless-stopped
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
-    image: rabbitmq:4.1-management
+    build:
+      context: .
+      dockerfile: Dockerfile.rabbitmq
     restart: unless-stopped
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     ports:
       - "5672:5672"
       - "15672:15672"
+    command: >
+      sh -c "
+      rabbitmq-plugins enable --offline rabbitmq_delayed_message_exchange &&
+      rabbitmq-server
+      "
   openaev-dev-caldera:
     container_name: openaev-dev-caldera
     image: openbas/caldera-server:5.1.0
@@ -53,6 +60,11 @@ services:
       - type: bind
         source: caldera.yml
         target: /usr/src/app/conf/local.yml
+    command: >
+      sh -c "
+      rabbitmq-plugins enable --offline rabbitmq_delayed_message_exchange &&
+      rabbitmq-server
+      "
 #  openaev-pyroscope:
 #    container_name: openaev-pyroscope
 #    image: grafana/pyroscope:latest
@@ -124,7 +136,7 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - 9200:9200
+      - 9400:9400
       - 9600:9600
   openaev-test-elasticsearch:
     container_name: openaev-test-elasticsearch
@@ -151,7 +163,7 @@ services:
     container_name: openaev-dev-kibana
     image: docker.elastic.co/kibana/kibana:8.18.3
     environment:
-      - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9400
     restart: unless-stopped
     ports:
       - 5601:5601

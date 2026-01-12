@@ -1,0 +1,15 @@
+# Any version update must be done once the rabbitmq_delayed_message_exchange plugin has also be updated
+FROM rabbitmq:4.1-management
+
+# Download the plugin, move it to plugins dir, enable it,
+# and remove curl + apt caches in a single layer to have minimal impact on original image
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends curl; \
+    curl -L -o /tmp/rabbitmq_delayed_message_exchange-4.1.0.ez \
+      https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v4.1.0/rabbitmq_delayed_message_exchange-4.1.0.ez; \
+    mv /tmp/rabbitmq_delayed_message_exchange-4.1.0.ez "$RABBITMQ_HOME/plugins/"; \
+    rabbitmq-plugins enable --offline rabbitmq_delayed_message_exchange; \
+    apt-get purge -y curl; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

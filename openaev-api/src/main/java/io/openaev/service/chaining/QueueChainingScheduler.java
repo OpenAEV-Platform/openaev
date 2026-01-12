@@ -5,12 +5,13 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.rest.exception.BadRequestException;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -22,7 +23,7 @@ public class QueueChainingScheduler {
   public void toDeleteScheduleCheckOutput() {
     // FOR QUEUE
     // Take a step run
-    List<Step> stepsRun = stepService.findAllStepRun();
+    List<Step> stepsRun = stepService.findAllStepRun(); // TODO: replace by findbyid following update event consumption
     for (Step stepRun : stepsRun) {
       ActionStep actionStep = stepService.factoryAction(stepRun.getStepAction());
       if (actionStep == null) throw new BadRequestException("action step is null");

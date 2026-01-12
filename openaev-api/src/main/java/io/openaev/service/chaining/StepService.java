@@ -8,24 +8,35 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
+import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
+
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class StepService {
+public class StepService implements StepEventHandler {
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
   private final InjectExecutionStep injectExecutionStep;
 
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
+
+  // TODO: this is an ungly workaround for a circular dependency problem (need fixing)
+  @PostConstruct
+  public void init() {
+    queueChainingService.setCallbackForWaitQueue(this::handleWaitEvent);
+    queueChainingService.setCallbackForDelayQueue(this::handleDelayEvent);
+  }
 
   public void createStepsTemplate(String workflowId, List<StepsCreateInput.StepCreateInput> steps) {
     Workflow workflow = workflowService.getWorkflowById(workflowId);
@@ -94,10 +105,12 @@ public class StepService {
             condition.setStep(finalStepWait);
           });
       conditionService.saveAllConditions(conditionExecution);
-      queueChainingService.toDeletePushIntoQueueRunStep(finalStepWait, this);
-      /*new Thread(() -> {
-          queueChainingService.toDeletePushIntoQueueRunStep(finalStepWait, this);
-      }, "will be run step id:"+stepWait.getId()).start();*/
+      try {
+        queueChainingService.waitStep(finalStepWait, workflowRun);
+      } catch (IOException e) {
+        // TODO exception management
+        throw new RuntimeException(e);
+      }
       return stepWait;
     }
 
@@ -517,6 +530,32 @@ public class StepService {
       return new JsonPrimitive((Number) o);
     }
     return new JsonPrimitive(o.toString());
+  }
+
+  @Transactional
+  public List<StepEvent> handleWaitEvent(List<StepEvent> events) {
+    events.forEach(this::handleWaitStepEvent);
+    return events;
+  }
+
+  @Transactional
+  public List<StepEvent> handleDelayEvent(List<StepEvent> events) {
+    events.forEach(this::handleDelayStepEvent);
+    return events;
+  }
+
+  @Override
+  public void handleWaitStepEvent(StepEvent stepEvent) {
+    stepRepository.findById(stepEvent.getStepId()).ifPresent(this::run);
+  }
+
+  @Override
+  public void handleDelayStepEvent(StepEvent stepEvent) {
+    stepRepository.findById(stepEvent.getStepId()).ifPresent(step -> {
+      Workflow workflowRun = workflowService.getWorkflowById(stepEvent.getWorkflowId());
+      // TODO: replace null value by actual output from previous step run ?
+      wait(step, workflowRun, null);
+    });
   }
 
   public enum ACTION_JSON {
