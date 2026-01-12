@@ -78,7 +78,6 @@ public class InjectorContractService {
   private final InjectorRepository injectorRepository;
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
-  private final InjectorContractDomainStatsService injectorContractDomainStatsService;
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -465,29 +464,26 @@ public class InjectorContractService {
   }
 
   private List<InjectorContractFullOutput> execInjectorFullContract(TypedQuery<Tuple> query) {
-    List<InjectorContractFullOutput> outputs =
-        query.getResultList().stream()
-            .map(
-                tuple ->
-                    new InjectorContractFullOutput(
-                        tuple.get("injector_contract_id", String.class),
-                        tuple.get("injector_contract_external_id", String.class),
-                        tuple.get("injector_contract_labels", Map.class),
-                        tuple.get("injector_contract_content", String.class),
-                        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-                        tuple.get("payload_type", String.class),
-                        tuple.get("injector_contract_injector_name", String.class),
-                        tuple.get("collector_type", String.class),
-                        tuple.get("injector_contract_injector_type", String.class),
-                        tuple.get("injector_contract_attack_patterns", String[].class),
-                        resolveEffectiveDomains(
-                            tuple.get("injector_contract_domains", String[].class),
-                            tuple.get("payload_domains", String[].class)),
-                        tuple.get("injector_contract_updated_at", Instant.class),
-                        tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
-            .toList();
-
-    return outputs;
+    return query.getResultList().stream()
+        .map(
+            tuple ->
+                new InjectorContractFullOutput(
+                    tuple.get("injector_contract_id", String.class),
+                    tuple.get("injector_contract_external_id", String.class),
+                    tuple.get("injector_contract_labels", Map.class),
+                    tuple.get("injector_contract_content", String.class),
+                    tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+                    tuple.get("payload_type", String.class),
+                    tuple.get("injector_contract_injector_name", String.class),
+                    tuple.get("collector_type", String.class),
+                    tuple.get("injector_contract_injector_type", String.class),
+                    tuple.get("injector_contract_attack_patterns", String[].class),
+                    resolveEffectiveDomains(
+                        tuple.get("injector_contract_domains", String[].class),
+                        tuple.get("payload_domains", String[].class)),
+                    tuple.get("injector_contract_updated_at", Instant.class),
+                    tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class)))
+        .toList();
   }
 
   private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {

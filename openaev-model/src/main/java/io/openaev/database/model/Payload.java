@@ -122,7 +122,12 @@ public class Payload implements GrantableBase {
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("payload_attack_patterns")
-  @Queryable(filterable = true, searchable = true, dynamicValues = true, path = "attackPatterns.id")
+  @Queryable(
+      filterable = true,
+      searchable = true,
+      dynamicValues = true,
+      paths = {"attackPatterns.id", "attackPatterns.externalId"},
+      clazz = String[].class)
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 
   @Setter

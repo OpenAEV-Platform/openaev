@@ -361,9 +361,7 @@ const CreateInject: FunctionComponent<Props> = ({
       ? `${killChainPhasesMap[killChainPhaseForSelection].phase_name} / ${selectedContractAttackPatterns.map((attackPattern: AttackPattern) => attackPattern.attack_pattern_external_id).join(', ')}`
       : null;
   }
-  const domainOptions: Domain[] = useHelper((helper: DomainHelper) => {
-    return helper.getDomains();
-  });
+  const domainOptions: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
 
   // Domains
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);

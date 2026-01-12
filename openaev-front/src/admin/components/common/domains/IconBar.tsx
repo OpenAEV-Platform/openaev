@@ -19,16 +19,16 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
     <Paper
       variant="outlined"
       sx={{
-        width: '100%',
         overflow: 'hidden',
         bgcolor: theme.palette.background.paper,
+        marginRight: theme.spacing(2.5),
       }}
     >
       <Box
         sx={{
           'overflowX': isScroll ? 'auto' : 'visible',
-          'py': 2,
-          'px': 2,
+          'py': 1,
+          'px': 1,
           '&::-webkit-scrollbar': { height: '8px' },
           '&::-webkit-scrollbar-thumb': {
             backgroundColor: theme.palette.action.focus,
@@ -78,23 +78,28 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
                     <IconButton
                       size="large"
                       disableRipple
-                      sx={{ color: 'inherit' }}
+                      sx={{
+                        'color': 'inherit',
+                        '& svg': { fontSize: '2rem' },
+                      }}
                     >
                       {element.icon()}
                     </IconButton>
-
-                    <Typography variant="subtitle1" noWrap>
+                    <Typography
+                      variant="subtitle1"
+                      noWrap
+                      sx={{ lineHeight: 1,
+                          fontSize: 14, }}
+                    >
                       {t(element.name)}
                     </Typography>
-
                     <Box
                       sx={{
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
                         gap: 0.5,
-                        mt: 0.5,
-                        minHeight: '24px',
+                        minHeight: 24,
                       }}
                     >
                       {element.results && element.results()}

@@ -33,8 +33,7 @@ const buildIconBarElements = (
   domainCounts: Record<string, number>,
 ): IconBarElement[] => {
   return domains
-    .filter(domain => DOMAIN_ICON_MAP[domain.domain_name])
-    .filter(domain => domain.domain_name !== 'To classify')
+    .filter(domain => domain.domain_name !== 'To classify' && DOMAIN_ICON_MAP[domain.domain_name])
     .map((domain) => {
       const count = domainCounts[domain.domain_id];
       return {
