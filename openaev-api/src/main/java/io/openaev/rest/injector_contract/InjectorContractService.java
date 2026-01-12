@@ -10,7 +10,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectorsContrats;
+import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -51,6 +51,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service for managing injector contracts.
+ *
+ * <p>Provides CRUD operations, search functionality, and mapping management for injector contracts.
+ * Injector contracts define the interface between injects and injectors, specifying input fields,
+ * target types, and associated attack patterns.
+ *
+ * @see io.openaev.database.model.InjectorContract
+ * @see io.openaev.database.model.Injector
+ */
 @RequiredArgsConstructor
 @Service
 public class InjectorContractService {
@@ -65,14 +75,23 @@ public class InjectorContractService {
   private final UserService userService;
   private final AttackPatternRepository attackPatternRepository;
 
+  /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
   private boolean mailImportEnabled;
 
+  /** Configuration flag for enabling SMS import from XLS files. */
   @Value("${openaev.xls.import.sms.enable}")
   private boolean smsImportEnabled;
 
   // -- CRUD --
 
+  /**
+   * Retrieves an injector contract by ID or external ID.
+   *
+   * @param id the injector contract ID or external ID
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found
+   */
   public InjectorContract injectorContract(@NotBlank final String id) {
     return injectorContractRepository
         .findByIdOrExternalId(id, id)
@@ -81,6 +100,12 @@ public class InjectorContractService {
 
   // -- OTHERS --
 
+  /**
+   * Initializes import availability flags on application startup.
+   *
+   * <p>Updates all injector contracts to indicate whether they support XLS import based on
+   * configured email and SMS import settings.
+   */
   @EventListener(ApplicationReadyEvent.class)
   public void initImportAvailableOnStartup() {
     List<String> listOfInjectorImportAvailable = new ArrayList<>();
@@ -161,6 +186,16 @@ public class InjectorContractService {
     return qs;
   }
 
+  /**
+   * Retrieves a page of injector contracts with full details.
+   *
+   * <p>Includes attack patterns, domains, injector information, and payload details.
+   *
+   * @param specification the filter specification
+   * @param specificationCount the count specification (may differ for accurate counting)
+   * @param pageable the pagination parameters
+   * @return a page of full injector contract outputs
+   */
   public PageImpl<InjectorContractFullOutput> getSinglePageFullDetails(
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
@@ -174,6 +209,16 @@ public class InjectorContractService {
     return new PageImpl<>(injectorContractFullOutputs, pageable, qs.total);
   }
 
+  /**
+   * Retrieves a page of injector contracts with base details only.
+   *
+   * <p>Returns minimal information for list views and dropdowns.
+   *
+   * @param specification the filter specification
+   * @param specificationCount the count specification
+   * @param pageable the pagination parameters
+   * @return a page of base injector contract outputs
+   */
   public PageImpl<InjectorContractBaseOutput> getSinglePageBaseDetails(
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
@@ -187,7 +232,7 @@ public class InjectorContractService {
     return new PageImpl<>(injectorContractBaseOutputs, pageable, qs.total);
   }
 
-  public Iterable<RawInjectorsContrats> getAllRawInjectContracts() {
+  public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
@@ -197,12 +242,28 @@ public class InjectorContractService {
         currentUser.getId());
   }
 
+  /**
+   * Retrieves a single injector contract by ID or external ID.
+   *
+   * @param injectorContractId the contract ID or external ID
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found
+   */
   public InjectorContract getSingleInjectorContract(String injectorContractId) {
     return injectorContractRepository
         .findByIdOrExternalId(injectorContractId, injectorContractId)
         .orElseThrow(ElementNotFoundException::new);
   }
 
+  /**
+   * Creates a new custom injector contract.
+   *
+   * <p>Custom contracts are user-defined and can be modified or deleted. Sets up attack pattern
+   * mappings, vulnerabilities, and domain associations.
+   *
+   * @param input the creation input
+   * @return the created injector contract
+   */
   @Transactional(rollbackOn = Exception.class)
   public InjectorContract createNewInjectorContract(InjectorContractAddInput input) {
     InjectorContract injectorContract = new InjectorContract();
@@ -231,6 +292,14 @@ public class InjectorContractService {
     return injectorContractRepository.save(injectorContract);
   }
 
+  /**
+   * Updates an existing injector contract.
+   *
+   * @param injectorContractId the contract ID to update
+   * @param input the update input
+   * @return the updated injector contract
+   * @throws ElementNotFoundException if not found
+   */
   public InjectorContract updateInjectorContract(
       String injectorContractId, InjectorContractUpdateInput input) {
     InjectorContract injectorContract =
@@ -261,6 +330,14 @@ public class InjectorContractService {
     injectorContract.setVulnerabilities(vulns);
   }
 
+  /**
+   * Updates the attack pattern and vulnerability mappings for a contract.
+   *
+   * @param injectorContractId the contract ID to update
+   * @param input the mapping update input
+   * @return the updated injector contract
+   * @throws ElementNotFoundException if not found
+   */
   public InjectorContract updateAttackPatternMappings(
       String injectorContractId, InjectorContractUpdateMappingInput input) {
     InjectorContract injectorContract =
@@ -278,6 +355,15 @@ public class InjectorContractService {
     return injectorContractRepository.save(injectorContract);
   }
 
+  /**
+   * Deletes a custom injector contract.
+   *
+   * <p>Only custom contracts (user-created) can be deleted. Built-in contracts cannot be removed.
+   *
+   * @param injectorContractId the contract ID to delete
+   * @throws ElementNotFoundException if not found
+   * @throws IllegalArgumentException if the contract is not custom
+   */
   public void deleteInjectorContract(final String injectorContractId) {
     InjectorContract injectorContract =
         this.injectorContractRepository
@@ -295,6 +381,15 @@ public class InjectorContractService {
     }
   }
 
+  /**
+   * Checks if an injector contract supports a specific target type.
+   *
+   * <p>Analyzes the contract's field definitions to determine which target types are supported.
+   *
+   * @param injectorContract the contract to check
+   * @param targetType the target type to verify support for
+   * @return true if the contract supports the target type
+   */
   public boolean checkTargetSupport(InjectorContract injectorContract, TargetType targetType) {
     JsonNode fieldsNode = injectorContract.getConvertedContent().get(CONTRACT_CONTENT_FIELDS);
     Set<TargetType> supportedTargetTypes = new HashSet<>();
@@ -419,6 +514,15 @@ public class InjectorContractService {
         .toList();
   }
 
+  /**
+   * Converts input data to an injector contract entity.
+   *
+   * <p>Used during injector registration to create contract entities from input definitions.
+   *
+   * @param in the contract input data
+   * @param injector the parent injector
+   * @return the created injector contract (not yet persisted)
+   */
   // TODO JRI => REFACTOR TO RELY ON INJECTOR SERVICE
   public InjectorContract convertInjectorFromInput(InjectorContractInput in, Injector injector) {
     InjectorContract injectorContract = new InjectorContract();

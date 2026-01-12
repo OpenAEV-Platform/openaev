@@ -1,17 +1,13 @@
 import { ControlPointOutlined } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText, Slide } from '@mui/material';
-import { forwardRef, useContext, useState } from 'react';
+import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import ButtonCreate from '../../../../components/common/ButtonCreate';
+import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { LessonContext } from '../../common/Context';
 import LessonsCategoryForm from './LessonsCategoryForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const useStyles = makeStyles()(theme => ({
   text: {

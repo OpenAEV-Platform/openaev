@@ -112,7 +112,7 @@ public class V1_DataImporter implements Importer {
           challengeContent.setChallenges(remappedIds);
           content = mapper.writeValueAsString(challengeContent);
         } catch (Exception e) {
-          // Error rewriting content, inject cant be created
+          // Error rewriting content, inject can't be created
           return null;
         }
       }
@@ -131,7 +131,7 @@ public class V1_DataImporter implements Importer {
           channelContent.setArticles(remappedIds);
           content = mapper.writeValueAsString(channelContent);
         } catch (Exception e) {
-          // Error rewriting content, inject cant be created
+          // Error rewriting content, inject can't be created
           return null;
         }
       }

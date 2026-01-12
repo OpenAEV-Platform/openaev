@@ -215,7 +215,7 @@ public class SchemaUtils {
 
   public static PropertySchema retrieveProperty(
       List<PropertySchema> propertySchemas, String jsonFieldPath) {
-    if (jsonFieldPath.contains("\\.")) {
+    if (jsonFieldPath.contains(".")) {
       throw new IllegalArgumentException("Deep path is not allowed");
     }
 

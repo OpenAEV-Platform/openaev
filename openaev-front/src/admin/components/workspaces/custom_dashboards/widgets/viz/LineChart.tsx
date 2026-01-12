@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
 import Chart from 'react-apexcharts';
 
 import { useFormatter } from '../../../../../../components/i18n';
@@ -18,7 +18,8 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
-  const onDataPointClick = (_: Event, config: {
+  // Memoize click handler
+  const onDataPointClick = useCallback((_: Event, config: {
     seriesIndex: number;
     dataPointIndex: number;
   }) => {
@@ -26,7 +27,7 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
       return;
     }
     const dataPointIndex = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
-    if (!dataPointIndex || Number(dataPointIndex.y) == 0) {
+    if (!dataPointIndex || Number(dataPointIndex.y) === 0) {
       return;
     }
 
@@ -35,17 +36,29 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
       filter_values: [dataPointIndex?.x ?? ''],
       series_index: config.seriesIndex,
     });
-  };
+  }, [series, openWidgetDataDrawer, widgetId]);
+
+  // Memoize distributed flag
+  const distributed = useMemo(
+    () => series ? series.length > 1 : false,
+    [series],
+  );
+
+  // Memoize chart options
+  const options = useMemo(
+    () => lineChartOptions({
+      theme,
+      isTimeSeries: true,
+      xFormatter: fld,
+      distributed,
+      onDataPointClick,
+    }),
+    [theme, fld, distributed, onDataPointClick],
+  );
 
   return (
     <Chart
-      options={lineChartOptions({
-        theme,
-        isTimeSeries: true,
-        xFormatter: fld,
-        distributed: series ? series.length > 1 : false,
-        onDataPointClick,
-      })}
+      options={options}
       series={series}
       type="line"
       width="100%"
@@ -54,4 +67,4 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series }) => {
   );
 };
 
-export default LineChart;
+export default memo(LineChart);

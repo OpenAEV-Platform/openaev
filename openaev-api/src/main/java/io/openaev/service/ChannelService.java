@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.buildForMediaPressure;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -123,7 +123,7 @@ public class ChannelService {
           });
 
       // -- VALIDATION TYPE --
-      processByValidationType(user, injects, publishedArticles, expectationExecutions.size() > 0);
+      processByValidationType(user, injects, publishedArticles, !expectationExecutions.isEmpty());
     }
     return channelReader;
   }

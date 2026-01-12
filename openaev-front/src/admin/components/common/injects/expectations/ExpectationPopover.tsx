@@ -1,10 +1,9 @@
-import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type LoggedHelper } from '../../../../../actions/helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Dialog from '../../../../../components/common/dialog/Dialog';
-import Transition from '../../../../../components/common/Transition';
+import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
@@ -36,16 +35,19 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   const { permissions, inherited_context } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
   const userManageExpectations = permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
-    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
+    || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
 
+  // Hook must be called at the top level of the component
+  const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectation['inject_expectation_type']);
+
   const getExpirationTime = (expirationTime: number): number => {
-    if (expirationTime !== null || expirationTime !== undefined) {
+    if (expirationTime !== null && expirationTime !== undefined) {
       return expirationTime;
     }
-    return useExpectationExpirationTime(expectation.expectation_type as InjectExpectation['inject_expectation_type']); // FIXME: should change type of expectation_type property
+    return defaultExpirationTime;
   };
 
   const initialValues = {
@@ -100,26 +102,12 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   return (
     <div>
       <ButtonPopover entries={entries} variant="icon" />
-      <DialogMUI
+      <DialogDelete
         open={openDelete}
-        TransitionComponent={Transition}
-        onClose={handleCloseDelete}
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogContent>
-          <DialogContentText>
-            {t('Do you want to delete this expectation?')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDelete}>
-            {t('Cancel')}
-          </Button>
-          <Button color="secondary" onClick={onSubmitDelete}>
-            {t('Delete')}
-          </Button>
-        </DialogActions>
-      </DialogMUI>
+        handleClose={handleCloseDelete}
+        handleSubmit={onSubmitDelete}
+        text={t('Do you want to delete this expectation?')}
+      />
       <Dialog
         open={openEdit}
         handleClose={handleCloseEdit}

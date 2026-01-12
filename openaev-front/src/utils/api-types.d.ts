@@ -4188,6 +4188,7 @@ export interface Option {
 }
 
 export interface Organization {
+  injects?: Inject[];
   listened?: boolean;
   /** @format date-time */
   organization_created_at: string;
@@ -6130,7 +6131,7 @@ export interface Tag {
   listened?: boolean;
   /** Color of the tag */
   tag_color?: string;
-  /** ID of the tag */
+  /** Unique identifier of the tag */
   tag_id: string;
   /** Name of the tag */
   tag_name: string;
@@ -6171,6 +6172,7 @@ export interface TargetSimple {
   target_name?: string;
   target_type?:
     | "AGENT"
+    | "AGENTS"
     | "ASSETS"
     | "ASSETS_GROUPS"
     | "PLAYERS"

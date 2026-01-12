@@ -37,7 +37,7 @@ const InjectContentFieldComponent = ({
   });
   const [informationToDisplay, setInformationToDisplay] = useState<string>('');
   let fieldType: EnhancedContractElement['type'] | 'richText' = field.type;
-  if (field.type == 'textarea' && field.richText) {
+  if (field.type === 'textarea' && field.richText) {
     fieldType = 'richText';
   }
 
@@ -149,8 +149,8 @@ const InjectContentFieldComponent = ({
             name={field.key}
             label={t(label)}
             disabled={readOnly}
-            multiline={field.type == 'textarea'}
-            rows={field.type == 'textarea' ? (field.settings?.rows ?? 10) : 1}
+            multiline={field.type === 'textarea'}
+            rows={field.type === 'textarea' ? (field.settings?.rows ?? 10) : 1}
             required={field.settings?.required}
             type={field.type as ('number' | 'text' | 'password')}
             writeOnly={field.writeOnly}

@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType;
-import io.openaev.helper.MultiModelDeserializer;
+import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -56,7 +56,7 @@ public class CustomDashboard implements Base {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("custom_dashboard_widgets")
-  @JsonSerialize(using = MultiModelDeserializer.class)
+  @JsonSerialize(using = MultiModelSerializer.class)
   private List<Widget> widgets = new ArrayList<>();
 
   @OneToMany(

@@ -2,7 +2,7 @@
   <configuration default="false" name="Backend docker compose" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
     <deployment type="docker-compose.yml">
       <settings>
-        <option name="envFilePath" value="" />
+        <option name="envFilePath" value="openaev-dev/.env" />
         <option name="sourceFilePath" value="openaev-dev/docker-compose.yml" />
       </settings>
     </deployment>

@@ -685,7 +685,7 @@ public class ExerciseApi extends RestBehavior {
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
       throw new UnsupportedOperationException(
-          "Exercise cant support moving to status " + status.name());
+          "Exercise can't support moving to status " + status.name());
     }
     // In case of rescheduled of an exercise.
     boolean isCloseState =

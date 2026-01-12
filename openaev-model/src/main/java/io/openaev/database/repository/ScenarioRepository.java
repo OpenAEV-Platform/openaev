@@ -17,6 +17,27 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Repository interface for {@link Scenario} entities.
+ *
+ * <p>This repository provides data access operations for scenarios, which are reusable templates
+ * for security exercises. Scenarios define collections of injects, team configurations, and
+ * recurrence settings. It supports:
+ *
+ * <ul>
+ *   <li>Standard CRUD operations via {@link JpaRepository}
+ *   <li>Dynamic filtering via {@link JpaSpecificationExecutor}
+ *   <li>Statistical queries via {@link StatisticRepository}
+ *   <li>Access-controlled queries respecting user grants
+ *   <li>Search engine indexing support
+ *   <li>Category management and search
+ *   <li>Team assignment operations
+ * </ul>
+ *
+ * @see Scenario
+ * @see io.openaev.database.model.Exercise
+ * @see io.openaev.database.model.Inject
+ */
 @Repository
 public interface ScenarioRepository
     extends JpaRepository<Scenario, String>,

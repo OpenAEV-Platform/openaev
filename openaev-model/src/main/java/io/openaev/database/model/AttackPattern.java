@@ -8,8 +8,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
-import io.openaev.helper.MultiIdListDeserializer;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.jsonapi.BusinessId;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -87,7 +87,7 @@ public class AttackPattern implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "attack_pattern_parent")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("attack_pattern_parent")
   @Schema(type = "string")
   private AttackPattern parent;
@@ -98,7 +98,7 @@ public class AttackPattern implements Base {
       name = "attack_patterns_kill_chain_phases",
       joinColumns = @JoinColumn(name = "attack_pattern_id"),
       inverseJoinColumns = @JoinColumn(name = "phase_id"))
-  @JsonSerialize(using = MultiIdListDeserializer.class)
+  @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("attack_pattern_kill_chain_phases")
   private List<KillChainPhase> killChainPhases = new ArrayList<>();
 

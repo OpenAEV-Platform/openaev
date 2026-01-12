@@ -18,7 +18,7 @@ import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import TagsFilter from '../../common/filters/TagsFilter';
 import ChallengePopover from './ChallengePopover';
 import CreateChallenge from './CreateChallenge';
@@ -108,7 +108,7 @@ const Challenges = () => {
 
   // Filter and sort hook
   const searchColumns = ['name', 'content', 'category'];
-  const filtering = useSearchAnFilter('challenge', 'name', searchColumns, { defaultKeyword: initialKeyword });
+  const filtering = useSearchAndFilter('challenge', 'name', searchColumns, { defaultKeyword: initialKeyword });
   // Fetching data
   const { challenges, documentsMap, exercisesMap } = useHelper(helper => ({
     exercisesMap: helper.getExercisesMap(),

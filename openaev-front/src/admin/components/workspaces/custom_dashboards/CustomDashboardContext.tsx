@@ -41,6 +41,9 @@ export interface CustomDashboardContextType {
   // handle widget data drawer
   openWidgetDataDrawer: (conf: WidgetDataDrawerConf) => void;
   closeWidgetDataDrawer: () => void;
+
+  // Grid ready state for loader coordination
+  setGridReady: (ready: boolean) => void;
 }
 
 export const CustomDashboardContext = createContext<CustomDashboardContextType>({
@@ -60,4 +63,7 @@ export const CustomDashboardContext = createContext<CustomDashboardContextType>(
   // handle widget data drawer
   openWidgetDataDrawer: () => {},
   closeWidgetDataDrawer: () => {},
+
+  // Grid ready state for loader coordination
+  setGridReady: () => {},
 });

@@ -192,9 +192,9 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
       </Dialog>
       <MuiDialog
         open={openRemove}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseRemove}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -210,9 +210,9 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
       </MuiDialog>
       <MuiDialog
         open={openRemoveFromInject}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseRemoveFromInject}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

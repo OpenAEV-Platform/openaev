@@ -7,76 +7,131 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation used to describe whether a JPA bean property can be searched, filtered, sorted or
- * dynamically resolved by the query engine.
+ * Annotation that defines query capabilities for JPA entity properties.
  *
  * <p>This annotation provides metadata to drive the construction of dynamic Spring Specifications
  * and to expose query capabilities to higher-level components (API, UI, query builders, etc.).
  *
- * <p>It can be applied to fields or getter methods.
+ * <p>Properties annotated with {@code @Queryable} can be configured for:
+ *
+ * <ul>
+ *   <li>Free-text search (LIKE/ILIKE operations)
+ *   <li>Filtering with various operators
+ *   <li>Sorting in query results
+ *   <li>Dynamic value resolution for relationships
+ * </ul>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * @Queryable(searchable = true, filterable = true, sortable = true)
+ * @Column(name = "scenario_name")
+ * private String name;
+ * }</pre>
+ *
+ * @see EsQueryable
+ * @see Indexable
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD, ElementType.METHOD})
 public @interface Queryable {
 
   /**
-   * Enables free-text search on this property (e.g. using LIKE/ILIKE operators depending on the
-   * backend).
+   * Enables free-text search on this property.
+   *
+   * <p>When {@code true}, the property can be searched using LIKE/ILIKE operators depending on the
+   * database backend.
+   *
+   * @return {@code true} if the property is searchable, {@code false} otherwise
    */
   boolean searchable() default false;
 
-  /** Allows filtering this property using supported filter operators. */
+  /**
+   * Enables filtering on this property using supported filter operators.
+   *
+   * @return {@code true} if the property is filterable, {@code false} otherwise
+   */
   boolean filterable() default false;
 
   /**
-   * Indicates that the property refers to another entity stored in the database, meaning its
-   * possible filter values must be retrieved dynamically. Typically used for relations (ManyToOne,
-   * OneToMany, etc.).
+   * Indicates that the property's filter values must be retrieved dynamically from the database.
+   *
+   * <p>Typically used for relationships (ManyToOne, OneToMany, etc.) where possible values are
+   * stored as separate entities.
+   *
+   * @return {@code true} if values should be resolved dynamically, {@code false} otherwise
    */
   boolean dynamicValues() default false;
 
-  /** Allows sorting results based on this property. */
+  /**
+   * Enables sorting results based on this property.
+   *
+   * @return {@code true} if the property is sortable, {@code false} otherwise
+   */
   boolean sortable() default false;
 
-  /** Human-readable label used for documentation or UI generation. */
+  /**
+   * Human-readable label for this property, used in documentation or UI generation.
+   *
+   * @return the display label, or an empty string if not specified
+   */
   String label() default "";
 
   /**
-   * Defines the JPA path used to query this property. Follows Spring Data Specification conventions
-   * (e.g. {@code "organization.id"}). Path should end by a primitive value or this can lead to
-   * UnsupportedOperationException.
+   * Defines the JPA path used to query this property.
+   *
+   * <p>Follows Spring Data Specification conventions (e.g., {@code "organization.id"}). The path
+   * should end with a primitive value; otherwise, this may lead to {@link
+   * UnsupportedOperationException}.
+   *
+   * @return the JPA path, or an empty string to use the field name
    */
   String path() default "";
 
   /**
-   * Defines multiple possible JPA paths, when the property can be resolved through different
-   * relationships or aliases.
+   * Defines multiple possible JPA paths for this property.
+   *
+   * <p>Useful when the property can be resolved through different relationships or aliases.
+   *
+   * @return an array of JPA paths, or an empty array if not applicable
    */
   String[] paths() default {};
 
   /**
-   * Defines the complete list of operators available for filtering a collection by the decorated
-   * property. If undefined, the client is responsible for guessing which operators are applicable
-   * according to the decorated property type.
+   * Specifies the complete list of operators available for filtering by this property.
+   *
+   * <p>If not specified, clients are responsible for determining applicable operators based on the
+   * property type.
+   *
+   * @return an array of allowed filter operators, or an empty array to use defaults
    */
   Filters.FilterOperator[] overrideOperators() default {};
 
   /**
-   * Define a value here to specify a type hint for clients to treat the decorated property as this
-   * type. Example: String[].class; clients parsing this hint will be encouraged to treat the value
-   * of the decorated property as an array of strings.
+   * Provides a type hint for clients processing this property.
+   *
+   * <p>Example: {@code String[].class} indicates clients should treat the property value as an
+   * array of strings.
+   *
+   * @return the type hint class, or {@link Unassigned} if not specified
    */
   Class clazz() default Unassigned.class;
 
-  /** Defines the Enum source for the allowed values of the decorated property, if applicable. */
+  /**
+   * Specifies the enum class that defines allowed values for this property.
+   *
+   * <p>Used when the property's valid values are constrained to a specific enumeration.
+   *
+   * @return the enum class, or {@link Unassigned} if not applicable
+   */
   Class refEnumClazz() default Unassigned.class;
 
   /**
-   * Special sentinel class used to represent an "unassigned" state for {@link #clazz()} and {@link
-   * #refEnumClazz()}.
+   * Sentinel class representing an "unassigned" state for type hint attributes.
    *
-   * <p>We cannot use {@code Void.class} here since {@code void} is a valid type and could lead to
-   * ambiguity.
+   * <p>This class is used as a default value for {@link #clazz()} and {@link #refEnumClazz()} to
+   * indicate that no type hint has been specified. {@code Void.class} cannot be used since {@code
+   * void} is a valid type that could cause ambiguity.
    */
   class Unassigned {}
 }

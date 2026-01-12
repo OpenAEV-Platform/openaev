@@ -1,4 +1,4 @@
-import { type ThemeOptions } from '@mui/material';
+import { buttonClasses, type ThemeOptions } from '@mui/material';
 
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
@@ -24,6 +24,7 @@ const ThemeDark = (
   primary: string | null = null,
   secondary: string | null = null,
   accent: string | null = null,
+  text_color = '#ffffff',
 ): ThemeOptions => ({
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
@@ -33,15 +34,32 @@ const ThemeDark = (
     common: {
       white: '#ffffff',
       black: '#000000',
+      grey: '#7A7C85',
+      lightGrey: '#ffffffb3',
     },
     error: {
       main: '#f44336',
       dark: '#c62828',
     },
+    warn: { main: '#ffa726' },
+    dangerZone: {
+      main: '#f6685e',
+      light: '#fbc2be',
+      dark: '#f44336',
+      contrastText: '#000000',
+    },
     success: { main: '#03a847' },
     warning: { main: '#ffa726' },
     primary: { main: primary || THEME_DARK_DEFAULT_PRIMARY },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
+    gradient: { main: '#00f1bd' },
+    border: {
+      primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
+      secondary: hexToRGB(secondary || THEME_DARK_DEFAULT_SECONDARY, 0.3),
+      pagination: hexToRGB('#ffffff', 0.5),
+      paper: hexToRGB('#ffffff', 0.12),
+    },
+    pagination: { main: '#ffffff' },
     chip: { main: '#ffffff' },
     labelChipMap: new Map<string, LabelColor>([
       [
@@ -76,22 +94,33 @@ const ThemeDark = (
       paper: paper || THEME_DARK_DEFAULT_PAPER,
       nav: nav || THEME_DARK_DEFAULT_NAV,
       accent: accent || THEME_DARK_DEFAULT_ACCENT,
-      shadow: 'rgba(255, 255, 255, 0)',
+      shadow: 'rgba(200, 200, 200, 0.15)',
       code: accent || THEME_DARK_DEFAULT_ACCENT,
       paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
     },
   },
   typography: {
     fontFamily: '"IBM Plex Sans", sans-serif',
-    body2: { fontSize: '0.8rem' },
-    body1: { fontSize: '0.9rem' },
-    overline: { fontWeight: 500 },
+    body2: {
+      fontSize: '0.8rem',
+      lineHeight: '1.2rem',
+      color: text_color,
+    },
+    body1: {
+      fontSize: '0.9rem',
+      color: text_color,
+    },
+    overline: {
+      fontWeight: 500,
+      color: text_color,
+    },
     h1: {
       margin: '0 0 10px 0',
       padding: 0,
       fontWeight: 400,
       fontSize: 22,
       fontFamily: '"Geologica", sans-serif',
+      color: text_color,
     },
     h2: {
       margin: '0 0 10px 0',
@@ -100,52 +129,81 @@ const ThemeDark = (
       fontSize: 16,
       textTransform: 'uppercase',
       fontFamily: '"Geologica", sans-serif',
+      color: text_color,
     },
     h3: {
       margin: '0 0 10px 0',
       padding: 0,
-      color: '#bebebe',
       fontWeight: 400,
       fontSize: 13,
       fontFamily: '"Geologica", sans-serif',
+      color: text_color,
     },
     h4: {
+      height: 15,
       margin: '0 0 10px 0',
       padding: 0,
       textTransform: 'uppercase',
       fontSize: 12,
       fontWeight: 500,
-      color: '#a8a8a8',
+      color: text_color,
     },
     h5: {
       fontWeight: 400,
       fontSize: 13,
       textTransform: 'uppercase',
       marginTop: -4,
+      color: text_color,
     },
     h6: {
       fontWeight: 400,
       fontSize: 18,
-      color: primary || THEME_DARK_DEFAULT_PRIMARY,
+      color: text_color,
       fontFamily: '"Geologica", sans-serif',
     },
     subtitle2: {
       fontWeight: 400,
       fontSize: 18,
-      color: 'rgba(255, 255, 255, 0.7)',
+      color: text_color,
     },
   },
   components: {
-    MuiAccordion: { defaultProps: { TransitionProps: { unmountOnExit: true } } },
+    MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          [`&.${buttonClasses.outlined}.${buttonClasses.sizeSmall}`]: { padding: '4px 9px' },
+          '&.icon-outlined': {
+            'borderColor': hexToRGB('#ffffff', 0.15),
+            'padding': 7,
+            'minWidth': 0,
+            '&:hover': {
+              borderColor: hexToRGB('#ffffff', 0.15),
+              backgroundColor: hexToRGB('#ffffff', 0.05),
+            },
+          },
+        },
+      },
+    },
     MuiTooltip: {
       styleOverrides: {
         tooltip: { backgroundColor: 'rgba(0,0,0,0.7)' },
         arrow: { color: 'rgba(0,0,0,0.7)' },
       },
     },
-    MuiFormControl: { defaultProps: { variant: 'standard' } },
-    MuiTextField: { defaultProps: { variant: 'standard' } },
-    MuiSelect: { defaultProps: { variant: 'standard' } },
+    MuiFormControl: {
+      defaultProps: { variant: 'standard' },
+      styleOverrides: { root: { color: text_color } },
+    },
+    MuiTextField: {
+      defaultProps: { variant: 'standard' },
+      styleOverrides: { root: { color: text_color } },
+    },
+    MuiSelect: {
+      defaultProps: { variant: 'standard' },
+      styleOverrides: { root: { color: text_color } },
+    },
+    MuiPaper: { styleOverrides: { root: { color: text_color } } },
     MuiCssBaseline: {
       styleOverrides: {
         html: {
@@ -169,16 +227,23 @@ const ThemeDark = (
           },
           'pre': {
             fontFamily: FONT_FAMILY_CODE,
-            color: '#ffffff !important',
+            color: `${text_color} !important`,
             background: `${accent || THEME_DARK_DEFAULT_ACCENT} !important`,
+            borderRadius: 4,
+          },
+          'pre.light': {
+            fontFamily: FONT_FAMILY_CODE,
+            background: `${nav || THEME_DARK_DEFAULT_NAV} !important`,
+            borderRadius: 4,
           },
           'code': {
             fontFamily: FONT_FAMILY_CODE,
-            color: '#ffffff !important',
-            background: `${accent || '#01478d'} !important`,
+            color: `${text_color} !important`,
+            background: `${accent || THEME_DARK_DEFAULT_ACCENT} !important`,
             padding: 3,
             fontSize: 12,
             fontWeight: 400,
+            borderRadius: 4,
           },
           '.w-md-editor': {
             'boxShadow': 'none',
@@ -186,7 +251,7 @@ const ThemeDark = (
             'borderBottom': '1px solid rgba(255, 255, 255, 0.7) !important',
             'transition': 'borderBottom .3s',
             '&:hover': { borderBottom: '2px solid #ffffff !important' },
-            '&:focus-within': { borderBottom: `2px solid #${primary || THEME_DARK_DEFAULT_PRIMARY} !important` },
+            '&:focus-within': { borderBottom: `2px solid ${primary || THEME_DARK_DEFAULT_PRIMARY} !important` },
           },
           '.error .w-md-editor': {
             'border': '0 !important',
@@ -203,23 +268,23 @@ const ThemeDark = (
           '.w-md-editor-toolbar': {
             border: '0 !important',
             backgroundColor: 'transparent !important',
-            color: '#ffffff !important',
+            color: `${text_color} !important`,
           },
-          '.w-md-editor-toolbar li button': { color: '#ffffff !important' },
+          '.w-md-editor-toolbar li button': { color: `${text_color} !important` },
           '.w-md-editor-text textarea': {
             fontFamily: '"IBM Plex Sans", sans-serif',
             fontSize: 13,
-            color: '#ffffff',
+            color: text_color,
           },
           '.w-md-editor-preview': { boxShadow: 'inset 1px 0 0 0 rgba(255, 255, 255, 0.5)' },
           '.wmde-markdown': {
             background: 'transparent',
             fontFamily: '"IBM Plex Sans", sans-serif',
             fontSize: 13,
-            color: '#ffffff',
+            color: text_color,
           },
           '.wmde-markdown tr': { background: 'transparent !important' },
-          '.react-grid-placeholder': { backgroundColor: `${accent || '#01478d'} !important` },
+          '.react-grid-placeholder': { backgroundColor: `${accent || THEME_DARK_DEFAULT_ACCENT} !important` },
           '.react_time_range__track': {
             backgroundColor: 'rgba(1, 226, 255, 0.1) !important',
             borderLeft: '1px solid #00bcd4 !important',
@@ -246,11 +311,20 @@ const ThemeDark = (
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          '&.Mui-selected': { boxShadow: `2px 0 ${primary || THEME_DARK_DEFAULT_PRIMARY} inset` },
-          '&.Mui-selected:hover': { boxShadow: `2px 0 ${primary || THEME_DARK_DEFAULT_PRIMARY} inset` },
+          '&.Mui-selected': {
+            boxShadow: `2px 0 ${primary || THEME_DARK_DEFAULT_PRIMARY} inset`,
+            backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.24),
+          },
+          '&.Mui-selected:hover': {
+            boxShadow: `2px 0 ${primary || THEME_DARK_DEFAULT_PRIMARY} inset`,
+            backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.32),
+          },
         },
       },
     },
+    MuiTypography: { styleOverrides: { root: { color: text_color } } },
+    MuiInputBase: { styleOverrides: { root: { color: text_color } } },
+    MuiChip: { styleOverrides: { root: { color: text_color } } },
   },
 });
 

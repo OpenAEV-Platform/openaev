@@ -9,34 +9,30 @@ import com.rabbitmq.client.ConnectionFactory;
 import io.minio.BucketExistsArgs;
 import io.minio.MinioClient;
 import io.minio.errors.*;
-import io.openaev.IntegrationTest;
 import io.openaev.config.MinioConfig;
+import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.repository.*;
 import io.openaev.driver.MinioDriver;
 import io.openaev.service.exception.HealthCheckFailureException;
-import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class HealthCheckServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class HealthCheckServiceTest {
 
   private static final String BUCKET = "bucket";
 
   @Mock private HealthCheckRepository healthCheckRepository;
   @Mock private MinioConfig minioConfig;
   @Mock private MinioDriver minioDriver;
+  @Mock private RabbitmqConfig rabbitmqConfig;
   @Mock private MinioClient minioClient;
   @Mock private ConnectionFactory connectionFactory;
   @Mock private Connection connection;

@@ -5,9 +5,9 @@ type Props = { action?: string };
 
 const VulnerableEndpointActionFragment = ({ action = 'OK' }: Props) => {
   let color;
-  if (action == 'REPLACE') {
+  if (action === 'REPLACE') {
     color = LabelColorDict.Red;
-  } else if (action == 'UPDATE') {
+  } else if (action === 'UPDATE') {
     color = LabelColorDict.Orange;
   } else {
     color = LabelColorDict.Green;

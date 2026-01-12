@@ -5,7 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -33,7 +33,7 @@ public class LessonsAnswer implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_answer_question")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_answer_question")
   @NotNull
   @Schema(type = "string")
@@ -41,7 +41,7 @@ public class LessonsAnswer implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_answer_user")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_answer_user")
   @Schema(type = "string")
   private User user;
@@ -72,14 +72,21 @@ public class LessonsAnswer implements Base {
   // region transient
   @JsonProperty("lessons_answer_exercise")
   public String getExercise() {
-    return getQuestion().getCategory().getExercise().getId();
+    if (getQuestion() == null || getQuestion().getCategory() == null) {
+      return null;
+    }
+    Exercise exercise = getQuestion().getCategory().getExercise();
+    return exercise != null ? exercise.getId() : null;
   }
 
   // endregion
 
   @Override
   public boolean isUserHasAccess(User user) {
-    return getQuestion().getCategory().getExercise().isUserHasAccess(user);
+    if (getQuestion() == null) {
+      return user.isAdmin();
+    }
+    return getQuestion().isUserHasAccess(user);
   }
 
   @Override

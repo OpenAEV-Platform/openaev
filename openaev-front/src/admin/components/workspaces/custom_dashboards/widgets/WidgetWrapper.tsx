@@ -1,6 +1,5 @@
-import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { memo, type SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { type SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
 
 import { ErrorBoundary } from '../../../../../components/Error';
 import Loader from '../../../../../components/Loader';
@@ -11,7 +10,7 @@ import {
   type EsSeries,
   type Widget,
 } from '../../../../../utils/api-types';
-import { CustomDashboardContext } from '../CustomDashboardContext';
+import { CustomDashboardContext, type ParameterOption } from '../CustomDashboardContext';
 import WidgetTitle from './WidgetTitle';
 import { type WidgetVizData, WidgetVizDataType } from './WidgetUtils';
 import WidgetViz from './WidgetViz';
@@ -26,7 +25,22 @@ interface WidgetWrapperProps {
   readOnly: boolean;
 }
 
-const WidgetWrapper = ({ widget, fullscreen, setFullscreen, idToResize, handleWidgetUpdate, handleWidgetDelete, readOnly }: WidgetWrapperProps) => {
+// Helper to convert parameters to request params
+const buildParams = (parameters: Record<string, ParameterOption>): Record<string, string> => {
+  return Object.fromEntries(
+    Object.entries(parameters).map(([key, val]) => [key, val.value]),
+  );
+};
+
+const WidgetWrapper = ({
+  widget,
+  fullscreen,
+  setFullscreen,
+  idToResize,
+  handleWidgetUpdate,
+  handleWidgetDelete,
+  readOnly,
+}: WidgetWrapperProps) => {
   const theme = useTheme();
 
   const [vizData, setVizData] = useState<WidgetVizData>({ type: WidgetVizDataType.NONE });
@@ -35,73 +49,97 @@ const WidgetWrapper = ({ widget, fullscreen, setFullscreen, idToResize, handleWi
 
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths } = useContext(CustomDashboardContext);
 
-  const fetchData = <T extends EsSeries[] | EsBase[] | EsAttackPath[] | EsCountInterval>(
-    fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: T }>,
-    vizType: WidgetVizDataType.SERIES | WidgetVizDataType.ENTITIES | WidgetVizDataType.ATTACK_PATHS | WidgetVizDataType.NUMBER,
-  ) => {
-    const params: Record<string, string> = Object.fromEntries(
-      Object.entries(customDashboardParameters).map(([key, val]) => [key, val.value]),
-    );
-    fetchFunction(widget.widget_id, params).then((response) => {
-      if (response.data) {
-        switch (vizType) {
-          case WidgetVizDataType.SERIES:
-            setVizData({
-              type: WidgetVizDataType.SERIES,
-              data: response.data as EsSeries[],
-            });
-            break;
-          case WidgetVizDataType.ENTITIES:
-            setVizData({
-              type: WidgetVizDataType.ENTITIES,
-              data: response.data as EsBase[],
-            });
-            break;
-          case WidgetVizDataType.ATTACK_PATHS:
-            setVizData({
-              type: WidgetVizDataType.ATTACK_PATHS,
-              data: response.data as EsAttackPath[],
-            });
-            break;
-          case WidgetVizDataType.NUMBER:
-            setVizData({
-              type: WidgetVizDataType.NUMBER,
-              data: response.data as EsCountInterval,
-            });
-            break;
-          default: break;
-        }
-      }
-    }).catch((error) => {
-      setErrorMessage(error.message);
-    }).finally(() => setLoading(false));
-  };
+  // Use ref to track if component is mounted
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     setLoading(true);
+    setErrorMessage('');
+
+    const params = buildParams(customDashboardParameters);
+    type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsBase[] | EsSeries[];
+    let fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: WidgetDataResponse }>;
+    let vizType: WidgetVizDataType;
+
     switch (widget.widget_type) {
-      case 'attack-path': {
-        fetchData(fetchAttackPaths, WidgetVizDataType.ATTACK_PATHS);
+      case 'attack-path':
+        fetchFunction = fetchAttackPaths;
+        vizType = WidgetVizDataType.ATTACK_PATHS;
         break;
-      }
-      case 'number': {
-        fetchData(fetchCount, WidgetVizDataType.NUMBER);
+      case 'number':
+        fetchFunction = fetchCount;
+        vizType = WidgetVizDataType.NUMBER;
         break;
-      }
       case 'list':
-        fetchData(fetchEntities, WidgetVizDataType.ENTITIES);
+        fetchFunction = fetchEntities;
+        vizType = WidgetVizDataType.ENTITIES;
         break;
       default:
-        fetchData(fetchSeries, WidgetVizDataType.SERIES);
+        fetchFunction = fetchSeries;
+        vizType = WidgetVizDataType.SERIES;
     }
-  }, [widget, customDashboardParameters]);
 
-  if (loading) {
-    return <Loader variant="inElement" />;
-  }
+    fetchFunction(widget.widget_id, params)
+      .then((response) => {
+        if (!isMountedRef.current) return;
+        if (response.data) {
+          switch (vizType) {
+            case WidgetVizDataType.SERIES:
+              setVizData({
+                type: WidgetVizDataType.SERIES,
+                data: response.data as EsSeries[],
+              });
+              break;
+            case WidgetVizDataType.ENTITIES:
+              setVizData({
+                type: WidgetVizDataType.ENTITIES,
+                data: response.data as EsBase[],
+              });
+              break;
+            case WidgetVizDataType.ATTACK_PATHS:
+              setVizData({
+                type: WidgetVizDataType.ATTACK_PATHS,
+                data: response.data as EsAttackPath[],
+              });
+              break;
+            case WidgetVizDataType.NUMBER:
+              setVizData({
+                type: WidgetVizDataType.NUMBER,
+                data: response.data as EsCountInterval,
+              });
+              break;
+            default: break;
+          }
+        }
+      })
+      .catch((error) => {
+        if (!isMountedRef.current) return;
+        setErrorMessage(error.message);
+      })
+      .finally(() => {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, fetchAttackPaths, fetchCount, fetchEntities, fetchSeries]);
+
+  const handleMouseDown = (e: SyntheticEvent) => e.stopPropagation();
+  const handleTouchStart = (e: SyntheticEvent) => e.stopPropagation();
+
+  const isResizing = widget.widget_id === idToResize;
 
   return (
-    <>
+    <div style={{
+      height: '100%',
+      padding: theme.spacing(1.5),
+    }}
+    >
       <WidgetTitle
         widget={widget}
         setFullscreen={setFullscreen}
@@ -111,28 +149,28 @@ const WidgetWrapper = ({ widget, fullscreen, setFullscreen, idToResize, handleWi
         vizData={vizData}
       />
       <ErrorBoundary>
-        {widget.widget_id === idToResize ? (<div />) : (
-          <Box
-            flex={1}
-            display="flex"
-            flexDirection="column"
-            minHeight={0}
-            padding={theme.spacing(1, 2, 2)}
-            onMouseDown={(e: SyntheticEvent) => e.stopPropagation()}
-            onTouchStart={(e: SyntheticEvent) => e.stopPropagation()}
+        {isResizing ? (<div />) : (
+          <div
+            style={{ height: 'calc(100% - 32px)' }}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
           >
-            <WidgetViz
-              widget={widget}
-              fullscreen={fullscreen}
-              setFullscreen={setFullscreen}
-              vizData={vizData}
-              errorMessage={errorMessage}
-            />
-          </Box>
+            {loading ? (
+              <Loader variant="inElement" />
+            ) : (
+              <WidgetViz
+                widget={widget}
+                fullscreen={fullscreen}
+                setFullscreen={setFullscreen}
+                vizData={vizData}
+                errorMessage={errorMessage}
+              />
+            )}
+          </div>
         )}
       </ErrorBoundary>
-    </>
+    </div>
   );
 };
 
-export default memo(WidgetWrapper);
+export default WidgetWrapper;

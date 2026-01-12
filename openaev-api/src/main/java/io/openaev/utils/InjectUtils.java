@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.helper.ObjectMapperHelper;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -29,6 +30,16 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+/**
+ * Component providing utility methods for inject operations.
+ *
+ * <p>Handles payload extraction, expectation filtering, row validation for imports, and inject
+ * duplication. This component is central to inject processing workflows including execution,
+ * import, and cloning operations.
+ *
+ * @see io.openaev.database.model.Inject
+ * @see io.openaev.database.model.StatusPayload
+ */
 @RequiredArgsConstructor
 @Component
 @Slf4j
@@ -36,6 +47,26 @@ public class InjectUtils {
 
   private final ApplicationContext context;
 
+  /**
+   * Extracts the payload information from an inject.
+   *
+   * <p>Determines the appropriate payload based on the inject's execution status or injector
+   * contract. Supports multiple payload types including:
+   *
+   * <ul>
+   *   <li>Command payloads (shell commands)
+   *   <li>Executable payloads (binary files)
+   *   <li>File drop payloads (file deployment)
+   *   <li>DNS resolution payloads (DNS queries)
+   *   <li>Network traffic payloads (network operations)
+   * </ul>
+   *
+   * <p>If the inject has been executed, returns the saved payload output. Otherwise, constructs the
+   * payload from the injector contract configuration.
+   *
+   * @param inject the inject to extract payload from
+   * @return the status payload, or {@code null} if no payload can be determined
+   */
   public StatusPayload getStatusPayloadFromInject(final Inject inject) {
     if (inject == null) {
       return null;
@@ -180,6 +211,16 @@ public class InjectUtils {
     return null;
   }
 
+  /**
+   * Retrieves the primary expectations from an inject.
+   *
+   * <p>Primary expectations are those directly associated with the inject's targets (teams, assets,
+   * or asset groups). This filters out derived or secondary expectations that may exist for
+   * sub-targets.
+   *
+   * @param inject the inject to get expectations from
+   * @return a list of expectations matching the inject's direct targets
+   */
   public List<InjectExpectation> getPrimaryExpectations(Inject inject) {
     List<String> firstIds = new ArrayList<>();
 
@@ -204,6 +245,20 @@ public class InjectUtils {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Checks if an Excel row is empty or contains only blank cells.
+   *
+   * <p>Used during XLS import operations to skip empty rows. A row is considered empty if:
+   *
+   * <ul>
+   *   <li>The row is null
+   *   <li>The row has no cells
+   *   <li>All cells are blank or contain only whitespace
+   * </ul>
+   *
+   * @param row the Excel row to check
+   * @return {@code true} if the row is empty, {@code false} otherwise
+   */
   public static boolean checkIfRowIsEmpty(Row row) {
     if (row == null) {
       return true;
@@ -222,16 +277,32 @@ public class InjectUtils {
     return true;
   }
 
+  /** Shared ObjectMapper instance for JSON processing in inject duplication. */
+  private static final ObjectMapper STATIC_MAPPER = ObjectMapperHelper.openAEVJsonMapper();
+
+  /**
+   * Creates a deep copy of an inject.
+   *
+   * <p>Duplicates all properties of the source inject including content, teams, assets, asset
+   * groups, tags, and dependencies. The content is deep-copied to ensure modifications to the
+   * duplicate don't affect the original.
+   *
+   * <p>The duplicated inject maintains references to the same exercise/scenario and injector
+   * contract as the original.
+   *
+   * @param injectOrigin the inject to duplicate (must not be null)
+   * @return a new inject instance with copied properties
+   * @throws RuntimeException if the content cannot be serialized/deserialized
+   */
   public static Inject duplicateInject(@NotNull Inject injectOrigin) {
-    ObjectMapper objectMapper = new ObjectMapper();
     Inject duplicatedInject = new Inject();
     duplicatedInject.setUser(injectOrigin.getUser());
     duplicatedInject.setTitle(injectOrigin.getTitle());
     duplicatedInject.setDescription(injectOrigin.getDescription());
     try {
       ObjectNode content =
-          objectMapper.readValue(
-              objectMapper.writeValueAsString(injectOrigin.getContent()), ObjectNode.class);
+          STATIC_MAPPER.readValue(
+              STATIC_MAPPER.writeValueAsString(injectOrigin.getContent()), ObjectNode.class);
       duplicatedInject.setContent(content);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);

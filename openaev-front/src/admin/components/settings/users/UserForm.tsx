@@ -57,7 +57,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
 
   return (
     <Form
-      keepDirtyOnReinitialize={true}
+      keepDirtyOnReinitialize
       initialValues={initialValues}
       onSubmit={onSubmit}
       validate={schemaValidator(userFormSchemaValidation)}
@@ -71,20 +71,20 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
         <form id="userForm" onSubmit={handleSubmit}>
           <OldTextField
             name="user_email"
-            fullWidth={true}
+            fullWidth
             label={t('Email address')}
             disabled={initialValues.user_email === 'admin@openaev.io'}
             style={{ marginTop: 10 }}
           />
           <OldTextField
             name="user_firstname"
-            fullWidth={true}
+            fullWidth
             label={t('Firstname')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
             name="user_lastname"
-            fullWidth={true}
+            fullWidth
             label={t('Lastname')}
             style={{ marginTop: 20 }}
           />
@@ -97,7 +97,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
             <OldTextField
               variant="standard"
               name="user_plain_password"
-              fullWidth={true}
+              fullWidth
               type="password"
               label={t('Password')}
               style={{ marginTop: 20 }}
@@ -107,7 +107,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
             <OldTextField
               variant="standard"
               name="user_phone"
-              fullWidth={true}
+              fullWidth
               label={t('Phone number (mobile)')}
               style={{ marginTop: 20 }}
             />
@@ -116,7 +116,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
             <OldTextField
               variant="standard"
               name="user_phone2"
-              fullWidth={true}
+              fullWidth
               label={t('Phone number (landline)')}
               style={{ marginTop: 20 }}
             />
@@ -125,8 +125,8 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
             <OldTextField
               variant="standard"
               name="user_pgp_key"
-              fullWidth={true}
-              multiline={true}
+              fullWidth
+              multiline
               rows={5}
               label={t('PGP public key')}
               style={{ marginTop: 20 }}
@@ -147,7 +147,7 @@ const UserForm = ({ onSubmit, initialValues = {}, editing, handleClose }: UserFo
           />
           <div style={{
             float: 'right',
-            marginTop: 40,
+            marginTop: 20,
           }}
           >
             <Button

@@ -3,17 +3,21 @@ package io.openaev.migration;
 import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
+import org.springframework.stereotype.Component;
 
-public class V4_58__Alter_operators_for_multiple_paths extends BaseJavaMigration {
+@Component
+public class V4_59__Alter_operators_for_multiple_paths extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
 
+      // Drop old function signature if it exists (idempotent)
       stmt.execute(
           """
                     DROP FUNCTION IF EXISTS array_to_string_wrapper(anyelement, text);
                 """);
 
+      // Create or replace is inherently idempotent
       stmt.execute(
           """
           -- Version pour arrays

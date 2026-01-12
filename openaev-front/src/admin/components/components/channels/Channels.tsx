@@ -17,7 +17,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import ChannelIcon from './ChannelIcon';
 import CreateChannel from './CreateChannel';
 
@@ -99,7 +99,7 @@ const Channels = () => {
   const { t } = useFormatter();
   // Filter and sort hook
   const searchColumns = ['type', 'name', 'description'];
-  const filtering = useSearchAnFilter('channel', 'name', searchColumns);
+  const filtering = useSearchAndFilter('channel', 'name', searchColumns);
   // Fetching data
   const { channels }: { channels: Channel[] } = useHelper((helper: ChannelsHelper & UserHelper) => ({ channels: helper.getChannels() }));
   useDataLoader(() => {

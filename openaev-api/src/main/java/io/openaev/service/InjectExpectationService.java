@@ -7,8 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.InjectExpectationUtils.*;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.*;
-import static io.openaev.utils.inject_expectation_result.InjectExpectationResultUtils.computeScore;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.helper.InjectExpectationRepositoryHelper;

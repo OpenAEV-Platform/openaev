@@ -35,7 +35,7 @@ const useStyles = makeStyles()(theme => ({
     width: '100%',
     minHeight: '100%',
     padding: 20,
-    border: '1px dashed rgba(255, 255, 255, 0.3)',
+    border: `1px dashed ${theme.palette.divider}`,
   },
   chip: { margin: '0 10px 10px 0' },
   item: {

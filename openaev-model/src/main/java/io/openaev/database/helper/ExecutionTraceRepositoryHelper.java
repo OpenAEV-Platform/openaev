@@ -11,11 +11,29 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Repository helper for low-level database operations on execution traces and inject statuses.
+ *
+ * <p>This helper provides optimized JDBC-based operations for performance-critical database
+ * updates, bypassing JPA overhead when direct SQL execution is more efficient. It is particularly
+ * useful for high-volume operations during inject execution tracking.
+ *
+ * <p>Operations include:
+ *
+ * <ul>
+ *   <li>Inserting new execution traces
+ *   <li>Updating inject status states
+ *   <li>Updating inject timestamps
+ * </ul>
+ *
+ * @see ExecutionTrace
+ */
 @Repository
 public class ExecutionTraceRepositoryHelper {
 
   @Autowired private DataSource dataSource;
 
+  /** SQL statement for inserting a new execution trace record. */
   private static final String INSERT_EXECUTION_TRACE =
       """
           INSERT INTO execution_traces (
@@ -47,10 +65,14 @@ public class ExecutionTraceRepositoryHelper {
         )""";
 
   /**
-   * Save execution trace with a low level database call
+   * Saves an execution trace using a direct JDBC call for improved performance.
    *
-   * @param executionTrace the execution trace
-   * @return the id of the new trace
+   * <p>This method bypasses JPA to directly insert the execution trace record, which is more
+   * efficient for high-volume insert operations during inject execution.
+   *
+   * @param executionTrace the execution trace to save
+   * @return the generated UUID of the newly created trace
+   * @throws RuntimeException if the database insert fails
    */
   public String saveExecutionTrace(ExecutionTrace executionTrace) {
     try (Connection conn = dataSource.getConnection()) {
@@ -98,11 +120,15 @@ public class ExecutionTraceRepositoryHelper {
   }
 
   /**
-   * Update an inject status with a new status name and end_date with a low level database call
+   * Updates an inject status with a new status name and end date using direct JDBC.
    *
-   * @param injectStatusId the id of the inject status to update
-   * @param name the name of the new status
-   * @param endDate the end date
+   * <p>This method is used to efficiently update the status of an inject execution without loading
+   * the full entity through JPA.
+   *
+   * @param injectStatusId the ID of the inject status to update
+   * @param name the new status name (e.g., "SUCCESS", "ERROR", "PENDING")
+   * @param endDate the end timestamp for the inject execution, or {@code null} if not yet completed
+   * @throws RuntimeException if the database update fails
    */
   public void updateInjectStatus(String injectStatusId, String name, Instant endDate) {
     String sql =
@@ -122,10 +148,14 @@ public class ExecutionTraceRepositoryHelper {
   }
 
   /**
-   * Update the update date of an injects with a low level database call
+   * Updates the last modification timestamp of an inject using direct JDBC.
    *
-   * @param id the id of the inject
-   * @param updatedAt the update date
+   * <p>This lightweight operation updates only the {@code inject_updated_at} column without
+   * triggering a full entity update, useful for tracking inject modifications efficiently.
+   *
+   * @param id the ID of the inject to update
+   * @param updatedAt the new update timestamp, or {@code null} to clear the value
+   * @throws RuntimeException if the database update fails
    */
   public void updateInjectUpdateDate(String id, Instant updatedAt) {
     String sql = "UPDATE injects SET inject_updated_at = ? WHERE inject_id = ?";

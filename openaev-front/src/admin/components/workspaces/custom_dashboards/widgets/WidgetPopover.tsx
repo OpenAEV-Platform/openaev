@@ -72,13 +72,13 @@ const WidgetPopover: FunctionComponent<Props> = ({
 
   return (
     <div className={className}>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant="icon" size="small" />
       <WidgetForm
         open={openEdit}
         toggleDialog={toggleDialog}
         initialValues={initialValues}
         onSubmit={onSubmit}
-        editing={true}
+        editing
       />
       <DialogDelete
         open={openDelete}

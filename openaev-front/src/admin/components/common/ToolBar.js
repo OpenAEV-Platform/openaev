@@ -19,7 +19,6 @@ import {
   InputLabel,
   MenuItem,
   Select,
-  Slide,
   TextField,
   Toolbar,
   Tooltip,
@@ -28,7 +27,7 @@ import {
 import { SelectGroup } from 'mdi-material-ui';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
@@ -152,11 +151,6 @@ const styles = theme => ({
     backgroundColor: theme.palette.background.accent,
   },
 });
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 class ToolBar extends Component {
   constructor(props) {

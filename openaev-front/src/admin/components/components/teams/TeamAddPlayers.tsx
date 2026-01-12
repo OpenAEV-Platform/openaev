@@ -38,7 +38,7 @@ import TagsFilter from '../../common/filters/TagsFilter';
 import CreatePlayer from '../../teams/players/CreatePlayer';
 import { type UserStore } from '../../teams/players/Player';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   createButton: {
     position: 'fixed',
     bottom: 30,
@@ -48,7 +48,7 @@ const useStyles = makeStyles()(() => ({
     width: '100%',
     minHeight: '100%',
     padding: 20,
-    border: '1px dashed rgba(255, 255, 255, 0.3)',
+    border: `1px dashed ${theme.palette.divider}`,
   },
   chip: { margin: '0 10px 10px 0' },
 }));
@@ -136,7 +136,7 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
       </Can>
       <Dialog
         open={open}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={() => {
           setOpen(false);
           setKeyword('');
@@ -144,11 +144,13 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
         }}
         fullWidth
         maxWidth="lg"
-        PaperProps={{
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
+        slotProps={{
+          paper: {
+            elevation: 1,
+            sx: {
+              minHeight: 580,
+              maxHeight: 580,
+            },
           },
         }}
       >

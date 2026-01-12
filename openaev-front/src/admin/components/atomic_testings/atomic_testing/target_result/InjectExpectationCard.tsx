@@ -58,6 +58,9 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
   const [openDeleteResult, setOpenDeleteResult] = useState<boolean>(false);
   const [openSecurityPlatform, setOpenSecurityPlatform] = useState<boolean>(false);
 
+  // Hooks must be called at top level - not in JSX or conditionally
+  const isManuallyUpdatable = useIsManuallyUpdatable(injectExpectation);
+
   const statusResult = computeInjectExpectationLabel(injectExpectation.inject_expectation_status, injectExpectation.inject_expectation_type);
 
   const onCloseEditResultMenu = () => {
@@ -75,7 +78,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
     setOpenDeleteResult(false);
   };
   const onDelete = () => {
-    dispatch(deleteInjectExpectationResult(injectExpectation.inject_expectation_id, selectedResult?.sourceId)).then(() => {
+    dispatch(deleteInjectExpectationResult(injectExpectation.inject_expectation_id, selectedResult?.sourceId ?? '')).then(() => {
       fetchInjectResultOverviewOutput(inject.inject_id).then((result: { data: InjectResultOverviewOutput }) => {
         onUpdateInjectExpectationResult(result.data);
         onCloseDeleteInjectExpectationResult();
@@ -141,7 +144,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
   };
 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
-    || (inherited_context == INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, inject.inject_id))
+    || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, inject.inject_id))
     || permissions.canManage;
 
   return (
@@ -168,7 +171,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, onUpdateInjectExpect
           )}
 
           {/* Create expectation result */}
-          {useIsManuallyUpdatable(injectExpectation) && canManage && (
+          {isManuallyUpdatable && canManage && (
             <Tooltip title={t('Add a result')}>
               <IconButton
                 aria-label="Add"

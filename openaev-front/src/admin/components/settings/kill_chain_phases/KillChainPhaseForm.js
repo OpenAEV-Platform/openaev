@@ -23,7 +23,7 @@ class KillChainPhaseForm extends Component {
     const { t, onSubmit, initialValues, handleClose, editing } = this.props;
     return (
       <Form
-        keepDirtyOnReinitialize={true}
+        keepDirtyOnReinitialize
         initialValues={initialValues}
         onSubmit={onSubmit}
         validate={this.validate.bind(this)}
@@ -32,35 +32,35 @@ class KillChainPhaseForm extends Component {
           <form id="killChainPhaseForm" onSubmit={handleSubmit}>
             <OldTextField
               name="phase_name"
-              fullWidth={true}
+              fullWidth
               label={t('Phase name')}
               style={{ marginTop: 10 }}
             />
             <OldTextField
               variant="standard"
               name="phase_shortname"
-              fullWidth={true}
+              fullWidth
               label={t('Phase short name')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
               variant="standard"
               name="phase_kill_chain_name"
-              fullWidth={true}
+              fullWidth
               label={t('Kill chain name')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
               variant="standard"
               name="phase_external_id"
-              fullWidth={true}
+              fullWidth
               label={t('External Id')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
               variant="standard"
               name="phase_order"
-              fullWidth={true}
+              fullWidth
               type="number"
               label={t('Order')}
               style={{ marginTop: 20 }}

@@ -123,7 +123,7 @@ public class StreamApi extends RestBehavior {
               sendStreamEvent(fluxSink, userEvent);
             } catch (Exception e) {
               String simpleName = event.getInstance().getClass().getSimpleName();
-              log.warn(String.format("Class %s cant be streamed", simpleName), e);
+              log.warn(String.format("Class %s can't be streamed", simpleName), e);
             }
           } else {
             sendStreamEvent(fluxSink, event);

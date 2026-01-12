@@ -18,7 +18,6 @@ import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -27,18 +26,30 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper component for processing and converting inject expectations.
+ *
+ * <p>Provides methods for extracting expectation results from various sources including inject
+ * content, raw database queries, and entity objects. Handles the complex logic of building
+ * expectation result aggregations by type.
+ *
+ * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class InjectExpectationMapper {
 
+  /** JSON property name for expectation type in inject content. */
   public static final String NODE_EXPECTATION_TYPE = "expectation_type";
 
+  /** Set of all available expectation types for completeness checking. */
   private static final EnumSet<ExpectationType> ALL_EXPECTATION_TYPES =
       EnumSet.allOf(ExpectationType.class);
 
   private final InjectRepository injectRepository;
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper;
   private final InjectUtils injectUtils;
 
   /**
@@ -88,7 +99,7 @@ public class InjectExpectationMapper {
           ExpectationType type = ExpectationType.of(typeNode.asText().toUpperCase());
           uniqueTypes.add(type);
         } catch (IllegalArgumentException e) {
-          log.warn("Expectation Type is no valid", e);
+          log.warn("Expectation Type is not valid", e);
         }
       }
     }
@@ -103,7 +114,7 @@ public class InjectExpectationMapper {
    * @param injects
    * @return List of InjectExpectationResultsByAttackPattern
    */
-  public InjectExpectationResultsByAttackPattern toInjectExpectationResultsByattackPattern(
+  public InjectExpectationResultsByAttackPattern toInjectExpectationResultsByAttackPattern(
       final AttackPattern attackPattern, @NotNull final List<Inject> injects) {
 
     return InjectExpectationResultsByAttackPattern.builder()
@@ -171,7 +182,7 @@ public class InjectExpectationMapper {
    * @return List of InjectResultsByType
    */
   private List<ExpectationResultsByType> buildExpectationResultsFromInjectContents(
-      @NotBlank Set<String> injectIds) {
+      @NotNull Set<String> injectIds) {
 
     // Fetch all inject contents in order to extract expectations defined in every inject
     List<String> rawContents = injectRepository.findContentsByInjectIds(injectIds);

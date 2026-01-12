@@ -116,7 +116,7 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
         <Paper variant="outlined" classes={{ root: classes.paperChart }}>
           {
             loading
-              ? <Loader variant="inline" />
+              ? <Loader variant="inElement" />
               : <ExerciseDistributionScoreByTeam exerciseId={exerciseId} />
           }
         </Paper>

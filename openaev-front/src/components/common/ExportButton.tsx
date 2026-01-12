@@ -42,7 +42,7 @@ const ExportButton = <T extends object>({ totalElements, exportProps }: Props<T>
 
   if (totalElements > 0) {
     // TODO update all Front exports by Back API exports
-    if ('ENDPOINTS' == exportProps.exportType) {
+    if (exportProps.exportType === 'ENDPOINTS') {
       return (
         <ToggleButton value="export" aria-label="export" size="small" onClick={exportCsvMapperAction}>
           <Tooltip title={t('Export this list')}>

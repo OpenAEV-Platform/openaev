@@ -1,16 +1,12 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem, Slide } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
-import { forwardRef, useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 
+import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { LessonContext } from '../../common/Context';
 import LessonsCategoryForm from './LessonsCategoryForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const LessonsCategoryPopover = ({ lessonsCategory }) => {
   // utils

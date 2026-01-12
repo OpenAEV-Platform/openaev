@@ -7,13 +7,13 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_54__Implement_Domains_notion extends BaseJavaMigration {
+public class V4_55__Implement_Domains_notion extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
       stmt.execute(
           """
-              CREATE TABLE domains (
+              CREATE TABLE IF NOT EXISTS domains (
                   domain_id VARCHAR(255) NOT NULL CONSTRAINT domains_pkey PRIMARY KEY,
                   domain_name VARCHAR(255) NOT NULL UNIQUE,
                   domain_color VARCHAR(255) NOT NULL DEFAULT '#FFFFFF',
@@ -24,13 +24,13 @@ public class V4_54__Implement_Domains_notion extends BaseJavaMigration {
 
       stmt.execute(
           """
-                CREATE INDEX idx_domains_domain_name
+                CREATE INDEX IF NOT EXISTS idx_domains_domain_name
                 ON domains(domain_name);
               """);
 
       stmt.execute(
           """
-                CREATE TABLE payloads_domains (
+                CREATE TABLE IF NOT EXISTS payloads_domains (
                     payload_id VARCHAR(255) NOT NULL,
                     domain_id VARCHAR(255) NOT NULL,
                     PRIMARY KEY (payload_id, domain_id),
@@ -39,12 +39,14 @@ public class V4_54__Implement_Domains_notion extends BaseJavaMigration {
                 );
             """);
 
-      stmt.execute("CREATE INDEX idx_payloads_domains_domain_id ON payloads_domains(domain_id);");
-      stmt.execute("CREATE INDEX idx_payloads_domains_payload_id ON payloads_domains(payload_id);");
+      stmt.execute(
+          "CREATE INDEX IF NOT EXISTS idx_payloads_domains_domain_id ON payloads_domains(domain_id);");
+      stmt.execute(
+          "CREATE INDEX IF NOT EXISTS idx_payloads_domains_payload_id ON payloads_domains(payload_id);");
 
       stmt.execute(
           """
-                CREATE TABLE injectors_contracts_domains (
+                CREATE TABLE IF NOT EXISTS injectors_contracts_domains (
                     injector_contract_id VARCHAR(255) NOT NULL,
                     domain_id VARCHAR(255) NOT NULL,
                     PRIMARY KEY (injector_contract_id, domain_id),
@@ -62,8 +64,9 @@ public class V4_54__Implement_Domains_notion extends BaseJavaMigration {
             """);
 
       stmt.execute(
-          "CREATE INDEX idx_icd_injector_contract_id ON injectors_contracts_domains(injector_contract_id);");
-      stmt.execute("CREATE INDEX idx_icd_domain_id ON injectors_contracts_domains(domain_id);");
+          "CREATE INDEX IF NOT EXISTS idx_icd_injector_contract_id ON injectors_contracts_domains(injector_contract_id);");
+      stmt.execute(
+          "CREATE INDEX IF NOT EXISTS idx_icd_domain_id ON injectors_contracts_domains(domain_id);");
 
       stmt.execute(
           "INSERT INTO domains (domain_id, domain_name, domain_color) VALUES "
@@ -111,14 +114,15 @@ public class V4_54__Implement_Domains_notion extends BaseJavaMigration {
               + PresetDomain.TOCLASSIFY.getName()
               + "', '"
               + PresetDomain.TOCLASSIFY.getColor()
-              + "');");
+              + "') ON CONFLICT (domain_name) DO NOTHING;");
 
       stmt.execute(
           "INSERT INTO payloads_domains (payload_id, domain_id) "
               + "SELECT p.payload_id, d.domain_id FROM payloads p "
               + "INNER JOIN domains d ON d.domain_name = '"
               + PresetDomain.TOCLASSIFY.getName()
-              + "';");
+              + "' "
+              + "ON CONFLICT (payload_id, domain_id) DO NOTHING;");
 
       stmt.execute(
           "INSERT INTO injectors_contracts_domains (injector_contract_id, domain_id) "
@@ -126,7 +130,8 @@ public class V4_54__Implement_Domains_notion extends BaseJavaMigration {
               + "INNER JOIN domains d ON d.domain_name = '"
               + PresetDomain.TOCLASSIFY.getName()
               + "' "
-              + "WHERE ic.injector_contract_payload IS NULL;");
+              + "WHERE ic.injector_contract_payload IS NULL "
+              + "ON CONFLICT (injector_contract_id, domain_id) DO NOTHING;");
     }
   }
 }

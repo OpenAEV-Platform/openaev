@@ -3,17 +3,16 @@ import * as R from 'ramda';
 import countriesJson from '../static/geo/countries.json';
 import { type AttackPattern, type Exercise, type KillChainPhase, type Organization, type Scenario, type Tag } from './api-types';
 
-interface Countries {
-  features: [{
-    properties: {
-      ISO3: string;
-      NAME: string;
-    };
-  }];
+interface CountryFeature {
+  properties: {
+    ISO3: string;
+    NAME: string;
+  };
 }
 
-//  eslint-disable-next-line @typescript-eslint/no-explicit-any
-const countries: Countries = countriesJson as any;
+interface Countries { features: CountryFeature[] }
+
+const countries = countriesJson as Countries;
 
 export interface Option {
   id: string;
@@ -126,15 +125,18 @@ export const countryOptions = () => countries.features.map(
   }) as Option,
 );
 
-export const countryOption = (iso3: string | undefined) => {
+export const countryOption = (iso3: string | undefined): Option | undefined => {
   if (!iso3) {
     return undefined;
   }
   const country = R.head(
     countries.features.filter(n => n.properties.ISO3 === iso3),
   );
+  if (!country) {
+    return undefined;
+  }
   return {
     id: country.properties.ISO3,
     label: country.properties.NAME,
-  } as Option;
+  };
 };

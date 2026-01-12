@@ -10,7 +10,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
-import useSearchAnFilter from '../../../../utils/SortingFiltering';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { ChallengeContext, PermissionsContext } from '../Context';
 import ChallengeCard from './ChallengeCard.js';
 
@@ -49,7 +49,7 @@ const ContextualChallenges = ({ challenges, linkToInjects }) => {
 
   // Filter and sort hook
   const searchColumns = ['name', 'category', 'content'];
-  const filtering = useSearchAnFilter('challenge', 'name', searchColumns);
+  const filtering = useSearchAndFilter('challenge', 'name', searchColumns);
   // Rendering
   const sortedChallenges = filtering.filterAndSort(challenges);
   return (

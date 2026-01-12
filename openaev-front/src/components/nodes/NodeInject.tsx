@@ -27,7 +27,7 @@ const useStyles = makeStyles()(theme => ({
   },
   icon: {
     textAlign: 'left',
-    margin: '10px 0 0px 5px',
+    margin: '10px 0 0 5px',
   },
   popover: {
     textAlign: 'right',
@@ -35,26 +35,24 @@ const useStyles = makeStyles()(theme => ({
   },
   triggerTime: {
     textAlign: 'right',
-    margin: '10px 0 0px 5px',
+    margin: '10px 0 0 5px',
     position: 'absolute',
-    top: '10px',
-    right: '10px',
-    color: '#7d8188',
+    top: 10,
+    right: 10,
+    color: theme.palette.text.secondary,
   },
   label: {
     margin: '0 0 0 5px',
     textAlign: 'left',
     fontSize: 15,
-    whiteSpace: 'auto',
+    whiteSpace: 'normal',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     display: '-webkit-box',
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',
-    height: '40px',
-    color: theme.palette.mode === 'dark'
-      ? 'white'
-      : 'black',
+    height: 40,
+    color: theme.palette.text.primary,
   },
   targets: {
     display: 'flex',
@@ -63,7 +61,7 @@ const useStyles = makeStyles()(theme => ({
     margin: '0 0 0 5px',
     textAlign: 'left',
     fontSize: 12,
-    whiteSpace: 'auto',
+    whiteSpace: 'normal',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },

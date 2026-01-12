@@ -9,9 +9,33 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-public class OperationUtilsJpa {
+/**
+ * Utility class providing JPA Criteria API predicate builders for filter operations.
+ *
+ * <p>This class contains methods for building JPA Predicates for various filter operations
+ * including text matching, comparisons, and array/map operations. All string comparisons are
+ * case-insensitive.
+ *
+ * <p>Special handling is provided for:
+ *
+ * <ul>
+ *   <li>Array types - uses PostgreSQL array functions (array_to_string, array_position)
+ *   <li>Map types (hstore) - extracts values using avals() function
+ *   <li>Boolean values - parses string representations ("true"/"false")
+ *   <li>Date/time values - parses ISO-8601 instant strings
+ * </ul>
+ *
+ * <p><b>Database Compatibility:</b> This class uses PostgreSQL-specific functions and requires
+ * custom SQL function wrappers (array_position_wrapper, array_to_string_wrapper) to be defined in
+ * the database.
+ *
+ * @see FilterUtilsJpa for high-level filter specification building
+ */
+public final class OperationUtilsJpa {
 
-  private OperationUtilsJpa() {}
+  private OperationUtilsJpa() {
+    // Utility class - prevent instantiation
+  }
 
   // -- NOT CONTAINS --
 
@@ -158,7 +182,7 @@ public class OperationUtilsJpa {
 
     if (type.isAssignableFrom(Map.class) || type.getName().contains("ImmutableCollections")) {
       Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
-      return cb.like(cb.lower(values), text.toLowerCase() + "%");
+      return cb.like(values, text.toLowerCase() + "%");
     }
 
     return cb.like(cb.lower(paths), text.toLowerCase() + "%");
@@ -304,7 +328,7 @@ public class OperationUtilsJpa {
   }
 
   private static boolean isEmpty(List<String> texts) {
-    return texts == null || texts.isEmpty() || texts.stream().anyMatch(s -> !hasText(s));
+    return texts == null || texts.isEmpty() || texts.stream().allMatch(s -> !hasText(s));
   }
 
   private static boolean isEmpty(String text) {

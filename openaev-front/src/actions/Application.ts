@@ -1,14 +1,29 @@
 import { FORM_ERROR } from 'final-form';
+import { type Dispatch } from 'redux';
 
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall } from '../utils/Action';
+import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
 import * as schema from './Schema';
 
-export const fetchPlatformParameters = () => (dispatch) => {
+interface ResetValues {
+  password: string;
+  password_validation: string;
+}
+
+interface LoginData {
+  login: string;
+  password?: string;
+  lang?: string;
+}
+
+type AppDispatch = Dispatch;
+
+export const fetchPlatformParameters = () => (dispatch: AppDispatch) => {
   return getReferential(schema.platformParameters, '/api/settings')(dispatch);
 };
 
-export const updatePlatformParameters = data => (dispatch) => {
+export const updatePlatformParameters = (data: SettingsUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings',
@@ -16,7 +31,7 @@ export const updatePlatformParameters = data => (dispatch) => {
   )(dispatch);
 };
 
-export const updatePlatformPolicies = data => (dispatch) => {
+export const updatePlatformPolicies = (data: PolicyInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/policies',
@@ -24,7 +39,7 @@ export const updatePlatformPolicies = data => (dispatch) => {
   )(dispatch);
 };
 
-export const updatePlatformEnterpriseEditionParameters = data => (dispatch) => {
+export const updatePlatformEnterpriseEditionParameters = (data: SettingsEnterpriseEditionUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/enterprise-edition',
@@ -32,7 +47,7 @@ export const updatePlatformEnterpriseEditionParameters = data => (dispatch) => {
   )(dispatch);
 };
 
-export const updatePlatformWhitemarkParameters = data => (dispatch) => {
+export const updatePlatformWhitemarkParameters = (data: SettingsPlatformWhitemarkUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/platform_whitemark',
@@ -40,7 +55,7 @@ export const updatePlatformWhitemarkParameters = data => (dispatch) => {
   )(dispatch);
 };
 
-export const updatePlatformLightParameters = data => (dispatch) => {
+export const updatePlatformLightParameters = (data: ThemeInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/theme/light',
@@ -48,7 +63,7 @@ export const updatePlatformLightParameters = data => (dispatch) => {
   )(dispatch);
 };
 
-export const updatePlatformDarkParameters = data => (dispatch) => {
+export const updatePlatformDarkParameters = (data: ThemeInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
     '/api/settings/theme/dark',
@@ -56,15 +71,15 @@ export const updatePlatformDarkParameters = data => (dispatch) => {
   )(dispatch);
 };
 
-export const askReset = (username, locale) => (dispatch) => {
-  const data = {
+export const askReset = (username: string, locale: string) => (dispatch: AppDispatch) => {
+  const data: LoginData = {
     login: username,
     lang: locale,
   };
   return postReferential(schema.user, '/api/reset', data)(dispatch);
 };
 
-export const resetPassword = (token, values) => (dispatch) => {
+export const resetPassword = (token: string, values: ResetValues) => (dispatch: AppDispatch) => {
   const data = {
     password: values.password,
     password_validation: values.password_validation,
@@ -74,7 +89,7 @@ export const resetPassword = (token, values) => (dispatch) => {
     `/api/reset/${token}`,
     data,
   )(dispatch);
-  return ref.then((finalData) => {
+  return ref.then((finalData: Record<string, unknown>) => {
     if (finalData[FORM_ERROR]) {
       return finalData;
     }
@@ -85,17 +100,17 @@ export const resetPassword = (token, values) => (dispatch) => {
   });
 };
 
-export const validateResetToken = token => (dispatch) => {
-  return getReferential(null, `/api/reset/${token}`)(dispatch);
+export const validateResetToken = (token: string) => () => {
+  return simpleCall(`/api/reset/${token}`);
 };
 
-export const askToken = (username, password) => (dispatch) => {
-  const data = {
+export const askToken = (username: string, password: string) => (dispatch: AppDispatch) => {
+  const data: LoginData = {
     login: username,
     password,
   };
   const ref = postReferential(schema.user, '/api/login', data)(dispatch);
-  return ref.then((finalData) => {
+  return ref.then((finalData: Record<string, unknown>) => {
     if (finalData[FORM_ERROR]) {
       return finalData;
     }
@@ -106,7 +121,7 @@ export const askToken = (username, password) => (dispatch) => {
   });
 };
 
-export const checkKerberos = () => (dispatch) => {
+export const checkKerberos = () => (dispatch: AppDispatch) => {
   const ref = getReferential(schema.token, '/api/auth/kerberos')(dispatch);
   return ref.catch(() => {
     dispatch({
@@ -116,15 +131,15 @@ export const checkKerberos = () => (dispatch) => {
   });
 };
 
-export const fetchMe = () => (dispatch) => {
+export const fetchMe = () => (dispatch: AppDispatch) => {
   const ref = getReferential(schema.user, '/api/me')(dispatch);
-  return ref.then(data => dispatch({
+  return ref.then((data: User) => dispatch({
     type: Constants.IDENTITY_LOGIN_SUCCESS,
     payload: data,
   }));
 };
 
-export const logout = () => (dispatch) => {
+export const logout = () => (dispatch: AppDispatch) => {
   const ref = simpleCall('/logout');
   return ref.then(() => dispatch({ type: Constants.IDENTITY_LOGOUT_SUCCESS }));
 };

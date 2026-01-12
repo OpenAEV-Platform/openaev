@@ -11,7 +11,7 @@ import zhOpenAEV from './lang/zh.json';
 
 export type LanguageCode = 'de' | 'en' | 'es' | 'fr' | 'it' | 'ja' | 'ru' | 'zh';
 
-// OAEV Supported Local Langue
+// OAEV Supported Local Language
 export const oaevLocaleMap: Record<LanguageCode, Record<string, string>> = {
   de: deOpenAEV,
   en: enOpenAEV,

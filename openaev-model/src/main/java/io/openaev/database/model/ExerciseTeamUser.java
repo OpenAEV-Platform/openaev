@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.raw.RawExerciseTeamUser;
-import io.openaev.helper.MonoIdDeserializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.util.Objects;
@@ -18,7 +18,7 @@ public class ExerciseTeamUser {
   @MapsId("exerciseId")
   @JoinColumn(name = "exercise_id")
   @JsonProperty("exercise_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Exercise exercise;
 
@@ -26,7 +26,7 @@ public class ExerciseTeamUser {
   @MapsId("teamId")
   @JoinColumn(name = "team_id")
   @JsonProperty("team_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private Team team;
 
@@ -34,7 +34,7 @@ public class ExerciseTeamUser {
   @MapsId("userId")
   @JoinColumn(name = "user_id")
   @JsonProperty("user_id")
-  @JsonSerialize(using = MonoIdDeserializer.class)
+  @JsonSerialize(using = MonoIdSerializer.class)
   @Schema(type = "string")
   private User user;
 

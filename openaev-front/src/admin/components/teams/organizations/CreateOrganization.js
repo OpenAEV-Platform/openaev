@@ -1,8 +1,8 @@
 import { Add } from '@mui/icons-material';
-import { Fab, Slide } from '@mui/material';
+import { Fab } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
@@ -10,11 +10,6 @@ import { addOrganization } from '../../../../actions/Organization';
 import Drawer from '../../../../components/common/Drawer.js';
 import inject18n from '../../../../components/i18n';
 import OrganizationForm from './OrganizationForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const styles = () => ({
   createButton: {

@@ -6,6 +6,7 @@ import io.openaev.database.model.Asset;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
@@ -25,10 +26,12 @@ public class AssetService {
   private final SecurityPlatformRepository securityPlatformRepository;
 
   public Asset asset(@NotBlank final String assetId) {
-    return this.assetRepository.findById(assetId).orElseThrow();
+    return this.assetRepository
+        .findById(assetId)
+        .orElseThrow(() -> new ElementNotFoundException("Asset not found with id: " + assetId));
   }
 
-  public List<Asset> assets(@NotBlank final List<String> assetIds) {
+  public List<Asset> assets(@NotNull final List<String> assetIds) {
     return fromIterable(this.assetRepository.findAllById(assetIds));
   }
 

@@ -205,8 +205,8 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       buildFilter('endpoint_platform', platforms ?? [], 'contains'),
     ],
   };
-    // only add an architecture filter if the payload is not compatible with all archs
-  if (quickFilter.filters && payloadArch && payloadArch != 'ALL_ARCHITECTURES') {
+  // only add an architecture filter if the payload is not compatible with all archs
+  if (quickFilter.filters && payloadArch && payloadArch !== 'ALL_ARCHITECTURES') {
     quickFilter.filters?.push(buildFilter('endpoint_arch', [payloadArch], 'contains'));
   }
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({ filterGroup: quickFilter }));
@@ -226,15 +226,17 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   return (
     <Dialog
       open={open}
-      TransitionComponent={Transition}
+      slots={{ transition: Transition }}
       onClose={handleClose}
       fullWidth
       maxWidth="lg"
-      PaperProps={{
-        elevation: 1,
-        sx: {
-          minHeight: 580,
-          maxHeight: 580,
+      slotProps={{
+        paper: {
+          elevation: 1,
+          sx: {
+            minHeight: 580,
+            maxHeight: 580,
+          },
         },
       }}
     >

@@ -1,25 +1,21 @@
 import { MoreVert } from '@mui/icons-material';
 import {
   Button, Dialog, DialogActions, DialogContent, DialogContentText,
-  IconButton, Menu, MenuItem, Slide,
+  IconButton, Menu, MenuItem,
 } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { Component, forwardRef } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteOrganization, updateOrganization } from '../../../../actions/Organization';
 import Drawer from '../../../../components/common/Drawer';
+import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
 import { tagOptions } from '../../../../utils/Option';
 import { Can } from '../../../../utils/permissions/PermissionsProvider.js';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types.js';
 import OrganizationForm from './OrganizationForm';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 class OrganizationPopover extends Component {
   constructor(props) {
@@ -137,7 +133,7 @@ class OrganizationPopover extends Component {
         >
           <OrganizationForm
             initialValues={initialValues}
-            editing={true}
+            editing
             onSubmit={this.onSubmitEdit.bind(this)}
             handleClose={this.handleCloseEdit.bind(this)}
           />

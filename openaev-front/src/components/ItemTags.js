@@ -1,19 +1,14 @@
-import { Chip, Slide, Tooltip } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
-import { forwardRef, useMemo } from 'react';
+import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useHelper } from '../store';
 import { hexToRGB } from '../utils/Colors';
 import { getLabelOfRemainingItems, getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
 import { useFormatter } from './i18n';
-
-const Transition = forwardRef((props, ref) => (
-  <Slide direction="up" ref={ref} {...props} />
-));
-Transition.displayName = 'TransitionSlide';
 
 const useStyles = makeStyles()(() => ({
   inline: {
