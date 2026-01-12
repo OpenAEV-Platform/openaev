@@ -297,14 +297,18 @@ public class StepService {
     final Gson gson = new Gson();
     JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
     StringBuilder path = new StringBuilder();
-    for (String field : fieldsAndValue.keySet()) {
+
+    Map<String, Object> fieldsAndValueCopy = new HashMap<>(fieldsAndValue);
+    for (String field : fieldsAndValueCopy.keySet()) {
       List<String> treeToUpdate = Arrays.asList(field.split("\\."));
       int indexFieldPath = 0;
 
       JsonElement o = jsonObject.get(treeToUpdate.get(indexFieldPath));
+      path.delete(0, path.length());
       path.append(treeToUpdate.get(indexFieldPath)).append(".");
       if (o != null) {
         if (indexFieldPath == treeToUpdate.size() - 1) {
+            path.deleteCharAt(path.length() - 1);
           actionJson(
               fieldsAndValue,
               field,

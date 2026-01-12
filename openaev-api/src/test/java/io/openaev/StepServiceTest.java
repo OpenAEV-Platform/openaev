@@ -49,7 +49,7 @@ public class StepServiceTest {
 
     JsonObject oNew = StepService.useJson(jsonString, u, StepService.ACTION_JSON.REPLACE);
     String result =
-        "{\"name2\":\"World\",\"obj\":{\"attack\":[\"new-attack\",\"second\"],\"user\":[{\"password\":\"psd1\",\"username\":\"userChangeName1\"},{\"password\":\"psd2\",\"username\":\"userChangeName2\"}],\"asset\":[\"new-asset\"],\"id\":9999},\"name\":\"0000\"}";
+        "{\"name2\":\"World\",\"obj\":{\"attack\":[\"new-attack\",\"second\"],\"user\":[{\"password\":\"psd1\",\"username\":\"userChangeName1\"},{\"password\":\"psd2\",\"username\":\"userChangeName2\"}],\"id\":9999,\"asset\":[\"new-asset\"]},\"name\":\"0000\"}";
     assertEquals(result, oNew.toString());
   }
 
