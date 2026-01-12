@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class IntegrationTest {
+public class IntegrationConnectorTest {
 
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ConnectorInstanceService connectorInstanceService;
