@@ -35,7 +35,7 @@ export default ({ mode }: { mode: string }) => {
       },
     },
 
-    publicDir: 'src/static/ext',
+    publicDir: 'src/static/public',
 
     resolve: {
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
