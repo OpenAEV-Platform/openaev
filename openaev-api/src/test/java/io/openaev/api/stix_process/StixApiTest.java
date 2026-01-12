@@ -131,7 +131,7 @@ class StixApiTest extends IntegrationTest {
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-only-vulns.json");
 
-      stixSecurityCoverageWithDomainName =
+    stixSecurityCoverageWithDomainName =
         loadJsonWithStixObjects(
             "src/test/resources/stix-bundles/security-coverage-with-domain-name.json");
 
@@ -888,30 +888,31 @@ class StixApiTest extends IntegrationTest {
       assertThat(duplicatedScenario.getSecurityCoverage()).isNull();
     }
 
-      @Test
-      @DisplayName(
-              "Should create scenario with domain resolution injects")
-      void shouldCreateScenarioWithDomainNameResolutionInjects()
-              throws Exception {
-          String createdResponse =
-                  mvc.perform(
-                                  post(STIX_URI + "/process-bundle")
-                                          .contentType(MediaType.APPLICATION_JSON)
-                                          .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName)))
-                          .andExpect(status().isOk())
-                          .andReturn()
-                          .getResponse()
-                          .getContentAsString();
+    @Test
+    @DisplayName("Should create scenario with domain resolution injects")
+    void shouldCreateScenarioWithDomainNameResolutionInjects() throws Exception {
+      String createdResponse =
+          mvc.perform(
+                  post(STIX_URI + "/process-bundle")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-          String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-          Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-          assertThat(createdScenario.getName())
-                  .isEqualTo("test domain name");
+      String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getName()).isEqualTo("test domain name");
 
-          Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
-          assertThat(injects).hasSize(7);
-          assertThat(injects).anyMatch(inject -> inject.getPayload().isPresent() && inject.getPayload().get() instanceof DnsResolution);
-      }
+      Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
+      assertThat(injects).hasSize(7);
+      assertThat(injects)
+          .anyMatch(
+              inject ->
+                  inject.getPayload().isPresent()
+                      && inject.getPayload().get() instanceof DnsResolution);
+    }
   }
 
   private String getScenarioIdResponse(String content) throws Exception {

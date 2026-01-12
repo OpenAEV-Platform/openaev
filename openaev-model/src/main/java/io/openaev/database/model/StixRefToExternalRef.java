@@ -26,14 +26,15 @@ public class StixRefToExternalRef {
   @JsonProperty("hostname")
   private String hostname;
 
-    /**
-     * StixRefToExternalRef enhanced for hostname information use
-     * @param stixRef id
-     * @param externalRef stix external reference
-     * @param name of the stix object
-     * @param description of the stix object
-     * @param hostname of the stix object
-     */
+  /**
+   * StixRefToExternalRef enhanced for hostname information use
+   *
+   * @param stixRef id
+   * @param externalRef stix external reference
+   * @param name of the stix object
+   * @param description of the stix object
+   * @param hostname of the stix object
+   */
   public StixRefToExternalRef(
       String stixRef, String externalRef, String name, String description, String hostname) {
     this.stixRef = stixRef;
@@ -43,11 +44,12 @@ public class StixRefToExternalRef {
     this.hostname = hostname;
   }
 
-    /**
-     * StixRefToExternalRef object to use when only external reference is necessary
-     * @param stixRef id
-     * @param externalRef stix external reference
-     */
+  /**
+   * StixRefToExternalRef object to use when only external reference is necessary
+   *
+   * @param stixRef id
+   * @param externalRef stix external reference
+   */
   public StixRefToExternalRef(String stixRef, String externalRef) {
     this.stixRef = stixRef;
     this.externalRef = externalRef;
