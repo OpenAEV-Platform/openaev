@@ -1,12 +1,12 @@
 package io.openaev.rest.exercise.form;
 
-import static io.openaev.config.AppConfig.EMAIL_FORMAT;
-import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
+import static io.openaev.config.AppConfig.*;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
@@ -19,6 +19,7 @@ import lombok.Setter;
 public class ExerciseInput {
 
   @NotBlank(message = MANDATORY_MESSAGE)
+  @Size(max = 255, message = MAX_255_MESSAGE)
   @JsonProperty("exercise_name")
   private String name;
 

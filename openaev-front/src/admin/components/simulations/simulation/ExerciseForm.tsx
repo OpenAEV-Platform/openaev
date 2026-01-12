@@ -55,7 +55,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<CreateExerciseInput>().with({
-        exercise_name: z.string().min(1, { message: t('Should not be empty') }),
+        exercise_name: z.string().min(1, { message: t('Should not be empty') }).max(255, { message: t('Should not exceed 255 characters') }),
         exercise_subtitle: z.string().optional(),
         exercise_category: z.string().optional(),
         exercise_main_focus: z.string().optional(),
@@ -95,6 +95,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         control={control}
         setValue={setValue}
         askAi={true}
+        maxLength={255}
       />
       <GridLegacy container spacing={2}>
         <GridLegacy item xs={7}>
