@@ -11,7 +11,6 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -50,8 +49,6 @@ public class SecurityCoverageInjectService {
   private final PayloadService payloadService;
 
   private final InjectRepository injectRepository;
-  //  private final PayloadRepository payloadRepository;
-  private final DomainService domainService;
   private final InjectorContractRepository injectorContractRepository;
   private final TagService tagService;
 

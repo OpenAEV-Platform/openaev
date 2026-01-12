@@ -286,13 +286,16 @@ public class ExecutableInjectService {
       Inject inject,
       List<ObjectNode> injectorContractFields,
       String obfuscator) {
-    return switch (contract.getPayload().getTypeEnum()) {
-      case PayloadType.COMMAND ->
-          processCommandPayload(
-              payloadToExecute, contract, inject, injectorContractFields, obfuscator);
-      case PayloadType.DNS_RESOLUTION -> processDnsResolutionPayload(payloadToExecute, inject);
-      default -> payloadToExecute;
-    };
+      switch (contract.getPayload().getTypeEnum()) {
+          case PayloadType.COMMAND:
+              return processCommandPayload(
+                      payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+          case PayloadType.DNS_RESOLUTION:
+              return processDnsResolutionPayload(payloadToExecute, inject);
+          default:
+              // All other payload types are intentionally passed through unchanged.
+              return payloadToExecute;
+      }
   }
 
   private Payload processCommandPayload(
