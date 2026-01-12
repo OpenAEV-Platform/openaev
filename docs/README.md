@@ -36,7 +36,7 @@ Install dependencies; consider a virtual environment for doing so
 ```shell
 $ cd docs/
 $ python -m venv .venv
-$ source .venv/bin/activate
+$ .\.venv\Scripts\Activate.ps1
 $ pip install -r requirements.txt
 ```
 

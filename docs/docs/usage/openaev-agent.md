@@ -2,37 +2,120 @@
 
 ## Introduction
 
-The OpenAEV Agent is an application whose main role is to enroll an Asset on the OpenAEV platform,
-to retrieve jobs or scripts to be executed and to transmit this information to Implants (subject to come)
-for execution on the host Asset.
+The OpenAEV Agent is an application whose primary role is to enroll an Asset on the OpenAEV platform, retrieve jobs or
+scripts to be executed, and transmit this information to Implants (subject to come) for execution on the host Asset.
 
-The Agent will not perform direct actions on the Asset to remain neutral for antivirus and ensure the full run of the simulation.
+The Agent does **not perform direct actions** on the Asset itself, in order to remain neutral with respect to antivirus
+solutions and ensure the full execution of simulations.
 
-The OpenAEV Agent is compatible with different OS (Windows, Linux, macOS) and is developed in Rust.
+The OpenAEV Agent is compatible with multiple operating systems (Windows, Linux, macOS) and is developed in **Rust**.
+
+---
 
 ## Installation
 
-Depending on the OS, several installations are at your disposal, you can find them on OpenAEV by clicking the blue icon on the right top corner :
+Depending on the operating system, several installation modes are available.
+You can access them from OpenAEV by clicking the blue icon in the top-right corner:
+
 ![Agents](../administration/assets/agents.png)
 
 !!! note
 
-    Since the release 1.14, several OpenAEV agents can be installed on a machine to try different configurations on Payload executions:<br/>
-    - Example 1: with the standard installation, you can install two agents on your machine with different privileges (one standard and one administrator).<br/>
-    - Example 2: with the advanced installation as system (installation before release 1.14), you have installed an agent with system user and privileges. It could be interesting to install an agent from the standard installation to compare the behavior like folders accesses, environment variables, privileges,...<br/><br/>
-    **For more details, see the explanations below for each OS and each installation.** 
+    Since release **1.14**, multiple OpenAEV Agents can be installed on the same machine in order to test different execution contexts and privilege levels.
+    
+    Examples:
+
+    - Install two agents using the **standard installation** with different privileges (standard user vs administrator).
+    - If an agent was previously installed using the **advanced system installation** (pre-1.14 behavior), a standard installation can be added to compare behaviors such as filesystem access, environment variables, and privileges.
+    
+    **See the OS-specific sections below for details.**
 
 !!! warning
 
-    The following documented antivirus exclusions are mandatory for OpenAEV to work properly. Please note that the AV exclusions are always only on the `runtimes` subfolder, which is important to ensure `payloads` (which land in another directory) will be detected / blocked if this is relevant.
+    Antivirus exclusions described in this documentation are **mandatory** for OpenAEV to function correctly.
+    
+    Exclusions must apply **only** to the `runtimes` subfolder.  
+    Payloads are intentionally stored elsewhere so that detection and blocking remain possible when relevant.
+
+---
+
+### Quick Compatibility Check
+
+Before installing the OpenAEV Agent, ensure that **all** the following conditions are met:
+
+* Supported CPU architecture: **x64 or ARM64 only**
+
+* Supported service manager:
+
+    * Windows: **Service Control Manager**
+    * Linux: **systemd**
+    * macOS: **launchd**
+
+* Security requirements:
+    * **TLS 1.2 or higher**
+    * Administrative privileges (Administrator / root / sudo)
+
+* Network access:
+    * Outbound connectivity to the OpenAEV instance
+
+If any of these requirements are not met, installation **will fail or behave unpredictably**.
+
+#### Best Effort Support
+
+“Best effort” support means that the OpenAEV Agent **may work**, but:
+
+* the environment is not officially validated,
+* stability and long-term support are not guaranteed,
+* additional configuration may be required,
+* environment-specific issues may not be prioritized.
 
 ### Windows
 
-- Requirements:
-  - Ensure access to the OpenAEV instance being used;
-  - Ensure that the system environment variable "Path" contains the values "%SYSTEMROOT%\System32\" and "%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\";
-  - For "Advanced installation as User (service)", you need to enable the "Service Logon" policy for the user you want to run the service as, follow [this tutorial](https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm?view=sc-sm-2025) to do it;
-- Compatibility → All major Windows versions
+#### Operating system & architecture
+
+| Architecture  | Support level     |
+|---------------|-------------------|
+| **x64**       | ✅ Supported       |
+| **ARM64**     | ✅ Supported       |
+| x86 (32-bit)  | ❌ Not supported   |
+| ARM32         | ❌ Not supported   |
+
+| Operating system              | Support level        | Notes               |
+|-------------------------------|----------------------|---------------------|
+| **Windows 10**                | ✅ Supported          |                     |
+| **Windows 11**                | ✅ Supported          |                     |
+| **Windows Server 2019**       | ✅ Supported          |                     |
+| **Windows Server 2022**       | ✅ Supported          |                     |
+| Windows 8 / 8.1               | ⚠️ Best effort       | No guaranteed fixes |
+| Windows Server 2016           | ⚠️ Best effort       | No guaranteed fixes |
+| Windows Server 2012 R2        | ⚠️ Best effort       | No guaranteed fixes |
+| Windows 7 and earlier         | ❌ Not supported      |                     |
+| Windows Server 2008 / 2008 R2 | ❌ Not supported      |                     |
+
+
+#### Runtime & tooling
+
+!!! note
+
+    If the installation fails, try using PowerShell 7 or higher.
+
+* TLS 1.2 or higher must be available
+* The system `Path` environment variable must include: `%SYSTEMROOT%\System32\` and `%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\`
+
+#### Privileges & security
+
+* Installation and execution require **local administrator privileges**
+* For **Advanced installation as User (service)**:
+
+    * The target user must have the **“Log on as a service”** policy enabled
+    * See:
+      [https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm](https://learn.microsoft.com/en-us/system-center/scsm/enable-service-log-on-sm)
+
+#### Antivirus
+
+* Antivirus exclusions are mandatory and must apply **only** to the `runtimes` directory
+
+#### Installation Mode
 
 *[UserSanitized] in the table below means username without special character like "\", "/",...*
 
@@ -42,17 +125,32 @@ Depending on the OS, several installations are at your disposal, you can find th
 | **Advanced installation as User (service)**   | Enable the "Service Logon" policy (see above)<br/>Terminal with admin privileges, replace params [USER] and [PASSWORD] in the<br/>bash snippet and in the following commands by the username with domain and password wanted | Service: `sc` (with user and password in service conf)                                                                              | Background, as soon as the machine powers on, with the user privilege and environment                          | `Get-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Start-Service -Name "OAEVAgent-Service-[UserSanitized]"`<br/>`Stop-Service -Name "OAEVAgent-Service-[UserSanitized]"`                                                                                           | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]`                                                                             | `$HOME\.openaev\OAEVAgent-Service-[UserSanitized]\runtimes`                                                                                      | "uninstall.exe" from the path folder<br/>Disable the "Service Logon" policy for the user (see above) |                             
 | **Advanced installation as System (service)** | Terminal with admin privileges for the authority system user                                                                                                                                                                 | Service: `sc`                                                                                                                       | Background, as soon as the machine powers on, with the root privilege and environment                          | `Get-Service -Name "OAEVAgentService"`<br/>`Start-Service -Name "OAEVAgentService"`<br/>`Stop-Service -Name "OAEVAgentService"`                                                                                                                                              | `C:\Program Files (x86)\Filigran\OAEV Agent`                                                                                   | `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes`                                                                                            | "uninstall.exe" from the path folder                                                                 |
 
-!!! note
-
-    If the installation fails, try using PowerShell 7 or higher.
-
 ### Linux
 
-- Requirements :
-    - systemd
-    - curl
-    - access to the OpenAEV instance used
-- Compatibility → All systemd based linux distros
+#### Operating system & architecture
+
+| Architecture            | Support level      | Notes   |
+|-------------------------|--------------------|---------|
+| **x86_64**              | ✅ Supported        |         |
+| **ARM64**               | ✅ Supported        |         |
+| 32-bit architectures    | ❌ Not supported    |         |
+| Other CPU architectures | ❌ Not supported    |         |
+
+| Distribution type                                      | Support level     | Notes                       |
+|--------------------------------------------------------|-------------------|-----------------------------|
+| **systemd-based distributions** (Debian, Ubuntu, etc.) | ✅ Supported       | systemd required            |
+| Non-systemd distributions                              | ❌ Not supported   | Installer relies on systemd |
+
+#### Runtime & tooling
+
+* **systemd must be installed and running**
+* **curl** must be available
+* TLS support must be enabled
+
+#### Privileges & security
+
+* Installation and execution require **root or sudo privileges**
+* User-based services require permission to manage `systemctl --user`
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                        | Folder path                                 | AV exclusions                                        | Uninstallation                                                                                                                                                                                                             |
 |:----------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------|:--------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------|:-----------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -62,14 +160,38 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 !!! note
 
-    If you want to allow your agent to launch commands payloads for a user without filling the sudo password, follow [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
+    To allow command payload execution without sudo password prompts, see:  
+    [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
 
-### MacOS
-  - Requirements :
-    - launchd
-    - curl
-    - access to the OpenAEV instance used
-  - Compatibility → All launchd based MacOS distros (10.4 Tiger or higher)
+### macOS
+
+#### Operating system & architecture
+
+| Architecture              | Support level   | Notes           |
+|---------------------------|-----------------|-----------------|
+| **ARM64 (Apple Silicon)** | ✅ Supported     |                 |
+| **x86_64 (Intel)**        | ⚠️ Best effort  | Limited testing |
+| 32-bit architectures      | ❌ Not supported |                 |
+| Other CPU architectures   | ❌ Not supported |                 |
+
+| macOS version                                  | Support level    | Notes            |
+|------------------------------------------------|------------------|------------------|
+| **launchd-based macOS (10.4 Tiger and later)** | ✅ Supported      | launchd required |
+| macOS Sonoma (14)                              | ⚠️ Best effort   | Latest version   |
+
+#### Runtime & tooling
+
+* **launchd must be available and running**
+* **curl** must be available
+* TLS support must be enabled
+* The system must allow:
+
+    * Execution of downloaded binaries
+    * Write and execute permissions in the installation directory
+
+#### Privileges & security
+
+* Installation and execution require **administrator privileges**
 
 | Installation mode                             | Installation                                                                                                                                            | Installation type                                                          | Execution agent and payload                                                           | Verification/Start/Stop agent                                                                                                                                                                                                               | Folder path                                 | AV exclusions                                          | Uninstallation                                                                                       |
 |:----------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------|:--------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------|:-------------------------------------------------------|:-----------------------------------------------------------------------------------------------------|
@@ -79,77 +201,52 @@ Depending on the OS, several installations are at your disposal, you can find th
 
 !!! note
 
-    If you want to allow your agent to launch commands payloads for a user without filling the sudo password, follow [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
+    To allow command payload execution without sudo password prompts, see:  
+    [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
 
-The following flow diagram represents the Agent installation flow :
+---
+
+## Agent Installation Flow
 
 ![img.png](../administration/assets/agent_installation_flow_diagram.png)
 
+---
+
 ## Network Traffic
 
-The installation creates two firewall rules.
+The installation creates two firewall rules:
 
-Inbound rule
+**Inbound rule**
 ![Inbound rule](../administration/assets/inbound-rule.png)
 
-Outbound rule
+**Outbound rule**
 ![Outbound rule](../administration/assets/outbound-rule.png)
+
+---
 
 ## Features
 
-The main features of the OpenAEV Agent are:
+The main features of the OpenAEV Agent include:
 
-- Agent registration on the OpenAEV platform
+* Agent registration on the OpenAEV platform
+* Automatic agent upgrade (on startup and registration)
+* Periodic job retrieval (every 30 seconds)
+* Implant lifecycle management
+* Execution cleanup and directory pruning
+* Health checks (heartbeat every 2 minutes)
 
-  The Agent is installed on the Asset using an agent-installer.exe file and runs as a service.
-  It communicates with the deployed OpenAEV instance in order to enroll the Asset. In some cases
-  like unsecured certificates or environment with proxy, the agent can't communicate with OpenAEV.
-  In order to fix those issues, look at "Network and security" chapter from [configuration](https://docs.openaev.io/latest/deployment/configuration)
-  to add the required attributes.
-
-  NB : An Asset can only have one OpenAEV agent installed thanks to a machine id calculated according
-  to the operating system and its parameters. If you try to install again an OpenAEV agent on a platform, it will
-  overwrite the actual one and you will always see one endpoint on the OpenAEV endpoint page.
-
-- Auto upgrade the Agent (on start-up and registration)
-
-- Retrieval of jobs to be executed
-
-  The Agent retrieves jobs to be executed from the OpenAEV instance every 30 seconds.
-  For the moment, jobs are Implant to spawn and launch on the Asset, waiting to execute payloads of your Simulation's Injects.
-  Each job execution logs is kept in a dedicated directory in order to have a trace of what happened (pid, executable).
-
-- Deleting executables and execution directories
-
-  The Agent deletes Implants that have been running for a predefined time and cleans the execution directories.
-
-- Health check
-
-  The Agent pings the OpenAEV instance every 2 minutes to notify it of its healthy status.
-
-- Cleanup
-
-  The Agent ensures that the processes it has executed are correctly finished or deleted if necessary. 
-  The maximum time in minutes that a process associated with an execution directory can remain active is 20 minutes.
-
-  The Agent removes execution directories to avoid excessive disk space. 
-  The maximum time in minutes that an execution directory can be kept before being deleted is 2 days.
+---
 
 ## Troubleshooting
 
-If you experience issues with your agent, the logs are available here (see the "Installation" section above to get the folder path) :
+Logs are available at the following locations (see installation tables for paths):
 
-- Linux -> [FOLDER_PATH]/openaev-agent.log
-- MacOS -> [FOLDER_PATH]/openaev-agent.log
-- Windows -> [FOLDER_PATH]\openaev-agent.log
+* Linux → `[FOLDER_PATH]/openaev-agent.log`
+* macOS → `[FOLDER_PATH]/openaev-agent.log`
+* Windows → `[FOLDER_PATH]\openaev-agent.log`
 
-If you see an error related to an inject not being executed, verify whether it was properly run by the agent.
-![implant-troubleshooting](assets/agents/implant-troubleshooting.png)
+When an implant is deployed, a new directory is created under `runtimes`, named after the inject ID.
+This directory contains:
 
-When the agent deploys an implant to execute your attack:
-A new folder is created under the runtimes directory, named after the inject ID.
-
-Inside this folder, you will find:
-
-- The implant executable (.exe on Windows, corresponding binary on Linux/macOS).
-- Additional logs specific to that execution.
+* The implant executable
+* Execution-specific logs
