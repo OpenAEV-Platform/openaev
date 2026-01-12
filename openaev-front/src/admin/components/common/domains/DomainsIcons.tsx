@@ -35,11 +35,10 @@ const buildIconBarElements = (
   return domains
     .filter(domain => domain.domain_name !== 'To classify' && DOMAIN_ICON_MAP[domain.domain_name])
     .map((domain) => {
-      const count = domainCounts[domain.domain_id];
       return {
         type: domain.domain_id,
         name: domain.domain_name,
-        count: count ?? 0,
+        count: domainCounts[domain.domain_id] ?? 0,
         icon: DOMAIN_ICON_MAP[domain.domain_name],
         color: selectedDomainIds.includes(domain.domain_id) ? 'success' : 'default',
         function: () => onDomainClick(domain.domain_id),

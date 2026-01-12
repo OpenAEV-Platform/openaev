@@ -40,7 +40,7 @@ export const updateInjectorContractMapping = (injectorContractId: InjectorContra
 };
 
 export const addInjectorContract = (data: InjectorContractAddInput) => (dispatch: Dispatch) => {
-  return postReferential(schema.injectorContract, `${INJECTOR_CONTRACT_URI}$`, data)(dispatch);
+  return postReferential(schema.injectorContract, `${INJECTOR_CONTRACT_URI}`, data)(dispatch);
 };
 
 // This action must use InjectorContractSearchPaginationInput to stay

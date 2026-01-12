@@ -96,8 +96,6 @@ public class InjectorContractApiTest extends IntegrationTest {
     roleComposer.reset();
     grantComposer.reset();
     domainComposer.reset();
-    domainRepository.deleteAll();
-    em.flush();
   }
 
   @Nested
@@ -1531,13 +1529,17 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
   }
 
+
   @Nested
   @DisplayName("When contracts are linked to security domains")
   class WhenContractsAreLinkedToDomains {
     @Test
     @DisplayName("It should aggregate counts correctly by domain category")
     void getDomainCountsReturnAggregation() throws Exception {
-      Set<Domain> endpointDomain =
+            domainRepository.deleteAll();
+            em.flush();
+
+              Set<Domain> endpointDomain =
           domainComposer.forDomain(PresetDomain.ENDPOINT).persist().getSet();
       Set<Domain> cloudDomain = domainComposer.forDomain(PresetDomain.CLOUD).persist().getSet();
 
