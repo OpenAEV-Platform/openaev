@@ -1,6 +1,6 @@
-import { Chip, Slide, Tooltip } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import { forwardRef, useMemo } from 'react';
+import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useHelper } from '../store';
