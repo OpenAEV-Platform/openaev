@@ -88,8 +88,10 @@ const IconBar: FunctionComponent<Props> = ({ elements, variant = 'grid' }) => {
                     <Typography
                       variant="subtitle1"
                       noWrap
-                      sx={{ lineHeight: 1,
-                          fontSize: 14, }}
+                      sx={{
+                        lineHeight: 1,
+                        fontSize: 14,
+                      }}
                     >
                       {t(element.name)}
                     </Typography>
