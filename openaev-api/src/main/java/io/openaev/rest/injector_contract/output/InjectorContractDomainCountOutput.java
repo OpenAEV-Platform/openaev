@@ -13,12 +13,12 @@ import lombok.Setter;
 @NoArgsConstructor
 public class InjectorContractDomainCountOutput {
   @NotBlank
-  @JsonProperty("domain_name")
+  @JsonProperty("domain")
   @Schema(description = "The domain name extracted from OpenAEV", example = "Endpoints")
   private String domain;
 
   @NotNull
-  @JsonProperty("domain_count")
+  @JsonProperty("count")
   @Schema(description = "Total number of observations linked to this domain", example = "42")
   private Long count;
 

@@ -3544,9 +3544,17 @@ export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
   );
 
 export interface InjectorContractDomainCountOutput {
-  /** @format int64 */
-  count?: number;
-  domain?: string;
+  /**
+   * Total number of observations linked to this domain
+   * @format int64
+   * @example 42
+   */
+  count: number;
+  /**
+   * The domain name extracted from OpenAEV
+   * @example "Endpoints"
+   */
+  domain: string;
 }
 
 export interface InjectorContractFullOutput {
