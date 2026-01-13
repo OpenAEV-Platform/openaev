@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { fetchTargetResultAssetWithAgents } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import ExpandableSection from '../../../../../components/common/ExpandableSection';
-import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
 import Loader from '../../../../../components/Loader';
@@ -43,10 +42,6 @@ const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target
 
   if (loading) {
     return <Loader />;
-  }
-
-  if (injectExpectationsWithAgents && injectExpectationsWithAgents.length === 0) {
-    return <Empty message={t('No agent inject expectations on this endpoint.')} />;
   }
 
   return (
