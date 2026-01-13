@@ -1,7 +1,7 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
-import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
+import static io.openaev.service.ImportService.EXPORT_ENTRY.ATTACHMENT;
+import static io.openaev.service.ImportService.EXPORT_ENTRY.EXERCISE;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +10,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
+import io.openaev.rest.helper.ExportHelper;
 import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
@@ -61,9 +62,8 @@ public class InjectExportService {
             .withOptions(exportOptionsMask);
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    ZipOutputStream zipExport = new ZipOutputStream(outputStream);
-    ZipEntry zipEntry = new ZipEntry("injects.json");
-    zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
+    ZipOutputStream zipExport = ExportHelper.initExport(outputStream);
+    ZipEntry zipEntry = new ZipEntry(EXERCISE + "/injects.json");
     zipExport.putNextEntry(zipEntry);
     zipExport.write(
         importExport
@@ -81,8 +81,7 @@ public class InjectExportService {
               Optional<InputStream> docStream = fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {
-                  ZipEntry zipDoc = new ZipEntry(doc.getTarget());
-                  zipDoc.setComment(EXPORT_ENTRY_ATTACHMENT);
+                  ZipEntry zipDoc = new ZipEntry(ATTACHMENT + "/" + doc.getTarget());
                   byte[] data = docStream.get().readAllBytes();
                   zipExport.putNextEntry(zipDoc);
                   zipExport.write(data);

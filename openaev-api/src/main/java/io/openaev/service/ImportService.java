@@ -24,6 +24,8 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,14 +36,24 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 @Service
 public class ImportService {
 
-  public static final String EXPORT_ENTRY_EXERCISE = "Exercise";
-  public static final String EXPORT_ENTRY_SCENARIO = "Scenario";
-  public static final String EXPORT_ENTRY_ATTACHMENT = "Attachment";
-  public static final String EXPORT_ENTRY_ENCRYPTED_ATTACHMENT = "EncryptedAttachment";
-  public static final String EXPORT_ENTRY_ENCRYPTED_ARGUMENT_ATTACHMENT =
-      "EncryptedArgumentAttachment";
-  public static final String EXPORT_ENTRY_PAYLOAD_ARCHIVE = "PayloadArchive";
-  public static final String EXPORT_ENTRY_PAYLOAD = "Payload";
+  @RequiredArgsConstructor
+  @Getter
+  public enum EXPORT_ENTRY {
+    EXERCISE("Exercise"),
+    SCENARIO("Scenario"),
+    ATTACHMENT("Attachment"),
+    ENCRYPTED_ATTACHMENT("EncryptedAttachment"),
+    ENCRYPTED_ARGUMENT_ATTACHMENT("EncryptedArgumentAttachment"),
+    PAYLOAD_ARCHIVE("PayloadArchive"),
+    PAYLOAD("Payload"),
+    DIRECT_IMPORT("DirectImport");
+    private final String name;
+
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
 
   private final Map<Integer, Importer> dataImporters = new HashMap<>();
 
@@ -118,8 +130,18 @@ public class ImportService {
 
       while (entries.hasMoreElements()) {
         ZipEntry entry = entries.nextElement();
-        String entryType = entry.getComment();
         String entryName = entry.getName();
+        EXPORT_ENTRY entryType;
+        try {
+          entryType = EXPORT_ENTRY.valueOf(entry.getComment());
+          if (entryName.contains("/")) {
+            entryType = EXPORT_ENTRY.valueOf(entryName.split("/")[0]);
+            entryName = entryName.split("/")[1];
+          }
+        } catch (IllegalArgumentException e) {
+          throw new UnsupportedMediaTypeException(
+              "Import file is using an incorrect format (" + entryName + ")");
+        }
         ByteArrayOutputStream encryptedAttachmentsBuffer = null;
         ByteArrayOutputStream encryptedArgumentsAttachmentsBuffer = null;
         if (entry.isDirectory()) {
@@ -131,28 +153,23 @@ public class ImportService {
             ByteArrayOutputStream jsonBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, jsonBuffer);
             dataImports.add(new ByteArrayInputStream(jsonBuffer.toByteArray()));
-            entryType = "DIRECT_IMPORT";
+            entryType = EXPORT_ENTRY.DIRECT_IMPORT;
           }
         } else if (entryName.contains("attachments.zip")) {
           try (InputStream dataStream = parentZip.getInputStream(entry)) {
             encryptedAttachmentsBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, encryptedAttachmentsBuffer);
-            entryType = "DIRECT_IMPORT";
+            entryType = EXPORT_ENTRY.DIRECT_IMPORT;
           }
         } else if (entryName.contains("arguments_attachments.zip")) {
           try (InputStream dataStream = parentZip.getInputStream(entry)) {
             encryptedArgumentsAttachmentsBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, encryptedArgumentsAttachmentsBuffer);
-            entryType = "DIRECT_IMPORT";
+            entryType = EXPORT_ENTRY.DIRECT_IMPORT;
           }
         }
 
-        if (entryType == null) {
-          throw new UnsupportedMediaTypeException(
-              "Import file is using an incorrect format (" + entryName + ")");
-        }
-
-        if (EXPORT_ENTRY_PAYLOAD_ARCHIVE.equals(entryType)) {
+        if (EXPORT_ENTRY.PAYLOAD_ARCHIVE.equals(entryType)) {
           try (InputStream payloadZipStream = parentZip.getInputStream(entry)) {
             byte[] payloadZipBytes = IOUtils.toByteArray(payloadZipStream);
             try (ZipInputStream payloadZipInputStream =
@@ -175,7 +192,7 @@ public class ImportService {
               }
             }
           }
-        } else if (EXPORT_ENTRY_ATTACHMENT.equals(entryType)) {
+        } else if (EXPORT_ENTRY.ATTACHMENT.equals(entryType)) {
           try (InputStream attStream = parentZip.getInputStream(entry)) {
             ByteArrayOutputStream attachmentBuffer = new ByteArrayOutputStream();
             IOUtils.copy(attStream, attachmentBuffer);
@@ -186,8 +203,8 @@ public class ImportService {
                     new ByteArrayInputStream(attachmentBuffer.toByteArray()),
                     attachmentBuffer.toByteArray().length));
           }
-        } else if (EXPORT_ENTRY_EXERCISE.equals(entryType)
-            || EXPORT_ENTRY_SCENARIO.equals(entryType)) {
+        } else if (EXPORT_ENTRY.EXERCISE.equals(entryType)
+            || EXPORT_ENTRY.SCENARIO.equals(entryType)) {
           try (InputStream dataStream = parentZip.getInputStream(entry)) {
             ByteArrayOutputStream dataBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, dataBuffer);

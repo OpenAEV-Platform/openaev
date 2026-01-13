@@ -8,6 +8,7 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.helper.ExportHelper;
 import io.openaev.rest.payload.exports.PayloadFileExport;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
@@ -42,11 +43,9 @@ public class PayloadExportService {
         new java.util.zip.ZipOutputStream(parentOutputStream)) {
       for (Payload payload : payloads) {
         ByteArrayOutputStream payloadZipStream = new ByteArrayOutputStream();
-        try (java.util.zip.ZipOutputStream payloadZip =
-            new java.util.zip.ZipOutputStream(payloadZipStream)) {
+        try (java.util.zip.ZipOutputStream payloadZip = ExportHelper.initExport(payloadZipStream)) {
           // 1. Add payload.json
-          ZipEntry payloadJsonEntry = new ZipEntry("payload.json");
-          payloadJsonEntry.setComment(EXPORT_ENTRY_PAYLOAD);
+          ZipEntry payloadJsonEntry = new ZipEntry(EXPORT_ENTRY.PAYLOAD + "/payload.json");
           payloadZip.putNextEntry(payloadJsonEntry);
           PayloadFileExport payloadExport =
               PayloadFileExport.fromPayload(payload, mapper.copy(), this.documentRepository);
@@ -81,8 +80,8 @@ public class PayloadExportService {
               }
               byte[] attachmentsZipBytes = encryptedZipStream.toByteArray();
               // Add attachments.zip
-              ZipEntry attachmentsEntry = new ZipEntry("attachments.zip");
-              attachmentsEntry.setComment(EXPORT_ENTRY_ENCRYPTED_ATTACHMENT);
+              ZipEntry attachmentsEntry =
+                  new ZipEntry(EXPORT_ENTRY.ENCRYPTED_ATTACHMENT + "/attachments.zip");
               payloadZip.putNextEntry(attachmentsEntry);
               payloadZip.write(attachmentsZipBytes);
               payloadZip.closeEntry();
@@ -117,8 +116,9 @@ public class PayloadExportService {
               }
             }
             byte[] argumentsAttachmentsZipBytes = encryptedZipStream.toByteArray();
-            ZipEntry argumentsAttachmentsEntry = new ZipEntry("arguments_attachments.zip");
-            argumentsAttachmentsEntry.setComment(EXPORT_ENTRY_ENCRYPTED_ARGUMENT_ATTACHMENT);
+            ZipEntry argumentsAttachmentsEntry =
+                new ZipEntry(
+                    EXPORT_ENTRY.ENCRYPTED_ARGUMENT_ATTACHMENT + "/arguments_attachments.zip");
             payloadZip.putNextEntry(argumentsAttachmentsEntry);
             payloadZip.write(argumentsAttachmentsZipBytes);
             payloadZip.closeEntry();
@@ -127,8 +127,7 @@ public class PayloadExportService {
 
         // Add payload zip to parent zip
         String entryName = payload.getName() + ".zip";
-        ZipEntry payloadZipEntry = new ZipEntry(entryName);
-        payloadZipEntry.setComment(EXPORT_ENTRY_PAYLOAD_ARCHIVE);
+        ZipEntry payloadZipEntry = new ZipEntry(EXPORT_ENTRY.PAYLOAD_ARCHIVE + "/" + entryName);
         parentZip.putNextEntry(payloadZipEntry);
         parentZip.write(payloadZipStream.toByteArray());
         parentZip.closeEntry();

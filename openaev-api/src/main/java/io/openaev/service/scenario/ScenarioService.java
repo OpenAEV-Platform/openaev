@@ -6,8 +6,8 @@ import static io.openaev.database.specification.ScenarioSpecification.findGrante
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
-import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
-import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
+import static io.openaev.service.ImportService.EXPORT_ENTRY.ATTACHMENT;
+import static io.openaev.service.ImportService.EXPORT_ENTRY.SCENARIO;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -37,6 +37,7 @@ import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
+import io.openaev.rest.helper.ExportHelper;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
@@ -603,9 +604,8 @@ public class ScenarioService {
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
     response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");
     response.setStatus(HttpServletResponse.SC_OK);
-    ZipOutputStream zipExport = new ZipOutputStream(response.getOutputStream());
-    ZipEntry zipEntry = new ZipEntry(scenario.getName() + ".json");
-    zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
+    ZipOutputStream zipExport = ExportHelper.initExport(response.getOutputStream());
+    ZipEntry zipEntry = new ZipEntry(SCENARIO + "/" + scenario.getName() + ".json");
     zipExport.putNextEntry(zipEntry);
     zipExport.write(
         objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(scenarioFileExport));
@@ -619,8 +619,7 @@ public class ScenarioService {
               Optional<InputStream> docStream = this.fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {
-                  ZipEntry zipDoc = new ZipEntry(doc.getTarget());
-                  zipDoc.setComment(EXPORT_ENTRY_ATTACHMENT);
+                  ZipEntry zipDoc = new ZipEntry(ATTACHMENT + "/" + doc.getTarget());
                   byte[] data = docStream.get().readAllBytes();
                   zipExport.putNextEntry(zipDoc);
                   zipExport.write(data);
