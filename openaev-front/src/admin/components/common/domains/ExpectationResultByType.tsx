@@ -13,6 +13,11 @@ const useStyles = makeStyles()({
     gap: 2,
     justifyContent:'center',
   },
+  inline:{
+    display: 'flex',
+    gap: 4,
+    alignItems: 'baseline'
+  }
 });
 
 interface Props{
@@ -36,25 +41,21 @@ const ExpectationResultByType: FunctionComponent<Props> = ({results, inline}) =>
         let successValue = 0;
         result.data?.map((d: EsSeriesData) => {
           if (d.key === "success"){
-            successValue =  d.value ? d.value : 0;
+            successValue =  d.value ?? 0;
           }
         });
-        const successRate = result.value ? calcPercentage(successValue,result.value) : 0;
+        const successRate = result.value ? calcPercentage(successValue,result.value) : - 1;
         return (
           <div
           style={{
             height: theme.spacing(3)
           }}
           >
-            <div style={{
-              display: 'flex',
-              gap: 4,
-              alignItems: 'baseline'
-            }}>
+            <div className={classes.inline}>
               <Icon
                 key={result.label}
                 sx={{
-                  color: result.data !== undefined ? colorByAverage(successRate) : 'transparent'
+                  color: colorByAverage(successRate)
                 }}
               >
                 {expectationIconByType(result.label)}
@@ -62,11 +63,7 @@ const ExpectationResultByType: FunctionComponent<Props> = ({results, inline}) =>
               {result.label && <span style={{ fontSize: theme.typography.body2.fontSize }}>{capitalize(result.label)}</span>}
               {result.data?.map((d:EsSeriesData) => {
                 return (
-                  <div style={{
-                    display: 'flex',
-                    gap: 4,
-                    alignItems: 'baseline'
-                  }}>
+                  <div className={classes.inline}>
                     {
                       d.label && d.value && result.value && (
                         <span style={{ color: colorByLabel(d.label), fontSize: theme.typography.h4.fontSize }}>{formatPercentage(calcPercentage(d.value, result.value), 1)}</span>
@@ -89,13 +86,13 @@ const ExpectationResultByType: FunctionComponent<Props> = ({results, inline}) =>
               successValue =  d.value ? d.value : 0;
             }
           }))
-          const successRate = result.value ? calcPercentage(successValue,result.value) : 0;
+          const successRate = result.value ? calcPercentage(successValue,result.value) : - 1;
           return (
             <div>
               <Icon
                 key={result.label}
                 sx={{
-                  color: result.data !== undefined ? colorByAverage(successRate) : 'transparent'
+                  color: colorByAverage(successRate)
                 }}
               >
                 {expectationIconByType(result.label)}

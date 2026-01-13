@@ -2,8 +2,8 @@ import { FunctionComponent, useState } from 'react';
 import { type Domain, EsAvgs, EsDomainsAvgData, EsSeries } from '../../../../../../../utils/api-types';
 import { IconBarElement } from '../../../../../common/domains/IconBar-model';
 import IconBar from '../../../../../common/domains/IconBar';
-import { buildOrderedDomains, getDomainByIcon, getDomainOrder } from './SecurityDomainsWidgetUtils';
-import { colorByAverage } from '../../../../../common/ColorByResult';
+import { buildOrderedDomains, getIconByDomain, getOrderByDomain } from './SecurityDomainsWidgetUtils';
+import { colorByAverage, EMPTY_DATA } from '../../../../../common/ColorByResult';
 import ExpectationResultByType from '../../../../../common/domains/ExpectationResultByType';
 import { useHelper } from '../../../../../../../store';
 import type { DomainHelper } from '../../../../../../../actions/helper';
@@ -23,35 +23,26 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
   const { t } = useFormatter();
 
   const [domainType, setDomainType] = useState<string|null>(null);
-  const handleClick = (type: string | undefined) => {
-    if (type){
-      setDomainType((current) => (current === type ? null : type))
-    }
-  };
+  const handleClick = (type: string | undefined) => type && setDomainType((current) => (current === type ? null : type));
 
-  const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
-    return helper.getDomains();
-  });
+  const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
 
   const globalSuccessRate = (domain: EsDomainsAvgData): number => {
-    if (domain.data){
-      let successTotal = 0;
-      let totalData = 0;
-      for (const item of domain.data){
-        item.value ? totalData += item.value : totalData == 0;
-        if (item.data) {
-          for (const entry of item.data){
-            if(entry.key === "success"){
-              entry.value ? successTotal += entry.value : 0;
-            }
-          }
-        }
+    if (!domain.data) return 0;
+
+    let successTotal = 0;
+    let totalData = 0;
+
+    for (const item of domain.data) {
+      totalData += item.value ?? 0;
+
+      if (item.data) {
+        const successEntry = item.data.find(entry => entry.key === "success");
+        successTotal += successEntry?.value ?? 0;
       }
-      return successTotal/totalData;
-    } else {
-      return 0;
     }
 
+    return totalData === 0 ? 0 : successTotal / totalData;
   }
 
   let iconBarElements: IconBarElement[] = [];
@@ -64,7 +55,7 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
           let element: IconBarElement = {
             type: selectedDomains[0].label,
             selectedType: domainType,
-            icon: () => getDomainByIcon(selectedDomains[0].label),
+            icon: () => getIconByDomain(selectedDomains[0].label),
             color: colorByAverage(globalSuccessRate(selectedDomains[0])*100),
             name: selectedDomains[0].label,
             results: () => (<ExpectationResultByType results={selectedDomains[0].data}/>),
@@ -82,11 +73,11 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({
         let element: IconBarElement = {
           type: domain.domain_name,
           selectedType: domainType,
-          icon: () => getDomainByIcon(domain.domain_name),
+          icon: () => getIconByDomain(domain.domain_name),
           color: colorByAverage(- 1),
           name: domain.domain_name,
           results: () => (<ExpectationResultByType results={emptyResult}/>),
-          expandedResults: () =>(<span style={{fontSize: theme.typography.body2.fontSize,color:'rgba(128,127,127,0.37)'}}>{t('No data collected on this domain at this time. Run a scenario to start analyzing your position on this domain.')}</span>),
+          expandedResults: () =>(<span style={{fontSize: theme.typography.body2.fontSize,color:EMPTY_DATA}}>{t('No data collected on this domain at this time. Run a scenario to start analyzing your position on this domain.')}</span>),
           function: () => handleClick(domain.domain_name)
         };
         iconBarElements.push(element);

@@ -606,14 +606,15 @@ public class OpenSearchService implements EngineService {
     }
 
     try {
+      Map<String,String> fields = averageRuntime.getConfig().getField();
 
-      String domainField = toElasticField("base_security_domains_side");
+      String domainField = toElasticField(fields.get("domainField"));
       String domainAggregationKey = "by_security_domain";
 
-      String typeField = toElasticField("inject_expectation_type");
+      String typeField = toElasticField(fields.get("typeField"));
       String typeAggregationKey = "by_inject_expectation_type";
 
-      String statusField = toElasticField("inject_expectation_status");
+      String statusField = toElasticField(fields.get("statusField"));
       String statusAggregationKey = "by_inject_expectation_status";
 
       SearchRequest request =

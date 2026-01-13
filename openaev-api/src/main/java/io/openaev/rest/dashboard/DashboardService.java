@@ -18,6 +18,7 @@ import io.openaev.rest.custom_dashboard.WidgetService;
 import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
 import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openaev.service.EsAttackPathService;
+import io.openaev.service.EsSecurityDomainService;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class DashboardService {
   private final EngineService engineService;
   private final UserRepository userRepository;
   private final WidgetService widgetService;
+  private final EsSecurityDomainService esSecurityDomainService;
 
   private final RawUserAuthMapper rawUserAuthMapper;
 
@@ -58,7 +60,7 @@ public class DashboardService {
         (AverageConfiguration) widgetContext.widget().getWidgetConfiguration();
     AverageRuntime runtime =
         new AverageRuntime(
-            config, widgetContext.parameters(), widgetContext.definitionParameters());
+            esSecurityDomainService.setFieldsForQuery(config), widgetContext.parameters(), widgetContext.definitionParameters());
     return engineService.average(widgetContext.user(), runtime);
   }
 

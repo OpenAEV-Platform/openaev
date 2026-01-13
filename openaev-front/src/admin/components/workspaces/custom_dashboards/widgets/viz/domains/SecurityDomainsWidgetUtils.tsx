@@ -1,9 +1,9 @@
-import {  ReactElement } from 'react';
+import { ReactElement } from 'react';
 import { Groups, ImportantDevices, Language, Lock, Mail, WebAsset, HelpOutlined } from '@mui/icons-material';
 import { Cloud, Database } from 'mdi-material-ui';
 import { IconBarElement } from '../../../../../common/domains/IconBar-model';
 
-export function getDomainByIcon(name: string | undefined): ReactElement  {
+export function getIconByDomain(name: string | undefined): ReactElement  {
   switch (name){
     case 'Endpoint':
       return <ImportantDevices fontSize="large"/>;
@@ -26,7 +26,7 @@ export function getDomainByIcon(name: string | undefined): ReactElement  {
   }
 };
 
-export function getDomainOrder(name: string | undefined): number  {
+export function getOrderByDomain(name: string | undefined): number  {
   switch (name){
     case 'Endpoint':
       return 0;
@@ -63,7 +63,7 @@ export function buildOrderedDomains (items: IconBarElement[]): IconBarElement[] 
   for(const item of items) {
     const name = item.name;
     if (!name) continue;
-    const index = getDomainOrder(item.name);
+    const index = getOrderByDomain(item.name);
     orderedDomains[index] = item;
   }
   return orderedDomains;
